@@ -41,7 +41,7 @@
 <body>
 <main>
   <h1>Solomon Customizer ROM Map - JP mapper66 current</h1>
-  <p class="lead">2026-05-25 v0.7.66 棚卸版。PRG0/PRG1の全体像、bank0 caveの詳細、強化敵コードの配置、開始画面アナウンス、残り空き容量を視覚的に確認するための台帳。</p>
+  <p class="lead">2026-05-25 v0.7.65 棚卸版。PRG0/PRG1の全体像、bank0 caveの詳細、強化敵コードの配置、開始画面アナウンス、残り空き容量を視覚的に確認するための台帳。</p>
 
   <div class="legend">
     <span class="lg"><span class="sw orig"></span>元PRG / 既存コード・既存データ</span>
@@ -153,7 +153,7 @@
     </div>
     <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
     <div class="note">
-      <b>棚卸メモ:</b> 2026-05-25時点の予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち使用中1,506B、未予約64B、最大連続空き18B。Gargoyle 2-shot、gap_fix <code>$C000-$C087</code>、Spark Ball variant、Key enemy、Stage start announcement は現在の台帳上で非重複。
+      <b>棚卸メモ:</b> 2026-05-25時点の予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち使用中1,504B、未予約66B、最大連続空き18B。Gargoyle 2-shot、gap_fix <code>$C000-$C087</code>、Spark Ball variant、Key enemy、Stage start announcement は現在の台帳上で非重複。
     </div>
     <h3>bank0 cave 未予約ギャップ</h3>
     <table>
@@ -171,11 +171,11 @@
       <tr><td class="num">0x3EAF</td><td class="num">$BE9F</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
       <tr><td class="num">0x3ECD-0x3ECF</td><td class="num">$BEBD-$BEBF</td><td class="num">3B</td><td>断片。基本は埋め草用。</td></tr>
       <tr><td class="num">0x3EF9</td><td class="num">$BEE9</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
-      <tr><td class="num">0x3FC1-0x3FC8</td><td class="num">$BFB1-$BFB8</td><td class="num">8B</td><td>小ヘルパ候補。Panel Monster normal fire copy直前。</td></tr>
+      <tr><td class="num">0x3FBF-0x3FC8</td><td class="num">$BFAF-$BFB8</td><td class="num">10B</td><td>小ヘルパ候補。Panel Monster normal fire copy直前。</td></tr>
       <tr><td class="num">0x400F</td><td class="num">$BFFF</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
       <tr><td class="num">0x418F</td><td class="num">$C17F</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
       <tr><td class="num">0x420E-0x420F</td><td class="num">$C1FE-$C1FF</td><td class="num">2B</td><td>bank0 cave末尾の断片。</td></tr>
-      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>64B</b></td><td>寄せ集めの合計。大きな新規処理を置ける連続空きではない。</td></tr>
+      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>66B</b></td><td>寄せ集めの合計。大きな新規処理を置ける連続空きではない。</td></tr>
     </table>
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
@@ -196,7 +196,7 @@
       <tr><td>Key enemy defeat chunk</td><td class="num">0x3E84-0x3E8D</td><td class="num">$BE74-$BE7D</td><td class="num">10B</td><td>Split key dropper chunk.</td></tr>
       <tr><td>Spark Ball animation setter</td><td class="num">0x3EFA-0x3F02</td><td class="num">$BEEA-$BEF2</td><td class="num">9B</td><td>Helper used by animation hook.</td></tr>
       <tr><td>Key enemy defeat chunks</td><td class="num">0x3EA4-0x3EAE / 0x3EC6-0x3ECC / 0x3F03-0x3F0F / 0x3FFD-0x400E</td><td class="num">$BE94 / $BEB6 / $BEF3 / $BFED</td><td class="num">49B</td><td>Split key dropper chunks placed in small verified gaps to avoid `gap_fix`.</td></tr>
-      <tr><td>Panel Monster bullet hook</td><td class="num">0x3F79-0x3FC0</td><td class="num">$BF69-$BFB0</td><td class="num">72B</td><td>Diagonal bullet movement hook. Right/left bullets spread on Y; up/down bullets spread on X.</td></tr>
+      <tr><td>Panel Monster bullet hook</td><td class="num">0x3F79-0x3FBE</td><td class="num">$BF69-$BFAE</td><td class="num">70B</td><td>Diagonal bullet movement hook.</td></tr>
       <tr><td>Panel Monster normal fire copy</td><td class="num">0x3FC9-0x3FE7</td><td class="num">$BFB9-$BFD7</td><td class="num">31B</td><td>Copied stock Panel Monster fire routine. Former 10B gap `$BFAF-$BFB8` is free.</td></tr>
       <tr><td>Spark Ball slow AI wrapper</td><td class="num">0x3FE8-0x3FFC</td><td class="num">$BFD8-$BFEC</td><td class="num">21B</td><td>Dragon-ID <code>$6A/$6B</code> routing.</td></tr>
       <tr><td>gap_fix cave</td><td class="num">0x4010-0x4097</td><td class="num">$C000-$C087</td><td class="num">136B</td><td class="ok">No overlap with Spark Ball variants or key enemies as of v0.6.158.</td></tr>
