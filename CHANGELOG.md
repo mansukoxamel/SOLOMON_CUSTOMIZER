@@ -1,5 +1,12 @@
 # MAGATU_SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.66 (2026-05-25) Fix vertical Panel Monster spread axis
+- Changed the Panel Monster 2-way/3-way Bullet hook so right/left shots still
+  spread on Y, while up/down shots spread on X.
+- The hook grows from 70B to 72B and remains within the existing 80B
+  Panel Monster bullet/normal-fire frame. The ROM map free-space accounting now
+  reports 64B total unreserved bank0 cave space.
+
 ## v0.7.65 (2026-05-25) Show bank0 cave free bytes
 - Added exact bank0 cave free-space accounting to the ROM map:
   `$BBDE-$C1FF` has 1,570B total, 1,504B reserved, 66B unreserved, and the
