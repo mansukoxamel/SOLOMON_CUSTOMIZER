@@ -41,7 +41,7 @@
 <body>
 <main>
   <h1>Solomon Customizer ROM Map - JP mapper66 current</h1>
-  <p class="lead">2026-05-25 v0.7.65 棚卸版。PRG0/PRG1の全体像、bank0 caveの詳細、強化敵コードの配置、開始画面アナウンス、残り空き容量を視覚的に確認するための台帳。</p>
+  <p class="lead">2026-05-26 v0.7.70 棚卸版。PRG0/PRG1の全体像、bank0 caveの詳細、強化敵コードの配置、開始画面アナウンス、原作00/EA埋め上書き、残り空き容量を視覚的に確認するための台帳。</p>
 
   <div class="legend">
     <span class="lg"><span class="sw orig"></span>元PRG / 既存コード・既存データ</span>
@@ -59,6 +59,7 @@
     新しいROM領域を使う前に、このHTML、<code>docs/ram_map_current.html</code>、実装側の
     <code>RESERVED_SPANS</code> / <code>OFF_*</code> / <code>CPU_*</code> 定数を確認する。
     予約の追加・移動・解除をしたら同じ変更でこの表も更新する。重複、古い名前、根拠不明の「空き候補」が残っている状態ではリリース不可。
+    原作ROMで <code>00</code> や <code>EA</code> が並ぶ領域でも、既にモジュールが上書きしている場所は空き扱いしない。
   </div>
 
   <h2>1. ROM全体</h2>
@@ -97,7 +98,31 @@
       <tr><td class="num">0x63CC-0x63E3 / 0x60CC-0x60D0</td><td>Stage start announcement main / masks</td><td>`$9061` フック先。`$0778` のルームフラグから開始画面アナウンスを条件描画し、最後に原作 `$915E` へ戻す。</td></tr>
       <tr><td class="num">0x639C-0x63B4 / 0x61EC-0x61F7</td><td>Stage start announcement draw helper</td><td>`$9471` 互換の待機を行う開始画面アナウンス用PPU scriptポインタ共有ヘルパ。</td></tr>
       <tr><td class="num">0x60FC-0x6108 / 0x612C-0x6138 / 0x618C-0x619A / 0x61BC-0x61C8 / 0x657C-0x658A / 0x66FC-0x670B</td><td>Stage start announcement scripts</td><td>`DARK ROOM` / `FIRE LOSS` / `HIDDEN DOOR` / `KEY ENEMY` / `FIRE SEALED` / `SPELL SEALED`。</td></tr>
+      <tr><td class="num">0x681C-0x6832</td><td>Transparent Spark Ball Golem-ID AI wrapper</td><td>原作00埋め領域を利用。`$A35C/$A35E` から呼ばれる透明Spark Ball用Golem-ID wrapper。</td></tr>
       <tr><td class="num">0x6FD4-0x700A</td><td>Spark Ball pause hook</td><td>PRG0後半のEA埋め領域を利用。55B。</td></tr>
+    </table>
+    <h3>PRG0 モジュール別上書き棚卸し</h3>
+    <div class="note">
+      <b>原作埋め領域の扱い:</b>
+      <code>00</code> / <code>EA</code> 連続領域は「候補」であって未使用保証ではない。
+      下表の範囲は実装モジュールが書き込むため、原作では埋め領域に見えても使用済みまたは予約済みとして扱う。
+      原作コード/データを直接パッチする行は、空き容量ではなく既存処理の差し替え。
+    </div>
+    <table>
+      <tr><th>分類</th><th>モジュール</th><th>file offset</th><th>CPU</th><th>Size</th><th>原作状態</th><th>用途</th></tr>
+      <tr><td>小routine</td><td><code>initial_magic.py</code> / <code>initial_lives.py</code></td><td class="num">0x0BF2-0x0C0D</td><td class="num">$8BE2-$8BFD</td><td class="num">28B</td><td>EA埋め</td><td>開始時魔法数、初期残数。Transparent Spark Ball Golem-ID wrapper は <code>$E80C</code> へ退避済み。</td></tr>
+      <tr><td>既存処理差し替え</td><td><code>spark_ball_variant.py</code></td><td class="num">0x2569-0x2582</td><td class="num">$A559-$A572</td><td class="num">26B</td><td>原作コード/データ</td><td>Spark Ball property selector。</td></tr>
+      <tr><td>小routine</td><td><code>stage_announcement.py</code></td><td class="num">0x33D0-0x33DC</td><td class="num">$B3C0-$B3CC</td><td class="num">13B</td><td>EA埋め</td><td>開始画面アナウンスの KEY ENEMY gate。</td></tr>
+      <tr><td>bank0 cave</td><td>複数モジュール</td><td class="num">0x3BEE-0x420F</td><td class="num">$BBDE-$C1FF</td><td class="num">1,570B</td><td>00/EA混在</td><td>RoomFlag、強化敵、gap_fix、Key enemy、runtime block override。詳細は bank0 cave 拡大図。</td></tr>
+      <tr><td>小routine</td><td><code>spark_ball_variant.py</code></td><td class="num">0x4FEE-0x5009</td><td class="num">$CFDE-$CFF9</td><td class="num">28B</td><td>EA埋め</td><td>Spark Ball animation hook。</td></tr>
+      <tr><td>小routine</td><td><code>panel_monster_variant.py</code></td><td class="num">0x5BEF-0x5C0A</td><td class="num">$DBDF-$DBFA</td><td class="num">28B</td><td>EA埋め</td><td>Panel/Spark property selector。</td></tr>
+      <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x60CC-0x60D0</td><td class="num">$E0BC-$E0C0</td><td class="num">5B</td><td>00埋め</td><td>開始画面アナウンス mask table。</td></tr>
+      <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x60FC-0x6108 / 0x612C-0x6138 / 0x618C-0x619A / 0x61BC-0x61C8</td><td class="num">$E0EC / $E11C / $E17C / $E1AC</td><td class="num">54B</td><td>00埋め</td><td>DARK ROOM、FIRE LOSS、HIDDEN DOOR、KEY ENEMY scripts。</td></tr>
+      <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x61EC-0x61F7</td><td class="num">$E1DC-$E1E7</td><td class="num">12B</td><td>00埋め</td><td>開始画面アナウンス pointer table。</td></tr>
+      <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x639C-0x63B4 / 0x63CC-0x63E3</td><td class="num">$E38C-$E3A4 / $E3BC-$E3D3</td><td class="num">49B</td><td>00埋め</td><td>draw helper / main routine。</td></tr>
+      <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x657C-0x658A / 0x66FC-0x670B</td><td class="num">$E56C-$E57A / $E6EC-$E6FB</td><td class="num">31B</td><td>00埋め</td><td>FIRE SEALED、SPELL SEALED scripts。</td></tr>
+      <tr><td>00埋め上書き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x681C-0x6832</td><td class="num">$E80C-$E822</td><td class="num">23B</td><td>00埋め</td><td>Transparent Spark Ball Golem-ID AI wrapper。旧配置 <code>$8BE2</code> は initial magic / lives と衝突するため使用しない。</td></tr>
+      <tr><td>小routine</td><td><code>spark_ball_variant.py</code></td><td class="num">0x6FD4-0x700A</td><td class="num">$EFC4-$EFFA</td><td class="num">55B</td><td>EA埋め</td><td>Spark Ball pause hook。</td></tr>
     </table>
   </div>
 
@@ -262,6 +287,23 @@
     <tr><td>敵IDごとの属性/見た目/挙動表</td><td>PRG1またはロード時RAMコピー候補</td><td>大きい固定テーブルはPRG0に置く必要が薄い。</td></tr>
     <tr><td>ステージ開始前だけ必要な処理</td><td>PRG1活用候補</td><td>ロード時ならbank切替の安全設計がしやすい。</td></tr>
     <tr><td>強化敵 wrapper</td><td>共通化候補</td><td>現在は敵ごとに似た判定/分岐が増えており、PRG0断片を消費している。</td></tr>
+  </table>
+
+  <h2>7. PRG0 追加コード候補</h2>
+  <div class="note">
+    <b>未予約の原作00埋め候補:</b>
+    下表は既知の予約スパンを除外したうえで、比較的使いやすそうな連続 <code>00</code> 埋めだけを控えたもの。
+    まだ安全確定ではないため、新規使用時は周辺参照とエミュレータ実行で再確認してから正式予約する。
+    <code>$DAxx-$DCxx</code> 周辺の小さな00埋めは速度/敵テーブル近傍のため候補から外す。
+  </div>
+  <table>
+    <tr><th>file offset</th><th>CPU</th><th>Size</th><th>扱い</th></tr>
+    <tr><td class="num">0x68AC-0x68C4</td><td class="num">$E89C-$E8B4</td><td class="num">25B</td><td>原作00埋め。小routine候補。</td></tr>
+    <tr><td class="num">0x696C-0x6983</td><td class="num">$E95C-$E973</td><td class="num">24B</td><td>原作00埋め。小routine候補。</td></tr>
+    <tr><td class="num">0x678C-0x67A3</td><td class="num">$E77C-$E793</td><td class="num">24B</td><td>原作00埋め。小routine候補。</td></tr>
+    <tr><td class="num">0x675C-0x6773</td><td class="num">$E74C-$E763</td><td class="num">24B</td><td>原作00埋め。小routine候補。</td></tr>
+    <tr><td class="num">0x693C-0x694F</td><td class="num">$E92C-$E93F</td><td class="num">20B</td><td>原作00埋め。短い分岐/補助routine候補。</td></tr>
+    <tr><td class="num">0x6465-0x6474</td><td class="num">$E455-$E464</td><td class="num">16B</td><td>原作00埋め。かなり短い補助routine候補。</td></tr>
   </table>
 </main>
 </body>

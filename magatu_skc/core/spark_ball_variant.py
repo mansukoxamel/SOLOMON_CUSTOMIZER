@@ -103,7 +103,8 @@ CPU_AI_DRAGON_SLOW_WRAPPER = _cpu(0x3FE8)  # $BFD8
 CPU_AI_DRAGON_FAST_WRAPPER_OLD = _cpu(0x4008)  # $BFF8, v0.6.129-v0.6.130
 CPU_AI_DRAGON_FAST_WRAPPER_OLD2 = _cpu(0x4018) # $C008, v0.6.131-v0.6.133
 CPU_AI_DRAGON_FAST_WRAPPER = _cpu(0x3D36)      # $BD26
-CPU_AI_GOLEM_WRAPPER = _cpu(0x0BF2)            # $8BE2
+CPU_AI_GOLEM_WRAPPER_OLD = _cpu(0x0BF2)        # $8BE2, v0.7.53-v0.7.69
+CPU_AI_GOLEM_WRAPPER = _cpu(0x681C)            # $E80C, original 00-fill
 CPU_PAUSE_HOOK_OLD = _cpu(0x4048)              # $C038, v0.6.131-v0.6.133
 CPU_PAUSE_HOOK = _cpu(0x6FD4)                  # $EFC4
 CPU_PROPERTY_HOOK_OLD = _cpu(0x3E72)           # $BE62, v0.6.130-v0.7.52
@@ -116,6 +117,7 @@ CPU_PANEL_ANIM_HOOK = _cpu(0x40D2)             # $C0C2
 
 OFF_AI_DRAGON_SLOW_WRAPPER = _cf(CPU_AI_DRAGON_SLOW_WRAPPER)
 OFF_AI_DRAGON_FAST_WRAPPER = _cf(CPU_AI_DRAGON_FAST_WRAPPER)
+OFF_AI_GOLEM_WRAPPER_OLD = _cf(CPU_AI_GOLEM_WRAPPER_OLD)
 OFF_AI_GOLEM_WRAPPER = _cf(CPU_AI_GOLEM_WRAPPER)
 OFF_PAUSE_HOOK = _cf(CPU_PAUSE_HOOK)
 OFF_PROPERTY_HOOK = _cf(CPU_PROPERTY_HOOK)
@@ -284,12 +286,18 @@ def apply(rom_data) -> list[str]:
         cur = bytes(rom_data[off:off + 2])
         if cur not in (ORIG_AI_DRAGON, *hooks):
             raise SparkBallVariantError(f"{name} AI table signature mismatch: got {cur.hex(' ')}")
-    for off, hook, name in (
-        (OFF_AI_GOLEM_SLOW, _word(CPU_AI_GOLEM_WRAPPER), "$A35C"),
-        (OFF_AI_GOLEM_FAST, _word(CPU_AI_GOLEM_WRAPPER), "$A35E"),
+    for off, hooks, name in (
+        (OFF_AI_GOLEM_SLOW, (
+            _word(CPU_AI_GOLEM_WRAPPER),
+            _word(CPU_AI_GOLEM_WRAPPER_OLD),
+        ), "$A35C"),
+        (OFF_AI_GOLEM_FAST, (
+            _word(CPU_AI_GOLEM_WRAPPER),
+            _word(CPU_AI_GOLEM_WRAPPER_OLD),
+        ), "$A35E"),
     ):
         cur = bytes(rom_data[off:off + 2])
-        if cur not in (ORIG_AI_GOLEM, hook):
+        if cur not in (ORIG_AI_GOLEM, *hooks):
             raise SparkBallVariantError(f"{name} AI table signature mismatch: got {cur.hex(' ')}")
 
     changed: list[str] = []
@@ -336,8 +344,16 @@ def apply(rom_data) -> list[str]:
         OFF_AI_GOLEM_WRAPPER,
         CAVE_AI_GOLEM_WRAPPER,
         changed,
-        "Transparent Spark Ball Golem-ID AI wrapper $8BE2",
+        "Transparent Spark Ball Golem-ID AI wrapper $E80C",
     )
+    if bytes(rom_data[OFF_AI_GOLEM_WRAPPER_OLD:OFF_AI_GOLEM_WRAPPER_OLD + len(CAVE_AI_GOLEM_WRAPPER)]) == CAVE_AI_GOLEM_WRAPPER:
+        _write_blob(
+            rom_data,
+            OFF_AI_GOLEM_WRAPPER_OLD,
+            bytes([0xEA] * len(CAVE_AI_GOLEM_WRAPPER)),
+            changed,
+            "clear old Transparent Spark Ball Golem-ID AI wrapper $8BE2",
+        )
     _write_blob(
         rom_data,
         OFF_PAUSE_HOOK,

@@ -1,5 +1,15 @@
 # MAGATU_SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.70 (2026-05-26) Inventory module ROM writes
+- Added a PRG0 module-by-module write ledger to
+  `docs/rom_map_jp_mapper66_current.html`.
+- Marked original `00`/`EA` fill areas already overwritten by app modules so
+  they are not mistaken for free space.
+- Moved the Transparent Spark Ball Golem-ID AI wrapper from `$8BE2` to the
+  original `00` fill at `$E80C`, leaving `$8BE2-$8BFD` for initial magic/lives.
+- Recorded the main remaining PRG0 original `00` fill candidates for small
+  future routines.
+
 ## v0.7.69 (2026-05-26) Remove personal path references
 - Removed local user/path references from tracked source comments and changelog
   entries while preserving the technical meaning.
