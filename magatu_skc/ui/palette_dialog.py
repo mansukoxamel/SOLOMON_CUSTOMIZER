@@ -415,9 +415,7 @@ class PaletteDialog(QDialog):
 
     def _save_preset(self):
         """パレット設定をJSONファイルに保存"""
-        import sys
-        sys.path.insert(0, r"D:\program\SingleFunction\module")
-        from file_dialog import get_path
+        from .file_dialog_compat import get_path
         path = get_path(parent=self, title="パレットプリセット保存", filter="*.json", mode="save")
         if not path:
             return
@@ -443,9 +441,7 @@ class PaletteDialog(QDialog):
 
     def _load_preset(self):
         """JSONファイルからパレット設定を読み込み"""
-        import sys
-        sys.path.insert(0, r"D:\program\SingleFunction\module")
-        from file_dialog import get_file
+        from .file_dialog_compat import get_file
         path = get_file(self, title="パレットプリセット読込", filter="*.json")
         if not path:
             return

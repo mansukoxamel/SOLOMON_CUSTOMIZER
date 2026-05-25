@@ -814,16 +814,8 @@ class TitleScreenDialog(QDialog):
         return TS.apply_title_top_layout(self._rom, meta)
 
     def _pick_open(self, title, filt):
-        try:
-            import sys as _s
-            _s.path.insert(0, r"D:\program\SingleFunction\module")
-            from file_dialog import get_file
-            return get_file(self, title=title, filter=filt)
-        except Exception:
-            qf = filt.replace(";", " ").replace("*", "*")
-            p, _ = QFileDialog.getOpenFileName(self, title, "",
-                                               f"{qf};;All files (*)")
-            return p
+        from .file_dialog_compat import get_file
+        return get_file(self, title=title, filter=filt)
 
     def _on_transcode_title(self):
         path = self._pick_open(

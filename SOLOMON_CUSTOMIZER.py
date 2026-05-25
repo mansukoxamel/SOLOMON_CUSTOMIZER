@@ -15,9 +15,6 @@ if sys.platform == "win32":
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QIcon
 
-# 共通モジュールパス
-sys.path.insert(0, r"D:\program\SingleFunction\module")
-
 from magatu_skc.core.config import load_config
 from magatu_skc.ui.main_window import MainWindow
 from magatu_skc.ui.theme import build_app_stylesheet, DEFAULT_THEME_GRAY

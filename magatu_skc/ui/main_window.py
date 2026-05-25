@@ -1,7 +1,6 @@
 """メインウィンドウ - PyQt5 GUI"""
 import copy
 import os
-import sys
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
@@ -835,14 +834,8 @@ class MainWindow(QMainWindow):
 
     def _on_open_rom(self):
         filter_str = "NES ROMs / ZIP (*.nes *.zip);;NES ROMs (*.nes);;ZIP archives (*.zip);;All files (*)"
-        try:
-            sys.path.insert(0, r"D:\program\SingleFunction\module")
-            from file_dialog import get_file
-            path = get_file(self, title="NES ROM を選択", filter=filter_str)
-        except Exception:
-            path, _ = QFileDialog.getOpenFileName(
-                self, "NES ROM を選択", "", filter_str
-            )
+        from .file_dialog_compat import get_file
+        path = get_file(self, title="NES ROM を選択", filter=filter_str)
 
         if not path:
             return
@@ -1177,16 +1170,8 @@ class MainWindow(QMainWindow):
             return
 
         # 1. 原本ROM（市販吸出し）を選択
-        try:
-            import sys as _sys
-            _sys.path.insert(0, r"D:\program\SingleFunction\module")
-            from file_dialog import get_file
-            base_path = get_file(self, title="原本ROM（市販吸出し）を選択", filter="*.nes")
-        except Exception:
-            base_path, _ = QFileDialog.getOpenFileName(
-                self, "原本ROM（市販吸出し）を選択", "",
-                "NES ROM (*.nes);;All files (*)"
-            )
+        from .file_dialog_compat import get_file
+        base_path = get_file(self, title="原本ROM（市販吸出し）を選択", filter="*.nes")
         if not base_path:
             return
 
@@ -1415,16 +1400,8 @@ class MainWindow(QMainWindow):
     def _on_png_import_current(self):
         if not self.levels:
             return
-        try:
-            import sys as _sys
-            _sys.path.insert(0, r"D:\program\SingleFunction\module")
-            from file_dialog import get_file
-            path = get_file(self, title="ステージデータPNGを選択", filter="*.png")
-        except Exception:
-            path, _ = QFileDialog.getOpenFileName(
-                self, "ステージデータPNGを選択", "",
-                "PNG files (*.png);;All files (*)"
-            )
+        from .file_dialog_compat import get_file
+        path = get_file(self, title="ステージデータPNGを選択", filter="*.png")
         if not path:
             return
         try:
@@ -1455,13 +1432,8 @@ class MainWindow(QMainWindow):
     def _on_png_import_all(self):
         if not self.levels:
             return
-        try:
-            import sys as _sys
-            _sys.path.insert(0, r"D:\program\SingleFunction\module")
-            from file_dialog import get_folder
-            folder = get_folder(self, title="ステージデータPNGフォルダを選択")
-        except Exception:
-            folder = QFileDialog.getExistingDirectory(self, "ステージデータPNGフォルダを選択")
+        from .file_dialog_compat import get_folder
+        folder = get_folder(self, title="ステージデータPNGフォルダを選択")
         if not folder:
             return
         in_dir = Path(folder)

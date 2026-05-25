@@ -2,7 +2,7 @@
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QGroupBox,
     QComboBox, QLabel, QDialogButtonBox, QPushButton, QLineEdit,
-    QFileDialog, QSpinBox, QWidget, QFontComboBox, QCheckBox
+    QSpinBox, QWidget, QFontComboBox, QCheckBox
 )
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
@@ -130,30 +130,24 @@ class SettingsDialog(QDialog):
         self._font_family_default = True
 
     def _browse_icon(self):
-        try:
-            import sys as _sys
-            _sys.path.insert(0, r"D:\program\SingleFunction\module")
-            from file_dialog import get_file
-            path = get_file(self, title="アイコンを選択", filter="*.png;*.ico;*.jpg;*.bmp")
-        except Exception:
-            path, _ = QFileDialog.getOpenFileName(
-                self, "アイコンを選択", self.edit_icon.text(),
-                "Images (*.png *.ico *.jpg *.bmp);;All files (*)"
-            )
+        from .file_dialog_compat import get_file
+        path = get_file(
+            self,
+            title="アイコンを選択",
+            filter="Images (*.png *.ico *.jpg *.bmp);;All files (*)",
+            directory=self.edit_icon.text(),
+        )
         if path:
             self.edit_icon.setText(path)
 
     def _browse_emu(self):
-        try:
-            import sys as _sys
-            _sys.path.insert(0, r"D:\program\SingleFunction\module")
-            from file_dialog import get_file
-            path = get_file(self, title="エミュレータを選択", filter="*.exe")
-        except Exception:
-            path, _ = QFileDialog.getOpenFileName(
-                self, "エミュレータを選択", self.edit_emu.text(),
-                "Executables (*.exe);;All files (*)"
-            )
+        from .file_dialog_compat import get_file
+        path = get_file(
+            self,
+            title="エミュレータを選択",
+            filter="Executables (*.exe);;All files (*)",
+            directory=self.edit_emu.text(),
+        )
         if path:
             self.edit_emu.setText(path)
 

@@ -1,5 +1,13 @@
 # MAGATU_SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.67 (2026-05-26) Remove local file dialog dependency
+- Replaced the machine-local `file_dialog` imports with an in-repository
+  `QFileDialog` compatibility wrapper.
+- Removed the hard-coded startup `sys.path` entry for
+  `D:\program\SingleFunction\module`.
+- Added `requirements.txt` so a fresh checkout declares the external `PyQt5`
+  dependency.
+
 ## v0.7.66 (2026-05-25) Fix vertical Panel Monster spread axis
 - Fixed Panel Monster 2-way/3-way spread so vertical variants offset bullet X
   while horizontal variants continue to offset bullet Y.
