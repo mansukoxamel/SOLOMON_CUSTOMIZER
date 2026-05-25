@@ -1,5 +1,10 @@
 # MAGATU_SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.68 (2026-05-26) Add GitHub README
+- Added `README.md` as the GitHub landing document with setup, launch, ROM
+  policy, supported outputs, and links to the full manual.
+- Added `README.md` to the repository whitelist.
+
 ## v0.7.67 (2026-05-26) Remove local file dialog dependency
 - Replaced the machine-local `file_dialog` imports with an in-repository
   `QFileDialog` compatibility wrapper.

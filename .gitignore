@@ -6,6 +6,7 @@
 !.gitignore
 !CHANGELOG.md
 !MANUAL.md
+!README.md
 !requirements.txt
 !SOLOMON_CUSTOMIZER.py
 
