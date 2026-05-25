@@ -106,7 +106,6 @@ CPU_AI_SARAM_WRAPPER = _cpu(0x3C6B)    # $BC5B
 CPU_FIRE_3WAY = _cpu(0x3D98)           # $BD88
 CPU_BULLET_HOOK = _cpu(0x3F79)         # $BF69
 CPU_FIRE_2WAY = _cpu(0x4098)           # $C088
-CPU_BULLET_SPREAD_COORD = _cpu(0x3E72) # $BE62
 CPU_AI_DEMON_WRAPPER = _cpu(0x4156)    # $C146
 CPU_PROPERTY_HOOK = _cpu(0x5BEF)       # $DBDF
 CPU_ANIM_HOOK = _cpu(0x40D2)           # $C0C2
@@ -118,7 +117,6 @@ OFF_AI_SARAM_WRAPPER = _cf(CPU_AI_SARAM_WRAPPER)
 OFF_FIRE_3WAY = _cf(CPU_FIRE_3WAY)
 OFF_BULLET_HOOK = _cf(CPU_BULLET_HOOK)
 OFF_FIRE_2WAY = _cf(CPU_FIRE_2WAY)
-OFF_BULLET_SPREAD_COORD = _cf(CPU_BULLET_SPREAD_COORD)
 OFF_AI_DEMON_WRAPPER = _cf(CPU_AI_DEMON_WRAPPER)
 OFF_PROPERTY_HOOK = _cf(CPU_PROPERTY_HOOK)
 OFF_ANIM_HOOK = _cf(CPU_ANIM_HOOK)
@@ -250,28 +248,15 @@ def _build_bullet_hook() -> bytes:
     a.b(0xA0, 0x01, 0xB1, 0x2C, 0x29, 0x01)
     a.branch(0xD0, "done")
     a.label("plus")
-    a.b(0x20, CPU_BULLET_SPREAD_COORD & 0xFF, CPU_BULLET_SPREAD_COORD >> 8)
-    a.b(0x18, 0x69, 0x01, 0x91, 0x2E)
+    a.b(0xA0, 0x07, 0xB1, 0x2E, 0x18, 0x69, 0x01, 0x91, 0x2E)
     a.jmp(CPU_BULLET_HOOK + a.labels["done"])
     a.label("minus2")
     a.b(0xA0, 0x01, 0xB1, 0x2C, 0x29, 0x01)
     a.branch(0xD0, "done")
     a.label("minus")
-    a.b(0x20, CPU_BULLET_SPREAD_COORD & 0xFF, CPU_BULLET_SPREAD_COORD >> 8)
-    a.b(0x38, 0xE9, 0x01, 0x91, 0x2E)
+    a.b(0xA0, 0x07, 0xB1, 0x2E, 0x38, 0xE9, 0x01, 0x91, 0x2E)
     a.jmp(CPU_BULLET_HOOK + a.labels["done"])
     return a.finish()
-
-
-def _build_bullet_spread_coord() -> bytes:
-    # Byte6 is copied from the firing Panel Monster's direction bits:
-    # right/left IDs use Y byte7; up/down IDs use X byte10.
-    return bytes.fromhex(
-        "a0 06 b1 2c 29 02 f0 04"
-        "a0 0a d0 02"
-        "a0 07"
-        "b1 2e 60"
-    )
 
 
 def _build_demon_ai_wrapper() -> bytes:
@@ -362,7 +347,6 @@ def _build_anim_hook() -> bytes:
 
 CAVE_FIRE_DISPATCH = _build_fire_dispatch()
 CAVE_BULLET_HOOK = _build_bullet_hook()
-CAVE_BULLET_SPREAD_COORD = _build_bullet_spread_coord()
 def _build_fire_normal(fire_delay: int) -> bytes:
     return _with_fire_delay(ORIG_PANEL_FIRE, fire_delay)
 
@@ -378,7 +362,6 @@ RESERVED_SPANS = (
     (OFF_AI_SARAM_WRAPPER, len(CAVE_AI_SARAM_WRAPPER)),
     (OFF_FIRE_3WAY, len(CAVE_FIRE_3WAY)),
     (OFF_BULLET_HOOK, len(CAVE_BULLET_HOOK)),
-    (OFF_BULLET_SPREAD_COORD, len(CAVE_BULLET_SPREAD_COORD)),
     (OFF_FIRE_NORMAL, len(CAVE_FIRE_NORMAL)),
     (OFF_FIRE_2WAY, len(CAVE_FIRE_2WAY)),
     (OFF_AI_DEMON_WRAPPER, len(CAVE_AI_DEMON_WRAPPER)),
@@ -468,7 +451,6 @@ def apply(rom_data) -> list[str]:
         (OFF_AI_SARAM_WRAPPER, CAVE_AI_SARAM_WRAPPER, "Panel Monster variant Saramandor-ID AI wrapper $BC5B"),
         (OFF_FIRE_3WAY, cave_fire_3way, "Panel Monster 3-way cave $BD88"),
         (OFF_BULLET_HOOK, CAVE_BULLET_HOOK, "Panel Monster diagonal Bullet hook $BF69"),
-        (OFF_BULLET_SPREAD_COORD, CAVE_BULLET_SPREAD_COORD, "Panel Monster spread-axis helper $BE62"),
         (OFF_FIRE_NORMAL, cave_fire_normal, "Panel Monster normal fire copy"),
         (OFF_FIRE_2WAY, cave_fire_2way, "Panel Monster 2-way cave $C088"),
         (OFF_AI_DEMON_WRAPPER, CAVE_AI_DEMON_WRAPPER, "Panel Monster Demonhead-ID AI wrapper $C146"),

@@ -1,12 +1,5 @@
 # MAGATU_SOLOMON_CUSTOMIZER CHANGELOG
 
-## v0.7.66 (2026-05-25) Fix Panel Monster vertical spread by source direction
-- Changed the Panel Monster 2-way/3-way diagonal Bullet hook to choose the
-  spread axis from the source Panel Monster direction copied into Bullet byte6:
-  right/left panels spread on Y, while up/down panels spread on X.
-- Added a 17B helper at `$BE62`, replacing the former free fragment, and kept
-  the main Bullet hook inside its existing frame.
-
 ## v0.7.65 (2026-05-25) Show bank0 cave free bytes
 - Added exact bank0 cave free-space accounting to the ROM map:
   `$BBDE-$C1FF` has 1,570B total, 1,504B reserved, 66B unreserved, and the
