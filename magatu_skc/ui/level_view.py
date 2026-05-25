@@ -1,0 +1,304 @@
+"""レベル表示ウィジェット - クリック編集対応"""
+from PyQt5.QtWidgets import (
+    QGraphicsView, QGraphicsScene, QGraphicsPixmapItem,
+    QGraphicsRectItem, QGraphicsSimpleTextItem, QGraphicsItem,
+)
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QFont
+from PyQt5.QtCore import Qt, pyqtSignal, QPointF
+
+from ..core import constants as c
+
+
+class LevelView(QGraphicsView):
+    """レベル画像表示 + クリック検出 + D&D"""
+
+    # マウスイベント: ボタン, タイル座標(x, y), modifiers
+    tile_clicked = pyqtSignal(int, tuple, int)
+    tile_right_clicked = pyqtSignal(tuple)
+    # ROM ファイルが drop された
+    rom_dropped = pyqtSignal(str)
+    # Ctrl+左ドラッグ用シグナル
+    drag_start = pyqtSignal(tuple)   # 開始タイル
+    drag_move = pyqtSignal(tuple)    # 移動先タイル（変化時のみ）
+    drag_end = pyqtSignal()          # 解放
+    # ホバー: マウスカーソルの真下のタイル（None で領域外）
+    tile_hovered = pyqtSignal(object)
+    # ドラッグ塗り（左ボタン押しっぱなし移動）/ ドラッグ消し（右ボタン押しっぱなし移動）
+    tile_painted = pyqtSignal(int, tuple, int)  # tile_clicked と同じシグネチャ
+    tile_erased = pyqtSignal(tuple)              # tile_right_clicked と同じシグネチャ
+    # スポイト: Alt+左クリックでその位置の要素をピッカーへ
+    tile_picked = pyqtSignal(tuple)
+    # Shift+左ドラッグで矩形範囲選択（更新時 / 解除時 / 確定時）
+    selection_updated = pyqtSignal(object, object)  # (start_tile, end_tile) どちらも tuple or None
+    selection_cleared = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setScene(QGraphicsScene(self))
+        self.setRenderHint(QPainter.Antialiasing, False)
+        self.setRenderHint(QPainter.SmoothPixmapTransform, False)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setTransformationAnchor(QGraphicsView.AnchorViewCenter)
+        self.setResizeAnchor(QGraphicsView.AnchorViewCenter)
+        self.setBackgroundBrush(Qt.black)
+        self.setAcceptDrops(True)
+        # QGraphicsScene の drag-drop も無効化（こちらで処理）
+        self.scene().setBackgroundBrush(Qt.black)
+
+        self._pixmap_item: QGraphicsPixmapItem = None
+        # Ctrl+左ドラッグ中の状態
+        self._dragging = False
+        self._last_drag_tile = None
+        # ホバー追跡用
+        self.setMouseTracking(True)
+        self._last_hover_tile = None
+        # ドラッグ塗り / 消し
+        self._painting = False
+        self._erasing = False
+        self._last_paint_tile = None
+        self._last_erase_tile = None
+        # Shift+左ドラッグの矩形選択
+        self._selecting = False
+        self._select_start = None
+        self._select_end = None
+        self._label_items = []
+
+    def set_image(self, qimage):
+        scene = self.scene()
+        scene.clear()
+        pixmap = QPixmap.fromImage(qimage)
+        self._pixmap_item = scene.addPixmap(pixmap)
+        scene.setSceneRect(0, 0, pixmap.width(), pixmap.height())
+        self._label_items = []
+        self.fit_to_view()
+
+    def set_object_labels(self, labels, with_border: bool = True):
+        """キャンバス注釈をビュー上の通常フォントで重ねる。
+
+        labels: [(x, y, text), ...]。x/y はゲーム内16x12座標。
+        """
+        scene = self.scene()
+        for item in self._label_items:
+            scene.removeItem(item)
+        self._label_items = []
+        if not labels:
+            return
+
+        tw = c.TILE_WIDTH
+        ox = 1 if with_border else 0
+        oy = 0
+        if with_border and self._pixmap_item is not None:
+            img_h = self._pixmap_item.pixmap().height()
+            extra_rows = (img_h // c.TILE_WIDTH) - c.LEVEL_H
+            if extra_rows >= 2:
+                oy = 1
+        font = QFont(self.font())
+        font.setPointSize(9)
+        font.setBold(True)
+        per_tile = {}
+        line_step = 13
+
+        for x, y, text in labels:
+            text = str(text)
+            n = per_tile.get((x, y), 0)
+            per_tile[(x, y)] = n + 1
+            sx = (x + ox) * tw
+            sy = (y + oy) * tw + n * line_step
+
+            txt = QGraphicsSimpleTextItem(text)
+            txt.setFont(font)
+            txt.setBrush(QBrush(QColor(255, 255, 255)))
+            txt.setFlag(QGraphicsItem.ItemIgnoresTransformations, True)
+            txt.setZValue(1001)
+            txt.setPos(sx + 2, sy + 1)
+
+            br = txt.boundingRect()
+            bg = QGraphicsRectItem(0, 0, br.width() + 4, br.height() + 2)
+            bg.setBrush(QBrush(QColor(0, 0, 0, 185)))
+            bg.setPen(QPen(Qt.NoPen))
+            bg.setFlag(QGraphicsItem.ItemIgnoresTransformations, True)
+            bg.setZValue(1000)
+            bg.setPos(sx, sy)
+
+            scene.addItem(bg)
+            scene.addItem(txt)
+            self._label_items.extend([bg, txt])
+
+    def fit_to_view(self):
+        if self._pixmap_item is None:
+            return
+        self.fitInView(self._pixmap_item, Qt.KeepAspectRatio)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.fit_to_view()
+
+    def _scene_to_tile(self, scene_pos: QPointF):
+        """シーン座標 → タイル座標(x, y)
+
+        画像サイズが LEVEL_W*TILE_WIDTH / LEVEL_H*TILE_WIDTH より大きい場合、
+        パディング分を差し引く（16列目非表示モード・装飾ボーダー対応）。
+        """
+        x_offset = 0
+        y_offset = 0
+        if self._pixmap_item is not None:
+            img_w = self._pixmap_item.pixmap().width()
+            img_h = self._pixmap_item.pixmap().height()
+            extra_cols = (img_w // c.TILE_WIDTH) - c.LEVEL_W
+            extra_rows = (img_h // c.TILE_WIDTH) - c.LEVEL_H
+            if extra_cols > 0:
+                x_offset = extra_cols
+            if extra_rows >= 2:
+                y_offset = 1
+        tx = int(scene_pos.x() // c.TILE_WIDTH) - x_offset
+        ty = int(scene_pos.y() // c.TILE_WIDTH) - y_offset
+        if 0 <= tx < c.LEVEL_W and 0 <= ty < c.LEVEL_H:
+            return (tx, ty)
+        return None
+
+    # ====== Drag & Drop ======
+
+    def dragEnterEvent(self, event):
+        """D&D 開始時 - .nes / .zip なら受け入れ"""
+        md = event.mimeData()
+        if md.hasUrls():
+            for url in md.urls():
+                if not url.isLocalFile():
+                    continue
+                lower = url.toLocalFile().lower()
+                if lower.endswith('.nes') or lower.endswith('.zip'):
+                    event.acceptProposedAction()
+                    return
+        event.ignore()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        md = event.mimeData()
+        if not md.hasUrls():
+            event.ignore()
+            return
+
+        for url in md.urls():
+            if not url.isLocalFile():
+                continue
+            path = url.toLocalFile()
+            lower = path.lower()
+            if lower.endswith('.nes') or lower.endswith('.zip'):
+                event.acceptProposedAction()
+                self.rom_dropped.emit(path)
+                return
+
+        event.ignore()
+
+    def mousePressEvent(self, event):
+        scene_pos = self.mapToScene(event.pos())
+        tile = self._scene_to_tile(scene_pos)
+        if tile is None:
+            super().mousePressEvent(event)
+            return
+
+        if event.button() == Qt.LeftButton:
+            if event.modifiers() & Qt.ControlModifier:
+                # Ctrl+左クリックでドラッグ開始
+                self._dragging = True
+                self._last_drag_tile = tile
+                self.drag_start.emit(tile)
+            elif event.modifiers() & Qt.AltModifier:
+                # Alt+左クリックでスポイト
+                self.tile_picked.emit(tile)
+            elif event.modifiers() & Qt.ShiftModifier:
+                # Shift+左ドラッグで矩形範囲選択
+                self._selecting = True
+                self._select_start = tile
+                self._select_end = tile
+                self.selection_updated.emit(tile, tile)
+            else:
+                # 通常の左クリック → 配置 + ドラッグ塗り開始
+                # 既存の選択範囲があればクリア
+                if self._select_start is not None:
+                    self._select_start = None
+                    self._select_end = None
+                    self.selection_cleared.emit()
+                self.tile_clicked.emit(int(event.button()), tile, int(event.modifiers()))
+                self._painting = True
+                self._last_paint_tile = tile
+        elif event.button() == Qt.RightButton:
+            # 右クリック → 削除 + ドラッグ消し開始
+            self.tile_right_clicked.emit(tile)
+            self._erasing = True
+            self._last_erase_tile = tile
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        scene_pos = self.mapToScene(event.pos())
+        tile = self._scene_to_tile(scene_pos)
+
+        # Ctrl+ドラッグ（要素移動）
+        if self._dragging and (event.modifiers() & Qt.ControlModifier):
+            if tile is not None and tile != self._last_drag_tile:
+                self._last_drag_tile = tile
+                self.drag_move.emit(tile)
+        elif self._dragging:
+            # Ctrl が離されたらドラッグ終了
+            self._dragging = False
+            self._last_drag_tile = None
+            self.drag_end.emit()
+
+        # 左ドラッグ塗り
+        if self._painting and tile is not None and tile != self._last_paint_tile:
+            self._last_paint_tile = tile
+            self.tile_painted.emit(int(Qt.LeftButton), tile, int(event.modifiers()))
+
+        # 右ドラッグ消し
+        if self._erasing and tile is not None and tile != self._last_erase_tile:
+            self._last_erase_tile = tile
+            self.tile_erased.emit(tile)
+
+        # Shift+左ドラッグの矩形選択更新
+        if self._selecting and tile is not None and tile != self._select_end:
+            self._select_end = tile
+            self.selection_updated.emit(self._select_start, self._select_end)
+
+        # ホバー通知（タイル変化時のみ）
+        if tile != self._last_hover_tile:
+            self._last_hover_tile = tile
+            self.tile_hovered.emit(tile)
+
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event):
+        if self._last_hover_tile is not None:
+            self._last_hover_tile = None
+            self.tile_hovered.emit(None)
+        super().leaveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if self._dragging:
+            self._dragging = False
+            self._last_drag_tile = None
+            self.drag_end.emit()
+        if event.button() == Qt.LeftButton:
+            self._painting = False
+            self._last_paint_tile = None
+            if self._selecting:
+                # 選択確定
+                self._selecting = False
+                self.selection_updated.emit(self._select_start, self._select_end)
+        elif event.button() == Qt.RightButton:
+            self._erasing = False
+            self._last_erase_tile = None
+        super().mouseReleaseEvent(event)
+
+    def keyReleaseEvent(self, event):
+        # Ctrl を離した瞬間にドラッグ終了
+        if self._dragging and not (event.modifiers() & Qt.ControlModifier):
+            self._dragging = False
+            self._last_drag_tile = None
+            self.drag_end.emit()
+        super().keyReleaseEvent(event)

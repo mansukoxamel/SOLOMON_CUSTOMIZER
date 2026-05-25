@@ -1,0 +1,39 @@
+# Whitelist repository policy:
+# Ignore everything first, then explicitly allow files/directories approved for GitHub.
+*
+
+# Repository control files
+!.gitignore
+!CHANGELOG.md
+!MANUAL.md
+!SOLOMON_CUSTOMIZER.py
+
+# Application source
+!magatu_skc/
+!magatu_skc/**
+
+# Selected documentation ledgers
+!docs/
+!docs/ram_map_current.html
+!docs/rom_map_jp_mapper66_current.html
+
+# Always keep generated or sensitive files out.
+BUP/
+ROM/
+archive/
+exports/
+output/
+fceux_probes/
+mesen_probes/
+config/
+tools/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.nes
+*.ips
+*.bak
+*.bak_*
+*.tmp
+*.log
+*.xlsx

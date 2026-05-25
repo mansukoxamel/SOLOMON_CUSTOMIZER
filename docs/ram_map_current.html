@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Solomon Customizer RAM Map - current</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --ink:#1f2933; --muted:#65717f; --line:#d7dde5;
+    --zp:#c9b6e4; --ppu:#89bde8; --grid:#f0c36a; --input:#a7d7a2;
+    --game:#9ed5cb; --sound:#ef8a62; --slot:#7aa2d6; --mod:#89c997;
+    --free:#eceff3; --warn:#d94b4b; --temp:#f6d78b;
+  }
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 "Segoe UI",Meiryo,sans-serif;}
+  main{max-width:1180px;margin:0 auto;padding:24px 28px 44px;}
+  h1{font-size:26px;margin:0 0 8px;}
+  h2{font-size:19px;margin:28px 0 10px;border-left:6px solid var(--slot);padding-left:10px;}
+  h3{font-size:15px;margin:18px 0 8px;}
+  code{background:#eef2f6;border:1px solid #d9e0e8;border-radius:4px;padding:1px 5px;font-family:Consolas,monospace;}
+  .lead{color:var(--muted);margin:0 0 18px;}
+  .card{background:white;border:1px solid var(--line);border-radius:8px;padding:14px 16px;box-shadow:0 1px 2px rgba(16,24,40,.04);margin:12px 0;}
+  .bar{height:38px;border:1px solid #aeb8c4;border-radius:6px;overflow:hidden;display:flex;background:#fff;margin:8px 0 14px;}
+  .seg{display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;font-weight:700;color:#17202a;border-right:1px solid rgba(0,0,0,.18);white-space:nowrap;overflow:hidden;}
+  .seg small{display:block;font-weight:500;color:#334155;}
+  .zp{background:var(--zp)} .ppu{background:var(--ppu)} .gridc{background:var(--grid)}
+  .input{background:var(--input)} .game{background:var(--game)} .sound{background:var(--sound)}
+  .slot{background:var(--slot)} .mod{background:var(--mod)} .free{background:var(--free);color:#667085}
+  .warnseg{background:var(--warn);color:#fff}.temp{background:var(--temp)}
+  table{width:100%;border-collapse:collapse;background:white;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  th,td{border-bottom:1px solid var(--line);padding:7px 9px;vertical-align:top;}
+  th{background:#eef2f6;text-align:left;font-size:12px;color:#344054;}
+  tr:last-child td{border-bottom:0;}
+  .num{font-family:Consolas,monospace;white-space:nowrap;}
+  .note{background:#fff7df;border:1px solid #f1ce7a;border-radius:8px;padding:10px 12px;margin:12px 0;}
+  .bad{background:#fff0f0;border-color:#e99a9a;}
+  .ok{color:#087443;font-weight:700}.ng{color:#b42318;font-weight:700}.muted{color:var(--muted)}
+  .legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin:12px 0 4px}
+  .lg{display:inline-flex;align-items:center;gap:6px}.sw{width:16px;height:12px;border:1px solid #9aa4b2;border-radius:2px;display:inline-block}
+  @media(max-width:900px){.seg{font-size:9px}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Solomon Customizer RAM Map - current</h1>
+  <p class="lead">2026-05-25 v0.7.64 棚卸版。現在実装と棚卸結果から作った作業用RAMマップ。新しい改造で使える場所・使えない場所を即判断するための台帳。</p>
+
+  <div class="legend">
+    <span class="lg"><span class="sw zp"></span>zero page / 汎用ワーク</span>
+    <span class="lg"><span class="sw ppu"></span>PPU/OAM系</span>
+    <span class="lg"><span class="sw gridc"></span>部屋ブロックgrid</span>
+    <span class="lg"><span class="sw sound"></span>サウンド</span>
+    <span class="lg"><span class="sw slot"></span>entity/sub-slot</span>
+    <span class="lg"><span class="sw mod"></span>Customizer予約済</span>
+    <span class="lg"><span class="sw free"></span>空き候補</span>
+    <span class="lg"><span class="sw warnseg"></span>使用禁止/危険</span>
+  </div>
+
+  <h2>0. 運用ルール</h2>
+  <div class="note bad">
+    <b>この表に無いRAMを「空き」として使わない。</b><br>
+    新規RAMを予約する前に、このHTML、<code>docs/rom_map_jp_mapper66_current.html</code>、実装側の
+    <code>RESERVED_SPANS</code> / RAM定数を確認する。予約の追加・移動・解除をしたら同じ変更でこの表も更新する。
+    重複や根拠不明のRAM使用が残っている状態ではリリース不可。
+  </div>
+
+  <h2>1. 全体像 ($0000-$07FF)</h2>
+  <div class="card">
+    <div class="bar">
+      <div class="seg zp" style="width:12.5%">$0000-$00FF<br><small>zero page</small></div>
+      <div class="seg temp" style="width:12.5%">$0100-$01FF<br><small>CPU stack</small></div>
+      <div class="seg ppu" style="width:12.5%">$0200-$02FF<br><small>OAM</small></div>
+      <div class="seg gridc" style="width:6.84%">$0304-$03E3<br><small>block grid</small></div>
+      <div class="seg input" style="width:2.5%">$03E4-$0425<br><small>input/queue</small></div>
+      <div class="seg game" style="width:2.34%">$0426-$0455<br><small>room state</small></div>
+      <div class="seg sound" style="width:6.25%">$0456-$04D5<br><small>sound ch</small></div>
+      <div class="seg slot" style="width:4.25%">$04F7-$057E<br><small>sub-slot</small></div>
+      <div class="seg slot" style="width:12.7%">$057F-$0722<br><small>main entity</small></div>
+      <div class="seg mod" style="width:.45%">$0723-$072B<br><small>key enemy</small></div>
+      <div class="seg mod" style="width:.35%">$072C-$0739<br><small>wide title</small></div>
+      <div class="seg free" style="width:.10%">$073A-$073F</div>
+      <div class="seg mod" style="width:1.6%">$0740-$075F<br><small>block override</small></div>
+      <div class="seg free" style="width:1.1%">$0760-$0777<br><small>quiet?</small></div>
+      <div class="seg mod" style="width:.25%">$0778-$0779</div>
+      <div class="seg mod" style="width:.1%">$077C</div>
+      <div class="seg free" style="width:.2%">$077D-$077F</div>
+      <div class="seg warnseg" style="width:4.7%">$0780-$07DF<br><small>NG</small></div>
+      <div class="seg free" style="width:.8%">$07E0-$07EF</div>
+      <div class="seg game" style="width:.8%">$07F0-$07FF</div>
+    </div>
+    <p class="muted">幅はおおよその比率。細かいアドレスは下表を正とする。</p>
+  </div>
+
+  <h2>2. 既知RAM一覧</h2>
+  <table>
+    <tr><th>範囲</th><th>用途</th><th>状態</th><th>メモ</th></tr>
+    <tr><td class="num">$0000-$00FF</td><td>zero page / ルーチン作業領域</td><td class="ng">空き扱い禁止</td><td>多くのルーチンが一時ポインタ・演算に使う。例: <code>$00/$01</code> slotポインタ、<code>$2C/$2E</code> entity関連ポインタ。</td></tr>
+    <tr><td class="num">$0100-$01FF</td><td>6502 stack</td><td class="ng">使用禁止</td><td>JSR/RTS/割り込みで使用。改造データ置き場にしない。</td></tr>
+    <tr><td class="num">$0200-$02FF</td><td>OAM shadow / sprite DMA転送元</td><td class="ng">使用禁止</td><td>スプライト表示そのもの。毎フレームDMA対象。</td></tr>
+    <tr><td class="num">$0300</td><td>PPUCTRL shadow</td><td>本編使用</td><td><code>$9673</code>/<code>$965F</code> などがNMI制御で参照・更新。</td></tr>
+    <tr><td class="num">$0301</td><td>PPUMASK shadow</td><td>本編使用</td><td>暗闇モードのNMI hookがここ経由でBG表示を制御。</td></tr>
+    <tr><td class="num">$0304-$03E3</td><td>部屋ブロックgrid</td><td class="ng">通常時使用禁止</td><td>部屋のセル状態。鍵/扉/石/隠し/破壊済みなどの根幹。<code>$0304 + cell</code>。</td></tr>
+    <tr><td class="num">$03C0-$03DF</td><td>block grid lower cells</td><td class="ng">使用禁止</td><td><code>$0304-$03E3</code> の部屋ブロックgrid内。旧wide title RAM trampolineが一時使用していたが、デモ/開始/クリア遷移で残留が見えるため廃止。</td></tr>
+    <tr><td class="num">$03E4-$03E5</td><td>JOY入力</td><td>本編使用</td><td>入力確定値。落下すき間調査probeでも重要。</td></tr>
+    <tr><td class="num">$041F-$0425</td><td>action / sound queue周辺</td><td>本編使用</td><td>SEやアクション処理と絡む領域。拡張RAMにしない。</td></tr>
+    <tr><td class="num">$0426-$0455</td><td>room/timer/score/life/fairy等のゲーム状態</td><td>本編使用</td><td><code>$0428</code> は現在部屋番号(0-based)。RoomFlagTableの索引として確定。</td></tr>
+    <tr><td class="num">$042B/$042E-$042F</td><td>fire / super-fire HUD and stock</td><td>本編使用</td><td><code>$042B</code> は最大数/カーソル/HUD側状態に絡むため、ステージ別ファイヤー所持リセットでは触らない。リセット対象は所持ビット列 <code>$042E/$042F</code> のみ。拡張RAMとしては使わない。</td></tr>
+    <tr><td class="num">$043C-$043D</td><td>frame counter候補</td><td>本編使用</td><td>周期処理をRAM不要化するときの候補。使用時は要再確認。</td></tr>
+    <tr><td class="num">$0456-$04D5</td><td>サウンドドライバ 8ch状態</td><td class="ng">使用禁止</td><td><code>$0456 + $10*N</code>。間接アクセスされるためASM直リテラルだけでは見抜けない。<code>$0460/$0461</code>事故の原因。</td></tr>
+    <tr><td class="num">$04F7-$057E</td><td>sub-slot領域</td><td class="ng">使用禁止</td><td>敵弾/生成物/特殊処理など。複数パネル面では枯渇にも注意。</td></tr>
+    <tr><td class="num">$057F-$0722</td><td>main entity 21slot</td><td class="ng">使用禁止</td><td>ポインタ表 <code>$B328/$B33D</code> で確定。slot20開始 <code>$070F</code>、終端 <code>$0722</code>。</td></tr>
+    <tr><td class="num">$057F...</td><td>Dana main entity slot</td><td>本編使用</td><td>Dana状態・座標・速度がここに入る。probeでは <code>$0584-$058A</code> 周辺を監視していた。</td></tr>
+    <tr><td class="num">$0723-$072B</td><td>KEY_ENEMY_RUNTIME</td><td class="ok">Customizer予約済</td><td>鍵持ち敵のドロップ鍵・取得タイル・退避ポインタ・対象初期敵番号/実行スロット。<code>key_enemy_runtime.py</code> が使用。</td></tr>
+    <tr><td class="num">$072C-$0739</td><td>WIDETITLE_TRAMP</td><td class="ok">Customizer予約中</td><td>mapper66 wide title描画時だけ使うRAM実行stub。<code>$072C</code> IN 8B / <code>$0734</code> OUT 6B。block grid外へ退避済み。</td></tr>
+    <tr><td class="num">$073A-$073F</td><td>entity終端後の沈黙帯</td><td class="warn">原則未使用</td><td>ramfree3 probeで沈黙確認はあるが、構造保証は弱い。必要時だけ使う。</td></tr>
+    <tr><td class="num">$0740-$075F</td><td>RUNTIME_BLOCK_OVERRIDE</td><td class="ok">Customizer予約済</td><td>特殊ブロック32Bリスト。部屋ロード時にmapper66 l_a2がPRG bank1表からコピーし、NMIの$C0F0 runtimeが$0304 gridへ反映。</td></tr>
+    <tr><td class="num">$0760-$0777</td><td>entity終端後の沈黙帯</td><td class="warn">原則未使用</td><td>旧特殊ブロック16Bリストは$0760-$076Fだったが、$0778/$0779衝突を避けるため$0740-$075Fへ移設。</td></tr>
+    <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td class="ok">Customizer予約済</td><td>RoomFlagTableの現在部屋フラグcache。隠し扉/B禁止/A禁止/暗闇、bit4=ステージ開始時ファイヤー所持リセットなど。</td></tr>
+    <tr><td class="num">$0779</td><td>DARK_PHASE</td><td class="ok">Customizer予約済</td><td>暗闇モードの明滅フェーズカウンタ。</td></tr>
+    <tr><td class="num">$077A-$077B</td><td>runtime block override work</td><td class="ok">Customizer予約済</td><td>BreakableWhite cave の一時フラグ/一時値。NMI中に使用。</td></tr>
+    <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td class="ok">Customizer予約済</td><td>mapper66 StageExt loader がPRG1からコピーする現在部屋の扉セル。隠し扉処理が参照。</td></tr>
+    <tr><td class="num">$077D-$077F</td><td>小フラグ/小カウンタ候補</td><td class="ok">空き候補</td><td>3Bのみ。使う場合は1Bずつ用途名を決めて台帳へ追記する。</td></tr>
+    <tr><td class="num">$0780-$07DF</td><td>probeで書込確認あり</td><td class="ng">使用禁止</td><td>空きに見えても使わない。</td></tr>
+    <tr><td class="num">$07E0-$07EF</td><td>沈黙候補</td><td class="warn">非推奨</td><td>high score/GDV隣接。最後の手段。</td></tr>
+    <tr><td class="num">$07F0-$07FF</td><td>high score / GDV周辺</td><td class="ng">使用禁止</td><td>タイトルやスコア保存系と絡む可能性が高い。</td></tr>
+  </table>
+
+  <h2>3. Customizer予約RAM</h2>
+  <table>
+    <tr><th>RAM</th><th>名前</th><th>使用機能</th><th>寿命</th><th>注意</th></tr>
+    <tr><td class="num">$0723-$072B</td><td>KEY_ENEMY_RUNTIME</td><td>鍵持ち敵</td><td>部屋中常駐</td><td>ドロップ鍵の表示/取得/光輪演出位置補正、初期配置敵スロット対応に使用。</td></tr>
+    <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td>Room Flag拡張</td><td>プレイ中常駐</td><td>LOADERが部屋開始時に <code>$0428</code> でRoomFlagTableを引いて書く。bit4はStageExtTableの fire reset を実行時用にミラーしたもの。</td></tr>
+    <tr><td class="num">$0779</td><td>DARK_PHASE</td><td>暗闇面</td><td>プレイ中常駐</td><td>NMIで進む。旧 <code>$0461</code> はサウンド衝突で妖精SEループを起こしたため廃止。</td></tr>
+    <tr><td class="num">$0740-$075F</td><td>RUNTIME_BLOCK_OVERRIDE</td><td>特殊ブロック</td><td>部屋中常駐</td><td>最大32B。$FF終端、$FE以降は空気化($10)、$FD以降は壊れない壁化($F8)。通常セルは壊れる壁化($90)。</td></tr>
+    <tr><td class="num">$072C-$0739</td><td>WIDETITLE_TRAMP</td><td>wide title描画</td><td>タイトル描画中のみ</td><td>RAM実行でPRG bank0/1切替をまたぐ。旧<code>$03C0-$03CD</code>はblock gridと重なるため廃止。</td></tr>
+    <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td>隠し扉/StageExt loader</td><td>部屋中常駐</td><td>PRG1 StageExtTable byte7からコピー。PRG0 DoorCellTableを廃止して <code>$C180-$C1FF</code> を回収。</td></tr>
+    <tr><td class="num">$077D-$077F</td><td>FREE_CANDIDATE</td><td>未割当</td><td>-</td><td>今後の小さな改造用。使ったらこの表と <code>room_flags.py</code> 台帳へ追記。</td></tr>
+  </table>
+
+  <h2>4. 絶対に繰り返さない事故</h2>
+  <div class="note bad">
+    <b>$0460/$0461 は空きではない。</b><br>
+    暗闇モード初期実装で <code>$0460/$0461</code> をROOMFLAGS/暗闇カウンタに使ったが、実体はサウンドch0状態
+    <code>$0456+$0A/$0B</code>。サウンドドライバが間接アクセスで書くため、静的ASMの直値検索だけでは見落とした。
+    結果、妖精取得SEだけが終わらずループした。現在は <code>$0778/$0779</code> へ移設済み。
+  </div>
+  <div class="note">
+    <b>新規RAMが必要な時の優先順位:</b>
+    まずRAMを増やさずROMテーブル再読込や既存カウンタ派生で済ませる。どうしても必要なら <code>$077D-$077F</code> を1バイトずつ予約。
+    2B以上・長期保存・毎NMI書込が必要なら、先に専用probeで実機確認してから使う。予約後は <code>room_flags.py</code> のASCII mirrorも同期する。
+  </div>
+
+  <h2>5. 判定の強さ</h2>
+  <table>
+    <tr><th>分類</th><th>意味</th><th>例</th></tr>
+    <tr><td class="ok">予約済/確定</td><td>コード・実機probe・現在実装のいずれかで用途が確定している。</td><td><code>$0723-$072B</code>, <code>$072C-$0739</code>, <code>$0740-$075F</code>, <code>$0778</code>, <code>$0779</code>, <code>$077C</code></td></tr>
+    <tr><td>本編使用</td><td>用途は概ね分かるが、内部構造の詳細は必要時に追加解析。</td><td><code>$0426-$0455</code>, <code>$04F7-$057E</code></td></tr>
+    <tr><td class="warn">候補/非推奨</td><td>probe上は沈黙したが、構造保証が弱い、または重要領域に隣接。</td><td><code>$073A-$073F</code>, <code>$0760-$0777</code>, <code>$07E0-$07EF</code></td></tr>
+    <tr><td class="ng">禁止</td><td>既知の本編領域。改造RAMにしない。</td><td><code>$0200-$02FF</code>, <code>$0304-$03E3</code>, <code>$0456-$04D5</code>, <code>$057F-$0722</code></td></tr>
+  </table>
+</main>
+</body>
+</html>

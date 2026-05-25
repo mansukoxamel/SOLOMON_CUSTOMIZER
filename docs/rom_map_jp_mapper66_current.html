@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Solomon Customizer ROM Map - JP mapper66 current</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --ink:#1f2933; --muted:#65717f; --line:#d7dde5;
+    --orig:#7aa2d6; --cave:#f2c14e; --data:#89c997; --free:#eceff3;
+    --hook:#ef8a62; --warn:#d94b4b; --meta:#b7a7d9; --chr:#d6a25f;
+  }
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 "Segoe UI",Meiryo,sans-serif;}
+  main{max-width:1220px;margin:0 auto;padding:24px 28px 44px;}
+  h1{font-size:26px;margin:0 0 8px;}
+  h2{font-size:19px;margin:28px 0 10px;border-left:6px solid var(--orig);padding-left:10px;}
+  h3{font-size:15px;margin:18px 0 8px;}
+  code{background:#eef2f6;border:1px solid #d9e0e8;border-radius:4px;padding:1px 5px;font-family:Consolas,monospace;}
+  .lead{color:var(--muted);margin:0 0 18px;}
+  .legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin:12px 0 16px}
+  .lg{display:inline-flex;align-items:center;gap:6px}.sw{width:16px;height:12px;border:1px solid #9aa4b2;border-radius:2px;display:inline-block}
+  .orig{background:var(--orig)} .cave{background:var(--cave)} .data{background:var(--data)}
+  .free{background:var(--free);color:#667085}.hook{background:var(--hook)} .warn{background:var(--warn);color:#fff}
+  .meta{background:var(--meta)} .chr{background:var(--chr)}
+  .map{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:14px 0;box-shadow:0 1px 2px rgba(16,24,40,.04);}
+  .bar{height:46px;border:1px solid #aeb8c4;border-radius:6px;overflow:hidden;display:flex;background:#fff;margin:8px 0 8px;}
+  .zoom{height:58px;}
+  .seg{display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;font-weight:600;color:#17202a;border-right:1px solid rgba(0,0,0,.18);white-space:nowrap;overflow:hidden;min-width:3px;}
+  .seg small{display:block;font-weight:500;color:#334155;}
+  .tiny{font-size:0;color:transparent;}
+  .labels{display:flex;justify-content:space-between;color:var(--muted);font-family:Consolas,monospace;font-size:12px;}
+  table{width:100%;border-collapse:collapse;background:white;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:10px 0 0;}
+  th,td{border-bottom:1px solid var(--line);padding:7px 9px;vertical-align:top;}
+  th{background:#eef2f6;text-align:left;font-size:12px;color:#344054;}
+  tr:last-child td{border-bottom:0;}
+  .num{font-family:Consolas,monospace;white-space:nowrap;}
+  .note{background:#fff7df;border:1px solid #f1ce7a;border-radius:8px;padding:10px 12px;margin:12px 0;}
+  .ok{color:#087443;font-weight:700}.ng{color:#b42318;font-weight:700}
+  @media(max-width:900px){.seg{font-size:9px}.bar{height:58px}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Solomon Customizer ROM Map - JP mapper66 current</h1>
+  <p class="lead">2026-05-25 v0.7.64 棚卸版。PRG0/PRG1の全体像、bank0 caveの詳細、強化敵コードの配置、開始画面アナウンス、残り空き容量を視覚的に確認するための台帳。</p>
+
+  <div class="legend">
+    <span class="lg"><span class="sw orig"></span>元PRG / 既存コード・既存データ</span>
+    <span class="lg"><span class="sw cave"></span>追加実行コード cave</span>
+    <span class="lg"><span class="sw hook"></span>追加フック/小ヘルパ</span>
+    <span class="lg"><span class="sw data"></span>拡張データ</span>
+    <span class="lg"><span class="sw free"></span>空き/予備</span>
+    <span class="lg"><span class="sw meta"></span>メタデータ/予約</span>
+    <span class="lg"><span class="sw chr"></span>CHR</span>
+  </div>
+
+  <h2>0. 運用ルール</h2>
+  <div class="note">
+    <b>この台帳と実装側予約スパンを同時に正とする。</b><br>
+    新しいROM領域を使う前に、このHTML、<code>docs/ram_map_current.html</code>、実装側の
+    <code>RESERVED_SPANS</code> / <code>OFF_*</code> / <code>CPU_*</code> 定数を確認する。
+    予約の追加・移動・解除をしたら同じ変更でこの表も更新する。重複、古い名前、根拠不明の「空き候補」が残っている状態ではリリース不可。
+  </div>
+
+  <h2>1. ROM全体</h2>
+  <div class="map">
+    <h3>mapper66 expanded ROM / 98,320 bytes</h3>
+    <div class="bar">
+      <div class="seg orig" style="width:33.33%">PRG0<br><small>0x0010-0x800F</small></div>
+      <div class="seg data" style="width:33.33%">PRG1<br><small>0x8010-0x1000F</small></div>
+      <div class="seg chr" style="width:33.33%">CHR<br><small>0x10010-0x1800F</small></div>
+    </div>
+    <div class="labels"><span>file 0x0000</span><span>0x8010</span><span>0x10010</span><span>0x1800F</span></div>
+  </div>
+
+  <h2>2. PRG0 全体</h2>
+  <div class="map">
+    <h3>PRG0 / file 0x0010-0x800F / CPU $8000-$FFFF</h3>
+    <div class="bar">
+      <div class="seg orig" style="width:46.80%">元ゲームコード/データ<br><small>$8000-$BBDD</small></div>
+      <div class="seg cave" style="width:4.79%">bank0 cave<br><small>$BBDE-$C1FF</small></div>
+      <div class="seg orig" style="width:27.15%">元PRG</div>
+      <div class="seg hook" style="width:.09%"><span class="tiny">anim hook</span></div>
+      <div class="seg orig" style="width:24.18%">元PRG</div>
+      <div class="seg hook" style="width:.17%"><span class="tiny">pause hook</span></div>
+      <div class="seg orig" style="width:1.82%">元PRG</div>
+    </div>
+    <div class="labels"><span>$8000</span><span>$BBDE</span><span>$C1FF</span><span>$CFDE</span><span>$EFC4</span><span>$FFFF</span></div>
+    <table>
+      <tr><th>範囲</th><th>用途</th><th>説明</th></tr>
+      <tr><td class="num">0x0010-0x3BED</td><td>元PRG</td><td>ゲーム本体コード/既存テーブル。</td></tr>
+      <tr><td class="num">0x0BF2-0x0C03 / 0x0C04-0x0C0D</td><td>Initial magic / lives routines</td><td>`$8BE2` は開始時魔法、`$8BF4` は初期残数用。開始画面アナウンスから分離済み。</td></tr>
+      <tr><td class="num">0x2569-0x2582</td><td>Spark Ball property selector</td><td>現行Spark Ball property selector。borrowed Dragon/Golem Spark IDsはここで <code>$19</code> を返し、それ以外はPanel/stock selector <code>$DBDF</code> へ渡す。</td></tr>
+      <tr><td class="num">0x33D0-0x33DC</td><td>Stage start announcement key gate</td><td>`KEY ENEMY` 用の `$072B` 判定。</td></tr>
+      <tr><td class="num">0x3BEE-0x420F</td><td>bank0 cave</td><td>RoomFlag、gap_fix、強化敵系の主戦場。詳細は次節。</td></tr>
+      <tr><td class="num">0x4FEE-0x500B</td><td>Spark Ball animation hook</td><td>PRG0後半のEA埋め領域を利用。30B。</td></tr>
+      <tr><td class="num">0x5BEF-0x5C0A</td><td>Panel Monster property selector</td><td>Panel Monster borrowed-ID property selector。Spark Ball property selectorからのフォールスルー先でもある。</td></tr>
+      <tr><td class="num">0x63CC-0x63E3 / 0x60CC-0x60D0</td><td>Stage start announcement main / masks</td><td>`$9061` フック先。`$0778` のルームフラグから開始画面アナウンスを条件描画し、最後に原作 `$915E` へ戻す。</td></tr>
+      <tr><td class="num">0x639C-0x63B4 / 0x61EC-0x61F7</td><td>Stage start announcement draw helper</td><td>`$9471` 互換の待機を行う開始画面アナウンス用PPU scriptポインタ共有ヘルパ。</td></tr>
+      <tr><td class="num">0x60FC-0x6108 / 0x612C-0x6138 / 0x618C-0x619A / 0x61BC-0x61C8 / 0x657C-0x658A / 0x66FC-0x670B</td><td>Stage start announcement scripts</td><td>`DARK ROOM` / `FIRE LOSS` / `HIDDEN DOOR` / `KEY ENEMY` / `FIRE SEALED` / `SPELL SEALED`。</td></tr>
+      <tr><td class="num">0x6FD4-0x700A</td><td>Spark Ball pause hook</td><td>PRG0後半のEA埋め領域を利用。55B。</td></tr>
+    </table>
+  </div>
+
+  <h2>3. bank0 cave 拡大図</h2>
+  <div class="map">
+    <h3>file 0x3BEE-0x420F / CPU $BBDE-$C1FF / 1,570B</h3>
+    <div class="bar zoom">
+      <div class="seg free" style="width:.13%"></div>
+      <div class="seg cave" style="width:2.36%">LOADER<br><small>37B</small></div>
+      <div class="seg hook" style="width:.57%">title demo</div>
+      <div class="seg free" style="width:1.15%"></div>
+      <div class="seg cave" style="width:2.17%">MAGIC<br><small>34B</small></div>
+      <div class="seg free" style="width:.89%"></div>
+      <div class="seg cave" style="width:.70%">DOOR</div>
+      <div class="seg cave" style="width:2.29%">PM AI</div>
+      <div class="seg free" style="width:.06%"></div>
+      <div class="seg cave" style="width:3.57%">DARK<br><small>56B</small></div>
+      <div class="seg free" style="width:1.66%"></div>
+      <div class="seg cave" style="width:2.87%">PM dispatch</div>
+      <div class="seg free" style="width:.06%"></div>
+      <div class="seg cave" style="width:2.42%">Gargoyle</div>
+      <div class="seg hook" style="width:1.34%">Spark fast</div>
+      <div class="seg free" style="width:.32%"></div>
+      <div class="seg cave" style="width:4.59%">Gargoyle body</div>
+      <div class="seg cave" style="width:7.39%">PM 3way</div>
+      <div class="seg free" style="width:.25%"></div>
+      <div class="seg cave" style="width:2.99%">Saram</div>
+      <div class="seg free" style="width:1.08%"></div>
+      <div class="seg hook" style="width:1.59%">Spark prop</div>
+      <div class="seg free" style="width:.32%"></div>
+      <div class="seg cave" style="width:1.27%">Saram</div>
+      <div class="seg free" style="width:.76%"></div>
+      <div class="seg cave" style="width:1.40%">Saram</div>
+      <div class="seg free" style="width:.64%"></div>
+      <div class="seg cave" style="width:2.68%">Saram</div>
+      <div class="seg hook" style="width:.57%">Spark set</div>
+      <div class="seg free" style="width:.83%"></div>
+      <div class="seg cave" style="width:5.10%">Saram</div>
+      <div class="seg free" style="width:1.59%"></div>
+      <div class="seg cave" style="width:4.46%">PM bullet</div>
+      <div class="seg free" style="width:.64%"></div>
+      <div class="seg cave" style="width:1.97%">PM normal</div>
+      <div class="seg hook" style="width:1.34%">Spark slow</div>
+      <div class="seg free" style="width:1.21%"></div>
+      <div class="seg cave" style="width:8.66%">gap_fix</div>
+      <div class="seg cave" style="width:3.70%">PM 2way</div>
+      <div class="seg free" style="width:2.93%"></div>
+      <div class="seg cave" style="width:5.48%">block override</div>
+      <div class="seg cave" style="width:3.63%">PM Demon</div>
+      <div class="seg free" style="width:.06%"></div>
+      <div class="seg cave" style="width:5.48%">key pickup</div>
+      <div class="seg free" style="width:2.68%">reclaimed</div>
+    </div>
+    <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
+    <div class="note">
+      <b>棚卸メモ:</b> 2026-05-24時点の予約スパン検査では、Golem charge dash撤去後のPRG0予約スパン重複はなし。Gargoyle 2-shot、gap_fix `$C000-$C087`、Spark Ball variant、Key enemy、Stage start announcement は現在の台帳上で非重複。
+    </div>
+    <table>
+      <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
+      <tr><td>LOADER</td><td class="num">0x3BF0-0x3C1D</td><td class="num">$BBE0-$BC0D</td><td class="num">46B</td><td>Room flag loader. When RoomFlagTable bit4 is set, clears carried fire stock `$042E/$042F` and redraws the HUD without touching `$042B`.</td></tr>
+      <tr><td>Wide title idle-demo cleanup</td><td class="num">0x3C1E-0x3C26</td><td class="num">$BC0E-$BC16</td><td class="num">9B</td><td>Title timeout-only stub: `JSR $CC18`, then schedules the original action `$18`. Stops stale wide-title nametable from flashing during attract-demo startup without touching the shared action table.</td></tr>
+      <tr><td>MAGICGATE</td><td class="num">0x3C30-0x3C51</td><td class="num">$BC20-$BC41</td><td class="num">34B</td><td>A/B magic gate restrictions.</td></tr>
+      <tr><td>DOORPREDRAW</td><td class="num">0x3C60-0x3C6A</td><td class="num">$BC50-$BC5A</td><td class="num">11B</td><td>Hidden-door redraw guard.</td></tr>
+      <tr><td>Panel Monster Saramandor-ID AI wrapper</td><td class="num">0x3C6B-0x3C8E</td><td class="num">$BC5B-$BC7E</td><td class="num">36B</td><td>Panel Monster borrowed-ID routing.</td></tr>
+      <tr><td>DARK cave</td><td class="num">0x3C90-0x3CC7</td><td class="num">$BC80-$BCB7</td><td class="num">56B</td><td>Dark-room flashing logic.</td></tr>
+      <tr><td>Panel Monster fire dispatch</td><td class="num">0x3CE2-0x3D0E</td><td class="num">$BCD2-$BCFE</td><td class="num">45B</td><td>Normal / 2-way / 3-way fire dispatch.</td></tr>
+      <tr><td>Gargoyle 2-shot gate</td><td class="num">0x3D0F-0x3D29</td><td class="num">$BCFF-$BD19</td><td class="num">27B</td><td>Conditional `$7A/$7B` gate for the accepted `$AE6F` two-Bullet variant.</td></tr>
+      <tr><td>Spark Ball fast AI wrapper</td><td class="num">0x3D36-0x3D4A</td><td class="num">$BD26-$BD3A</td><td class="num">21B</td><td>Relocated out of gap_fix range.</td></tr>
+      <tr><td>Gargoyle 2-shot body</td><td class="num">0x3D4B-0x3D96</td><td class="num">$BD3B-$BD86</td><td class="num">76B</td><td>Accepted `SecondXAhead16_DirVelocity` body.</td></tr>
+      <tr><td>Panel Monster 3-way fire cave</td><td class="num">0x3D98-0x3E0B</td><td class="num">$BD88-$BDFB</td><td class="num">116B</td><td>Accepted 3-way Panel Monster shot routine.</td></tr>
+      <tr><td>Saramandor variant caves</td><td class="num">0x3E10-0x3F5F</td><td class="num">$BE00-$BF4F</td><td class="num">245B</td><td>Non-contiguous spans for spawn, flame, bullet, speed helpers. Former `$BF50-$BF68` NOP reserve is free.</td></tr>
+      <tr><td>Key enemy defeat entry</td><td class="num">0x3E3F-0x3E4C</td><td class="num">$BE2F-$BE3C</td><td class="num">14B</td><td>Relocated key-enemy defeat filter. Falls through to split chunks only for the selected key carrier.</td></tr>
+      <tr><td>Former Spark Ball property area</td><td class="num">0x3E72-0x3E83</td><td class="num">$BE62-$BE73</td><td class="num">18B</td><td>旧Spark property hook跡地。現行Spark property hookは <code>$A559</code>、Panel/Spark共用のproperty selectorは <code>$DBDF</code> 側。ここを新規使用する場合は隣接する key enemy chunk <code>$BE74</code> との境界を再確認する。</td></tr>
+      <tr><td>Key enemy defeat chunk</td><td class="num">0x3E84-0x3E8D</td><td class="num">$BE74-$BE7D</td><td class="num">10B</td><td>Split key dropper chunk.</td></tr>
+      <tr><td>Spark Ball animation setter</td><td class="num">0x3EFA-0x3F02</td><td class="num">$BEEA-$BEF2</td><td class="num">9B</td><td>Helper used by animation hook.</td></tr>
+      <tr><td>Key enemy defeat chunks</td><td class="num">0x3EA4-0x3EAE / 0x3EC6-0x3ECC / 0x3F03-0x3F0F / 0x3FFD-0x400E</td><td class="num">$BE94 / $BEB6 / $BEF3 / $BFED</td><td class="num">49B</td><td>Split key dropper chunks placed in small verified gaps to avoid `gap_fix`.</td></tr>
+      <tr><td>Panel Monster bullet hook</td><td class="num">0x3F79-0x3FBE</td><td class="num">$BF69-$BFAE</td><td class="num">70B</td><td>Diagonal bullet movement hook.</td></tr>
+      <tr><td>Panel Monster normal fire copy</td><td class="num">0x3FC9-0x3FE7</td><td class="num">$BFB9-$BFD7</td><td class="num">31B</td><td>Copied stock Panel Monster fire routine. Former 10B gap `$BFAF-$BFB8` is free.</td></tr>
+      <tr><td>Spark Ball slow AI wrapper</td><td class="num">0x3FE8-0x3FFC</td><td class="num">$BFD8-$BFEC</td><td class="num">21B</td><td>Dragon-ID <code>$6A/$6B</code> routing.</td></tr>
+      <tr><td>gap_fix cave</td><td class="num">0x4010-0x4097</td><td class="num">$C000-$C087</td><td class="num">136B</td><td class="ok">No overlap with Spark Ball variants or key enemies as of v0.6.158.</td></tr>
+      <tr><td>Panel Monster 2-way fire cave</td><td class="num">0x4098-0x40D1</td><td class="num">$C088-$C0C1</td><td class="num">58B</td><td>Accepted 2-way Panel Monster shot routine. Marker/exit tail shared with the 3-way cave.</td></tr>
+      <tr><td>Panel Monster animation selector</td><td class="num">0x40D2-0x40FF</td><td class="num">$C0C2-$C0EF</td><td class="num">46B</td><td>Panel Monster borrowed-ID animation selector. Spark Ball animation hook at <code>$CFDE</code> falls through here for non-Spark types.</td></tr>
+      <tr><td>runtime block override</td><td class="num">0x4100-0x4155</td><td class="num">$C0F0-$C145</td><td class="num">86B</td><td>Runtime block override cell list executor. Reclaimed from the temporary key handler collision in v0.6.157.</td></tr>
+      <tr><td>Panel Monster Demonhead-ID AI wrapper</td><td class="num">0x4156-0x418E</td><td class="num">$C146-$C17E</td><td class="num">57B</td><td>Panel Monster borrowed Demonhead-ID routing.</td></tr>
+      <tr><td>Key enemy dropped-key handler</td><td class="num">0x4190-0x41E5</td><td class="num">$C180-$C1D5</td><td class="num">86B</td><td>Relocated from `$C0F0` in v0.6.157. PRG0 DoorCellTable/RoomFlagTable moved to PRG1 StageExt runtime bytes.</td></tr>
+      <tr><td>Key enemy binder / defeat chunk</td><td class="num">0x41E6-0x420D</td><td class="num">$C1D6-$C1FD</td><td class="num">40B</td><td>Initial-slot binder plus one split key-dropper chunk. Reclaimed from the former PRG0 RoomFlag/Door tables.</td></tr>
+      <tr><td>Reclaimed PRG0 tail</td><td class="num">0x420E-0x420F</td><td class="num">$C1FE-$C1FF</td><td class="num">2B</td><td>Free after the v0.6.158 key/gap_fix relocation.</td></tr>
+    </table>
+  </div>
+
+  <h2>4. PRG1 全体</h2>
+  <div class="map">
+    <h3>PRG1 / file 0x8010-0x1000F / bank切替時 CPU $8000-$FFFF</h3>
+    <div class="bar">
+      <div class="seg hook" style="width:.56%">loader</div>
+      <div class="seg meta" style="width:.03%"><span class="tiny">guard</span></div>
+      <div class="seg cave" style="width:5.62%">wide title<br><small>1,840B</small></div>
+      <div class="seg data" style="width:1.61%">StageExt<br><small>528B</small></div>
+      <div class="seg free" style="width:38.69%">PRG1 general reserve<br><small>12,678B</small></div>
+      <div class="seg meta" style="width:.01%"><span class="tiny">SW</span></div>
+      <div class="seg free" style="width:3.49%">reserve<br><small>1,145B</small></div>
+      <div class="seg data" style="width:41.41%">level data<br><small>13,568B</small></div>
+      <div class="seg data" style="width:2.59%">drop schedule</div>
+      <div class="seg data" style="width:5.18%">block override</div>
+      <div class="seg meta" style="width:.20%">META</div>
+      <div class="seg free" style="width:.59%">reserve</div>
+      <div class="seg meta" style="width:.05%">vec</div>
+    </div>
+    <div class="labels"><span>$8000</span><span>$80C0</span><span>$87F0</span><span>$BB86</span><span>$C000</span><span>$F500</span><span>$FEF0</span><span>$FFFF</span></div>
+    <table>
+      <tr><th>用途</th><th>file offset</th><th>bank1 CPU</th><th>Size</th><th>備考</th></tr>
+      <tr><td>l_a2 loader</td><td class="num">0x8010-0x80C5</td><td class="num">$8000-$80B5</td><td class="num">182B</td><td>mapper66 expanded loader.</td></tr>
+      <tr><td>loader guard</td><td class="num">0x80C6-0x80CF</td><td class="num">$80B6-$80BF</td><td class="num">10B</td><td>Guard bytes.</td></tr>
+      <tr><td>wide title decoder/data</td><td class="num">0x80D0-0x87FF</td><td class="num">$80C0-$87EF</td><td class="num">1,840B</td><td>Wide title decoder + blockA/blockB streams. Confirmed imported title uses 589B.</td></tr>
+      <tr><td>StageExtTable</td><td class="num">0x8800-0x8A0F</td><td class="num">$87F0-$89FF</td><td class="num">528B</td><td>Per-stage extension settings: 16B header + 64 rooms x 8B. Also carries mapper66 runtime room flags and door-cell bytes copied to `$0778/$077C`.</td></tr>
+      <tr><td>PRG1 general reserve</td><td class="num">0x8A10-0xBB95</td><td class="num">$8A00-$BB85</td><td class="num">12,678B</td><td>Recovered from the old oversized wide-title reservation. Candidate area for stage-load-time tables and non-gameplay-screen code/data.</td></tr>
+      <tr><td>bank switch byte</td><td class="num">0xBB96</td><td class="num">$BB86</td><td class="num">1B</td><td>Reserved bus-conflict-safe byte.</td></tr>
+      <tr><td>bank1 reserve</td><td class="num">0xBB97-0xC00F</td><td class="num">$BB87-$BFFF</td><td class="num">1,145B</td><td>Small bank1 reserve.</td></tr>
+      <tr><td>expanded level data</td><td class="num">0xC010-0xF50F</td><td class="num">$C000-$F4FF</td><td class="num">13,568B</td><td>53 rooms x 256B.</td></tr>
+      <tr><td>mirror/drop schedule</td><td class="num">0xF510-0xF85F</td><td class="num">$F500-$F84F</td><td class="num">848B</td><td>53 rooms x mirror/drop bytes.</td></tr>
+      <tr><td>runtime block override cell table</td><td class="num">0xF860-0xFEFF</td><td class="num">$F850-$FEEF</td><td class="num">1,696B</td><td>Runtime block override per-room cell lists.</td></tr>
+      <tr><td>MAGATU metadata stamp</td><td class="num">0xFF00-0xFF3F</td><td class="num">$FEF0-$FF2F</td><td class="num">64B</td><td><code>MAGATU_SC_META</code> + format + app version.</td></tr>
+      <tr><td>bank1 tail reserve</td><td class="num">0xFF40-0xFFFF</td><td class="num">$FF30-$FFEF</td><td class="num">192B</td><td>Reserve before vectors.</td></tr>
+      <tr><td>vectors copy</td><td class="num">0x10000-0x1000F</td><td class="num">$FFF0-$FFFF</td><td class="num">16B</td><td>Copied PRG vectors.</td></tr>
+    </table>
+  </div>
+
+  <h2>5. CHR-ROM</h2>
+  <table>
+    <tr><th>ROM format</th><th>file offset</th><th>Size</th><th>備考</th></tr>
+    <tr><td>JP生ROM</td><td class="num">0x8010-0x1000F</td><td class="num">32KB</td><td>Original CHR.</td></tr>
+    <tr><td>mapper66 expanded ROM</td><td class="num">0x10010-0x1800F</td><td class="num">32KB</td><td>Original CHR moved behind PRG bank1.</td></tr>
+    <tr><td>Stage start announcement letters</td><td class="num">CHR banks 0/1/2 local $125 and $127</td><td class="num">96B</td><td>Custom `K` and `P` tiles used by the gameplay start-screen font.</td></tr>
+  </table>
+
+  <h2>6. 次の整理方針</h2>
+  <table>
+    <tr><th>対象</th><th>方針</th><th>理由</th></tr>
+    <tr><td>毎フレーム敵AI</td><td>原則PRG0維持</td><td>ステージ実行中のbank切替は事故リスクと負荷が高い。</td></tr>
+    <tr><td>敵IDごとの属性/見た目/挙動表</td><td>PRG1またはロード時RAMコピー候補</td><td>大きい固定テーブルはPRG0に置く必要が薄い。</td></tr>
+    <tr><td>ステージ開始前だけ必要な処理</td><td>PRG1活用候補</td><td>ロード時ならbank切替の安全設計がしやすい。</td></tr>
+    <tr><td>強化敵 wrapper</td><td>共通化候補</td><td>現在は敵ごとに似た判定/分岐が増えており、PRG0断片を消費している。</td></tr>
+  </table>
+</main>
+</body>
+</html>
