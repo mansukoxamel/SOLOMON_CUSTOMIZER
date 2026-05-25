@@ -1,5 +1,9 @@
 # MAGATU_SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.69 (2026-05-26) Remove personal path references
+- Removed local user/path references from tracked source comments and changelog
+  entries while preserving the technical meaning.
+
 ## v0.7.68 (2026-05-26) Add GitHub README
 - Added `README.md` as the GitHub landing document with setup, launch, ROM
   policy, supported outputs, and links to the full manual.
@@ -8,8 +12,8 @@
 ## v0.7.67 (2026-05-26) Remove local file dialog dependency
 - Replaced the machine-local `file_dialog` imports with an in-repository
   `QFileDialog` compatibility wrapper.
-- Removed the hard-coded startup `sys.path` entry for
-  `D:\program\SingleFunction\module`.
+- Removed the hard-coded startup `sys.path` entry for a machine-local helper
+  directory.
 - Added `requirements.txt` so a fresh checkout declares the external `PyQt5`
   dependency.
 
@@ -305,7 +309,7 @@
 
 ## v0.7.26 (2026-05-24) Match bundled palette file
 - Replaced the shared NES RGB palette with the exact raw RGB values from
-  `C:/Users/jinn/Desktop/1.pal`.
+  a 192-byte palette reference file.
 - This supersedes the previous hand-entered palette table after binary
   verification showed that it did not match the palette file.
 
