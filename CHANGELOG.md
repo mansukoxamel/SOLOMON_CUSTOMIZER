@@ -1,5 +1,13 @@
 # MAGATU_SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.66 (2026-05-25) Fix vertical Panel Monster spread axis
+- Fixed Panel Monster 2-way/3-way spread so vertical variants offset bullet X
+  while horizontal variants continue to offset bullet Y.
+- Confirmed the issue with Mesen logs: `PM3_DOWN` shots were still reaching
+  the `$BF69` spread hook and writing `ptr2E+7/Y` at `$BF98`.
+- Expanded the Panel Monster bullet hook from 70B to 74B, consuming 4B from
+  the small `$BFAF-$BFB8` gap without overlapping the normal fire copy.
+
 ## v0.7.65 (2026-05-25) Show bank0 cave free bytes
 - Added exact bank0 cave free-space accounting to the ROM map:
   `$BBDE-$C1FF` has 1,570B total, 1,504B reserved, 66B unreserved, and the
