@@ -1,5 +1,12 @@
 # MAGATU_SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.65 (2026-05-25) Show bank0 cave free bytes
+- Added exact bank0 cave free-space accounting to the ROM map:
+  `$BBDE-$C1FF` has 1,570B total, 1,504B reserved, 66B unreserved, and the
+  largest contiguous gap is 18B.
+- Listed each remaining unreserved fragment so future ROM allocations do not
+  rely on the visual bar alone.
+
 ## v0.7.64 (2026-05-25) Refresh ROM/RAM ledgers
 - Updated the ROM/RAM ledger documents with explicit operation rules: no new
   address use without checking the ledgers and implementation reservation

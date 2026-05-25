@@ -41,7 +41,7 @@
 <body>
 <main>
   <h1>Solomon Customizer ROM Map - JP mapper66 current</h1>
-  <p class="lead">2026-05-25 v0.7.64 棚卸版。PRG0/PRG1の全体像、bank0 caveの詳細、強化敵コードの配置、開始画面アナウンス、残り空き容量を視覚的に確認するための台帳。</p>
+  <p class="lead">2026-05-25 v0.7.65 棚卸版。PRG0/PRG1の全体像、bank0 caveの詳細、強化敵コードの配置、開始画面アナウンス、残り空き容量を視覚的に確認するための台帳。</p>
 
   <div class="legend">
     <span class="lg"><span class="sw orig"></span>元PRG / 既存コード・既存データ</span>
@@ -153,8 +153,30 @@
     </div>
     <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
     <div class="note">
-      <b>棚卸メモ:</b> 2026-05-24時点の予約スパン検査では、Golem charge dash撤去後のPRG0予約スパン重複はなし。Gargoyle 2-shot、gap_fix `$C000-$C087`、Spark Ball variant、Key enemy、Stage start announcement は現在の台帳上で非重複。
+      <b>棚卸メモ:</b> 2026-05-25時点の予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち使用中1,504B、未予約66B、最大連続空き18B。Gargoyle 2-shot、gap_fix <code>$C000-$C087</code>、Spark Ball variant、Key enemy、Stage start announcement は現在の台帳上で非重複。
     </div>
+    <h3>bank0 cave 未予約ギャップ</h3>
+    <table>
+      <tr><th>file offset</th><th>CPU</th><th>Size</th><th>扱い</th></tr>
+      <tr><td class="num">0x3BEE-0x3BEF</td><td class="num">$BBDE-$BBDF</td><td class="num">2B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x3C2E-0x3C2F</td><td class="num">$BC1E-$BC1F</td><td class="num">2B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x3C5E-0x3C5F</td><td class="num">$BC4E-$BC4F</td><td class="num">2B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x3C8F</td><td class="num">$BC7F</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x3D2A-0x3D35</td><td class="num">$BD1A-$BD25</td><td class="num">12B</td><td>小ヘルパ候補。分岐距離と隣接Gargoyle/Sparkを再確認してから使う。</td></tr>
+      <tr><td class="num">0x3D97</td><td class="num">$BD87</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x3E0C-0x3E0F</td><td class="num">$BDFC-$BDFF</td><td class="num">4B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x3E4D-0x3E4F</td><td class="num">$BE3D-$BE3F</td><td class="num">3B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x3E72-0x3E83</td><td class="num">$BE62-$BE73</td><td class="num">18B</td><td>最大連続空き。旧Spark property跡地。隣接key enemy chunk <code>$BE74</code> との境界確認必須。</td></tr>
+      <tr><td class="num">0x3E8E-0x3E8F</td><td class="num">$BE7E-$BE7F</td><td class="num">2B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x3EAF</td><td class="num">$BE9F</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x3ECD-0x3ECF</td><td class="num">$BEBD-$BEBF</td><td class="num">3B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x3EF9</td><td class="num">$BEE9</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x3FBF-0x3FC8</td><td class="num">$BFAF-$BFB8</td><td class="num">10B</td><td>小ヘルパ候補。Panel Monster normal fire copy直前。</td></tr>
+      <tr><td class="num">0x400F</td><td class="num">$BFFF</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x418F</td><td class="num">$C17F</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x420E-0x420F</td><td class="num">$C1FE-$C1FF</td><td class="num">2B</td><td>bank0 cave末尾の断片。</td></tr>
+      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>66B</b></td><td>寄せ集めの合計。大きな新規処理を置ける連続空きではない。</td></tr>
+    </table>
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
       <tr><td>LOADER</td><td class="num">0x3BF0-0x3C1D</td><td class="num">$BBE0-$BC0D</td><td class="num">46B</td><td>Room flag loader. When RoomFlagTable bit4 is set, clears carried fire stock `$042E/$042F` and redraws the HUD without touching `$042B`.</td></tr>
