@@ -1,5 +1,69 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.100 (2026-05-26) Group enemy settings visually
+- Reordered the Enemy settings dialog by monster family so related controls are
+  closer together.
+- Added monster sprites to Enemy settings groups when a ROM renderer is
+  available.
+
+## v0.7.99 (2026-05-26) Accept Gargoyle snappy wait in variant patch
+- Fixed strengthened Gargoyle patch validation to accept the app's own snappy
+  Gargoyle `$AF2B` wait value `$01`.
+- Stopped the strengthened Gargoyle patch from restoring `$AF2B` to `$68`
+  unless it is removing the old rapid-fire experiment hook.
+
+## v0.7.98 (2026-05-26) Remove Gargoyle speed tuning UI
+- Removed the strengthened Gargoyle second-shot speed control because the
+  runtime value is not a reliable user-facing speed setting.
+- Kept the strengthened Gargoyle second-shot position control and apply the
+  internal second-shot velocity correction at its standard value.
+
+## v0.7.97 (2026-05-26) Fix Gargoyle two-shot gate branch
+- Fixed the strengthened Gargoyle `$7A/$7B/$7E/$7F` gate so matching IDs jump
+  to the two-shot routine instead of into the stock materialization tail.
+
+## v0.7.96 (2026-05-26) Add strengthened Gargoyle tuning
+- Added enemy UI controls for strengthened Gargoyle second-shot offset and
+  second-shot speed.
+- Preserved custom strengthened Gargoyle tuning when the variant patch is
+  reapplied during ROM save.
+
+## v0.7.95 (2026-05-26) Add Gargoyle two-shot speed 2
+- Added strengthened Gargoyle two-shot speed-2 IDs `$7E/$7F`, including picker
+  speed switching, enemy labels, save detection, and the runtime gate.
+
+## v0.7.94 (2026-05-26) Detect panel hack spark hybrid state
+- Updated the Panel Monster behavior-control detector to accept the same
+  stock-panel/current-Spark hybrid state handled by the variant patch, so the
+  Enemy dialog no longer disables Panel Monster controls for that ROM state.
+
+## v0.7.93 (2026-05-26) Accept orig-panel spark hybrid state
+- Fixed Panel Monster variant verification to accept ROMs where the stock
+  Panel fire code head remains at `$A556` while the current Spark property hook
+  body starts at `$A559`, allowing the save/test pipeline to restore the Panel
+  dispatch before Spark is reapplied.
+
+## v0.7.92 (2026-05-26) Accept panel and spark hook overlap
+- Fixed Panel Monster variant verification to accept the current layout where
+  the Panel fire dispatch jump at `$A556` coexists with the Spark Ball property
+  hook starting at `$A559`.
+
+## v0.7.91 (2026-05-26) Fix hidden behavior dialog widgets
+- Kept hidden behavior-dialog groups alive so opening the Enemy-only view no
+  longer deletes widgets that shared apply/export code may read.
+
+## v0.7.90 (2026-05-26) Add strengthened Spark Ball tuning
+- Added enemy UI controls for strengthened Spark Ball pause digits and
+  transparent Spark Ball blink mask tuning.
+- Preserved custom strengthened Spark Ball tuning when the variant patch is
+  reapplied during ROM save.
+
+## v0.7.89 (2026-05-26) Hide salamander behavior group
+- Removed the Salamander behavior group from the visible enemy behavior UI.
+
+## v0.7.88 (2026-05-26) Hide salamander Y tolerance
+- Removed the Salamander Y tolerance control from the visible enemy behavior UI.
+
 ## v0.7.87 (2026-05-26) Split enemy behavior entry
 - Added a top-level Enemy button beside game behavior editing, and separated
   enemy AI settings from the general game behavior dialog.

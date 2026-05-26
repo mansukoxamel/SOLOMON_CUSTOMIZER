@@ -115,6 +115,11 @@ CPU_OAM_HIDE_HOOK = _cpu(0x3ED7)               # $BEC7
 CPU_PANEL_PROPERTY_HOOK = _cpu(0x5BEF)         # $DBDF
 CPU_PANEL_ANIM_HOOK = _cpu(0x40D2)             # $C0C2
 
+DEFAULT_PAUSE_DIGITS = (0, 3, 6, 9)
+PAUSE_DIGIT_COUNT = 4
+TRANSPARENCY_PERIODS = (0x20, 0x30, 0x40, 0x60, 0x80)
+DEFAULT_TRANSPARENCY_PERIOD = 0x40
+
 OFF_AI_DRAGON_SLOW_WRAPPER = _cf(CPU_AI_DRAGON_SLOW_WRAPPER)
 OFF_AI_DRAGON_FAST_WRAPPER = _cf(CPU_AI_DRAGON_FAST_WRAPPER)
 OFF_AI_GOLEM_WRAPPER_OLD = _cf(CPU_AI_GOLEM_WRAPPER_OLD)
@@ -128,6 +133,27 @@ OFF_AB13 = _cf(0xAB13)
 OFF_A2CC = _cf(0xA2CC)
 OFF_8B05 = _cf(0x8B05)
 OFF_85FA = _cf(0x85FA)
+
+OFF_PAUSE_DIGITS = tuple(OFF_PAUSE_HOOK + rel for rel in (0x25, 0x29, 0x2D, 0x31))
+OFF_TRANSPARENCY_PERIOD = OFF_OAM_HIDE_HOOK + 0x14
+
+
+def normalize_pause_digits(digits) -> tuple[int, int, int, int]:
+    vals = []
+    for value in digits:
+        iv = int(value)
+        if not 0 <= iv <= 9:
+            raise SparkBallVariantError("停止するLIFE百の位は0-9で指定してください。")
+        if iv not in vals:
+            vals.append(iv)
+        if len(vals) > PAUSE_DIGIT_COUNT:
+            raise SparkBallVariantError("停止するLIFE百の位は最大4個までです。")
+    if not vals:
+        raise SparkBallVariantError("停止するLIFE百の位を最低1個選んでください。")
+    while len(vals) < PAUSE_DIGIT_COUNT:
+        vals.append(vals[-1])
+    return tuple(vals)
+
 
 def _build_ai_wrapper(low_type: int, high_type: int, low_spark: int,
                       high_spark: int, spark_ai: int, stock_ai: int = 0xA64A) -> bytes:
@@ -143,7 +169,8 @@ def _build_ai_wrapper(low_type: int, high_type: int, low_spark: int,
     return a.finish()
 
 
-def _build_pause_hook() -> bytes:
+def _build_pause_hook(pause_digits=DEFAULT_PAUSE_DIGITS) -> bytes:
+    pause_digits = normalize_pause_digits(pause_digits)
     a = _Asm()
     a.b(0xA0, 0x01, 0xB1, 0x2E)       # LDY #1 / LDA ($2E),Y
     for type_id in (0x6A, 0x6B, 0x6E, 0x6F):
@@ -153,7 +180,7 @@ def _build_pause_hook() -> bytes:
     a.b(0xA0, 0x0A, 0xB5, 0x03, 0x91, 0x2E, 0x60)
     a.label("check_pause")
     a.b(0xAD, 0x39, 0x04)             # LDA $0439 (LIFE hundreds digit)
-    for digit in (0, 3, 6, 9):
+    for digit in pause_digits:
         a.b(0xC9, digit); a.branch(0xF0, "stop")
     a.branch(0xD0, "commit")
     a.label("stop")
@@ -206,7 +233,11 @@ def _build_golem_ai_wrapper() -> bytes:
     return a.finish()
 
 
-def _build_oam_hide_hook() -> bytes:
+def _build_oam_hide_hook(transparency_period=DEFAULT_TRANSPARENCY_PERIOD) -> bytes:
+    transparency_period = int(transparency_period)
+    if transparency_period not in TRANSPARENCY_PERIODS:
+        raise SparkBallVariantError(
+            f"未対応の透明スパークボール周期です: ${transparency_period:02X}")
     a = _Asm()
     a.b(0x9D, 0x16, 0x02)             # original STA $0216,X
     a.b(0xA0, 0x01, 0xB1, 0x08)       # LDY #1 / LDA ($08),Y (entity type)
@@ -214,7 +245,7 @@ def _build_oam_hide_hook() -> bytes:
     a.b(0xC9, 0x72); a.branch(0xF0, "maybe_hide")
     a.b(0xC9, 0x76); a.branch(0xD0, "done")
     a.label("maybe_hide")
-    a.b(0xA5, 0x21, 0x29, 0x40)       # LDA frame counter / AND #$40
+    a.b(0xA5, 0x21, 0x29, transparency_period)  # LDA frame counter / AND #mask
     a.branch(0xF0, "done")
     a.b(0xA9, 0xF8, 0x9D, 0x10, 0x02, 0x9D, 0x14, 0x02)
     a.label("done")
@@ -261,16 +292,57 @@ def _expect_or_hooked(rom_data, off: int, orig: bytes, hook: bytes, name: str) -
     )
 
 
-def apply(rom_data) -> list[str]:
+def _has_pause_hook(rom_data) -> bool:
+    return bytes(rom_data[OFF_PAUSE_HOOK:OFF_PAUSE_HOOK + 4]) == bytes((0xA0, 0x01, 0xB1, 0x2E))
+
+
+def _has_oam_hide_hook(rom_data) -> bool:
+    return bytes(rom_data[OFF_OAM_HIDE_HOOK:OFF_OAM_HIDE_HOOK + 3]) == bytes((0x9D, 0x16, 0x02))
+
+
+def current_pause_digits(rom_data) -> tuple[int, int, int, int]:
+    if rom_data is None or len(rom_data) <= max(OFF_PAUSE_DIGITS):
+        raise SparkBallVariantError("ROM is too short for Spark Ball pause settings.")
+    if not _has_pause_hook(rom_data):
+        return DEFAULT_PAUSE_DIGITS
+    return tuple(int(rom_data[off]) for off in OFF_PAUSE_DIGITS)
+
+
+def current_transparency_period(rom_data) -> int:
+    if rom_data is None or len(rom_data) <= OFF_TRANSPARENCY_PERIOD:
+        raise SparkBallVariantError("ROM is too short for Spark Ball transparency settings.")
+    if not _has_oam_hide_hook(rom_data):
+        return DEFAULT_TRANSPARENCY_PERIOD
+    value = int(rom_data[OFF_TRANSPARENCY_PERIOD])
+    if value not in TRANSPARENCY_PERIODS:
+        return DEFAULT_TRANSPARENCY_PERIOD
+    return value
+
+
+def apply(rom_data, pause_digits=None, transparency_period=None) -> list[str]:
+    if pause_digits is None:
+        pause_digits = current_pause_digits(rom_data)
+    else:
+        pause_digits = normalize_pause_digits(pause_digits)
+    if transparency_period is None:
+        transparency_period = current_transparency_period(rom_data)
+    else:
+        transparency_period = int(transparency_period)
+        if transparency_period not in TRANSPARENCY_PERIODS:
+            raise SparkBallVariantError(
+                f"未対応の透明スパークボール周期です: ${transparency_period:02X}")
+    pause_hook = _build_pause_hook(pause_digits)
+    oam_hide_hook = _build_oam_hide_hook(transparency_period)
+
     min_len = max(
         OFF_AI_DRAGON_SLOW_WRAPPER + len(CAVE_AI_DRAGON_SLOW_WRAPPER),
         OFF_AI_DRAGON_FAST_WRAPPER + len(CAVE_AI_DRAGON_FAST_WRAPPER),
         OFF_AI_GOLEM_WRAPPER + len(CAVE_AI_GOLEM_WRAPPER),
-        OFF_PAUSE_HOOK + len(CAVE_PAUSE_HOOK),
+        OFF_PAUSE_HOOK + len(pause_hook),
         OFF_PROPERTY_HOOK + len(CAVE_PROPERTY_HOOK),
         OFF_ANIM_HOOK + len(CAVE_ANIM_HOOK),
         OFF_ANIM_SPARK_SET + len(CAVE_ANIM_SPARK_SET),
-        OFF_OAM_HIDE_HOOK + len(CAVE_OAM_HIDE_HOOK),
+        OFF_OAM_HIDE_HOOK + len(oam_hide_hook),
     )
     if rom_data is None or len(rom_data) < min_len:
         raise SparkBallVariantError("ROM is too short for Spark Ball variant patch.")
@@ -357,7 +429,7 @@ def apply(rom_data) -> list[str]:
     _write_blob(
         rom_data,
         OFF_PAUSE_HOOK,
-        CAVE_PAUSE_HOOK,
+        pause_hook,
         changed,
         "Spark Ball Dragon-ID pause hook $EFC4",
     )
@@ -385,7 +457,7 @@ def apply(rom_data) -> list[str]:
     _write_blob(
         rom_data,
         OFF_OAM_HIDE_HOOK,
-        CAVE_OAM_HIDE_HOOK,
+        oam_hide_hook,
         changed,
         "Transparent Spark Ball OAM hide hook $D026",
     )

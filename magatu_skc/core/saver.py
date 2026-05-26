@@ -137,11 +137,11 @@ def write_item_data(rom: Rom, levels: list, region: str = None,
 def _uses_gargoyle_two_shot(levels: list) -> bool:
     for lv in levels:
         for enemy in getattr(lv, "enemies", []) or []:
-            if getattr(enemy, "element_no", None) in (0x7A, 0x7B):
+            if getattr(enemy, "element_no", None) in (0x7A, 0x7B, 0x7E, 0x7F):
                 return True
         for mirror in getattr(lv, "demon_mirrors", []) or []:
             for code in getattr(mirror, "enemy_codes", []) or []:
-                if int(code) in (0x7A, 0x7B):
+                if int(code) in (0x7A, 0x7B, 0x7E, 0x7F):
                     return True
     return False
 

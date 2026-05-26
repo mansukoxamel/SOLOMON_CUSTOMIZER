@@ -3136,6 +3136,8 @@ class MainWindow(QMainWindow):
             parent=self,
             app_config=self._app_config,
             initial_level_no=self.current_level_no,
+            tile_renderer=self.tile_renderer,
+            config=self.config,
         )
         dlg.exec_()
         # 変更があれば未保存マーク
@@ -3157,6 +3159,8 @@ class MainWindow(QMainWindow):
             app_config=self._app_config,
             initial_level_no=self.current_level_no,
             view_mode="enemy",
+            tile_renderer=self.tile_renderer,
+            config=self.config,
         )
         dlg.exec_()
         if bytes(self.rom.data) != before:

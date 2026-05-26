@@ -22,6 +22,11 @@ MAX_THRESHOLD   = 0xFF
 
 VARIANT_HOOK_OFF = 0x2566
 VARIANT_HOOK = bytes.fromhex("4c d2 bc")
+ORIG_PANEL_FIRE_HEAD = bytes.fromhex("a0 01 b1")
+SPARK_PROPERTY_HOOK_CURRENT_BODY = bytes.fromhex(
+    "a5 05 29 fe c9 6a f0 0f c9 6e f0 0b c9 72 f0 07 "
+    "c9 76 f0 03 4c df db a9 19 60"
+)
 VARIANT_FIRE_DELAY_OFFS = (
     0x3FCE,  # normal Panel Monster fire copy, CMP operand
     0x409D,  # 2-way cave, CMP operand
@@ -61,9 +66,25 @@ def detect_region(rom_data) -> str:
             and len(rom_data) >= VARIANT_HOOK_OFF + len(VARIANT_HOOK)
             and bytes(rom_data[VARIANT_HOOK_OFF:VARIANT_HOOK_OFF + len(VARIANT_HOOK)]) == VARIANT_HOOK
         )
+        has_orig_panel_spark_hybrid = (
+            region == "JP"
+            and len(rom_data) >= (
+                VARIANT_HOOK_OFF
+                + len(ORIG_PANEL_FIRE_HEAD)
+                + len(SPARK_PROPERTY_HOOK_CURRENT_BODY)
+            )
+            and bytes(rom_data[VARIANT_HOOK_OFF:VARIANT_HOOK_OFF + len(ORIG_PANEL_FIRE_HEAD)])
+            == ORIG_PANEL_FIRE_HEAD
+            and bytes(
+                rom_data[
+                    VARIANT_HOOK_OFF + len(ORIG_PANEL_FIRE_HEAD):
+                    VARIANT_HOOK_OFF + len(ORIG_PANEL_FIRE_HEAD) + len(SPARK_PROPERTY_HOOK_CURRENT_BODY)
+                ]
+            ) == SPARK_PROPERTY_HOOK_CURRENT_BODY
+        )
         if (
             bytes(rom_data[o["sig_off"]:end]) == o["sig"]
-            and (has_original_fire or has_variant_hook)
+            and (has_original_fire or has_variant_hook or has_orig_panel_spark_hybrid)
         ):
             return region
     raise PanelMonsterHackError(

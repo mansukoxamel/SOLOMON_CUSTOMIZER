@@ -26,7 +26,9 @@ from ..core import golem_hack
 from ..core import golem_speed
 from ..core import neul_ghost_speed
 from ..core import spark_ball_speed
+from ..core import spark_ball_variant
 from ..core import gargoyle_hack
+from ..core import gargoyle_variant
 from ..core import clearscreen_hack
 from ..core import clear_message
 from ..core import demo_input
@@ -41,6 +43,47 @@ from ..core import wall_color_hack
 from ..nes import palette as nes_palette
 
 
+def _enemy_group_pixmap(tile_renderer, config, enemy_code: int) -> QPixmap:
+    if tile_renderer is None or config is None:
+        return QPixmap()
+    from PyQt5.QtGui import QImage, QPainter
+    anim = config.enemy_map.get(enemy_code, 0)
+    try:
+        sprite = tile_renderer.get_tile_image(anim, 0, transparent=True)
+    except Exception:
+        return QPixmap()
+    bg = QImage(36, 36, QImage.Format_ARGB32)
+    bg.fill(QColor(20, 20, 20))
+    painter = QPainter(bg)
+    scaled = sprite.scaled(36, 36, Qt.KeepAspectRatio, Qt.FastTransformation)
+    painter.drawImage((36 - scaled.width()) // 2, (36 - scaled.height()) // 2, scaled)
+    painter.end()
+    return QPixmap.fromImage(bg)
+
+
+def _setup_enemy_group(dialog, group, form, sort_key: int, enemy_codes=()):
+    group.setProperty("enemy_sort_key", sort_key)
+    if not enemy_codes:
+        return
+    row = QWidget()
+    lay = QHBoxLayout(row)
+    lay.setContentsMargins(0, 0, 0, 2)
+    lay.setSpacing(4)
+    for code in enemy_codes:
+        pix = _enemy_group_pixmap(dialog.tile_renderer, dialog.config, code)
+        if pix.isNull():
+            continue
+        lbl = QLabel()
+        lbl.setFixedSize(36, 36)
+        lbl.setPixmap(pix)
+        lbl.setToolTip(f"0x{code:02X}")
+        lay.addWidget(lbl)
+    if lay.count() <= 0:
+        return
+    lay.addStretch(1)
+    form.addRow(row)
+
+
 class HackDialog(QDialog):
     """ゲーム挙動改造ダイアログ"""
 
@@ -51,6 +94,8 @@ class HackDialog(QDialog):
         app_config=None,
         initial_level_no: int = 0,
         view_mode: str = "game",
+        tile_renderer=None,
+        config=None,
     ):
         super().__init__(parent)
         if parent is not None:
@@ -61,6 +106,8 @@ class HackDialog(QDialog):
         self.rom = rom
         self._app_config = app_config   # サイズ/位置 復元用 (None=保存しない)
         self._initial_level_no = initial_level_no
+        self.tile_renderer = tile_renderer
+        self.config = config
 
         # 縦長で画面に入らないため: グループ群は 2列グリッド + 縦スクロール、
         # 補助ボタン/OK等は下に固定。呼び出し側(layout.addWidget/addLayout)は
@@ -361,7 +408,6 @@ class HackDialog(QDialog):
                 if self.combo_sala_y.itemData(i) == cy:
                     self.combo_sala_y.setCurrentIndex(i)
             slf.addRow("反応距離(X):", self.combo_sala_x)
-            slf.addRow("反応許容(Y):", self.combo_sala_y)
             shint = QLabel(f"判定リージョン: {self._sala_region} / "
                            "SUB_B1E9の攻撃可能距離。サラマンダー/ドラゴンで共有。")
             shint.setWordWrap(True)
@@ -370,12 +416,13 @@ class HackDialog(QDialog):
         else:
             for w in (self.combo_sala_x, self.combo_sala_y):
                 w.setEnabled(False)
-        layout.addWidget(sala_group)
+        self._hidden_sala_group = sala_group
 
         # ====== パネルモンスター ======
         pm_group = QGroupBox("パネルモンスター")
         pm_group.setProperty("settings_category", "敵・AI")
         pmf = QFormLayout(pm_group)
+        _setup_enemy_group(self, pm_group, pmf, 10, (0x24, 0x52, 0x5A))
         self._pm_ok = False
         try:
             pm_region = panel_monster_hack.detect_region(rom.data)
@@ -455,6 +502,7 @@ class HackDialog(QDialog):
         golem_group = QGroupBox("ゴーレム")
         golem_group.setProperty("settings_category", "敵・AI")
         glf = QFormLayout(golem_group)
+        _setup_enemy_group(self, golem_group, glf, 50, (0x70, 0x74))
         self._golem_ok = False
         try:
             golem_hack.detect_region(rom.data)
@@ -478,6 +526,7 @@ class HackDialog(QDialog):
         shared_speed_group = QGroupBox("ゴーレム/ドラゴン/ガーゴイル歩行速度")
         shared_speed_group.setProperty("settings_category", "敵・AI")
         ssf = QFormLayout(shared_speed_group)
+        _setup_enemy_group(self, shared_speed_group, ssf, 55, (0x70, 0x68, 0x78))
         self.combo_shared_walk = QComboBox()
         self._golem_spd_ok = False
         try:
@@ -512,6 +561,7 @@ class HackDialog(QDialog):
         ng_speed_group = QGroupBox("ゴースト＆ヌエル移動速度")
         ng_speed_group.setProperty("settings_category", "敵・AI")
         ngf = QFormLayout(ng_speed_group)
+        _setup_enemy_group(self, ng_speed_group, ngf, 30, (0x34, 0x30))
         self.combo_neul_ghost_speed = QComboBox()
         self._neul_ghost_spd_ok = False
         try:
@@ -546,6 +596,7 @@ class HackDialog(QDialog):
         sb_speed_group = QGroupBox("スパークボール移動速度")
         sb_speed_group.setProperty("settings_category", "敵・AI")
         sbf = QFormLayout(sb_speed_group)
+        _setup_enemy_group(self, sb_speed_group, sbf, 40, (0x28, 0x6A, 0x72))
         self.combo_spark_ball_speed = QComboBox()
         self._spark_ball_spd_ok = False
         try:
@@ -576,10 +627,55 @@ class HackDialog(QDialog):
             self.combo_spark_ball_speed.setEnabled(False)
         layout.addWidget(sb_speed_group)
 
+        # ====== 強化スパークボール ======
+        sb_variant_group = QGroupBox("強化スパークボール")
+        sb_variant_group.setProperty("settings_category", "敵・AI")
+        sbvf = QFormLayout(sb_variant_group)
+        _setup_enemy_group(self, sb_variant_group, sbvf, 41, (0x6A, 0x72))
+        self._spark_ball_variant_ok = False
+        self.chk_spark_pause_digits = []
+        self.combo_spark_transparency = QComboBox()
+        try:
+            pause_digits = set(spark_ball_variant.current_pause_digits(rom.data))
+            transparency_period = spark_ball_variant.current_transparency_period(rom.data)
+            self._spark_ball_variant_ok = True
+        except spark_ball_variant.SparkBallVariantError as e:
+            pause_digits = set(spark_ball_variant.DEFAULT_PAUSE_DIGITS)
+            transparency_period = spark_ball_variant.DEFAULT_TRANSPARENCY_PERIOD
+            note = QLabel(f"無効: {str(e).splitlines()[0]}")
+            note.setWordWrap(True)
+            note.setStyleSheet("color:#c33;")
+            sbvf.addRow(note)
+
+        digit_grid = QGridLayout()
+        for digit in range(10):
+            chk = QCheckBox(str(digit))
+            chk.setChecked(digit in pause_digits)
+            chk.stateChanged.connect(self._on_spark_pause_digit_changed)
+            chk.setEnabled(self._spark_ball_variant_ok)
+            self.chk_spark_pause_digits.append(chk)
+            digit_grid.addWidget(chk, digit // 5, digit % 5)
+        sbvf.addRow("停止するLIFE百の位:", digit_grid)
+
+        for value in spark_ball_variant.TRANSPARENCY_PERIODS:
+            self.combo_spark_transparency.addItem(f"${value:02X}", value)
+        self._set_combo_data(self.combo_spark_transparency, transparency_period)
+        self.combo_spark_transparency.setEnabled(self._spark_ball_variant_ok)
+        sbvf.addRow("透明化周期:", self.combo_spark_transparency)
+
+        sbvhint = QLabel(
+            "停止型(6A/6B/6E/6F)は選択したLIFE百の位で停止します。"
+            "透明型(72/73/76/77)はフレームカウンタのANDマスクで透明化周期を変えます。")
+        sbvhint.setWordWrap(True)
+        sbvhint.setStyleSheet("color:#888; font-size:11px;")
+        sbvf.addRow(sbvhint)
+        layout.addWidget(sb_variant_group)
+
         # ====== デーモンヘッド ======
         demonhead_group = QGroupBox("デーモンヘッド")
         demonhead_group.setProperty("settings_category", "敵・AI")
         dhf = QFormLayout(demonhead_group)
+        _setup_enemy_group(self, demonhead_group, dhf, 20, (0x50, 0x54, 0x58))
         self._demonhead_ok = False
         try:
             demonhead_hack.current_wait(rom.data)
@@ -606,6 +702,7 @@ class HackDialog(QDialog):
         gargoyle_group = QGroupBox("ガーゴイル")
         gargoyle_group.setProperty("settings_category", "敵・AI")
         gyf = QFormLayout(gargoyle_group)
+        _setup_enemy_group(self, gargoyle_group, gyf, 70, (0x78, 0x7C))
         self._gargoyle_ok = False
         try:
             gargoyle_hack.detect_region(rom.data)
@@ -642,10 +739,43 @@ class HackDialog(QDialog):
             self.spin_gargoyle_cooldown.setEnabled(False)
         layout.addWidget(gargoyle_group)
 
+        # ====== 強化ガーゴイル ======
+        gargoyle_variant_group = QGroupBox("強化ガーゴイル")
+        gargoyle_variant_group.setProperty("settings_category", "敵・AI")
+        gvf = QFormLayout(gargoyle_variant_group)
+        _setup_enemy_group(self, gargoyle_variant_group, gvf, 71, (0x7A, 0x7E))
+        self._gargoyle_variant_ok = False
+        self.combo_gargoyle_variant_offset = QComboBox()
+        try:
+            cur_gv_offset = gargoyle_variant.current_second_offset(rom.data)
+            self._gargoyle_variant_ok = True
+        except gargoyle_variant.GargoyleVariantError as e:
+            cur_gv_offset = gargoyle_variant.DEFAULT_SECOND_OFFSET
+            note = QLabel(f"無効: {str(e).splitlines()[0]}")
+            note.setWordWrap(True)
+            note.setStyleSheet("color:#c33;")
+            gvf.addRow(note)
+
+        for value in gargoyle_variant.SECOND_OFFSET_PRESETS:
+            label = f"{value}px" + ("（標準）" if value == gargoyle_variant.DEFAULT_SECOND_OFFSET else "")
+            self.combo_gargoyle_variant_offset.addItem(label, value)
+        self._set_combo_data(self.combo_gargoyle_variant_offset, cur_gv_offset)
+        self.combo_gargoyle_variant_offset.setEnabled(self._gargoyle_variant_ok)
+        gvf.addRow("2発目の位置:", self.combo_gargoyle_variant_offset)
+
+        gvhint = QLabel(
+            "強化ガーゴイル(7A/7B/7E/7F)の2発目だけを調整します。"
+            "1発目は原作の弾生成処理をそのまま使います。")
+        gvhint.setWordWrap(True)
+        gvhint.setStyleSheet("color:#888; font-size:11px;")
+        gvf.addRow(gvhint)
+        layout.addWidget(gargoyle_variant_group)
+
         # ====== ドラゴン ======
         dragon_group = QGroupBox("ドラゴン")
         dragon_group.setProperty("settings_category", "敵・AI")
         drf = QFormLayout(dragon_group)
+        _setup_enemy_group(self, dragon_group, drf, 60, (0x68, 0x6C))
         self._dragon_ok = False
         try:
             dragon_hack.detect_region(rom.data)
@@ -830,12 +960,25 @@ class HackDialog(QDialog):
         rowi, col = 0, 0
         bottom = []          # helper_row / btnbox は下に固定
         top_info = None
-        for kind, obj in layout.items:
+        self._hidden_groups = []
+        layout_items = layout.items
+        if self._view_mode == "enemy":
+            def _enemy_layout_key(item):
+                kind, obj = item
+                if kind == "w" and isinstance(obj, QLabel):
+                    return (0, 0)
+                if kind == "w" and isinstance(obj, QGroupBox):
+                    return (1, int(obj.property("enemy_sort_key") or 9999))
+                return (2, 0)
+            layout_items = sorted(layout.items, key=_enemy_layout_key)
+        for kind, obj in layout_items:
             if kind == "w" and isinstance(obj, QGroupBox):
                 cat = obj.property("settings_category") or "敵以外"
                 if self._view_mode == "enemy" and cat != "敵・AI":
+                    self._hidden_groups.append(obj)
                     continue
                 if self._view_mode != "enemy" and cat == "敵・AI":
+                    self._hidden_groups.append(obj)
                     continue
                 grid.addWidget(obj, rowi, col)
                 col += 1
@@ -860,6 +1003,27 @@ class HackDialog(QDialog):
 
     def _combo_data(self, combo):
         return combo.currentData()
+
+    def _selected_spark_pause_digits(self) -> list[int]:
+        return [
+            i for i, chk in enumerate(getattr(self, "chk_spark_pause_digits", []))
+            if chk.isChecked()
+        ]
+
+    def _on_spark_pause_digit_changed(self, _state):
+        selected = self._selected_spark_pause_digits()
+        if len(selected) <= spark_ball_variant.PAUSE_DIGIT_COUNT:
+            return
+        sender = self.sender()
+        if sender is not None:
+            sender.blockSignals(True)
+            sender.setChecked(False)
+            sender.blockSignals(False)
+        QMessageBox.information(
+            self,
+            "強化スパークボール",
+            "停止するLIFE百の位は最大4個までです。",
+        )
 
     def _mark_parent_dirty(self, log_message: str):
         parent = self.parent()
@@ -1029,10 +1193,13 @@ class HackDialog(QDialog):
             "golem_snappy": self.chk_golem_snappy.isChecked(),
             "gargoyle_snappy": self.chk_gargoyle_snappy.isChecked(),
             "gargoyle_cooldown_frames": self.spin_gargoyle_cooldown.value(),
+            "gargoyle_variant_second_offset": self._combo_data(self.combo_gargoyle_variant_offset),
             "dragon_snappy": self.chk_dragon_snappy.isChecked(),
             "shared_monster_walk_multiplier": self._combo_data(self.combo_shared_walk),
             "neul_ghost_speed_multiplier": self._combo_data(self.combo_neul_ghost_speed),
             "spark_ball_speed_multiplier": self._combo_data(self.combo_spark_ball_speed),
+            "spark_ball_pause_digits": self._selected_spark_pause_digits(),
+            "spark_ball_transparency_period": self._combo_data(self.combo_spark_transparency),
             "demonhead_snappy": self.chk_demonhead_snappy.isChecked(),
             "clear_screen_preset": self._combo_data(self.combo_clearscreen),
             "gap_fix_enabled": self.chk_gapfix.isChecked(),
@@ -1051,10 +1218,12 @@ class HackDialog(QDialog):
             "demo_stage": bool(getattr(self, "_ds_ok", False)),
             "golem": bool(getattr(self, "_golem_ok", False)),
             "gargoyle": bool(getattr(self, "_gargoyle_ok", False)),
+            "gargoyle_variant": bool(getattr(self, "_gargoyle_variant_ok", False)),
             "dragon": bool(getattr(self, "_dragon_ok", False)),
             "golem_speed": bool(getattr(self, "_golem_spd_ok", False)),
             "neul_ghost_speed": bool(getattr(self, "_neul_ghost_spd_ok", False)),
             "spark_ball_speed": bool(getattr(self, "_spark_ball_spd_ok", False)),
+            "spark_ball_variant": bool(getattr(self, "_spark_ball_variant_ok", False)),
             "demonhead": bool(getattr(self, "_demonhead_ok", False)),
             "clear_screen": bool(getattr(self, "_cs_ok", False)),
             "gap_fix": bool(getattr(self, "_gapfix_ok", False)),
@@ -1097,6 +1266,20 @@ class HackDialog(QDialog):
                 chk.setChecked(bool(settings[key]))
                 if chk.isChecked() != old:
                     changed.append(label)
+
+        def set_spark_pause_digits(key, label):
+            if not has(key) or not getattr(self, "_spark_ball_variant_ok", False):
+                return
+            old = self._selected_spark_pause_digits()
+            try:
+                selected = spark_ball_variant.normalize_pause_digits(settings[key])
+            except (TypeError, ValueError, spark_ball_variant.SparkBallVariantError):
+                return
+            visible = set(selected)
+            for i, chk in enumerate(self.chk_spark_pause_digits):
+                chk.setChecked(i in visible)
+            if self._selected_spark_pause_digits() != old:
+                changed.append(label)
 
         def set_combo(key, combo, label):
             if has(key) and combo.isEnabled():
@@ -1194,10 +1377,13 @@ class HackDialog(QDialog):
         set_check("golem_snappy", self.chk_golem_snappy, "ゴーレム キビキビ")
         set_check("gargoyle_snappy", self.chk_gargoyle_snappy, "ガーゴイル キビキビ")
         set_spin("gargoyle_cooldown_frames", self.spin_gargoyle_cooldown, "ガーゴイル クールダウン")
+        set_combo("gargoyle_variant_second_offset", self.combo_gargoyle_variant_offset, "強化ガーゴイル 2発目位置")
         set_check("dragon_snappy", self.chk_dragon_snappy, "ドラゴン キビキビ")
         set_combo("shared_monster_walk_multiplier", self.combo_shared_walk, "共通歩行速度")
         set_combo("neul_ghost_speed_multiplier", self.combo_neul_ghost_speed, "ゴースト＆ヌエル移動速度")
         set_combo("spark_ball_speed_multiplier", self.combo_spark_ball_speed, "スパークボール移動速度")
+        set_spark_pause_digits("spark_ball_pause_digits", "強化スパークボール停止")
+        set_combo("spark_ball_transparency_period", self.combo_spark_transparency, "強化スパークボール透明化")
         set_check("demonhead_snappy", self.chk_demonhead_snappy, "デーモンヘッド キビキビ")
         if has("clear_screen_preset") and self.combo_clearscreen.isEnabled():
             old = self.combo_clearscreen.currentIndex()
@@ -1450,6 +1636,26 @@ class HackDialog(QDialog):
             except gargoyle_hack.GargoyleHackError as e:
                 QMessageBox.warning(self, "ガーゴイル改造失敗", str(e))
 
+        # 強化ガーゴイル
+        if getattr(self, "_gargoyle_variant_ok", False):
+            try:
+                selected_offset = self.combo_gargoyle_variant_offset.currentData()
+                should_apply = (
+                    gargoyle_variant.is_applied(d)
+                    or selected_offset != gargoyle_variant.DEFAULT_SECOND_OFFSET
+                )
+                if should_apply:
+                    gvch = gargoyle_variant.apply(
+                        d,
+                        second_offset=selected_offset,
+                        second_speed=gargoyle_variant.DEFAULT_SECOND_SPEED,
+                    )
+                    if gvch:
+                        applied.append("強化ガーゴイル: " + " / ".join(gvch))
+            except gargoyle_variant.GargoyleVariantError as e:
+                QMessageBox.warning(self, "強化ガーゴイル設定失敗", str(e))
+                return
+
         # ドラゴン キビキビ
         if self._dragon_ok:
             try:
@@ -1489,6 +1695,21 @@ class HackDialog(QDialog):
                     applied.append("スパークボール: " + " / ".join(sbch))
             except spark_ball_speed.SparkBallSpeedError as e:
                 QMessageBox.warning(self, "スパークボール速度改造失敗", str(e))
+
+        # 強化スパークボール
+        if getattr(self, "_spark_ball_variant_ok", False):
+            try:
+                selected_digits = self._selected_spark_pause_digits()
+                sbvch = spark_ball_variant.apply(
+                    d,
+                    pause_digits=selected_digits,
+                    transparency_period=self.combo_spark_transparency.currentData(),
+                )
+                if sbvch:
+                    applied.append("強化スパークボール: " + " / ".join(sbvch))
+            except spark_ball_variant.SparkBallVariantError as e:
+                QMessageBox.warning(self, "強化スパークボール設定失敗", str(e))
+                return
 
         # デーモンヘッド キビキビ
         if self._demonhead_ok:
@@ -1596,6 +1817,11 @@ class HackDialog(QDialog):
         if self._gargoyle_ok:
             self.chk_gargoyle_snappy.setChecked(False)
             self.spin_gargoyle_cooldown.setValue(0x50)
+        if getattr(self, "_gargoyle_variant_ok", False):
+            self._set_combo_data(
+                self.combo_gargoyle_variant_offset,
+                gargoyle_variant.DEFAULT_SECOND_OFFSET,
+            )
         if self._dragon_ok:
             self.chk_dragon_snappy.setChecked(False)
         if self._golem_spd_ok:
@@ -1613,6 +1839,14 @@ class HackDialog(QDialog):
                 if abs(self.combo_spark_ball_speed.itemData(i) - 1.0) < 1e-6:
                     self.combo_spark_ball_speed.setCurrentIndex(i)
                     break
+        if getattr(self, "_spark_ball_variant_ok", False):
+            defaults = set(spark_ball_variant.DEFAULT_PAUSE_DIGITS)
+            for digit, chk in enumerate(self.chk_spark_pause_digits):
+                chk.setChecked(digit in defaults)
+            self._set_combo_data(
+                self.combo_spark_transparency,
+                spark_ball_variant.DEFAULT_TRANSPARENCY_PERIOD,
+            )
         if self._demonhead_ok:
             self.chk_demonhead_snappy.setChecked(False)
         if getattr(self, "_cs_ok", False):

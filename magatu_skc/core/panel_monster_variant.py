@@ -110,6 +110,7 @@ CPU_AI_DEMON_WRAPPER = _cpu(0x4156)    # $C146
 CPU_PROPERTY_HOOK = _cpu(0x5BEF)       # $DBDF
 CPU_ANIM_HOOK = _cpu(0x40D2)           # $C0C2
 CPU_SPARK_PROPERTY_HOOK = _cpu(0x3E72) # $BE62
+CPU_SPARK_PROPERTY_HOOK_CURRENT = _cpu(0x2569) # $A559
 CPU_SPARK_ANIM_HOOK = _cpu(0x4FEE)     # $CFDE
 
 OFF_FIRE_DISPATCH = _cf(CPU_FIRE_DISPATCH)
@@ -122,11 +123,17 @@ OFF_PROPERTY_HOOK = _cf(CPU_PROPERTY_HOOK)
 OFF_ANIM_HOOK = _cf(CPU_ANIM_HOOK)
 
 HOOK_PANEL_FIRE = bytes.fromhex("4c") + _word(CPU_FIRE_DISPATCH) + bytes([0xEA] * 28)
+HOOK_PANEL_FIRE_HEAD = HOOK_PANEL_FIRE[:3]
 HOOK_BULLET_MOVE = bytes.fromhex("20") + _word(CPU_BULLET_HOOK)
 HOOK_A2CC = bytes.fromhex("20") + _word(CPU_PROPERTY_HOOK)
 HOOK_8B05 = bytes.fromhex("20") + _word(CPU_ANIM_HOOK) + bytes([0xEA] * 7)
 HOOK_A2CC_SPARK = bytes.fromhex("20") + _word(CPU_SPARK_PROPERTY_HOOK)
+HOOK_A2CC_SPARK_CURRENT = bytes.fromhex("20") + _word(CPU_SPARK_PROPERTY_HOOK_CURRENT)
 HOOK_8B05_SPARK = bytes.fromhex("20") + _word(CPU_SPARK_ANIM_HOOK) + bytes([0xEA] * 7)
+SPARK_PROPERTY_HOOK_CURRENT_BODY = bytes.fromhex(
+    "a5 05 29 fe c9 6a f0 0f c9 6e f0 0b c9 72 f0 07 "
+    "c9 76 f0 03 4c df db a9 19 60"
+)
 
 
 RAW_FIRE_2WAY = bytearray.fromhex(
@@ -400,11 +407,18 @@ def _is_panel_fire_with_delay(cur: bytes) -> bool:
     )
 
 
+def _is_orig_panel_fire_with_current_spark_property(cur: bytes) -> bool:
+    return (
+        cur[:3] == ORIG_PANEL_FIRE[:3]
+        and cur[3:3 + len(SPARK_PROPERTY_HOOK_CURRENT_BODY)] == SPARK_PROPERTY_HOOK_CURRENT_BODY
+    )
+
+
 def _current_panel_fire_delay(rom_data) -> int:
     cur = bytes(rom_data[OFF_HOOK_PANEL_FIRE:OFF_HOOK_PANEL_FIRE + len(ORIG_PANEL_FIRE)])
     if _is_panel_fire_with_delay(cur):
         return cur[5]
-    if cur[:len(HOOK_PANEL_FIRE)] == HOOK_PANEL_FIRE:
+    if cur[:len(HOOK_PANEL_FIRE_HEAD)] == HOOK_PANEL_FIRE_HEAD:
         for off in (OFF_FIRE_NORMAL, OFF_FIRE_2WAY, OFF_FIRE_3WAY):
             if len(rom_data) > off + 5 and rom_data[off + 4] == 0xC9:
                 value = rom_data[off + 5]
@@ -432,7 +446,8 @@ def apply(rom_data) -> list[str]:
     fire_site = bytes(rom_data[OFF_HOOK_PANEL_FIRE:OFF_HOOK_PANEL_FIRE + len(ORIG_PANEL_FIRE)])
     if not (
         _is_panel_fire_with_delay(fire_site)
-        or fire_site[:len(HOOK_PANEL_FIRE)] == HOOK_PANEL_FIRE
+        or fire_site[:len(HOOK_PANEL_FIRE_HEAD)] == HOOK_PANEL_FIRE_HEAD
+        or _is_orig_panel_fire_with_current_spark_property(fire_site)
     ):
         _expect_or_hooked(rom_data, OFF_HOOK_PANEL_FIRE, ORIG_PANEL_FIRE, HOOK_PANEL_FIRE, "$A556")
     fire_delay = _current_panel_fire_delay(rom_data)
@@ -440,7 +455,14 @@ def apply(rom_data) -> list[str]:
     cave_fire_2way = _build_fire_2way(fire_delay)
     cave_fire_3way = _build_fire_3way(fire_delay)
     _expect_or_hooked(rom_data, OFF_HOOK_BULLET_MOVE, ORIG_BULLET_MOVE_HOOK, HOOK_BULLET_MOVE, "$AFBC")
-    _expect_or_hooked(rom_data, OFF_A2CC, ORIG_A2CC_HEAD, HOOK_A2CC, "$A2CC", (HOOK_A2CC_SPARK,))
+    _expect_or_hooked(
+        rom_data,
+        OFF_A2CC,
+        ORIG_A2CC_HEAD,
+        HOOK_A2CC,
+        "$A2CC",
+        (HOOK_A2CC_SPARK, HOOK_A2CC_SPARK_CURRENT),
+    )
     _expect_or_hooked(rom_data, OFF_8B05, ORIG_8B05_HEAD, HOOK_8B05, "$8B05", (HOOK_8B05_SPARK,))
     for off, orig, hook, name in (
         (OFF_AI_DEMON_52_53, ORIG_AI_DEMON, _word(CPU_AI_DEMON_WRAPPER), "$A34C"),
