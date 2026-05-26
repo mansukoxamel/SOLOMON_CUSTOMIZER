@@ -1,4 +1,4 @@
-"""ボーナスステージ (Level 51) 出現位置テーブル編集ダイアログ
+"""ボーナスステージ (Stage 51) 出現位置テーブル編集ダイアログ
 
 ROM内のボーナスステージ専用・出現位置テーブルを編集する:
 - 出現位置テーブル (32要素、各1バイト = NES座標エンコード)
@@ -25,7 +25,7 @@ class BonusStageDialog(QDialog):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("ボーナスステージ (Level 51) 出現位置編集")
+        self.setWindowTitle("ボーナスステージ (Stage 51) 出現位置編集")
         self.rom = rom
 
         region = rom.base_region()

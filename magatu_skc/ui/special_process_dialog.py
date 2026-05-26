@@ -1,6 +1,6 @@
 """特殊処理ビューア (Phase 1 - 読込専用)
 
-現在ROMから全53レベルの特殊処理を読み出し、生バイト列と注釈付き擬似アセンブラを表示する。
+現在ROMから全53ステージの特殊処理を読み出し、生バイト列と注釈付き擬似アセンブラを表示する。
 """
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QDialogButtonBox,
@@ -28,7 +28,7 @@ class SpecialProcessDialog(QDialog):
 
         self._build_ui()
         self._populate_level_list()
-        # 初期レベルを選択
+        # 初期ステージを選択
         if 0 <= initial_level_no < sp.NUM_LEVELS:
             self.list_levels.setCurrentRow(initial_level_no)
 
@@ -56,10 +56,10 @@ class SpecialProcessDialog(QDialog):
         lbl_info.setWordWrap(True)
         layout.addWidget(lbl_info)
 
-        # スプリッタ: 左=レベル一覧、右=詳細
+        # スプリッタ: 左=ステージ一覧、右=詳細
         splitter = QSplitter(Qt.Horizontal)
 
-        # 左: レベル一覧
+        # 左: ステージ一覧
         self.list_levels = QListWidget()
         self.list_levels.setMinimumWidth(220)
         self.list_levels.currentRowChanged.connect(self._on_level_selected)
@@ -101,7 +101,7 @@ class SpecialProcessDialog(QDialog):
         layout.addWidget(btnbox)
 
     def _populate_level_list(self):
-        """全53レベルの概要をリストに表示"""
+        """全53ステージの概要をリストに表示"""
         self.list_levels.clear()
         for N in range(sp.NUM_LEVELS):
             addr, data = sp.get_special_process_bytes(self.rom_data, self.region, N)
@@ -135,7 +135,7 @@ class SpecialProcessDialog(QDialog):
 
         # 生バイト表示 (16バイトずつ + アドレス付き)
         lines = []
-        lines.append(f"; Level {row + 1} 特殊処理")
+        lines.append(f"; Stage {row + 1} 特殊処理")
         lines.append(f"; ROM offset: 0x{addr:04X}")
         lines.append(f"; Length: {len(data)} bytes")
         lines.append("")

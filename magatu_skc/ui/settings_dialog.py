@@ -153,6 +153,8 @@ class SettingsDialog(QDialog):
 
     def _gather(self):
         """UIから config dict を更新"""
+        for spin in (self.spin_font_size, self.spin_theme_gray):
+            spin.interpretText()
         mark = self.cmb_dirty_mark.currentText().strip()
         if not mark:
             mark = "●"

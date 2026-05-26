@@ -193,8 +193,8 @@ class HackDialog(QDialog):
         lives_f.addRow(lives_hint)
         layout.addWidget(lives_group)
 
-        # ====== 残り時間減少値 ======
-        time_group = QGroupBox("残り時間減少値")
+        # ====== ステージ制限時間 ======
+        time_group = QGroupBox("ステージ制限時間")
         time_group.setProperty("settings_category", "敵以外")
         time_f = QFormLayout(time_group)
         self._time_rate_ok = False
@@ -208,7 +208,7 @@ class HackDialog(QDialog):
             sp.setRange(0, 255)
             sp.setDisplayIntegerBase(16)
             sp.setPrefix("$")
-            sp.setToolTip("CPU $9942 の残り時間減少テーブル値。値が大きいほど速く減ります。")
+            sp.setToolTip("CPU $9942 のステージ制限時間テーブル値。値が大きいほど短くなります。")
             sp.valueChanged.connect(self._update_time_rate_estimates)
         try:
             fast, normal, slow = time_decrease_hack.current_values(rom.data)
@@ -1008,9 +1008,9 @@ class HackDialog(QDialog):
             if self.edit_initial_magic.text() != old:
                 changed.append("初期魔法 初期所持")
         set_spin("initial_lives", self.spin_initial_lives, "初期残数")
-        set_spin("time_rate_fast", self.spin_time_fast, "残り時間 速い")
-        set_spin("time_rate_normal", self.spin_time_normal, "残り時間 普通")
-        set_spin("time_rate_slow", self.spin_time_slow, "残り時間 遅い")
+        set_spin("time_rate_fast", self.spin_time_fast, "ステージ制限時間 速い")
+        set_spin("time_rate_normal", self.spin_time_normal, "ステージ制限時間 普通")
+        set_spin("time_rate_slow", self.spin_time_slow, "ステージ制限時間 遅い")
         if has("wall_colors_1_48") and getattr(self, "_wall_color_ok", False):
             values = settings["wall_colors_1_48"]
             if isinstance(values, list) and len(values) == len(self.combo_wall_colors):
@@ -1252,7 +1252,7 @@ class HackDialog(QDialog):
             except initial_lives.InitialLivesError as e:
                 QMessageBox.warning(self, "初期残数 設定失敗", str(e))
 
-        # 残り時間減少値
+        # ステージ制限時間
         if getattr(self, "_time_rate_ok", False):
             try:
                 tch = time_decrease_hack.apply(
@@ -1264,9 +1264,9 @@ class HackDialog(QDialog):
                     ),
                 )
                 if tch:
-                    applied.append("残り時間減少値: " + " / ".join(tch))
+                    applied.append("ステージ制限時間: " + " / ".join(tch))
             except time_decrease_hack.TimeDecreaseHackError as e:
-                QMessageBox.warning(self, "残り時間減少値 設定失敗", str(e))
+                QMessageBox.warning(self, "ステージ制限時間 設定失敗", str(e))
 
         # ステージ壁色 (1-48面)
         if getattr(self, "_wall_color_ok", False):

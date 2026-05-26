@@ -1,4 +1,4 @@
-"""全レベル統計ダイアログ - 重要アイテム/敵の配置状況を一覧表で表示"""
+"""全ステージ統計ダイアログ - 重要アイテム/敵の配置状況を一覧表で表示"""
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
     QPushButton, QLabel, QHeaderView, QFileDialog, QMessageBox
@@ -26,7 +26,7 @@ IMPORTANT_ITEMS = [
 
 
 class StatsDialog(QDialog):
-    """全レベル統計表示ダイアログ"""
+    """全ステージ統計表示ダイアログ"""
 
     # 列構成 (ミラー位置列・座標は撤去)。
     # ★列インデックスは下で COLUMNS のヘッダ名から解決する
@@ -78,7 +78,7 @@ class StatsDialog(QDialog):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle(f"全レベル統計 ({len(levels)}レベル)")
+        self.setWindowTitle(f"全ステージ統計 ({len(levels)}ステージ)")
         self.resize(1100, 720)
         self.levels = levels
         self.item_desc = item_desc or {}
@@ -104,7 +104,7 @@ class StatsDialog(QDialog):
             "Bell/Scroll/タイマー系などは除外)。「配置敵」=面に置かれた敵"
             "(実数 ×N)、「ミラー敵」=デーモンミラーから出る敵(種類のみ・"
             "無スケジュールのミラーは除外)。<br>"
-            "セルをダブルクリックでそのレベルへジャンプ。"
+            "セルをダブルクリックでそのステージへジャンプ。"
         )
         info.setWordWrap(True)
         layout.addWidget(info)

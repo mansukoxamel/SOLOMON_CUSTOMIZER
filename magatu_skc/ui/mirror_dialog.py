@@ -1,6 +1,6 @@
 """ミラー詳細設定ダイアログ
 
-現在レベルの 2つのミラーについて
+現在ステージの 2つのミラーについて
 - ドロップスケジュール (8バイト = 64ビット, Phase1 + Phase2 ループ)
 - スポーン敵の TTL (Saramander/Demon Head 用)
 を編集する。敵セットはメインウィンドウのミラーパネルで編集。
@@ -26,13 +26,13 @@ DEAD_TICKS = 2
 
 
 class MirrorDialog(QDialog):
-    """現在レベルの 2ミラー(spawn0=demon_mirrors[0], spawn1=demon_mirrors[1]) を編集"""
+    """現在ステージの 2ミラー(spawn0=demon_mirrors[0], spawn1=demon_mirrors[1]) を編集"""
 
     def __init__(self, rom, level, level_no, parent=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle(f"ミラー詳細設定 - Level {level_no + 1}")
+        self.setWindowTitle(f"ミラー詳細設定 - Stage {level_no + 1}")
         self.rom = rom
         self.level = level
         self.level_no = level_no

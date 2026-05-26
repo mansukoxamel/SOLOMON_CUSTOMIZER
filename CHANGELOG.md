@@ -1,5 +1,41 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.84 (2026-05-26) Apply font settings immediately
+- Fixed settings dialog font changes so edited spin-box values are committed and
+  the font is reapplied to existing windows immediately after OK/Apply.
+
+## v0.7.83 (2026-05-26) Add stage selector pane toggle
+- Added a display option to show or hide the right-side stage selector pane,
+  preserving space on smaller screens.
+
+## v0.7.82 (2026-05-26) Unify visible stage labels
+- Unified visible UI/manual wording from レベル/Level to ステージ/Stage where it
+  refers to the playable stage, leaving internal names unchanged.
+
+## v0.7.81 (2026-05-26) Rename global time setting
+- Renamed the global time-rate section in the behavior dialog to
+  ステージ制限時間.
+
+## v0.7.80 (2026-05-26) Round time limit seconds
+- Renamed the level time selector display to 制限時間 and rounded its estimated
+  seconds to whole numbers.
+
+## v0.7.79 (2026-05-26) Move mirror lifetime hint
+- Moved the mirror enemy lifetime seconds estimate to a second line so the field
+  label stays compact.
+
+## v0.7.78 (2026-05-26) Show time-rate seconds
+- Replaced the level time decrease hint with estimated seconds calculated from
+  the current ROM time-rate table.
+
+## v0.7.77 (2026-05-26) Show mirror lifetime seconds
+- Updated the mirror enemy lifetime label to show the approximate seconds in
+  real time as the value changes.
+
+## v0.7.76 (2026-05-26) Emphasize test play button
+- Made the test play button larger and green so it stands out as the playback
+  action in the file panel.
+
 ## v0.7.75 (2026-05-26) Rename window title
 - Changed the main window title from `MAGATU_SOLOMON_CUSTOMIZER` to
   `SOLOMON_CUSTOMIZER`.

@@ -151,6 +151,10 @@ class MainWindow(QMainWindow):
             cfg["window_h"] = self.height()
         # スプリッター幅
         cfg["splitter_sizes"] = list(self.splitter.sizes())
+        if hasattr(self, "chk_stage_selector"):
+            cfg["stage_selector_visible"] = self.chk_stage_selector.isChecked()
+        if hasattr(self, "_stage_selector_last_width"):
+            cfg["stage_selector_last_width"] = int(self._stage_selector_last_width)
         from ..core.config import save_config
         save_config(cfg)
 
@@ -159,12 +163,15 @@ class MainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
+        # アプリ設定
+        from ..core.config import load_config
+        self._app_config = load_config()
 
         # 左サイド
         left_widget = self._build_left_panel()
 
         # 最右: レベル選択（サムネイル付き）
-        levelselect_widget = self._build_levelselect_panel()
+        self.levelselect_widget = self._build_levelselect_panel()
 
         # 中右: 要素ピッカー
         self.picker = ElementPicker()
@@ -177,7 +184,7 @@ class MainWindow(QMainWindow):
         self.picker.mirror_panel.enemies_changed.connect(self._on_mirror_panel_changed)
         self.btn_mirror = QPushButton("ミラー詳細設定...")
         self.btn_mirror.setToolTip(
-            "現在レベルの2つのミラーについて、出現タイミング(64ビット)とTTLを編集"
+            "現在ステージの2つのミラーについて、出現タイミング(64ビット)とTTLを編集"
         )
         self.btn_mirror.clicked.connect(self._on_show_mirror)
         self.picker.set_mirror_detail_button(self.btn_mirror)
@@ -209,9 +216,6 @@ class MainWindow(QMainWindow):
         self._drag_base_level = None
         # 未保存変更フラグ
         self._dirty = False
-        # アプリ設定
-        from ..core.config import load_config
-        self._app_config = load_config()
         self.level_view.rom_dropped.connect(self.load_rom)
 
         # スプリッター
@@ -219,7 +223,7 @@ class MainWindow(QMainWindow):
         self.splitter.addWidget(left_widget)
         self.splitter.addWidget(self.level_view)
         self.splitter.addWidget(self.picker)
-        self.splitter.addWidget(levelselect_widget)
+        self.splitter.addWidget(self.levelselect_widget)
         self.splitter.setStretchFactor(0, 0)
         self.splitter.setStretchFactor(1, 1)
         self.splitter.setStretchFactor(2, 0)
@@ -230,6 +234,14 @@ class MainWindow(QMainWindow):
             self.splitter.setSizes(saved_sizes)
         else:
             self.splitter.setSizes([280, 700, 250, 220])
+        self._stage_selector_last_width = max(
+            int(self._app_config.get("stage_selector_last_width", 220) or 220),
+            160,
+        )
+        self._apply_stage_selector_visibility(
+            bool(self._app_config.get("stage_selector_visible", True)),
+            resize_splitter=False,
+        )
 
         main_layout.addWidget(self.splitter)
 
@@ -281,8 +293,10 @@ class MainWindow(QMainWindow):
         _save_row.addWidget(self.btn_save_ips)
         fl.addLayout(_save_row)
 
-        self.btn_test_play = QPushButton("▶ テストプレイ (現在レベル)")
-        self.btn_test_play.setToolTip("現在の編集状態で、現在レベルから始まる一時ROMを作りエミュレータを起動")
+        self.btn_test_play = QPushButton("▶ テストプレイ (現在ステージ)")
+        self.btn_test_play.setObjectName("testPlayButton")
+        self.btn_test_play.setMinimumHeight(30)
+        self.btn_test_play.setToolTip("現在の編集状態で、現在ステージから始まる一時ROMを作りエミュレータを起動")
         self.btn_test_play.clicked.connect(self._on_test_play)
         self.btn_test_play.setEnabled(False)
         fl.addWidget(self.btn_test_play)
@@ -327,6 +341,15 @@ class MainWindow(QMainWindow):
             "短い名前ラベルを重ねて表示します。")
         self.chk_object_labels.toggled.connect(self._on_object_labels_toggled)
         ol.addWidget(self.chk_object_labels)
+        self.chk_stage_selector = QCheckBox("ステージ選択ペイン表示")
+        self.chk_stage_selector.setToolTip(
+            "右端のサムネイル付きステージ選択ペインを表示/非表示にします。"
+        )
+        self.chk_stage_selector.setChecked(
+            bool(self._app_config.get("stage_selector_visible", True))
+        )
+        self.chk_stage_selector.toggled.connect(self._on_stage_selector_toggled)
+        ol.addWidget(self.chk_stage_selector)
         # 16列目（右端）の表示・編集
         # 特殊処理マーカー表示 (Per-Room Special Process で動的配置されるマス)
         self.chk_special_marks = QCheckBox("特殊処理マーカー表示")
@@ -334,7 +357,7 @@ class MainWindow(QMainWindow):
         self.chk_special_marks.setToolTip(
             "ROMのハードコード特殊処理が動的に配置するマスを枠で表示。\n"
             "緑=壊せるブロック / 水色=強制クリア\n"
-            "例: Level 50 SOLOMON の (7,1) (12,7) (3,3) は壊せる隠しブロックとして配置される"
+            "例: Stage 50 SOLOMON の (7,1) (12,7) (3,3) は壊せる隠しブロックとして配置される"
         )
         self.chk_special_marks.toggled.connect(self._refresh_view)
         ol.addWidget(self.chk_special_marks)
@@ -356,8 +379,8 @@ class MainWindow(QMainWindow):
         el.setColumnStretch(0, 1)
         el.setColumnStretch(1, 1)
         self.btn_clear = QToolButton()
-        self.btn_clear.setText("レベルクリア ▼")
-        self.btn_clear.setToolTip("現在のレベルから要素を削除（Undo可能）")
+        self.btn_clear.setText("ステージクリア ▼")
+        self.btn_clear.setToolTip("現在のステージから要素を削除（Undo可能）")
         self.btn_clear.setPopupMode(QToolButton.InstantPopup)
         clear_menu = _QMenu(self.btn_clear)
         act_all = clear_menu.addAction("すべてクリア（鍵/扉/スタート/ミラーは保持）")
@@ -373,8 +396,8 @@ class MainWindow(QMainWindow):
         el.addWidget(self.btn_clear, 0, 0)
 
         # 全レベル統計
-        self.btn_stats = QPushButton("全レベル統計")
-        self.btn_stats.setToolTip("53レベルのアイテム/敵/隠し配置を一覧表示")
+        self.btn_stats = QPushButton("全ステージ統計")
+        self.btn_stats.setToolTip("53ステージのアイテム/敵/隠し配置を一覧表示")
         self.btn_stats.clicked.connect(self._on_show_stats)
         self.btn_stats.setEnabled(False)
         el.addWidget(self.btn_stats, 0, 1)
@@ -412,7 +435,7 @@ class MainWindow(QMainWindow):
         # Phase 1: 特殊処理ビューア (読込専用)
         self.btn_special_proc = QPushButton("特殊処理ビューア...")
         self.btn_special_proc.setToolTip(
-            "各レベルにハードコードされた特殊処理 (Per-Room Special Process) を表示。\n"
+            "各ステージにハードコードされた特殊処理 (Per-Room Special Process) を表示。\n"
             "壊せる白壁・マイティボンジャック・ソロモン封印・エンディング処理などはここで実装されている。\n"
             "現状は読込専用（編集は今後対応予定）"
         )
@@ -451,7 +474,7 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(edit_group)
 
         # レベル設定（編集UI - skchain移植）
-        meta_group = QGroupBox("レベル設定")
+        meta_group = QGroupBox("ステージ設定")
         ml = QVBoxLayout(meta_group)
         self.lbl_info = QLabel("-")
         self.lbl_info.setWordWrap(True)
@@ -479,13 +502,14 @@ class MainWindow(QMainWindow):
         tileset_row.addStretch()
         form.addRow("タイルセット:", tileset_row)
 
-        # 時間減少率: 0=速い / 1=普通 / 2=遅い
+        # 制限時間: 0/1/2 はROM内の時間減少テーブルを選ぶ
         self.spin_time_dr = QSpinBox()
         self.spin_time_dr.setRange(0, 2)
         self.spin_time_dr.valueChanged.connect(self._on_meta_time_dr_changed)
-        form.addRow("時間減少率:", self.spin_time_dr)
-        time_dr_hint = QLabel("0=速い / 1=普通 / 2=遅い")
-        form.addRow("", time_dr_hint)
+        form.addRow("制限時間:", self.spin_time_dr)
+        self.lbl_time_dr_hint = QLabel()
+        self._update_time_dr_hint()
+        form.addRow("", self.lbl_time_dr_hint)
 
         # ミラー敵寿命 0-255 (実測: 約0.5秒 x 値)
         self.spin_lifetime = QSpinBox()
@@ -495,18 +519,21 @@ class MainWindow(QMainWindow):
             "目安: 約0.5秒 × 値 (例: 16=約8秒、30=約16秒)"
         )
         self.spin_lifetime.valueChanged.connect(self._on_meta_lifetime_changed)
-        form.addRow("ミラー敵寿命 (約0.5秒×値):", self.spin_lifetime)
+        self.lbl_lifetime_hint = QLabel()
+        self._update_lifetime_label(self.spin_lifetime.value())
+        form.addRow("ミラー敵寿命:", self.spin_lifetime)
+        form.addRow("", self.lbl_lifetime_hint)
 
         # Room Flag Table 拡張: 画面ごとの挙動改造 (原作level data非破壊)
-        self.chk_no_bfire = QCheckBox("この画面でBファイア禁止 (A換石は可)")
+        self.chk_no_bfire = QCheckBox("Bボタン（ファイア）禁止")
         self.chk_no_bfire.setToolTip(
             "この部屋だけBボタンの火球(魔法)を無効化。Aボタンの石生成は使えます。\n"
             "ROM保存時に bank0 のコードケーブへ注入 (位置+署名 検証付き)"
         )
         self.chk_no_bfire.toggled.connect(self._on_meta_no_bfire_toggled)
-        form.addRow("挙動改造:", self.chk_no_bfire)
+        form.addRow("ステージ設定:", self.chk_no_bfire)
 
-        self.chk_no_astone = QCheckBox("この画面でA換石(石作成)禁止")
+        self.chk_no_astone = QCheckBox("Aボタン(換石)禁止")
         self.chk_no_astone.setToolTip(
             "この部屋だけAボタンの石生成を無効化 (Bファイアとは独立)。\n"
             "※石で階段が作れず進行不能になり得ます。意図して使う設定です"
@@ -514,7 +541,7 @@ class MainWindow(QMainWindow):
         self.chk_no_astone.toggled.connect(self._on_meta_no_astone_toggled)
         form.addRow("", self.chk_no_astone)
 
-        self.chk_hidden_door = QCheckBox("この画面の扉を隠す (石を壊すと出現)")
+        self.chk_hidden_door = QCheckBox("扉を隠す")
         self.chk_hidden_door.setToolTip(
             "エディタで設定した扉位置のマスを『隠し』化。開始前画面に扉が\n"
             "出ず、ゲーム中も見えませんが、その上の石を壊すと扉が現れます\n"
@@ -523,7 +550,7 @@ class MainWindow(QMainWindow):
         self.chk_hidden_door.toggled.connect(self._on_meta_hidden_door_toggled)
         form.addRow("", self.chk_hidden_door)
 
-        self.chk_dark = QCheckBox("この画面を暗闇にする (明滅・敵とDanaのみ)")
+        self.chk_dark = QCheckBox("暗闇モード")
         self.chk_dark.setToolTip(
             "この面のプレイ中だけ背景(地形/HUD)を明滅で消し、敵とDana\n"
             "だけ見えるようにします。明の瞬間に地形/鍵/扉が見えるので\n"
@@ -533,7 +560,7 @@ class MainWindow(QMainWindow):
         form.addRow("", self.chk_dark)
 
         # 星座: combo + position
-        self.chk_fire_reset = QCheckBox("ステージ開始時にファイヤー所持をリセット")
+        self.chk_fire_reset = QCheckBox("開始時にファイヤー所持をリセット")
         self.chk_fire_reset.setToolTip(
             "この面を開始した時に、前の面から持ち越したファイヤー/スーパーの所持を0にします。"
         )
@@ -542,8 +569,8 @@ class MainWindow(QMainWindow):
 
         self.spin_key_enemy = QSpinBox()
         self.spin_key_enemy.setRange(0, c.ENEMY_COUNT_MAX)
-        self.spin_key_enemy.setSpecialValueText("なし")
-        self.spin_key_enemy.setToolTip("0=なし。1から15は、このレベルの初期配置敵リスト順です。")
+        self.spin_key_enemy.setSpecialValueText("(なし)")
+        self.spin_key_enemy.setToolTip("0=なし。1から15は、このステージの初期配置敵リスト順です。")
         self.spin_key_enemy.valueChanged.connect(self._on_meta_key_enemy_changed)
         form.addRow("鍵持ち敵 (#):", self.spin_key_enemy)
 
@@ -584,7 +611,7 @@ class MainWindow(QMainWindow):
         v = QVBoxLayout(w)
         v.setContentsMargins(4, 4, 4, 4)
 
-        title = QLabel("<b>レベル選択</b>")
+        title = QLabel("<b>ステージ選択</b>")
         v.addWidget(title)
 
         from PyQt5.QtGui import QWheelEvent
@@ -632,14 +659,14 @@ class MainWindow(QMainWindow):
         item_size = QSize(self._thumb_size.width() + 8, self._thumb_size.height() + 8)
         for i in range(c.LEVEL_COUNT):
             item = QListWidgetItem()
-            item.setToolTip(f"Level {i+1}")
+            item.setToolTip(f"Stage {i+1}")
             item.setSizeHint(item_size)
             self.list_levels.addItem(item)
         self.list_levels.currentRowChanged.connect(self._on_list_changed)
         v.addWidget(self.list_levels, 1)
 
         self.btn_regen_thumbs = QPushButton("サムネイル再生成")
-        self.btn_regen_thumbs.setToolTip("全レベルのサムネイルを生成し直す（重い場合の手動更新）")
+        self.btn_regen_thumbs.setToolTip("全ステージのサムネイルを生成し直す（重い場合の手動更新）")
         self.btn_regen_thumbs.clicked.connect(self._generate_all_thumbnails)
         self.btn_regen_thumbs.setEnabled(False)
         v.addWidget(self.btn_regen_thumbs)
@@ -931,7 +958,7 @@ class MainWindow(QMainWindow):
                 info_html += f"<br><span style='color:#aaa'>{known}</span>"
             self.lbl_rom.setText(info_html)
             self.lbl_rom.setTextFormat(Qt.RichText)
-            self.statusBar().showMessage(f"読み込み完了: {len(levels)}レベル")
+            self.statusBar().showMessage(f"読み込み完了: {len(levels)}ステージ")
             # ROM読込でアイコンが揃ったので、お気に入りを復元
             saved_favs = self._app_config.get("picker_favorites", [])
             self.picker.restore_favorites(saved_favs)
@@ -960,7 +987,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("サムネイル生成中...")
             QApplication.processEvents()
             self._generate_all_thumbnails()
-            self.statusBar().showMessage(f"読み込み完了: {len(levels)}レベル")
+            self.statusBar().showMessage(f"読み込み完了: {len(levels)}ステージ")
             # 読込成功 → 再読込ボタンを有効化、履歴に追加、Undo履歴クリア、未保存マーククリア
             self.last_loaded_path = path
             self.btn_reload.setEnabled(True)
@@ -1160,9 +1187,9 @@ class MainWindow(QMainWindow):
         try:
             subprocess.Popen([emu_path, str(tmp_rom)])
             self.statusBar().showMessage(
-                f"テストプレイ起動: Level {stage_no} / {tmp_rom}", 5000
+                f"テストプレイ起動: Stage {stage_no} / {tmp_rom}", 5000
             )
-            self._log(f"テストプレイ起動: Level {stage_no} → {tmp_rom}")
+            self._log(f"テストプレイ起動: Stage {stage_no} → {tmp_rom}")
         except Exception as e:
             QMessageBox.critical(self, "エミュ起動失敗", f"{type(e).__name__}: {e}")
             self._log(f"テストプレイ失敗: {type(e).__name__}: {e}")
@@ -1353,11 +1380,11 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"保存中: {i+1}/{len(self.levels)} (XML埋込)")
             QApplication.processEvents()
         self.statusBar().showMessage(
-            f"全 {len(self.levels)} レベル保存完了 (XML埋込) → {export_dir.absolute()}", 8000
+            f"全 {len(self.levels)} ステージ保存完了 (XML埋込) → {export_dir.absolute()}", 8000
         )
         QMessageBox.information(
             self, "完了",
-            f"全 {len(self.levels)} レベルを保存しました (XML埋込)\n\n保存先:\n{export_dir.absolute()}"
+            f"全 {len(self.levels)} ステージを保存しました (XML埋込)\n\n保存先:\n{export_dir.absolute()}"
         )
 
     # ====== ステージデータ読込 (PNG埋め込みXML) ======
@@ -1417,7 +1444,7 @@ class MainWindow(QMainWindow):
             root = ET.fromstring(xml_str)
             levels = [self._xml_element_to_level_compat(root)]
             if not levels or levels[0] is None:
-                QMessageBox.warning(self, "読込失敗", "レベルデータの解析に失敗しました")
+                QMessageBox.warning(self, "読込失敗", "ステージデータの解析に失敗しました")
                 return
             self._push_undo()
             self.levels[self.current_level_no] = levels[0]
@@ -1460,7 +1487,7 @@ class MainWindow(QMainWindow):
             self._clear_undo_history()
             QMessageBox.information(
                 self, "完了",
-                f"{loaded_count}/{len(self.levels)} レベルをPNGから読み込みました"
+                f"{loaded_count}/{len(self.levels)} ステージをPNGから読み込みました"
             )
             self._log(f"PNG読込(全): {loaded_count}/{len(self.levels)} from {in_dir}")
         except Exception as e:
@@ -1507,6 +1534,37 @@ class MainWindow(QMainWindow):
     def _on_object_labels_toggled(self, checked: bool):
         self.show_object_labels = checked
         self._refresh_view()
+
+    def _on_stage_selector_toggled(self, checked: bool):
+        self._apply_stage_selector_visibility(checked, resize_splitter=True)
+        self._app_config["stage_selector_visible"] = bool(checked)
+        self._app_config["stage_selector_last_width"] = int(self._stage_selector_last_width)
+        from ..core.config import save_config
+        save_config(self._app_config)
+
+    def _apply_stage_selector_visibility(self, visible: bool, resize_splitter: bool = True):
+        if not hasattr(self, "levelselect_widget"):
+            return
+        sizes = self.splitter.sizes() if hasattr(self, "splitter") else []
+        if len(sizes) == 4 and sizes[3] > 30:
+            self._stage_selector_last_width = sizes[3]
+        self.levelselect_widget.setVisible(bool(visible))
+        if not resize_splitter or len(sizes) != 4:
+            return
+        new_sizes = list(sizes)
+        if visible:
+            restored = max(int(getattr(self, "_stage_selector_last_width", 220)), 160)
+            take = min(restored, max(0, new_sizes[1] - 320))
+            if take > 0:
+                new_sizes[1] -= take
+            new_sizes[3] = restored
+        else:
+            freed = new_sizes[3] if new_sizes[3] > 0 else int(getattr(self, "_stage_selector_last_width", 220))
+            if freed > 30:
+                self._stage_selector_last_width = freed
+            new_sizes[1] += freed
+            new_sizes[3] = 0
+        self.splitter.setSizes(new_sizes)
 
     def _sync_object_labels(self):
         if not getattr(self, "show_object_labels", False):
@@ -1701,7 +1759,7 @@ class MainWindow(QMainWindow):
         if not self.levels:
             return
         lv = self.levels[self.current_level_no]
-        info = f"""<b>Level {self.current_level_no + 1}</b><br>
+        info = f"""<b>Stage {self.current_level_no + 1}</b><br>
 アイテム: {len(lv.items)}個<br>
 敵: {len(lv.enemies)}体<br>
 ミラー1: {lv.demon_mirrors[0].position}<br>
@@ -1872,7 +1930,7 @@ class MainWindow(QMainWindow):
             ok = lv.add_enemy(actual_code, tile)
             if not ok:
                 self.statusBar().showMessage(
-                    f"敵は1レベル {c.ENEMY_COUNT_MAX} 体まで（拡張ROM形式の制限）", 3000
+                    f"敵は1ステージ {c.ENEMY_COUNT_MAX} 体まで（拡張ROM形式の制限）", 3000
                 )
                 if not getattr(self, '_suppress_next_undo', False) and self._undo_stack:
                     self._undo_stack.pop()
@@ -2630,8 +2688,15 @@ class MainWindow(QMainWindow):
         else:
             font.setPointSize(self._default_font_size)
         font.setBold(bold)
-        QApplication.instance().setFont(font)
+        app = QApplication.instance()
+        app.setFont(font)
         self.setFont(font)
+        for widget in app.topLevelWidgets():
+            widget.setFont(font)
+            for child in widget.findChildren(QWidget):
+                child.setFont(font)
+            widget.updateGeometry()
+            widget.update()
 
     def _apply_icon(self):
         """configのicon_pathをウィンドウアイコンに反映"""
@@ -2864,7 +2929,7 @@ class MainWindow(QMainWindow):
         self.spin_key_enemy.setValue(current)
         self.spin_key_enemy.blockSignals(old_block)
         self.spin_key_enemy.setToolTip(
-            f"0=なし。1から{max_enemy}は初期配置敵の順番です。このレベルの敵数: {len(lv.enemies)}"
+            f"0=なし。1から{max_enemy}は初期配置敵の順番です。このステージの敵数: {len(lv.enemies)}"
         )
 
     def _load_meta_to_ui(self):
@@ -2923,13 +2988,42 @@ class MainWindow(QMainWindow):
         self._refresh_view()
 
     def _on_meta_time_dr_changed(self, val):
+        self._update_time_dr_hint()
         if self._meta_loading or not self.levels:
             return
         self._push_undo()
         self.levels[self.current_level_no].time_decrease_rate = val
         self._update_info()
 
+    def _update_time_dr_hint(self):
+        try:
+            from ..core import time_decrease_hack
+            values = (
+                time_decrease_hack.current_values(self.rom.data)
+                if self.rom else time_decrease_hack.ORIGINAL_VALUES
+            )
+            parts = []
+            for idx, raw in enumerate(values):
+                seconds = time_decrease_hack.estimate_total_seconds(raw)
+                if seconds is None:
+                    seconds_text = "停止"
+                else:
+                    seconds_text = f"約{int(seconds + 0.5)}秒"
+                parts.append(f"{idx}={seconds_text}")
+            self.lbl_time_dr_hint.setText(" / ".join(parts))
+        except Exception:
+            self.lbl_time_dr_hint.setText("0=約24秒 / 1=約32秒 / 2=約44秒")
+
+    def _update_lifetime_label(self, val):
+        seconds = val * 0.5
+        if seconds.is_integer():
+            seconds_text = str(int(seconds))
+        else:
+            seconds_text = f"{seconds:.1f}"
+        self.lbl_lifetime_hint.setText(f"約{seconds_text}秒")
+
     def _on_meta_lifetime_changed(self, val):
+        self._update_lifetime_label(val)
         if self._meta_loading or not self.levels:
             return
         self._push_undo()
@@ -3076,6 +3170,7 @@ class MainWindow(QMainWindow):
         if bytes(self.rom.data) != before:
             self._set_dirty(True)
             self._log("ゲーム挙動改造: ROMバイト変更あり")
+            self._update_time_dr_hint()
             if self._read_wall_color_values() != before_wall:
                 self._on_hack_dialog_applied()
 
@@ -3423,7 +3518,7 @@ class MainWindow(QMainWindow):
             lv.enemies = []
             self._refresh_key_enemy_spin_range(warn=True)
 
-        self._log(f"レベルクリア: L{self.current_level_no + 1} / {label}")
+        self._log(f"ステージクリア: S{self.current_level_no + 1} / {label}")
         self._refresh_view()
         self.statusBar().showMessage(
             f"L{self.current_level_no + 1}: {label}をクリア（Ctrl+Zで戻せます）", 4000
@@ -3510,7 +3605,7 @@ class MainWindow(QMainWindow):
 F1: このヘルプ<br>
 F9: 設定画面<br>
 P: テストプレイ<br>
-PageUp / PageDown: レベル切替<br>
+PageUp / PageDown: ステージ切替<br>
 G: グリッド表示切替<br>
 Ctrl+Z: Undo<br>
 Ctrl+Y / Ctrl+Shift+Z: Redo<br>

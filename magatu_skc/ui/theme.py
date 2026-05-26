@@ -70,6 +70,24 @@ QPushButton:hover, QToolButton:hover {{
 QPushButton:pressed, QToolButton:pressed {{
     background: {pressed};
 }}
+QPushButton#testPlayButton {{
+    background: #168f3f;
+    color: #ffffff;
+    border: 1px solid #0c5f28;
+    font-weight: 700;
+    padding: 5px 8px;
+}}
+QPushButton#testPlayButton:hover {{
+    background: #1fab50;
+}}
+QPushButton#testPlayButton:pressed {{
+    background: #0f6f31;
+}}
+QPushButton#testPlayButton:disabled {{
+    background: #b8d8c0;
+    color: #5f7b66;
+    border: 1px solid #8eaa95;
+}}
 QPushButton:disabled, QToolButton:disabled,
 QRadioButton:disabled, QCheckBox:disabled, QLabel:disabled {{
     color: #777777;
