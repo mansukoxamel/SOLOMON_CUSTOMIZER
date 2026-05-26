@@ -1,4 +1,24 @@
-# MAGATU_SOLOMON_CUSTOMIZER CHANGELOG
+# SOLOMON_CUSTOMIZER CHANGELOG
+
+## v0.7.75 (2026-05-26) Rename window title
+- Changed the main window title from `MAGATU_SOLOMON_CUSTOMIZER` to
+  `SOLOMON_CUSTOMIZER`.
+- Changed the Windows AppUserModelID from `Chaos.MAGATU.SOLOMON_CUSTOMIZER`
+  to `Chaos.SOLOMON_CUSTOMIZER`.
+- Changed the mapper66 ROM metadata magic from `MAGATU_SC_META` to
+  `SOLOMON_CUSTOMIZER_META`.
+- Changed the session log header to `SOLOMON_CUSTOMIZER セッションログ`.
+- Changed the PNG-embedded XML root from `magatu_solomon_customizer` to
+  `solomon_customizer`, and renamed the format-version constant accordingly.
+- Updated user-facing README/MANUAL/docs names from `MAGATU_SOLOMON_CUSTOMIZER`
+  to `SOLOMON_CUSTOMIZER`; the internal `magatu_skc` package name is unchanged.
+
+## v0.7.74 (2026-05-26) Correct freed ROM byte counts
+- Corrected `docs/rom_map_jp_mapper66_current.html` after the special-cell
+  runtime rewrite: bank0 cave free bytes are now 81B total with a 19B largest
+  contiguous gap.
+- Clarified that the old PRG1 runtime block override table frees a 1,696B
+  candidate reserve, increasing the practical PRG1 reserve total.
 
 ## v0.7.73 (2026-05-26) Clarify freed RAM candidates
 - Updated `docs/ram_map_current.html` and the `room_flags.py` RAM ledger mirror

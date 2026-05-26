@@ -41,7 +41,7 @@
 <body>
 <main>
   <h1>Solomon Customizer ROM Map - JP mapper66 current</h1>
-  <p class="lead">2026-05-26 v0.7.72 棚卸版。PRG0/PRG1の全体像、bank0 caveの詳細、強化敵コードの配置、開始画面アナウンス、原作00/EA埋め上書き、残り空き容量を視覚的に確認するための台帳。</p>
+  <p class="lead">2026-05-26 v0.7.74 棚卸版。PRG0/PRG1の全体像、bank0 caveの詳細、強化敵コードの配置、開始画面アナウンス、原作00/EA埋め上書き、残り空き容量を視覚的に確認するための台帳。</p>
 
   <div class="legend">
     <span class="lg"><span class="sw orig"></span>元PRG / 既存コード・既存データ</span>
@@ -170,7 +170,8 @@
       <div class="seg cave" style="width:8.66%">gap_fix</div>
       <div class="seg cave" style="width:3.70%">PM 2way</div>
       <div class="seg free" style="width:2.93%"></div>
-      <div class="seg cave" style="width:5.48%">block override</div>
+      <div class="seg cave" style="width:4.27%">special cell</div>
+      <div class="seg free" style="width:1.21%">free</div>
       <div class="seg cave" style="width:3.63%">PM Demon</div>
       <div class="seg free" style="width:.06%"></div>
       <div class="seg cave" style="width:5.48%">key pickup</div>
@@ -178,7 +179,7 @@
     </div>
     <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
     <div class="note">
-      <b>棚卸メモ:</b> 2026-05-25時点の予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち使用中1,508B、未予約62B、最大連続空き18B。Gargoyle 2-shot、gap_fix <code>$C000-$C087</code>、Spark Ball variant、Key enemy、Stage start announcement は現在の台帳上で非重複。
+      <b>棚卸メモ:</b> v0.7.74時点の予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち使用中1,489B、未予約81B、最大連続空き19B。旧runtime block override list executorの短縮で <code>$C133-$C145</code> 19B が戻った。Gargoyle 2-shot、gap_fix <code>$C000-$C087</code>、Spark Ball variant、Key enemy、Stage start announcement は現在の台帳上で非重複。
     </div>
     <h3>bank0 cave 未予約ギャップ</h3>
     <table>
@@ -198,9 +199,10 @@
       <tr><td class="num">0x3EF9</td><td class="num">$BEE9</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
       <tr><td class="num">0x3FC3-0x3FC8</td><td class="num">$BFB3-$BFB8</td><td class="num">6B</td><td>小ヘルパ候補。Panel Monster normal fire copy直前。</td></tr>
       <tr><td class="num">0x400F</td><td class="num">$BFFF</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x4143-0x4155</td><td class="num">$C133-$C145</td><td class="num">19B</td><td>最大連続空き。旧特殊ブロックruntimeの短縮で回収。小routine候補。</td></tr>
       <tr><td class="num">0x418F</td><td class="num">$C17F</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
       <tr><td class="num">0x420E-0x420F</td><td class="num">$C1FE-$C1FF</td><td class="num">2B</td><td>bank0 cave末尾の断片。</td></tr>
-      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>62B</b></td><td>寄せ集めの合計。大きな新規処理を置ける連続空きではない。</td></tr>
+      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>81B</b></td><td>寄せ集めの合計。最大連続は <code>$C133-$C145</code> の19B。</td></tr>
     </table>
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
@@ -249,12 +251,17 @@
       <div class="seg free" style="width:3.49%">reserve<br><small>1,145B</small></div>
       <div class="seg data" style="width:41.41%">level data<br><small>13,568B</small></div>
       <div class="seg data" style="width:2.59%">drop schedule</div>
-      <div class="seg free" style="width:5.18%">legacy block table</div>
+      <div class="seg free" style="width:5.18%">freed block table<br><small>1,696B</small></div>
       <div class="seg meta" style="width:.20%">META</div>
       <div class="seg free" style="width:.59%">reserve</div>
       <div class="seg meta" style="width:.05%">vec</div>
     </div>
     <div class="labels"><span>$8000</span><span>$80C0</span><span>$87F0</span><span>$BB86</span><span>$C000</span><span>$F500</span><span>$FEF0</span><span>$FFFF</span></div>
+    <div class="note">
+      <b>PRG1 reserve:</b>
+      general reserve 12,678B + bank1 reserve 1,145B + freed runtime block table 1,696B + tail reserve 192B =
+      <b>15,711B</b> が現在の候補。既存のwide title / StageExt / level data / drop schedule / metadata / vectorsは踏まない。
+    </div>
     <table>
       <tr><th>用途</th><th>file offset</th><th>bank1 CPU</th><th>Size</th><th>備考</th></tr>
       <tr><td>l_a2 loader</td><td class="num">0x8010-0x80C5</td><td class="num">$8000-$80B5</td><td class="num">182B</td><td>mapper66 expanded loader.</td></tr>
@@ -266,8 +273,8 @@
       <tr><td>bank1 reserve</td><td class="num">0xBB97-0xC00F</td><td class="num">$BB87-$BFFF</td><td class="num">1,145B</td><td>Small bank1 reserve.</td></tr>
       <tr><td>expanded level data</td><td class="num">0xC010-0xF50F</td><td class="num">$C000-$F4FF</td><td class="num">13,568B</td><td>53 rooms x 256B.</td></tr>
       <tr><td>mirror/drop schedule</td><td class="num">0xF510-0xF85F</td><td class="num">$F500-$F84F</td><td class="num">848B</td><td>53 rooms x mirror/drop bytes.</td></tr>
-      <tr><td>legacy runtime block override table</td><td class="num">0xF860-0xFEFF</td><td class="num">$F850-$FEEF</td><td class="num">1,696B</td><td>Old per-room 32B cell lists. v0.7.72 no longer reads this table; saves clear it to `$FF`. Candidate reserve after retesting.</td></tr>
-      <tr><td>MAGATU metadata stamp</td><td class="num">0xFF00-0xFF3F</td><td class="num">$FEF0-$FF2F</td><td class="num">64B</td><td><code>MAGATU_SC_META</code> + format + app version.</td></tr>
+      <tr><td>freed runtime block override table</td><td class="num">0xF860-0xFEFF</td><td class="num">$F850-$FEEF</td><td class="num">1,696B</td><td>Old per-room 32B cell lists. v0.7.72 no longer reads this table; saves clear it to `$FF`. Candidate PRG1 reserve after retesting.</td></tr>
+      <tr><td>SOLOMON_CUSTOMIZER metadata stamp</td><td class="num">0xFF00-0xFF3F</td><td class="num">$FEF0-$FF2F</td><td class="num">64B</td><td><code>SOLOMON_CUSTOMIZER_META</code> + format + app version.</td></tr>
       <tr><td>bank1 tail reserve</td><td class="num">0xFF40-0xFFFF</td><td class="num">$FF30-$FFEF</td><td class="num">192B</td><td>Reserve before vectors.</td></tr>
       <tr><td>vectors copy</td><td class="num">0x10000-0x1000F</td><td class="num">$FFF0-$FFFF</td><td class="num">16B</td><td>Copied PRG vectors.</td></tr>
     </table>

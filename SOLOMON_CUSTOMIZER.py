@@ -1,4 +1,4 @@
-"""MAGATU_SOLOMON_CUSTOMIZER エントリポイント"""
+"""SOLOMON_CUSTOMIZER エントリポイント"""
 import sys
 from pathlib import Path
 
@@ -7,7 +7,7 @@ if sys.platform == "win32":
     try:
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
-            "Chaos.MAGATU.SOLOMON_CUSTOMIZER"
+            "Chaos.SOLOMON_CUSTOMIZER"
         )
     except Exception as e:
         print(f"AppUserModelID set failed: {e}")

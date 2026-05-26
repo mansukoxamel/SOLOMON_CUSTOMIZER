@@ -1,4 +1,4 @@
-"""MAGATU_SOLOMON_CUSTOMIZER metadata stamp for expanded mapper66 ROMs."""
+"""SOLOMON_CUSTOMIZER metadata stamp for expanded mapper66 ROMs."""
 from __future__ import annotations
 
 from .. import __version__
@@ -6,7 +6,7 @@ from .. import __version__
 
 META_OFFSET = 0xFF00
 META_LENGTH = 64
-META_MAGIC = b"MAGATU_SC_META\x00"
+META_MAGIC = b"SOLOMON_CUSTOMIZER_META\x00"
 META_FORMAT = 1
 
 

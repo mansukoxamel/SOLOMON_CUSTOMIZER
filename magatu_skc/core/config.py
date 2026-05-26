@@ -31,7 +31,7 @@ DEFAULT_CONFIG = {
     "stats_dlg_w": -1,
     "stats_dlg_h": -1,
     "stats_dlg_col_w": [],   # 全レベル統計 列幅 ([] = 未保存=自動)
-    # MAGATU標準（今後実装予定）
+    # SOLOMON_CUSTOMIZER標準（今後実装予定）
     "icon_path": "",
     "font_family": "",
     "font_size": 0,

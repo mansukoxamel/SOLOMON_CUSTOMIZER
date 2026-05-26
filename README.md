@@ -1,4 +1,4 @@
-# MAGATU_SOLOMON_CUSTOMIZER
+# SOLOMON_CUSTOMIZER
 
 ファミコン版『ソロモンの鍵』向けのROMカスタマイズツールです。  
 既存ROMを読み込み、ステージデータや一部のゲーム挙動を編集して、改造ROM・IPSパッチ・ステージPNGデータとして保存できます。

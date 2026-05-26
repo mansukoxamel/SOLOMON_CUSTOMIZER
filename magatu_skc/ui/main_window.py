@@ -30,6 +30,8 @@ from .element_picker import (
     BLOCK_PASSABLE_WHITE, BLOCK_INVISIBLE_SOLID,
 )
 
+APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
+
 
 _ENEMY_HORIZONTAL_MIRROR_PAIRS = [
     (0x0C, 0x0D), (0x10, 0x11),
@@ -59,7 +61,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"MAGATU_SOLOMON_CUSTOMIZER v{__version__}")
+        self.setWindowTitle(f"{APP_DISPLAY_NAME} v{__version__}")
         # _build_ui で _app_config を読み込むのでここでは仮サイズ
         self.resize(1400, 800)
 
@@ -1410,7 +1412,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "読込失敗", "このPNGにはステージデータが埋め込まれていません")
                 return
             from ..core.xml_io import xml_string_to_levels
-            # magatu_solomon_customizer ルート要素にも対応
+            # solomon_customizer / skchain ルート要素に対応
             import xml.etree.ElementTree as ET
             root = ET.fromstring(xml_str)
             levels = [self._xml_element_to_level_compat(root)]
@@ -1466,7 +1468,7 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _xml_element_to_level_compat(root):
-        """magatu_solomon_customizer / skchain 両方のルート要素に対応"""
+        """solomon_customizer / skchain 両方のルート要素に対応"""
         from ..core.xml_io import xml_element_to_level
         level_elem = root.find("level")
         if level_elem is not None:
@@ -2679,7 +2681,7 @@ class MainWindow(QMainWindow):
             log_dir.mkdir(exist_ok=True)
             log_path = log_dir / f"session_{stamp}.log"
             header = (
-                f"# MAGATU_SOLOMON_CUSTOMIZER セッションログ\n"
+                f"# {APP_DISPLAY_NAME} セッションログ\n"
                 f"# 開始: {self._session_start.strftime('%Y-%m-%d %H:%M:%S')}\n"
                 f"# 終了: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
                 f"# バージョン: {__version__}\n\n"
@@ -3457,7 +3459,7 @@ class MainWindow(QMainWindow):
         self._update_title()
 
     def _update_title(self):
-        base = f"MAGATU_SOLOMON_CUSTOMIZER v{__version__}"
+        base = f"{APP_DISPLAY_NAME} v{__version__}"
         if self._dirty:
             mark = self._app_config.get("dirty_mark", "●")
             self.setWindowTitle(f"{mark} {base}")

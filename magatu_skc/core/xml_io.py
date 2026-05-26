@@ -163,17 +163,17 @@ def level_to_xml_string(level: Level) -> str:
     if body.startswith("<?xml"):
         body = body.split("?>", 1)[1].lstrip()
     return (decl
-            + "<!-- Solomon's Key level file created with MAGATU_SOLOMON_CUSTOMIZER -->\n"
+            + "<!-- Solomon's Key level file created with SOLOMON_CUSTOMIZER -->\n"
             + body)
 
 
-MAGATU_FORMAT_VERSION = "1.0"
+SOLOMON_CUSTOMIZER_FORMAT_VERSION = "1.0"
 
 
 def level_to_magatu_xml(level: Level) -> str:
     """PNG埋め込み用の独自形式XML"""
-    root = ET.Element("magatu_solomon_customizer")
-    root.set("format_version", MAGATU_FORMAT_VERSION)
+    root = ET.Element("solomon_customizer")
+    root.set("format_version", SOLOMON_CUSTOMIZER_FORMAT_VERSION)
     root.set("app_version", __version__)
     root.append(level_to_xml_element(level))
 
@@ -199,7 +199,7 @@ def levels_to_xml_string(levels: list) -> str:
     if body.startswith("<?xml"):
         body = body.split("?>", 1)[1].lstrip()
     return (decl
-            + "<!-- Solomon's Key level bundle created with MAGATU_SOLOMON_CUSTOMIZER -->\n"
+            + "<!-- Solomon's Key level bundle created with SOLOMON_CUSTOMIZER -->\n"
             + body)
 
 

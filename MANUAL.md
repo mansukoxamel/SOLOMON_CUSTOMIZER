@@ -1,4 +1,4 @@
-# MAGATU_SOLOMON_CUSTOMIZER マニュアル (v0.3.2)
+# SOLOMON_CUSTOMIZER マニュアル
 
 ファミコン版『ソロモンの鍵』レベルエディタ - [skchain](https://github.com/kaimitai/skchain) (C++製) を Python + PyQt5 に移植＋独自拡張。
 
