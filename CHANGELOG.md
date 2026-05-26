@@ -1,5 +1,17 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.87 (2026-05-26) Split enemy behavior entry
+- Added a top-level Enemy button beside game behavior editing, and separated
+  enemy AI settings from the general game behavior dialog.
+
+## v0.7.86 (2026-05-26) Flatten behavior dialog layout
+- Removed the game behavior dialog tabs so enemy and non-enemy settings appear
+  together, and moved the special process viewer into the dialog.
+
+## v0.7.85 (2026-05-26) Move related edit buttons
+- Moved enemy drop, demo input, and clear message editing into the game behavior
+  dialog, and removed those buttons from the left edit-tools panel.
+
 ## v0.7.84 (2026-05-26) Apply font settings immediately
 - Fixed settings dialog font changes so edited spin-box values are committed and
   the font is reapplied to existing windows immediately after OK/Apply.

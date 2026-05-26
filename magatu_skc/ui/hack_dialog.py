@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QGroupBox,
     QPushButton, QLabel, QSpinBox, QDoubleSpinBox, QComboBox, QCheckBox,
     QMessageBox, QDialogButtonBox, QScrollArea, QGridLayout, QWidget,
-    QLineEdit, QTabWidget, QFileDialog
+    QLineEdit, QFileDialog
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon, QPixmap, QColor
@@ -44,14 +44,23 @@ from ..nes import palette as nes_palette
 class HackDialog(QDialog):
     """ゲーム挙動改造ダイアログ"""
 
-    def __init__(self, rom, parent=None, app_config=None):
+    def __init__(
+        self,
+        rom,
+        parent=None,
+        app_config=None,
+        initial_level_no: int = 0,
+        view_mode: str = "game",
+    ):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("ゲーム挙動改造")
+        self._view_mode = view_mode
+        self.setWindowTitle("敵" if view_mode == "enemy" else "ゲーム挙動改造")
         self.resize(940, 720)
         self.rom = rom
         self._app_config = app_config   # サイズ/位置 復元用 (None=保存しない)
+        self._initial_level_no = initial_level_no
 
         # 縦長で画面に入らないため: グループ群は 2列グリッド + 縦スクロール、
         # 補助ボタン/OK等は下に固定。呼び出し側(layout.addWidget/addLayout)は
@@ -65,11 +74,19 @@ class HackDialog(QDialog):
                 self.items.append(("l", lo))
         layout = _Collector()
 
-        info = QLabel(
-            "ROMの既知アドレスを書き換えてゲーム挙動を変更します。<br>"
-            "適用すると <b>ROMバイナリが直接変更されます</b>。<br>"
-            "保存ボタンを押すまでは元に戻せます（再読込で復元可）。"
-        )
+        if view_mode == "enemy":
+            info_text = (
+                "敵の挙動に関係する既知アドレスを書き換えます。<br>"
+                "適用すると <b>ROMバイナリが直接変更されます</b>。<br>"
+                "保存ボタンを押すまでは元に戻せます（再読込で復元可）。"
+            )
+        else:
+            info_text = (
+                "ROMの既知アドレスを書き換えてゲーム挙動を変更します。<br>"
+                "適用すると <b>ROMバイナリが直接変更されます</b>。<br>"
+                "保存ボタンを押すまでは元に戻せます（再読込で復元可）。"
+            )
+        info = QLabel(info_text)
         info.setWordWrap(True)
         info.setTextFormat(Qt.RichText)
         layout.addWidget(info)
@@ -734,6 +751,42 @@ class HackDialog(QDialog):
         dkf.addRow(dkhint)
         layout.addWidget(dk_group)
 
+        related_group = QGroupBox("関連編集")
+        related_group.setProperty("settings_category", "敵以外")
+        related_layout = QVBoxLayout(related_group)
+
+        self.btn_enemy_drop = QPushButton("敵ドロップ編集")
+        self.btn_enemy_drop.setToolTip(
+            "敵を炎で倒した時に出る効果(スコア/1UP/特殊等)と確率を"
+            "グローバルに編集 ($C293)。通常アイテムIDではない点に注意")
+        self.btn_enemy_drop.clicked.connect(self._on_show_enemy_drop)
+        related_layout.addWidget(self.btn_enemy_drop)
+
+        self.btn_demo_input = QPushButton("デモ操作編集")
+        self.btn_demo_input.setToolTip(
+            "タイトル放置で流れるデモの操作(34ステップ固定)を編集。"
+            "各ステップ=入力を何フレーム続けるか。録画不要・原作方式手入力"
+            "($CF9A/$CFBC、JP専用)")
+        self.btn_demo_input.clicked.connect(self._on_show_demo_input)
+        related_layout.addWidget(self.btn_demo_input)
+
+        self.btn_clear_msg = QPushButton("クリア画面メッセージ編集")
+        self.btn_clear_msg.setToolTip(
+            "ステージクリア後の『おめでとう画面』3行を編集。"
+            "英大文字+スペース、原作と同字数まで(JP専用・同字数置換)")
+        self.btn_clear_msg.clicked.connect(self._on_show_clear_message)
+        related_layout.addWidget(self.btn_clear_msg)
+
+        self.btn_special_proc = QPushButton("特殊処理ビューア")
+        self.btn_special_proc.setToolTip(
+            "各ステージにハードコードされた特殊処理 (Per-Room Special Process) を表示。\n"
+            "壊せる白壁・マイティボンジャック・ソロモン封印・エンディング処理などはここで実装されている。\n"
+            "読込専用。"
+        )
+        self.btn_special_proc.clicked.connect(self._on_show_special_process)
+        related_layout.addWidget(self.btn_special_proc)
+        layout.addWidget(related_group)
+
         # 補助ボタン
         helper_row = QHBoxLayout()
         self.btn_export_global = QPushButton("共通設定をエクスポート...")
@@ -761,53 +814,42 @@ class HackDialog(QDialog):
         btnbox.button(QDialogButtonBox.Apply).clicked.connect(self._apply_changes)
         layout.addWidget(btnbox)
 
-        # --- 実レイアウト組み立て (敵 / 敵以外 の2タブ + 各タブ2列グリッド) ---
+        # --- 実レイアウト組み立て (単一スクロール + 2列グリッド) ---
         outer = QVBoxLayout(self)
-        tabs = QTabWidget()
-        tab_order = ["敵以外", "敵"]
-        tab_grids = {}
-        tab_positions = {}
-        for name in tab_order:
-            scroll = QScrollArea()
-            scroll.setWidgetResizable(True)
-            scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-            inner = QWidget()
-            grid = QGridLayout(inner)
-            grid.setContentsMargins(4, 4, 4, 4)
-            grid.setHorizontalSpacing(10)
-            grid.setVerticalSpacing(6)
-            grid.setColumnStretch(0, 1)
-            grid.setColumnStretch(1, 1)
-            scroll.setWidget(inner)
-            tabs.addTab(scroll, name)
-            tab_grids[name] = grid
-            tab_positions[name] = [0, 0]  # row, col
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        inner = QWidget()
+        grid = QGridLayout(inner)
+        grid.setContentsMargins(4, 4, 4, 4)
+        grid.setHorizontalSpacing(10)
+        grid.setVerticalSpacing(6)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        scroll.setWidget(inner)
+        rowi, col = 0, 0
         bottom = []          # helper_row / btnbox は下に固定
         top_info = None
         for kind, obj in layout.items:
             if kind == "w" and isinstance(obj, QGroupBox):
                 cat = obj.property("settings_category") or "敵以外"
-                cat = "敵" if cat == "敵・AI" else "敵以外"
-                if cat not in tab_grids:
-                    cat = "敵以外"
-                grid = tab_grids[cat]
-                rowi, col = tab_positions[cat]
+                if self._view_mode == "enemy" and cat != "敵・AI":
+                    continue
+                if self._view_mode != "enemy" and cat == "敵・AI":
+                    continue
                 grid.addWidget(obj, rowi, col)
                 col += 1
                 if col >= 2:          # 2列
                     col = 0
                     rowi += 1
-                tab_positions[cat] = [rowi, col]
             elif kind == "w" and isinstance(obj, QLabel) and top_info is None:
                 top_info = obj        # 冒頭の説明ラベル
             else:
                 bottom.append((kind, obj))   # helper_row(QHBoxLayout)/btnbox
-        for name, grid in tab_grids.items():
-            rowi, _col = tab_positions[name]
-            grid.setRowStretch(rowi + 1, 1)
+        grid.setRowStretch(rowi + 1, 1)
         if top_info is not None:
             outer.addWidget(top_info)
-        outer.addWidget(tabs, 1)
+        outer.addWidget(scroll, 1)
         for kind, obj in bottom:
             if kind == "l":
                 outer.addLayout(obj)
@@ -818,6 +860,70 @@ class HackDialog(QDialog):
 
     def _combo_data(self, combo):
         return combo.currentData()
+
+    def _mark_parent_dirty(self, log_message: str):
+        parent = self.parent()
+        if parent is None:
+            return
+        set_dirty = getattr(parent, "_set_dirty", None)
+        if callable(set_dirty):
+            set_dirty(True)
+        log = getattr(parent, "_log", None)
+        if callable(log):
+            log(log_message)
+
+    def _on_show_enemy_drop(self):
+        from .enemy_drop_dialog import EnemyDropDialog
+        from ..core import enemy_drop as _ed
+        o, n = _ed.OFF_C293, _ed.LEN_C293
+        before = bytes(self.rom.data[o:o + n])
+        try:
+            dlg = EnemyDropDialog(self.rom.data, parent=self)
+        except _ed.EnemyDropError as e:
+            QMessageBox.critical(self, "敵ドロップ編集 不可", str(e))
+            return
+        dlg.exec_()
+        if bytes(self.rom.data[o:o + n]) != before:
+            self._mark_parent_dirty("敵ドロップ効果表 $C293 書換")
+
+    def _on_show_demo_input(self):
+        from .demo_input_dialog import DemoInputDialog
+        from ..core import demo_input as _di
+        o0, o1 = _di.OFF_WAIT, _di.OFF_JOY + _di.STEPS
+        before = bytes(self.rom.data[o0:o1])
+        try:
+            dlg = DemoInputDialog(self.rom.data, parent=self)
+        except _di.DemoInputError as e:
+            QMessageBox.critical(self, "デモ操作編集 不可", str(e))
+            return
+        dlg.exec_()
+        if bytes(self.rom.data[o0:o1]) != before:
+            self._mark_parent_dirty("デモ操作データ ($CF9A/$CFBC) 書換")
+
+    def _on_show_clear_message(self):
+        from .clear_message_dialog import ClearMessageDialog
+        from ..core import clear_message as _cm
+        o0 = _cm.MESSAGES[0]["off"]
+        last = _cm.MESSAGES[-1]
+        o1 = last["off"] + 3 + last["count"] + 1
+        before = bytes(self.rom.data[o0:o1])
+        try:
+            dlg = ClearMessageDialog(self.rom.data, parent=self)
+        except _cm.ClearMessageError as e:
+            QMessageBox.critical(self, "クリア画面メッセージ編集 不可", str(e))
+            return
+        dlg.exec_()
+        if bytes(self.rom.data[o0:o1]) != before:
+            self._mark_parent_dirty("クリア画面メッセージ ($94DB/$94ED/$9507) 書換")
+
+    def _on_show_special_process(self):
+        from .special_process_dialog import SpecialProcessDialog
+        dlg = SpecialProcessDialog(
+            self.rom,
+            initial_level_no=self._initial_level_no,
+            parent=self,
+        )
+        dlg.exec_()
 
     def _make_nes_color_icon(self, value: int) -> QIcon:
         rgb = nes_palette.get_nes_color(int(value) & 0x3F)

@@ -817,12 +817,12 @@ class ElementPicker(QWidget):
         layout = QVBoxLayout(self)
 
         # 配置フラグ（常時表示）
-        self.flag_group = QGroupBox("配置フラグ (アイテム用)")
+        self.flag_group = QGroupBox("アイテム状態")
         fl = QHBoxLayout(self.flag_group)
         self.flag_btns = QButtonGroup(self)
         self.rb_flag_normal = QRadioButton("通常")
-        self.rb_flag_hidden = QRadioButton("隠し (0x40)")
-        self.rb_flag_in_block = QRadioButton("ブロック内 (0x80)")
+        self.rb_flag_hidden = QRadioButton("隠し")
+        self.rb_flag_in_block = QRadioButton("ブロック内")
         for rb, flag in [
             (self.rb_flag_normal, ITEM_FLAG_NORMAL),
             (self.rb_flag_hidden, ITEM_FLAG_HIDDEN),
@@ -834,7 +834,7 @@ class ElementPicker(QWidget):
         self.rb_flag_normal.setChecked(True)
 
         # 敵スピード（常時表示、敵モード時のみ意味あり）
-        self.speed_group = QGroupBox("敵スピード (対応する敵のみ)")
+        self.speed_group = QGroupBox("敵スピード")
         sl = QHBoxLayout(self.speed_group)
         self.speed_btns = QButtonGroup(self)
         self.rb_sp1 = QRadioButton("SP1")
@@ -865,7 +865,7 @@ class ElementPicker(QWidget):
 
         self._picker_lists = []
         self._category_labels = []
-        categories = ["ブロック", "キャラ", "アイテム", "モンスター"]
+        categories = ["ブロック", "メタ", "アイテム", "モンスター"]
         for cat_idx, cat_name in enumerate(categories):
             lbl = QLabel(f"<small><b>{cat_name}</b></small>")
             lbl.setContentsMargins(2, 2, 0, 0)

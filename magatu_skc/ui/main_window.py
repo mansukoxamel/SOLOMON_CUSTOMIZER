@@ -182,7 +182,7 @@ class MainWindow(QMainWindow):
         self.picker.bonus_panel.items_changed.connect(self._on_bonus_panel_items_changed)
         # ミラー敵セット変更
         self.picker.mirror_panel.enemies_changed.connect(self._on_mirror_panel_changed)
-        self.btn_mirror = QPushButton("ミラー詳細設定...")
+        self.btn_mirror = QPushButton("ミラー詳細設定")
         self.btn_mirror.setToolTip(
             "現在ステージの2つのミラーについて、出現タイミング(64ビット)とTTLを編集"
         )
@@ -259,7 +259,7 @@ class MainWindow(QMainWindow):
         # ファイル操作
         file_group = QGroupBox("ファイル")
         fl = QVBoxLayout(file_group)
-        self.btn_open = QPushButton("ROMを開く...")
+        self.btn_open = QPushButton("ROMを開く")
         self.btn_open.clicked.connect(self._on_open_rom)
         fl.addWidget(self.btn_open)
 
@@ -282,10 +282,10 @@ class MainWindow(QMainWindow):
         fl.addWidget(self.lbl_rom)
 
         # 保存系は横2列に (改造ROM保存 / IPSパッチ出力)
-        self.btn_save_rom = QPushButton("改造ROMとして保存...")
+        self.btn_save_rom = QPushButton("別名でROM保存")
         self.btn_save_rom.clicked.connect(self._on_save_rom)
         self.btn_save_rom.setEnabled(False)
-        self.btn_save_ips = QPushButton("IPSパッチ出力...")
+        self.btn_save_ips = QPushButton("IPSパッチ出力")
         self.btn_save_ips.clicked.connect(self._on_save_ips)
         self.btn_save_ips.setEnabled(False)
         _save_row = QHBoxLayout()
@@ -328,7 +328,7 @@ class MainWindow(QMainWindow):
         # 表示オプション
         opt_group = QGroupBox("表示オプション")
         ol = QVBoxLayout(opt_group)
-        self.chk_grid = QCheckBox("グリッド表示 (G)")
+        self.chk_grid = QCheckBox("グリッド表示")
         self.chk_grid.toggled.connect(self._on_grid_toggled)
         ol.addWidget(self.chk_grid)
         self.chk_hidden = QCheckBox("隠し要素強調 (黄色枠)")
@@ -379,14 +379,14 @@ class MainWindow(QMainWindow):
         el.setColumnStretch(0, 1)
         el.setColumnStretch(1, 1)
         self.btn_clear = QToolButton()
-        self.btn_clear.setText("ステージクリア ▼")
+        self.btn_clear.setText("オブジェクト削除 ▼")
         self.btn_clear.setToolTip("現在のステージから要素を削除（Undo可能）")
         self.btn_clear.setPopupMode(QToolButton.InstantPopup)
         clear_menu = _QMenu(self.btn_clear)
-        act_all = clear_menu.addAction("すべてクリア（鍵/扉/スタート/ミラーは保持）")
-        act_blocks = clear_menu.addAction("ブロックのみクリア")
-        act_items = clear_menu.addAction("アイテムのみクリア")
-        act_enemies = clear_menu.addAction("モンスターのみクリア")
+        act_all = clear_menu.addAction("すべて削除（鍵/扉/スタート/ミラーは保持）")
+        act_blocks = clear_menu.addAction("ブロックのみ削除")
+        act_items = clear_menu.addAction("アイテムのみ削除")
+        act_enemies = clear_menu.addAction("モンスターのみ削除")
         act_all.triggered.connect(lambda: self._on_clear_level("all"))
         act_blocks.triggered.connect(lambda: self._on_clear_level("blocks"))
         act_items.triggered.connect(lambda: self._on_clear_level("items"))
@@ -403,65 +403,35 @@ class MainWindow(QMainWindow):
         el.addWidget(self.btn_stats, 0, 1)
 
         # ゲーム改造（ROMバイト直接書換え）
-        self.btn_hack = QPushButton("ゲーム挙動改造...")
+        self.btn_hack = QPushButton("ゲーム挙動改造")
         self.btn_hack.setToolTip("開始ライフ・開始ステージ等の既知ROMアドレスを書き換え")
         self.btn_hack.clicked.connect(self._on_show_hack)
         self.btn_hack.setEnabled(False)
         el.addWidget(self.btn_hack, 1, 0)
 
-        self.btn_palette = QPushButton("パレット編集...")
+        self.btn_enemy_hack = QPushButton("敵")
+        self.btn_enemy_hack.setToolTip("敵AI・敵速度など、敵に関係するROM挙動を編集")
+        self.btn_enemy_hack.clicked.connect(self._on_show_enemy_hack)
+        self.btn_enemy_hack.setEnabled(False)
+        el.addWidget(self.btn_enemy_hack, 1, 1)
+
+        self.btn_palette = QPushButton("パレット編集")
         self.btn_palette.setToolTip("背景・スプライトのパレット (8パレット x 3色) を編集")
         self.btn_palette.clicked.connect(self._on_show_palette)
         self.btn_palette.setEnabled(False)
-        el.addWidget(self.btn_palette, 1, 1)
-
-        self.btn_enemy_drop = QPushButton("敵ドロップ編集...")
-        self.btn_enemy_drop.setToolTip(
-            "敵を炎で倒した時に出る効果(スコア/1UP/特殊等)と確率を"
-            "グローバルに編集 ($C293)。通常アイテムIDではない点に注意")
-        self.btn_enemy_drop.clicked.connect(self._on_show_enemy_drop)
-        self.btn_enemy_drop.setEnabled(False)
-        el.addWidget(self.btn_enemy_drop, 2, 0)
-
-        self.btn_demo_input = QPushButton("デモ操作編集...")
-        self.btn_demo_input.setToolTip(
-            "タイトル放置で流れるデモの操作(34ステップ固定)を編集。"
-            "各ステップ=入力を何フレーム続けるか。録画不要・原作方式手入力"
-            "($CF9A/$CFBC、JP専用)")
-        self.btn_demo_input.clicked.connect(self._on_show_demo_input)
-        self.btn_demo_input.setEnabled(False)
-        el.addWidget(self.btn_demo_input, 2, 1)
-
-        # Phase 1: 特殊処理ビューア (読込専用)
-        self.btn_special_proc = QPushButton("特殊処理ビューア...")
-        self.btn_special_proc.setToolTip(
-            "各ステージにハードコードされた特殊処理 (Per-Room Special Process) を表示。\n"
-            "壊せる白壁・マイティボンジャック・ソロモン封印・エンディング処理などはここで実装されている。\n"
-            "現状は読込専用（編集は今後対応予定）"
-        )
-        self.btn_special_proc.clicked.connect(self._on_show_special_process)
-        self.btn_special_proc.setEnabled(False)
-        el.addWidget(self.btn_special_proc, 3, 0)
+        el.addWidget(self.btn_palette, 2, 0)
 
         # スプライトビューア (CHR-ROM 全タイル一覧、読込専用)
-        self.btn_sprite_viewer = QPushButton("スプライトビューア...")
+        self.btn_sprite_viewer = QPushButton("スプライトビューア")
         self.btn_sprite_viewer.setToolTip(
             "CHR-ROM の全キャラクタータイル (8x8) を一覧表示。\n"
             "バンク・パレット・拡大率を切替可能。読込専用。"
         )
         self.btn_sprite_viewer.clicked.connect(self._on_show_sprite_viewer)
         self.btn_sprite_viewer.setEnabled(False)
-        el.addWidget(self.btn_sprite_viewer, 3, 1)
+        el.addWidget(self.btn_sprite_viewer, 2, 1)
 
-        self.btn_clear_msg = QPushButton("クリア画面メッセージ編集...")
-        self.btn_clear_msg.setToolTip(
-            "ステージクリア後の『おめでとう画面』3行を編集。"
-            "英大文字+スペース、原作と同字数まで(JP専用・同字数置換)")
-        self.btn_clear_msg.clicked.connect(self._on_show_clear_message)
-        self.btn_clear_msg.setEnabled(False)
-        el.addWidget(self.btn_clear_msg, 4, 0)
-
-        self.btn_title_screen = QPushButton("タイトル移植 (US↔JP)...")
+        self.btn_title_screen = QPushButton("タイトル画面移植 (US↔JP)")
         self.btn_title_screen.setToolTip(
             "別ROMのタイトルを移植: 配置(nametable)+色区分(attribute)"
             "+絵(CHR bank3)をピース単位コピー。コード非改変・JP/US"
@@ -469,7 +439,7 @@ class MainWindow(QMainWindow):
             "所有ROMから移植(著作権配慮)")
         self.btn_title_screen.clicked.connect(self._on_show_title_screen)
         self.btn_title_screen.setEnabled(False)
-        el.addWidget(self.btn_title_screen, 4, 1)
+        el.addWidget(self.btn_title_screen, 3, 0)
 
         left_layout.addWidget(edit_group)
 
@@ -971,12 +941,9 @@ class MainWindow(QMainWindow):
             self.btn_clear.setEnabled(True)
             self.btn_stats.setEnabled(True)
             self.btn_hack.setEnabled(True)
+            self.btn_enemy_hack.setEnabled(True)
             self.btn_palette.setEnabled(True)
-            self.btn_enemy_drop.setEnabled(True)
-            self.btn_demo_input.setEnabled(True)
-            self.btn_clear_msg.setEnabled(True)
             self.btn_title_screen.setEnabled(True)
-            self.btn_special_proc.setEnabled(True)
             self.btn_sprite_viewer.setEnabled(True)
             self.btn_test_play.setEnabled(True)
             self.btn_regen_thumbs.setEnabled(True)
@@ -3164,7 +3131,12 @@ class MainWindow(QMainWindow):
         # 変更前のスナップショット
         before = bytes(self.rom.data)
         before_wall = self._read_wall_color_values()
-        dlg = HackDialog(self.rom, parent=self, app_config=self._app_config)
+        dlg = HackDialog(
+            self.rom,
+            parent=self,
+            app_config=self._app_config,
+            initial_level_no=self.current_level_no,
+        )
         dlg.exec_()
         # 変更があれば未保存マーク
         if bytes(self.rom.data) != before:
@@ -3173,6 +3145,23 @@ class MainWindow(QMainWindow):
             self._update_time_dr_hint()
             if self._read_wall_color_values() != before_wall:
                 self._on_hack_dialog_applied()
+
+    def _on_show_enemy_hack(self):
+        if not self.rom:
+            return
+        from .hack_dialog import HackDialog
+        before = bytes(self.rom.data)
+        dlg = HackDialog(
+            self.rom,
+            parent=self,
+            app_config=self._app_config,
+            initial_level_no=self.current_level_no,
+            view_mode="enemy",
+        )
+        dlg.exec_()
+        if bytes(self.rom.data) != before:
+            self._set_dirty(True)
+            self._log("敵設定: ROMバイト変更あり")
 
     def _on_show_palette(self):
         """パレット編集ダイアログを開く"""
