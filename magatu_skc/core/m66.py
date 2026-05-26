@@ -21,8 +21,18 @@ LENGTH_M66_MAP_DATA = LENGTH_M66_LVL_W * LENGTH_M66_LVL_H  # 192
 LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA = 32
 BREAKABLE_CELL_MODE_EMPTY = 0xFE
 BREAKABLE_CELL_MODE_SOLID = 0xFD
+CELL_EMPTY = 0x10
+CELL_BROWN = 0x90
+CELL_WHITE = 0xF8
+CELL_INVISIBLE_SOLID = 0x40
+CELL_INVISIBLE_BREAKABLE = 0x50
+CELL_BREAKABLE_WHITE = 0xF9
+CELL_PASSABLE_WHITE = 0xFA
 OFFSET_M66_LOADER_A2 = 32784
 RUNTIME_BLOCK_LIST_RAM = 0x0740
+SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF = OFFSET_M66_LOADER_A2 + 31
+SPECIAL_HIGH_ID_PRESERVE_OLD = 0xF0  # BEQ: only $F8 survives the m66 loader.
+SPECIAL_HIGH_ID_PRESERVE_NEW = 0xB0  # BCS: $F8-$FF survive for special IDs.
 RUNTIME_BLOCK_LIST_COPY_PATCH_OFF = OFFSET_M66_LOADER_A2 + 146
 RUNTIME_BLOCK_LIST_COPY_PATCH_OLD = bytes.fromhex(
     "ad28040a0a0a0a18694f8500ad28044a4a4a4a1869f88501a010b100995f0788d0f8"
@@ -30,6 +40,7 @@ RUNTIME_BLOCK_LIST_COPY_PATCH_OLD = bytes.fromhex(
 RUNTIME_BLOCK_LIST_COPY_PATCH_NEW = bytes.fromhex(
     "ad28040a0a0a0a0a18694f8500ad28044a4a4a1869f88501a020b100993f0788d0f8"
 )
+RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED = bytes([0xEA] * len(RUNTIME_BLOCK_LIST_COPY_PATCH_NEW))
 OFFSET_M66_BREAKABLE_WHITE_DATA = (
     OFFSET_M66_DROP_SCHED_DATA
     + COUNT_M66_LEVELS * 2 * 8
@@ -94,11 +105,21 @@ def parse_level(rom_data: bytes, level_no: int) -> Level:
             pos = (i, j)
             is_mirror_pos = (pos == spawn01_pos or pos == spawn02_pos)
 
-            if value == 0xf8:
+            if value == CELL_WHITE:
                 result.tiles[j][i] = Wall.WHITE
-            elif value == 0x90:
+            elif value == CELL_BROWN:
                 result.tiles[j][i] = Wall.BROWN
-            elif value != 0x10 or is_mirror_pos:
+            elif value == CELL_BREAKABLE_WHITE:
+                result.tiles[j][i] = Wall.WHITE
+                result.breakable_white_cells.add(pos)
+            elif value == CELL_PASSABLE_WHITE:
+                result.tiles[j][i] = Wall.WHITE
+                result.passable_white_cells.add(pos)
+            elif value == CELL_INVISIBLE_SOLID:
+                result.invisible_solid_cells.add(pos)
+            elif value == CELL_INVISIBLE_BREAKABLE:
+                result.invisible_breakable_cells.add(pos)
+            elif value != CELL_EMPTY or is_mirror_pos:
                 result.items.append(LevelElement(ElementType.ITEM, pos, value))
 
     # ミラー設定
@@ -159,22 +180,6 @@ def load_all_levels_m66(rom) -> list:
         stage_ext.read_table(bytes(rom.data), levels)
     except Exception:
         pass
-    bw = read_breakable_white_data(bytes(rom.data))
-    for i, entry in enumerate(bw[:len(levels)]):
-        for x, y in entry.get("breakable", set()):
-            if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
-                if levels[i].tiles[y][x] == Wall.WHITE:
-                    levels[i].breakable_white_cells.add((x, y))
-                elif levels[i].tiles[y][x] == Wall.NONE:
-                    levels[i].invisible_breakable_cells.add((x, y))
-        for x, y in entry.get("empty", set()):
-            if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
-                levels[i].passable_white_cells.add((x, y))
-                levels[i].tiles[y][x] = Wall.WHITE
-        for x, y in entry.get("solid", set()):
-            if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
-                levels[i].invisible_solid_cells.add((x, y))
-                levels[i].tiles[y][x] = Wall.NONE
     return levels
 
 
@@ -212,12 +217,23 @@ def save_level_m66(rom_data: bytearray, level_no: int, level):
         for x in range(c.LEVEL_W):
             wall = level.tiles[y][x]
             if wall.name == "BROWN":
-                value = 0x90
+                value = CELL_BROWN
             elif wall.name == "WHITE" or wall.name == "BROWN_WHITE":
-                value = 0xf8
+                value = CELL_WHITE
             else:
-                value = 0x10  # 空白
+                value = CELL_EMPTY  # 空白
             set_block((x, y), value)
+
+    # 特殊ブロックは m66 セル値へ直接内包する。見た目はこの値で描かせ、
+    # プレイ開始後の runtime が $0304 上で挙動値へ変換する。
+    for pos in sorted(getattr(level, "breakable_white_cells", set()) or []):
+        set_block(pos, CELL_BREAKABLE_WHITE)
+    for pos in sorted(getattr(level, "passable_white_cells", set()) or []):
+        set_block(pos, CELL_PASSABLE_WHITE)
+    for pos in sorted(getattr(level, "invisible_solid_cells", set()) or []):
+        set_block(pos, CELL_INVISIBLE_SOLID)
+    for pos in sorted(getattr(level, "invisible_breakable_cells", set()) or []):
+        set_block(pos, CELL_INVISIBLE_BREAKABLE)
 
     # ミラー位置にブロックもアイテムもなければミラーマーカー(0x05)を配置
     # ブロックやアイテムで意図的に隠されたミラーは上書きしない
@@ -283,44 +299,12 @@ def _breakable_white_runtime_cell(pos) -> int | None:
 
 
 def build_breakable_white_data(levels: list) -> bytearray:
+    """旧PRG1 side-list領域を空にする。
+
+    特殊ブロックは v0.7.72 から m66 ステージセル値へ直接保存するため、
+    部屋ごとの32B runtime listは使わない。
+    """
     data = bytearray([0xFF] * (COUNT_M66_LEVELS * LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA))
-    for room_no, level in enumerate(levels[:COUNT_M66_LEVELS]):
-        breakable = []
-        source = set(getattr(level, "breakable_white_cells", set()) or [])
-        source.update(getattr(level, "invisible_breakable_cells", set()) or [])
-        for pos in sorted(source):
-            v = _breakable_white_runtime_cell(pos)
-            if v is not None:
-                breakable.append(v)
-
-        empty = []
-        for pos in sorted(getattr(level, "passable_white_cells", set()) or []):
-            v = _breakable_white_runtime_cell(pos)
-            if v is not None:
-                empty.append(v)
-
-        solid = []
-        for pos in sorted(getattr(level, "invisible_solid_cells", set()) or []):
-            v = _breakable_white_runtime_cell(pos)
-            if v is not None:
-                solid.append(v)
-
-        cells = list(breakable)
-        if empty:
-            cells.append(BREAKABLE_CELL_MODE_EMPTY)
-            cells.extend(empty)
-        if solid:
-            cells.append(BREAKABLE_CELL_MODE_SOLID)
-            cells.extend(solid)
-
-        if len(cells) > LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA:
-            raise ValueError(
-                f"runtime block override cells in room {room_no + 1}: "
-                f"{len(cells)} > {LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA}"
-            )
-        base = room_no * LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA
-        for i, v in enumerate(cells):
-            data[base + i] = v
     return data
 
 
@@ -334,16 +318,23 @@ def patch_breakable_white_data(rom_data: bytearray, levels: list):
 
 
 def patch_runtime_block_loader(rom_data: bytearray):
-    """Patch mapper66 l_a2 to copy 32 runtime override bytes to RAM $0740-$075F."""
+    """Patch mapper66 l_a2 for direct special cell IDs.
+
+    - Preserve $F8-$FF in the room grid so $F9/$FA can survive to the runtime.
+    - Disable the old 32B PRG1-to-$0740 copy; the runtime now scans $0304.
+    """
+    off = SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF
+    if len(rom_data) > off and rom_data[off] == SPECIAL_HIGH_ID_PRESERVE_OLD:
+        rom_data[off] = SPECIAL_HIGH_ID_PRESERVE_NEW
     off = RUNTIME_BLOCK_LIST_COPY_PATCH_OFF
-    ln = len(RUNTIME_BLOCK_LIST_COPY_PATCH_NEW)
+    ln = len(RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED)
     if len(rom_data) < off + ln:
         return
     cur = bytes(rom_data[off:off + ln])
-    if cur == RUNTIME_BLOCK_LIST_COPY_PATCH_NEW:
+    if cur == RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED:
         return
-    if cur == RUNTIME_BLOCK_LIST_COPY_PATCH_OLD:
-        rom_data[off:off + ln] = RUNTIME_BLOCK_LIST_COPY_PATCH_NEW
+    if cur in (RUNTIME_BLOCK_LIST_COPY_PATCH_OLD, RUNTIME_BLOCK_LIST_COPY_PATCH_NEW):
+        rom_data[off:off + ln] = RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED
 
 
 def read_breakable_white_data(rom_data: bytes) -> list:

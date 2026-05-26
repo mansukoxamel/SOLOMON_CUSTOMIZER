@@ -61,14 +61,20 @@ verbatim コピーするため file offset 不変):
 #                                 level未ロードで未使用、demo/START の
 #                                 level load で grid 全再init される前提。
 #                               ・他機能はこの帯を ★title描画中に触らない。
-#   $0740-$075F RUNTIME_BLOCK_OVERRIDE 特殊ブロックlist      予約済(使用中)
+#   $073A-$073F ENTITY_TAIL_CANDIDATE 補助候補6B          要probe
+#   $0740-$075F OLD_RUNTIME_BLOCK_LIST 旧特殊ブロックlist 第一候補32B
+#                               ・v0.7.72で特殊ブロックはm66セルID直書き化。
+#                               ・旧PRG1→$0740コピーは無効化済み。
+#                               ・まとまったcustom RAMが必要ならここを優先。
+#                               ・正式予約前に対象用途で再probeする。
+#   $0760-$0777 ENTITY_TAIL_CANDIDATE 補助候補24B         要probe
 #   $0778       ROOMFLAGS       room flag table cache         予約済(使用中)
 #   $0779       DARK_PHASE      暗闇 明滅フェーズカウンタ      予約済(使用中)
 #   $077A-$077B BLOCK_OVERRIDE_WORK 一時フラグ/値             予約済(使用中)
 #   $077C       RUNTIME_DOOR_CELL 現在部屋の扉セル            予約済(使用中)
-#   $077D-$077F FREE_CANDIDATE  (未割当・小フラグ/カウンタ用)  ★候補
-#                               3バイトのみ。使用前に必ず再probe・
-#                               1バイトずつ用途名を決めてこの表に追記。
+#   $077D-$077F FREE_CANDIDATE  (未割当・小フラグ/カウンタ用)  補助候補3B
+#                               まとまったRAMは$0740-$075Fを優先。
+#                               使用前に必ず再probe・用途名を決めて追記。
 #
 # ▼ ★bank1 (mapper66 拡張2本目PRG) 予約
 #   ・file 0x80D0-0x87FF : wide decoder + blockA/B stream
@@ -84,8 +90,10 @@ verbatim コピーするため file offset 不変):
 #     $B328/$B33D ポインタ表で確定。slot20=$070F 終端$0722)。
 #   ・$0723-$077F = entity終端後の隙間。ramfree3_probe 285秒・
 #     面$02/$04/$05/$08・妖精×4・死亡 で実機沈黙確認。
-#     → 既存予約済み領域以外で新規に使える候補は $077D-$077F のみ。
-#        それ以外は沈黙でも構造保証が薄いので原則使わない。
+#     → v0.7.72で旧特殊ブロック32Bリストを廃止したため、
+#        $0740-$075F が次のまとまったcustom RAM第一候補。
+#        $073A-$073F / $0760-$0777 / $077D-$077F は補助候補だが、
+#        沈黙でも構造保証は弱いので正式使用前に用途別probe必須。
 #   ・$0780-$07DF = probe で書込検出 = ★使用禁止。
 #
 # ▼ ★絶対に使ってはいけない領域 (間接/毎フレ衝突=症状が見えにくい)
@@ -102,9 +110,10 @@ verbatim コピーするため file offset 不変):
 #   1. ★まず "増やさない" を検討。既存値から再計算できないか?
 #      例: room flag は $0428→$C1C0,X ROMテーブル再読込で RAM不要化可。
 #          暗闇周期も $043C/$043D(global frame counter)から導出余地。
-#   2. どうしても要る → $077D-$077F を ★1バイトずつ 予約。
+#   2. まとまったRAMが必要 → $0740-$075F を第一候補として予約。
+#      小フラグだけなら $077D-$077F も候補。
 #      用途名を決めて上の表に追記してからコードで使う。
-#   3. 2バイト以上 / 長期保存 / 毎NMI書込 → ★再プローブ必須
+#   3. 長期保存 / 毎NMI書込 / 複数バイト連続使用 → ★再プローブ必須
 #      (ramfree3_probe 流儀: 無音蓄積+低頻度要約、バグ再現シナリオ込み、
 #       feedback_probe_no_flood_no_shared_lim.md 準拠)。
 #   4. NMI中に毎フレ触るRAMは特に厳格に(サウンド/PPU/入力/DMA/slot
@@ -114,12 +123,14 @@ verbatim コピーするため file offset 不変):
 # ---- bit 割当 ---------------------------------------------------------
 # Current custom RAM ledger (ASCII mirror, keep this in sync with docs/ram_map_current.html):
 #   $0723-$072B KEY_ENEMY_RUNTIME      key-carrying enemy runtime, reserved in use
-#   $0740-$075F RUNTIME_BLOCK_OVERRIDE runtime block override list, reserved in use
+#   $073A-$073F ENTITY_TAIL_CANDIDATE  secondary 6-byte candidate, probe before use
+#   $0740-$075F OLD_RUNTIME_BLOCK_LIST primary 32-byte freed candidate, probe before use
+#   $0760-$0777 ENTITY_TAIL_CANDIDATE  secondary 24-byte candidate, probe before use
 #   $0778       ROOMFLAGS              room flag table cache, reserved in use
 #   $0779       DARK_PHASE             dark-room phase counter, reserved in use
 #   $077A-$077B BLOCK_OVERRIDE_WORK    temporary NMI work bytes, reserved in use
 #   $077C       RUNTIME_DOOR_CELL      current room door cell, reserved in use
-#   $077D-$077F FREE_CANDIDATE         unallocated 3-byte tail candidate
+#   $077D-$077F FREE_CANDIDATE         secondary 3-byte tail candidate
 #
 # Current ROM cave ledger lives in docs/rom_map_jp_mapper66_current.html.
 # Do not add or move a hard-coded ROM/RAM address without updating the HTML
@@ -191,17 +202,18 @@ DARK_CAVE = bytes.fromhex(
 assert len(DARK_CAVE) == 56
 
 # Runtime block override NMI routine @ $C0F0.
-# Runs once after Dana is active. It reads RAM $0740-$075F and writes selected
-# $0304 grid cells after the nametable has already been drawn.
-# Format: cells default to $90, $FE switches following cells to $10, $FD to $F8,
-# $FF terminates.
+# Runs once after Dana is active. It scans the visible $0304 room grid after the
+# nametable has already been drawn, then converts direct m66 special cell IDs:
+#   $F9 -> $90  breakable white
+#   $FA -> $10  passable white
+#   $40 -> $F8  invisible solid
+#   $50 -> $90  invisible breakable
 BW_CAVE = bytes.fromhex(
-    "488a489848ad7f05c9c09044ad7a07d03fa9908d7b07a000b94007"
-    "c9fff02cc9fed00ca9108d7b07c8c020d0ebf01cc9fdd00ca9f8"
-    "8d7b07c8c020d0dbf00caaad7b079d0403c8c020d0cda9018d7a"
-    "0768a868aa6860"
+    "488a489848ad7f05c9c09022ad7a07d01da2c0bd1303c940f01a"
+    "c950f01ac9f9f016c9faf016cad0eaa9018d7a0768a868aa6860"
+    "a9f8d006a990d002a9109d1303d0e3"
 )
-assert len(BW_CAVE) == 86
+assert len(BW_CAVE) == 67
 # 全体共通テンポ既定: 明45フレ / 暗100フレ → PERIOD=145
 TEMPO_DEFAULT = bytes([45, 145])  # [LIGHT, PERIOD(=LIGHT+DARK)]
 

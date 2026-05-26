@@ -41,7 +41,7 @@
 <body>
 <main>
   <h1>Solomon Customizer ROM Map - JP mapper66 current</h1>
-  <p class="lead">2026-05-26 v0.7.70 棚卸版。PRG0/PRG1の全体像、bank0 caveの詳細、強化敵コードの配置、開始画面アナウンス、原作00/EA埋め上書き、残り空き容量を視覚的に確認するための台帳。</p>
+  <p class="lead">2026-05-26 v0.7.72 棚卸版。PRG0/PRG1の全体像、bank0 caveの詳細、強化敵コードの配置、開始画面アナウンス、原作00/EA埋め上書き、残り空き容量を視覚的に確認するための台帳。</p>
 
   <div class="legend">
     <span class="lg"><span class="sw orig"></span>元PRG / 既存コード・既存データ</span>
@@ -227,7 +227,8 @@
       <tr><td>gap_fix cave</td><td class="num">0x4010-0x4097</td><td class="num">$C000-$C087</td><td class="num">136B</td><td class="ok">No overlap with Spark Ball variants or key enemies as of v0.6.158.</td></tr>
       <tr><td>Panel Monster 2-way fire cave</td><td class="num">0x4098-0x40D1</td><td class="num">$C088-$C0C1</td><td class="num">58B</td><td>Accepted 2-way Panel Monster shot routine. Marker/exit tail shared with the 3-way cave.</td></tr>
       <tr><td>Panel Monster animation selector</td><td class="num">0x40D2-0x40FF</td><td class="num">$C0C2-$C0EF</td><td class="num">46B</td><td>Panel Monster borrowed-ID animation selector. Spark Ball animation hook at <code>$CFDE</code> falls through here for non-Spark types.</td></tr>
-      <tr><td>runtime block override</td><td class="num">0x4100-0x4155</td><td class="num">$C0F0-$C145</td><td class="num">86B</td><td>Runtime block override cell list executor. Reclaimed from the temporary key handler collision in v0.6.157.</td></tr>
+      <tr><td>runtime special-cell scanner</td><td class="num">0x4100-0x4142</td><td class="num">$C0F0-$C132</td><td class="num">67B</td><td>Scans visible `$0304` grid after draw and converts direct m66 special cell IDs: `$F9->$90`, `$FA->$10`, `$40->$F8`, `$50->$90`.</td></tr>
+      <tr><td>Reclaimed runtime tail</td><td class="num">0x4143-0x4155</td><td class="num">$C133-$C145</td><td class="num">19B</td><td>Freed from the old `$0740-$075F` list executor.</td></tr>
       <tr><td>Panel Monster Demonhead-ID AI wrapper</td><td class="num">0x4156-0x418E</td><td class="num">$C146-$C17E</td><td class="num">57B</td><td>Panel Monster borrowed Demonhead-ID routing.</td></tr>
       <tr><td>Key enemy dropped-key handler</td><td class="num">0x4190-0x41E5</td><td class="num">$C180-$C1D5</td><td class="num">86B</td><td>Relocated from `$C0F0` in v0.6.157. PRG0 DoorCellTable/RoomFlagTable moved to PRG1 StageExt runtime bytes.</td></tr>
       <tr><td>Key enemy binder / defeat chunk</td><td class="num">0x41E6-0x420D</td><td class="num">$C1D6-$C1FD</td><td class="num">40B</td><td>Initial-slot binder plus one split key-dropper chunk. Reclaimed from the former PRG0 RoomFlag/Door tables.</td></tr>
@@ -248,7 +249,7 @@
       <div class="seg free" style="width:3.49%">reserve<br><small>1,145B</small></div>
       <div class="seg data" style="width:41.41%">level data<br><small>13,568B</small></div>
       <div class="seg data" style="width:2.59%">drop schedule</div>
-      <div class="seg data" style="width:5.18%">block override</div>
+      <div class="seg free" style="width:5.18%">legacy block table</div>
       <div class="seg meta" style="width:.20%">META</div>
       <div class="seg free" style="width:.59%">reserve</div>
       <div class="seg meta" style="width:.05%">vec</div>
@@ -265,7 +266,7 @@
       <tr><td>bank1 reserve</td><td class="num">0xBB97-0xC00F</td><td class="num">$BB87-$BFFF</td><td class="num">1,145B</td><td>Small bank1 reserve.</td></tr>
       <tr><td>expanded level data</td><td class="num">0xC010-0xF50F</td><td class="num">$C000-$F4FF</td><td class="num">13,568B</td><td>53 rooms x 256B.</td></tr>
       <tr><td>mirror/drop schedule</td><td class="num">0xF510-0xF85F</td><td class="num">$F500-$F84F</td><td class="num">848B</td><td>53 rooms x mirror/drop bytes.</td></tr>
-      <tr><td>runtime block override cell table</td><td class="num">0xF860-0xFEFF</td><td class="num">$F850-$FEEF</td><td class="num">1,696B</td><td>Runtime block override per-room cell lists.</td></tr>
+      <tr><td>legacy runtime block override table</td><td class="num">0xF860-0xFEFF</td><td class="num">$F850-$FEEF</td><td class="num">1,696B</td><td>Old per-room 32B cell lists. v0.7.72 no longer reads this table; saves clear it to `$FF`. Candidate reserve after retesting.</td></tr>
       <tr><td>MAGATU metadata stamp</td><td class="num">0xFF00-0xFF3F</td><td class="num">$FEF0-$FF2F</td><td class="num">64B</td><td><code>MAGATU_SC_META</code> + format + app version.</td></tr>
       <tr><td>bank1 tail reserve</td><td class="num">0xFF40-0xFFFF</td><td class="num">$FF30-$FFEF</td><td class="num">192B</td><td>Reserve before vectors.</td></tr>
       <tr><td>vectors copy</td><td class="num">0x10000-0x1000F</td><td class="num">$FFF0-$FFFF</td><td class="num">16B</td><td>Copied PRG vectors.</td></tr>
@@ -304,6 +305,20 @@
     <tr><td class="num">0x675C-0x6773</td><td class="num">$E74C-$E763</td><td class="num">24B</td><td>原作00埋め。小routine候補。</td></tr>
     <tr><td class="num">0x693C-0x694F</td><td class="num">$E92C-$E93F</td><td class="num">20B</td><td>原作00埋め。短い分岐/補助routine候補。</td></tr>
     <tr><td class="num">0x6465-0x6474</td><td class="num">$E455-$E464</td><td class="num">16B</td><td>原作00埋め。かなり短い補助routine候補。</td></tr>
+  </table>
+  <div class="note">
+    <b>未予約の原作EA埋め候補:</b>
+    既知の予約スパンを除外すると、実用的な連続 <code>EA</code> はかなり少ない。
+    18B/12B以外は断片扱いで、ジャンプ先の小ヘルパや短い分岐補助に限る。
+  </div>
+  <table>
+    <tr><th>file offset</th><th>CPU</th><th>Size</th><th>扱い</th></tr>
+    <tr><td class="num">0x3E72-0x3E83</td><td class="num">$BE62-$BE73</td><td class="num">18B</td><td>bank0 cave内。旧Spark property跡地。隣接key enemy chunk <code>$BE74</code> との境界確認必須。</td></tr>
+    <tr><td class="num">0x3D2A-0x3D35</td><td class="num">$BD1A-$BD25</td><td class="num">12B</td><td>bank0 cave内。Gargoyle/Spark周辺の小ヘルパ候補。</td></tr>
+    <tr><td class="num">0x3FC3-0x3FC8</td><td class="num">$BFB3-$BFB8</td><td class="num">6B</td><td>bank0 cave内。Panel Monster normal fire copy直前の短い断片。</td></tr>
+    <tr><td class="num">0x500A-0x500F</td><td class="num">$CFFA-$CFFF</td><td class="num">6B</td><td>Spark Ball animation hook帯の末尾断片。</td></tr>
+    <tr><td class="num">0x6A61-0x6A66</td><td class="num">$EA51-$EA56</td><td class="num">6B</td><td>原作EA埋め。短い補助候補だが周辺用途は再確認する。</td></tr>
+    <tr><td class="num">0x700B-0x700F / 0x5C0B-0x5C0F</td><td class="num">$EFFB-$EFFF / $DBFB-$DBFF</td><td class="num">5B + 5B</td><td>既存hook帯末尾の断片。基本は埋め草用。</td></tr>
   </table>
 </main>
 </body>

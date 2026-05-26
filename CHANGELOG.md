@@ -1,5 +1,25 @@
 # MAGATU_SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.73 (2026-05-26) Clarify freed RAM candidates
+- Updated `docs/ram_map_current.html` and the `room_flags.py` RAM ledger mirror
+  to show `$0740-$075F` as the primary 32-byte freed candidate after the direct
+  m66 special-cell migration.
+- Removed the stale wording that implied only the `$077D-$077F` 3-byte tail was
+  available for future custom RAM.
+
+## v0.7.72 (2026-05-26) Store special blocks as m66 cell IDs
+- Changed mapper66 special blocks to be stored directly in stage map cells:
+  `0xF9` breakable white, `0xFA` passable white, `0x40` invisible solid,
+  and `0x50` invisible breakable.
+- Replaced the old 32-byte `$0740-$075F` runtime block override list with a
+  `$0304` grid scanner that converts those direct cell IDs after drawing.
+- Disabled the old PRG1 runtime block override copy and clears the legacy
+  per-room cell table on save.
+
+## v0.7.71 (2026-05-26) Record EA fill candidates
+- Added remaining PRG0 original `EA` fill candidates to
+  `docs/rom_map_jp_mapper66_current.html`.
+
 ## v0.7.70 (2026-05-26) Inventory module ROM writes
 - Added a PRG0 module-by-module write ledger to
   `docs/rom_map_jp_mapper66_current.html`.
