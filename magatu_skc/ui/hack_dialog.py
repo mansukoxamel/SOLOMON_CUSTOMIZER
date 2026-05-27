@@ -1611,18 +1611,8 @@ class HackDialog(QDialog):
             except walk_speed.WalkSpeedError as e:
                 QMessageBox.warning(self, "歩行速度の改造失敗", str(e))
 
-        # サラマンダー/ドラゴン反応距離
-        if self._sala_ok:
-            try:
-                sch = salamander_hack.apply_distance(
-                    d,
-                    self.combo_sala_x.currentData(),
-                    self.combo_sala_y.currentData(),
-                )
-                if sch:
-                    applied.append("サラマンダー距離: " + " / ".join(sch))
-            except salamander_hack.SalamanderHackError as e:
-                QMessageBox.warning(self, "サラマンダー距離設定失敗", str(e))
+        # Saramandor #2 reaction range is handled by saramandor_variant.
+        # Do not rewrite the shared stock Saramandor/Dragon distance bytes.
 
         # パネルモンスター
         if self._pm_ok:

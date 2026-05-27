@@ -1,5 +1,33 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.110 (2026-05-27) Gate Panel Bullet offsets with dedicated markers
+- Removed the unsafe Saramandor child-marker cleanup approach.
+- Changed Panel Monster diagonal Bullet markers to use bit7-tagged values, and
+  changed the Bullet hook to ignore untagged `sub+7` values.
+- This keeps Panel Monster diagonal offsets working while preventing
+  Saramandor #2 Bullets from being mistaken for Panel Bullets.
+- Updated the ROM map: Panel Monster Bullet hook is now 78B, Saramandor
+  variant cave use is back to 165B, and bank0 cave free space is 213B.
+
+## v0.7.107 (2026-05-27) Give Saramandor #2 six-tile reaction range
+- Added a `$B1E9` distance-check hook for Saramandor #2 IDs
+  `$5E/$5F/$62/$63`.
+- The enhanced Saramandor IDs now use X reaction threshold `$60` (6 tiles);
+  stock Saramandor and Dragon keep the original shared `$14` threshold.
+- Stopped applying the old UI-side shared Saramandor/Dragon distance rewrite,
+  so this range change is variant-only.
+- Updated the ROM map: bank0 cave free space is now 217B; the largest
+  contiguous free span is 58B at `$C088-$C0C1`.
+
+## v0.7.106 (2026-05-27) Remove Saramandor slow Bullet speed
+- Removed the Saramandor #2 quarter-speed Bullet override. `$5E/$5F` and
+  `$62/$63` now both spawn normal-speed Bullets.
+- Removed the active `$B121`, `$AFD1`, and `$866D` slow-Bullet marker/speed
+  hooks from the current patch path.
+- Reduced the Saramandor variant reserved cave space from 210B to 101B,
+  reclaiming 109B in bank0 cave space. The ROM map now lists 281B free, with
+  an 80B largest contiguous span at `$BF00-$BF4F`.
+
 ## v0.7.105 (2026-05-27) Compact Panel Monster fire dispatch
 - Reduced the Panel Monster fire dispatch from 45B to 31B by pair-normalizing
   the parent type with `AND #$FE` and comparing only the four accepted base IDs.

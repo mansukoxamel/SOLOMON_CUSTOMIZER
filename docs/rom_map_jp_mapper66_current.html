@@ -164,10 +164,11 @@
       <div class="seg cave" style="width:2.68%">Saram</div>
       <div class="seg hook" style="width:.57%">Spark set</div>
       <div class="seg free" style="width:.83%"></div>
-      <div class="seg cave" style="width:5.10%">Saram</div>
+      <div class="seg cave" style="width:4.08%">Saram range</div>
+      <div class="seg free" style="width:1.02%"></div>
       <div class="seg free" style="width:1.59%"></div>
-      <div class="seg cave" style="width:4.71%">PM bullet</div>
-      <div class="seg free" style="width:2.35%"></div>
+      <div class="seg cave" style="width:4.97%">PM bullet</div>
+      <div class="seg free" style="width:2.10%"></div>
       <div class="seg hook" style="width:1.34%">Spark slow</div>
       <div class="seg free" style="width:1.21%"></div>
       <div class="seg cave" style="width:8.66%">gap_fix</div>
@@ -182,7 +183,7 @@
     </div>
     <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
     <div class="note">
-      <b>棚卸メモ:</b> v0.7.105時点の予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち使用中1,398B、未予約172B、最大連続空き58B。Panel Monster fire routineをnormal / 2-way / 3-way共通loopへ統合し、旧normal fire copy <code>$BFB9-$BFD7</code> と旧2-way fire cave <code>$C088-$C0C1</code> を回収。さらにPanel Monster fire dispatchを左右ペア正規化で短縮。Gargoyle 2-shot、gap_fix <code>$C000-$C087</code>、Spark Ball variant、Key enemy、Stage start announcement は現在の台帳上で非重複。
+      <b>棚卸メモ:</b> v0.7.110時点の予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち使用中1,357B、未予約213B、最大連続空き58B。Panel Monster diagonal Bullet hookをbit7付き専用マーカー方式に変更。Saramandor #2 distance hook <code>$BF00-$BF3F</code> は維持し、危険なchild marker cleanupは撤去済み。Gargoyle 2-shot、gap_fix <code>$C000-$C087</code>、Spark Ball variant、Key enemy、Stage start announcement は現在の台帳上で非重複。
     </div>
     <h3>bank0 cave 未予約ギャップ</h3>
     <table>
@@ -195,18 +196,19 @@
       <tr><td class="num">0x3D32-0x3D35</td><td class="num">$BD22-$BD25</td><td class="num">4B</td><td>Gargoyle 2-shot gate拡張後の短い断片。実用候補からは外す。</td></tr>
       <tr><td class="num">0x3D97</td><td class="num">$BD87</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
       <tr><td class="num">0x3E4D-0x3E4F</td><td class="num">$BE3D-$BE3F</td><td class="num">3B</td><td>断片。基本は埋め草用。</td></tr>
-      <tr><td class="num">0x3E72-0x3E83</td><td class="num">$BE62-$BE73</td><td class="num">18B</td><td>最大連続空き。旧Spark property跡地。隣接key enemy chunk <code>$BE74</code> との境界確認必須。</td></tr>
+      <tr><td class="num">0x3E72-0x3E83</td><td class="num">$BE62-$BE73</td><td class="num">18B</td><td>旧Spark property跡地。隣接key enemy chunk <code>$BE74</code> との境界確認必須。</td></tr>
       <tr><td class="num">0x3E8E-0x3E8F</td><td class="num">$BE7E-$BE7F</td><td class="num">2B</td><td>断片。基本は埋め草用。</td></tr>
-      <tr><td class="num">0x3EAF</td><td class="num">$BE9F</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
-      <tr><td class="num">0x3ECD-0x3ECF</td><td class="num">$BEBD-$BEBF</td><td class="num">3B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x3EAF-0x3EC5</td><td class="num">$BE9F-$BEB5</td><td class="num">23B</td><td>Saramandor slow-Bullet撤去で回収。隣接key enemy chunk <code>$BEB6</code> との境界確認必須。</td></tr>
+      <tr><td class="num">0x3ECD-0x3ED6</td><td class="num">$BEBD-$BEC6</td><td class="num">10B</td><td>Saramandor slow-Bullet撤去で回収。直後の <code>$BEC7-$BEE8</code> はSpark Ball OAM hide hook。</td></tr>
       <tr><td class="num">0x3EF9</td><td class="num">$BEE9</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
-      <tr><td class="num">0x3FC3-0x3FE7</td><td class="num">$BFB3-$BFD7</td><td class="num">37B</td><td>Panel Monster common fire loop化で回収。旧normal fire copy跡地を含む小routine候補。</td></tr>
+      <tr><td class="num">0x3F50-0x3F5F</td><td class="num">$BF40-$BF4F</td><td class="num">16B</td><td>Saramandor slow-Bullet speed wrapper撤去後の残り。直前 <code>$BF00-$BF3F</code> はSaramandor #2 distance hook。</td></tr>
+      <tr><td class="num">0x3FC7-0x3FE7</td><td class="num">$BFB7-$BFD7</td><td class="num">33B</td><td>Panel Monster common fire loop化で回収。Panel Bullet hook拡張後の残り小routine候補。</td></tr>
       <tr><td class="num">0x400F</td><td class="num">$BFFF</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
-      <tr><td class="num">0x4143-0x4155</td><td class="num">$C133-$C145</td><td class="num">19B</td><td>最大連続空き。旧特殊ブロックruntimeの短縮で回収。小routine候補。</td></tr>
+      <tr><td class="num">0x4143-0x4155</td><td class="num">$C133-$C145</td><td class="num">19B</td><td>旧特殊ブロックruntimeの短縮で回収。小routine候補。</td></tr>
       <tr><td class="num">0x418F</td><td class="num">$C17F</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
       <tr><td class="num">0x420E-0x420F</td><td class="num">$C1FE-$C1FF</td><td class="num">2B</td><td>bank0 cave末尾の断片。</td></tr>
-      <tr><td class="num">0x4098-0x40D1</td><td class="num">$C088-$C0C1</td><td class="num">58B</td><td>Panel Monster common fire loop化で回収。現時点の最大連続空き。</td></tr>
-      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>172B</b></td><td>寄せ集めの合計。最大連続は <code>$C088-$C0C1</code> の58B。</td></tr>
+      <tr><td class="num">0x4098-0x40D1</td><td class="num">$C088-$C0C1</td><td class="num">58B</td><td>Panel Monster common fire loop化で回収。まとまったroutine候補。</td></tr>
+      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>213B</b></td><td>寄せ集めの合計。最大連続は <code>$C088-$C0C1</code> の58B。</td></tr>
     </table>
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
@@ -221,13 +223,14 @@
       <tr><td>Spark Ball fast AI wrapper</td><td class="num">0x3D36-0x3D4A</td><td class="num">$BD26-$BD3A</td><td class="num">21B</td><td>Relocated out of gap_fix range.</td></tr>
       <tr><td>Gargoyle 2-shot body</td><td class="num">0x3D4B-0x3D96</td><td class="num">$BD3B-$BD86</td><td class="num">76B</td><td>Accepted `SecondXAhead16_DirVelocity` body.</td></tr>
       <tr><td>Panel Monster common fire loop</td><td class="num">0x3D98-0x3E0F</td><td class="num">$BD88-$BDFF</td><td class="num">120B</td><td>Shared normal / 2-way / 3-way fire routine. Entry points: normal <code>$BD88</code>, 3-way <code>$BD8C</code>, 2-way <code>$BD90</code>.</td></tr>
-      <tr><td>Saramandor variant caves</td><td class="num">0x3E10-0x3F5F</td><td class="num">$BE00-$BF4F</td><td class="num">245B</td><td>Non-contiguous spans for spawn, flame, bullet, speed helpers. Former `$BF50-$BF68` NOP reserve is free.</td></tr>
+      <tr><td>Saramandor variant caves</td><td class="num">0x3E10-0x3E3E / 0x3E50-0x3E71 / 0x3E90-0x3EA3 / 0x3F10-0x3F4F</td><td class="num">$BE00-$BE2E / $BE40-$BE61 / $BE80-$BE93 / $BF00-$BF3F</td><td class="num">165B</td><td>Spawn, substatus, flame-behavior, and #2-only distance-check helpers. `$5E/$5F/$62/$63` all use normal Bullet speed and X reaction threshold `$60`.</td></tr>
       <tr><td>Key enemy defeat entry</td><td class="num">0x3E3F-0x3E4C</td><td class="num">$BE2F-$BE3C</td><td class="num">14B</td><td>Relocated key-enemy defeat filter. Falls through to split chunks only for the selected key carrier.</td></tr>
       <tr><td>Former Spark Ball property area</td><td class="num">0x3E72-0x3E83</td><td class="num">$BE62-$BE73</td><td class="num">18B</td><td>旧Spark property hook跡地。現行Spark property hookは <code>$A559</code>、Panel/Spark共用のproperty selectorは <code>$DBDF</code> 側。ここを新規使用する場合は隣接する key enemy chunk <code>$BE74</code> との境界を再確認する。</td></tr>
       <tr><td>Key enemy defeat chunk</td><td class="num">0x3E84-0x3E8D</td><td class="num">$BE74-$BE7D</td><td class="num">10B</td><td>Split key dropper chunk.</td></tr>
       <tr><td>Spark Ball animation setter</td><td class="num">0x3EFA-0x3F02</td><td class="num">$BEEA-$BEF2</td><td class="num">9B</td><td>Helper used by animation hook.</td></tr>
       <tr><td>Key enemy defeat chunks</td><td class="num">0x3EA4-0x3EAE / 0x3EC6-0x3ECC / 0x3F03-0x3F0F / 0x3FFD-0x400E</td><td class="num">$BE94 / $BEB6 / $BEF3 / $BFED</td><td class="num">49B</td><td>Split key dropper chunks placed in small verified gaps to avoid `gap_fix`.</td></tr>
-      <tr><td>Panel Monster bullet hook</td><td class="num">0x3F79-0x3FC2</td><td class="num">$BF69-$BFB2</td><td class="num">74B</td><td>Diagonal bullet movement hook. Vertical variants offset X; horizontal variants offset Y.</td></tr>
+      <tr><td>Spark Ball OAM hide hook</td><td class="num">0x3ED7-0x3EF8</td><td class="num">$BEC7-$BEE8</td><td class="num">34B</td><td>Transparent Spark Ball OAM post-draw hide hook. This is not free space.</td></tr>
+      <tr><td>Panel Monster bullet hook</td><td class="num">0x3F79-0x3FC6</td><td class="num">$BF69-$BFB6</td><td class="num">78B</td><td>Diagonal bullet movement hook. Acts only on bit7-tagged Panel Bullet markers; vertical variants offset X, horizontal variants offset Y.</td></tr>
       <tr><td>Spark Ball slow AI wrapper</td><td class="num">0x3FE8-0x3FFC</td><td class="num">$BFD8-$BFEC</td><td class="num">21B</td><td>Dragon-ID <code>$6A/$6B</code> routing.</td></tr>
       <tr><td>gap_fix cave</td><td class="num">0x4010-0x4097</td><td class="num">$C000-$C087</td><td class="num">136B</td><td class="ok">No overlap with Spark Ball variants or key enemies as of v0.6.158.</td></tr>
       <tr><td>Panel Monster animation selector</td><td class="num">0x40D2-0x40FF</td><td class="num">$C0C2-$C0EF</td><td class="num">46B</td><td>Panel Monster borrowed-ID animation selector. Spark Ball animation hook at <code>$CFDE</code> falls through here for non-Spark types.</td></tr>
