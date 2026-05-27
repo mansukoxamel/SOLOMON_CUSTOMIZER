@@ -1,5 +1,12 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.105 (2026-05-27) Compact Panel Monster fire dispatch
+- Reduced the Panel Monster fire dispatch from 45B to 31B by pair-normalizing
+  the parent type with `AND #$FE` and comparing only the four accepted base IDs.
+- Reclaimed `$BCF1-$BCFE` as a new 14B bank0 cave gap.
+- Updated the ROM map: bank0 cave free space is now 172B; the largest
+  contiguous free span remains 58B.
+
 ## v0.7.104 (2026-05-27) Add Panel Bullet speed symmetry fix
 - Added a Panel Monster enemy setting named "弾の左右速度バグ修正".
 - The option rewrites only the stock Bullet velocity table entries for right,

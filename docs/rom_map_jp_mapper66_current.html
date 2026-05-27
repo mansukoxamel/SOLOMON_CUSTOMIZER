@@ -146,8 +146,8 @@
       <div class="seg free" style="width:.06%"></div>
       <div class="seg cave" style="width:3.57%">DARK<br><small>56B</small></div>
       <div class="seg free" style="width:1.66%"></div>
-      <div class="seg cave" style="width:2.87%">PM dispatch</div>
-      <div class="seg free" style="width:.06%"></div>
+      <div class="seg cave" style="width:1.97%">PM dispatch</div>
+      <div class="seg free" style="width:.96%"></div>
       <div class="seg cave" style="width:2.42%">Gargoyle</div>
       <div class="seg hook" style="width:1.34%">Spark fast</div>
       <div class="seg free" style="width:.32%"></div>
@@ -182,7 +182,7 @@
     </div>
     <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
     <div class="note">
-      <b>棚卸メモ:</b> v0.7.103時点の予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち使用中1,412B、未予約158B、最大連続空き58B。Panel Monster fire routineをnormal / 2-way / 3-way共通loopへ統合し、旧normal fire copy <code>$BFB9-$BFD7</code> と旧2-way fire cave <code>$C088-$C0C1</code> を回収。Gargoyle 2-shot、gap_fix <code>$C000-$C087</code>、Spark Ball variant、Key enemy、Stage start announcement は現在の台帳上で非重複。
+      <b>棚卸メモ:</b> v0.7.105時点の予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち使用中1,398B、未予約172B、最大連続空き58B。Panel Monster fire routineをnormal / 2-way / 3-way共通loopへ統合し、旧normal fire copy <code>$BFB9-$BFD7</code> と旧2-way fire cave <code>$C088-$C0C1</code> を回収。さらにPanel Monster fire dispatchを左右ペア正規化で短縮。Gargoyle 2-shot、gap_fix <code>$C000-$C087</code>、Spark Ball variant、Key enemy、Stage start announcement は現在の台帳上で非重複。
     </div>
     <h3>bank0 cave 未予約ギャップ</h3>
     <table>
@@ -191,6 +191,7 @@
       <tr><td class="num">0x3C2E-0x3C2F</td><td class="num">$BC1E-$BC1F</td><td class="num">2B</td><td>断片。基本は埋め草用。</td></tr>
       <tr><td class="num">0x3C5E-0x3C5F</td><td class="num">$BC4E-$BC4F</td><td class="num">2B</td><td>断片。基本は埋め草用。</td></tr>
       <tr><td class="num">0x3C8F</td><td class="num">$BC7F</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
+      <tr><td class="num">0x3D01-0x3D0E</td><td class="num">$BCF1-$BCFE</td><td class="num">14B</td><td>Panel Monster fire dispatch短縮で回収。Gargoyle 2-shot gate直前の小routine候補。</td></tr>
       <tr><td class="num">0x3D32-0x3D35</td><td class="num">$BD22-$BD25</td><td class="num">4B</td><td>Gargoyle 2-shot gate拡張後の短い断片。実用候補からは外す。</td></tr>
       <tr><td class="num">0x3D97</td><td class="num">$BD87</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
       <tr><td class="num">0x3E4D-0x3E4F</td><td class="num">$BE3D-$BE3F</td><td class="num">3B</td><td>断片。基本は埋め草用。</td></tr>
@@ -205,7 +206,7 @@
       <tr><td class="num">0x418F</td><td class="num">$C17F</td><td class="num">1B</td><td>断片。基本は埋め草用。</td></tr>
       <tr><td class="num">0x420E-0x420F</td><td class="num">$C1FE-$C1FF</td><td class="num">2B</td><td>bank0 cave末尾の断片。</td></tr>
       <tr><td class="num">0x4098-0x40D1</td><td class="num">$C088-$C0C1</td><td class="num">58B</td><td>Panel Monster common fire loop化で回収。現時点の最大連続空き。</td></tr>
-      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>158B</b></td><td>寄せ集めの合計。最大連続は <code>$C088-$C0C1</code> の58B。</td></tr>
+      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>172B</b></td><td>寄せ集めの合計。最大連続は <code>$C088-$C0C1</code> の58B。</td></tr>
     </table>
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
@@ -215,7 +216,7 @@
       <tr><td>DOORPREDRAW</td><td class="num">0x3C60-0x3C6A</td><td class="num">$BC50-$BC5A</td><td class="num">11B</td><td>Hidden-door redraw guard.</td></tr>
       <tr><td>Panel Monster Saramandor-ID AI wrapper</td><td class="num">0x3C6B-0x3C8E</td><td class="num">$BC5B-$BC7E</td><td class="num">36B</td><td>Panel Monster borrowed-ID routing.</td></tr>
       <tr><td>DARK cave</td><td class="num">0x3C90-0x3CC7</td><td class="num">$BC80-$BCB7</td><td class="num">56B</td><td>Dark-room flashing logic.</td></tr>
-      <tr><td>Panel Monster fire dispatch</td><td class="num">0x3CE2-0x3D0E</td><td class="num">$BCD2-$BCFE</td><td class="num">45B</td><td>Normal / 2-way / 3-way fire dispatch.</td></tr>
+      <tr><td>Panel Monster fire dispatch</td><td class="num">0x3CE2-0x3D00</td><td class="num">$BCD2-$BCF0</td><td class="num">31B</td><td>Normal / 2-way / 3-way fire dispatch. Pair-normalizes parent type with <code>AND #$FE</code>.</td></tr>
       <tr><td>Gargoyle 2-shot gate</td><td class="num">0x3D0F-0x3D31</td><td class="num">$BCFF-$BD21</td><td class="num">35B</td><td>Conditional `$7A/$7B/$7E/$7F` gate for the accepted `$AE6F` two-Bullet variant.</td></tr>
       <tr><td>Spark Ball fast AI wrapper</td><td class="num">0x3D36-0x3D4A</td><td class="num">$BD26-$BD3A</td><td class="num">21B</td><td>Relocated out of gap_fix range.</td></tr>
       <tr><td>Gargoyle 2-shot body</td><td class="num">0x3D4B-0x3D96</td><td class="num">$BD3B-$BD86</td><td class="num">76B</td><td>Accepted `SecondXAhead16_DirVelocity` body.</td></tr>
