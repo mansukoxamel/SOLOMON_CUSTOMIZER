@@ -184,15 +184,77 @@ def _with_fire_delay(blob: bytes, fire_delay: int) -> bytes:
 
 
 def _build_fire_3way(fire_delay: int) -> bytes:
-    return _with_fire_delay(
-        _relocate_fire(RAW_FIRE_3WAY, CPU_FIRE_3WAY, 0x58, 0x64),
-        fire_delay,
-    )
+    return _build_fire_common(fire_delay)
 
 
-CAVE_FIRE_3WAY = _build_fire_3way(ORIG_FIRE_DELAY)
-CPU_FIRE_COMMON_MARKER = CPU_FIRE_3WAY + 0x58
-CPU_FIRE_COMMON_EXIT = CPU_FIRE_3WAY + 0x64
+def _build_fire_common(fire_delay: int) -> bytes:
+    a = _Asm()
+    # Entry points set X = marker table offset: 0=2-way, 3=3-way, 7=normal.
+    a.label("normal_entry")
+    a.b(0xA2, 0x07); a.branch(0xD0, "start")
+    a.label("three_entry")
+    a.b(0xA2, 0x03); a.branch(0xD0, "start")
+    a.label("two_entry")
+    a.b(0xA2, 0x00)
+    a.label("start")
+    a.b(0xA0, 0x01, 0xB1, 0x2C, 0xC9, fire_delay & 0xFF)
+    a.branch(0x90, "rts")
+    a.label("loop")
+    a.b(0x8A, 0x48)                   # save marker-table offset
+    a.b(0xA0, 0x03, 0xB1, 0x2E, 0x29, 0x03, 0xAA)
+    a.b(0x20, 0x76, 0xAE)             # spawn current Bullet from parent sub[6]
+    a.b(0x68, 0xAA)                   # restore marker-table offset
+    a.b(0xBD, 0xFF, 0xFF, 0xC9, 0xFF)
+    a.branch(0xF0, "mark_done")
+    a.b(0x86, 0x0F)                   # helper clobbers X through $B156
+    a.b(0x20, 0xFF, 0xFF)
+    a.b(0xA6, 0x0F)
+    a.label("mark_done")
+    a.b(0xE8)                         # next marker table entry
+    a.b(0xBD, 0xFF, 0xFF, 0xC9, 0xFF)
+    a.branch(0xF0, "exit")
+    a.b(0x8A, 0x48)                   # save next marker-table offset
+    a.b(0x20, 0xEA, 0xB2)             # find next child sub-slot
+    a.branch(0x90, "alloc_fail")
+    a.b(0x8A, 0xA0, 0x06, 0x91, 0x2C)
+    a.b(0xA0, 0x00, 0xA9, 0x80, 0x91, 0x04)
+    a.b(0x68, 0xAA)
+    a.jmp(CPU_FIRE_3WAY)              # loop
+    a.label("alloc_fail")
+    a.b(0x68, 0xAA)
+    a.jmp(CPU_FIRE_3WAY + 1)          # exit placeholder
+    a.label("rts")
+    a.b(0x60)
+    a.label("helper")
+    a.b(0x48, 0xA5, 0x02, 0x20, 0x56, 0xB1, 0xA0, 0x07, 0x68, 0x91, 0x00, 0x60)
+    a.label("exit")
+    a.b(0xA0, 0x03, 0x98, 0x31, 0x2E, 0x91, 0x2E)
+    a.b(0x88, 0xA9, 0x00, 0x91, 0x2C, 0x88, 0x91, 0x2C, 0x60)
+    a.label("table")
+    a.b(0x03, 0x04, 0xFF, 0x01, 0x00, 0x02, 0xFF, 0xFF, 0xFF)
+    blob = bytearray(a.finish())
+    loop_cpu = CPU_FIRE_3WAY + a.labels["loop"]
+    exit_cpu = CPU_FIRE_3WAY + a.labels["exit"]
+    helper_cpu = CPU_FIRE_3WAY + a.labels["helper"]
+    table_cpu = CPU_FIRE_3WAY + a.labels["table"]
+    for i in range(len(blob) - 2):
+        if blob[i] == 0x4C and blob[i + 1:i + 3] == _word(CPU_FIRE_3WAY):
+            blob[i + 1:i + 3] = _word(loop_cpu)
+        elif blob[i] == 0x4C and blob[i + 1:i + 3] == _word(CPU_FIRE_3WAY + 1):
+            blob[i + 1:i + 3] = _word(exit_cpu)
+        elif blob[i] == 0x20 and blob[i + 1:i + 3] == bytes((0xFF, 0xFF)):
+            blob[i + 1:i + 3] = _word(helper_cpu)
+        elif blob[i] == 0xBD and blob[i + 1:i + 3] == bytes((0xFF, 0xFF)):
+            blob[i + 1:i + 3] = _word(table_cpu)
+    return bytes(blob)
+
+
+CAVE_FIRE_3WAY = _build_fire_common(ORIG_FIRE_DELAY)
+CPU_FIRE_NORMAL_ENTRY = CPU_FIRE_3WAY
+CPU_FIRE_THREE_ENTRY = CPU_FIRE_3WAY + 0x04
+CPU_FIRE_TWO_ENTRY = CPU_FIRE_3WAY + 0x08
+CPU_FIRE_COMMON_MARKER = CPU_FIRE_3WAY + 0x58  # legacy 3-way helper address
+CPU_FIRE_COMMON_EXIT = CPU_FIRE_3WAY + 0x64    # legacy 3-way exit address
 
 
 def _build_fire_2way(fire_delay: int = ORIG_FIRE_DELAY) -> bytes:
@@ -227,16 +289,16 @@ def _build_fire_dispatch() -> bytes:
     a.b(0xC9, 0x54); a.branch(0x90, "two")
     a.b(0xC9, 0x56); a.branch(0x90, "check3")
     a.label("two")
-    a.jmp(CPU_FIRE_2WAY)
+    a.jmp(CPU_FIRE_TWO_ENTRY)
     a.label("check3")
     a.b(0xC9, 0x5A); a.branch(0x90, "normal")
     a.b(0xC9, 0x5C); a.branch(0x90, "three")
     a.b(0xC9, 0x66); a.branch(0x90, "normal")
     a.b(0xC9, 0x68); a.branch(0x90, "three")
     a.label("normal")
-    a.jmp(CPU_FIRE_NORMAL)
+    a.jmp(CPU_FIRE_NORMAL_ENTRY)
     a.label("three")
-    a.jmp(CPU_FIRE_3WAY)
+    a.jmp(CPU_FIRE_THREE_ENTRY)
     return a.finish()
 
 
@@ -376,8 +438,6 @@ RESERVED_SPANS = (
     (OFF_AI_SARAM_WRAPPER, len(CAVE_AI_SARAM_WRAPPER)),
     (OFF_FIRE_3WAY, len(CAVE_FIRE_3WAY)),
     (OFF_BULLET_HOOK, len(CAVE_BULLET_HOOK)),
-    (OFF_FIRE_NORMAL, len(CAVE_FIRE_NORMAL)),
-    (OFF_FIRE_2WAY, len(CAVE_FIRE_2WAY)),
     (OFF_AI_DEMON_WRAPPER, len(CAVE_AI_DEMON_WRAPPER)),
     (OFF_PROPERTY_HOOK, len(CAVE_PROPERTY_HOOK)),
     (OFF_ANIM_HOOK, len(CAVE_ANIM_HOOK)),
@@ -419,6 +479,14 @@ def _current_panel_fire_delay(rom_data) -> int:
     if _is_panel_fire_with_delay(cur):
         return cur[5]
     if cur[:len(HOOK_PANEL_FIRE_HEAD)] == HOOK_PANEL_FIRE_HEAD:
+        if (
+            len(rom_data) > OFF_FIRE_3WAY + 15
+            and rom_data[OFF_FIRE_3WAY:OFF_FIRE_3WAY + 3] == bytes((0xA2, 0x07, 0xD0))
+            and rom_data[OFF_FIRE_3WAY + 14] == 0xC9
+        ):
+            value = rom_data[OFF_FIRE_3WAY + 15]
+            if value in (ORIG_FIRE_DELAY, SNAPPY_FIRE_DELAY):
+                return value
         for off in (OFF_FIRE_NORMAL, OFF_FIRE_2WAY, OFF_FIRE_3WAY):
             if len(rom_data) > off + 5 and rom_data[off + 4] == 0xC9:
                 value = rom_data[off + 5]
@@ -436,6 +504,13 @@ def _write_blob(rom_data, off: int, blob: bytes, changed: list[str], name: str) 
 def _set_byte(rom_data, off: int, value: int, changed: list[str], name: str) -> None:
     if rom_data[off] != (value & 0xFF):
         rom_data[off] = value & 0xFF
+        changed.append(name)
+
+
+def _clear_old_blob_if_present(rom_data, off: int, blob: bytes,
+                               changed: list[str], name: str) -> None:
+    if bytes(rom_data[off:off + len(blob)]) == blob:
+        rom_data[off:off + len(blob)] = bytes([0xEA] * len(blob))
         changed.append(name)
 
 
@@ -478,15 +553,21 @@ def apply(rom_data) -> list[str]:
     for off, blob, name in (
         (OFF_FIRE_DISPATCH, CAVE_FIRE_DISPATCH, "Panel Monster variant fire dispatch $BCD2"),
         (OFF_AI_SARAM_WRAPPER, CAVE_AI_SARAM_WRAPPER, "Panel Monster variant Saramandor-ID AI wrapper $BC5B"),
-        (OFF_FIRE_3WAY, cave_fire_3way, "Panel Monster 3-way cave $BD88"),
+        (OFF_FIRE_3WAY, cave_fire_3way, "Panel Monster common fire loop $BD88"),
         (OFF_BULLET_HOOK, CAVE_BULLET_HOOK, "Panel Monster diagonal Bullet hook $BF69"),
-        (OFF_FIRE_NORMAL, cave_fire_normal, "Panel Monster normal fire copy"),
-        (OFF_FIRE_2WAY, cave_fire_2way, "Panel Monster 2-way cave $C088"),
         (OFF_AI_DEMON_WRAPPER, CAVE_AI_DEMON_WRAPPER, "Panel Monster Demonhead-ID AI wrapper $C146"),
         (OFF_PROPERTY_HOOK, CAVE_PROPERTY_HOOK, "Panel Monster type-specific property hook $DBDF"),
         (OFF_ANIM_HOOK, CAVE_ANIM_HOOK, "Panel Monster type-specific animation hook $C0C2"),
     ):
         _write_blob(rom_data, off, blob, changed, name)
+    _clear_old_blob_if_present(
+        rom_data, OFF_FIRE_NORMAL, cave_fire_normal, changed,
+        "reclaim old Panel Monster normal fire copy",
+    )
+    _clear_old_blob_if_present(
+        rom_data, OFF_FIRE_2WAY, cave_fire_2way, changed,
+        "reclaim old Panel Monster 2-way fire cave",
+    )
 
     _write_blob(rom_data, OFF_HOOK_PANEL_FIRE, HOOK_PANEL_FIRE, changed, "$A556 Panel Monster variant fire hook")
     _write_blob(rom_data, OFF_HOOK_BULLET_MOVE, HOOK_BULLET_MOVE, changed, "$AFBC Panel Monster Bullet Y hook")

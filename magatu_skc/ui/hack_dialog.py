@@ -19,6 +19,7 @@ from ..core import hack_data
 from ..core import walk_speed
 from ..core import salamander_hack
 from ..core import panel_monster_hack
+from ..core import panel_bullet_speed_fix
 from ..core import demo_stage_hack
 from ..core import dragon_hack
 from ..core import demonhead_hack
@@ -439,7 +440,24 @@ class HackDialog(QDialog):
             note.setStyleSheet("color:#c33;")
             pmf.addRow(note)
 
+        self._pm_bullet_speed_ok = False
+        try:
+            cur_bullet_speed_fix, cur_bullet_speed_value = panel_bullet_speed_fix.current_state(rom.data)
+            self._pm_bullet_speed_ok = True
+        except panel_bullet_speed_fix.PanelBulletSpeedFixError as e:
+            cur_bullet_speed_fix = False
+            cur_bullet_speed_value = panel_bullet_speed_fix.SLOW_VALUE
+            note = QLabel(f"⚠ 無効: {str(e).splitlines()[0]}")
+            note.setWordWrap(True)
+            note.setStyleSheet("color:#c33;")
+            pmf.addRow(note)
+
         self.chk_pm_snappy = QCheckBox("キビキビ動作（発射前の待ちを最小化）")
+        self.chk_pm_bullet_speed_fix = QCheckBox("弾の左右速度バグ修正")
+        self.combo_pm_bullet_speed_fix = QComboBox()
+        self.combo_pm_bullet_speed_fix.addItem("$30/$50（右下$30・左上$50）", panel_bullet_speed_fix.SLOW_VALUE)
+        self.combo_pm_bullet_speed_fix.addItem("$3F/$41（右下$3F・左上$41）", panel_bullet_speed_fix.FAST_VALUE)
+        self.chk_pm_bullet_speed_fix.toggled.connect(self.combo_pm_bullet_speed_fix.setEnabled)
         self.spin_pm = QSpinBox()
         self.spin_pm.setRange(
             panel_monster_hack.MIN_THRESHOLD,
@@ -448,8 +466,13 @@ class HackDialog(QDialog):
         if self._pm_ok:
             self.chk_pm_snappy.setChecked(cur_snappy)
             self.spin_pm.setValue(cur_frames)
+            self.chk_pm_bullet_speed_fix.setChecked(cur_bullet_speed_fix)
+            self._set_combo_data(self.combo_pm_bullet_speed_fix, cur_bullet_speed_value)
+            self.combo_pm_bullet_speed_fix.setEnabled(cur_bullet_speed_fix and self._pm_bullet_speed_ok)
             pmf.addRow("クールダウン:", self.spin_pm)
             pmf.addRow(self.chk_pm_snappy)
+            pmf.addRow(self.chk_pm_bullet_speed_fix)
+            pmf.addRow("修正後の速度:", self.combo_pm_bullet_speed_fix)
             phint = QLabel(f"判定: {pm_region} / 原作 クールダウン192F + 発射前待ち16F。"
                            f"現在の発射前待ち: {cur_delay}F。"
                            "値を小さくすると連射化します。下限32F。"
@@ -461,6 +484,9 @@ class HackDialog(QDialog):
         else:
             self.chk_pm_snappy.setEnabled(False)
             self.spin_pm.setEnabled(False)
+        if not self._pm_bullet_speed_ok:
+            self.chk_pm_bullet_speed_fix.setEnabled(False)
+            self.combo_pm_bullet_speed_fix.setEnabled(False)
         layout.addWidget(pm_group)
 
         # ====== デモプレイのステージ ======
@@ -1189,6 +1215,8 @@ class HackDialog(QDialog):
             "salamander_ydist": self._combo_data(self.combo_sala_y),
             "panel_monster_cooldown_frames": self.spin_pm.value(),
             "panel_monster_snappy": self.chk_pm_snappy.isChecked(),
+            "panel_bullet_speed_fix_enabled": self.chk_pm_bullet_speed_fix.isChecked(),
+            "panel_bullet_speed_fix_value": self._combo_data(self.combo_pm_bullet_speed_fix),
             "demo_stage": self.spin_ds.value(),
             "golem_snappy": self.chk_golem_snappy.isChecked(),
             "gargoyle_snappy": self.chk_gargoyle_snappy.isChecked(),
@@ -1215,6 +1243,7 @@ class HackDialog(QDialog):
             "walk_speed": bool(getattr(self, "_walk_ok", False)),
             "salamander": bool(getattr(self, "_sala_ok", False)),
             "panel_monster": bool(getattr(self, "_pm_ok", False)),
+            "panel_bullet_speed_fix": bool(getattr(self, "_pm_bullet_speed_ok", False)),
             "demo_stage": bool(getattr(self, "_ds_ok", False)),
             "golem": bool(getattr(self, "_golem_ok", False)),
             "gargoyle": bool(getattr(self, "_gargoyle_ok", False)),
@@ -1373,6 +1402,8 @@ class HackDialog(QDialog):
 
         set_spin("panel_monster_cooldown_frames", self.spin_pm, "パネルモンスター クールダウン")
         set_check("panel_monster_snappy", self.chk_pm_snappy, "パネルモンスター キビキビ")
+        set_check("panel_bullet_speed_fix_enabled", self.chk_pm_bullet_speed_fix, "パネルモンスター 弾の左右速度バグ修正")
+        set_combo("panel_bullet_speed_fix_value", self.combo_pm_bullet_speed_fix, "パネルモンスター 弾速度")
         set_spin("demo_stage", self.spin_ds, "デモステージ")
         set_check("golem_snappy", self.chk_golem_snappy, "ゴーレム キビキビ")
         set_check("gargoyle_snappy", self.chk_gargoyle_snappy, "ガーゴイル キビキビ")
@@ -1600,10 +1631,18 @@ class HackDialog(QDialog):
                     d, self.spin_pm.value())
                 pch.extend(panel_monster_hack.apply_snappy(
                     d, self.chk_pm_snappy.isChecked()))
+                if getattr(self, "_pm_bullet_speed_ok", False):
+                    pch.extend(panel_bullet_speed_fix.apply(
+                        d,
+                        self.chk_pm_bullet_speed_fix.isChecked(),
+                        self._combo_data(self.combo_pm_bullet_speed_fix),
+                    ))
                 if pch:
                     applied.append("パネルモンスター: " + " / ".join(pch))
             except panel_monster_hack.PanelMonsterHackError as e:
                 QMessageBox.warning(self, "パネルモンスター改造失敗", str(e))
+            except panel_bullet_speed_fix.PanelBulletSpeedFixError as e:
+                QMessageBox.warning(self, "パネルモンスター弾速度修正失敗", str(e))
 
         # デモプレイのステージ
         if self._ds_ok:
@@ -1812,6 +1851,12 @@ class HackDialog(QDialog):
         if self._pm_ok:
             self.spin_pm.setValue(panel_monster_hack.ORIG_THRESHOLD)
             self.chk_pm_snappy.setChecked(False)
+            if getattr(self, "_pm_bullet_speed_ok", False):
+                self.chk_pm_bullet_speed_fix.setChecked(False)
+                self._set_combo_data(
+                    self.combo_pm_bullet_speed_fix,
+                    panel_bullet_speed_fix.SLOW_VALUE,
+                )
         if self._golem_ok:
             self.chk_golem_snappy.setChecked(False)
         if self._gargoyle_ok:

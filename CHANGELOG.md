@@ -1,5 +1,39 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.104 (2026-05-27) Add Panel Bullet speed symmetry fix
+- Added a Panel Monster enemy setting named "弾の左右速度バグ修正".
+- The option rewrites only the stock Bullet velocity table entries for right,
+  left, up, and down Panel shots, so it consumes no ROM cave space.
+- Added directional `$30/$50` and `$3F/$41` selector pairs around the `$40`
+  boundary; raw `$41` is not written to right/down shots.
+
+## v0.7.103 (2026-05-27) Compact Panel Monster fire caves
+- Replaced the separate Panel Monster normal / 2-way / 3-way fire bodies with
+  one shared marker-table fire loop at `$BD88`.
+- Reclaimed the old normal fire copy `$BFB9-$BFD7` and old 2-way cave
+  `$C088-$C0C1` when those exact legacy bytes are present.
+- Updated the ROM map: bank0 cave free space is now 158B, with the largest
+  contiguous free span at 58B.
+- Updated the Panel Monster ASM note so future work treats `$BD88` as the
+  common fire loop and `$BFB3-$BFD7` / `$C088-$C0C1` as reclaimed space.
+
+## v0.7.102 (2026-05-27) Complete Panel Monster fast-Bullet analysis
+- Extended the Panel Monster ASM note with the current custom 2-way/3-way
+  hooks, Bullet collision helpers, safe fast-Bullet design, and remaining
+  byte-level unknowns.
+- Documented that a future fast Panel Bullet must hook the Bullet moving state
+  and pair each movement substep with `$AC39` collision sampling, while
+  preserving the existing diagonal correction hook.
+
+## v0.7.101 (2026-05-27) Document Panel Monster ASM
+- Added `docs/panel_monster_asm_analysis.md` with the Panel Monster fire flow,
+  Bullet materialization path, Bullet wall-collision path, and speed-init notes.
+- Recorded why the fast-Bullet experiments that only changed velocity or reran
+  generic physics are unsafe: Bullet wall collision lives in `$AFD8/$AC39`, not
+  in `$8689`.
+- Linked the new analysis from the ROM map and allowed it through the repository
+  whitelist.
+
 ## v0.7.100 (2026-05-26) Group enemy settings visually
 - Reordered the Enemy settings dialog by monster family so related controls are
   closer together.
