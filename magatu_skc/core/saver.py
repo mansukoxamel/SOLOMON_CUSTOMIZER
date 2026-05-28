@@ -173,8 +173,8 @@ def save_levels_to_rom(rom: Rom, levels: list):
     # の SaveError と同様、呼び元でメッセージ表示)。全0なら原作復元。
     from . import (
         room_flags, saramandor_variant, panel_monster_variant,
-        spark_ball_variant, gargoyle_variant, stage_ext, key_enemy_runtime,
-        stage_announcement, title_screen,
+        panel_monster_stage_variant, spark_ball_variant, gargoyle_variant,
+        stage_ext, key_enemy_runtime, stage_announcement, title_screen,
     )
     from .element import byte_from_position
     saramandor_variant.apply(rom.data)
@@ -204,6 +204,11 @@ def save_levels_to_rom(rom: Rom, levels: list):
     if rom.is_expanded():
         stage_ext.patch_table(rom.data, levels, runtime_room_flags, door_cells)
         stage_ext.apply_runtime_loader(rom.data)
+        if (
+            panel_monster_stage_variant.has_panel_stage_variant_ids(levels)
+            and panel_monster_stage_variant.can_apply_stage_table_interval_prototype(rom.data)
+        ):
+            panel_monster_stage_variant.apply(rom.data, levels)
     stage_announcement.apply(rom.data, levels, runtime_room_flags)
     room_flags.apply(
         rom.data,

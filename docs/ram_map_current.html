@@ -77,7 +77,8 @@
       <div class="seg mod" style="width:.45%">$0723-$072B<br><small>key enemy</small></div>
       <div class="seg mod" style="width:.35%">$072C-$0739<br><small>wide title</small></div>
       <div class="seg free" style="width:.10%">$073A-$073F</div>
-      <div class="seg free" style="width:1.6%">$0740-$075F<br><small>32B candidate</small></div>
+      <div class="seg mod" style="width:.8%">$0740-$074F<br><small>Panel Variant</small></div>
+      <div class="seg free" style="width:.8%">$0750-$075F<br><small>16B candidate</small></div>
       <div class="seg free" style="width:1.1%">$0760-$0777<br><small>24B candidate</small></div>
       <div class="seg mod" style="width:.25%">$0778-$0779</div>
       <div class="seg mod" style="width:.1%">$077C</div>
@@ -111,13 +112,14 @@
     <tr><td class="num">$0723-$072B</td><td>KEY_ENEMY_RUNTIME</td><td class="ok">Customizer予約済</td><td>鍵持ち敵のドロップ鍵・取得タイル・退避ポインタ・対象初期敵番号/実行スロット。<code>key_enemy_runtime.py</code> が使用。</td></tr>
     <tr><td class="num">$072C-$0739</td><td>WIDETITLE_TRAMP</td><td class="ok">Customizer予約中</td><td>mapper66 wide title描画時だけ使うRAM実行stub。<code>$072C</code> IN 8B / <code>$0734</code> OUT 6B。block grid外へ退避済み。</td></tr>
     <tr><td class="num">$073A-$073F</td><td>entity終端後の沈黙帯</td><td class="warn">補助候補 6B</td><td>ramfree3 probeで沈黙確認はあるが、構造保証は弱い。小フラグ以外では優先しない。</td></tr>
-    <tr><td class="num">$0740-$075F</td><td>旧RUNTIME_BLOCK_OVERRIDE</td><td class="ok">第一候補 32B</td><td>v0.7.72で特殊ブロックはm66セルID直書きへ移行。mapper66 l_a2の旧32Bコピーは無効化済み。次にRAMが必要ならここを第一候補にする。ただし正式予約前に対象用途で再probeする。</td></tr>
-    <tr><td class="num">$0760-$0777</td><td>entity終端後の沈黙帯</td><td class="warn">補助候補 24B</td><td>旧特殊ブロック16Bリスト跡を含む沈黙帯。$0778/$0779等の予約RAMに隣接するため、$0740-$075Fより優先度は下げる。</td></tr>
+    <tr><td class="num">$0740-$074F</td><td>PANEL_VARIANT_CACHE</td><td class="ok">Customizer予約済</td><td>Panel Monster stage variant の部屋別cache。現prototypeは <code>$0740=C</code> / <code>$0741=A</code> / <code>$0742=B</code> interval、残りは予約。</td></tr>
+    <tr><td class="num">$0750-$075F</td><td>旧RUNTIME_BLOCK_OVERRIDE 残り</td><td class="warn">補助候補 16B</td><td>v0.7.72で特殊ブロックはm66セルID直書きへ移行。旧32B候補の前半はPanel Variantが使用するため、残りだけ候補。</td></tr>
+    <tr><td class="num">$0760-$0777</td><td>entity終端後の沈黙帯</td><td class="warn">補助候補 24B</td><td>旧特殊ブロック16Bリスト跡を含む沈黙帯。$0778/$0779等の予約RAMに隣接するため、$0750-$075Fより優先度は下げる。</td></tr>
     <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td class="ok">Customizer予約済</td><td>RoomFlagTableの現在部屋フラグcache。隠し扉/B禁止/A禁止/暗闇、bit4=ステージ開始時ファイヤー所持リセットなど。</td></tr>
     <tr><td class="num">$0779</td><td>DARK_PHASE</td><td class="ok">Customizer予約済</td><td>暗闇モードの明滅フェーズカウンタ。</td></tr>
     <tr><td class="num">$077A-$077B</td><td>runtime block override work</td><td class="ok">Customizer予約済</td><td>BreakableWhite cave の一時フラグ/一時値。NMI中に使用。</td></tr>
     <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td class="ok">Customizer予約済</td><td>mapper66 StageExt loader がPRG1からコピーする現在部屋の扉セル。隠し扉処理が参照。</td></tr>
-    <tr><td class="num">$077D-$077F</td><td>小フラグ/小カウンタ候補</td><td class="warn">補助候補 3B</td><td>予約済みRAM直後の3B。小フラグ用。まとまったRAMが必要な場合は$0740-$075Fを優先する。</td></tr>
+    <tr><td class="num">$077D-$077F</td><td>小フラグ/小カウンタ候補</td><td class="warn">補助候補 3B</td><td>予約済みRAM直後の3B。小フラグ用。まとまったRAMが必要な場合は$0750-$075Fを優先する。</td></tr>
     <tr><td class="num">$0780-$07DF</td><td>probeで書込確認あり</td><td class="ng">使用禁止</td><td>空きに見えても使わない。</td></tr>
     <tr><td class="num">$07E0-$07EF</td><td>沈黙候補</td><td class="warn">非推奨</td><td>high score/GDV隣接。最後の手段。</td></tr>
     <tr><td class="num">$07F0-$07FF</td><td>high score / GDV周辺</td><td class="ng">使用禁止</td><td>タイトルやスコア保存系と絡む可能性が高い。</td></tr>
@@ -129,10 +131,11 @@
     <tr><td class="num">$0723-$072B</td><td>KEY_ENEMY_RUNTIME</td><td>鍵持ち敵</td><td>部屋中常駐</td><td>ドロップ鍵の表示/取得/光輪演出位置補正、初期配置敵スロット対応に使用。</td></tr>
     <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td>Room Flag拡張</td><td>プレイ中常駐</td><td>LOADERが部屋開始時に <code>$0428</code> でRoomFlagTableを引いて書く。bit4はStageExtTableの fire reset を実行時用にミラーしたもの。</td></tr>
     <tr><td class="num">$0779</td><td>DARK_PHASE</td><td>暗闇面</td><td>プレイ中常駐</td><td>NMIで進む。旧 <code>$0461</code> はサウンド衝突で妖精SEループを起こしたため廃止。</td></tr>
-    <tr><td class="num">$0740-$075F</td><td>旧RUNTIME_BLOCK_OVERRIDE</td><td>未使用化</td><td>-</td><td>旧方式の部屋中常駐32Bリスト。v0.7.72以降の特殊ブロックruntimeは$0304を直接スキャンする。今後のまとまったcustom RAM第一候補。</td></tr>
+    <tr><td class="num">$0740-$074F</td><td>PANEL_VARIANT_CACHE</td><td>Panel Monster stage variant</td><td>部屋中常駐</td><td>PRG1 <code>PanelVariantStageTable</code> から部屋ロード時に16Bコピー。現prototypeはinterval-only。</td></tr>
+    <tr><td class="num">$0750-$075F</td><td>旧RUNTIME_BLOCK_OVERRIDE 残り</td><td>未割当</td><td>-</td><td>旧方式の部屋中常駐32Bリストの残り16B。v0.7.72以降の特殊ブロックruntimeは$0304を直接スキャンする。</td></tr>
     <tr><td class="num">$072C-$0739</td><td>WIDETITLE_TRAMP</td><td>wide title描画</td><td>タイトル描画中のみ</td><td>RAM実行でPRG bank0/1切替をまたぐ。旧<code>$03C0-$03CD</code>はblock gridと重なるため廃止。</td></tr>
     <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td>隠し扉/StageExt loader</td><td>部屋中常駐</td><td>PRG1 StageExtTable byte7からコピー。PRG0 DoorCellTableを廃止して <code>$C180-$C1FF</code> を回収。</td></tr>
-    <tr><td class="num">$077D-$077F</td><td>FREE_CANDIDATE</td><td>未割当</td><td>-</td><td>小フラグ用の補助候補。まとまったRAMは <code>$0740-$075F</code> を優先。使ったらこの表と <code>room_flags.py</code> 台帳へ追記。</td></tr>
+    <tr><td class="num">$077D-$077F</td><td>FREE_CANDIDATE</td><td>未割当</td><td>-</td><td>小フラグ用の補助候補。まとまったRAMは <code>$0750-$075F</code> を優先。使ったらこの表と <code>room_flags.py</code> 台帳へ追記。</td></tr>
   </table>
 
   <h2>4. 絶対に繰り返さない事故</h2>
@@ -145,7 +148,7 @@
   <div class="note">
     <b>新規RAMが必要な時の優先順位:</b>
     まずRAMを増やさずROMテーブル再読込や既存カウンタ派生で済ませる。まとまったRAMが必要なら旧特殊ブロックリスト跡の
-    <code>$0740-$075F</code> を第一候補にする。小フラグだけなら <code>$077D-$077F</code> も候補。
+    <code>$0750-$075F</code> を第一候補にする。小フラグだけなら <code>$077D-$077F</code> も候補。
     長期保存・毎NMI書込・複数バイト連続使用は、先に専用probeで実機確認してから予約する。予約後は <code>room_flags.py</code> のASCII mirrorも同期する。
   </div>
 

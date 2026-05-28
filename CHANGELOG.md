@@ -1,5 +1,52 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.116 (2026-05-29) Avoid Panel Variant interval scratch collision
+- Changed the Panel Variant state0 interval helper to compare directly against
+  the group interval value instead of storing the threshold in `$0F`.
+- This matches the confirmed v13 test direction: `$0F` can be clobbered by
+  other runtime code and caused short, irregular firing intervals.
+- Updated the prototype defaults to C=`$90`, A=`$80`, B=`$70`.
+
+## v0.7.115 (2026-05-29) Mark Panel Variant v11 baseline
+- Added the C-group direction-table wrapper used by the confirmed v11 test ROM,
+  so `$35` maps to the intended right-facing Panel Monster direction.
+- Disabled automatic PRG1 stage-table interval application for now because the
+  v10 table-loading path can break Bullet firing. The confirmed baseline is the
+  v11 fixed-interval state0 hook.
+
+## v0.7.114 (2026-05-29) Fix Panel Variant RAM interval branches
+- Corrected the Panel Variant state0 interval helper branch distances after
+  changing fixed `LDX #imm` delays to `LDX $0740-$0742` RAM reads.
+- This keeps the helper from skipping `STX $0F`, which could leave the firing
+  compare without the intended C/A/B interval value.
+
+## v0.7.113 (2026-05-29) Move Panel Variant interval hook to state0
+- Moved the Panel Variant interval prototype off the state1 mouth-delay path
+  and onto the state0 firing interval compare at `$A575/$A579`.
+- Added a `$C088` helper that selects C/A/B thresholds from `$0740-$0742`;
+  state1 keeps the stock `$10` pre-shot mouth delay.
+- Updated the default prototype intervals to C=`$50`, A=`$40`, B=`$30`, matching
+  the confirmed state0 test ROM behavior.
+
+## v0.7.112 (2026-05-29) Add Panel Variant stage table loader
+- Added a PRG1 `PanelVariantStageTable` at `0x8A70-0x8E7F` and a combined
+  mapper66 runtime loader at `0x8A10-0x8A6F`.
+- The loader preserves the existing StageExt runtime copies, then copies the
+  current room's 16-byte Panel Variant cache to `$0740-$074F`.
+- Wired saves to apply this prototype only when A/B/C Panel Variant IDs are
+  present and the ROM already has the ABC prototype wrappers, avoiding clean
+  ROMs that do not yet have the new AI path.
+- Updated the RAM/ROM maps and the Panel Variant plan with the final table
+  offset used by this implementation.
+
+## v0.7.111 (2026-05-29) Split Panel stage variant prototype module
+- Added `panel_monster_stage_variant.py` as a separate core module for the
+  Panel Monster A/B/C stage-variant work, keeping it out of the existing
+  2-way/3-way Panel Monster module.
+- Captured the v4 RAM-interval prototype shape: v7 return points are kept,
+  group intervals are read from `$0740-$0742`, and temporary RAM seeding is
+  outside the hot firing gate.
+
 ## v0.7.110 (2026-05-27) Gate Panel Bullet offsets with dedicated markers
 - Removed the unsafe Saramandor child-marker cleanup approach.
 - Changed Panel Monster diagonal Bullet markers to use bit7-tagged values, and

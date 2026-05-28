@@ -62,11 +62,15 @@ verbatim コピーするため file offset 不変):
 #                                 level load で grid 全再init される前提。
 #                               ・他機能はこの帯を ★title描画中に触らない。
 #   $073A-$073F ENTITY_TAIL_CANDIDATE 補助候補6B          要probe
-#   $0740-$075F OLD_RUNTIME_BLOCK_LIST 旧特殊ブロックlist 第一候補32B
+#   $0740-$074F PANEL_VARIANT_CACHE Panel stage-variant cache 予約中
+#                               ・panel_monster_stage_variant.py が部屋ロード時に
+#                                 PRG1 PanelVariantStageTable からコピー。
+#                               ・現在は interval-only prototype:
+#                                 $0740=C / $0741=A / $0742=B interval。
+#   $0750-$075F OLD_RUNTIME_BLOCK_LIST 旧特殊ブロックlist 残り候補16B
 #                               ・v0.7.72で特殊ブロックはm66セルID直書き化。
 #                               ・旧PRG1→$0740コピーは無効化済み。
-#                               ・まとまったcustom RAMが必要ならここを優先。
-#                               ・正式予約前に対象用途で再probeする。
+#                               ・Panel stage variant が $0740-$074F を予約。
 #   $0760-$0777 ENTITY_TAIL_CANDIDATE 補助候補24B         要probe
 #   $0778       ROOMFLAGS       room flag table cache         予約済(使用中)
 #   $0779       DARK_PHASE      暗闇 明滅フェーズカウンタ      予約済(使用中)
@@ -124,7 +128,8 @@ verbatim コピーするため file offset 不変):
 # Current custom RAM ledger (ASCII mirror, keep this in sync with docs/ram_map_current.html):
 #   $0723-$072B KEY_ENEMY_RUNTIME      key-carrying enemy runtime, reserved in use
 #   $073A-$073F ENTITY_TAIL_CANDIDATE  secondary 6-byte candidate, probe before use
-#   $0740-$075F OLD_RUNTIME_BLOCK_LIST primary 32-byte freed candidate, probe before use
+#   $0740-$074F PANEL_VARIANT_CACHE    Panel stage-variant runtime cache, reserved in use
+#   $0750-$075F OLD_RUNTIME_BLOCK_LIST remaining 16-byte freed candidate, probe before use
 #   $0760-$0777 ENTITY_TAIL_CANDIDATE  secondary 24-byte candidate, probe before use
 #   $0778       ROOMFLAGS              room flag table cache, reserved in use
 #   $0779       DARK_PHASE             dark-room phase counter, reserved in use

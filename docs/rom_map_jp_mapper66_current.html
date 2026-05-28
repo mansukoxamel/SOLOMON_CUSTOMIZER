@@ -251,7 +251,9 @@
       <div class="seg meta" style="width:.03%"><span class="tiny">guard</span></div>
       <div class="seg cave" style="width:5.62%">wide title<br><small>1,840B</small></div>
       <div class="seg data" style="width:1.61%">StageExt<br><small>528B</small></div>
-      <div class="seg free" style="width:38.69%">PRG1 general reserve<br><small>12,678B</small></div>
+      <div class="seg hook" style="width:.29%">PV loader<br><small>96B</small></div>
+      <div class="seg data" style="width:3.17%">PanelVariant<br><small>1,040B</small></div>
+      <div class="seg free" style="width:35.23%">PRG1 general reserve<br><small>11,542B</small></div>
       <div class="seg meta" style="width:.01%"><span class="tiny">SW</span></div>
       <div class="seg free" style="width:3.49%">reserve<br><small>1,145B</small></div>
       <div class="seg data" style="width:41.41%">level data<br><small>13,568B</small></div>
@@ -264,8 +266,8 @@
     <div class="labels"><span>$8000</span><span>$80C0</span><span>$87F0</span><span>$BB86</span><span>$C000</span><span>$F500</span><span>$FEF0</span><span>$FFFF</span></div>
     <div class="note">
       <b>PRG1 reserve:</b>
-      general reserve 12,678B + bank1 reserve 1,145B + freed runtime block table 1,696B + tail reserve 192B =
-      <b>15,711B</b> が現在の候補。既存のwide title / StageExt / level data / drop schedule / metadata / vectorsは踏まない。
+      general reserve 11,542B + bank1 reserve 1,145B + freed runtime block table 1,696B + tail reserve 192B =
+      <b>14,575B</b> が現在の候補。既存のwide title / StageExt / PanelVariant / level data / drop schedule / metadata / vectorsは踏まない。
     </div>
     <table>
       <tr><th>用途</th><th>file offset</th><th>bank1 CPU</th><th>Size</th><th>備考</th></tr>
@@ -273,7 +275,9 @@
       <tr><td>loader guard</td><td class="num">0x80C6-0x80CF</td><td class="num">$80B6-$80BF</td><td class="num">10B</td><td>Guard bytes.</td></tr>
       <tr><td>wide title decoder/data</td><td class="num">0x80D0-0x87FF</td><td class="num">$80C0-$87EF</td><td class="num">1,840B</td><td>Wide title decoder + blockA/blockB streams. Confirmed imported title uses 589B.</td></tr>
       <tr><td>StageExtTable</td><td class="num">0x8800-0x8A0F</td><td class="num">$87F0-$89FF</td><td class="num">528B</td><td>Per-stage extension settings: 16B header + 64 rooms x 8B. Also carries mapper66 runtime room flags and door-cell bytes copied to `$0778/$077C`.</td></tr>
-      <tr><td>PRG1 general reserve</td><td class="num">0x8A10-0xBB95</td><td class="num">$8A00-$BB85</td><td class="num">12,678B</td><td>Recovered from the old oversized wide-title reservation. Candidate area for stage-load-time tables and non-gameplay-screen code/data.</td></tr>
+      <tr><td>Panel Variant combined runtime loader</td><td class="num">0x8A10-0x8A6F</td><td class="num">$8A00-$8A5F</td><td class="num">96B</td><td>Mapper66 room-load helper. Preserves StageExt runtime copies and also copies 16B from PanelVariantStageTable to `$0740-$074F`.</td></tr>
+      <tr><td>PanelVariantStageTable</td><td class="num">0x8A70-0x8E7F</td><td class="num">$8A60-$8E6F</td><td class="num">1,040B</td><td>16B header + 64 rooms x 16B. Current prototype uses byte0..2 as C/A/B interval cache values; speed/rhythm fields are still reserved.</td></tr>
+      <tr><td>PRG1 general reserve</td><td class="num">0x8E80-0xBB95</td><td class="num">$8E70-$BB85</td><td class="num">11,542B</td><td>Recovered from the old oversized wide-title reservation. Candidate area for stage-load-time tables and non-gameplay-screen code/data.</td></tr>
       <tr><td>bank switch byte</td><td class="num">0xBB96</td><td class="num">$BB86</td><td class="num">1B</td><td>Reserved bus-conflict-safe byte.</td></tr>
       <tr><td>bank1 reserve</td><td class="num">0xBB97-0xC00F</td><td class="num">$BB87-$BFFF</td><td class="num">1,145B</td><td>Small bank1 reserve.</td></tr>
       <tr><td>expanded level data</td><td class="num">0xC010-0xF50F</td><td class="num">$C000-$F4FF</td><td class="num">13,568B</td><td>53 rooms x 256B.</td></tr>
