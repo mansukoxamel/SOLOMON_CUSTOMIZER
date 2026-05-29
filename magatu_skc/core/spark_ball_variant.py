@@ -134,9 +134,8 @@ OFF_A2CC = _cf(0xA2CC)
 OFF_8B05 = _cf(0x8B05)
 OFF_85FA = _cf(0x85FA)
 
-OFF_PAUSE_DIGITS = tuple(OFF_PAUSE_HOOK + rel for rel in (0x25, 0x29, 0x2D, 0x31))
+OFF_PAUSE_DIGITS = tuple(OFF_PAUSE_HOOK + rel for rel in (0x1F, 0x23, 0x27, 0x2B))
 OFF_TRANSPARENCY_PERIOD = OFF_OAM_HIDE_HOOK + 0x14
-
 
 def normalize_pause_digits(digits) -> tuple[int, int, int, int]:
     vals = []
@@ -159,12 +158,10 @@ def _build_ai_wrapper(low_type: int, high_type: int, low_spark: int,
                       high_spark: int, spark_ai: int, stock_ai: int = 0xA64A) -> bytes:
     a = _Asm()
     a.b(0xA0, 0x01, 0xB1, 0x2E)       # LDY #1 / LDA ($2E),Y
-    a.b(0xC9, low_type); a.branch(0xF0, "low")
-    a.b(0xC9, high_type); a.branch(0xF0, "high")
+    a.b(0x29, 0xFE)                   # normalize phase bit
+    a.b(0xC9, low_type); a.branch(0xF0, "spark")
     a.jmp(stock_ai)
-    a.label("low")
-    a.jmp(spark_ai)
-    a.label("high")
+    a.label("spark")
     a.jmp(spark_ai)
     return a.finish()
 
@@ -173,7 +170,8 @@ def _build_pause_hook(pause_digits=DEFAULT_PAUSE_DIGITS) -> bytes:
     pause_digits = normalize_pause_digits(pause_digits)
     a = _Asm()
     a.b(0xA0, 0x01, 0xB1, 0x2E)       # LDY #1 / LDA ($2E),Y
-    for type_id in (0x6A, 0x6B, 0x6E, 0x6F):
+    a.b(0x29, 0xFE)                   # normalize phase bit
+    for type_id in (0x6A, 0x6E):
         a.b(0xC9, type_id); a.branch(0xF0, "check_pause")
     a.label("commit")
     a.b(0xA0, 0x07, 0xB5, 0x02, 0x91, 0x2E)
@@ -192,11 +190,13 @@ def _build_property_hook() -> bytes:
     a = _Asm()
     a.b(0xA5, 0x05)                      # LDA $05 (spawn type)
     a.b(0x29, 0xFE)                      # pair-normalize direction bit
-    for type_id in (0x6A, 0x6E, 0x72, 0x76):
-        a.b(0xC9, type_id); a.branch(0xF0, "spark")
-    a.jmp(CPU_PANEL_PROPERTY_HOOK)        # fall through to Panel/stock selector
+    a.b(0x38, 0xE9, 0x6A)                # accepted offsets: 0, 4, 8, 12
+    a.b(0xC9, 0x0D); a.branch(0xB0, "orig")
+    a.b(0x29, 0x03); a.branch(0xD0, "orig")
     a.label("spark")
     a.b(0xA9, SPARK_PROPERTY, 0x60)      # LDA #$19 / RTS
+    a.label("orig")
+    a.jmp(CPU_PANEL_PROPERTY_HOOK)        # fall through to Panel/stock selector
     return a.finish()
 
 
@@ -204,11 +204,13 @@ def _build_anim_hook() -> bytes:
     a = _Asm()
     a.b(0xA0, 0x01, 0xB1, 0x08)          # LDY #1 / LDA ($08),Y (entity type)
     a.b(0x29, 0xFE)                      # ignore right/left phase bit
-    for type_id in (0x6A, 0x6E, 0x72, 0x76):
-        a.b(0xC9, type_id); a.branch(0xF0, "spark")
-    a.jmp(CPU_PANEL_ANIM_HOOK)            # fall through to Panel/stock selector
+    a.b(0x38, 0xE9, 0x6A)                # accepted offsets: 0, 4, 8, 12
+    a.b(0xC9, 0x0D); a.branch(0xB0, "orig")
+    a.b(0x29, 0x03); a.branch(0xD0, "orig")
     a.label("spark")
     a.b(0x4C, CPU_ANIM_SPARK_SET & 0xFF, (CPU_ANIM_SPARK_SET >> 8) & 0xFF)
+    a.label("orig")
+    a.jmp(CPU_PANEL_ANIM_HOOK)            # fall through to Panel/stock selector
     return a.finish()
 
 

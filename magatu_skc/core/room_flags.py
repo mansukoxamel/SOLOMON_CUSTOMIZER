@@ -65,8 +65,10 @@ verbatim コピーするため file offset 不変):
 #   $0740-$074F PANEL_VARIANT_CACHE Panel stage-variant cache 予約中
 #                               ・panel_monster_stage_variant.py が部屋ロード時に
 #                                 PRG1 PanelVariantStageTable からコピー。
-#                               ・現在は interval-only prototype:
-#                                 $0740=C / $0741=A / $0742=B interval。
+#                               ・現在は speed+interval prototype:
+#                                 $0740=A speed / $0741=A interval /
+#                                 $0742=B speed / $0743=B interval /
+#                                 $0744=C speed / $0745=C interval。
 #   $0750-$075F OLD_RUNTIME_BLOCK_LIST 旧特殊ブロックlist 残り候補16B
 #                               ・v0.7.72で特殊ブロックはm66セルID直書き化。
 #                               ・旧PRG1→$0740コピーは無効化済み。

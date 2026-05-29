@@ -651,3 +651,50 @@ shot and should not be used for the current strengthened Panel Monster goal.
   or deliberately replace it with a superset.
 - A "fast" implementation must keep movement and `$AC39` collision sampling
   paired per substep.
+
+## Stage-parameterized A/B/C Panel Variant test status
+
+This is still a test-ROM-only feature.  Do not wire it into the app save path
+until the user explicitly asks for integration.
+
+Accepted borrowed ID groups:
+
+| Group | IDs | Directions |
+|---|---|---|
+| C | `$31/$33/$35/$37` | right / left / up / down |
+| A | `$41/$43/$45/$47` | right / left / up / down |
+| B | `$49/$4B/$4D/$4F` | right / left / up / down |
+
+The shared AI wrapper direction formula that passed tests is:
+
+```text
+direction = (type >> 1) & 3
+```
+
+The wrapper must clear Panel work bytes before entering stock Panel AI `$A54C`:
+
+```text
+main+9 = 0
+main+8 = 0
+main+6 = 0
+main+5 = 0
+main+3 = (main+3 & $FC) | direction
+```
+
+Do not also clear `main+2/main+4`; that test made the monsters move worse.
+
+The accepted no-drift fix for these borrowed IDs is to neutralize the original
+borrowed-family speed table range `$DBB5-$DBDE` (`file 0x5BC5-0x5BEE`).  Stop
+before `$DBDF`, because `$DBDF` is the Panel/Spark property selector hook.
+
+Passing ROM checkpoints:
+
+| ROM | Result |
+|---|---|
+| `TEST_OrigJP_Stage3_PanelVariant_FINAL_SPLIT_Right3_v5_NoDrift_FROM_ORIGINAL.nes` | Three right-facing variants, no drift |
+| `TEST_OrigJP_Stage3_PanelVariant_FINAL_SPLIT_DirCheck_UD_v2_WideNoDrift_FROM_ORIGINAL.nes` | Up/down variants, no left drift |
+| `TEST_OrigJP_Stage3_PanelVariant_FINAL_SPLIT_DirCheck_UD_v3_SourceNoDrift_FROM_ORIGINAL.nes` | Same bytes as v2, regenerated from source |
+
+Implementation note: `apply_final_split_test_candidate()` now writes this
+neutralized range as part of the test candidate so source regeneration matches
+the accepted ROM.

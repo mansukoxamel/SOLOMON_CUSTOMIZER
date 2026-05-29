@@ -131,8 +131,8 @@ HOOK_A2CC_SPARK = bytes.fromhex("20") + _word(CPU_SPARK_PROPERTY_HOOK)
 HOOK_A2CC_SPARK_CURRENT = bytes.fromhex("20") + _word(CPU_SPARK_PROPERTY_HOOK_CURRENT)
 HOOK_8B05_SPARK = bytes.fromhex("20") + _word(CPU_SPARK_ANIM_HOOK) + bytes([0xEA] * 7)
 SPARK_PROPERTY_HOOK_CURRENT_BODY = bytes.fromhex(
-    "a5 05 29 fe c9 6a f0 0f c9 6e f0 0b c9 72 f0 07 "
-    "c9 76 f0 03 4c df db a9 19 60"
+    "a5 05 29 fe 38 e9 6a c9 0d b0 07 29 03 d0 03 "
+    "a9 19 60 4c df db"
 )
 
 

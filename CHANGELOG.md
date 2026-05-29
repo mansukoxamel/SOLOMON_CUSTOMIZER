@@ -1,5 +1,120 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.129 (2026-05-30) Record Panel Variant no-drift test candidate
+- Added the accepted borrowed-ID speed-table neutralization to the test-only
+  Panel Variant final split applicator.  The range stops before `$DBDF`, so the
+  Panel/Spark property selector remains intact.
+- Regenerated the up/down direction check ROM from source and confirmed it is
+  byte-identical to the manually accepted wide NoDrift ROM.
+- Updated the ROM map and Panel Monster ASM notes with the accepted A/B/C ID
+  groups, direction formula, and no-drift boundary.
+
+## v0.7.128 (2026-05-30) Fix Panel Variant final interval hook target
+- Fixed the test-only final split applicator to hook the state0 firing interval
+  compare to the final `$BE62` interval helper instead of the old prototype
+  `$C088` helper address.
+- This keeps `$C088` reserved for the Bullet speed apply/table candidate and
+  should restore the parent Panel Monster transition into the firing path.
+
+## v0.7.127 (2026-05-30) Build Panel Variant final split test ROM path
+- Added a test-only final split applicator for the Panel Variant A/B/C runtime
+  pieces.  It writes the current split placement into a ROM but remains
+  disconnected from normal app save flow.
+- Reworked the shared AI wrapper candidate to derive direction from the parent
+  ID at runtime, because AI dispatch table entries cover four IDs at a time.
+- Generated the first final-split test ROM:
+  `ROM/TEST_OrigJP_Stage3_PanelVariant_FINAL_SPLIT_Right3_v1_FROM_ORIGINAL.nes`.
+
+## v0.7.126 (2026-05-30) Split Panel Variant placement candidates
+- Moved the Panel Variant shared AI wrapper candidate out of the `$C088`
+  Bullet speed gap and into the existing `$C146-$C17E` Panel AI wrapper slot.
+- Recorded the current split placement as separate candidate pieces instead of
+  forcing one contiguous runtime block.
+- Kept this as unwired ROM-placement work only; no app/UI save path was
+  connected.
+
+## v0.7.125 (2026-05-30) Add Panel Variant shared AI wrapper candidate
+- Added a Panel Variant-only shared AI wrapper candidate with four direction
+  entry points, keeping it separate from the existing Demon/Saramandor wrapper
+  families.
+- Reduced the A/B/C AI wrapper shape from two separate 50B/60B prototype
+  wrappers to one 44B candidate by assigning direction through AI table entry
+  points.
+- Recorded that the 44B candidate fits a 58B slot but currently competes with
+  the Bullet speed apply candidate, so the next step is final placement
+  rearrangement rather than UI wiring.
+
+## v0.7.124 (2026-05-30) Place Panel Variant fire-marker candidate
+- Added concrete placement candidates for the Panel Variant firing side without
+  wiring them into app save flow.
+- Kept the fire dispatch in its existing 31B slot, moved stage fallback into
+  the 14B `$BCF1-$BCFE` gap, and kept the merged common fire loop within the
+  existing 120B `$BD88-$BDFF` slot by externalizing marker helpers/table.
+- Recorded the helper placements for state0 interval, group RAM offset, speed
+  select, static marker, dynamic speed marker, and marker table.
+
+## v0.7.123 (2026-05-30) Place Panel Variant Bullet speed candidate
+- Added the first concrete Panel Variant PRG0 placement candidate without
+  wiring it into app save flow: the Bullet speed apply routine plus 8B speed
+  table fit in the `$C088-$C0C1` gap.
+- Built a merged Panel Monster Bullet hook candidate that grows the current
+  hook by only 3B and uses the existing post-hook gap.
+- Left UI and normal ROM save integration disconnected.
+
+## v0.7.122 (2026-05-30) Reduce Panel Variant runtime estimate
+- Compact Panel Variant helper code by sharing the A/B/C RAM-offset decoder,
+  inlining the Bullet speed marker gate, and shrinking the speed preset table
+  from 12B to 8B.
+- Updated the ROM map with the current reduced split: 274B standalone blob,
+  164B merged PRG0 growth, and 156B PRG0 growth after moving the 8B speed
+  preset table out of PRG0.
+- Kept the Panel Variant work as an unwired prototype; no app/UI save path was
+  connected.
+
+## v0.7.121 (2026-05-29) Split Panel Variant PRG0/PRG1 budget
+- Added a Panel Variant PRG0/PRG1 budget estimator that separates hot PRG0
+  runtime code from speed preset data that can move to PRG1 or the room-load
+  RAM cache.
+- Updated the ROM map with the current split: 347B standalone blob, 237B merged
+  PRG0 growth, and 225B PRG0 growth after moving the 12B speed preset table out
+  of PRG0.
+
+## v0.7.120 (2026-05-29) Recount PRG0 free-space inventory
+- Recomputed the bank0 cave free-space inventory from current production
+  reservation spans, including title-idle cleanup and gap_fix.
+- Updated the ROM map to show bank0 cave as 1,349B reserved / 221B unreserved,
+  split into 2B original `00` fill and 219B original `EA` fill, with a 58B
+  largest contiguous free span.
+- Clarified that the Panel Variant prototype placement is not counted as a
+  production reservation and must be formally repacked before integration.
+
+## v0.7.119 (2026-05-29) Package Panel Variant runtime blob
+- Added a placement-independent Panel Variant blob builder that packages the
+  current A/B/C direction wrappers, state0 interval helper, child Bullet speed
+  marker, speed-preset selector/table, and Bullet speed hook/apply helpers into
+  one 347B block.
+- Added a conservative pure-growth estimator for merging that blob into the
+  existing Panel Monster runtime.
+- Kept the blob disconnected from UI and ROM save application; final PRG0
+  placement is still a separate packing step.
+
+## v0.7.118 (2026-05-29) Compress Spark Ball variant predicates
+- Shortened Spark Ball borrowed-ID checks without changing the accepted ID
+  sets: Dragon-ID wrappers now phase-normalize with `AND #$FE`, the pause hook
+  checks `$6A/$6E` after normalization, and property/animation hooks classify
+  `$6A/$6E/$72/$76` by compact offset rules.
+- Reduced Spark Ball variant PRG0 code by 26B total and updated the ROM map.
+- Updated Panel Monster's `$A556` signature guard to accept the compressed
+  current Spark Ball property selector.
+
+## v0.7.117 (2026-05-29) Align Panel Variant speed preset layout
+- Removed the planned Panel Variant rhythm field from the design notes and
+  runtime cache layout.
+- Changed the prototype PanelVariantStageTable entry shape to A/B/C
+  speed+interval pairs at `$0740-$0745`.
+- Added the four non-stock speed presets: 1/4 and 1/2 table-value presets,
+  plus 2x and 3x conversion-multiplier presets.
+
 ## v0.7.116 (2026-05-29) Avoid Panel Variant interval scratch collision
 - Changed the Panel Variant state0 interval helper to compare directly against
   the group interval value instead of storing the threshold in `$0F`.
