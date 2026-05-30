@@ -61,12 +61,11 @@ def load_rom_data(path: str) -> tuple:
     return (p.name, data)
 
 
-# 既知の正規CRC32値（参考用）
+# 既知のJP ROM CRC32値（iNESヘッダ込み、表示用）
 KNOWN_CRC32 = {
-    "6D50B4C4": "Solomon's Key (USA, Prototype)",
-    "99773BC4": "Solomon's Key (USA)",
-    "D821A1C6": "Solomon no Kagi (Japan)",
-    # EU版は不明
+    "013ED497": "Solomon no Kagi (Japan)",
+    "5B49FEDB": "Solomon no Kagi (Japan)",
+    "2FE9E2CA": "Solomon no Kagi (Japan)",
 }
 
 

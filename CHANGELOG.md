@@ -1,5 +1,17 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.8 (2026-05-30) Saramandor #2のSP3配置を禁止
+- Saramandor #2 (`$5E/$5F`) のSP3選択を無効化し、Panel Monster 3-way用ID `$66/$67`へ変換されないようにした。
+- `$66/$67`はピッカー上のPanel Monster 3-way (up/down) からのみ配置する扱いに整理。
+
+## v0.8.7 (2026-05-30) Panel Variantキャンバス表示修正
+- Panel Variant A/B/Cをキャンバスへ配置した時、借用元の通常敵ではなくPanel Monster方向グラフィックで描画するように修正。
+- キャンバス上のPanel Variant A/B/Cにも青いtintを重ね、通常Panel Monsterと見分けられるようにした。
+
+## v0.8.6 (2026-05-30) 読込元ROM CRCを表示
+- ROM情報欄のCRC32表示を、ボーナスステージ補正やmapper66/wide-title自動変換後のメモリ上ROMではなく、最初に読み込んだ元ROMバイトのCRC32に変更。
+- JP ROMの既知CRCをヘッダ違いの3種類に更新し、正常なJP ROMを`正規`として表示できるようにした。
+
 ## v0.8.5 (2026-05-30) パッケージ版で同梱アイコンを解決
 - PyInstaller向けに、書き込み可能なアプリルート設定パスと同梱データパスを分離。
 - 相対アセットパスは`_internal`の同梱データディレクトリへフォールバックするようにし、

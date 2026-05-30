@@ -23,6 +23,13 @@ MD_SOLOMONS_KEY = 0x10
 MD_CONSTELLATION = 0x11
 
 
+PANEL_VARIANT_VISUAL_SOURCE = {
+    0x41: 0x24, 0x43: 0x25, 0x45: 0x26, 0x47: 0x27,
+    0x49: 0x24, 0x4B: 0x25, 0x4D: 0x26, 0x4F: 0x27,
+    0x31: 0x24, 0x33: 0x25, 0x35: 0x26, 0x37: 0x27,
+}
+
+
 class LevelRenderer:
 
     def __init__(self, tile_renderer: TileRenderer, config):
@@ -52,7 +59,8 @@ class LevelRenderer:
         return self.config.item_map.get(item_no & 0x3f, 0)
 
     def get_enemy_animation(self, enemy_no: int) -> int:
-        return self.config.enemy_map.get(enemy_no, 0)
+        visual_enemy_no = PANEL_VARIANT_VISUAL_SOURCE.get(enemy_no, enemy_no)
+        return self.config.enemy_map.get(visual_enemy_no, 0)
 
     def get_actual_tileset_no(self, level_no: int, level_tileset_no: int) -> int:
         """level_palettes と level.tileset_no から実際のtilesetインデックスを計算
@@ -358,6 +366,11 @@ class LevelRenderer:
                 en_img = self.tr.get_tile_image(
                     anim, ts_no, transparent=None, bg_main_color=wall_color)
                 painter.drawImage(ex * tw, ey * tw, en_img)
+                if enemy.element_no in PANEL_VARIANT_VISUAL_SOURCE:
+                    painter.fillRect(
+                        ex * tw, ey * tw, tw, tw,
+                        QColor(55, 135, 255, 80)
+                    )
 
             # 8.5 level_meta_items（ソロモンの紋章/六芒星、ボムジャック、テクモバニー、Page of Time/Space）
             #   - transparent="true" のものは隠し扱い

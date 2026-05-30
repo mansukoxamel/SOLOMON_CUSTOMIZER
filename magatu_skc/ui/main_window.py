@@ -13,7 +13,7 @@ from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QPixmap, QKeySequence, QCursor
 
 from .. import __version__
-from ..core.rom import Rom
+from ..core.rom import Rom, KNOWN_CRC32
 from ..core.level import Level, load_all_levels
 from ..core.element import Wall, ElementType, LevelElement
 from ..core import constants as c
@@ -880,6 +880,7 @@ class MainWindow(QMainWindow):
     def load_rom(self, path: str):
         try:
             rom = Rom.load(path)
+            loaded_rom_data = bytes(rom.data)
             levels = load_all_levels(rom)
 
             # ボーナスステージテーブル読み込み（拡張前のアドレスで読む必要がある）
@@ -888,14 +889,11 @@ class MainWindow(QMainWindow):
             # 通常ROM (mapper 3) なら自動的に拡張ROM (mapper 66) に変換
             # 容量制約 (敵726B/アイテム1402B) を回避するため
             auto_expanded = False
+            self.original_rom_data = loaded_rom_data
             if not rom.is_expanded():
-                # IPS生成用に元のROMバイトを先に保存しておく（変換前=通常ROM形式）
-                self.original_rom_data = bytes(rom.data)
                 from ..core import m66_expander
                 m66_expander.expand_rom(rom, levels)
                 auto_expanded = True
-            else:
-                self.original_rom_data = bytes(rom.data)
 
             # JP ROM is normalized to the internal wide-title format after
             # mapper66 expansion. This must run after expand_rom(), because
@@ -937,9 +935,12 @@ class MainWindow(QMainWindow):
             # ピッカーにレンダラを渡してアイコン付きリストにする
             self.picker.set_tile_renderer(self.tile_renderer, config)
 
-            # ROM情報表示（CRC32 + 既知ROMの名前判定 + 自動拡張表示）
-            crc_hex = rom.get_crc32_hex()
-            known = rom.get_known_name()
+            # ROM情報表示（読み込んだ元ファイルのCRC32 + 既知ROMの名前判定 + 自動拡張表示）
+            # 通常JP ROMはこの直前でmapper66/wide-title形式へ自動変換されるため、
+            # 表示用CRCは変換後のメモリ上ROMではなく、最初に読み込んだROMバイトを見る。
+            import zlib
+            crc_hex = f"{zlib.crc32(bytes(self.original_rom_data)) & 0xFFFFFFFF:08X}"
+            known = KNOWN_CRC32.get(crc_hex, "")
             verify_mark = "✓ 正規" if known else "? 不明/改造版"
             from ..core import rom_metadata
             meta = rom_metadata.read_metadata(bytes(rom.data))
