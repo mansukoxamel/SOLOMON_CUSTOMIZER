@@ -327,6 +327,7 @@ def _verify(rom_data) -> None:
     from . import gap_fix as _gf
     from . import gargoyle_variant as _gv
     from . import panel_monster_variant as _pmv
+    from . import panel_monster_stage_variant as _pmsv
     from . import saramandor_variant as _sv
     from . import spark_ball_variant as _sbv
     from . import key_enemy_runtime as _ker
@@ -348,6 +349,7 @@ def _verify(rom_data) -> None:
         *_sv.RESERVED_SPANS,                 # Saramandor #2 bullet variant
         *_gv.RESERVED_SPANS,                 # Gargoyle #2 two-Bullet variant
         *_pmv.RESERVED_SPANS,                # Panel Monster borrowed-ID variants
+        *_pmsv.RESERVED_SPANS,               # Panel Variant A/B/C split runtime
         *_sbv.RESERVED_SPANS,                # Spark Ball Dragon-ID variants
         *_ker.RESERVED_SPANS,                # Key-carrying initial enemy runtime
     )

@@ -124,6 +124,18 @@ ENEMIES_LIST = [
     (0x5b, "Panel Monster 3-way (left)"),
     (0x66, "Panel Monster 3-way (up)"),
     (0x67, "Panel Monster 3-way (down)"),
+    (0x41, "Panel Variant A (right)"),
+    (0x43, "Panel Variant A (left)"),
+    (0x45, "Panel Variant A (up)"),
+    (0x47, "Panel Variant A (down)"),
+    (0x49, "Panel Variant B (right)"),
+    (0x4b, "Panel Variant B (left)"),
+    (0x4d, "Panel Variant B (up)"),
+    (0x4f, "Panel Variant B (down)"),
+    (0x31, "Panel Variant C (right)"),
+    (0x33, "Panel Variant C (left)"),
+    (0x35, "Panel Variant C (up)"),
+    (0x37, "Panel Variant C (down)"),
     (0x1c, "Fairy"),
     (0x1d, "Fairy Princess"),
     (0x18, "Mighty Bomb Jack (R)"),
@@ -182,6 +194,9 @@ ENEMY_SPEED_TABLE = {
 ENHANCED_ENEMY_CODES = {
     0x52, 0x53, 0x56, 0x57,  # Panel Monster 2-way
     0x5a, 0x5b, 0x66, 0x67,  # Panel Monster 3-way
+    0x31, 0x33, 0x35, 0x37,  # Panel Variant C
+    0x41, 0x43, 0x45, 0x47,  # Panel Variant A
+    0x49, 0x4b, 0x4d, 0x4f,  # Panel Variant B
     0x5e, 0x5f, 0x62, 0x63,  # Saramandor #2
     0x6a, 0x6b, 0x6e, 0x6f,  # Spark Ball pause
     0x72, 0x73, 0x76, 0x77,  # Spark Ball invisible
@@ -896,6 +911,9 @@ class ElementPicker(QWidget):
             elif cat_idx == 2:
                 picker_layout.addWidget(self.speed_group)
 
+        self._extra_panel_slot = QVBoxLayout()
+        self._extra_panel_slot.setContentsMargins(0, 4, 0, 0)
+        picker_layout.addLayout(self._extra_panel_slot)
         picker_layout.addStretch()
         scroll.setWidget(picker_container)
         layout.addWidget(scroll, 1)
@@ -946,6 +964,14 @@ class ElementPicker(QWidget):
 
     def set_mirror_detail_button(self, button):
         self._mirror_detail_slot.addWidget(button)
+
+    def set_extra_panel_widget(self, widget):
+        while self._extra_panel_slot.count():
+            item = self._extra_panel_slot.takeAt(0)
+            old = item.widget()
+            if old is not None:
+                old.setParent(None)
+        self._extra_panel_slot.addWidget(widget)
 
     def set_tile_renderer(self, tile_renderer, config):
         """ROM読込後にレンダラを設定して、アイコン付きリストに更新"""

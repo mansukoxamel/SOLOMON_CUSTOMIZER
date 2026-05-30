@@ -47,6 +47,8 @@ HOOK_SUBSTATUS = bytes.fromhex("20 40 be") + bytes([0xEA] * 4)
 HOOK_FLAME_BEHAVIOR = bytes.fromhex("20 80 be")
 BAD_HOOK_CHILD_MARK_CLEANUP = bytes.fromhex("20 9f be")
 HOOK_DISTANCE_CHECK = bytes.fromhex("4c 00 bf")
+HOOK_PANEL_STAGE_SPEED_GUARD = bytes.fromhex("20 a4 e7")
+HOOK_PANEL_STAGE_SPEED_GUARD_OLD = bytes.fromhex("20 76 e8")
 
 
 # Cave layout.  $BE00-$BEFF is inside the JP bank0 cave and must be registered
@@ -140,7 +142,14 @@ def apply(rom_data) -> list[str]:
         extra_hooks=(BAD_HOOK_CHILD_MARK_CLEANUP,),
     )
     _expect_or_hooked(rom_data, OFF_HOOK_BULLET_INIT, ORIG_BULLET_INIT, ORIG_BULLET_INIT, "$AFD1")
-    _expect_or_hooked(rom_data, OFF_HOOK_ENTITY_SPEED_INIT, ORIG_ENTITY_SPEED_INIT, ORIG_ENTITY_SPEED_INIT, "$866D")
+    _expect_or_hooked(
+        rom_data,
+        OFF_HOOK_ENTITY_SPEED_INIT,
+        ORIG_ENTITY_SPEED_INIT,
+        ORIG_ENTITY_SPEED_INIT,
+        "$866D",
+        extra_hooks=(HOOK_PANEL_STAGE_SPEED_GUARD, HOOK_PANEL_STAGE_SPEED_GUARD_OLD),
+    )
     _expect_or_hooked(rom_data, OFF_HOOK_DISTANCE_CHECK, ORIG_DISTANCE_CHECK, HOOK_DISTANCE_CHECK, "$B1E9")
 
     changed: list[str] = []

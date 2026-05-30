@@ -1,5 +1,179 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.148 (2026-05-30) Guard borrowed Panel parent speed reinitialization
+- Kept the `$866D` parent speed guard odd-ID check; it already exits on even
+  IDs immediately after `LSR`.
+- Broadened the final split Panel runtime activation so older 2-way/3-way
+  borrowed Panel IDs `$52/$53/$56/$57/$5A/$5B` also enable the relocated shared
+  wrapper, even when no A/B/C ID exists in the ROM.
+- This lets 2-way-only stages use the parent-field clear path instead of
+  inheriting borrowed enemy movement.
+- Moved the `$866D` parent speed guard to `$E7A4` and expanded it so repeated
+  `$8AC0` speed initialization clears `main+5/main+6/main+8/main+9` for
+  A/B/C plus borrowed Panel IDs `$52/$53/$56/$57/$5A/$5B/$66/$67`.
+- Accepted both the old `$E876` and new `$E7A4` Panel speed guard hooks during
+  repeat saves, including the Saramandor signature check that shares `$866D`.
+
+## v0.7.147 (2026-05-30) Separate A/B/C RAM classification from Panel visuals
+- Added an A/B/C-only group offset helper so Panel Variant speed/interval
+  settings are read only by `$31/$33/$35/$37`, `$41/$43/$45/$47`, and
+  `$49/$4B/$4D/$4F`.
+- Kept the broader Panel visual classifier for graphics/property routing, but
+  stopped using it to decide `$0740-$0745` runtime setting offsets.
+- This prevents older 2-way/3-way Panel Monster variants from reading A/B/C
+  speed or firing interval bytes.
+
+## v0.7.146 (2026-05-30) Fix Panel Variant direction and 2-way drift split
+- Fixed the A/B/C Panel Variant AI tail so the decoded direction survives the
+  parent velocity/subpixel clear before entering the shared Panel direction
+  setter.
+- Moved the Panel Variant shared Demonhead-ID wrapper to a separate 00-fill gap
+  and routed `$52/$53/$56/$57/$5A/$5B` there when A/B/C runtime is active.
+- Added a shared parent-field clear helper so 2-way borrowed Panel Monsters and
+  A/B/C variants do not inherit borrowed enemy movement.
+- Rebuilt the A/B/C RAM offset helper around the shared Panel classifier instead
+  of relying on stale carry state.
+
+## v0.7.145 (2026-05-30) Respect 16th-column lock when clearing objects
+- Changed `オブジェクト削除` so `すべて削除`, block-only, item-only, and
+  monster-only clearing leave the 16th column untouched while `16列目を編集` is
+  OFF.
+
+## v0.7.144 (2026-05-30) Allow Panel Variant speed guard on repeat save
+- Updated the Saramandor variant signature check at `$866D` to accept the
+  current Panel Variant parent speed guard hook.
+- This fixes repeat saves of ROMs that already contain Panel Variant A/B/C
+  runtime without changing the Saramandor patch bytes.
+
+## v0.7.143 (2026-05-30) Split Panel Variant helpers away from Gargoyle space
+- Moved the Panel Variant stage dispatch helper, AI dispatch entry, AI dispatch
+  Panel tail, parent speed guard, and fire marker table into separate verified
+  gaps.
+- Tightened the parent speed guard so it clears only the accepted A/B/C ID
+  ranges and not the abandoned `$39/$3B/$3D/$3F` range.
+- Added Panel Variant A/B/C split runtime to the RoomFlag cave verifier allow
+  list so repeat saves do not reject already-patched A/B/C bytes.
+- Removed the accidental overlap with Gargoyle 2-shot runtime.  The only
+  remaining Panel Variant overlaps are intentional replacements of the older
+  Panel Monster shared runtime.
+
+## v0.7.142 (2026-05-30) Force Panel Bullet symmetry with Panel Variant A/B/C
+- When Panel Variant A/B/C is applied, the ROM now also applies the existing
+  Panel Bullet左右速度バグ修正 with the `$3F/$41` preset.
+- This keeps normal Panel Monsters from showing a right/left timing mismatch in
+  the same ROM where A/B/C Panel Variant runtime is active.
+
+## v0.7.141 (2026-05-30) Enable Panel Variant 2x and 3x bullet substeps
+- Added the final Panel Variant Bullet extra-step helper at `$E823`.
+- The merged Bullet hook now calls the wrapper helper instead of the velocity
+  table writer directly.  Preset `2x` runs one extra movement conversion pass
+  and preset `3x` runs two passes, while checking Bullet collision after each
+  extra pass and stopping before the stock state2 collision path handles impact.
+- Kept the existing `$C088` speed table writer for `1/4`, `1/2`, and the base
+  velocity used by fast presets.
+
+## v0.7.140 (2026-05-30) Clear stale Panel Variant bullet speed markers
+- Changed the final Panel Variant fire common path so bullets that should have
+  no speed marker explicitly clear child sub-slot `+7`.
+- This prevents a normal Panel Monster bullet from inheriting a stale `$88-$8B`
+  speed marker when it reuses a child slot previously used by Panel Variant
+  A/B/C.
+
+## v0.7.139 (2026-05-30) Share Panel visual classification across old and new variants
+- Added a split shared Panel type classifier at `$BFBA` with tail code at
+  `$DAB9`.  It marks both existing enhanced Panel Monster IDs
+  (`$52/$53/$56/$57/$5A/$5B/$66/$67`) and new Panel Variant A/B/C IDs as Panel
+  visuals.
+- Moved the dynamic Bullet speed marker helper from `$BFBA` to the original
+  00-fill gap at `$E89C` to avoid using initial-magic/lives or Gargoyle space.
+- Changed the final `$DBDF` property hook and `$C0C2` animation hook to call
+  that classifier instead of recognizing only the new A/B/C IDs.  This prevents
+  existing enhanced Panel Monsters from falling back to Demonhead/Saramandor
+  graphics when Panel Variant A/B/C is enabled.
+
+## v0.7.138 (2026-05-30) Preserve Spark hooks with Panel Variant A/B/C
+- Changed the final Panel Variant A/B/C runtime so `$A556` keeps the Panel fire
+  jump while preserving the Spark property hook body at `$A559`.
+- Kept `$A2CC` and `$8B05` routed through the Spark dispatch hooks, which then
+  fall through to the Panel property/animation hooks.  This prevents the final
+  Panel Variant pass from erasing Spark Ball behavior.
+- Updated `panel_monster_stage_variant.RESERVED_SPANS` from the old prototype
+  ranges to the current split-placement ranges used by the final runtime.
+
+## v0.7.137 (2026-05-30) Fix Panel Variant speed guard classification
+- Changed the `$BD40` Panel Variant speed guard to read the active parent ID
+  from `($08)+1` after the stock `$8AC0` initializer.  The previous `$05`
+  check was stale at this point, so the guard failed to clear `main+5/main+8`
+  before `$8689` could move Panel Variant parents.
+
+## v0.7.136 (2026-05-30) Match the accepted Panel Variant no-drift method
+- Replaced the previous `$8670` common-physics skip idea with a localized
+  `$866D -> $BD40` speed-initializer guard.
+- The guard runs the stock `$8AC0` initializer first, then clears only
+  `main+5/main+8` for odd `$30-$4F` Panel Variant parents.  This follows the
+  accepted NoDrift test ROM behavior without globally zeroing the original
+  `$DBB5-$DBDE` enemy speed table.
+
+## v0.7.135 (2026-05-30) Skip common physics for Panel Variant parents
+- Added a Panel Variant parent-only guard at `$8670 -> $BD40`.  Odd
+  `$30-$4F` Panel Variant parent IDs now skip the stock `$8689` common physics
+  step, while normal enemies still jump to `$8689` with the original A value
+  restored.
+- Kept the existing `$BD17` AI-entry velocity clear, so the app runtime now
+  blocks both inherited borrowed-ID movement and the shared-loop drift path.
+
+## v0.7.134 (2026-05-30) Keep Panel Variant parents stationary
+- Restored Panel Variant-only clearing of parent velocity/subpixel bytes in the
+  `$BD17` dispatch helper before jumping to the shared direction setter.  This
+  prevents A/B/C parents from inheriting the borrowed Ghost/Neul movement while
+  still leaving direct Demonhead calls on the `$C146` Demonhead path.
+
+## v0.7.133 (2026-05-30) Preserve Demonhead wrapper while routing Panel Variant AI
+- Changed the integrated Panel Variant A/B/C AI wrapper at `$C146` so direct
+  Demonhead-ID variant calls still run the Demonhead routing logic instead of
+  being treated as Panel Variant parents.
+- Panel Variant odd IDs still enter through the `$BD17` dispatch helper and use
+  the shared direction setter instead of the Demonhead entry point.
+- Guarded the `$A575` firing interval hook so only odd Panel Variant IDs read
+  the per-stage `$0740` interval cache; stock/even IDs fall back to the original
+  `CMP #$C0` timing.
+
+## v0.7.132 (2026-05-30) Stop overwriting the original enemy speed table
+- Removed the integrated Panel Variant A/B/C write to `$DBB5-$DBDE`.
+  That range is an original enemy speed table used by stock enemies such as
+  Golem and Demonhead, so clearing it can break enemies that never enter the
+  Panel Variant runtime.
+- Updated the ROM map and Panel Monster notes so `$DBB5-$DBDE` is treated as
+  preserved original data, not Panel Variant runtime storage.
+
+## v0.7.131 (2026-05-30) Keep original enemies out of Panel Variant dispatch
+- Fixed the integrated Panel Variant A/B/C dispatch so only odd-numbered
+  variant IDs enter the new Panel runtime.
+- Restored original AI, property, and animation handling for even IDs in the
+  same `$30-$37` and `$40-$4F` table ranges, preventing existing Ghost/Golem
+  style enemies from being treated as Panel Monsters.
+- Preserved the original A/Y register state before returning even IDs to the
+  stock AI routine, so original enemies keep their movement behavior.
+- Split the Panel fire dispatch the same way: existing even Panel IDs such as
+  `$34/$36` now keep the normal firing path, while odd A/B/C IDs use the new
+  stage-variant firing path.
+- Moved the Panel Variant AI dispatch helper out of `$BC5B`, which belongs to
+  the existing Saramandor-ID AI wrapper, into the old prototype gap at `$BD17`.
+- Added `mesen_probes/lua/panel_variant_common_ai_guard_probe.lua` to log
+  common AI movement and helper entry points while checking regressions.
+
+## v0.7.130 (2026-05-30) Wire Panel Variant A/B/C into the editor
+- Added the 12 Panel Variant A/B/C IDs to the monster picker:
+  `$31/$33/$35/$37`, `$41/$43/$45/$47`, `$49/$4B/$4D/$4F`.
+- Added per-stage Panel Variant controls in the right-side picker area for
+  A/B/C bullet speed and firing interval.
+- Persisted A/B/C speed and interval values in stage XML and
+  PanelVariantStageTable, then wired ROM save to apply the accepted final split
+  runtime when A/B/C IDs are used.
+- Wired the then-current NoDrift candidate into the integrated save path; this
+  was reverted in v0.7.132 after confirming `$DBB5-$DBDE` is shared original
+  enemy speed data.
+
 ## v0.7.129 (2026-05-30) Record Panel Variant no-drift test candidate
 - Added the accepted borrowed-ID speed-table neutralization to the test-only
   Panel Variant final split applicator.  The range stops before `$DBDF`, so the

@@ -112,7 +112,7 @@
     <tr><td class="num">$0723-$072B</td><td>KEY_ENEMY_RUNTIME</td><td class="ok">Customizer予約済</td><td>鍵持ち敵のドロップ鍵・取得タイル・退避ポインタ・対象初期敵番号/実行スロット。<code>key_enemy_runtime.py</code> が使用。</td></tr>
     <tr><td class="num">$072C-$0739</td><td>WIDETITLE_TRAMP</td><td class="ok">Customizer予約中</td><td>mapper66 wide title描画時だけ使うRAM実行stub。<code>$072C</code> IN 8B / <code>$0734</code> OUT 6B。block grid外へ退避済み。</td></tr>
     <tr><td class="num">$073A-$073F</td><td>entity終端後の沈黙帯</td><td class="warn">補助候補 6B</td><td>ramfree3 probeで沈黙確認はあるが、構造保証は弱い。小フラグ以外では優先しない。</td></tr>
-    <tr><td class="num">$0740-$074F</td><td>PANEL_VARIANT_CACHE</td><td class="ok">Customizer予約済</td><td>Panel Monster stage variant の部屋別cache。現prototypeは <code>$0740=A speed</code> / <code>$0741=A interval</code> / <code>$0742=B speed</code> / <code>$0743=B interval</code> / <code>$0744=C speed</code> / <code>$0745=C interval</code>、残りは予約。</td></tr>
+    <tr><td class="num">$0740-$074F</td><td>PANEL_VARIANT_CACHE</td><td class="ok">Customizer予約済</td><td>Panel Monster stage variant の部屋別cache。<code>$0740=A speed</code> / <code>$0741=A interval</code> / <code>$0742=B speed</code> / <code>$0743=B interval</code> / <code>$0744=C speed</code> / <code>$0745=C interval</code>、残りは予約。</td></tr>
     <tr><td class="num">$0750-$075F</td><td>旧RUNTIME_BLOCK_OVERRIDE 残り</td><td class="warn">補助候補 16B</td><td>v0.7.72で特殊ブロックはm66セルID直書きへ移行。旧32B候補の前半はPanel Variantが使用するため、残りだけ候補。</td></tr>
     <tr><td class="num">$0760-$0777</td><td>entity終端後の沈黙帯</td><td class="warn">補助候補 24B</td><td>旧特殊ブロック16Bリスト跡を含む沈黙帯。$0778/$0779等の予約RAMに隣接するため、$0750-$075Fより優先度は下げる。</td></tr>
     <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td class="ok">Customizer予約済</td><td>RoomFlagTableの現在部屋フラグcache。隠し扉/B禁止/A禁止/暗闇、bit4=ステージ開始時ファイヤー所持リセットなど。</td></tr>
@@ -131,7 +131,7 @@
     <tr><td class="num">$0723-$072B</td><td>KEY_ENEMY_RUNTIME</td><td>鍵持ち敵</td><td>部屋中常駐</td><td>ドロップ鍵の表示/取得/光輪演出位置補正、初期配置敵スロット対応に使用。</td></tr>
     <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td>Room Flag拡張</td><td>プレイ中常駐</td><td>LOADERが部屋開始時に <code>$0428</code> でRoomFlagTableを引いて書く。bit4はStageExtTableの fire reset を実行時用にミラーしたもの。</td></tr>
     <tr><td class="num">$0779</td><td>DARK_PHASE</td><td>暗闇面</td><td>プレイ中常駐</td><td>NMIで進む。旧 <code>$0461</code> はサウンド衝突で妖精SEループを起こしたため廃止。</td></tr>
-    <tr><td class="num">$0740-$074F</td><td>PANEL_VARIANT_CACHE</td><td>Panel Monster stage variant</td><td>部屋中常駐</td><td>PRG1 <code>PanelVariantStageTable</code> から部屋ロード時に16Bコピー。現prototypeはspeed+intervalのみ。リズムは廃止。</td></tr>
+    <tr><td class="num">$0740-$074F</td><td>PANEL_VARIANT_CACHE</td><td>Panel Monster stage variant</td><td>部屋中常駐</td><td>PRG1 <code>PanelVariantStageTable</code> から部屋ロード時に16Bコピー。speed+intervalのみ。リズムは廃止。</td></tr>
     <tr><td class="num">$0750-$075F</td><td>旧RUNTIME_BLOCK_OVERRIDE 残り</td><td>未割当</td><td>-</td><td>旧方式の部屋中常駐32Bリストの残り16B。v0.7.72以降の特殊ブロックruntimeは$0304を直接スキャンする。</td></tr>
     <tr><td class="num">$072C-$0739</td><td>WIDETITLE_TRAMP</td><td>wide title描画</td><td>タイトル描画中のみ</td><td>RAM実行でPRG bank0/1切替をまたぐ。旧<code>$03C0-$03CD</code>はblock gridと重なるため廃止。</td></tr>
     <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td>隠し扉/StageExt loader</td><td>部屋中常駐</td><td>PRG1 StageExtTable byte7からコピー。PRG0 DoorCellTableを廃止して <code>$C180-$C1FF</code> を回収。</td></tr>

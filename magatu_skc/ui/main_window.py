@@ -38,8 +38,9 @@ _ENEMY_HORIZONTAL_MIRROR_PAIRS = [
     (0x18, 0x19), (0x1A, 0x1B),
     (0x20, 0x21), (0x24, 0x25),
     (0x28, 0x29), (0x2C, 0x2D),
+    (0x31, 0x33),
     (0x34, 0x36), (0x35, 0x37), (0x3C, 0x3E), (0x3D, 0x3F),
-    (0x44, 0x46), (0x45, 0x47), (0x4C, 0x4E), (0x4D, 0x4F),
+    (0x41, 0x43), (0x44, 0x46), (0x45, 0x47), (0x49, 0x4B), (0x4C, 0x4E), (0x4D, 0x4F),
     (0x50, 0x51), (0x52, 0x53), (0x54, 0x55), (0x56, 0x57), (0x58, 0x59), (0x5A, 0x5B),
     (0x5C, 0x5D), (0x5E, 0x5F), (0x60, 0x61), (0x62, 0x63), (0x64, 0x65), (0x66, 0x67),
     (0x68, 0x69), (0x6A, 0x6B), (0x6C, 0x6D), (0x6E, 0x6F),
@@ -188,6 +189,7 @@ class MainWindow(QMainWindow):
         )
         self.btn_mirror.clicked.connect(self._on_show_mirror)
         self.picker.set_mirror_detail_button(self.btn_mirror)
+        self.picker.set_extra_panel_widget(self._build_panel_variant_panel())
 
         # 中央: レベルビュー
         self.level_view = LevelView(self)
@@ -573,6 +575,43 @@ class MainWindow(QMainWindow):
 
         left_layout.addStretch()
         return left_widget
+
+    def _build_panel_variant_panel(self) -> QWidget:
+        from PyQt5.QtWidgets import QFormLayout
+
+        group = QGroupBox("Panel Variant")
+        group.setToolTip("A/B/Cパネルモンスターの弾速度と発射間隔をステージごとに設定")
+        layout = QFormLayout(group)
+        layout.setContentsMargins(6, 4, 6, 4)
+        layout.setSpacing(2)
+
+        self._panel_variant_controls = {}
+        for key, label in (("a", "A"), ("b", "B"), ("c", "C")):
+            row = QHBoxLayout()
+            combo = QComboBox()
+            combo.addItem("1/4", 0)
+            combo.addItem("1/2", 1)
+            combo.addItem("2x", 2)
+            combo.addItem("3x", 3)
+            combo.currentIndexChanged.connect(
+                lambda _idx, k=key: self._on_panel_variant_setting_changed(k)
+            )
+            spin = QSpinBox()
+            spin.setRange(1, 255)
+            spin.setDisplayIntegerBase(16)
+            spin.setPrefix("$")
+            spin.valueChanged.connect(
+                lambda _val, k=key: self._on_panel_variant_setting_changed(k)
+            )
+            row.addWidget(combo, 1)
+            row.addWidget(QLabel("間隔"))
+            row.addWidget(spin, 1)
+            layout.addRow(label, row)
+            self._panel_variant_controls[key] = (combo, spin)
+
+        group.setEnabled(False)
+        self.panel_variant_group = group
+        return group
 
     def _build_levelselect_panel(self) -> QWidget:
         """最右ペイン: サムネイル付きレベル選択"""
@@ -2934,8 +2973,54 @@ class MainWindow(QMainWindow):
                 self.spin_const_x.setValue(0)
                 self.spin_const_y.setValue(0)
                 self._set_tileset_enabled(True)
+            self._load_panel_variant_to_ui(lv)
         finally:
             self._meta_loading = False
+
+    def _load_panel_variant_to_ui(self, level):
+        if not hasattr(self, "_panel_variant_controls"):
+            return
+        from ..core import panel_monster_stage_variant as _pmsv
+        _pmsv.init_level_defaults(level)
+        values = {
+            "a": (
+                getattr(level, "panel_variant_a_speed"),
+                getattr(level, "panel_variant_a_interval"),
+            ),
+            "b": (
+                getattr(level, "panel_variant_b_speed"),
+                getattr(level, "panel_variant_b_interval"),
+            ),
+            "c": (
+                getattr(level, "panel_variant_c_speed"),
+                getattr(level, "panel_variant_c_interval"),
+            ),
+        }
+        for key, (speed, interval) in values.items():
+            combo, spin = self._panel_variant_controls[key]
+            combo.blockSignals(True)
+            spin.blockSignals(True)
+            idx = combo.findData(int(speed) & 0xFF)
+            combo.setCurrentIndex(idx if idx >= 0 else 0)
+            spin.setValue(max(1, min(255, int(interval) & 0xFF)))
+            spin.blockSignals(False)
+            combo.blockSignals(False)
+        self.panel_variant_group.setEnabled(True)
+
+    def _on_panel_variant_setting_changed(self, key):
+        if self._meta_loading or not self.levels:
+            return
+        if key not in getattr(self, "_panel_variant_controls", {}):
+            return
+        self._push_undo()
+        combo, spin = self._panel_variant_controls[key]
+        speed = int(combo.currentData())
+        interval = int(spin.value()) & 0xFF
+        lv = self.levels[self.current_level_no]
+        setattr(lv, f"panel_variant_{key}_speed", speed)
+        setattr(lv, f"panel_variant_{key}_interval", interval)
+        self._set_dirty(True)
+        self._update_info()
 
     def _on_meta_tileset_changed(self, val):
         if self._meta_loading or not self.levels:
@@ -3500,15 +3585,24 @@ class MainWindow(QMainWindow):
 
         self._push_undo()
         lv = self.levels[self.current_level_no]
+        can_edit_col15 = self.chk_edit_col15.isChecked()
 
         if mode in ("all", "blocks"):
             for y in range(c.LEVEL_H):
                 for x in range(c.LEVEL_W):
+                    if x == 15 and not can_edit_col15:
+                        continue
                     lv.tiles[y][x] = Wall.NONE
         if mode in ("all", "items"):
-            lv.items = []
+            if can_edit_col15:
+                lv.items = []
+            else:
+                lv.items = [item for item in lv.items if item.position[0] == 15]
         if mode in ("all", "enemies"):
-            lv.enemies = []
+            if can_edit_col15:
+                lv.enemies = []
+            else:
+                lv.enemies = [enemy for enemy in lv.enemies if enemy.position[0] == 15]
             self._refresh_key_enemy_spin_range(warn=True)
 
         self._log(f"ステージクリア: S{self.current_level_no + 1} / {label}")

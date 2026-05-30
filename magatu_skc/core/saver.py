@@ -204,11 +204,6 @@ def save_levels_to_rom(rom: Rom, levels: list):
     if rom.is_expanded():
         stage_ext.patch_table(rom.data, levels, runtime_room_flags, door_cells)
         stage_ext.apply_runtime_loader(rom.data)
-        if (
-            panel_monster_stage_variant.has_panel_stage_variant_ids(levels)
-            and panel_monster_stage_variant.can_apply_stage_table_interval_prototype(rom.data)
-        ):
-            panel_monster_stage_variant.apply(rom.data, levels)
     stage_announcement.apply(rom.data, levels, runtime_room_flags)
     room_flags.apply(
         rom.data,
@@ -220,6 +215,8 @@ def save_levels_to_rom(rom: Rom, levels: list):
         rom.data,
         any(stage_ext.key_enemy_enabled(lv) for lv in levels),
     )
+    if rom.is_expanded() and panel_monster_stage_variant.has_panel_stage_runtime_ids(levels):
+        panel_monster_stage_variant.apply(rom.data, levels)
     if rom.is_expanded():
         from . import rom_metadata
         rom_metadata.write_metadata(rom.data)

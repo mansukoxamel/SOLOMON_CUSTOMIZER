@@ -25,6 +25,7 @@ path was not run for each extra movement step.
 | Free sub-slot search | `$B2EA` | `0x32FA` | Returns slot index `X`, carry set on success |
 | Despawn | `$B376` | `0x3386` | Clears main/sub slot and moves sprite offscreen |
 | Speed initializer | `$8AC0` | `0x0AD0` | Loads `+5/+8` speeds from `$DB99` table |
+| Speed initializer call site | `$866D` | `0x067D` | Stock `JSR $8AC0`, hooked for Panel Variant parent speed neutralization |
 | Common physics | `$8689` | `0x0699` | Applies `+5/+8` velocity to position |
 | Bullet collision sampler | `$AC39` | `0x2C49` | Samples 4 block corners into `$07` |
 | Bullet impact tile target | `$B016` | `0x3026` | Converts collision bit to impact coordinate |
@@ -498,6 +499,32 @@ Important distinction:
 - It does not bypass `$AFD8/$AC39`; this is why the accepted 2-way/3-way
   variants do not wall-pierce.
 
+### Stage Variant speed marker separation
+
+Panel Variant A/B/C uses child Bullet sub-slot `+7` as a speed marker:
+
+- `$88-$8B`: A/B/C speed preset marker.  The Bullet speed hook applies the
+  stage speed table only for this range.
+- `$80-$84`: existing 2-way/3-way spread markers.  These are still handled only
+  by the diagonal position correction path.
+- `$00`: no speed marker.  Normal Panel Monster bullets must explicitly write
+  this when the child slot is reused, otherwise a stale `$88-$8B` marker from a
+  previous A/B/C bullet can leak into a normal bullet.
+
+The final common fire loop therefore clears child sub-slot `+7` for markerless
+normal shots, while existing enhanced shots overwrite it with `$80-$84` and
+A/B/C shots overwrite it with `$88-$8B`.
+
+Fast presets use an additional helper at `$E823`:
+
+- `$8A` (`2x`) writes the fast base velocity and runs one extra movement
+  conversion substep.
+- `$8B` (`3x`) writes the same fast base velocity and runs two extra movement
+  conversion substeps.
+- After each extra substep, the helper calls `$AC39`.  If collision is already
+  detected, it stops adding more substeps and lets the stock Bullet state2 path
+  process the impact.
+
 Future fast Bullet work should chain through this existing hook or replace it
 with a superset. It must not blindly overwrite `$AFBB` without preserving the
 diagonal correction behavior.
@@ -652,10 +679,11 @@ shot and should not be used for the current strengthened Panel Monster goal.
 - A "fast" implementation must keep movement and `$AC39` collision sampling
   paired per substep.
 
-## Stage-parameterized A/B/C Panel Variant test status
+## Stage-parameterized A/B/C Panel Variant status
 
-This is still a test-ROM-only feature.  Do not wire it into the app save path
-until the user explicitly asks for integration.
+This is now wired into the app save path when a stage uses A/B/C Panel Variant
+enemy IDs.  The right-side picker exposes per-stage A/B/C speed and interval
+settings.
 
 Accepted borrowed ID groups:
 
@@ -683,9 +711,11 @@ main+3 = (main+3 & $FC) | direction
 
 Do not also clear `main+2/main+4`; that test made the monsters move worse.
 
-The accepted no-drift fix for these borrowed IDs is to neutralize the original
-borrowed-family speed table range `$DBB5-$DBDE` (`file 0x5BC5-0x5BEE`).  Stop
-before `$DBDF`, because `$DBDF` is the Panel/Spark property selector hook.
+The old no-drift test candidate neutralized the original borrowed-family speed
+table range `$DBB5-$DBDE` (`file 0x5BC5-0x5BEE`).  Do not use that approach in
+the integrated app runtime.  That range is shared original enemy speed data used
+by stock enemies such as Golem and Demonhead, while `$DBDF` remains the
+Panel/Spark property selector hook.
 
 Passing ROM checkpoints:
 
@@ -695,6 +725,54 @@ Passing ROM checkpoints:
 | `TEST_OrigJP_Stage3_PanelVariant_FINAL_SPLIT_DirCheck_UD_v2_WideNoDrift_FROM_ORIGINAL.nes` | Up/down variants, no left drift |
 | `TEST_OrigJP_Stage3_PanelVariant_FINAL_SPLIT_DirCheck_UD_v3_SourceNoDrift_FROM_ORIGINAL.nes` | Same bytes as v2, regenerated from source |
 
-Implementation note: `apply_final_split_test_candidate()` now writes this
-neutralized range as part of the test candidate so source regeneration matches
-the accepted ROM.
+Implementation note: `apply_final_split_test_candidate()` must preserve
+`$DBB5-$DBDE`.  Panel Variant drift fixes belong in the Panel Variant parent
+slot initialization / wrapper path, not by globally clearing the original speed
+table.
+
+`$C146-$C17E` is the existing Demonhead-ID wrapper slot used by the older
+Panel Monster variant.  The final A/B/C integration no longer extends that slot
+directly; when A/B/C runtime is active, `$A34C/$A34E/$A350` are redirected to
+the relocated shared wrapper at `$E8B1`.
+
+Integrated drift fix notes:
+
+- `$E77C` is the A/B/C AI dispatch Panel tail.  It decodes direction from the
+  shifted A/B/C ID, saves it in `X`, discards the preserved A/Y stack values,
+  calls the shared parent-field clear helper at `$E793`, restores the direction
+  with `TXA`, then enters the shared direction setter at `$E8D5`.
+- `$E793` clears `main+5/main+6/main+8/main+9` through `($2E)`.  The relocated
+  `$E8B1` wrapper also calls it before routing older `$52/$53/$56/$57/$5A/$5B`
+  Panel Monster variants into `$A54C`.
+- The final split Panel runtime is required not only by A/B/C IDs, but also by
+  older `$52/$53/$56/$57/$5A/$5B` borrowed Panel IDs.  Otherwise a 2-way-only
+  stage would stay on the legacy wrapper and miss the parent-field clear path.
+- The A/B/C group RAM offset helper must not branch on stale carry after
+  `LDA ($2E),Y`, and must not use the broad Panel visual classifier.  It calls
+  the A/B/C-only helper at `$E92C`; only `$31/$33/$35/$37`,
+  `$41/$43/$45/$47`, and `$49/$4B/$4D/$4F` map to RAM offsets C -> `4`,
+  A -> `0`, B -> `2`.  Older 2-way/3-way Panel Monster IDs must return
+  `X=$FF` so they never read `$0740-$0745`.
+- The accepted NoDrift test ROMs did not hook `$8689`; they neutralized the
+  borrowed-family speed initialized by `$8AC0`.  The integrated app therefore
+  hooks `$866D` to a relocated `$E7A4` guard: run stock `$8AC0`, then clear
+  `main+5/main+6/main+8/main+9` for accepted A/B/C Panel Variant parents and
+  borrowed Panel IDs `$52/$53/$56/$57/$5A/$5B/$66/$67`.  This keeps the original
+  `$DBB5-$DBDE` speed table intact for stock enemies.
+- The `$E7A4` guard must classify the active parent from `($08)+1` after
+  `$8AC0`.  Zero page `$05` is stale at this point and can miss the Panel
+  Variant parent before `$8689` applies movement.
+- The final property/animation hooks share a split Panel type classifier at
+  `$BFBA` with tail code at `$DAB9`.  It must include both the older enhanced
+  Panel Monster IDs `$52/$53/$56/$57/$5A/$5B/$66/$67` and the new A/B/C IDs;
+  otherwise the older variants fall back to their borrowed
+  Demonhead/Saramandor graphics.
+- When the final A/B/C runtime is present, the normal Panel Monster Bullet
+  symmetry fix must also be applied with the `$3F/$41` preset.  The final A/B/C
+  fire path does not change normal Panel firing intervals; a visible right/left
+  timing mismatch on normal Panels comes from the original Bullet velocity
+  table, not the A/B/C interval helper.
+- The final integrated helpers are intentionally split across small gaps instead
+  of packed into the old prototype area.  Do not reuse `$BD17-$BD5C` for A/B/C:
+  that area overlaps Gargoyle 2-shot runtime.  Current A/B/C dispatch pieces
+  live at `$C133`, `$E77C`, `$E793`, `$E7A4`, `$E8B1`, and `$E95C`.

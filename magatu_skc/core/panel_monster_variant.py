@@ -107,6 +107,7 @@ CPU_FIRE_3WAY = _cpu(0x3D98)           # $BD88
 CPU_BULLET_HOOK = _cpu(0x3F79)         # $BF69
 CPU_FIRE_2WAY = _cpu(0x4098)           # $C088
 CPU_AI_DEMON_WRAPPER = _cpu(0x4156)    # $C146
+CPU_PANEL_STAGE_AI_DEMON_WRAPPER = _cpu(0x68C1) # $E8B1, Panel Variant A/B/C override
 CPU_PROPERTY_HOOK = _cpu(0x5BEF)       # $DBDF
 CPU_ANIM_HOOK = _cpu(0x40D2)           # $C0C2
 CPU_SPARK_PROPERTY_HOOK = _cpu(0x3E72) # $BE62
@@ -543,7 +544,10 @@ def apply(rom_data) -> list[str]:
         (OFF_AI_SARAM_66_67, ORIG_AI_SARAM, _word(CPU_AI_SARAM_WRAPPER), "$A356"),
     ):
         cur = bytes(rom_data[off:off + 2])
-        if cur not in (orig, hook):
+        accepted = (orig, hook)
+        if off in (OFF_AI_DEMON_52_53, OFF_AI_DEMON_56_57, OFF_AI_DEMON_5A_5B):
+            accepted = (*accepted, _word(CPU_PANEL_STAGE_AI_DEMON_WRAPPER))
+        if cur not in accepted:
             raise PanelMonsterVariantError(f"{name} AI table signature mismatch: got {cur.hex(' ')}")
 
     changed: list[str] = []

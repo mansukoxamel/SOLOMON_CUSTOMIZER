@@ -78,6 +78,8 @@ class Level:
         self.invisible_solid_cells = set()
         from . import stage_ext
         stage_ext.init_level_defaults(self)
+        from . import panel_monster_stage_variant
+        panel_monster_stage_variant.init_level_defaults(self)
 
     # ======================== ローダー ========================
 
@@ -377,6 +379,12 @@ def load_all_levels(rom: Rom) -> list:
     try:
         from . import stage_ext
         stage_ext.read_table(bytes(rom.data), levels)
+    except Exception:
+        pass
+
+    try:
+        from . import panel_monster_stage_variant
+        panel_monster_stage_variant.read_table(bytes(rom.data), levels)
     except Exception:
         pass
 
