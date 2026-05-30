@@ -17,6 +17,8 @@ class LevelView(QGraphicsView):
     tile_right_clicked = pyqtSignal(tuple)
     # ROM ファイルが drop された
     rom_dropped = pyqtSignal(str)
+    # ステージデータPNGが単体でdropされた
+    stage_png_dropped = pyqtSignal(str)
     # Ctrl+左ドラッグ用シグナル
     drag_start = pyqtSignal(tuple)   # 開始タイル
     drag_move = pyqtSignal(tuple)    # 移動先タイル（変化時のみ）
@@ -159,21 +161,32 @@ class LevelView(QGraphicsView):
 
     # ====== Drag & Drop ======
 
+    @staticmethod
+    def _single_local_path(md):
+        if not md.hasUrls() or len(md.urls()) != 1:
+            return None
+        url = md.urls()[0]
+        if not url.isLocalFile():
+            return None
+        return url.toLocalFile()
+
+    @staticmethod
+    def _is_supported_drop_path(path: str) -> bool:
+        lower = str(path).lower()
+        return lower.endswith('.nes') or lower.endswith('.zip') or lower.endswith('.png')
+
     def dragEnterEvent(self, event):
-        """D&D 開始時 - .nes / .zip なら受け入れ"""
+        """D&D 開始時 - .nes/.zip または単体 .png なら受け入れ"""
         md = event.mimeData()
-        if md.hasUrls():
-            for url in md.urls():
-                if not url.isLocalFile():
-                    continue
-                lower = url.toLocalFile().lower()
-                if lower.endswith('.nes') or lower.endswith('.zip'):
-                    event.acceptProposedAction()
-                    return
+        path = self._single_local_path(md)
+        if path and self._is_supported_drop_path(path):
+            event.acceptProposedAction()
+            return
         event.ignore()
 
     def dragMoveEvent(self, event):
-        if event.mimeData().hasUrls():
+        path = self._single_local_path(event.mimeData())
+        if path and self._is_supported_drop_path(path):
             event.acceptProposedAction()
         else:
             event.ignore()
@@ -184,15 +197,19 @@ class LevelView(QGraphicsView):
             event.ignore()
             return
 
-        for url in md.urls():
-            if not url.isLocalFile():
-                continue
-            path = url.toLocalFile()
-            lower = path.lower()
-            if lower.endswith('.nes') or lower.endswith('.zip'):
-                event.acceptProposedAction()
-                self.rom_dropped.emit(path)
-                return
+        path = self._single_local_path(md)
+        if not path:
+            event.ignore()
+            return
+        lower = path.lower()
+        if lower.endswith('.nes') or lower.endswith('.zip'):
+            event.acceptProposedAction()
+            self.rom_dropped.emit(path)
+            return
+        if lower.endswith('.png'):
+            event.acceptProposedAction()
+            self.stage_png_dropped.emit(path)
+            return
 
         event.ignore()
 

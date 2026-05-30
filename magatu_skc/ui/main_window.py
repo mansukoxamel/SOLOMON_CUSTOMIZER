@@ -220,6 +220,7 @@ class MainWindow(QMainWindow):
         # 未保存変更フラグ
         self._dirty = False
         self.level_view.rom_dropped.connect(self.load_rom)
+        self.level_view.stage_png_dropped.connect(self._on_stage_png_dropped)
 
         # スプリッター
         self.splitter = QSplitter(Qt.Horizontal)
@@ -1414,24 +1415,73 @@ class MainWindow(QMainWindow):
         import struct
         with open(png_path, "rb") as f:
             data = f.read()
+        if len(data) < 8 or data[:8] != b"\x89PNG\r\n\x1a\n":
+            return None
         pos = 8  # PNGシグネチャの後
-        while pos < len(data):
+        while pos + 12 <= len(data):
             length = struct.unpack(">I", data[pos:pos + 4])[0]
             chunk_type = data[pos + 4:pos + 8]
+            if pos + 12 + length > len(data):
+                return None
             if chunk_type == b"iTXt":
                 payload = data[pos + 8:pos + 8 + length]
-                null_idx = payload.index(0)
+                try:
+                    null_idx = payload.index(0)
+                except ValueError:
+                    pos += 12 + length
+                    continue
                 keyword = payload[:null_idx]
                 if keyword == b"msc_level":
                     # keyword\0 + compression_flag + compression_method + lang\0 + translated\0 + text
                     text_pos = null_idx + 1 + 2  # skip flag + method
-                    text_pos = payload.index(0, text_pos) + 1  # skip lang
-                    text_pos = payload.index(0, text_pos) + 1  # skip translated
-                    return payload[text_pos:].decode("utf-8")
+                    try:
+                        text_pos = payload.index(0, text_pos) + 1  # skip lang
+                        text_pos = payload.index(0, text_pos) + 1  # skip translated
+                    except ValueError:
+                        return None
+                    try:
+                        return payload[text_pos:].decode("utf-8")
+                    except UnicodeDecodeError:
+                        return None
             pos += 12 + length
             if chunk_type == b"IEND":
                 break
         return None
+
+    def _load_stage_png_to_current(self, path: str) -> bool:
+        if not self.levels:
+            return False
+        xml_str = self._extract_xml_from_png(path)
+        if xml_str is None:
+            QMessageBox.warning(self, "読込失敗", "このPNGにはステージデータが埋め込まれていません")
+            return False
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(xml_str)
+        if root.tag != "solomon_customizer":
+            QMessageBox.warning(self, "読込失敗", "このPNGはSOLOMON_CUSTOMIZERのステージPNGではありません")
+            return False
+        lv = self._xml_element_to_level_compat(root)
+        if lv is None:
+            QMessageBox.warning(self, "読込失敗", "ステージデータの解析に失敗しました")
+            return False
+        self._push_undo()
+        self.levels[self.current_level_no] = lv
+        self._write_mirror_data_to_rom(self.current_level_no)
+        self._sync_mirror_panel()
+        self._refresh_view()
+        self._refresh_thumbnail(self.current_level_no)
+        self._set_dirty(True)
+        self.statusBar().showMessage(
+            f"ステージデータ読込: L{self.current_level_no + 1} に上書き ({Path(path).name})", 5000
+        )
+        self._log(f"PNG読込(現在L{self.current_level_no + 1}): {path}")
+        return True
+
+    def _on_stage_png_dropped(self, path: str):
+        try:
+            self._load_stage_png_to_current(path)
+        except Exception as e:
+            QMessageBox.critical(self, "読込失敗", f"{type(e).__name__}: {e}")
 
     def _on_png_import_current(self):
         if not self.levels:
@@ -1441,27 +1491,7 @@ class MainWindow(QMainWindow):
         if not path:
             return
         try:
-            xml_str = self._extract_xml_from_png(path)
-            if xml_str is None:
-                QMessageBox.warning(self, "読込失敗", "このPNGにはステージデータが埋め込まれていません")
-                return
-            from ..core.xml_io import xml_string_to_levels
-            # solomon_customizer / skchain ルート要素に対応
-            import xml.etree.ElementTree as ET
-            root = ET.fromstring(xml_str)
-            levels = [self._xml_element_to_level_compat(root)]
-            if not levels or levels[0] is None:
-                QMessageBox.warning(self, "読込失敗", "ステージデータの解析に失敗しました")
-                return
-            self._push_undo()
-            self.levels[self.current_level_no] = levels[0]
-            self._write_mirror_data_to_rom(self.current_level_no)
-            self._sync_mirror_panel()
-            self._refresh_view()
-            self.statusBar().showMessage(
-                f"ステージデータ読込: L{self.current_level_no + 1} に上書き ({Path(path).name})", 5000
-            )
-            self._log(f"PNG読込(現在L{self.current_level_no + 1}): {path}")
+            self._load_stage_png_to_current(path)
         except Exception as e:
             QMessageBox.critical(self, "読込失敗", f"{type(e).__name__}: {e}")
 

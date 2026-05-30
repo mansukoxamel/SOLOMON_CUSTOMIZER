@@ -175,6 +175,7 @@ def save_levels_to_rom(rom: Rom, levels: list):
         room_flags, saramandor_variant, panel_monster_variant,
         panel_monster_stage_variant, spark_ball_variant, gargoyle_variant,
         stage_ext, key_enemy_runtime, stage_announcement, title_screen,
+        drop_pickup_guard,
     )
     from .element import byte_from_position
     # IMPORTANT: this apply order is part of the ROM layout contract.
@@ -185,6 +186,7 @@ def save_levels_to_rom(rom: Rom, levels: list):
     saramandor_variant.apply(rom.data)
     panel_monster_variant.apply(rom.data)
     spark_ball_variant.apply(rom.data)
+    drop_pickup_guard.apply(rom.data)
     if _uses_gargoyle_two_shot(levels):
         gargoyle_variant.apply(rom.data)
     title_screen.migrate_wide_title_trampoline_ram(rom.data)

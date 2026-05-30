@@ -146,12 +146,21 @@ class MirrorDialog(QDialog):
 
             # クイック操作
             quick_row = QHBoxLayout()
-            btn_fill_sched = QPushButton("スケジュール全ON")
+            btn_fill_sched = QPushButton("全ON")
+            btn_fill_sched.setToolTip("有効tickをすべてONにします。")
             btn_fill_sched.clicked.connect(lambda _, mm=m: self._fill_schedule(mm))
-            btn_clear_sched = QPushButton("スケジュール全クリア")
+            btn_clear_sched = QPushButton("全OFF")
+            btn_clear_sched.setToolTip("出現タイミングをすべてOFFにします。")
             btn_clear_sched.clicked.connect(lambda _, mm=m: self._clear_schedule(mm))
             quick_row.addWidget(btn_fill_sched)
             quick_row.addWidget(btn_clear_sched)
+            for gap, text in ((1, "1空け"), (2, "2空け"), (3, "3空け")):
+                btn = QPushButton(text)
+                btn.setToolTip(
+                    f"tick {DEAD_TICKS} から、{gap}個空けて出現タイミングをONにします。"
+                )
+                btn.clicked.connect(lambda _, mm=m, g=gap: self._set_schedule_gap(mm, g))
+                quick_row.addWidget(btn)
             quick_row.addStretch()
             gl.addLayout(quick_row)
 
@@ -181,8 +190,13 @@ class MirrorDialog(QDialog):
             cb.setChecked(False)
 
     def _fill_schedule(self, mirror_no: int):
-        for cb in self._sched_checks[mirror_no]:
-            cb.setChecked(True)
+        for i, cb in enumerate(self._sched_checks[mirror_no]):
+            cb.setChecked(i >= DEAD_TICKS)
+
+    def _set_schedule_gap(self, mirror_no: int, gap: int):
+        period = max(1, int(gap) + 1)
+        for i, cb in enumerate(self._sched_checks[mirror_no]):
+            cb.setChecked(i >= DEAD_TICKS and ((i - DEAD_TICKS) % period == 0))
 
     # ===== 適用 =====
 
