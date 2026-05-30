@@ -1,5 +1,33 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.149 (2026-05-30) Tighten Panel Variant ID classification
+- Changed the A/B/C group offset helper so the `LSR` carry is checked
+  immediately; even IDs now return `X=$FF` and cannot read A/B/C runtime
+  speed/interval bytes.
+- Added `$66/$67` to the final Panel runtime activation condition so the
+  Saramandor-ID 3-way Panel variants match the parent speed guard coverage.
+- Re-audited the ROM/RAM ledgers against current `RESERVED_SPANS`; bank0 cave
+  free space is now listed as 59B after the Panel Variant final split runtime,
+  and stale prototype/free-space rows were removed.
+- Documented that A/B/C Panel Variant enemy drops intentionally follow the
+  borrowed source enemy ID rows because the original drop logic indexes by
+  `type >> 2`.
+- Documented that the save apply order is part of the Panel Variant runtime
+  contract; `panel_monster_stage_variant` must run after the base Panel and
+  StageExt writes because it intentionally replaces selected hooks/loaders.
+- Fixed the Panel Monster cooldown writer for the current final split runtime:
+  after `$A575` is replaced by `JSR $BE62`, the UI now reads/writes the real
+  threshold operand at file `0x3E82` instead of corrupting the NOP at `0x258A`.
+- Preserved the current global Panel Monster cooldown when the final split
+  runtime reinjects its interval helper, so saving cannot reset the threshold
+  back to `$C0`.
+- Added a UI note that the Panel Bullet left/right speed fix updates the shared
+  Bullet speed table and therefore affects all enemies that fire Bullet
+  projectiles.
+- Removed the Panel Monster "キビキビ動作" UI/settings/ROM writer.  The old
+  pre-shot delay offsets are unsafe with the final Panel Variant runtime because
+  `0x409D` is now part of the A/B/C Bullet speed marker comparison.
+
 ## v0.7.148 (2026-05-30) Guard borrowed Panel parent speed reinitialization
 - Kept the `$866D` parent speed guard odd-ID check; it already exits on even
   IDs immediately after `LSR`.

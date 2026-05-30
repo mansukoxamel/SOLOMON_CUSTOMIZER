@@ -533,7 +533,7 @@ diagonal correction behavior.
 
 | Request | Correct target | Notes |
 |---|---|---|
-| Faster firing interval | `$A57A` threshold and `$A55B` pre-shot wait | Already supported by cooldown/snappy logic |
+| Faster firing interval | `$A57A` threshold | Supported by the cooldown setting; direct pre-shot wait edits are retired in the final runtime |
 | More bullets per shot | Common Panel fire loop `$BD88` marker-table style | Existing 2-way/3-way implementation is the model |
 | Change shot mouth offset | `$AE76` offset tables or fire-cave post-spawn adjustment | Must handle all four directions |
 | Make shot visibly faster | Bullet state2 substep with collision after each substep | Do not use `$8689` alone |
@@ -745,11 +745,13 @@ Integrated drift fix notes:
   `$E8B1` wrapper also calls it before routing older `$52/$53/$56/$57/$5A/$5B`
   Panel Monster variants into `$A54C`.
 - The final split Panel runtime is required not only by A/B/C IDs, but also by
-  older `$52/$53/$56/$57/$5A/$5B` borrowed Panel IDs.  Otherwise a 2-way-only
-  stage would stay on the legacy wrapper and miss the parent-field clear path.
+  older `$52/$53/$56/$57/$5A/$5B/$66/$67` borrowed Panel IDs.  Otherwise a
+  borrowed-ID-only stage would stay on the legacy wrapper and miss the
+  parent-field clear path / parent speed guard path.
 - The A/B/C group RAM offset helper must not branch on stale carry after
   `LDA ($2E),Y`, and must not use the broad Panel visual classifier.  It calls
-  the A/B/C-only helper at `$E92C`; only `$31/$33/$35/$37`,
+  the A/B/C-only helper at `$E92C`; it must branch to `X=$FF` immediately when
+  `LSR` sees an even ID.  Only `$31/$33/$35/$37`,
   `$41/$43/$45/$47`, and `$49/$4B/$4D/$4F` map to RAM offsets C -> `4`,
   A -> `0`, B -> `2`.  Older 2-way/3-way Panel Monster IDs must return
   `X=$FF` so they never read `$0740-$0745`.
@@ -772,6 +774,33 @@ Integrated drift fix notes:
   fire path does not change normal Panel firing intervals; a visible right/left
   timing mismatch on normal Panels comes from the original Bullet velocity
   table, not the A/B/C interval helper.
+- Enemy drops intentionally still follow the borrowed source enemy ID.  The
+  drop logic indexes its table with `type >> 2`, so A/B/C Panel Variant IDs sit
+  on the original Neul/Ghost-family drop rows instead of the stock Panel Monster
+  row.  This is an accepted implementation tradeoff for now, not an AI crash or
+  classifier bug.  Do not add a ROM-side drop remap unless the feature is
+  explicitly reopened.
+- Save apply order is part of the runtime contract.  `saver.py` must apply
+  `panel_monster_variant` and the base `stage_ext` loader before
+  `panel_monster_stage_variant`.  The final split runtime intentionally
+  overwrites selected Panel Monster routines and replaces the stage loader with
+  the combined loader that also copies `$0740-$074F`.  Reordering these calls
+  can silently overwrite the final hooks/loader and produce crashes or frozen
+  Panel Variant behavior.
+- When the final split runtime is present, `$A575-$A57A` is no longer the
+  direct idle threshold compare.  It is `JSR $BE62` followed by NOPs, so the
+  global Panel Monster cooldown UI must read/write the final helper operand at
+  `$BE72` (file `0x3E82`).  Writing the old direct operand location `0x258A`
+  would replace a NOP with an opcode and corrupt the runtime.
+  The final runtime writer also preserves the current threshold when it
+  reinjects the helper, so saving cannot silently reset the global cooldown to
+  `$C0`.
+- The Panel Monster "snappy" pre-shot delay edit has been retired.  In the
+  final split runtime, old fire-delay operand candidates such as file `0x409D`
+  are no longer guaranteed to be fire-delay bytes; `0x409D` is part of the
+  A/B/C Bullet speed marker comparison.  Do not write Panel Monster pre-shot
+  delay bytes directly unless that feature is redesigned against the final
+  runtime layout.
 - The final integrated helpers are intentionally split across small gaps instead
   of packed into the old prototype area.  Do not reuse `$BD17-$BD5C` for A/B/C:
   that area overlaps Gargoyle 2-shot runtime.  Current A/B/C dispatch pieces

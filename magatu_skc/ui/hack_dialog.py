@@ -428,13 +428,9 @@ class HackDialog(QDialog):
         try:
             pm_region = panel_monster_hack.detect_region(rom.data)
             cur_frames = panel_monster_hack.current_cooldown_frames(rom.data)
-            cur_delay = panel_monster_hack.current_fire_delay(rom.data)
-            cur_snappy = panel_monster_hack.is_snappy(rom.data)
             self._pm_ok = True
         except panel_monster_hack.PanelMonsterHackError as e:
             cur_frames = panel_monster_hack.ORIG_THRESHOLD
-            cur_delay = panel_monster_hack.ORIG_FIRE_DELAY
-            cur_snappy = False
             note = QLabel(f"⚠ 無効: {str(e).splitlines()[0]}")
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
@@ -452,7 +448,6 @@ class HackDialog(QDialog):
             note.setStyleSheet("color:#c33;")
             pmf.addRow(note)
 
-        self.chk_pm_snappy = QCheckBox("キビキビ動作（発射前の待ちを最小化）")
         self.chk_pm_bullet_speed_fix = QCheckBox("弾の左右速度バグ修正")
         self.combo_pm_bullet_speed_fix = QComboBox()
         self.combo_pm_bullet_speed_fix.addItem("$30/$50（右下$30・左上$50）", panel_bullet_speed_fix.SLOW_VALUE)
@@ -464,25 +459,22 @@ class HackDialog(QDialog):
             panel_monster_hack.MAX_THRESHOLD)
         self.spin_pm.setSuffix(" フレーム")
         if self._pm_ok:
-            self.chk_pm_snappy.setChecked(cur_snappy)
             self.spin_pm.setValue(cur_frames)
             self.chk_pm_bullet_speed_fix.setChecked(cur_bullet_speed_fix)
             self._set_combo_data(self.combo_pm_bullet_speed_fix, cur_bullet_speed_value)
             self.combo_pm_bullet_speed_fix.setEnabled(cur_bullet_speed_fix and self._pm_bullet_speed_ok)
             pmf.addRow("クールダウン:", self.spin_pm)
-            pmf.addRow(self.chk_pm_snappy)
             pmf.addRow(self.chk_pm_bullet_speed_fix)
             pmf.addRow("修正後の速度:", self.combo_pm_bullet_speed_fix)
-            phint = QLabel(f"判定: {pm_region} / 原作 クールダウン192F + 発射前待ち16F。"
-                           f"現在の発射前待ち: {cur_delay}F。"
+            phint = QLabel(f"判定: {pm_region} / 原作 クールダウン192F。"
                            "値を小さくすると連射化します。下限32F。"
                            "短すぎる値は複数パネル面で17個のsub-slotを使い切りやすく、"
                            "発射失敗や弾抜けの原因になります。")
+            phint.setText(phint.text() + " 弾の左右速度バグ修正は共有Bullet速度テーブルを補正するため、バレットを使う敵すべてに影響します。")
             phint.setWordWrap(True)
             phint.setStyleSheet("color:#888; font-size:11px;")
             pmf.addRow(phint)
         else:
-            self.chk_pm_snappy.setEnabled(False)
             self.spin_pm.setEnabled(False)
         if not self._pm_bullet_speed_ok:
             self.chk_pm_bullet_speed_fix.setEnabled(False)
@@ -1214,7 +1206,6 @@ class HackDialog(QDialog):
             "salamander_xdist": self._combo_data(self.combo_sala_x),
             "salamander_ydist": self._combo_data(self.combo_sala_y),
             "panel_monster_cooldown_frames": self.spin_pm.value(),
-            "panel_monster_snappy": self.chk_pm_snappy.isChecked(),
             "panel_bullet_speed_fix_enabled": self.chk_pm_bullet_speed_fix.isChecked(),
             "panel_bullet_speed_fix_value": self._combo_data(self.combo_pm_bullet_speed_fix),
             "demo_stage": self.spin_ds.value(),
@@ -1401,7 +1392,6 @@ class HackDialog(QDialog):
         set_combo("salamander_ydist", self.combo_sala_y, "サラマンダーY許容")
 
         set_spin("panel_monster_cooldown_frames", self.spin_pm, "パネルモンスター クールダウン")
-        set_check("panel_monster_snappy", self.chk_pm_snappy, "パネルモンスター キビキビ")
         set_check("panel_bullet_speed_fix_enabled", self.chk_pm_bullet_speed_fix, "パネルモンスター 弾の左右速度バグ修正")
         set_combo("panel_bullet_speed_fix_value", self.combo_pm_bullet_speed_fix, "パネルモンスター 弾速度")
         set_spin("demo_stage", self.spin_ds, "デモステージ")
@@ -1619,8 +1609,6 @@ class HackDialog(QDialog):
             try:
                 pch = panel_monster_hack.apply_cooldown(
                     d, self.spin_pm.value())
-                pch.extend(panel_monster_hack.apply_snappy(
-                    d, self.chk_pm_snappy.isChecked()))
                 if getattr(self, "_pm_bullet_speed_ok", False):
                     pch.extend(panel_bullet_speed_fix.apply(
                         d,
@@ -1840,7 +1828,6 @@ class HackDialog(QDialog):
             self.combo_sala_y.setCurrentIndex(0)
         if self._pm_ok:
             self.spin_pm.setValue(panel_monster_hack.ORIG_THRESHOLD)
-            self.chk_pm_snappy.setChecked(False)
             if getattr(self, "_pm_bullet_speed_ok", False):
                 self.chk_pm_bullet_speed_fix.setChecked(False)
                 self._set_combo_data(

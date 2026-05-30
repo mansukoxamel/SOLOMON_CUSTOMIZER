@@ -65,7 +65,7 @@ verbatim コピーするため file offset 不変):
 #   $0740-$074F PANEL_VARIANT_CACHE Panel stage-variant cache 予約中
 #                               ・panel_monster_stage_variant.py が部屋ロード時に
 #                                 PRG1 PanelVariantStageTable からコピー。
-#                               ・現在は speed+interval prototype:
+#                               ・現在は speed+interval:
 #                                 $0740=A speed / $0741=A interval /
 #                                 $0742=B speed / $0743=B interval /
 #                                 $0744=C speed / $0745=C interval。
@@ -79,14 +79,15 @@ verbatim コピーするため file offset 不変):
 #   $077A-$077B BLOCK_OVERRIDE_WORK 一時フラグ/値             予約済(使用中)
 #   $077C       RUNTIME_DOOR_CELL 現在部屋の扉セル            予約済(使用中)
 #   $077D-$077F FREE_CANDIDATE  (未割当・小フラグ/カウンタ用)  補助候補3B
-#                               まとまったRAMは$0740-$075Fを優先。
+#                               まとまったRAMは$0750-$075Fを優先。
 #                               使用前に必ず再probe・用途名を決めて追記。
 #
 # ▼ ★bank1 (mapper66 拡張2本目PRG) 予約
 #   ・file 0x80D0-0x87FF : wide decoder + blockA/B stream
 #   ・file 0x8800-0x8A0F : StageExtTable
-#   ・file 0x8A10-0x8A49 : StageExt runtime loader
-#   ・file 0x8A4A-0xBB95 : PRG1 general reserve
+#   ・file 0x8A10-0x8A6F : Panel Variant combined runtime loader
+#   ・file 0x8A70-0x8E7F : PanelVariantStageTable
+#   ・file 0x8E80-0xBB95 : PRG1 general reserve
 #     (bank1 を使う改造を足すときは必ず上記予約を避ける)。
 #   ・file 0xBB96   : SW byte = $FF 固定 (bank-switch bus-conflict
 #     用。CPU $BB86。title_screen._WT_SW_B1_OFF)。データで踏まない。
@@ -96,8 +97,9 @@ verbatim コピーするため file offset 不変):
 #     $B328/$B33D ポインタ表で確定。slot20=$070F 終端$0722)。
 #   ・$0723-$077F = entity終端後の隙間。ramfree3_probe 285秒・
 #     面$02/$04/$05/$08・妖精×4・死亡 で実機沈黙確認。
-#     → v0.7.72で旧特殊ブロック32Bリストを廃止したため、
-#        $0740-$075F が次のまとまったcustom RAM第一候補。
+#     → v0.7.72で旧特殊ブロック32Bリストを廃止し、v0.7.149時点で
+#        $0740-$074F はPanel Variant cacheとして予約済み。
+#        まとまったcustom RAMは$0750-$075Fを第一候補にする。
 #        $073A-$073F / $0760-$0777 / $077D-$077F は補助候補だが、
 #        沈黙でも構造保証は弱いので正式使用前に用途別probe必須。
 #   ・$0780-$07DF = probe で書込検出 = ★使用禁止。
@@ -116,7 +118,7 @@ verbatim コピーするため file offset 不変):
 #   1. ★まず "増やさない" を検討。既存値から再計算できないか?
 #      例: room flag は $0428→$C1C0,X ROMテーブル再読込で RAM不要化可。
 #          暗闇周期も $043C/$043D(global frame counter)から導出余地。
-#   2. まとまったRAMが必要 → $0740-$075F を第一候補として予約。
+#   2. まとまったRAMが必要 → $0750-$075F を第一候補として予約。
 #      小フラグだけなら $077D-$077F も候補。
 #      用途名を決めて上の表に追記してからコードで使う。
 #   3. 長期保存 / 毎NMI書込 / 複数バイト連続使用 → ★再プローブ必須

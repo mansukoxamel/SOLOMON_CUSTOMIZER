@@ -1,21 +1,17 @@
-"""パネルモンスター発射クールダウン/キビキビ動作の改造
+"""パネルモンスター発射クールダウンの改造
 
 CLAUDE.md ルール準拠:
   - JP/US 両対応。US は再配置ゾーン (JP +$140)
   - 改造前に安定シグネチャを検証、失敗時 PanelMonsterHackError でパッチ中止
 
 Codex解析 + ROMバイト検証で確定 (2026-05-16):
-  Panel Monster (type $24-$27, AI $A54C) の Bullet 発射周期 =
-    (しきい値 $A57A + 発射ディレイ $A55B) / 60 秒
-  原作: ($C0 + $10) / 60 = 208/60 ≈ 3.47 秒。線形比例 (カウンタ +1/frame)。
+  Panel Monster (type $24-$27, AI $A54C) の発射待ちは
+  しきい値 $A57A で制御される。
   $A57A はクールダウンしきい値としてフレーム単位で設定する。
-  $A55B は発射直前ディレイで、キビキビ動作 ON のとき $01 に短縮する。
   安全下限: しきい値 $20 (それ未満は複数パネル面で sub-slot 枯渇リスク)
   Panel Monster 専用 (AI dispatch $A336 → $A54C)。
 """
 
-ORIG_FIRE_DELAY = 0x10   # $A55B 発射ディレイ
-SNAPPY_DELAY    = 0x01
 ORIG_THRESHOLD  = 0xC0   # $A57A 原作クールダウンしきい値
 MIN_THRESHOLD   = 0x20   # 安全下限 (sub-slot 枯渇回避)
 MAX_THRESHOLD   = 0xFF
@@ -27,22 +23,22 @@ SPARK_PROPERTY_HOOK_CURRENT_BODY = bytes.fromhex(
     "a5 05 29 fe c9 6a f0 0f c9 6e f0 0b c9 72 f0 07 "
     "c9 76 f0 03 4c df db a9 19 60"
 )
-VARIANT_FIRE_DELAY_OFFS = (
-    0x3FCE,  # normal Panel Monster fire copy, CMP operand
-    0x409D,  # 2-way cave, CMP operand
-    0x3D9D,  # 3-way cave, CMP operand
-)
+FINAL_INTERVAL_HOOK_OFF = 0x2585
+FINAL_INTERVAL_HOOK = bytes.fromhex("20 62 be ea ea ea")
+FINAL_THRESHOLD_OP_OFF = 0x3E81  # CPU $BE71: CMP #imm in final interval helper
+FINAL_THRESHOLD_OFF = 0x3E82     # CPU $BE72: final cooldown threshold operand
+FINAL_THRESHOLD_RTS_OFF = 0x3E83
 
 _OFF = {
     "JP": {
-        "fire_delay": 0x256B,  # $A55B CMP #$10 operand
+        "fire_cmp_op": 0x256A,  # $A55A CMP opcode used as stock fire-routine signature
         "threshold": 0x258A,   # $A57A CMP #$C0 operand
         # sig: threshold 直後の安定領域 ($A57B-, 改造対象外, 一意確認済)
         "sig_off":   0x258B,   # $A57B: 90 22 20 EA B2 90 1D 8A A0
         "sig":       bytes.fromhex("90 22 20 ea b2 90 1d 8a a0"),
     },
     "US": {  # JP +$140 (再配置ゾーン、JSR先 $B2EA→$B42A で sig 一部差)
-        "fire_delay": 0x26AB,
+        "fire_cmp_op": 0x26AA,
         "threshold": 0x26CA,
         "sig_off":   0x26CB,
         "sig":       bytes.fromhex("90 22 20 2a b4 90 1d 8a a0"),
@@ -59,7 +55,7 @@ def detect_region(rom_data) -> str:
         end = o["sig_off"] + len(o["sig"])
         if len(rom_data) < end:
             continue
-        fire_op = o["fire_delay"] - 1
+        fire_op = o["fire_cmp_op"]
         has_original_fire = fire_op >= 0 and rom_data[fire_op] == 0xC9
         has_variant_hook = (
             region == "JP"
@@ -93,68 +89,52 @@ def detect_region(rom_data) -> str:
     )
 
 
+def _has_final_interval_hook(rom_data, region: str) -> bool:
+    if region != "JP":
+        return False
+    end = FINAL_INTERVAL_HOOK_OFF + len(FINAL_INTERVAL_HOOK)
+    return (
+        len(rom_data) >= end
+        and bytes(rom_data[FINAL_INTERVAL_HOOK_OFF:end]) == FINAL_INTERVAL_HOOK
+    )
+
+
+def _threshold_write_offset(rom_data, region: str) -> int:
+    if _has_final_interval_hook(rom_data, region):
+        if (
+            len(rom_data) <= FINAL_THRESHOLD_RTS_OFF
+            or rom_data[FINAL_THRESHOLD_OP_OFF] != 0xC9
+            or rom_data[FINAL_THRESHOLD_RTS_OFF] != 0x60
+        ):
+            raise PanelMonsterHackError(
+                "Panel Variant final のクールダウン比較コードが見つかりません。\n"
+                "クールダウン書き込みを中止します。"
+            )
+        return FINAL_THRESHOLD_OFF
+    return _OFF[region]["threshold"]
+
+
 def clamp_cooldown_frames(frames: int) -> int:
     """クールダウンフレーム → しきい値バイト ($20-$FF にクランプ)"""
     return max(MIN_THRESHOLD, min(MAX_THRESHOLD, int(frames)))
 
 
-def threshold_to_sec(threshold: int) -> float:
-    """原作ディレイ込みの目安秒。互換表示用。"""
-    return (threshold + ORIG_FIRE_DELAY) / 60.0
-
-
-def total_cycle_sec(cooldown_frames: int, fire_delay: int) -> float:
-    """クールダウン + 発射前ディレイの目安秒"""
-    return (cooldown_frames + fire_delay) / 60.0
-
-
 def current_cooldown_frames(rom_data) -> int:
     region = detect_region(rom_data)
-    return rom_data[_OFF[region]["threshold"]]
+    return rom_data[_threshold_write_offset(rom_data, region)]
 
 
 def current_threshold(rom_data) -> int:
     return current_cooldown_frames(rom_data)
 
 
-def current_fire_delay(rom_data) -> int:
-    region = detect_region(rom_data)
-    o = _OFF[region]
-    fire_op = o["fire_delay"] - 1
-    if fire_op >= 0 and rom_data[fire_op] == 0xC9:
-        return rom_data[o["fire_delay"]]
-    for off in VARIANT_FIRE_DELAY_OFFS:
-        if len(rom_data) > off and rom_data[off - 1] == 0xC9:
-            return rom_data[off]
-    return ORIG_FIRE_DELAY
-
-
-def _fire_delay_write_offsets(rom_data, region: str) -> list[int]:
-    o = _OFF[region]
-    fire_op = o["fire_delay"] - 1
-    if fire_op >= 0 and rom_data[fire_op] == 0xC9:
-        return [o["fire_delay"]]
-    return [
-        off for off in VARIANT_FIRE_DELAY_OFFS
-        if len(rom_data) > off and rom_data[off - 1] == 0xC9
-    ]
-
-
-def current_interval_sec(rom_data) -> float:
-    return total_cycle_sec(current_cooldown_frames(rom_data), current_fire_delay(rom_data))
-
-
-def is_snappy(rom_data) -> bool:
-    return current_fire_delay(rom_data) == SNAPPY_DELAY
-
-
 def apply_cooldown(rom_data, frames: int) -> list:
     """クールダウンをフレーム指定で改造。検証 → 書込。変更項目リストを返す"""
     region = detect_region(rom_data)
-    o = _OFF[region]
+    threshold_off = _threshold_write_offset(rom_data, region)
     th = clamp_cooldown_frames(frames)
-    if rom_data[o["threshold"]] != th:
-        rom_data[o["threshold"]] = th
+    if rom_data[threshold_off] != th:
+        rom_data[threshold_off] = th
         return [f"クールダウン→{th}フレーム (${th:02X})"]
     return []
 
@@ -162,47 +142,24 @@ def apply_cooldown(rom_data, frames: int) -> list:
 def restore_cooldown(rom_data) -> list:
     """クールダウンだけを原作値へ戻す。発射前ディレイは触らない。"""
     region = detect_region(rom_data)
-    o = _OFF[region]
-    if rom_data[o["threshold"]] != ORIG_THRESHOLD:
-        rom_data[o["threshold"]] = ORIG_THRESHOLD
+    threshold_off = _threshold_write_offset(rom_data, region)
+    if rom_data[threshold_off] != ORIG_THRESHOLD:
+        rom_data[threshold_off] = ORIG_THRESHOLD
         return ["クールダウン→原作 192フレーム"]
     return []
 
 
-def apply_snappy(rom_data, enabled: bool) -> list:
-    """発射直前ディレイを最小化する。"""
-    region = detect_region(rom_data)
-    val = SNAPPY_DELAY if enabled else ORIG_FIRE_DELAY
-    changed = False
-    for off in _fire_delay_write_offsets(rom_data, region):
-        if rom_data[off] != val:
-            rom_data[off] = val
-            changed = True
-    if changed:
-        if enabled:
-            return [f"キビキビ動作ON: 発射前待ち→{val}フレーム"]
-        return [f"キビキビ動作OFF: 発射前待ち→{val}フレーム"]
-    return []
-
-
 def apply(rom_data, frames: int) -> list:
-    """旧呼び出し互換: クールダウンをフレーム指定で改造。"""
+    """既存API: クールダウンをフレーム指定で改造。"""
     return apply_cooldown(rom_data, frames)
 
 
 def restore(rom_data) -> list:
-    """原作 ($C0 + $10 ≈ 3.47秒) に復元"""
+    """クールダウンを原作値 ($C0) に復元"""
     region = detect_region(rom_data)
-    o = _OFF[region]
+    threshold_off = _threshold_write_offset(rom_data, region)
     changed = []
-    if rom_data[o["threshold"]] != ORIG_THRESHOLD:
-        rom_data[o["threshold"]] = ORIG_THRESHOLD
+    if rom_data[threshold_off] != ORIG_THRESHOLD:
+        rom_data[threshold_off] = ORIG_THRESHOLD
         changed.append("クールダウン→原作 192フレーム")
-    delay_changed = False
-    for off in _fire_delay_write_offsets(rom_data, region):
-        if rom_data[off] != ORIG_FIRE_DELAY:
-            rom_data[off] = ORIG_FIRE_DELAY
-            delay_changed = True
-    if delay_changed:
-        changed.append("発射前待ち→原作 16フレーム")
     return changed

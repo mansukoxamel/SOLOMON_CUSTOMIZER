@@ -163,6 +163,7 @@ OFF_AI_WRAPPER_C_PROTO = 0x3C6B
 OFF_AI_WRAPPER_AB_PROTO = 0x3D0F
 OFF_STATE0_INTERVAL_HOOK = 0x2585  # CPU $A575
 OFF_STATE0_INTERVAL_CMP = 0x2589   # CPU $A579
+OFF_STATE0_INTERVAL_THRESHOLD = OFF_STATE0_INTERVAL_CMP + 1
 OFF_STATE0_INTERVAL_HELPER = 0x4098  # CPU $C088
 OFF_STATE1_MOUTH_GATE = 0x3D52  # CPU $BD42
 STATE1_MOUTH_GATE_SIZE = 0x3F
@@ -183,6 +184,7 @@ OFF_FINAL_STAGE_DISPATCH_HELPER = 0x4143  # CPU $C133, reclaimed runtime tail
 CPU_FINAL_STAGE_DISPATCH_HELPER = _cpu(OFF_FINAL_STAGE_DISPATCH_HELPER)
 OFF_FINAL_STATE0_INTERVAL_HELPER = 0x3E72  # CPU $BE62, 18B former Spark property gap
 CPU_FINAL_STATE0_INTERVAL_HELPER = _cpu(OFF_FINAL_STATE0_INTERVAL_HELPER)
+OFF_FINAL_STATE0_INTERVAL_THRESHOLD = OFF_FINAL_STATE0_INTERVAL_HELPER + 0x10
 OFF_FINAL_GROUP_RAM_OFFSET_HELPER = 0x3EAF  # CPU $BE9F, 23B gap
 CPU_FINAL_GROUP_RAM_OFFSET_HELPER = _cpu(OFF_FINAL_GROUP_RAM_OFFSET_HELPER)
 OFF_FINAL_SPEED_SELECT_HELPER = 0x3ECD  # CPU $BEBD, 10B gap
@@ -204,6 +206,8 @@ OFF_FINAL_AI_DISPATCH_PANEL_HELPER = 0x678C  # CPU $E77C, original 00-fill
 CPU_FINAL_AI_DISPATCH_PANEL_HELPER = _cpu(OFF_FINAL_AI_DISPATCH_PANEL_HELPER)
 OFF_FINAL_PARENT_SPEED_GUARD = 0x67B4  # CPU $E7A4, original 00-fill after parent field clear helper
 CPU_FINAL_PARENT_SPEED_GUARD = _cpu(OFF_FINAL_PARENT_SPEED_GUARD)
+FINAL_AI_DISPATCH_PANEL_HELPER_CAPACITY = OFF_FINAL_PARENT_FIELD_CLEAR_HELPER - OFF_FINAL_AI_DISPATCH_PANEL_HELPER
+FINAL_PARENT_FIELD_CLEAR_HELPER_CAPACITY = OFF_FINAL_PARENT_SPEED_GUARD - OFF_FINAL_PARENT_FIELD_CLEAR_HELPER
 FINAL_PARENT_SPEED_GUARD_CAPACITY = 0x68
 OFF_FINAL_PANEL_TYPE_CLASSIFIER = 0x3FCA  # CPU $BFBA, 30B post bullet-hook gap
 CPU_FINAL_PANEL_TYPE_CLASSIFIER = _cpu(OFF_FINAL_PANEL_TYPE_CLASSIFIER)
@@ -307,6 +311,7 @@ def _build_group_ram_offset_helper(cpu_base: int) -> bytes:
 def _build_abc_group_offset_helper() -> bytes:
     a = _Asm()
     a.b(0x4A)
+    a.branch(0x90, "orig")
     a.b(0xC9, 0x18)
     a.branch(0x90, "orig")
     a.b(0xC9, 0x1C)
@@ -500,6 +505,24 @@ def _build_merged_panel_bullet_hook(speed_apply_cpu: int) -> bytes:
 
 def _build_final_state0_interval_helper() -> bytes:
     return _build_state0_interval_helper_shared(CPU_FINAL_GROUP_RAM_OFFSET_HELPER)
+
+
+def _current_global_panel_threshold(rom_data: bytearray) -> int:
+    if (
+        len(rom_data) > OFF_FINAL_STATE0_INTERVAL_THRESHOLD + 1
+        and rom_data[OFF_FINAL_STATE0_INTERVAL_THRESHOLD - 1] == 0xC9
+        and rom_data[OFF_FINAL_STATE0_INTERVAL_THRESHOLD + 1] == 0x60
+    ):
+        return rom_data[OFF_FINAL_STATE0_INTERVAL_THRESHOLD]
+    if len(rom_data) > OFF_STATE0_INTERVAL_THRESHOLD and rom_data[OFF_STATE0_INTERVAL_CMP] == 0xC9:
+        return rom_data[OFF_STATE0_INTERVAL_THRESHOLD]
+    return 0xC0
+
+
+def _final_state0_interval_helper_for_rom(rom_data: bytearray) -> bytes:
+    blob = bytearray(FINAL_STATE0_INTERVAL_HELPER)
+    blob[OFF_FINAL_STATE0_INTERVAL_THRESHOLD - OFF_FINAL_STATE0_INTERVAL_HELPER] = _current_global_panel_threshold(rom_data)
+    return bytes(blob)
 
 
 def _build_final_group_ram_offset_helper() -> bytes:
@@ -855,7 +878,7 @@ assert len(FINAL_STAGE_DISPATCH_TAIL) <= 0x0E
 assert len(FINAL_STAGE_DISPATCH_HELPER) <= STATE1_MOUTH_GATE_SIZE
 assert len(FINAL_STAGE_DISPATCH_HELPER) <= 0x13
 assert len(FINAL_AI_DISPATCH_HELPER) <= 0x18
-assert len(FINAL_AI_DISPATCH_PANEL_HELPER) <= 0x18
+assert len(FINAL_AI_DISPATCH_PANEL_HELPER) <= FINAL_AI_DISPATCH_PANEL_HELPER_CAPACITY
 assert len(FINAL_STATE0_INTERVAL_HELPER) <= 0x12
 assert len(FINAL_GROUP_RAM_OFFSET_HELPER) <= 0x17
 assert len(FINAL_ABC_GROUP_OFFSET_HELPER) <= 0x30
@@ -863,7 +886,7 @@ assert len(FINAL_SPEED_SELECT_HELPER) <= 0x0A
 assert len(FINAL_FIRE_MARKER_TABLE) <= 0x12
 assert len(FINAL_STATIC_MARKER_HELPER) <= 0x10
 assert len(FINAL_DYNAMIC_SPEED_MARKER_HELPER) <= 0x1E
-assert len(FINAL_PARENT_FIELD_CLEAR_HELPER) <= 0x79
+assert len(FINAL_PARENT_FIELD_CLEAR_HELPER) <= FINAL_PARENT_FIELD_CLEAR_HELPER_CAPACITY
 assert len(FINAL_AI_WRAPPER_CANDIDATE) <= 0xAB
 assert len(FINAL_PARENT_SPEED_GUARD) <= FINAL_PARENT_SPEED_GUARD_CAPACITY
 assert len(FINAL_PANEL_TYPE_CLASSIFIER) <= 0x1E
@@ -947,7 +970,7 @@ def panel_variant_split_placement_candidate() -> dict[str, object]:
     pieces = (
         ("fire_dispatch", panel_monster_variant.OFF_FIRE_DISPATCH, len(FINAL_FIRE_DISPATCH), len(panel_monster_variant.CAVE_FIRE_DISPATCH)),
         ("ai_dispatch_helper", OFF_FINAL_AI_DISPATCH_HELPER, len(FINAL_AI_DISPATCH_HELPER), 0x18),
-        ("ai_dispatch_panel_helper", OFF_FINAL_AI_DISPATCH_PANEL_HELPER, len(FINAL_AI_DISPATCH_PANEL_HELPER), 0x18),
+        ("ai_dispatch_panel_helper", OFF_FINAL_AI_DISPATCH_PANEL_HELPER, len(FINAL_AI_DISPATCH_PANEL_HELPER), FINAL_AI_DISPATCH_PANEL_HELPER_CAPACITY),
         ("parent_speed_guard", OFF_FINAL_PARENT_SPEED_GUARD, len(FINAL_PARENT_SPEED_GUARD), FINAL_PARENT_SPEED_GUARD_CAPACITY),
         ("panel_type_classifier", OFF_FINAL_PANEL_TYPE_CLASSIFIER, len(FINAL_PANEL_TYPE_CLASSIFIER), 0x1E),
         ("panel_type_classifier_tail", OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL, len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL), 0x14),
@@ -960,7 +983,7 @@ def panel_variant_split_placement_candidate() -> dict[str, object]:
         ("speed_select_helper", OFF_FINAL_SPEED_SELECT_HELPER, len(FINAL_SPEED_SELECT_HELPER), 0x0A),
         ("static_fire_marker_helper", OFF_FINAL_STATIC_MARKER_HELPER, len(FINAL_STATIC_MARKER_HELPER), 0x10),
         ("dynamic_speed_marker_helper", OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER, len(FINAL_DYNAMIC_SPEED_MARKER_HELPER), 0x1E),
-        ("parent_field_clear_helper", OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, len(FINAL_PARENT_FIELD_CLEAR_HELPER), 0x79),
+        ("parent_field_clear_helper", OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, len(FINAL_PARENT_FIELD_CLEAR_HELPER), FINAL_PARENT_FIELD_CLEAR_HELPER_CAPACITY),
         ("bullet_speed_extra_helper", OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, len(FINAL_BULLET_SPEED_EXTRA_HELPER), 0x79),
         ("bullet_speed_apply_and_table", OFF_FINAL_BULLET_SPEED_APPLY, len(FINAL_BULLET_SPEED_APPLY) + len(FINAL_BULLET_SPEED_TABLE), 0x3A),
         ("shared_ai_wrapper", OFF_FINAL_AI_WRAPPER_CANDIDATE, len(FINAL_AI_WRAPPER_CANDIDATE), 0xAB),
@@ -1054,6 +1077,7 @@ def apply_final_split_test_candidate(rom_data: bytearray, levels: list = None) -
     ):
         _write_blob(rom_data, off, ai_entry, changed, name)
 
+    final_state0_interval_helper = _final_state0_interval_helper_for_rom(rom_data)
     for off, blob, name in (
         (panel_monster_variant.OFF_FIRE_DISPATCH, FINAL_FIRE_DISPATCH, "Panel Variant final fire dispatch"),
         (OFF_FINAL_AI_DISPATCH_HELPER, FINAL_AI_DISPATCH_HELPER, "Panel Variant final AI dispatch helper"),
@@ -1063,7 +1087,7 @@ def apply_final_split_test_candidate(rom_data: bytearray, levels: list = None) -
         (OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL, FINAL_PANEL_TYPE_CLASSIFIER_TAIL, "Panel Variant final shared Panel type classifier tail"),
         (OFF_FINAL_STAGE_DISPATCH_TAIL, FINAL_STAGE_DISPATCH_TAIL, "Panel Variant final stage dispatch tail"),
         (panel_monster_variant.OFF_FIRE_3WAY, FINAL_FIRE_COMMON, "Panel Variant final common fire loop"),
-        (OFF_FINAL_STATE0_INTERVAL_HELPER, FINAL_STATE0_INTERVAL_HELPER, "Panel Variant final interval helper"),
+        (OFF_FINAL_STATE0_INTERVAL_HELPER, final_state0_interval_helper, "Panel Variant final interval helper"),
         (OFF_FINAL_GROUP_RAM_OFFSET_HELPER, FINAL_GROUP_RAM_OFFSET_HELPER, "Panel Variant final group RAM offset helper"),
         (OFF_FINAL_ABC_GROUP_OFFSET_HELPER, FINAL_ABC_GROUP_OFFSET_HELPER, "Panel Variant final A/B/C-only group offset helper"),
         (OFF_FINAL_SPEED_SELECT_HELPER, FINAL_SPEED_SELECT_HELPER, "Panel Variant final speed select helper"),
@@ -1367,7 +1391,7 @@ def has_panel_stage_runtime_ids(levels: list) -> bool:
     borrowed Panel IDs also use the relocated shared wrapper when this runtime
     is present, so 2-way-only stages must enable it too.
     """
-    runtime_ids = PANEL_STAGE_VARIANT_IDS | {0x52, 0x53, 0x56, 0x57, 0x5A, 0x5B}
+    runtime_ids = PANEL_STAGE_VARIANT_IDS | {0x52, 0x53, 0x56, 0x57, 0x5A, 0x5B, 0x66, 0x67}
     for lv in levels or []:
         for enemy in getattr(lv, "enemies", []) or []:
             if (int(getattr(enemy, "element_no", -1)) & 0xFF) in runtime_ids:

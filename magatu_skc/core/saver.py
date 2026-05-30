@@ -177,6 +177,11 @@ def save_levels_to_rom(rom: Rom, levels: list):
         stage_ext, key_enemy_runtime, stage_announcement, title_screen,
     )
     from .element import byte_from_position
+    # IMPORTANT: this apply order is part of the ROM layout contract.
+    # panel_monster_stage_variant is a final replacement for parts of
+    # panel_monster_variant, and its PRG1 loader supersedes stage_ext's loader.
+    # If these calls are reordered, the later writer can overwrite the final
+    # hooks/loader and break Panel Variant enemies or room-load cache copying.
     saramandor_variant.apply(rom.data)
     panel_monster_variant.apply(rom.data)
     spark_ball_variant.apply(rom.data)
