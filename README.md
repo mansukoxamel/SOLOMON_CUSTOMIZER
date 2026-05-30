@@ -25,11 +25,6 @@ pip install -r requirements.txt
 python SOLOMON_CUSTOMIZER.py
 ```
 
-ROMを指定して起動する場合:
-
-```bat
-python SOLOMON_CUSTOMIZER.py "path\to\Solomon no Kagi (J).nes"
-```
 
 ## 主な機能
 
@@ -45,7 +40,7 @@ python SOLOMON_CUSTOMIZER.py "path\to\Solomon no Kagi (J).nes"
 
 - `.nes`: パッチ済みROM
 - `.ips`: 元ROMとの差分パッチ
-- `.png`: ステージデータを埋め込んだ画像
+- `.png`: METAデータにステージデータを埋め込んだ画像
 - `.json`: グローバル設定
 
 詳細な操作は [MANUAL.md](MANUAL.md) を参照してください。

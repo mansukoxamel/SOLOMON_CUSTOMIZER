@@ -1,5 +1,11 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.0 (2026-05-30) First packaged release
+- Re-extracted Japanese runtime/display strings from the current app source and
+  refreshed `docs/i18n_string_inventory.md`.
+- Added `docs/i18n_inventory_delta.md` for the add/update/remove audit and
+  `docs/i18n_ja_review.csv` as the Japanese review work file.
+
 ## v0.7.169 (2026-05-30) Sync palette after hack import
 - Detect main palette byte changes made through the game/enemy settings dialog.
 - Refresh editor rendering, picker icons, and thumbnails through the normal
