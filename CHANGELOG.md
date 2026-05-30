@@ -1,5 +1,22 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.3 (2026-05-30) Add README screenshot
+- Added the main editor screenshot under `docs/images/` for GitHub display.
+- Embedded the screenshot near the top of the README before the feature list.
+- Allowed the README screenshot path through the repository whitelist.
+
+## v0.8.2 (2026-05-30) Pitch README feature list
+- Reworked the README lead to describe SOLOMON_CUSTOMIZER as a deeper ROM
+  customizer rather than a plain stage editor.
+- Expanded the capability bullets to highlight mapper66 expansion, room rules,
+  enemy AI tuning, title editing, statistics, and direct test play.
+
+## v0.8.1 (2026-05-30) Tighten README lead
+- Shortened the README and moved the editable/output capabilities into the
+  opening section.
+- Removed repeated feature/output sections so the README acts more like a
+  quick entry point.
+
 ## v0.8.0 (2026-05-30) First packaged release
 - Re-extracted Japanese runtime/display strings from the current app source and
   refreshed `docs/i18n_string_inventory.md`.
