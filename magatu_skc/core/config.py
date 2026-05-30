@@ -6,6 +6,10 @@ import json
 from pathlib import Path
 
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+DEFAULT_ICON_PATH = "docs/images/dana.png"
+
+
 DEFAULT_CONFIG = {
     # 表示
     "dirty_mark": "●",
@@ -32,7 +36,7 @@ DEFAULT_CONFIG = {
     "stats_dlg_h": -1,
     "stats_dlg_col_w": [],   # 全レベル統計 列幅 ([] = 未保存=自動)
     # SOLOMON_CUSTOMIZER標準（今後実装予定）
-    "icon_path": "",
+    "icon_path": DEFAULT_ICON_PATH,
     "font_family": "",
     "font_size": 0,
     "font_bold": False,
@@ -43,9 +47,17 @@ DEFAULT_CONFIG = {
 }
 
 
+def resolve_project_path(path_value: str | Path) -> Path:
+    """設定内の相対パスをプロジェクトルート基準に解決する。"""
+    p = Path(path_value)
+    if p.is_absolute():
+        return p
+    return PROJECT_ROOT / p
+
+
 def get_config_path() -> Path:
     """設定ファイルのパス"""
-    return Path(__file__).parent.parent.parent / "config" / "magatu_skc_config.json"
+    return PROJECT_ROOT / "config" / "magatu_skc_config.json"
 
 
 def load_config() -> dict:
@@ -57,6 +69,8 @@ def load_config() -> dict:
                 data = json.load(f)
             cfg = dict(DEFAULT_CONFIG)
             cfg.update(data)
+            if not cfg.get("icon_path"):
+                cfg["icon_path"] = DEFAULT_ICON_PATH
             return cfg
         except Exception:
             pass

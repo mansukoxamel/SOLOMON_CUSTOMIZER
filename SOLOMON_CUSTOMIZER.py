@@ -15,7 +15,7 @@ if sys.platform == "win32":
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QIcon
 
-from magatu_skc.core.config import load_config
+from magatu_skc.core.config import load_config, resolve_project_path
 from magatu_skc.ui.main_window import MainWindow
 from magatu_skc.ui.theme import build_app_stylesheet, DEFAULT_THEME_GRAY
 
@@ -28,12 +28,13 @@ def main():
         build_app_stylesheet(cfg.get("theme_gray", DEFAULT_THEME_GRAY))
     )
     icon_path = cfg.get("icon_path", "")
-    if icon_path and Path(icon_path).exists():
-        app.setWindowIcon(QIcon(icon_path))
+    resolved_icon_path = resolve_project_path(icon_path) if icon_path else None
+    if resolved_icon_path and resolved_icon_path.exists():
+        app.setWindowIcon(QIcon(str(resolved_icon_path)))
 
     win = MainWindow()
-    if icon_path and Path(icon_path).exists():
-        win.setWindowIcon(QIcon(icon_path))
+    if resolved_icon_path and resolved_icon_path.exists():
+        win.setWindowIcon(QIcon(str(resolved_icon_path)))
     win.show()
 
     # コマンドライン引数でROMが渡された場合は読み込む

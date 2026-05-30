@@ -1,5 +1,11 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.4 (2026-05-30) Default Dana icon asset
+- Added `docs/images/dana.png` to the repository whitelist for GitHub.
+- Made `docs/images/dana.png` the default window icon path.
+- Resolve relative configured paths from the project root so the bundled icon
+  works without an absolute local path.
+
 ## v0.8.3 (2026-05-30) Add README screenshot
 - Added the main editor screenshot under `docs/images/` for GitHub display.
 - Embedded the screenshot near the top of the README before the feature list.

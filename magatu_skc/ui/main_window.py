@@ -17,6 +17,7 @@ from ..core.rom import Rom
 from ..core.level import Level, load_all_levels
 from ..core.element import Wall, ElementType, LevelElement
 from ..core import constants as c
+from ..core.config import resolve_project_path
 from ..core import saver, ips, wall_color_hack
 from ..gfx.tile_renderer import TileRenderer
 from ..gfx.level_renderer import LevelRenderer
@@ -2756,10 +2757,10 @@ class MainWindow(QMainWindow):
         """configのicon_pathをウィンドウアイコンに反映"""
         from PyQt5.QtWidgets import QApplication
         from PyQt5.QtGui import QIcon
-        from pathlib import Path
         icon_path = self._app_config.get("icon_path", "")
-        if icon_path and Path(icon_path).exists():
-            icon = QIcon(icon_path)
+        resolved_icon_path = resolve_project_path(icon_path) if icon_path else None
+        if resolved_icon_path and resolved_icon_path.exists():
+            icon = QIcon(str(resolved_icon_path))
             QApplication.instance().setWindowIcon(icon)
             self.setWindowIcon(icon)
 

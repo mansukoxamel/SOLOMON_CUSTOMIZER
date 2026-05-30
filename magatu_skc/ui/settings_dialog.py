@@ -9,6 +9,7 @@ from PyQt5.QtCore import Qt
 from .theme import (
     DEFAULT_THEME_GRAY, MIN_THEME_GRAY, MAX_THEME_GRAY, normalize_theme_gray,
 )
+from ..core.config import DEFAULT_ICON_PATH
 
 
 class SettingsDialog(QDialog):
@@ -83,7 +84,7 @@ class SettingsDialog(QDialog):
         icon_row = QHBoxLayout(icon_wrap)
         icon_row.setContentsMargins(0, 0, 0, 0)
         self.edit_icon = QLineEdit(self.config.get("icon_path", ""))
-        self.edit_icon.setPlaceholderText("例: D:\\material\\Icons\\dana.png")
+        self.edit_icon.setPlaceholderText(DEFAULT_ICON_PATH)
         icon_row.addWidget(self.edit_icon, 1)
         btn_icon = QPushButton("参照...")
         btn_icon.clicked.connect(self._browse_icon)
