@@ -11,7 +11,8 @@
 """
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QDialogButtonBox, QGroupBox, QCheckBox, QSpinBox
+    QDialogButtonBox, QGroupBox, QCheckBox, QSpinBox,
+    QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PyQt5.QtCore import Qt
 
@@ -23,6 +24,44 @@ PHASE1_BITS = 32
 PHASE2_BITS = 32
 # ゲーム側の初期化処理により先頭2tickは「処理済み」判定でスキップされる (6502: $A0CF BEQ)
 DEAD_TICKS = 2
+
+
+def _read_schedule_bits(rom_data, level_no: int, mirror_no: int) -> list:
+    off = m66.OFFSET_M66_DROP_SCHED_DATA + (2 * level_no + mirror_no) * 8
+    bits = []
+    for i in range(8):
+        b = rom_data[off + i]
+        for shift in range(7, -1, -1):
+            bits.append(bool((b >> shift) & 1))
+    return bits
+
+
+def _schedule_pattern(bits: list, start: int, length: int) -> str:
+    chars = []
+    for idx in range(start, start + length):
+        if idx < DEAD_TICKS:
+            chars.append("-")
+        else:
+            chars.append("X" if bits[idx] else ".")
+    return "".join(chars)
+
+
+def _active_tick_count(bits: list) -> int:
+    return sum(1 for i, bit in enumerate(bits) if i >= DEAD_TICKS and bit)
+
+
+def _read_mirror_enemy_codes(rom_data, level_no: int, mirror_no: int) -> list:
+    local = (m66.OFFSET_M66_LOCAL_SCHED_ENEMY_1_DATA if mirror_no == 0
+             else m66.OFFSET_M66_LOCAL_SCHED_ENEMY_2_DATA)
+    off = m66.OFFSET_M66_LVL_DATA + 256 * level_no + local
+    codes = []
+    for i in range(7):
+        b = rom_data[off + i]
+        if b == 0x90:
+            break
+        if b:
+            codes.append(b)
+    return codes
 
 
 class MirrorDialog(QDialog):
@@ -94,6 +133,16 @@ class MirrorDialog(QDialog):
         layout.addLayout(ttl_row)
         self._update_ttl_seconds_label(self.spin_ttl.value())
 
+        overview_row = QHBoxLayout()
+        overview_row.addStretch()
+        btn_overview = QPushButton("ミラー出現一覧")
+        btn_overview.setToolTip(
+            "全ステージのミラー敵セットと出現タイミングを読取専用で一覧表示します。"
+        )
+        btn_overview.clicked.connect(self._show_overview)
+        overview_row.addWidget(btn_overview)
+        layout.addLayout(overview_row)
+
         # 各ミラー
         self._sched_checks = [[None] * SCHEDULE_BITS, [None] * SCHEDULE_BITS]
 
@@ -154,7 +203,10 @@ class MirrorDialog(QDialog):
             btn_clear_sched.clicked.connect(lambda _, mm=m: self._clear_schedule(mm))
             quick_row.addWidget(btn_fill_sched)
             quick_row.addWidget(btn_clear_sched)
-            for gap, text in ((1, "1空け"), (2, "2空け"), (3, "3空け")):
+            for gap, text in (
+                (1, "1空け"), (2, "2空け"), (3, "3空け"),
+                (4, "4空け"), (5, "5空け"), (6, "6空け"),
+            ):
                 btn = QPushButton(text)
                 btn.setToolTip(
                     f"tick {DEAD_TICKS} から、{gap}個空けて出現タイミングをONにします。"
@@ -226,3 +278,113 @@ class MirrorDialog(QDialog):
     def _apply_and_close(self):
         self._apply()
         self.accept()
+
+    def _show_overview(self):
+        parent = self.parent()
+        levels = getattr(parent, "levels", None)
+        config = getattr(parent, "config", None)
+        if not levels:
+            return
+        dlg = MirrorScheduleOverviewDialog(
+            self.rom, levels, config=config, parent=self
+        )
+        dlg.exec_()
+
+
+class MirrorScheduleOverviewDialog(QDialog):
+    """全ステージのミラー出現タイミングを読取専用で一覧表示する"""
+
+    COLUMNS = (
+        ("Lv", 38),
+        ("TTL", 48),
+        ("M1位置", 64),
+        ("M1敵", 230),
+        ("M1数", 48),
+        ("M1 Phase1", 245),
+        ("M1 Phase2", 245),
+        ("M2位置", 64),
+        ("M2敵", 230),
+        ("M2数", 48),
+        ("M2 Phase1", 245),
+        ("M2 Phase2", 245),
+    )
+
+    def __init__(self, rom, levels, config=None, parent=None):
+        super().__init__(parent)
+        if parent is not None:
+            self.setFont(parent.font())
+        self.setWindowTitle("ミラー出現パターン一覧")
+        self.resize(1280, 720)
+        self.rom = rom
+        self.levels = levels
+        self.config = config
+
+        layout = QVBoxLayout(self)
+        info = QLabel(
+            "全ステージのミラー敵セットと64tick出現パターンを表示します。"
+            "X=出現、.=なし、-=ゲーム側で無視される先頭tick。"
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        self.table = QTableWidget(len(levels), len(self.COLUMNS), self)
+        self.table.setHorizontalHeaderLabels([name for name, _width in self.COLUMNS])
+        for i, (_name, width) in enumerate(self.COLUMNS):
+            self.table.setColumnWidth(i, width)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setTextElideMode(Qt.ElideNone)
+        self.table.setWordWrap(False)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self._populate()
+        layout.addWidget(self.table)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        btn_close = QPushButton("閉じる")
+        btn_close.clicked.connect(self.accept)
+        btn_row.addWidget(btn_close)
+        layout.addLayout(btn_row)
+
+    def _enemy_name(self, code: int) -> str:
+        if self.config is not None:
+            return self.config.enemy_desc.get(code, f"${code:02X}")
+        return f"${code:02X}"
+
+    def _enemy_text(self, codes: list) -> str:
+        if not codes:
+            return ""
+        return " / ".join(f"${code:02X} {self._enemy_name(code)}" for code in codes)
+
+    def _set_item(self, row: int, col: int, text: str, align=None):
+        item = QTableWidgetItem(text)
+        if align is not None:
+            item.setTextAlignment(align)
+        self.table.setItem(row, col, item)
+        return item
+
+    def _populate(self):
+        for row, level in enumerate(self.levels):
+            self._set_item(row, 0, str(row + 1), Qt.AlignCenter)
+            self._set_item(row, 1, str(getattr(level, "spawn_enemy_lifetime", 0)), Qt.AlignCenter)
+
+            for mirror_no in range(2):
+                base_col = 2 if mirror_no == 0 else 7
+                mirror = level.demon_mirrors[mirror_no]
+                self._set_item(row, base_col, str(mirror.position), Qt.AlignCenter)
+
+                codes = _read_mirror_enemy_codes(self.rom.data, row, mirror_no)
+                enemy_text = self._enemy_text(codes)
+                enemy_item = self._set_item(row, base_col + 1, enemy_text)
+                enemy_item.setToolTip(enemy_text.replace(" / ", "\n"))
+
+                bits = _read_schedule_bits(self.rom.data, row, mirror_no)
+                active = _active_tick_count(bits)
+                self._set_item(row, base_col + 2, str(active), Qt.AlignCenter)
+                p1 = _schedule_pattern(bits, 0, PHASE1_BITS)
+                p2 = _schedule_pattern(bits, PHASE1_BITS, PHASE2_BITS)
+                p1_item = self._set_item(row, base_col + 3, p1)
+                p2_item = self._set_item(row, base_col + 4, p2)
+                p1_item.setToolTip("Phase 1 tick 0-31")
+                p2_item.setToolTip("Phase 2 tick 32-63")
