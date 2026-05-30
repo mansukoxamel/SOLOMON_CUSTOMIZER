@@ -295,12 +295,9 @@ class MainWindow(QMainWindow):
         _save_row.addWidget(self.btn_save_ips)
         fl.addLayout(_save_row)
 
-        self.btn_test_play = QPushButton("▶ テストプレイ (現在ステージ)")
-        self.btn_test_play.setObjectName("testPlayButton")
-        self.btn_test_play.setMinimumHeight(30)
-        self.btn_test_play.setToolTip("現在の編集状態で、現在ステージから始まる一時ROMを作りエミュレータを起動")
-        self.btn_test_play.clicked.connect(self._on_test_play)
-        self.btn_test_play.setEnabled(False)
+        self.btn_test_play = self._create_test_play_button(
+            "▶ テストプレイ (現在ステージ)"
+        )
         fl.addWidget(self.btn_test_play)
 
         stage_scope_row = QHBoxLayout()
@@ -483,19 +480,6 @@ class MainWindow(QMainWindow):
         self._update_time_dr_hint()
         form.addRow("", self.lbl_time_dr_hint)
 
-        # ミラー敵寿命 0-255 (実測: 約0.5秒 x 値)
-        self.spin_lifetime = QSpinBox()
-        self.spin_lifetime.setRange(0, 255)
-        self.spin_lifetime.setToolTip(
-            "デーモンミラー等から出る敵の生存時間です。\n"
-            "目安: 約0.5秒 × 値 (例: 16=約8秒、30=約16秒)"
-        )
-        self.spin_lifetime.valueChanged.connect(self._on_meta_lifetime_changed)
-        self.lbl_lifetime_hint = QLabel()
-        self._update_lifetime_label(self.spin_lifetime.value())
-        form.addRow("ミラー敵寿命:", self.spin_lifetime)
-        form.addRow("", self.lbl_lifetime_hint)
-
         # Room Flag Table 拡張: 画面ごとの挙動改造 (原作level data非破壊)
         self.chk_no_bfire = QCheckBox("Bボタン（ファイア）禁止")
         self.chk_no_bfire.setToolTip(
@@ -579,6 +563,11 @@ class MainWindow(QMainWindow):
     def _build_panel_variant_panel(self) -> QWidget:
         from PyQt5.QtWidgets import QFormLayout
 
+        wrap = QWidget()
+        wrap_layout = QVBoxLayout(wrap)
+        wrap_layout.setContentsMargins(0, 0, 0, 0)
+        wrap_layout.setSpacing(4)
+
         group = QGroupBox("Panel Variant")
         group.setToolTip("A/B/Cパネルモンスターの弾速度と発射間隔をステージごとに設定")
         layout = QFormLayout(group)
@@ -609,7 +598,20 @@ class MainWindow(QMainWindow):
 
         group.setEnabled(False)
         self.panel_variant_group = group
-        return group
+        wrap_layout.addWidget(group)
+
+        self.btn_test_play_right = self._create_test_play_button("▶ テストプレイ")
+        wrap_layout.addWidget(self.btn_test_play_right)
+        return wrap
+
+    def _create_test_play_button(self, text: str) -> QPushButton:
+        button = QPushButton(text)
+        button.setObjectName("testPlayButton")
+        button.setMinimumHeight(30)
+        button.setToolTip("現在の編集状態で、現在ステージから始まる一時ROMを作りエミュレータを起動")
+        button.clicked.connect(self._on_test_play)
+        button.setEnabled(False)
+        return button
 
     def _build_levelselect_panel(self) -> QWidget:
         """最右ペイン: サムネイル付きレベル選択"""
@@ -618,7 +620,8 @@ class MainWindow(QMainWindow):
         v = QVBoxLayout(w)
         v.setContentsMargins(4, 4, 4, 4)
 
-        title = QLabel("<b>ステージ選択</b>")
+        title = QLabel("ステージ選択")
+        title.setObjectName("stageSelectTitle")
         v.addWidget(title)
 
         from PyQt5.QtGui import QWheelEvent
@@ -645,9 +648,11 @@ class MainWindow(QMainWindow):
                     super().keyPressEvent(event)
 
         self.spin_level = _InvertedSpinBox()
+        self.spin_level.setObjectName("stageSelectSpin")
         self.spin_level.setRange(1, c.LEVEL_COUNT)
         self.spin_level.setValue(1)
         self.spin_level.setFocusPolicy(Qt.StrongFocus)
+        self.spin_level.setMinimumHeight(30)
         self.spin_level.valueChanged.connect(self._on_level_changed)
         v.addWidget(self.spin_level)
 
@@ -671,12 +676,6 @@ class MainWindow(QMainWindow):
             self.list_levels.addItem(item)
         self.list_levels.currentRowChanged.connect(self._on_list_changed)
         v.addWidget(self.list_levels, 1)
-
-        self.btn_regen_thumbs = QPushButton("サムネイル再生成")
-        self.btn_regen_thumbs.setToolTip("全ステージのサムネイルを生成し直す（重い場合の手動更新）")
-        self.btn_regen_thumbs.clicked.connect(self._generate_all_thumbnails)
-        self.btn_regen_thumbs.setEnabled(False)
-        v.addWidget(self.btn_regen_thumbs)
 
         return w
 
@@ -983,7 +982,7 @@ class MainWindow(QMainWindow):
             self.btn_title_screen.setEnabled(True)
             self.btn_sprite_viewer.setEnabled(True)
             self.btn_test_play.setEnabled(True)
-            self.btn_regen_thumbs.setEnabled(True)
+            self.btn_test_play_right.setEnabled(True)
             self.meta_group.setEnabled(True)
             self.spin_level.setValue(1)
             self._refresh_view()
@@ -1020,7 +1019,9 @@ class MainWindow(QMainWindow):
     def _save_history(self):
         import json
         try:
-            with open(self._history_file(), "w", encoding="utf-8") as f:
+            p = self._history_file()
+            p.parent.mkdir(parents=True, exist_ok=True)
+            with open(p, "w", encoding="utf-8") as f:
                 json.dump({"history": self._history[:15]}, f, ensure_ascii=False, indent=2)
         except Exception:
             pass
@@ -1783,7 +1784,15 @@ class MainWindow(QMainWindow):
             return
         lv = self.levels[self.current_level_no]
 
-        # Undo履歴に積む
+        undo_stack_before = list(self._undo_stack)
+        redo_stack_before = list(self._redo_stack)
+        dirty_before_undo = self._dirty
+
+        def restore_rejected_click_edit():
+            self._undo_stack = undo_stack_before
+            self._redo_stack = redo_stack_before
+            self._set_dirty(dirty_before_undo)
+
         self._push_undo()
 
         mode, value = self.picker.get_current()
@@ -1794,8 +1803,7 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(
                     f"敵がいる位置にはブロックを置けません {tile}", 2500
                 )
-                if not getattr(self, '_suppress_next_undo', False) and self._undo_stack:
-                    self._undo_stack.pop()
+                restore_rejected_click_edit()
                 return
 
             # スタート位置にブロックは置けない（主人公が埋まる）
@@ -1803,8 +1811,7 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(
                     f"スタート位置にブロックは置けません {tile}", 2500
                 )
-                if not getattr(self, '_suppress_next_undo', False) and self._undo_stack:
-                    self._undo_stack.pop()
+                restore_rejected_click_edit()
                 return
 
             # 扉位置にブロックは置けない（出られない）
@@ -1812,8 +1819,7 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(
                     f"扉位置にブロックは置けません {tile}", 2500
                 )
-                if not getattr(self, '_suppress_next_undo', False) and self._undo_stack:
-                    self._undo_stack.pop()
+                restore_rejected_click_edit()
                 return
 
             # 白ブロック（壊せない）にアイテムが既にあると、そのアイテムは取れなくなるので拒否
@@ -1821,8 +1827,7 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(
                     f"アイテムがある位置に白ブロックは置けません（取れなくなる） {tile}", 3000
                 )
-                if not getattr(self, '_suppress_next_undo', False) and self._undo_stack:
-                    self._undo_stack.pop()
+                restore_rejected_click_edit()
                 return
 
             # ブロック（茶 or 壊せる白）+ アイテム → アイテムに in_block フラグを自動付与
@@ -1878,8 +1883,7 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(
                     f"透明な壊せる壁にはアイテムを配置できません {tile}", 3000
                 )
-                if not getattr(self, '_suppress_next_undo', False) and self._undo_stack:
-                    self._undo_stack.pop()
+                restore_rejected_click_edit()
                 return
 
             # 白ブロック内アイテム禁止（取れなくなる）
@@ -1887,8 +1891,7 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(
                     f"白ブロック内にはアイテムを配置できません {tile}", 3000
                 )
-                if not getattr(self, '_suppress_next_undo', False) and self._undo_stack:
-                    self._undo_stack.pop()
+                restore_rejected_click_edit()
                 return
 
             # アイテム × アイテム 重複禁止 → 置換
@@ -1923,8 +1926,7 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(
                     f"ブロックがある位置には敵を置けません {tile}", 2500
                 )
-                if not getattr(self, '_suppress_next_undo', False) and self._undo_stack:
-                    self._undo_stack.pop()
+                restore_rejected_click_edit()
                 return
             # 敵 × 敵 の同位置重複は許可（原作USA ROM全53レベルで8件あり、
             # 同マスから複数体生成する意図的な配置）。上書きせず追加のみ。
@@ -1936,8 +1938,7 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(
                     f"敵は1ステージ {c.ENEMY_COUNT_MAX} 体まで（拡張ROM形式の制限）", 3000
                 )
-                if not getattr(self, '_suppress_next_undo', False) and self._undo_stack:
-                    self._undo_stack.pop()
+                restore_rejected_click_edit()
                 return
             count = sum(1 for e in lv.enemies if e.position == tile)
             if count > 1:
@@ -1976,8 +1977,6 @@ class MainWindow(QMainWindow):
             return
         lv = self.levels[self.current_level_no]
         self._move_pending = None  # リセット
-        # ドラッグ開始時に1回だけスナップショット（drag_moveでは積まない）
-        self._push_undo()
 
         # 選択範囲内をクリック → 選択全体を移動
         bounds = self._get_selection_bounds()
@@ -1987,6 +1986,7 @@ class MainWindow(QMainWindow):
                 # 選択内容を取得 → 元位置を空にする
                 drag_clip = self._build_clipboard_from_selection()
                 if drag_clip is not None and (drag_clip["blocks"] or drag_clip["items"] or drag_clip["enemies"]):
+                    self._push_undo()
                     # 元位置を空にする（self._delete_in_selection は undo を積むので直接実行）
                     for y in range(y1, y2 + 1):
                         for x in range(x1, x2 + 1):
@@ -2011,12 +2011,14 @@ class MainWindow(QMainWindow):
         # 優先順位: item > enemy > meta（key/door/start/mirror1/mirror2）
         idx = lv.get_item_index(tile)
         if idx >= 0:
+            self._push_undo()
             self._move_pending = {"kind": "item", "ref": lv.items[idx]}
             self.statusBar().showMessage(f"アイテムを掴み中 → ドラッグで移動", 0)
             return
 
         idx = lv.get_enemy_index(tile)
         if idx >= 0:
+            self._push_undo()
             self._move_pending = {"kind": "enemy", "ref": lv.enemies[idx]}
             self.statusBar().showMessage(f"敵を掴み中 → ドラッグで移動", 0)
             return
@@ -2025,6 +2027,7 @@ class MainWindow(QMainWindow):
         if self.current_level_no == 50 and getattr(self, "_bonus_positions", None):
             for bi, bpos in enumerate(self._bonus_positions):
                 if bpos == tile:
+                    self._push_undo()
                     self._move_pending = {"kind": "bonus", "index": bi}
                     self.statusBar().showMessage(
                         f"ボーナススポット[{bi}] を掴み中 → ドラッグで移動", 0)
@@ -2045,6 +2048,7 @@ class MainWindow(QMainWindow):
         if self._move_pending is None and self.config:
             for mi in self.config.level_meta_items:
                 if mi.level_no == self.current_level_no and mi.position == tile and mi.rom_offset >= 0:
+                    self._push_undo()
                     self._move_pending = {"kind": "seal", "ref": mi}
                     self.statusBar().showMessage(
                         f"{mi.description} を掴み中 → ドラッグで移動", 0)
@@ -2052,6 +2056,7 @@ class MainWindow(QMainWindow):
                     return
 
         if self._move_pending:
+            self._push_undo()
             self.statusBar().showMessage(
                 f"{self._move_pending['sub']} を掴み中 → ドラッグで移動", 0
             )
@@ -2061,6 +2066,7 @@ class MainWindow(QMainWindow):
         tx, ty = tile
         wall = lv.tiles[ty][tx]
         if wall != Wall.NONE:
+            self._push_undo()
             self._move_pending = {
                 "kind": "block",
                 "wall_type": wall,
@@ -2164,9 +2170,27 @@ class MainWindow(QMainWindow):
         if not self.chk_edit_col15.isChecked() and tile[0] == 15:
             return
         lv = self.levels[self.current_level_no]
+        if not getattr(self, '_suppress_next_undo', False):
+            self._right_drag_has_undo = False
 
-        # Undo履歴に積む
+        marker_names = (
+            "breakable_white_cells",
+            "invisible_breakable_cells",
+            "passable_white_cells",
+            "invisible_solid_cells",
+        )
+        has_runtime_marker = any(tile in getattr(lv, name, set()) for name in marker_names)
+        if (
+            lv.get_item_index(tile) < 0
+            and lv.get_enemy_index(tile) < 0
+            and lv.tiles[tile[1]][tile[0]] == Wall.NONE
+            and not has_runtime_marker
+        ):
+            return
+
         self._push_undo()
+        if not getattr(self, '_suppress_next_undo', False):
+            self._right_drag_has_undo = True
 
         deleted = []
 
@@ -2190,12 +2214,7 @@ class MainWindow(QMainWindow):
 
         # ブロック削除
         had_runtime_marker = False
-        for name in (
-            "breakable_white_cells",
-            "invisible_breakable_cells",
-            "passable_white_cells",
-            "invisible_solid_cells",
-        ):
+        for name in marker_names:
             cells = getattr(lv, name, set())
             if tile in cells:
                 cells.discard(tile)
@@ -2219,7 +2238,8 @@ class MainWindow(QMainWindow):
 
     def _on_tile_erased(self, tile: tuple):
         """ドラッグ消し（右ボタン押しっぱなし）— undoは press 時の1回だけ"""
-        self._suppress_next_undo = True
+        needs_initial_undo = not getattr(self, "_right_drag_has_undo", False)
+        self._suppress_next_undo = not needs_initial_undo
         try:
             self._on_tile_right_clicked(tile)
         finally:
@@ -2227,6 +2247,15 @@ class MainWindow(QMainWindow):
 
     def _on_selection_updated(self, start, end):
         """Shift+左ドラッグの矩形範囲選択 — start/end は (x, y) タプル"""
+        normalized = self._normalize_selection_endpoints(start, end)
+        if normalized is None:
+            self._selection_rect = None
+            self.statusBar().showMessage(
+                "16列目は範囲選択不可です（「16列目を編集」をONにしてください）", 2000
+            )
+            self._refresh_view()
+            return
+        start, end = normalized
         self._selection_rect = (start, end)
         # ステータスバーで通知
         if start and end:
@@ -2246,6 +2275,23 @@ class MainWindow(QMainWindow):
 
     # ====== 選択範囲操作（コピー / ペースト / 反転 / 削除） ======
 
+    def _is_col15_locked(self) -> bool:
+        return hasattr(self, "chk_edit_col15") and not self.chk_edit_col15.isChecked()
+
+    def _can_edit_tile_pos(self, x: int, y: int) -> bool:
+        return 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H and not (x == 15 and self._is_col15_locked())
+
+    def _normalize_selection_endpoints(self, start, end):
+        if start is None or end is None:
+            return (start, end)
+        if not self._is_col15_locked():
+            return (start, end)
+        sx, sy = start
+        ex, ey = end
+        if min(sx, ex) >= 15:
+            return None
+        return ((min(sx, 14), sy), (min(ex, 14), ey))
+
     def _get_selection_bounds(self):
         """選択範囲の (x1, y1, x2, y2) を返す。なければ None"""
         if self._selection_rect is None:
@@ -2255,6 +2301,10 @@ class MainWindow(QMainWindow):
             return None
         x1, y1 = min(sx, ex), min(sy, ey)
         x2, y2 = max(sx, ex), max(sy, ey)
+        if self._is_col15_locked():
+            if x1 >= 15:
+                return None
+            x2 = min(x2, 14)
         return (x1, y1, x2, y2)
 
     def _build_clipboard_from_selection(self):
@@ -2325,18 +2375,18 @@ class MainWindow(QMainWindow):
         lv = self.levels[self.current_level_no]
         for (rx, ry), w in clip["blocks"].items():
             tx, ty = ox + rx, oy + ry
-            if 0 <= tx < c.LEVEL_W and 0 <= ty < c.LEVEL_H:
+            if self._can_edit_tile_pos(tx, ty):
                 lv.tiles[ty][tx] = w
         for name, rel_cells in clip.get("runtime_markers", {}).items():
             cells = getattr(lv, name, set())
             for rx, ry in rel_cells:
                 tx, ty = ox + rx, oy + ry
-                if 0 <= tx < c.LEVEL_W and 0 <= ty < c.LEVEL_H:
+                if self._can_edit_tile_pos(tx, ty):
                     cells.add((tx, ty))
         for it_data in clip["items"]:
             rx, ry = it_data["rel_pos"]
             tx, ty = ox + rx, oy + ry
-            if 0 <= tx < c.LEVEL_W and 0 <= ty < c.LEVEL_H:
+            if self._can_edit_tile_pos(tx, ty):
                 idx = lv.get_item_index((tx, ty))
                 if idx >= 0:
                     lv.delete_item(idx)
@@ -2344,7 +2394,7 @@ class MainWindow(QMainWindow):
         for en_data in clip["enemies"]:
             rx, ry = en_data["rel_pos"]
             tx, ty = ox + rx, oy + ry
-            if 0 <= tx < c.LEVEL_W and 0 <= ty < c.LEVEL_H:
+            if self._can_edit_tile_pos(tx, ty):
                 lv.enemies.append(LevelElement(ElementType.ENEMY, (tx, ty), en_data["element_no"]))
 
     def _paste_clipboard(self):
@@ -2945,7 +2995,6 @@ class MainWindow(QMainWindow):
         try:
             self._set_tileset_radio(lv.tileset_no)
             self.spin_time_dr.setValue(lv.time_decrease_rate)
-            self.spin_lifetime.setValue(lv.spawn_enemy_lifetime)
             from ..core import room_flags as _rf
             self.chk_no_bfire.setChecked(bool(lv.room_flags & _rf.BIT_NO_BFIRE))
             self.chk_no_astone.setChecked(
@@ -3063,22 +3112,6 @@ class MainWindow(QMainWindow):
             self.lbl_time_dr_hint.setText(" / ".join(parts))
         except Exception:
             self.lbl_time_dr_hint.setText("0=約24秒 / 1=約32秒 / 2=約44秒")
-
-    def _update_lifetime_label(self, val):
-        seconds = val * 0.5
-        if seconds.is_integer():
-            seconds_text = str(int(seconds))
-        else:
-            seconds_text = f"{seconds:.1f}"
-        self.lbl_lifetime_hint.setText(f"約{seconds_text}秒")
-
-    def _on_meta_lifetime_changed(self, val):
-        self._update_lifetime_label(val)
-        if self._meta_loading or not self.levels:
-            return
-        self._push_undo()
-        self.levels[self.current_level_no].spawn_enemy_lifetime = val
-        self._update_info()
 
     def _on_meta_no_bfire_toggled(self, checked):
         if self._meta_loading or not self.levels:
@@ -3214,6 +3247,7 @@ class MainWindow(QMainWindow):
         # 変更前のスナップショット
         before = bytes(self.rom.data)
         before_wall = self._read_wall_color_values()
+        before_palette = self._main_palette_bytes()
         dlg = HackDialog(
             self.rom,
             parent=self,
@@ -3228,7 +3262,9 @@ class MainWindow(QMainWindow):
             self._set_dirty(True)
             self._log("ゲーム挙動改造: ROMバイト変更あり")
             self._update_time_dr_hint()
-            if self._read_wall_color_values() != before_wall:
+            if self._main_palette_bytes() != before_palette:
+                self._on_palette_changed()
+            elif self._read_wall_color_values() != before_wall:
                 self._on_hack_dialog_applied()
 
     def _on_show_enemy_hack(self):
@@ -3236,6 +3272,7 @@ class MainWindow(QMainWindow):
             return
         from .hack_dialog import HackDialog
         before = bytes(self.rom.data)
+        before_palette = self._main_palette_bytes()
         dlg = HackDialog(
             self.rom,
             parent=self,
@@ -3249,6 +3286,8 @@ class MainWindow(QMainWindow):
         if bytes(self.rom.data) != before:
             self._set_dirty(True)
             self._log("敵設定: ROMバイト変更あり")
+            if self._main_palette_bytes() != before_palette:
+                self._on_palette_changed()
 
     def _on_show_palette(self):
         """パレット編集ダイアログを開く"""
@@ -3496,6 +3535,14 @@ class MainWindow(QMainWindow):
         item_addr = offsets.get("bonus_items", 0x1975)
         item_bytes = self.rom.data[item_addr:item_addr + 16]
         self.picker.set_bonus_mode(True, item_bytes)
+
+    def _main_palette_bytes(self):
+        if not self.rom:
+            return None
+        from .palette_dialog import PALETTE_OFFSET, BYTES_PER_PALETTE, PALETTE_COUNT
+        start = PALETTE_OFFSET
+        end = start + BYTES_PER_PALETTE * PALETTE_COUNT
+        return bytes(self.rom.data[start:end])
 
     def _on_palette_changed(self):
         """パレットダイアログの Apply からコールバック

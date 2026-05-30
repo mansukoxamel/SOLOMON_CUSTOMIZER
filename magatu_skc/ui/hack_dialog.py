@@ -1260,7 +1260,7 @@ class HackDialog(QDialog):
         }
 
     def _apply_imported_global_settings(self, settings: dict) -> list:
-        """JSON設定を画面値へ反映する。ROMへはまだ書き込まない。"""
+        """JSON設定を反映する。一部のROM直持ちデータは即時にrom.dataへ書く。"""
         changed = []
 
         def has(key):
@@ -1436,6 +1436,19 @@ class HackDialog(QDialog):
         QMessageBox.information(self, "エクスポート完了", f"共通設定を保存しました:\n{path}")
 
     def _on_import_global_settings(self):
+        ans = QMessageBox.warning(
+            self,
+            "共通設定インポートの確認",
+            "これから選択する共通設定を読み込むと、メインパレット、デモ操作、敵ドロップ、"
+            "クリア画面メッセージなどROMデータは読み込み時点で反映されます。\n\n"
+            "この操作はUndoできません。元に戻す可能性がある場合は、先に現在の共通設定を"
+            "エクスポートしてください。\n\n"
+            "共通設定ファイルを選択しますか？",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if ans != QMessageBox.Yes:
+            return
         path, _ = QFileDialog.getOpenFileName(
             self,
             "共通設定をインポート",
@@ -1462,7 +1475,11 @@ class HackDialog(QDialog):
         except Exception as e:
             QMessageBox.critical(self, "インポート失敗", f"{type(e).__name__}: {e}")
             return
-        msg = "共通設定を画面に読み込みました。\n[適用] または [OK] を押すとROMへ反映されます。"
+        msg = (
+            "共通設定を読み込みました。\n"
+            "一部のROMデータは読み込み時点で反映済みです。\n"
+            "画面上の設定値は [適用] または [OK] で反映されます。"
+        )
         if changed:
             msg += "\n\n変更された項目:\n" + "\n".join(f"・{x}" for x in changed)
         else:

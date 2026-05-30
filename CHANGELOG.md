@@ -1,5 +1,93 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.169 (2026-05-30) Sync palette after hack import
+- Detect main palette byte changes made through the game/enemy settings dialog.
+- Refresh editor rendering, picker icons, and thumbnails through the normal
+  palette sync path when global settings import changes the palette.
+
+## v0.7.168 (2026-05-30) Move global import warning before file selection
+- Show the non-undoable global settings import warning before opening the file
+  picker, so choosing a file clearly means proceeding with import.
+- Updated the import helper comment to state that ROM-backed data is written
+  immediately during import.
+
+## v0.7.167 (2026-05-30) Simplify Panel Variant icon tint
+- Removed the blue hatch overlay from Panel Variant A/B/C picker icons.
+- Kept Panel Variant A/B/C icons visually distinct from yellow enhanced enemies
+  with a simple blue tint.
+
+## v0.7.166 (2026-05-30) Warn before global settings import
+- Added an explicit confirmation before importing global settings because some
+  ROM-backed data is applied immediately and cannot be undone.
+- Updated the import completion message to distinguish immediate ROM-backed
+  data from settings that still require Apply or OK.
+
+## v0.7.165 (2026-05-30) Fix config path comment
+- Corrected the app config module comment to point at
+  `config/magatu_skc_config.json`.
+
+## v0.7.164 (2026-05-30) Create config directory before saving
+- Ensured app config saving creates the ignored `config/` directory when it is
+  missing in a fresh clone.
+- Ensured ROM history saving also creates its parent directory before writing.
+
+## v0.7.163 (2026-05-30) Move mirror lifetime UI into mirror details
+- Removed the mirror enemy lifetime control from the left-side stage settings.
+- Added the realtime seconds display next to the lifetime control in the mirror
+  detail dialog.
+
+## v0.7.162 (2026-05-30) Preserve clean state on rejected placement
+- Restored the previous Undo, Redo, and dirty state when click placement is
+  rejected by validation rules.
+- Prevented failed placements such as putting a block on an enemy from marking
+  the stage dirty when no data changed.
+
+## v0.7.161 (2026-05-30) Avoid dirty state on empty delete/drag
+- Delayed Undo snapshot creation for right-click delete, right-drag erase, and
+  Ctrl-drag start until an actual target is found.
+- Prevented empty right-click, empty right-drag erase, or empty Ctrl-drag
+  attempts from marking the stage dirty.
+
+## v0.7.160 (2026-05-30) Remove favorites drag debug output
+- Removed a leftover debug print from favorites drag-and-drop handling.
+
+## v0.7.159 (2026-05-30) Polish mirror schedule controls
+- Swapped the mirror schedule quick buttons so "全ON" is on the left and
+  "全クリア" is on the right.
+- Added explicit checkbox indicator borders for the dark UI so schedule
+  checkboxes remain visible when unchecked.
+
+## v0.7.158 (2026-05-30) Fix Panel Variant picker icons
+- Show Panel Variant A/B/C picker icons with the correct Panel Monster
+  direction graphics instead of their borrowed enemy graphics.
+- Mark Panel Variant A/B/C icons with a blue hatched overlay, separate from
+  the yellow overlay used by other enhanced enemies.
+
+## v0.7.157 (2026-05-30) Guard column 16 range operations
+- Made range selection, range delete, range move, and paste respect the
+  "16列目を編集" lock so the rightmost column is not modified while locked.
+
+## v0.7.156 (2026-05-30) Make stage selector prominent
+- Colored the right-side stage selector like the test-play button while keeping
+  the original spinbox behavior.
+- Removed the always-visible thumbnail regenerate button from the right pane;
+  thumbnails still regenerate automatically when needed.
+
+## v0.7.155 (2026-05-30) Emphasize stage selector
+- Enlarged and bolded the right-side stage number control with a stronger
+  green border so the active stage selection stands out in the dark UI.
+
+## v0.7.154 (2026-05-30) Add right-side test play shortcut
+- Added a second green test-play button below the right-side Panel Variant
+  controls so test play is reachable from the picker/stage editing workflow.
+- Both test-play buttons call the same current-stage test-play action.
+
+## v0.7.153 (2026-05-30) Switch app UI to dark green theme
+- Reworked the global Qt stylesheet to use a black base with green text,
+  borders, tabs, controls, and selection colors.
+- Updated the settings brightness control for the dark theme and mapped legacy
+  light-gray config values to the new dark default.
+
 ## v0.7.152 (2026-05-30) Show Panel Variant intervals as frame counts
 - Changed the right-side Panel Variant interval controls from hexadecimal
   `$xx` display to decimal frame counts, so the stock default appears as `192`

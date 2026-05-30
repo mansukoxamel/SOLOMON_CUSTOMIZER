@@ -1,6 +1,6 @@
 """アプリケーション設定の保存/読込
 
-設定ファイル: プロジェクトルートの magatu_skc_config.json
+設定ファイル: プロジェクトルートの config/magatu_skc_config.json
 """
 import json
 from pathlib import Path
@@ -36,7 +36,7 @@ DEFAULT_CONFIG = {
     "font_family": "",
     "font_size": 0,
     "font_bold": False,
-    "theme_gray": 222,
+    "theme_gray": 18,
     "notification_sound_path": "",
     "notification_sound_volume": 1.0,
     "cloud_backup_path": "",
@@ -67,6 +67,7 @@ def save_config(cfg: dict):
     """設定を保存"""
     p = get_config_path()
     try:
+        p.parent.mkdir(parents=True, exist_ok=True)
         with open(p, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=2)
     except Exception:

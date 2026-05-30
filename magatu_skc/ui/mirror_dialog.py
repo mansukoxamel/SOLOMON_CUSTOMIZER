@@ -77,7 +77,7 @@ class MirrorDialog(QDialog):
 
         # TTL
         ttl_row = QHBoxLayout()
-        ttl_row.addWidget(QLabel("スポーン敵の生存時間 (約0.5秒×値):"))
+        ttl_row.addWidget(QLabel("スポーン敵の生存時間:"))
         self.spin_ttl = QSpinBox()
         self.spin_ttl.setRange(0, 255)
         self.spin_ttl.setValue(self._ttl)
@@ -85,9 +85,14 @@ class MirrorDialog(QDialog):
             "Saramander / DemonHead 系のスポーン敵に使われます。\n"
             "目安: 約0.5秒 × 値 (例: 16=約8秒、30=約16秒)"
         )
+        self.spin_ttl.valueChanged.connect(self._update_ttl_seconds_label)
         ttl_row.addWidget(self.spin_ttl)
+        self.lbl_ttl_seconds = QLabel()
+        self.lbl_ttl_seconds.setMinimumWidth(70)
+        ttl_row.addWidget(self.lbl_ttl_seconds)
         ttl_row.addStretch()
         layout.addLayout(ttl_row)
+        self._update_ttl_seconds_label(self.spin_ttl.value())
 
         # 各ミラー
         self._sched_checks = [[None] * SCHEDULE_BITS, [None] * SCHEDULE_BITS]
@@ -141,12 +146,12 @@ class MirrorDialog(QDialog):
 
             # クイック操作
             quick_row = QHBoxLayout()
-            btn_clear_sched = QPushButton("スケジュール全クリア")
-            btn_clear_sched.clicked.connect(lambda _, mm=m: self._clear_schedule(mm))
             btn_fill_sched = QPushButton("スケジュール全ON")
             btn_fill_sched.clicked.connect(lambda _, mm=m: self._fill_schedule(mm))
-            quick_row.addWidget(btn_clear_sched)
+            btn_clear_sched = QPushButton("スケジュール全クリア")
+            btn_clear_sched.clicked.connect(lambda _, mm=m: self._clear_schedule(mm))
             quick_row.addWidget(btn_fill_sched)
+            quick_row.addWidget(btn_clear_sched)
             quick_row.addStretch()
             gl.addLayout(quick_row)
 
@@ -160,6 +165,14 @@ class MirrorDialog(QDialog):
         btnbox.rejected.connect(self.reject)
         btnbox.button(QDialogButtonBox.Apply).clicked.connect(self._apply)
         layout.addWidget(btnbox)
+
+    def _update_ttl_seconds_label(self, val):
+        seconds = val * 0.5
+        if seconds.is_integer():
+            seconds_text = str(int(seconds))
+        else:
+            seconds_text = f"{seconds:.1f}"
+        self.lbl_ttl_seconds.setText(f"約{seconds_text}秒")
 
     # ===== クイック操作 =====
 

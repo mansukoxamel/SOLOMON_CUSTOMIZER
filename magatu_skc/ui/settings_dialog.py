@@ -6,7 +6,9 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
-from .theme import DEFAULT_THEME_GRAY, MIN_THEME_GRAY, MAX_THEME_GRAY
+from .theme import (
+    DEFAULT_THEME_GRAY, MIN_THEME_GRAY, MAX_THEME_GRAY, normalize_theme_gray,
+)
 
 
 class SettingsDialog(QDialog):
@@ -69,12 +71,12 @@ class SettingsDialog(QDialog):
         self.spin_theme_gray = QSpinBox()
         self.spin_theme_gray.setRange(MIN_THEME_GRAY, MAX_THEME_GRAY)
         self.spin_theme_gray.setValue(
-            int(self.config.get("theme_gray", DEFAULT_THEME_GRAY))
+            normalize_theme_gray(self.config.get("theme_gray", DEFAULT_THEME_GRAY))
         )
         self.spin_theme_gray.setToolTip(
-            "画面全体のグレー濃度です。小さいほど暗く、大きいほど明るくなります。"
+            "黒テーマの明るさです。小さいほど黒く、大きいほど明るくなります。"
         )
-        df.addRow("画面グレー:", self.spin_theme_gray)
+        df.addRow("黒テーマ明度:", self.spin_theme_gray)
 
         # アイコンパス
         icon_wrap = QWidget()

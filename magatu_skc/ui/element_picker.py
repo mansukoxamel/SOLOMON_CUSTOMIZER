@@ -204,6 +204,13 @@ ENHANCED_ENEMY_CODES = {
 }
 
 
+PANEL_VARIANT_VISUAL_SOURCE = {
+    0x41: 0x24, 0x43: 0x25, 0x45: 0x26, 0x47: 0x27,  # A
+    0x49: 0x24, 0x4b: 0x25, 0x4d: 0x26, 0x4f: 0x27,  # B
+    0x31: 0x24, 0x33: 0x25, 0x35: 0x26, 0x37: 0x27,  # C
+}
+
+
 def apply_enemy_speed(base_code: int, speed: int) -> int:
     """sp1 ベースコードに speed (1/2/3) を適用して実コードを返す。
     対応がない場合は base_code をそのまま返す。"""
@@ -549,7 +556,6 @@ class FavoritesBar(QListWidget):
         self.itemClicked.connect(self._on_clicked)
 
     def dragEnterEvent(self, e):
-        print(f"[favorites] dragEnter formats={e.mimeData().formats()}")  # DEBUG
         if e.mimeData().hasFormat(PICKER_MIME):
             e.acceptProposedAction()
         else:
@@ -991,7 +997,7 @@ class ElementPicker(QWidget):
     # ========== Helper ==========
 
     def _make_icon_from_tile(self, tile_no: int, apply_blue_filter: bool = False,
-                             overlay_color=None) -> QIcon:
+                             overlay_color=None, hatch_color=None) -> QIcon:
         """tile_definitions の tile_no から QIcon 生成
 
         skchain互換: 現在レベルのタイルセット番号を使って描画。これにより
@@ -1005,7 +1011,7 @@ class ElementPicker(QWidget):
         if self.tile_renderer is None or self.config is None:
             return QIcon()
 
-        from PyQt5.QtGui import QPainter, QColor
+        from PyQt5.QtGui import QPainter, QColor, QPen
 
         # tile_renderer は palette index 0 のみ透明扱いするので、そのまま使う
         sprite = self.tile_renderer.get_tile_image(
@@ -1025,6 +1031,19 @@ class ElementPicker(QWidget):
         if overlay_color is not None:
             painter.fillRect(ox, oy, scaled.width(), scaled.height(),
                              QColor(*overlay_color))
+        if hatch_color is not None:
+            pen = QPen(QColor(*hatch_color))
+            pen.setWidth(2)
+            painter.setPen(pen)
+            left, top = ox, oy
+            right = ox + scaled.width()
+            bottom = oy + scaled.height()
+            for delta in range(-scaled.height(), scaled.width() + 1, 7):
+                x_start = left + max(delta, 0)
+                y_start = top + max(-delta, 0)
+                x_end = left + min(delta + scaled.height(), scaled.width())
+                y_end = top + min(scaled.height(), scaled.height() - delta)
+                painter.drawLine(x_start, y_start, x_end, y_end)
         painter.end()
         return QIcon(QPixmap.fromImage(bg))
 
@@ -1070,7 +1089,13 @@ class ElementPicker(QWidget):
         """敵コード → アイコン"""
         if self.config is None:
             return QIcon()
-        anim = self.config.enemy_map.get(enemy_no, 0)
+        visual_enemy_no = PANEL_VARIANT_VISUAL_SOURCE.get(enemy_no, enemy_no)
+        anim = self.config.enemy_map.get(visual_enemy_no, 0)
+        if enemy_no in PANEL_VARIANT_VISUAL_SOURCE:
+            return self._make_icon_from_tile(
+                anim,
+                overlay_color=(55, 135, 255, 115),
+            )
         overlay = (245, 220, 80, 80) if enemy_no in ENHANCED_ENEMY_CODES else None
         return self._make_icon_from_tile(anim, overlay_color=overlay)
 
