@@ -196,10 +196,14 @@ def save_levels_to_rom(rom: Rom, levels: list):
     for lv in levels:
         breakable = set(getattr(lv, "breakable_white_cells", set()) or [])
         breakable.update(getattr(lv, "invisible_breakable_cells", set()) or [])
+        empty = set(getattr(lv, "passable_white_cells", set()) or [])
+        empty.update(getattr(lv, "passable_brown_cells", set()) or [])
+        solid = set(getattr(lv, "invisible_solid_cells", set()) or [])
+        solid.update(getattr(lv, "solid_brown_cells", set()) or [])
         breakable_runtime_cells.append({
             "breakable": breakable,
-            "empty": set(getattr(lv, "passable_white_cells", set()) or []),
-            "solid": set(getattr(lv, "invisible_solid_cells", set()) or []),
+            "empty": empty,
+            "solid": solid,
         })
     runtime_room_flags = []
     for lv in levels:

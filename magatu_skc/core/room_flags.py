@@ -211,18 +211,25 @@ DARK_CAVE = bytes.fromhex(
 assert len(DARK_CAVE) == 56
 
 # Runtime block override NMI routine @ $C0F0.
-# Runs once after Dana is active. It scans the visible $0304 room grid after the
-# nametable has already been drawn, then converts direct m66 special cell IDs:
+# Runs once after Dana is active. It intentionally clobbers A/X; DARK_CAVE
+# already clobbers them before returning to the original NMI path. It scans the
+# visible $0304 room grid after the nametable has already been drawn, then
+# converts direct m66 special cell IDs:
 #   $F9 -> $90  breakable white
 #   $FA -> $10  passable white
 #   $40 -> $F8  invisible solid
 #   $50 -> $90  invisible breakable
+#   $A3 -> $10  passable brown
+#   $A4 -> $F8  solid brown
 BW_CAVE = bytes.fromhex(
-    "488a489848ad7f05c9c09022ad7a07d01da2c0bd1303c940f01a"
-    "c950f01ac9f9f016c9faf016cad0eaa9018d7a0768a868aa6860"
-    "a9f8d006a990d002a9109d1303d0e3"
+    "ad7f05c9c0902aad7a07d025a2c0bd1303c940f01dc9a4f019"
+    "c950f019c9f9f015c9faf015c9a3f011cad0e2a9018d7a0760"
+    "a9f8d006a990d002a9109d1303d0e8"
 )
-assert len(BW_CAVE) == 67
+assert len(BW_CAVE) == 65
+BW_CAVE_RESERVED_SIZE = 67
+BW_CAVE_BLOB = BW_CAVE + bytes([0xEA] * (BW_CAVE_RESERVED_SIZE - len(BW_CAVE)))
+assert len(BW_CAVE_BLOB) == BW_CAVE_RESERVED_SIZE
 # 全体共通テンポ既定: 明45フレ / 暗100フレ → PERIOD=145
 TEMPO_DEFAULT = bytes([45, 145])  # [LIGHT, PERIOD(=LIGHT+DARK)]
 
@@ -347,7 +354,7 @@ def _verify(rom_data) -> None:
         (_gf.OFF_CAVE, len(_gf.CAVE)),       # gap_fix 共存
         (OFF_DARK_CAVE, len(DARK_CAVE)),     # 暗闇 cave
         (OFF_TEMPO, 2),                      # 暗闇テンポ
-        (OFF_BW_CAVE, len(BW_CAVE)),
+        (OFF_BW_CAVE, BW_CAVE_RESERVED_SIZE),
         *_sv.RESERVED_SPANS,                 # Saramandor #2 bullet variant
         *_gv.RESERVED_SPANS,                 # Gargoyle #2 two-Bullet variant
         *_pmv.RESERVED_SPANS,                # Panel Monster borrowed-ID variants
@@ -524,8 +531,8 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
     # 暗闇: dark ビットが1部屋でもあれば DARK cave + テンポ + $8055 フック。
     # 無ければ $8055 は原作のまま(暗闇未使用時は NMI 非フック=完全無影響)。
     if _dark_needed(room_flags) or bw_needed:
-        if bytes(rom_data[OFF_BW_CAVE:OFF_BW_CAVE + len(BW_CAVE)]) != BW_CAVE:
-            rom_data[OFF_BW_CAVE:OFF_BW_CAVE + len(BW_CAVE)] = BW_CAVE
+        if bytes(rom_data[OFF_BW_CAVE:OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE]) != BW_CAVE_BLOB:
+            rom_data[OFF_BW_CAVE:OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE] = BW_CAVE_BLOB
             changed.append("BreakableWhite cave 注入 ($C0F0)")
         if bytes(rom_data[OFF_DARK_CAVE:OFF_DARK_CAVE + len(DARK_CAVE)]) != DARK_CAVE:
             rom_data[OFF_DARK_CAVE:OFF_DARK_CAVE + len(DARK_CAVE)] = DARK_CAVE

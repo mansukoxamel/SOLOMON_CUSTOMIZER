@@ -118,6 +118,22 @@ def level_to_xml_element(level: Level) -> ET.Element:
             e.set("no", str(i))
             e.set("position", _pos_str(pos))
 
+    pb_cells = sorted(getattr(level, "passable_brown_cells", set()))
+    if pb_cells:
+        pb = ET.SubElement(lv, "passable_brown")
+        for i, pos in enumerate(pb_cells):
+            e = ET.SubElement(pb, "cell")
+            e.set("no", str(i))
+            e.set("position", _pos_str(pos))
+
+    sb_cells = sorted(getattr(level, "solid_brown_cells", set()))
+    if sb_cells:
+        sb = ET.SubElement(lv, "solid_brown")
+        for i, pos in enumerate(sb_cells):
+            e = ET.SubElement(sb, "cell")
+            e.set("no", str(i))
+            e.set("position", _pos_str(pos))
+
     is_cells = sorted(getattr(level, "invisible_solid_cells", set()))
     if is_cells:
         isw = ET.SubElement(lv, "invisible_solid")
@@ -290,6 +306,26 @@ def xml_element_to_level(level_elem: ET.Element) -> Level:
             if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
                 lv.passable_white_cells.add(pos)
                 lv.tiles[y][x] = Wall.WHITE
+
+    lv.passable_brown_cells = set()
+    pb_elem = level_elem.find("passable_brown")
+    if pb_elem is not None:
+        for cell in pb_elem.findall("cell"):
+            pos = _parse_pos(cell.attrib["position"])
+            x, y = pos
+            if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
+                lv.passable_brown_cells.add(pos)
+                lv.tiles[y][x] = Wall.BROWN
+
+    lv.solid_brown_cells = set()
+    sb_elem = level_elem.find("solid_brown")
+    if sb_elem is not None:
+        for cell in sb_elem.findall("cell"):
+            pos = _parse_pos(cell.attrib["position"])
+            x, y = pos
+            if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
+                lv.solid_brown_cells.add(pos)
+                lv.tiles[y][x] = Wall.BROWN
 
     lv.invisible_solid_cells = set()
     is_elem = level_elem.find("invisible_solid")

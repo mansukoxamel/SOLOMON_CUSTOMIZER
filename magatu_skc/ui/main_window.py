@@ -29,6 +29,7 @@ from .element_picker import (
     BLOCK_NONE, BLOCK_BROWN, BLOCK_WHITE, BLOCK_BROWN_WHITE,
     BLOCK_BREAKABLE_WHITE, BLOCK_INVISIBLE_BREAKABLE,
     BLOCK_PASSABLE_WHITE, BLOCK_INVISIBLE_SOLID,
+    BLOCK_PASSABLE_BROWN, BLOCK_SOLID_BROWN,
 )
 
 APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
@@ -1741,7 +1742,11 @@ class MainWindow(QMainWindow):
 
         # ブロック
         wall = lv.tiles[y][x]
-        if wall == Wall.BROWN:
+        if wall == Wall.BROWN and tile in getattr(lv, "passable_brown_cells", set()):
+            parts.append("すり抜け土色壁")
+        elif wall == Wall.BROWN and tile in getattr(lv, "solid_brown_cells", set()):
+            parts.append("壊せない土色壁")
+        elif wall == Wall.BROWN:
             parts.append("茶ブロック")
         elif wall == Wall.WHITE and tile in getattr(lv, "breakable_white_cells", set()):
             parts.append("壊せる白壁")
@@ -1830,8 +1835,9 @@ class MainWindow(QMainWindow):
         mode, value = self.picker.get_current()
 
         if mode == MODE_BLOCK:
+            passable_block_values = (BLOCK_NONE, BLOCK_PASSABLE_WHITE, BLOCK_PASSABLE_BROWN)
             # 敵と同位置にブロックは置けない
-            if value not in (BLOCK_NONE, BLOCK_PASSABLE_WHITE) and lv.get_enemy_index(tile) >= 0:
+            if value not in passable_block_values and lv.get_enemy_index(tile) >= 0:
                 self.statusBar().showMessage(
                     f"敵がいる位置にはブロックを置けません {tile}", 2500
                 )
@@ -1839,7 +1845,7 @@ class MainWindow(QMainWindow):
                 return
 
             # スタート位置にブロックは置けない（主人公が埋まる）
-            if value not in (BLOCK_NONE, BLOCK_PASSABLE_WHITE) and lv.fixed_start_pos == tile:
+            if value not in passable_block_values and lv.fixed_start_pos == tile:
                 self.statusBar().showMessage(
                     f"スタート位置にブロックは置けません {tile}", 2500
                 )
@@ -1847,7 +1853,7 @@ class MainWindow(QMainWindow):
                 return
 
             # 扉位置にブロックは置けない（出られない）
-            if value not in (BLOCK_NONE, BLOCK_PASSABLE_WHITE) and not lv.is_door_removed() and lv.fixed_door_pos == tile:
+            if value not in passable_block_values and not lv.is_door_removed() and lv.fixed_door_pos == tile:
                 self.statusBar().showMessage(
                     f"扉位置にブロックは置けません {tile}", 2500
                 )
@@ -1855,9 +1861,12 @@ class MainWindow(QMainWindow):
                 return
 
             # 白ブロック（壊せない）にアイテムが既にあると、そのアイテムは取れなくなるので拒否
-            if value in (BLOCK_WHITE, BLOCK_BREAKABLE_WHITE, BLOCK_PASSABLE_WHITE) and lv.get_item_index(tile) >= 0:
+            if value in (
+                BLOCK_WHITE, BLOCK_BREAKABLE_WHITE, BLOCK_PASSABLE_WHITE,
+                BLOCK_PASSABLE_BROWN, BLOCK_SOLID_BROWN,
+            ) and lv.get_item_index(tile) >= 0:
                 self.statusBar().showMessage(
-                    f"アイテムがある位置に白ブロックは置けません（取れなくなる） {tile}", 3000
+                    f"アイテムがある位置に特殊壁は置けません（取れなくなる） {tile}", 3000
                 )
                 restore_rejected_click_edit()
                 return
@@ -1877,36 +1886,69 @@ class MainWindow(QMainWindow):
                 lv.set_block(Wall.NONE, tile)
                 lv.invisible_breakable_cells.discard(tile)
                 lv.invisible_solid_cells.discard(tile)
+                lv.passable_brown_cells.discard(tile)
+                lv.solid_brown_cells.discard(tile)
             elif value == BLOCK_BROWN:
                 lv.set_block(Wall.BROWN, tile)
+                lv.passable_brown_cells.discard(tile)
+                lv.solid_brown_cells.discard(tile)
             elif value == BLOCK_WHITE:
                 lv.set_block(Wall.WHITE, tile)
                 lv.breakable_white_cells.discard(tile)
                 lv.passable_white_cells.discard(tile)
+                lv.passable_brown_cells.discard(tile)
+                lv.solid_brown_cells.discard(tile)
             elif value == BLOCK_BREAKABLE_WHITE:
                 lv.set_block(Wall.WHITE, tile)
                 lv.invisible_breakable_cells.discard(tile)
                 lv.passable_white_cells.discard(tile)
+                lv.passable_brown_cells.discard(tile)
+                lv.solid_brown_cells.discard(tile)
                 lv.breakable_white_cells.add(tile)
             elif value == BLOCK_INVISIBLE_BREAKABLE:
                 lv.set_block(Wall.NONE, tile)
                 lv.breakable_white_cells.discard(tile)
                 lv.invisible_solid_cells.discard(tile)
+                lv.passable_white_cells.discard(tile)
+                lv.passable_brown_cells.discard(tile)
+                lv.solid_brown_cells.discard(tile)
                 lv.invisible_breakable_cells.add(tile)
             elif value == BLOCK_PASSABLE_WHITE:
                 lv.set_block(Wall.WHITE, tile)
                 lv.breakable_white_cells.discard(tile)
                 lv.invisible_breakable_cells.discard(tile)
                 lv.invisible_solid_cells.discard(tile)
+                lv.passable_brown_cells.discard(tile)
+                lv.solid_brown_cells.discard(tile)
                 lv.passable_white_cells.add(tile)
             elif value == BLOCK_INVISIBLE_SOLID:
                 lv.set_block(Wall.NONE, tile)
                 lv.breakable_white_cells.discard(tile)
                 lv.invisible_breakable_cells.discard(tile)
                 lv.passable_white_cells.discard(tile)
+                lv.passable_brown_cells.discard(tile)
+                lv.solid_brown_cells.discard(tile)
                 lv.invisible_solid_cells.add(tile)
+            elif value == BLOCK_PASSABLE_BROWN:
+                lv.set_block(Wall.BROWN, tile)
+                lv.breakable_white_cells.discard(tile)
+                lv.passable_white_cells.discard(tile)
+                lv.invisible_breakable_cells.discard(tile)
+                lv.invisible_solid_cells.discard(tile)
+                lv.solid_brown_cells.discard(tile)
+                lv.passable_brown_cells.add(tile)
+            elif value == BLOCK_SOLID_BROWN:
+                lv.set_block(Wall.BROWN, tile)
+                lv.breakable_white_cells.discard(tile)
+                lv.passable_white_cells.discard(tile)
+                lv.invisible_breakable_cells.discard(tile)
+                lv.invisible_solid_cells.discard(tile)
+                lv.passable_brown_cells.discard(tile)
+                lv.solid_brown_cells.add(tile)
             elif value == BLOCK_BROWN_WHITE:
                 lv.set_block(Wall.BROWN_WHITE, tile)
+                lv.passable_brown_cells.discard(tile)
+                lv.solid_brown_cells.discard(tile)
         elif mode == MODE_ITEM:
             tx, ty = tile
 
@@ -1914,6 +1956,14 @@ class MainWindow(QMainWindow):
                     tile in getattr(lv, "invisible_solid_cells", set())):
                 self.statusBar().showMessage(
                     f"透明な壊せる壁にはアイテムを配置できません {tile}", 3000
+                )
+                restore_rejected_click_edit()
+                return
+
+            if (tile in getattr(lv, "passable_brown_cells", set()) or
+                    tile in getattr(lv, "solid_brown_cells", set())):
+                self.statusBar().showMessage(
+                    f"特殊壁にはアイテムを配置できません {tile}", 3000
                 )
                 restore_rejected_click_edit()
                 return
@@ -1951,10 +2001,15 @@ class MainWindow(QMainWindow):
         elif mode == MODE_ENEMY:
             # 敵 + ブロック同位置は禁止（原作はほぼ皆無）
             tx, ty = tile
+            passable_runtime_cells = (
+                set(getattr(lv, "passable_white_cells", set()) or []) |
+                set(getattr(lv, "passable_brown_cells", set()) or [])
+            )
             if ((lv.tiles[ty][tx] != Wall.NONE and
-                 tile not in getattr(lv, "passable_white_cells", set())) or
+                 tile not in passable_runtime_cells) or
                     tile in getattr(lv, "invisible_breakable_cells", set()) or
-                    tile in getattr(lv, "invisible_solid_cells", set())):
+                    tile in getattr(lv, "invisible_solid_cells", set()) or
+                    tile in getattr(lv, "solid_brown_cells", set())):
                 self.statusBar().showMessage(
                     f"ブロックがある位置には敵を置けません {tile}", 2500
                 )
@@ -2210,6 +2265,8 @@ class MainWindow(QMainWindow):
             "invisible_breakable_cells",
             "passable_white_cells",
             "invisible_solid_cells",
+            "passable_brown_cells",
+            "solid_brown_cells",
         )
         has_runtime_marker = any(tile in getattr(lv, name, set()) for name in marker_names)
         if (
@@ -2364,6 +2421,8 @@ class MainWindow(QMainWindow):
             "invisible_breakable_cells",
             "passable_white_cells",
             "invisible_solid_cells",
+            "passable_brown_cells",
+            "solid_brown_cells",
         ):
             rel = set()
             for mx, my in getattr(lv, name, set()):
@@ -2472,6 +2531,8 @@ class MainWindow(QMainWindow):
             "invisible_breakable_cells",
             "passable_white_cells",
             "invisible_solid_cells",
+            "passable_brown_cells",
+            "solid_brown_cells",
         ):
             cells = getattr(lv, name, set())
             setattr(lv, name, {
@@ -2587,6 +2648,8 @@ class MainWindow(QMainWindow):
             flip_marker_set("invisible_breakable_cells", flip_x)
             flip_marker_set("passable_white_cells", flip_x)
             flip_marker_set("invisible_solid_cells", flip_x)
+            flip_marker_set("passable_brown_cells", flip_x)
+            flip_marker_set("solid_brown_cells", flip_x)
             self.statusBar().showMessage("左右反転", 2000)
         else:
             flip_y = lambda cx, cy: (cx, y1 + y2 - cy)
@@ -2610,6 +2673,8 @@ class MainWindow(QMainWindow):
             flip_marker_set("invisible_breakable_cells", flip_y)
             flip_marker_set("passable_white_cells", flip_y)
             flip_marker_set("invisible_solid_cells", flip_y)
+            flip_marker_set("passable_brown_cells", flip_y)
+            flip_marker_set("solid_brown_cells", flip_y)
             self.statusBar().showMessage("上下反転", 2000)
 
         self._refresh_view()
@@ -2625,6 +2690,7 @@ class MainWindow(QMainWindow):
             MODE_BLOCK, MODE_ITEM, MODE_ENEMY, MODE_META,
             BLOCK_BROWN, BLOCK_WHITE, BLOCK_BROWN_WHITE, BLOCK_BREAKABLE_WHITE,
             BLOCK_INVISIBLE_BREAKABLE, BLOCK_PASSABLE_WHITE, BLOCK_INVISIBLE_SOLID,
+            BLOCK_PASSABLE_BROWN, BLOCK_SOLID_BROWN,
             ITEM_FLAG_NORMAL, ITEM_FLAG_HIDDEN, ITEM_FLAG_IN_BLOCK,
         )
         lv = self.levels[self.current_level_no]
@@ -2684,7 +2750,11 @@ class MainWindow(QMainWindow):
         wall = lv.tiles[y][x]
         block_value = None
         block_label = None
-        if wall == Wall.BROWN:
+        if wall == Wall.BROWN and tile in getattr(lv, "passable_brown_cells", set()):
+            block_value, block_label = BLOCK_PASSABLE_BROWN, "すり抜ける土色壁"
+        elif wall == Wall.BROWN and tile in getattr(lv, "solid_brown_cells", set()):
+            block_value, block_label = BLOCK_SOLID_BROWN, "壊せない土色壁"
+        elif wall == Wall.BROWN:
             block_value, block_label = BLOCK_BROWN, "茶ブロック"
         elif wall == Wall.WHITE and tile in getattr(lv, "breakable_white_cells", set()):
             block_value, block_label = BLOCK_BREAKABLE_WHITE, "壊せる白壁"
@@ -2937,6 +3007,7 @@ class MainWindow(QMainWindow):
             BLOCK_NONE, BLOCK_BROWN, BLOCK_WHITE, BLOCK_BROWN_WHITE,
             BLOCK_BREAKABLE_WHITE, BLOCK_INVISIBLE_BREAKABLE,
             BLOCK_PASSABLE_WHITE, BLOCK_INVISIBLE_SOLID,
+            BLOCK_PASSABLE_BROWN, BLOCK_SOLID_BROWN,
             MODE_BLOCK, MODE_ITEM, MODE_ENEMY, MODE_META,
             ITEMS_LIST, ENEMIES_LIST,
         )
@@ -2945,7 +3016,8 @@ class MainWindow(QMainWindow):
             block_map = {0: BLOCK_NONE, 1: BLOCK_BROWN, 2: BLOCK_WHITE,
                          3: BLOCK_BROWN_WHITE, 4: BLOCK_BREAKABLE_WHITE,
                          5: BLOCK_INVISIBLE_BREAKABLE, 6: BLOCK_PASSABLE_WHITE,
-                         7: BLOCK_INVISIBLE_SOLID}
+                         7: BLOCK_INVISIBLE_SOLID, 8: BLOCK_PASSABLE_BROWN,
+                         9: BLOCK_SOLID_BROWN}
             target = block_map.get(n)
             if target is None:
                 return

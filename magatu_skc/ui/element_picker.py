@@ -24,6 +24,8 @@ BLOCK_BREAKABLE_WHITE = "breakable_white"
 BLOCK_INVISIBLE_BREAKABLE = "invisible_breakable"
 BLOCK_PASSABLE_WHITE = "passable_white"
 BLOCK_INVISIBLE_SOLID = "invisible_solid"
+BLOCK_PASSABLE_BROWN = "passable_brown"
+BLOCK_SOLID_BROWN = "solid_brown"
 
 
 # アイテムフラグ
@@ -1063,6 +1065,8 @@ class ElementPicker(QWidget):
             BLOCK_INVISIBLE_BREAKABLE: MD_EMPTY,
             BLOCK_PASSABLE_WHITE: MD_BLOCK_WHITE,
             BLOCK_INVISIBLE_SOLID: MD_EMPTY,
+            BLOCK_PASSABLE_BROWN: MD_BLOCK_BROWN,
+            BLOCK_SOLID_BROWN: MD_BLOCK_BROWN,
             BLOCK_BREAKABLE_WHITE: MD_BLOCK_WHITE,
             BLOCK_BROWN_WHITE: MD_BLOCK_WHITE,  # 見た目は白＋青フィルター
         }.get(block_kind)
@@ -1076,6 +1080,8 @@ class ElementPicker(QWidget):
             BLOCK_INVISIBLE_BREAKABLE: (120, 190, 255, 85),
             BLOCK_PASSABLE_WHITE: (90, 210, 120, 95),
             BLOCK_INVISIBLE_SOLID: (220, 60, 70, 100),
+            BLOCK_PASSABLE_BROWN: (80, 190, 255, 105),
+            BLOCK_SOLID_BROWN: (220, 60, 70, 105),
         }.get(block_kind)
         return self._make_icon_from_tile(anim, overlay_color=overlay_color)
 
@@ -1139,6 +1145,8 @@ class ElementPicker(QWidget):
             ("Invisible breakable wall", BLOCK_INVISIBLE_BREAKABLE),
             ("Passable white wall", BLOCK_PASSABLE_WHITE),
             ("Invisible solid wall", BLOCK_INVISIBLE_SOLID),
+            ("すり抜ける土色壁", BLOCK_PASSABLE_BROWN),
+            ("壊せない土色壁", BLOCK_SOLID_BROWN),
         ]:
             self._add_picker_item(0, MODE_BLOCK, val, label, self._make_block_icon(val))
 

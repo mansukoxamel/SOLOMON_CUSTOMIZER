@@ -76,6 +76,10 @@ class Level:
         self.passable_white_cells = set()
         # Cells drawn as empty space but converted to solid white wall at runtime.
         self.invisible_solid_cells = set()
+        # Cells drawn as brown wall but converted to empty space at runtime.
+        self.passable_brown_cells = set()
+        # Cells drawn as brown wall but converted to solid white wall at runtime.
+        self.solid_brown_cells = set()
         from . import stage_ext
         stage_ext.init_level_defaults(self)
         from . import panel_monster_stage_variant
@@ -188,6 +192,9 @@ class Level:
             if wall_type != Wall.WHITE:
                 self.breakable_white_cells.discard((x, y))
                 self.passable_white_cells.discard((x, y))
+            if wall_type != Wall.BROWN:
+                self.passable_brown_cells.discard((x, y))
+                self.solid_brown_cells.discard((x, y))
             self.invisible_breakable_cells.discard((x, y))
             self.invisible_solid_cells.discard((x, y))
 

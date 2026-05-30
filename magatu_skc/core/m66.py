@@ -28,6 +28,8 @@ CELL_INVISIBLE_SOLID = 0x40
 CELL_INVISIBLE_BREAKABLE = 0x50
 CELL_BREAKABLE_WHITE = 0xF9
 CELL_PASSABLE_WHITE = 0xFA
+CELL_PASSABLE_BROWN = 0xA3
+CELL_SOLID_BROWN = 0xA4
 OFFSET_M66_LOADER_A2 = 32784
 RUNTIME_BLOCK_LIST_RAM = 0x0740
 SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF = OFFSET_M66_LOADER_A2 + 31
@@ -115,6 +117,12 @@ def parse_level(rom_data: bytes, level_no: int) -> Level:
             elif value == CELL_PASSABLE_WHITE:
                 result.tiles[j][i] = Wall.WHITE
                 result.passable_white_cells.add(pos)
+            elif value == CELL_PASSABLE_BROWN:
+                result.tiles[j][i] = Wall.BROWN
+                result.passable_brown_cells.add(pos)
+            elif value == CELL_SOLID_BROWN:
+                result.tiles[j][i] = Wall.BROWN
+                result.solid_brown_cells.add(pos)
             elif value == CELL_INVISIBLE_SOLID:
                 result.invisible_solid_cells.add(pos)
             elif value == CELL_INVISIBLE_BREAKABLE:
@@ -239,6 +247,10 @@ def save_level_m66(rom_data: bytearray, level_no: int, level):
         set_block(pos, CELL_INVISIBLE_SOLID)
     for pos in sorted(getattr(level, "invisible_breakable_cells", set()) or []):
         set_block(pos, CELL_INVISIBLE_BREAKABLE)
+    for pos in sorted(getattr(level, "passable_brown_cells", set()) or []):
+        set_block(pos, CELL_PASSABLE_BROWN)
+    for pos in sorted(getattr(level, "solid_brown_cells", set()) or []):
+        set_block(pos, CELL_SOLID_BROWN)
 
     # ミラー位置にブロックもアイテムもなければミラーマーカー(0x05)を配置
     # ブロックやアイテムで意図的に隠されたミラーは上書きしない
@@ -326,6 +338,8 @@ def patch_runtime_block_loader(rom_data: bytearray):
     """Patch mapper66 l_a2 for direct special cell IDs.
 
     - Preserve $F8-$FF in the room grid so $F9/$FA can survive to the runtime.
+    - $A3/$A4 use the existing in-block item path and survive without this
+      high-ID preservation branch.
     - Disable the old 32B PRG1-to-$0740 copy; the runtime now scans $0304.
     """
     off = SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF

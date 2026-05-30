@@ -247,6 +247,27 @@ class LevelRenderer:
                         painter.drawLine(x * tw + 3, y * tw + 3, x * tw + tw - 4, y * tw + tw - 4)
                         painter.drawLine(x * tw + tw - 4, y * tw + 3, x * tw + 3, y * tw + tw - 4)
 
+            pb_cells = getattr(level, "passable_brown_cells", set())
+            if pb_cells:
+                pen = QPen(QColor(80, 190, 255, 255))
+                pen.setWidth(3)
+                painter.setPen(pen)
+                painter.setBrush(Qt.NoBrush)
+                for x, y in pb_cells:
+                    if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
+                        painter.drawLine(x * tw + 3, y * tw + 3, x * tw + tw - 4, y * tw + tw - 4)
+                        painter.drawLine(x * tw + tw - 4, y * tw + 3, x * tw + 3, y * tw + tw - 4)
+
+            sb_cells = getattr(level, "solid_brown_cells", set())
+            if sb_cells:
+                pen = QPen(QColor(255, 120, 220, 255))
+                pen.setWidth(3)
+                painter.setPen(pen)
+                painter.setBrush(Qt.NoBrush)
+                for x, y in sb_cells:
+                    if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
+                        painter.drawEllipse(x * tw + 4, y * tw + 4, tw - 9, tw - 9)
+
             is_cells = getattr(level, "invisible_solid_cells", set())
             if is_cells:
                 pen = QPen(QColor(255, 120, 220, 255))

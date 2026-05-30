@@ -17,7 +17,6 @@ from PyQt5.QtGui import QIcon, QPixmap, QColor
 from .. import __version__
 from ..core import hack_data
 from ..core import walk_speed
-from ..core import salamander_hack
 from ..core import panel_monster_hack
 from ..core import panel_bullet_speed_fix
 from ..core import demo_stage_hack
@@ -312,10 +311,12 @@ class HackDialog(QDialog):
         wall_f = QFormLayout(wall_group)
         self._wall_color_ok = False
         self.combo_wall_colors = []
+        self._wall_color_table_ok = False
         try:
             cur_wall_colors = wall_color_hack.current_values(rom.data)
             wall_color_hack.special_values(rom.data)
             self._wall_color_ok = True
+            self._wall_color_table_ok = True
         except wall_color_hack.WallColorHackError as e:
             cur_wall_colors = wall_color_hack.ORIGINAL_VALUES
             note = QLabel(f"⚠ 無効: {str(e).splitlines()[0]}")
@@ -376,48 +377,6 @@ class HackDialog(QDialog):
         hint.setStyleSheet("color:#888; font-size:11px;")
         wf.addRow(hint)
         layout.addWidget(ws_group)
-
-        # ====== サラマンダー強化 (火球発射化) ======
-        sala_group = QGroupBox("サラマンダー強化（火球発射化）")
-        sala_group.setProperty("settings_category", "敵・AI")
-        slf = QFormLayout(sala_group)
-        self._sala_ok = False
-        try:
-            self._sala_region = salamander_hack.detect_region(rom.data)
-            self._sala_ok = True
-        except salamander_hack.SalamanderHackError as e:
-            self._sala_region = None
-            note = QLabel(f"⚠ 無効: {str(e).splitlines()[0]}")
-            note.setWordWrap(True)
-            note.setStyleSheet("color:#c33;")
-            slf.addRow(note)
-
-        self.combo_sala_x = QComboBox()
-        self.combo_sala_y = QComboBox()
-        for label, val in salamander_hack.XDIST_PRESETS:
-            self.combo_sala_x.addItem(label, val)
-        for label, val in salamander_hack.YDIST_PRESETS:
-            self.combo_sala_y.addItem(label, val)
-
-        if self._sala_ok:
-            cx = salamander_hack.current_xdist(rom.data)
-            cy = salamander_hack.current_ydist(rom.data)
-            for i in range(self.combo_sala_x.count()):
-                if self.combo_sala_x.itemData(i) == cx:
-                    self.combo_sala_x.setCurrentIndex(i)
-            for i in range(self.combo_sala_y.count()):
-                if self.combo_sala_y.itemData(i) == cy:
-                    self.combo_sala_y.setCurrentIndex(i)
-            slf.addRow("反応距離(X):", self.combo_sala_x)
-            shint = QLabel(f"判定リージョン: {self._sala_region} / "
-                           "SUB_B1E9の攻撃可能距離。サラマンダー/ドラゴンで共有。")
-            shint.setWordWrap(True)
-            shint.setStyleSheet("color:#888; font-size:11px;")
-            slf.addRow(shint)
-        else:
-            for w in (self.combo_sala_x, self.combo_sala_y):
-                w.setEnabled(False)
-        self._hidden_sala_group = sala_group
 
         # ====== パネルモンスター ======
         pm_group = QGroupBox("パネルモンスター")
@@ -1168,6 +1127,145 @@ class HackDialog(QDialog):
         except ValueError as e:
             raise ValueError(f"{key} contains invalid hex.") from e
 
+    def _bonus_stage_offsets(self) -> tuple[int, int]:
+        from ..core.constants import ROM_OFFSETS
+
+        region = self.rom.base_region() if self.rom is not None else "JP"
+        offsets = ROM_OFFSETS.get(region, ROM_OFFSETS["JP"])
+        return (
+            offsets.get("bonus_pos", 0x1955),
+            offsets.get("bonus_items", 0x1975),
+        )
+
+    def _sync_parent_bonus_stage(self):
+        parent = self.parent()
+        if parent is None:
+            return
+        load_bonus = getattr(parent, "_load_bonus_stage_table", None)
+        if callable(load_bonus):
+            load_bonus(self.rom)
+        refresh = getattr(parent, "_refresh_view", None)
+        if callable(refresh):
+            refresh()
+        refresh_thumb = getattr(parent, "_refresh_thumbnail", None)
+        current_level_no = getattr(parent, "current_level_no", None)
+        if callable(refresh_thumb) and current_level_no == 50:
+            refresh_thumb(50)
+
+    def _sync_parent_wall_color(self):
+        parent = self.parent()
+        if parent is None:
+            return
+        applied = getattr(parent, "_on_hack_dialog_applied", None)
+        if callable(applied):
+            applied()
+
+    def _collect_wall_color_values(self) -> list:
+        try:
+            wall_color_hack.special_values(self.rom.data)
+            return [int(v) & 0x3F for v in wall_color_hack.current_values(self.rom.data)]
+        except wall_color_hack.WallColorHackError:
+            return []
+
+    @staticmethod
+    def _is_global_meta_position_target(mi) -> bool:
+        no = int(getattr(mi, "no", -1))
+        if 0 <= no <= 7:
+            return True
+        return no in (12, 13)
+
+    @staticmethod
+    def _global_meta_kind(no: int) -> str:
+        if 0 <= no <= 7:
+            return "solomon_seal"
+        if no == 12:
+            return "page_space"
+        if no == 13:
+            return "page_time"
+        return "unknown"
+
+    def _level_meta_config(self):
+        if self.config is not None:
+            return self.config
+        parent = self.parent()
+        return getattr(parent, "config", None)
+
+    def _collect_level_meta_positions(self) -> list:
+        cfg = self._level_meta_config()
+        if cfg is None:
+            return []
+        from ..core.element import position_from_byte
+
+        result = []
+        for mi in getattr(cfg, "level_meta_items", []) or []:
+            if not self._is_global_meta_position_target(mi):
+                continue
+            rom_offset = int(getattr(mi, "rom_offset", -1))
+            if rom_offset < 0:
+                continue
+            if self.rom is not None and 0 <= rom_offset < len(self.rom.data):
+                pos = position_from_byte(self.rom.data[rom_offset])
+            else:
+                pos = tuple(getattr(mi, "position", (0, 0)))
+            result.append({
+                "kind": self._global_meta_kind(int(mi.no)),
+                "no": int(mi.no),
+                "level_no": int(mi.level_no),
+                "description": str(getattr(mi, "description", "")),
+                "position": [int(pos[0]), int(pos[1])],
+            })
+        return result
+
+    @staticmethod
+    def _parse_level_meta_position_entry(entry: dict) -> tuple:
+        from ..core import constants as c
+
+        if not isinstance(entry, dict):
+            raise ValueError("level_meta_positions entries must be objects.")
+        no = int(entry["no"])
+        level_no = int(entry["level_no"])
+        pos = entry["position"]
+        if not isinstance(pos, (list, tuple)) or len(pos) != 2:
+            raise ValueError("level_meta_positions position must be [x, y].")
+        x = int(pos[0])
+        y = int(pos[1])
+        if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+            raise ValueError(f"level_meta_positions position out of range: {x},{y}")
+        return no, level_no, (x, y)
+
+    def _apply_level_meta_positions(self, entries) -> list:
+        if entries is None:
+            return []
+        if not isinstance(entries, list):
+            raise ValueError("level_meta_positions must be a list.")
+        cfg = self._level_meta_config()
+        if cfg is None:
+            return []
+        from ..core.element import byte_from_position, position_from_byte
+
+        meta_by_key = {
+            (int(getattr(mi, "no", -1)), int(getattr(mi, "level_no", -1))): mi
+            for mi in getattr(cfg, "level_meta_items", []) or []
+        }
+        changed = []
+        for entry in entries:
+            no, level_no, pos = self._parse_level_meta_position_entry(entry)
+            if not (0 <= no <= 7 or no in (12, 13)):
+                continue
+            mi = meta_by_key.get((no, level_no))
+            if mi is None:
+                continue
+            rom_offset = int(getattr(mi, "rom_offset", -1))
+            if rom_offset < 0 or self.rom is None or rom_offset >= len(self.rom.data):
+                continue
+            old_pos = position_from_byte(self.rom.data[rom_offset])
+            if old_pos == pos:
+                continue
+            self.rom.data[rom_offset] = byte_from_position(pos)
+            mi.position = pos
+            changed.append(str(getattr(mi, "description", "") or f"meta {no}"))
+        return changed
+
     def _collect_global_settings(self) -> dict:
         """現在の画面値をROM非依存のJSON設定として集める。"""
         settings = {
@@ -1201,10 +1299,20 @@ class HackDialog(QDialog):
                     clear_message.MESSAGES[-1]["off"] + 3 + clear_message.MESSAGES[-1]["count"] + 1
                 ]
             ),
-            "wall_colors_1_48": [self._combo_data(c) for c in self.combo_wall_colors],
+            "bonus_stage_pos_hex": self._hex_bytes(
+                self.rom.data[
+                    self._bonus_stage_offsets()[0]:
+                    self._bonus_stage_offsets()[0] + 32
+                ]
+            ),
+            "bonus_stage_items_hex": self._hex_bytes(
+                self.rom.data[
+                    self._bonus_stage_offsets()[1]:
+                    self._bonus_stage_offsets()[1] + 16
+                ]
+            ),
+            "wall_colors_1_48": self._collect_wall_color_values(),
             "walk_speed_multiplier": self._combo_data(self.combo_walk),
-            "salamander_xdist": self._combo_data(self.combo_sala_x),
-            "salamander_ydist": self._combo_data(self.combo_sala_y),
             "panel_monster_cooldown_frames": self.spin_pm.value(),
             "panel_bullet_speed_fix_enabled": self.chk_pm_bullet_speed_fix.isChecked(),
             "panel_bullet_speed_fix_value": self._combo_data(self.combo_pm_bullet_speed_fix),
@@ -1224,15 +1332,15 @@ class HackDialog(QDialog):
             "gap_fix_enabled": self.chk_gapfix.isChecked(),
             "dark_light_frames": self.spin_dark_light.value(),
             "dark_dark_frames": self.spin_dark_dark.value(),
+            "level_meta_positions": self._collect_level_meta_positions(),
         }
         supported = {
             "warp_feather": bool(getattr(self, "_warp_feather_ok", False)),
             "initial_magic": bool(getattr(self, "_initial_magic_ok", False)),
             "initial_lives": bool(getattr(self, "_initial_lives_ok", False)),
             "time_rate": bool(getattr(self, "_time_rate_ok", False)),
-            "wall_colors": bool(getattr(self, "_wall_color_ok", False)),
+            "wall_colors": bool(getattr(self, "_wall_color_table_ok", False)),
             "walk_speed": bool(getattr(self, "_walk_ok", False)),
-            "salamander": bool(getattr(self, "_sala_ok", False)),
             "panel_monster": bool(getattr(self, "_pm_ok", False)),
             "panel_bullet_speed_fix": bool(getattr(self, "_pm_bullet_speed_ok", False)),
             "demo_stage": bool(getattr(self, "_ds_ok", False)),
@@ -1320,16 +1428,19 @@ class HackDialog(QDialog):
         set_spin("time_rate_fast", self.spin_time_fast, "ステージ制限時間 速い")
         set_spin("time_rate_normal", self.spin_time_normal, "ステージ制限時間 普通")
         set_spin("time_rate_slow", self.spin_time_slow, "ステージ制限時間 遅い")
-        if has("wall_colors_1_48") and getattr(self, "_wall_color_ok", False):
+        if has("wall_colors_1_48"):
             values = settings["wall_colors_1_48"]
-            if isinstance(values, list) and len(values) == len(self.combo_wall_colors):
-                wall_changed = False
-                for combo, value in zip(self.combo_wall_colors, values):
-                    old = self._combo_data(combo)
-                    self._set_combo_data(combo, int(value) & 0x3F)
-                    wall_changed = wall_changed or (self._combo_data(combo) != old)
+            if values == []:
+                pass
+            elif not isinstance(values, list) or len(values) != wall_color_hack.EDIT_COUNT:
+                raise ValueError(
+                    f"wall_colors_1_48 must be a {wall_color_hack.EDIT_COUNT}-item list."
+                )
+            else:
+                wall_changed = wall_color_hack.apply(self.rom.data, values)
                 if wall_changed:
                     changed.append("ステージ壁色")
+                    self._sync_parent_wall_color()
         if has("main_palette_hex"):
             values = settings["main_palette_hex"]
             if not isinstance(values, str):
@@ -1386,10 +1497,36 @@ class HackDialog(QDialog):
             if new != old:
                 self.rom.data[start:end] = new
                 changed.append("クリア画面メッセージ")
+        bonus_changed = False
+        if has("bonus_stage_pos_hex"):
+            pos_addr, _item_addr = self._bonus_stage_offsets()
+            values = settings["bonus_stage_pos_hex"]
+            if not isinstance(values, str):
+                raise ValueError("bonus_stage_pos_hex must be a hex string.")
+            old = bytes(self.rom.data[pos_addr:pos_addr + 32])
+            new = self._parse_hex_bytes(values, 32, "bonus_stage_pos_hex")
+            if new != old:
+                self.rom.data[pos_addr:pos_addr + 32] = new
+                changed.append("ボーナスステージ配置")
+                bonus_changed = True
+        if has("bonus_stage_items_hex"):
+            _pos_addr, item_addr = self._bonus_stage_offsets()
+            values = settings["bonus_stage_items_hex"]
+            if not isinstance(values, str):
+                raise ValueError("bonus_stage_items_hex must be a hex string.")
+            old = bytes(self.rom.data[item_addr:item_addr + 16])
+            new = self._parse_hex_bytes(values, 16, "bonus_stage_items_hex")
+            if new != old:
+                self.rom.data[item_addr:item_addr + 16] = new
+                changed.append("ボーナスステージアイテム")
+                bonus_changed = True
+        if bonus_changed:
+            self._sync_parent_bonus_stage()
+        if has("level_meta_positions"):
+            meta_changed = self._apply_level_meta_positions(settings["level_meta_positions"])
+            for name in meta_changed:
+                changed.append(f"メタ項目座標: {name}")
         set_combo("walk_speed_multiplier", self.combo_walk, "ダーナ歩行速度")
-
-        set_combo("salamander_xdist", self.combo_sala_x, "サラマンダーX距離")
-        set_combo("salamander_ydist", self.combo_sala_y, "サラマンダーY許容")
 
         set_spin("panel_monster_cooldown_frames", self.spin_pm, "パネルモンスター クールダウン")
         set_check("panel_bullet_speed_fix_enabled", self.chk_pm_bullet_speed_fix, "パネルモンスター 弾の左右速度バグ修正")
@@ -1439,8 +1576,9 @@ class HackDialog(QDialog):
         ans = QMessageBox.warning(
             self,
             "共通設定インポートの確認",
-            "これから選択する共通設定を読み込むと、メインパレット、デモ操作、敵ドロップ、"
-            "クリア画面メッセージなどROMデータは読み込み時点で反映されます。\n\n"
+            "これから選択する共通設定を読み込むと、メインパレット、ステージ壁色、デモ操作、敵ドロップ、"
+            "クリア画面メッセージ、ボーナスステージ、ソロモンの紋章/Page座標などROMデータは"
+            "読み込み時点で反映されます。\n\n"
             "この操作はUndoできません。元に戻す可能性がある場合は、先に現在の共通設定を"
             "エクスポートしてください。\n\n"
             "共通設定ファイルを選択しますか？",
@@ -1484,6 +1622,14 @@ class HackDialog(QDialog):
             msg += "\n\n変更された項目:\n" + "\n".join(f"・{x}" for x in changed)
         else:
             msg += "\n\n現在の画面値と同じ内容でした。"
+        if "level_meta_positions" in settings:
+            parent = self.parent()
+            refresh = getattr(parent, "_refresh_view", None)
+            if callable(refresh):
+                refresh()
+            refresh_thumb = getattr(parent, "_generate_all_thumbnails", None)
+            if callable(refresh_thumb):
+                refresh_thumb()
         QMessageBox.information(self, "インポート完了", msg)
 
     def _restore_geometry(self):
@@ -1840,9 +1986,6 @@ class HackDialog(QDialog):
                 if abs(self.combo_walk.itemData(i) - 1.0) < 1e-6:
                     self.combo_walk.setCurrentIndex(i)
                     break
-        if self._sala_ok:
-            self.combo_sala_x.setCurrentIndex(0)
-            self.combo_sala_y.setCurrentIndex(0)
         if self._pm_ok:
             self.spin_pm.setValue(panel_monster_hack.ORIG_THRESHOLD)
             if getattr(self, "_pm_bullet_speed_ok", False):
