@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.5 (2026-05-30) Resolve bundled icon in packaged builds
+- Split writable app-root config paths from bundled data paths for PyInstaller.
+- Let relative asset paths fall back to the `_internal` bundled data directory,
+  so `docs/images/dana.png` resolves inside the packaged onedir build.
+
 ## v0.8.4 (2026-05-30) Default Dana icon asset
 - Added `docs/images/dana.png` to the repository whitelist for GitHub.
 - Made `docs/images/dana.png` the default window icon path.

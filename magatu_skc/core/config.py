@@ -3,10 +3,13 @@
 設定ファイル: プロジェクトルートの config/magatu_skc_config.json
 """
 import json
+import sys
 from pathlib import Path
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+SOURCE_ROOT = Path(__file__).resolve().parent.parent.parent
+APP_ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else SOURCE_ROOT
+DATA_ROOT = Path(getattr(sys, "_MEIPASS", APP_ROOT)).resolve()
 DEFAULT_ICON_PATH = "docs/images/dana.png"
 
 
@@ -48,16 +51,19 @@ DEFAULT_CONFIG = {
 
 
 def resolve_project_path(path_value: str | Path) -> Path:
-    """設定内の相対パスをプロジェクトルート基準に解決する。"""
+    """設定内の相対パスをアプリ/同梱データ基準に解決する。"""
     p = Path(path_value)
     if p.is_absolute():
         return p
-    return PROJECT_ROOT / p
+    app_path = APP_ROOT / p
+    if app_path.exists():
+        return app_path
+    return DATA_ROOT / p
 
 
 def get_config_path() -> Path:
     """設定ファイルのパス"""
-    return PROJECT_ROOT / "config" / "magatu_skc_config.json"
+    return APP_ROOT / "config" / "magatu_skc_config.json"
 
 
 def load_config() -> dict:
