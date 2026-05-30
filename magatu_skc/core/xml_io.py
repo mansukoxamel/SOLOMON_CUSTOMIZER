@@ -71,11 +71,11 @@ def level_to_xml_element(level: Level) -> ET.Element:
     lv.set("announce_id", str(getattr(level, "announce_id", 0)))
     lv.set("announce_flags", str(getattr(level, "announce_flags", 0)))
     lv.set("panel_variant_a_speed", str(getattr(level, "panel_variant_a_speed", 0)))
-    lv.set("panel_variant_a_interval", str(getattr(level, "panel_variant_a_interval", 0x80)))
+    lv.set("panel_variant_a_interval", str(getattr(level, "panel_variant_a_interval", 0xC0)))
     lv.set("panel_variant_b_speed", str(getattr(level, "panel_variant_b_speed", 1)))
-    lv.set("panel_variant_b_interval", str(getattr(level, "panel_variant_b_interval", 0x70)))
+    lv.set("panel_variant_b_interval", str(getattr(level, "panel_variant_b_interval", 0xC0)))
     lv.set("panel_variant_c_speed", str(getattr(level, "panel_variant_c_speed", 2)))
-    lv.set("panel_variant_c_interval", str(getattr(level, "panel_variant_c_interval", 0x90)))
+    lv.set("panel_variant_c_interval", str(getattr(level, "panel_variant_c_interval", 0xC0)))
 
     # blocks
     blocks = ET.SubElement(lv, "blocks")
@@ -227,11 +227,11 @@ def xml_element_to_level(level_elem: ET.Element) -> Level:
     lv.announce_id = int(level_elem.attrib.get("announce_id", "0"))
     lv.announce_flags = int(level_elem.attrib.get("announce_flags", "0"))
     lv.panel_variant_a_speed = int(level_elem.attrib.get("panel_variant_a_speed", "0"))
-    lv.panel_variant_a_interval = int(level_elem.attrib.get("panel_variant_a_interval", "128"))
+    lv.panel_variant_a_interval = int(level_elem.attrib.get("panel_variant_a_interval", "192"))
     lv.panel_variant_b_speed = int(level_elem.attrib.get("panel_variant_b_speed", "1"))
-    lv.panel_variant_b_interval = int(level_elem.attrib.get("panel_variant_b_interval", "112"))
+    lv.panel_variant_b_interval = int(level_elem.attrib.get("panel_variant_b_interval", "192"))
     lv.panel_variant_c_speed = int(level_elem.attrib.get("panel_variant_c_speed", "2"))
-    lv.panel_variant_c_interval = int(level_elem.attrib.get("panel_variant_c_interval", "144"))
+    lv.panel_variant_c_interval = int(level_elem.attrib.get("panel_variant_c_interval", "192"))
 
     # 星座
     const_no = int(level_elem.attrib.get("constellation_no", "0"))

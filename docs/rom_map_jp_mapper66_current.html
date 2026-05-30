@@ -142,7 +142,7 @@
     <h3>file 0x3BEE-0x420F / CPU $BBDE-$C1FF / 1,570B</h3>
     <div class="bar zoom">
       <div class="seg free" style="width:.13%"></div>
-      <div class="seg cave" style="width:2.36%">LOADER<br><small>37B</small></div>
+      <div class="seg cave" style="width:2.93%">LOADER<br><small>46B</small></div>
       <div class="seg hook" style="width:.57%">title demo</div>
       <div class="seg free" style="width:1.15%"></div>
       <div class="seg cave" style="width:2.17%">MAGIC<br><small>34B</small></div>
@@ -226,10 +226,14 @@
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
       <tr><td>LOADER</td><td class="num">0x3BF0-0x3C1D</td><td class="num">$BBE0-$BC0D</td><td class="num">46B</td><td>Room flag loader. When RoomFlagTable bit4 is set, clears carried fire stock `$042E/$042F` and redraws the HUD without touching `$042B`.</td></tr>
       <tr><td>Wide title idle-demo cleanup</td><td class="num">0x3C1E-0x3C26</td><td class="num">$BC0E-$BC16</td><td class="num">9B</td><td>Title timeout-only stub: `JSR $CC18`, then schedules the original action `$18`. Stops stale wide-title nametable from flashing during attract-demo startup without touching the shared action table.</td></tr>
+      <tr><td>Key enemy item-tile recorder</td><td class="num">0x3C27-0x3C2D</td><td class="num">$BC17-$BC1D</td><td class="num">7B</td><td>Key enemy runtime helper used by the dropped-key path. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
       <tr><td>MAGICGATE</td><td class="num">0x3C30-0x3C51</td><td class="num">$BC20-$BC41</td><td class="num">34B</td><td>A/B magic gate restrictions.</td></tr>
+      <tr><td>Key enemy status writer</td><td class="num">0x3C52-0x3C5D</td><td class="num">$BC42-$BC4D</td><td class="num">12B</td><td>Key enemy runtime helper for the selected key carrier status write. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
       <tr><td>DOORPREDRAW</td><td class="num">0x3C60-0x3C6A</td><td class="num">$BC50-$BC5A</td><td class="num">11B</td><td>Hidden-door redraw guard.</td></tr>
       <tr><td>Panel Monster Saramandor-ID AI wrapper</td><td class="num">0x3C6B-0x3C8E</td><td class="num">$BC5B-$BC7E</td><td class="num">36B</td><td>Panel Monster borrowed-ID routing.</td></tr>
       <tr><td>DARK cave</td><td class="num">0x3C90-0x3CC7</td><td class="num">$BC80-$BCB7</td><td class="num">56B</td><td>Dark-room flashing logic.</td></tr>
+      <tr><td>Key enemy fall-death handler</td><td class="num">0x3CC8-0x3CDF</td><td class="num">$BCB8-$BCCF</td><td class="num">24B</td><td>Key enemy runtime helper for fall-death key handling. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
+      <tr><td>Dark tempo bytes</td><td class="num">0x3CE0-0x3CE1</td><td class="num">$BCD0-$BCD1</td><td class="num">2B</td><td>Global dark-room tempo bytes `[LIGHT, PERIOD]`. Reserved by `room_flags.TEMPO`.</td></tr>
       <tr><td>Panel Monster fire dispatch</td><td class="num">0x3CE2-0x3D00</td><td class="num">$BCD2-$BCF0</td><td class="num">31B</td><td>Normal / 2-way / 3-way fire dispatch. Pair-normalizes parent type with <code>AND #$FE</code>.</td></tr>
       <tr><td>Gargoyle 2-shot gate</td><td class="num">0x3D0F-0x3D31</td><td class="num">$BCFF-$BD21</td><td class="num">35B</td><td>Conditional `$7A/$7B/$7E/$7F` gate for the accepted `$AE6F` two-Bullet variant.</td></tr>
       <tr><td>Spark Ball fast AI wrapper</td><td class="num">0x3D36-0x3D45</td><td class="num">$BD26-$BD35</td><td class="num">16B</td><td>Relocated out of gap_fix range. ID判定を <code>AND #$FE</code> で圧縮済み。</td></tr>
@@ -242,6 +246,7 @@
       <tr><td>Spark Ball animation setter</td><td class="num">0x3EFA-0x3F02</td><td class="num">$BEEA-$BEF2</td><td class="num">9B</td><td>Helper used by animation hook.</td></tr>
       <tr><td>Key enemy defeat chunks</td><td class="num">0x3EA4-0x3EAE / 0x3EC6-0x3ECC / 0x3F03-0x3F0F / 0x3FFD-0x400E</td><td class="num">$BE94 / $BEB6 / $BEF3 / $BFED</td><td class="num">49B</td><td>Split key dropper chunks placed in small verified gaps to avoid `gap_fix`.</td></tr>
       <tr><td>Spark Ball OAM hide hook</td><td class="num">0x3ED7-0x3EF8</td><td class="num">$BEC7-$BEE8</td><td class="num">34B</td><td>Transparent Spark Ball OAM post-draw hide hook. This is not free space.</td></tr>
+      <tr><td>Key enemy door-light helper</td><td class="num">0x3F60-0x3F78</td><td class="num">$BF50-$BF68</td><td class="num">25B</td><td>Key enemy runtime helper for dropped-key door-light positioning. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
       <tr><td>Panel Monster / Variant bullet hook</td><td class="num">0x3F79-0x3FC9</td><td class="num">$BF69-$BFB9</td><td class="num">81B</td><td>Diagonal bullet movement hook plus Panel Variant speed preset entry. Acts only on bit7-tagged Panel Bullet markers.</td></tr>
       <tr><td>Panel Variant type classifier main</td><td class="num">0x3FCA-0x3FE4</td><td class="num">$BFBA-$BFD4</td><td class="num">27B</td><td>Shared visual/property classifier for older enhanced Panel Monster IDs and A/B/C Panel Variant IDs.</td></tr>
       <tr><td>Spark Ball slow AI wrapper</td><td class="num">0x3FE8-0x3FF7</td><td class="num">$BFD8-$BFE7</td><td class="num">16B</td><td>Dragon-ID <code>$6A/$6B</code> routing. ID判定を <code>AND #$FE</code> で圧縮済み。</td></tr>

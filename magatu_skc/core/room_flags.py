@@ -28,7 +28,7 @@ verbatim コピーするため file offset 不変):
   $9071 フック        file 0x1081  "20 4B 97" -> "20 E0 BB" (LOADER)
   $8326 フック        file 0x0336  "A5 28 6A" -> "20 20 BC" (MAGICGATE)
   $91CC フック        file 0x11DC  "20 53 9D" -> "20 50 BC" (DOORPREDRAW)
-  LOADER     cave $BBE0  file 0x3BF0  (55B)
+  LOADER     cave $BBE0  file 0x3BF0  (46B; plus 9B idle-demo cleanup at $BC0E)
   MAGICGATE  cave $BC20  file 0x3C30  (34B)
   DOORPREDRAW cave $BC50 file 0x3C60  (11B)
   DoorCellTable  $C180  file 0x4190  (64B、扉マスindex)
@@ -172,12 +172,12 @@ ORIG_91CC       = bytes.fromhex("20 53 9d")  # JSR $9D53 (扉先行描画)
 
 # ---- cave / table レイアウト (clean JP = 拡張ROM 共通) ----------------
 # 空き領域 $BBDE-$C1FF (file 0x3BEE-0x4210, 1570B, 全 EA/00 実機裏取り)
-OFF_LOADER_CAVE = 0x3BF0   # $BBE0  LOADER (55B)
+OFF_LOADER_CAVE = 0x3BF0   # $BBE0  LOADER (46B)
 OFF_MAGIC_CAVE  = 0x3C30   # $BC20  MAGICGATE (34B)
 OFF_DOOR_CAVE   = 0x3C60   # $BC50  DOORPREDRAW (11B)
 OFF_DOORTAB     = 0x4190   # $C180  DoorCellTable (64B; mapper66ではStageExtへ移設)
 OFF_TABLE       = 0x41D0   # $C1C0  RoomFlagTable (64B; mapper66ではStageExtへ移設)
-OFF_DARK_CAVE   = 0x3C90   # $BC80  DARK (53B、明滅BG制御)
+OFF_DARK_CAVE   = 0x3C90   # $BC80  DARK (56B、明滅BG制御)
 OFF_TEMPO       = 0x3CE0   # $BCD0  全体共通テンポ 2B [LIGHT, PERIOD]
 OFF_BW_CAVE     = 0x4100   # $C0F0  breakable-white one-shot NMI routine
 OFF_CAVE_FREE0  = 0x3BEE   # $BBDE  (cave 空き判定の起点)
@@ -192,7 +192,7 @@ SIG_804B        = bytes.fromhex("bd ef 80 9d ef 80 a9 80 85 7d")
 ORIG_8055       = bytes.fromhex("ad 01 03")  # LDA $0301
 HOOK_8055_NEW   = bytes.fromhex("20 80 bc")  # JSR $BC80 (DARK cave)
 
-# DARK cave @ $BC80 (53B): ROOMFLAGS bit3 & Dana実プレイ($057F>=$C0)
+# DARK cave @ $BC80 (56B): ROOMFLAGS bit3 & Dana実プレイ($057F>=$C0)
 #   の時だけ フェーズカウンタ $0779 を進め、$BCD0(LIGHT)未満=明
 #   (原 $0301)/ 以上=暗(bit3クリアでBG-off) / $BCD1(PERIOD)で0復帰。
 #   非該当時は $0779=0 リセット → 暗闇面は必ず「明」から開始。
@@ -231,7 +231,7 @@ HOOK_9071_NEW = bytes.fromhex("20 e0 bb")  # JSR $BBE0 (LOADER)
 HOOK_8326_NEW = bytes.fromhex("20 20 bc")  # JSR $BC20 (MAGICGATE)
 HOOK_91CC_NEW = bytes.fromhex("20 50 bc")  # JSR $BC50 (DOORPREDRAW)
 
-# LOADER cave @ $BBE0 (55B):
+# LOADER cave @ $BBE0 (46B):
 #   JSR $974B            ; 原処理(level load)再現
 #   LDX $0428 / LDA $C1C0,X / STA $0778   ; ROOMFLAGS ロード
 #   AND #$10             ; bit4 = ステージ開始時ファイヤー所持リセット?

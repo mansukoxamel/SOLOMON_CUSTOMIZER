@@ -1,5 +1,22 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.7.152 (2026-05-30) Show Panel Variant intervals as frame counts
+- Changed the right-side Panel Variant interval controls from hexadecimal
+  `$xx` display to decimal frame counts, so the stock default appears as `192`
+  instead of `$C0`.
+
+## v0.7.151 (2026-05-30) Fill bank0 cave ledger gaps
+- Added missing bank0 cave detail rows for key enemy runtime helpers and dark
+  tempo bytes that were already reserved by implementation checks.
+- Corrected the ROM map LOADER bar and RoomFlag comments to show the actual
+  46B loader separately from the 9B wide-title idle-demo cleanup stub.
+- Corrected stale DARK cave size comments from 53B to the implemented 56B.
+
+## v0.7.150 (2026-05-30) Default Panel Variant intervals to stock cooldown
+- Changed missing/default Panel Variant A/B/C firing intervals to `192` so
+  stages without explicit A/B/C interval data use the stock Panel Monster
+  cooldown threshold.
+
 ## v0.7.149 (2026-05-30) Tighten Panel Variant ID classification
 - Changed the A/B/C group offset helper so the `LSR` carry is checked
   immediately; even IDs now return `X=$FF` and cannot read A/B/C runtime

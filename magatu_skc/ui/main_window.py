@@ -598,8 +598,6 @@ class MainWindow(QMainWindow):
             )
             spin = QSpinBox()
             spin.setRange(1, 255)
-            spin.setDisplayIntegerBase(16)
-            spin.setPrefix("$")
             spin.valueChanged.connect(
                 lambda _val, k=key: self._on_panel_variant_setting_changed(k)
             )
