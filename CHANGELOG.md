@@ -1,2206 +1,1009 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
-## v0.8.5 (2026-05-30) Resolve bundled icon in packaged builds
-- Split writable app-root config paths from bundled data paths for PyInstaller.
-- Let relative asset paths fall back to the `_internal` bundled data directory,
-  so `docs/images/dana.png` resolves inside the packaged onedir build.
-
-## v0.8.4 (2026-05-30) Default Dana icon asset
-- Added `docs/images/dana.png` to the repository whitelist for GitHub.
-- Made `docs/images/dana.png` the default window icon path.
-- Resolve relative configured paths from the project root so the bundled icon
-  works without an absolute local path.
-
-## v0.8.3 (2026-05-30) Add README screenshot
-- Added the main editor screenshot under `docs/images/` for GitHub display.
-- Embedded the screenshot near the top of the README before the feature list.
-- Allowed the README screenshot path through the repository whitelist.
-
-## v0.8.2 (2026-05-30) Pitch README feature list
-- Reworked the README lead to describe SOLOMON_CUSTOMIZER as a deeper ROM
-  customizer rather than a plain stage editor.
-- Expanded the capability bullets to highlight mapper66 expansion, room rules,
-  enemy AI tuning, title editing, statistics, and direct test play.
-
-## v0.8.1 (2026-05-30) Tighten README lead
-- Shortened the README and moved the editable/output capabilities into the
-  opening section.
-- Removed repeated feature/output sections so the README acts more like a
-  quick entry point.
-
-## v0.8.0 (2026-05-30) First packaged release
-- Re-extracted Japanese runtime/display strings from the current app source and
-  refreshed `docs/i18n_string_inventory.md`.
-- Added `docs/i18n_inventory_delta.md` for the add/update/remove audit and
-  `docs/i18n_ja_review.csv` as the Japanese review work file.
-
-## v0.7.169 (2026-05-30) Sync palette after hack import
-- Detect main palette byte changes made through the game/enemy settings dialog.
-- Refresh editor rendering, picker icons, and thumbnails through the normal
-  palette sync path when global settings import changes the palette.
-
-## v0.7.168 (2026-05-30) Move global import warning before file selection
-- Show the non-undoable global settings import warning before opening the file
-  picker, so choosing a file clearly means proceeding with import.
-- Updated the import helper comment to state that ROM-backed data is written
-  immediately during import.
-
-## v0.7.167 (2026-05-30) Simplify Panel Variant icon tint
-- Removed the blue hatch overlay from Panel Variant A/B/C picker icons.
-- Kept Panel Variant A/B/C icons visually distinct from yellow enhanced enemies
-  with a simple blue tint.
-
-## v0.7.166 (2026-05-30) Warn before global settings import
-- Added an explicit confirmation before importing global settings because some
-  ROM-backed data is applied immediately and cannot be undone.
-- Updated the import completion message to distinguish immediate ROM-backed
-  data from settings that still require Apply or OK.
-
-## v0.7.165 (2026-05-30) Fix config path comment
-- Corrected the app config module comment to point at
-  `config/magatu_skc_config.json`.
-
-## v0.7.164 (2026-05-30) Create config directory before saving
-- Ensured app config saving creates the ignored `config/` directory when it is
-  missing in a fresh clone.
-- Ensured ROM history saving also creates its parent directory before writing.
-
-## v0.7.163 (2026-05-30) Move mirror lifetime UI into mirror details
-- Removed the mirror enemy lifetime control from the left-side stage settings.
-- Added the realtime seconds display next to the lifetime control in the mirror
-  detail dialog.
-
-## v0.7.162 (2026-05-30) Preserve clean state on rejected placement
-- Restored the previous Undo, Redo, and dirty state when click placement is
-  rejected by validation rules.
-- Prevented failed placements such as putting a block on an enemy from marking
-  the stage dirty when no data changed.
-
-## v0.7.161 (2026-05-30) Avoid dirty state on empty delete/drag
-- Delayed Undo snapshot creation for right-click delete, right-drag erase, and
-  Ctrl-drag start until an actual target is found.
-- Prevented empty right-click, empty right-drag erase, or empty Ctrl-drag
-  attempts from marking the stage dirty.
-
-## v0.7.160 (2026-05-30) Remove favorites drag debug output
-- Removed a leftover debug print from favorites drag-and-drop handling.
-
-## v0.7.159 (2026-05-30) Polish mirror schedule controls
-- Swapped the mirror schedule quick buttons so "全ON" is on the left and
-  "全クリア" is on the right.
-- Added explicit checkbox indicator borders for the dark UI so schedule
-  checkboxes remain visible when unchecked.
-
-## v0.7.158 (2026-05-30) Fix Panel Variant picker icons
-- Show Panel Variant A/B/C picker icons with the correct Panel Monster
-  direction graphics instead of their borrowed enemy graphics.
-- Mark Panel Variant A/B/C icons with a blue hatched overlay, separate from
-  the yellow overlay used by other enhanced enemies.
-
-## v0.7.157 (2026-05-30) Guard column 16 range operations
-- Made range selection, range delete, range move, and paste respect the
-  "16列目を編集" lock so the rightmost column is not modified while locked.
-
-## v0.7.156 (2026-05-30) Make stage selector prominent
-- Colored the right-side stage selector like the test-play button while keeping
-  the original spinbox behavior.
-- Removed the always-visible thumbnail regenerate button from the right pane;
-  thumbnails still regenerate automatically when needed.
-
-## v0.7.155 (2026-05-30) Emphasize stage selector
-- Enlarged and bolded the right-side stage number control with a stronger
-  green border so the active stage selection stands out in the dark UI.
-
-## v0.7.154 (2026-05-30) Add right-side test play shortcut
-- Added a second green test-play button below the right-side Panel Variant
-  controls so test play is reachable from the picker/stage editing workflow.
-- Both test-play buttons call the same current-stage test-play action.
-
-## v0.7.153 (2026-05-30) Switch app UI to dark green theme
-- Reworked the global Qt stylesheet to use a black base with green text,
-  borders, tabs, controls, and selection colors.
-- Updated the settings brightness control for the dark theme and mapped legacy
-  light-gray config values to the new dark default.
-
-## v0.7.152 (2026-05-30) Show Panel Variant intervals as frame counts
-- Changed the right-side Panel Variant interval controls from hexadecimal
-  `$xx` display to decimal frame counts, so the stock default appears as `192`
-  instead of `$C0`.
-
-## v0.7.151 (2026-05-30) Fill bank0 cave ledger gaps
-- Added missing bank0 cave detail rows for key enemy runtime helpers and dark
-  tempo bytes that were already reserved by implementation checks.
-- Corrected the ROM map LOADER bar and RoomFlag comments to show the actual
-  46B loader separately from the 9B wide-title idle-demo cleanup stub.
-- Corrected stale DARK cave size comments from 53B to the implemented 56B.
-
-## v0.7.150 (2026-05-30) Default Panel Variant intervals to stock cooldown
-- Changed missing/default Panel Variant A/B/C firing intervals to `192` so
-  stages without explicit A/B/C interval data use the stock Panel Monster
-  cooldown threshold.
-
-## v0.7.149 (2026-05-30) Tighten Panel Variant ID classification
-- Changed the A/B/C group offset helper so the `LSR` carry is checked
-  immediately; even IDs now return `X=$FF` and cannot read A/B/C runtime
-  speed/interval bytes.
-- Added `$66/$67` to the final Panel runtime activation condition so the
-  Saramandor-ID 3-way Panel variants match the parent speed guard coverage.
-- Re-audited the ROM/RAM ledgers against current `RESERVED_SPANS`; bank0 cave
-  free space is now listed as 59B after the Panel Variant final split runtime,
-  and stale prototype/free-space rows were removed.
-- Documented that A/B/C Panel Variant enemy drops intentionally follow the
-  borrowed source enemy ID rows because the original drop logic indexes by
-  `type >> 2`.
-- Documented that the save apply order is part of the Panel Variant runtime
-  contract; `panel_monster_stage_variant` must run after the base Panel and
-  StageExt writes because it intentionally replaces selected hooks/loaders.
-- Fixed the Panel Monster cooldown writer for the current final split runtime:
-  after `$A575` is replaced by `JSR $BE62`, the UI now reads/writes the real
-  threshold operand at file `0x3E82` instead of corrupting the NOP at `0x258A`.
-- Preserved the current global Panel Monster cooldown when the final split
-  runtime reinjects its interval helper, so saving cannot reset the threshold
-  back to `$C0`.
-- Added a UI note that the Panel Bullet left/right speed fix updates the shared
-  Bullet speed table and therefore affects all enemies that fire Bullet
-  projectiles.
-- Removed the Panel Monster "キビキビ動作" UI/settings/ROM writer.  The old
-  pre-shot delay offsets are unsafe with the final Panel Variant runtime because
-  `0x409D` is now part of the A/B/C Bullet speed marker comparison.
-
-## v0.7.148 (2026-05-30) Guard borrowed Panel parent speed reinitialization
-- Kept the `$866D` parent speed guard odd-ID check; it already exits on even
-  IDs immediately after `LSR`.
-- Broadened the final split Panel runtime activation so older 2-way/3-way
-  borrowed Panel IDs `$52/$53/$56/$57/$5A/$5B` also enable the relocated shared
-  wrapper, even when no A/B/C ID exists in the ROM.
-- This lets 2-way-only stages use the parent-field clear path instead of
-  inheriting borrowed enemy movement.
-- Moved the `$866D` parent speed guard to `$E7A4` and expanded it so repeated
-  `$8AC0` speed initialization clears `main+5/main+6/main+8/main+9` for
-  A/B/C plus borrowed Panel IDs `$52/$53/$56/$57/$5A/$5B/$66/$67`.
-- Accepted both the old `$E876` and new `$E7A4` Panel speed guard hooks during
-  repeat saves, including the Saramandor signature check that shares `$866D`.
-
-## v0.7.147 (2026-05-30) Separate A/B/C RAM classification from Panel visuals
-- Added an A/B/C-only group offset helper so Panel Variant speed/interval
-  settings are read only by `$31/$33/$35/$37`, `$41/$43/$45/$47`, and
-  `$49/$4B/$4D/$4F`.
-- Kept the broader Panel visual classifier for graphics/property routing, but
-  stopped using it to decide `$0740-$0745` runtime setting offsets.
-- This prevents older 2-way/3-way Panel Monster variants from reading A/B/C
-  speed or firing interval bytes.
-
-## v0.7.146 (2026-05-30) Fix Panel Variant direction and 2-way drift split
-- Fixed the A/B/C Panel Variant AI tail so the decoded direction survives the
-  parent velocity/subpixel clear before entering the shared Panel direction
-  setter.
-- Moved the Panel Variant shared Demonhead-ID wrapper to a separate 00-fill gap
-  and routed `$52/$53/$56/$57/$5A/$5B` there when A/B/C runtime is active.
-- Added a shared parent-field clear helper so 2-way borrowed Panel Monsters and
-  A/B/C variants do not inherit borrowed enemy movement.
-- Rebuilt the A/B/C RAM offset helper around the shared Panel classifier instead
-  of relying on stale carry state.
-
-## v0.7.145 (2026-05-30) Respect 16th-column lock when clearing objects
-- Changed `オブジェクト削除` so `すべて削除`, block-only, item-only, and
-  monster-only clearing leave the 16th column untouched while `16列目を編集` is
-  OFF.
-
-## v0.7.144 (2026-05-30) Allow Panel Variant speed guard on repeat save
-- Updated the Saramandor variant signature check at `$866D` to accept the
-  current Panel Variant parent speed guard hook.
-- This fixes repeat saves of ROMs that already contain Panel Variant A/B/C
-  runtime without changing the Saramandor patch bytes.
-
-## v0.7.143 (2026-05-30) Split Panel Variant helpers away from Gargoyle space
-- Moved the Panel Variant stage dispatch helper, AI dispatch entry, AI dispatch
-  Panel tail, parent speed guard, and fire marker table into separate verified
-  gaps.
-- Tightened the parent speed guard so it clears only the accepted A/B/C ID
-  ranges and not the abandoned `$39/$3B/$3D/$3F` range.
-- Added Panel Variant A/B/C split runtime to the RoomFlag cave verifier allow
-  list so repeat saves do not reject already-patched A/B/C bytes.
-- Removed the accidental overlap with Gargoyle 2-shot runtime.  The only
-  remaining Panel Variant overlaps are intentional replacements of the older
-  Panel Monster shared runtime.
-
-## v0.7.142 (2026-05-30) Force Panel Bullet symmetry with Panel Variant A/B/C
-- When Panel Variant A/B/C is applied, the ROM now also applies the existing
-  Panel Bullet左右速度バグ修正 with the `$3F/$41` preset.
-- This keeps normal Panel Monsters from showing a right/left timing mismatch in
-  the same ROM where A/B/C Panel Variant runtime is active.
-
-## v0.7.141 (2026-05-30) Enable Panel Variant 2x and 3x bullet substeps
-- Added the final Panel Variant Bullet extra-step helper at `$E823`.
-- The merged Bullet hook now calls the wrapper helper instead of the velocity
-  table writer directly.  Preset `2x` runs one extra movement conversion pass
-  and preset `3x` runs two passes, while checking Bullet collision after each
-  extra pass and stopping before the stock state2 collision path handles impact.
-- Kept the existing `$C088` speed table writer for `1/4`, `1/2`, and the base
-  velocity used by fast presets.
-
-## v0.7.140 (2026-05-30) Clear stale Panel Variant bullet speed markers
-- Changed the final Panel Variant fire common path so bullets that should have
-  no speed marker explicitly clear child sub-slot `+7`.
-- This prevents a normal Panel Monster bullet from inheriting a stale `$88-$8B`
-  speed marker when it reuses a child slot previously used by Panel Variant
-  A/B/C.
-
-## v0.7.139 (2026-05-30) Share Panel visual classification across old and new variants
-- Added a split shared Panel type classifier at `$BFBA` with tail code at
-  `$DAB9`.  It marks both existing enhanced Panel Monster IDs
-  (`$52/$53/$56/$57/$5A/$5B/$66/$67`) and new Panel Variant A/B/C IDs as Panel
-  visuals.
-- Moved the dynamic Bullet speed marker helper from `$BFBA` to the original
-  00-fill gap at `$E89C` to avoid using initial-magic/lives or Gargoyle space.
-- Changed the final `$DBDF` property hook and `$C0C2` animation hook to call
-  that classifier instead of recognizing only the new A/B/C IDs.  This prevents
-  existing enhanced Panel Monsters from falling back to Demonhead/Saramandor
-  graphics when Panel Variant A/B/C is enabled.
-
-## v0.7.138 (2026-05-30) Preserve Spark hooks with Panel Variant A/B/C
-- Changed the final Panel Variant A/B/C runtime so `$A556` keeps the Panel fire
-  jump while preserving the Spark property hook body at `$A559`.
-- Kept `$A2CC` and `$8B05` routed through the Spark dispatch hooks, which then
-  fall through to the Panel property/animation hooks.  This prevents the final
-  Panel Variant pass from erasing Spark Ball behavior.
-- Updated `panel_monster_stage_variant.RESERVED_SPANS` from the old prototype
-  ranges to the current split-placement ranges used by the final runtime.
-
-## v0.7.137 (2026-05-30) Fix Panel Variant speed guard classification
-- Changed the `$BD40` Panel Variant speed guard to read the active parent ID
-  from `($08)+1` after the stock `$8AC0` initializer.  The previous `$05`
-  check was stale at this point, so the guard failed to clear `main+5/main+8`
-  before `$8689` could move Panel Variant parents.
-
-## v0.7.136 (2026-05-30) Match the accepted Panel Variant no-drift method
-- Replaced the previous `$8670` common-physics skip idea with a localized
-  `$866D -> $BD40` speed-initializer guard.
-- The guard runs the stock `$8AC0` initializer first, then clears only
-  `main+5/main+8` for odd `$30-$4F` Panel Variant parents.  This follows the
-  accepted NoDrift test ROM behavior without globally zeroing the original
-  `$DBB5-$DBDE` enemy speed table.
-
-## v0.7.135 (2026-05-30) Skip common physics for Panel Variant parents
-- Added a Panel Variant parent-only guard at `$8670 -> $BD40`.  Odd
-  `$30-$4F` Panel Variant parent IDs now skip the stock `$8689` common physics
-  step, while normal enemies still jump to `$8689` with the original A value
-  restored.
-- Kept the existing `$BD17` AI-entry velocity clear, so the app runtime now
-  blocks both inherited borrowed-ID movement and the shared-loop drift path.
-
-## v0.7.134 (2026-05-30) Keep Panel Variant parents stationary
-- Restored Panel Variant-only clearing of parent velocity/subpixel bytes in the
-  `$BD17` dispatch helper before jumping to the shared direction setter.  This
-  prevents A/B/C parents from inheriting the borrowed Ghost/Neul movement while
-  still leaving direct Demonhead calls on the `$C146` Demonhead path.
-
-## v0.7.133 (2026-05-30) Preserve Demonhead wrapper while routing Panel Variant AI
-- Changed the integrated Panel Variant A/B/C AI wrapper at `$C146` so direct
-  Demonhead-ID variant calls still run the Demonhead routing logic instead of
-  being treated as Panel Variant parents.
-- Panel Variant odd IDs still enter through the `$BD17` dispatch helper and use
-  the shared direction setter instead of the Demonhead entry point.
-- Guarded the `$A575` firing interval hook so only odd Panel Variant IDs read
-  the per-stage `$0740` interval cache; stock/even IDs fall back to the original
-  `CMP #$C0` timing.
-
-## v0.7.132 (2026-05-30) Stop overwriting the original enemy speed table
-- Removed the integrated Panel Variant A/B/C write to `$DBB5-$DBDE`.
-  That range is an original enemy speed table used by stock enemies such as
-  Golem and Demonhead, so clearing it can break enemies that never enter the
-  Panel Variant runtime.
-- Updated the ROM map and Panel Monster notes so `$DBB5-$DBDE` is treated as
-  preserved original data, not Panel Variant runtime storage.
-
-## v0.7.131 (2026-05-30) Keep original enemies out of Panel Variant dispatch
-- Fixed the integrated Panel Variant A/B/C dispatch so only odd-numbered
-  variant IDs enter the new Panel runtime.
-- Restored original AI, property, and animation handling for even IDs in the
-  same `$30-$37` and `$40-$4F` table ranges, preventing existing Ghost/Golem
-  style enemies from being treated as Panel Monsters.
-- Preserved the original A/Y register state before returning even IDs to the
-  stock AI routine, so original enemies keep their movement behavior.
-- Split the Panel fire dispatch the same way: existing even Panel IDs such as
-  `$34/$36` now keep the normal firing path, while odd A/B/C IDs use the new
-  stage-variant firing path.
-- Moved the Panel Variant AI dispatch helper out of `$BC5B`, which belongs to
-  the existing Saramandor-ID AI wrapper, into the old prototype gap at `$BD17`.
-- Added `mesen_probes/lua/panel_variant_common_ai_guard_probe.lua` to log
-  common AI movement and helper entry points while checking regressions.
-
-## v0.7.130 (2026-05-30) Wire Panel Variant A/B/C into the editor
-- Added the 12 Panel Variant A/B/C IDs to the monster picker:
-  `$31/$33/$35/$37`, `$41/$43/$45/$47`, `$49/$4B/$4D/$4F`.
-- Added per-stage Panel Variant controls in the right-side picker area for
-  A/B/C bullet speed and firing interval.
-- Persisted A/B/C speed and interval values in stage XML and
-  PanelVariantStageTable, then wired ROM save to apply the accepted final split
-  runtime when A/B/C IDs are used.
-- Wired the then-current NoDrift candidate into the integrated save path; this
-  was reverted in v0.7.132 after confirming `$DBB5-$DBDE` is shared original
-  enemy speed data.
-
-## v0.7.129 (2026-05-30) Record Panel Variant no-drift test candidate
-- Added the accepted borrowed-ID speed-table neutralization to the test-only
-  Panel Variant final split applicator.  The range stops before `$DBDF`, so the
-  Panel/Spark property selector remains intact.
-- Regenerated the up/down direction check ROM from source and confirmed it is
-  byte-identical to the manually accepted wide NoDrift ROM.
-- Updated the ROM map and Panel Monster ASM notes with the accepted A/B/C ID
-  groups, direction formula, and no-drift boundary.
-
-## v0.7.128 (2026-05-30) Fix Panel Variant final interval hook target
-- Fixed the test-only final split applicator to hook the state0 firing interval
-  compare to the final `$BE62` interval helper instead of the old prototype
-  `$C088` helper address.
-- This keeps `$C088` reserved for the Bullet speed apply/table candidate and
-  should restore the parent Panel Monster transition into the firing path.
-
-## v0.7.127 (2026-05-30) Build Panel Variant final split test ROM path
-- Added a test-only final split applicator for the Panel Variant A/B/C runtime
-  pieces.  It writes the current split placement into a ROM but remains
-  disconnected from normal app save flow.
-- Reworked the shared AI wrapper candidate to derive direction from the parent
-  ID at runtime, because AI dispatch table entries cover four IDs at a time.
-- Generated the first final-split test ROM:
-  `ROM/TEST_OrigJP_Stage3_PanelVariant_FINAL_SPLIT_Right3_v1_FROM_ORIGINAL.nes`.
-
-## v0.7.126 (2026-05-30) Split Panel Variant placement candidates
-- Moved the Panel Variant shared AI wrapper candidate out of the `$C088`
-  Bullet speed gap and into the existing `$C146-$C17E` Panel AI wrapper slot.
-- Recorded the current split placement as separate candidate pieces instead of
-  forcing one contiguous runtime block.
-- Kept this as unwired ROM-placement work only; no app/UI save path was
-  connected.
-
-## v0.7.125 (2026-05-30) Add Panel Variant shared AI wrapper candidate
-- Added a Panel Variant-only shared AI wrapper candidate with four direction
-  entry points, keeping it separate from the existing Demon/Saramandor wrapper
-  families.
-- Reduced the A/B/C AI wrapper shape from two separate 50B/60B prototype
-  wrappers to one 44B candidate by assigning direction through AI table entry
-  points.
-- Recorded that the 44B candidate fits a 58B slot but currently competes with
-  the Bullet speed apply candidate, so the next step is final placement
-  rearrangement rather than UI wiring.
-
-## v0.7.124 (2026-05-30) Place Panel Variant fire-marker candidate
-- Added concrete placement candidates for the Panel Variant firing side without
-  wiring them into app save flow.
-- Kept the fire dispatch in its existing 31B slot, moved stage fallback into
-  the 14B `$BCF1-$BCFE` gap, and kept the merged common fire loop within the
-  existing 120B `$BD88-$BDFF` slot by externalizing marker helpers/table.
-- Recorded the helper placements for state0 interval, group RAM offset, speed
-  select, static marker, dynamic speed marker, and marker table.
-
-## v0.7.123 (2026-05-30) Place Panel Variant Bullet speed candidate
-- Added the first concrete Panel Variant PRG0 placement candidate without
-  wiring it into app save flow: the Bullet speed apply routine plus 8B speed
-  table fit in the `$C088-$C0C1` gap.
-- Built a merged Panel Monster Bullet hook candidate that grows the current
-  hook by only 3B and uses the existing post-hook gap.
-- Left UI and normal ROM save integration disconnected.
-
-## v0.7.122 (2026-05-30) Reduce Panel Variant runtime estimate
-- Compact Panel Variant helper code by sharing the A/B/C RAM-offset decoder,
-  inlining the Bullet speed marker gate, and shrinking the speed preset table
-  from 12B to 8B.
-- Updated the ROM map with the current reduced split: 274B standalone blob,
-  164B merged PRG0 growth, and 156B PRG0 growth after moving the 8B speed
-  preset table out of PRG0.
-- Kept the Panel Variant work as an unwired prototype; no app/UI save path was
-  connected.
-
-## v0.7.121 (2026-05-29) Split Panel Variant PRG0/PRG1 budget
-- Added a Panel Variant PRG0/PRG1 budget estimator that separates hot PRG0
-  runtime code from speed preset data that can move to PRG1 or the room-load
-  RAM cache.
-- Updated the ROM map with the current split: 347B standalone blob, 237B merged
-  PRG0 growth, and 225B PRG0 growth after moving the 12B speed preset table out
-  of PRG0.
-
-## v0.7.120 (2026-05-29) Recount PRG0 free-space inventory
-- Recomputed the bank0 cave free-space inventory from current production
-  reservation spans, including title-idle cleanup and gap_fix.
-- Updated the ROM map to show bank0 cave as 1,349B reserved / 221B unreserved,
-  split into 2B original `00` fill and 219B original `EA` fill, with a 58B
-  largest contiguous free span.
-- Clarified that the Panel Variant prototype placement is not counted as a
-  production reservation and must be formally repacked before integration.
-
-## v0.7.119 (2026-05-29) Package Panel Variant runtime blob
-- Added a placement-independent Panel Variant blob builder that packages the
-  current A/B/C direction wrappers, state0 interval helper, child Bullet speed
-  marker, speed-preset selector/table, and Bullet speed hook/apply helpers into
-  one 347B block.
-- Added a conservative pure-growth estimator for merging that blob into the
-  existing Panel Monster runtime.
-- Kept the blob disconnected from UI and ROM save application; final PRG0
-  placement is still a separate packing step.
-
-## v0.7.118 (2026-05-29) Compress Spark Ball variant predicates
-- Shortened Spark Ball borrowed-ID checks without changing the accepted ID
-  sets: Dragon-ID wrappers now phase-normalize with `AND #$FE`, the pause hook
-  checks `$6A/$6E` after normalization, and property/animation hooks classify
-  `$6A/$6E/$72/$76` by compact offset rules.
-- Reduced Spark Ball variant PRG0 code by 26B total and updated the ROM map.
-- Updated Panel Monster's `$A556` signature guard to accept the compressed
-  current Spark Ball property selector.
-
-## v0.7.117 (2026-05-29) Align Panel Variant speed preset layout
-- Removed the planned Panel Variant rhythm field from the design notes and
-  runtime cache layout.
-- Changed the prototype PanelVariantStageTable entry shape to A/B/C
-  speed+interval pairs at `$0740-$0745`.
-- Added the four non-stock speed presets: 1/4 and 1/2 table-value presets,
-  plus 2x and 3x conversion-multiplier presets.
-
-## v0.7.116 (2026-05-29) Avoid Panel Variant interval scratch collision
-- Changed the Panel Variant state0 interval helper to compare directly against
-  the group interval value instead of storing the threshold in `$0F`.
-- This matches the confirmed v13 test direction: `$0F` can be clobbered by
-  other runtime code and caused short, irregular firing intervals.
-- Updated the prototype defaults to C=`$90`, A=`$80`, B=`$70`.
-
-## v0.7.115 (2026-05-29) Mark Panel Variant v11 baseline
-- Added the C-group direction-table wrapper used by the confirmed v11 test ROM,
-  so `$35` maps to the intended right-facing Panel Monster direction.
-- Disabled automatic PRG1 stage-table interval application for now because the
-  v10 table-loading path can break Bullet firing. The confirmed baseline is the
-  v11 fixed-interval state0 hook.
-
-## v0.7.114 (2026-05-29) Fix Panel Variant RAM interval branches
-- Corrected the Panel Variant state0 interval helper branch distances after
-  changing fixed `LDX #imm` delays to `LDX $0740-$0742` RAM reads.
-- This keeps the helper from skipping `STX $0F`, which could leave the firing
-  compare without the intended C/A/B interval value.
-
-## v0.7.113 (2026-05-29) Move Panel Variant interval hook to state0
-- Moved the Panel Variant interval prototype off the state1 mouth-delay path
-  and onto the state0 firing interval compare at `$A575/$A579`.
-- Added a `$C088` helper that selects C/A/B thresholds from `$0740-$0742`;
-  state1 keeps the stock `$10` pre-shot mouth delay.
-- Updated the default prototype intervals to C=`$50`, A=`$40`, B=`$30`, matching
-  the confirmed state0 test ROM behavior.
-
-## v0.7.112 (2026-05-29) Add Panel Variant stage table loader
-- Added a PRG1 `PanelVariantStageTable` at `0x8A70-0x8E7F` and a combined
-  mapper66 runtime loader at `0x8A10-0x8A6F`.
-- The loader preserves the existing StageExt runtime copies, then copies the
-  current room's 16-byte Panel Variant cache to `$0740-$074F`.
-- Wired saves to apply this prototype only when A/B/C Panel Variant IDs are
-  present and the ROM already has the ABC prototype wrappers, avoiding clean
-  ROMs that do not yet have the new AI path.
-- Updated the RAM/ROM maps and the Panel Variant plan with the final table
-  offset used by this implementation.
-
-## v0.7.111 (2026-05-29) Split Panel stage variant prototype module
-- Added `panel_monster_stage_variant.py` as a separate core module for the
-  Panel Monster A/B/C stage-variant work, keeping it out of the existing
-  2-way/3-way Panel Monster module.
-- Captured the v4 RAM-interval prototype shape: v7 return points are kept,
-  group intervals are read from `$0740-$0742`, and temporary RAM seeding is
-  outside the hot firing gate.
-
-## v0.7.110 (2026-05-27) Gate Panel Bullet offsets with dedicated markers
-- Removed the unsafe Saramandor child-marker cleanup approach.
-- Changed Panel Monster diagonal Bullet markers to use bit7-tagged values, and
-  changed the Bullet hook to ignore untagged `sub+7` values.
-- This keeps Panel Monster diagonal offsets working while preventing
-  Saramandor #2 Bullets from being mistaken for Panel Bullets.
-- Updated the ROM map: Panel Monster Bullet hook is now 78B, Saramandor
-  variant cave use is back to 165B, and bank0 cave free space is 213B.
-
-## v0.7.107 (2026-05-27) Give Saramandor #2 six-tile reaction range
-- Added a `$B1E9` distance-check hook for Saramandor #2 IDs
-  `$5E/$5F/$62/$63`.
-- The enhanced Saramandor IDs now use X reaction threshold `$60` (6 tiles);
-  stock Saramandor and Dragon keep the original shared `$14` threshold.
-- Stopped applying the old UI-side shared Saramandor/Dragon distance rewrite,
-  so this range change is variant-only.
-- Updated the ROM map: bank0 cave free space is now 217B; the largest
-  contiguous free span is 58B at `$C088-$C0C1`.
-
-## v0.7.106 (2026-05-27) Remove Saramandor slow Bullet speed
-- Removed the Saramandor #2 quarter-speed Bullet override. `$5E/$5F` and
-  `$62/$63` now both spawn normal-speed Bullets.
-- Removed the active `$B121`, `$AFD1`, and `$866D` slow-Bullet marker/speed
-  hooks from the current patch path.
-- Reduced the Saramandor variant reserved cave space from 210B to 101B,
-  reclaiming 109B in bank0 cave space. The ROM map now lists 281B free, with
-  an 80B largest contiguous span at `$BF00-$BF4F`.
-
-## v0.7.105 (2026-05-27) Compact Panel Monster fire dispatch
-- Reduced the Panel Monster fire dispatch from 45B to 31B by pair-normalizing
-  the parent type with `AND #$FE` and comparing only the four accepted base IDs.
-- Reclaimed `$BCF1-$BCFE` as a new 14B bank0 cave gap.
-- Updated the ROM map: bank0 cave free space is now 172B; the largest
-  contiguous free span remains 58B.
-
-## v0.7.104 (2026-05-27) Add Panel Bullet speed symmetry fix
-- Added a Panel Monster enemy setting named "弾の左右速度バグ修正".
-- The option rewrites only the stock Bullet velocity table entries for right,
-  left, up, and down Panel shots, so it consumes no ROM cave space.
-- Added directional `$30/$50` and `$3F/$41` selector pairs around the `$40`
-  boundary; raw `$41` is not written to right/down shots.
-
-## v0.7.103 (2026-05-27) Compact Panel Monster fire caves
-- Replaced the separate Panel Monster normal / 2-way / 3-way fire bodies with
-  one shared marker-table fire loop at `$BD88`.
-- Reclaimed the old normal fire copy `$BFB9-$BFD7` and old 2-way cave
-  `$C088-$C0C1` when those exact legacy bytes are present.
-- Updated the ROM map: bank0 cave free space is now 158B, with the largest
-  contiguous free span at 58B.
-- Updated the Panel Monster ASM note so future work treats `$BD88` as the
-  common fire loop and `$BFB3-$BFD7` / `$C088-$C0C1` as reclaimed space.
-
-## v0.7.102 (2026-05-27) Complete Panel Monster fast-Bullet analysis
-- Extended the Panel Monster ASM note with the current custom 2-way/3-way
-  hooks, Bullet collision helpers, safe fast-Bullet design, and remaining
-  byte-level unknowns.
-- Documented that a future fast Panel Bullet must hook the Bullet moving state
-  and pair each movement substep with `$AC39` collision sampling, while
-  preserving the existing diagonal correction hook.
-
-## v0.7.101 (2026-05-27) Document Panel Monster ASM
-- Added `docs/panel_monster_asm_analysis.md` with the Panel Monster fire flow,
-  Bullet materialization path, Bullet wall-collision path, and speed-init notes.
-- Recorded why the fast-Bullet experiments that only changed velocity or reran
-  generic physics are unsafe: Bullet wall collision lives in `$AFD8/$AC39`, not
-  in `$8689`.
-- Linked the new analysis from the ROM map and allowed it through the repository
-  whitelist.
-
-## v0.7.100 (2026-05-26) Group enemy settings visually
-- Reordered the Enemy settings dialog by monster family so related controls are
-  closer together.
-- Added monster sprites to Enemy settings groups when a ROM renderer is
-  available.
-
-## v0.7.99 (2026-05-26) Accept Gargoyle snappy wait in variant patch
-- Fixed strengthened Gargoyle patch validation to accept the app's own snappy
-  Gargoyle `$AF2B` wait value `$01`.
-- Stopped the strengthened Gargoyle patch from restoring `$AF2B` to `$68`
-  unless it is removing the old rapid-fire experiment hook.
-
-## v0.7.98 (2026-05-26) Remove Gargoyle speed tuning UI
-- Removed the strengthened Gargoyle second-shot speed control because the
-  runtime value is not a reliable user-facing speed setting.
-- Kept the strengthened Gargoyle second-shot position control and apply the
-  internal second-shot velocity correction at its standard value.
-
-## v0.7.97 (2026-05-26) Fix Gargoyle two-shot gate branch
-- Fixed the strengthened Gargoyle `$7A/$7B/$7E/$7F` gate so matching IDs jump
-  to the two-shot routine instead of into the stock materialization tail.
-
-## v0.7.96 (2026-05-26) Add strengthened Gargoyle tuning
-- Added enemy UI controls for strengthened Gargoyle second-shot offset and
-  second-shot speed.
-- Preserved custom strengthened Gargoyle tuning when the variant patch is
-  reapplied during ROM save.
-
-## v0.7.95 (2026-05-26) Add Gargoyle two-shot speed 2
-- Added strengthened Gargoyle two-shot speed-2 IDs `$7E/$7F`, including picker
-  speed switching, enemy labels, save detection, and the runtime gate.
-
-## v0.7.94 (2026-05-26) Detect panel hack spark hybrid state
-- Updated the Panel Monster behavior-control detector to accept the same
-  stock-panel/current-Spark hybrid state handled by the variant patch, so the
-  Enemy dialog no longer disables Panel Monster controls for that ROM state.
-
-## v0.7.93 (2026-05-26) Accept orig-panel spark hybrid state
-- Fixed Panel Monster variant verification to accept ROMs where the stock
-  Panel fire code head remains at `$A556` while the current Spark property hook
-  body starts at `$A559`, allowing the save/test pipeline to restore the Panel
-  dispatch before Spark is reapplied.
-
-## v0.7.92 (2026-05-26) Accept panel and spark hook overlap
-- Fixed Panel Monster variant verification to accept the current layout where
-  the Panel fire dispatch jump at `$A556` coexists with the Spark Ball property
-  hook starting at `$A559`.
-
-## v0.7.91 (2026-05-26) Fix hidden behavior dialog widgets
-- Kept hidden behavior-dialog groups alive so opening the Enemy-only view no
-  longer deletes widgets that shared apply/export code may read.
-
-## v0.7.90 (2026-05-26) Add strengthened Spark Ball tuning
-- Added enemy UI controls for strengthened Spark Ball pause digits and
-  transparent Spark Ball blink mask tuning.
-- Preserved custom strengthened Spark Ball tuning when the variant patch is
-  reapplied during ROM save.
-
-## v0.7.89 (2026-05-26) Hide salamander behavior group
-- Removed the Salamander behavior group from the visible enemy behavior UI.
-
-## v0.7.88 (2026-05-26) Hide salamander Y tolerance
-- Removed the Salamander Y tolerance control from the visible enemy behavior UI.
-
-## v0.7.87 (2026-05-26) Split enemy behavior entry
-- Added a top-level Enemy button beside game behavior editing, and separated
-  enemy AI settings from the general game behavior dialog.
-
-## v0.7.86 (2026-05-26) Flatten behavior dialog layout
-- Removed the game behavior dialog tabs so enemy and non-enemy settings appear
-  together, and moved the special process viewer into the dialog.
-
-## v0.7.85 (2026-05-26) Move related edit buttons
-- Moved enemy drop, demo input, and clear message editing into the game behavior
-  dialog, and removed those buttons from the left edit-tools panel.
-
-## v0.7.84 (2026-05-26) Apply font settings immediately
-- Fixed settings dialog font changes so edited spin-box values are committed and
-  the font is reapplied to existing windows immediately after OK/Apply.
-
-## v0.7.83 (2026-05-26) Add stage selector pane toggle
-- Added a display option to show or hide the right-side stage selector pane,
-  preserving space on smaller screens.
-
-## v0.7.82 (2026-05-26) Unify visible stage labels
-- Unified visible UI/manual wording from レベル/Level to ステージ/Stage where it
-  refers to the playable stage, leaving internal names unchanged.
-
-## v0.7.81 (2026-05-26) Rename global time setting
-- Renamed the global time-rate section in the behavior dialog to
-  ステージ制限時間.
-
-## v0.7.80 (2026-05-26) Round time limit seconds
-- Renamed the level time selector display to 制限時間 and rounded its estimated
-  seconds to whole numbers.
-
-## v0.7.79 (2026-05-26) Move mirror lifetime hint
-- Moved the mirror enemy lifetime seconds estimate to a second line so the field
-  label stays compact.
-
-## v0.7.78 (2026-05-26) Show time-rate seconds
-- Replaced the level time decrease hint with estimated seconds calculated from
-  the current ROM time-rate table.
-
-## v0.7.77 (2026-05-26) Show mirror lifetime seconds
-- Updated the mirror enemy lifetime label to show the approximate seconds in
-  real time as the value changes.
-
-## v0.7.76 (2026-05-26) Emphasize test play button
-- Made the test play button larger and green so it stands out as the playback
-  action in the file panel.
-
-## v0.7.75 (2026-05-26) Rename window title
-- Changed the main window title from `MAGATU_SOLOMON_CUSTOMIZER` to
-  `SOLOMON_CUSTOMIZER`.
-- Changed the Windows AppUserModelID from `Chaos.MAGATU.SOLOMON_CUSTOMIZER`
-  to `Chaos.SOLOMON_CUSTOMIZER`.
-- Changed the mapper66 ROM metadata magic from `MAGATU_SC_META` to
-  `SOLOMON_CUSTOMIZER_META`.
-- Changed the session log header to `SOLOMON_CUSTOMIZER セッションログ`.
-- Changed the PNG-embedded XML root from `magatu_solomon_customizer` to
-  `solomon_customizer`, and renamed the format-version constant accordingly.
-- Updated user-facing README/MANUAL/docs names from `MAGATU_SOLOMON_CUSTOMIZER`
-  to `SOLOMON_CUSTOMIZER`; the internal `magatu_skc` package name is unchanged.
-
-## v0.7.74 (2026-05-26) Correct freed ROM byte counts
-- Corrected `docs/rom_map_jp_mapper66_current.html` after the special-cell
-  runtime rewrite: bank0 cave free bytes are now 81B total with a 19B largest
-  contiguous gap.
-- Clarified that the old PRG1 runtime block override table frees a 1,696B
-  candidate reserve, increasing the practical PRG1 reserve total.
-
-## v0.7.73 (2026-05-26) Clarify freed RAM candidates
-- Updated `docs/ram_map_current.html` and the `room_flags.py` RAM ledger mirror
-  to show `$0740-$075F` as the primary 32-byte freed candidate after the direct
-  m66 special-cell migration.
-- Removed the stale wording that implied only the `$077D-$077F` 3-byte tail was
-  available for future custom RAM.
-
-## v0.7.72 (2026-05-26) Store special blocks as m66 cell IDs
-- Changed mapper66 special blocks to be stored directly in stage map cells:
-  `0xF9` breakable white, `0xFA` passable white, `0x40` invisible solid,
-  and `0x50` invisible breakable.
-- Replaced the old 32-byte `$0740-$075F` runtime block override list with a
-  `$0304` grid scanner that converts those direct cell IDs after drawing.
-- Disabled the old PRG1 runtime block override copy and clears the legacy
-  per-room cell table on save.
-
-## v0.7.71 (2026-05-26) Record EA fill candidates
-- Added remaining PRG0 original `EA` fill candidates to
-  `docs/rom_map_jp_mapper66_current.html`.
-
-## v0.7.70 (2026-05-26) Inventory module ROM writes
-- Added a PRG0 module-by-module write ledger to
-  `docs/rom_map_jp_mapper66_current.html`.
-- Marked original `00`/`EA` fill areas already overwritten by app modules so
-  they are not mistaken for free space.
-- Moved the Transparent Spark Ball Golem-ID AI wrapper from `$8BE2` to the
-  original `00` fill at `$E80C`, leaving `$8BE2-$8BFD` for initial magic/lives.
-- Recorded the main remaining PRG0 original `00` fill candidates for small
-  future routines.
-
-## v0.7.69 (2026-05-26) Remove personal path references
-- Removed local user/path references from tracked source comments and changelog
-  entries while preserving the technical meaning.
-
-## v0.7.68 (2026-05-26) Add GitHub README
-- Added `README.md` as the GitHub landing document with setup, launch, ROM
-  policy, supported outputs, and links to the full manual.
-- Added `README.md` to the repository whitelist.
-
-## v0.7.67 (2026-05-26) Remove local file dialog dependency
-- Replaced the machine-local `file_dialog` imports with an in-repository
-  `QFileDialog` compatibility wrapper.
-- Removed the hard-coded startup `sys.path` entry for a machine-local helper
-  directory.
-- Added `requirements.txt` so a fresh checkout declares the external `PyQt5`
-  dependency.
-
-## v0.7.66 (2026-05-25) Fix vertical Panel Monster spread axis
-- Fixed Panel Monster 2-way/3-way spread so vertical variants offset bullet X
-  while horizontal variants continue to offset bullet Y.
-- Confirmed the issue with Mesen logs: `PM3_DOWN` shots were still reaching
-  the `$BF69` spread hook and writing `ptr2E+7/Y` at `$BF98`.
-- Expanded the Panel Monster bullet hook from 70B to 74B, consuming 4B from
-  the small `$BFAF-$BFB8` gap without overlapping the normal fire copy.
-
-## v0.7.65 (2026-05-25) Show bank0 cave free bytes
-- Added exact bank0 cave free-space accounting to the ROM map:
-  `$BBDE-$C1FF` has 1,570B total, 1,504B reserved, 66B unreserved, and the
-  largest contiguous gap is 18B.
-- Listed each remaining unreserved fragment so future ROM allocations do not
-  rely on the visual bar alone.
-
-## v0.7.64 (2026-05-25) Refresh ROM/RAM ledgers
-- Updated the ROM/RAM ledger documents with explicit operation rules: no new
-  address use without checking the ledgers and implementation reservation
-  spans, and no release with unresolved overlap or undocumented reservations.
-- Refreshed stale Spark Ball / Panel Monster ROM-map entries around `$BE62`,
-  `$A559`, `$C0C2`, and `$DBDF` based on the current implementation.
-- Fixed the RAM ledger mirror in `room_flags.py` so only `$077D-$077F` remains
-  a free candidate; `$077A-$077B` is documented as block override work.
-
-## v0.7.63 (2026-05-25) Add encoding safety rules
-- Added Japanese-file and encoding safety rules to `AGENTS.md` to prevent
-  unnoticed mojibake, comment loss, or accidental full-file rewrites.
-- The rules require UTF-8 reads for Japanese files, ASCII-only patch anchors,
-  minimal diffs, and post-edit UTF-8 checks before continuing.
-
-## v0.7.62 (2026-05-25) Localize agent rules
-- Rewrote `AGENTS.md` in Japanese so project operating rules are easier to
-  review and less likely to be misunderstood in this Japanese-led workflow.
-- Preserved the existing backup/version/changelog, no-backward-compatibility,
-  and JP mapper66 wide-title ROM support policies.
-
-## v0.7.61 (2026-05-25) Record original ROM CRC
-- Added `original_rom_crc32` and `original_rom_size` to the ROM-save global
-  sidecar so the source ROM used for reconstruction can be identified later.
-- These fields are metadata only; import/rebuild logic does not depend on them.
-
-## v0.7.60 (2026-05-25) Compact global byte data
-- Changed global sidecar byte-table fields from long decimal arrays to compact
-  uppercase hex strings:
-  `main_palette_hex`, `demo_input_wait_hex`, `demo_input_joy_hex`,
-  `enemy_drop_c278_hex`, `enemy_drop_c293_hex`, and `clear_message_hex`.
-- Import now expects the new hex-string fields only, with no compatibility path
-  for the short-lived decimal-array format.
-
-## v0.7.59 (2026-05-25) Add missing global byte tables
-- Added ROM-backed global tables to the common settings JSON so ROM save sidecars
-  preserve more non-level edits:
-  `main_palette_bytes`, `demo_input_wait_bytes`, `demo_input_joy_bytes`,
-  `enemy_drop_c278_bytes`, `enemy_drop_c293_bytes`, and `clear_message_bytes`.
-- Importing common settings now restores those byte tables directly and fails on
-  invalid lengths rather than attempting old-format compatibility.
-- Rechecked Game Behavior settings export: combo values are stored as numeric
-  data or stable ids, not UI labels.
-
-## v0.7.58 (2026-05-25) Store clear-screen preset by id
-- Added the project rule that backward compatibility is intentionally ignored
-  until the user explicitly declares a compatibility baseline version.
-- Changed `clear_screen_preset` in global settings JSON from UI label text to
-  the stable internal id such as `fairy_original`.
-- Clear-screen preset UI labels can now change without changing the saved JSON
-  value.
-
-## v0.7.57 (2026-05-25) Save project data with ROM
-- ROM save now also writes the reproducible project sidecars next to the saved
-  ROM: `<rom>_global_settings.json` and `<rom>_stage_data/level_01.png` through
-  `level_53.png`.
-- The stage PNG files reuse the existing embedded XML format, and the JSON file
-  reuses the existing common-settings export format with the saved ROM name,
-  stage-data folder name, and current title extra text included.
-- If sidecar export fails after the ROM file was written, the app warns without
-  pretending the ROM file itself failed.
-
-## v0.7.56 (2026-05-25) Stamp empty title text on save
-- When saving ROM data, the title extra-text line is now checked. If it is
-  empty, the save output receives a `BUILD YYYYMMDD HHMMSS` timestamp so the
-  build can be identified from the game's title screen.
-- Existing title extra text is preserved unchanged.
-
-## v0.7.55 (2026-05-25) Validate save consistency
-- Added save-time level consistency validation for key-carrying enemies: saving
-  now stops if a stage selects key enemy #N while the stage has fewer than N
-  initial enemies.
-- Built ROM/IPS save data on a temporary ROM copy before writing output, so a
-  failed validation or later save error does not leave the open ROM data
-  partially modified.
-
-## v0.7.54 (2026-05-25) Add fast-start testplay only
-- Added an F9 testplay-only title/start-screen shortcut based on the confirmed
-  raw-JP 3-byte title skip plus three start-screen wait skips.
-- The shortcut is applied only to the temporary testplay ROM and is restored
-  from `rom.data` immediately afterward, so normal ROM save and IPS export do
-  not receive the fast-start patch.
-
-## v0.7.53 (2026-05-25) Add invisible Spark Ball variants
-- Added transparent Spark Ball variants on the borrowed Golem #2 IDs:
-  `$72/$73/$76/$77`.
-- Routed those IDs through the confirmed Spark Ball movement routines and added
-  an OAM post-draw hide hook for the accepted slow blink effect.
-- Placed the new runtime code only in confirmed EA padding spans, avoiding the
-  `0x500C` data area that corrupts stage graphics if overwritten.
-- Updated enemy picker/config labels and speed mapping for the new variants.
-
-## v0.7.52 (2026-05-24) Move Spark Ball and Demonhead settings
-- Moved the Spark Ball speed and Demonhead snappy controls into the enemy
-  settings tab.
-- No ROM patch behavior changed.
-
-## v0.7.51 (2026-05-24) Document JP66 editing policy
-- Added the core ROM support policy to `AGENTS.md`: raw Japanese ROMs are only
-  the input entry point, and normal editing targets the app-converted Japanese
-  mapper66 wide-title expanded ROM.
-- Clarified that US ROMs are source material only, such as title import, and
-  should not receive edit-compatibility maintenance unless explicitly requested.
-
-## v0.7.50 (2026-05-24) Keep Demonhead tweak JP66-only
-- Restricted the Demonhead snappy wait patch back to the JP bank0 layout used
-  by the customizer instead of maintaining shifted US-style edit support.
-- This keeps US ROM handling aligned with the manual: US assets can be used as
-  title material, but US ROMs are not normal edit targets.
-
-## v0.7.49 (2026-05-24) Add Demonhead snappy turn wait
-- Added a Demonhead snappy setting that minimizes the post-spawn/post-turn
-  startup wait from `$0F` to `$01`.
-- The patch locates the Demonhead wait instruction sequence dynamically, so it
-  works with the JP address `$B2A7` and shifted US-style layouts.
-
-## v0.7.48 (2026-05-24) Add Spark Ball speed multiplier
-- Added a Spark Ball movement speed multiplier setting for the dedicated
-  `$A9DF/$A9E7` signed delta tables.
-- The setting updates both speed 1 and speed 2 directions, affecting stock
-  Spark Balls and the Dragon-ID Spark Ball variants that enter `$A929/$A92D`.
-
-## v0.7.47 (2026-05-24) Fix Panel Monster snappy variant save
-- Fixed Panel Monster borrowed-ID variant application failing when the snappy
-  pre-shot delay had already changed `$A55B` from `$10` to `$01`.
-- Propagated the snappy delay into the Panel Monster normal/2-way/3-way cave
-  routines after the variant hook is installed, so the setting keeps working
-  after save/testplay preparation.
-
-## v0.7.46 (2026-05-24) Add Neul and Ghost speed setting
-- Added a "ゴースト＆ヌエル移動速度" enemy-AI setting that applies one
-  multiplier to Ghost X speed and Neul Y speed.
-- The setting updates both SP1 and SP2 speed-table pairs, so normal and
-  noslow variants stay consistent with the picker speed system.
-- Avoids `$40`, the engine's speed-update skip marker, and keeps negative
-  speeds in the verified `$41-$7F` range when calculating multiplier-derived
-  speed bytes.
-
-## v0.7.45 (2026-05-24) Always edit Panel Monster cooldown
-- Removed the extra Panel Monster cooldown-enable checkbox; the frame value is
-  now the setting itself, with the original 192F shown as the default.
-- Clarified the warning for very short cooldown values: the risk is exhausting
-  the 17 shared sub-slots, which can cause missed shots or inconsistent bullet
-  spawning in rooms with multiple firing enemies.
-
-## v0.7.44 (2026-05-24) Add Panel Monster snappy fire wait
-- Added a Panel Monster "キビキビ動作" setting that changes the pre-shot wait
-  at `$A55B` from `$10` to `$01`.
-- Renamed the existing Panel Monster interval control to cooldown and changed
-  the UI to edit `$A57A` directly in frame units.
-- Kept cooldown restoration separate from the snappy toggle so each setting can
-  be changed independently.
-
-## v0.7.43 (2026-05-24) Move shared monster speed out of Golem
-- Moved the shared Golem/Dragon/Gargoyle s0 walk-speed control into its own
-  enemy-AI group instead of keeping it inside the Golem group.
-- Removed the Golem-only walk-speed and charge-speed controls from the dialog
-  for now to avoid confusing shared speed with Golem-specific speed.
-- Applying the dialog now changes only the shared s0 walk-speed pair
-  `0x5BE0/0x5BE2` for that setting.
-
-## v0.7.42 (2026-05-24) Split shared monster walk speed
-- Split the former Golem walk-speed control into a shared s0 walk speed for
-  Golem/Dragon/Gargoyle and a separate Golem s1 walk speed.
-- Kept Golem charge speed as its own s1-only control.
-- Updated global settings export/import to include the shared monster walk
-  speed separately.
-
-## v0.7.41 (2026-05-24) Add Dragon snappy behavior
-- Added a Dragon "キビキビ動作" global setting that minimizes the Dragon-only
-  pre-attack wait at `$A693` / file `0x26A3` to `$01`.
-- Kept the shared Saramandor flame startup wait `$B0E8` unchanged so the
-  setting affects Dragon's own wait without changing Saramandor timing.
-- Included the new Dragon setting in global settings export/import and reset.
-
-## v0.7.40 (2026-05-24) Split Gargoyle cooldown setting
-- Added Gargoyle's pre-materialize wait `$AE6C` to the "キビキビ動作" toggle,
-  so the snappy setting now minimizes three non-cooldown waits.
-- Added a separate Gargoyle post-shot cooldown control for `$AE49`, keeping it
-  out of the one-frame snappy toggle to avoid object-pool flooding.
-- Included the cooldown value in global settings export/import and reset.
-
-## v0.7.39 (2026-05-24) Hide top canvas border
-- Removed the editor-only top decorative wall row from level canvas rendering
-  while keeping the left and bottom decorative walls.
-- Updated object-label positioning so labels stay aligned with the new
-  border layout.
-
-## v0.7.38 (2026-05-24) Add Gargoyle snappy behavior
-- Added a Gargoyle "キビキビ動作" global setting that writes both confirmed
-  Gargoyle wait thresholds to `$01`.
-- The tweak restores the original `$68/$18` values when disabled and is kept
-  separate from the borrowed-ID Gargoyle two-bullet variant.
-- Included the new setting in global settings export/import and reset handling.
-
-## v0.7.37 (2026-05-24) Simplify demo stage setting
-- Removed the extra "change demo stage" checkbox from the game-behavior dialog.
-- The demo stage spinbox now defaults to the ROM's current value, so an
-  unmodified ROM shows the original 3面 instead of 6面.
-- Applying the dialog now writes the selected demo stage directly; selecting
-  3面 naturally restores the original value.
-
-## v0.7.36 (2026-05-24) Clear wide title before attract demo
-- Added a title-timeout-only hook at `$CB9E` that clears the stale wide-title
-  nametable with `$CC18` before scheduling the original attract-demo action
-  `$18`.
-- Reserved the 9-byte `$BC0E-$BC16` / file `0x3C1E-0x3C26` stub in the PRG0
-  cave ledger so it does not collide with room flags or the key-enemy runtime.
-- Existing current wide-title ROMs receive the cleanup hook on save; fresh
-  wide-title normalization writes it immediately.
-
-## v0.7.35 (2026-05-24) Move wide-title RAM trampoline
-- Moved the mapper66 wide-title RAM trampoline from `$03C0-$03CD` to
-  `$072C-$0739` after static analysis confirmed `$03C0-$03DF` is inside the
-  room block grid `$0304-$03E3`.
-- Added save-time migration for already-normalized internal wide-title ROMs
-  that still contain the old `$03C0` bootstrap.
-- Updated the RAM ledger/map to reserve `$072C-$0739` and mark the old block
-  grid overlap as forbidden.
-
-## v0.7.34 (2026-05-24) Revert CHR0 wide-title return
-- Reverted v0.7.33 after testing showed that returning the wide-title
-  trampoline to `PRG0+CHR0` corrupts the following game/start screen.
-- Restored the previous `PRG0+CHR3` return byte and removed the automatic
-  CHR0 normalization.
-
-## v0.7.33 (2026-05-24) Return wide title to CHR0
-- Changed the mapper66 wide-title RAM trampoline return bank from
-  `PRG0+CHR3` to `PRG0+CHR0`, so title rendering does not leave CHR bank3
-  selected for demo pre-start, start, or clear screens.
-- Added load/save normalization for already-wide ROMs that still contain the
-  old `PRG0+CHR3` return byte.
-
-## v0.7.32 (2026-05-24) Revert title idle demo cleanup patch
-- Removed the action `$18` demo cleanup reroute and the `$BC0E` stub after it
-  caused non-demo screen transitions and the clear screen to render incorrectly.
-- Restored fresh wide-title normalization/saves to leave the original `$CBBB`
-  attract-demo entry unchanged.
-- Removed the temporary stub reservation from the ROM map and overlap ledger.
-
-## v0.7.31 (2026-05-24) Keep attract demo mode after title cleanup
-- Replaced the v0.7.30 direct `$CBB3` action-table route with a 6-byte stub at
-  `$BC0E` / file `0x3C1E` that runs only `JSR $CC18` and then jumps back to the
-  original `$CBBB` attract-demo entry.
-- This keeps title-idle demo playback from turning into a normal auto-start
-  while still clearing wide-title nametable leftovers before the SHRINE/ROOM
-  screen.
-- Added the stub span to the bank0 cave reservation ledger and ROM map.
-
-## v0.7.30 (2026-05-24) Fix wide-title demo start cleanup
-- Routed the title-idle demo action through the same `$CBB3` start-screen
-  cleanup path used by manual Start, so wide-title nametable remnants do not
-  leak into the SHRINE/ROOM demo pre-start screen.
-- Applied the repair when JP mapper66 ROMs are loaded/saved, including ROMs
-  that were already in the internal wide-title format.
-
-## v0.7.29 (2026-05-24) Isolate title top PNG palette import
-- Changed 4-color Top PNG import so imported PNG colors are assigned only to a
-  title palette slot that is unused outside the imported top band.
-- Kept the universal background color and existing lower title palette usage
-  untouched so the mountain/shrine area is not recolored by a top-only import.
-
-## v0.7.28 (2026-05-24) Fix 4-color title top PNG import
-- Added a dedicated 4-color Top PNG import path that maps PNG colors directly
-  to title CHR pixel indices instead of re-quantizing through the existing
-  title attribute palettes.
-- The importer now updates title palette #0 and forces the stored top title
-  attributes to palette #0 so clean 4-color 256x64 title art stays intact.
-
-## v0.7.27 (2026-05-24) Move wall colors into palette editor
-- Moved the 4-stage wall color controls from the game-behavior dialog into the
-  palette editor so they use the same 64-color picker workflow.
-- Palette Apply now refreshes the wall-color preview on the canvas and
-  regenerates the level thumbnails.
-
-## v0.7.26 (2026-05-24) Match bundled palette file
-- Replaced the shared NES RGB palette with the exact raw RGB values from
-  a 192-byte palette reference file.
-- This supersedes the previous hand-entered palette table after binary
-  verification showed that it did not match the palette file.
-
-## v0.7.25 (2026-05-24) Use Mesen NES palette
-- Replaced the shared NES RGB palette with the Mesen palette values supplied
-  from emulator data.
-- Palette-dependent previews now use the same color basis across the canvas,
-  pickers, palette editor, sprite viewer, title preview, and wall-color swatches.
-
-## v0.7.24 (2026-05-24) Preview stage wall colors
-- Replaced the stage wall color numeric fields with NES color swatch selectors.
-- Synced edited wall colors into the main canvas and the right-side level
-  thumbnails after applying game-behavior changes.
-
-## v0.7.23 (2026-05-24) Add stage wall color table editor
-- Added game-behavior controls for the 12 normal-stage wall color table entries
-  at ROM `$9122` / file offset `0x1132`.
-- The editor changes stages 1-48 in four-stage groups and intentionally leaves
-  the trailing `$80/$80` special-stage markers untouched.
-
-## v0.7.22 (2026-05-24) Fix canvas label overlay placement
-- Fixed object label background rectangles being placed with mixed scene/local
-  coordinates, which caused black label boxes to appear offset from the text.
-- Tightened stacked label spacing for labels on the same tile.
-
-## v0.7.21 (2026-05-24) Render object labels as UI overlay
-- Changed canvas object labels from burned-in image text to QGraphicsView overlay
-  text so labels stay crisp when the level canvas is scaled.
-- Removed the internal image-rendered label path to avoid pixelated text.
-
-## v0.7.20 (2026-05-24) Color mirror enemy row labels
-- Colored the mirror enemy row labels in the picker: M1 is red and M2 is blue.
-
-## v0.7.19 (2026-05-24) Add canvas object labels
-- Added a display option that overlays short labels on canvas objects such as
-  items, enemies, key, door, mirrors, start position, constellation, and special
-  meta items.
-- Current-level and all-level PNG exports include the object labels when the
-  display option is enabled.
-
-## v0.7.18 (2026-05-24) Limit title text input
-- Limited the title additional-text dialog input field to 32 characters so
-  overlong text cannot be typed or pasted in the UI.
-
-## v0.7.17 (2026-05-24) Fix US66 title source detection
-- Fixed mapper66-expanded US ROMs being detected as JP66 during title import,
-  which caused the imported title preview to use the wrong nametable layout.
-- Expanded ROM region detection now prefers the original PRG JP/US signature
-  before the shared mapper66 loader marker.
-
-## v0.7.16 (2026-05-24) Remove legacy title image buttons
-- Removed the old full-screen title image save/import buttons from the title
-  migration dialog.  The focused Top PNG controls remain available.
-
-## v0.7.15 (2026-05-24) Limit per-level time-rate selector
-- Restricted the per-level time decrease selector to 0-2 because values 3 and
-  above are not valid table selectors.
-
-## v0.7.14 (2026-05-24) Show time-rate duration estimates
-- Added real-time duration estimates beside the three global LIFE decrease
-  table values in the game-behavior dialog.
-
-## v0.7.13 (2026-05-24) Add global time decrease table hack
-- Added game-behavior controls for the three global LIFE decrease table values:
-  fast, normal, and slow.
-- The controls edit the original `$9942` table directly without using PRG0
-  cave space.
-
-## v0.7.12 (2026-05-24) Split time decrease hint label
-- Moved the time decrease rate value guide onto a second line so the level
-  settings form no longer stretches horizontally.
-
-## v0.7.11 (2026-05-24) Clarify time decrease rate labels
-- Updated the level setting label to show the meaning of the time decrease
-  values: 0 is fast, 1 is normal, and 2 is slow.
-
-## v0.7.10 (2026-05-24) Fix stats lifetime column lookup
-- Fixed the all-level stats dialog crash caused by renaming the enemy lifetime
-  column header without updating its internal column lookup.
-
-## v0.7.9 (2026-05-24) Simplify game-hack dialog tabs
-- Reduced the game behavior hack dialog from five tabs to two tabs: enemy and
-  non-enemy settings.
-- Existing enemy/AI controls now appear under the enemy tab; all other controls
-  are grouped under non-enemy.
-
-## v0.7.8 (2026-05-24) Clarify mirror enemy lifetime units
-- Updated the level settings and mirror detail labels to show that enemy
-  lifetime is roughly 0.5 seconds multiplied by the configured value.
-- Added tooltips with measured examples and adjusted the stats/manual wording.
-
-## v0.7.7 (2026-05-24) Reframe distribution manual as user guide
-- Revised the distribution HTML manual as an operation-focused user guide.
-- Added a prominent feature summary and Japanese-first headings with English
-  labels for GitHub-style presentation.
-
-## v0.7.6 (2026-05-24) Add distribution HTML manual
-- Added `docs/distribution_manual.html` as a GitHub-style user manual for
-  distribution.
-- The manual explains supported ROMs, the Japanese-ROM basis, basic editing,
-  stage settings, enhanced enemies, start-screen announcements, and output
-  guidance.
-
-## v0.7.5 (2026-05-24) Add adjustable gray UI setting
-- Added a settings control for the application-wide gray UI tone.
-- The gray tone is now stored in the app config and applied immediately from
-  the settings dialog.
-
-## v0.7.4 (2026-05-24) Add softer gray UI theme
-- Added a shared Qt stylesheet that changes the default white UI surfaces to a
-  softer gray palette while keeping the editor canvas unchanged.
-
-## v0.7.3 (2026-05-24) Merge level info into settings
-- Removed the separate level-info group and moved the remaining summary into
-  the level-settings group.
-- Hid redundant key position, door position, start position, and key-enemy
-  number text from the summary because those are edited or visible elsewhere.
-
-## v0.7.2 (2026-05-24) Show loaded ROM metadata version
-- Display the embedded MAGATU_SOLOMON_CUSTOMIZER version in the ROM info panel
-  when loading a ROM that already contains the metadata stamp.
-
-## v0.7.1 (2026-05-24) Constrain key enemy selector
-- Limited the key-carrying enemy selector to the number of enemies currently
-  placed in the selected stage.
-- When enemy deletion makes the saved key enemy number invalid, the setting is
-  cleared and a warning is shown instead of leaving an out-of-range target.
-
-## v0.7.0 (2026-05-24) Minimum feature milestone
-- Marked the first 0.7 release as the milestone where the current minimum
-  target feature set is in place.
-- This release includes the accepted stage settings foundation, key-carrying
-  enemy support, start-of-stage fire reset, stage-start announcements, and the
-  current enhanced enemy variants.
-
-## v0.6.173 (2026-05-24) Fix key-enemy announcement gate branch
-- Fixed the stage-start announcement key-enemy gate at `$B3C0`: the no-key
-  branch now lands on the routine `RTS` instead of one byte after it.
-- This fixes room 4+ test play freezing on the start screen when the
-  announcement overlay is installed but the current room has no key enemy.
-
-## v0.6.172 (2026-05-24) Add room4 start-freeze probe
-- Added `mesen_probes/lua/start_screen_room4_freeze_probe.lua` to capture the
-  room 4+ test-play start-screen freeze after the announcement overlay work.
-- The probe logs the actual ROM bytes at `$9061`, `$8BE2`, `$E3BC`, `$E38C`,
-  and `$B3C0`, then traces the stage-start path through `$915E`, `$9BD5`,
-  `$9071`, `$974B`, PPU queue writes, and the key startup RAM values.
-
-## v0.6.171 (2026-05-24) Move start announcement main cave
-- Moved the stage-start announcement main routine from `0x0BF2 / $8BE2` to
-  `0x63CC / $E3BC`, and split its mask table to `0x60CC / $E0BC`.
-- This removes the overlap with the initial magic routine at `$8BE2`, which was
-  breaking the stage-start initializer and freezing test play on room 4+ even
-  when the room had no announcement flags.
-
-## v0.6.170 (2026-05-24) Improve start-screen stall probe
-- Reduced `$8DB4` PPU-wait log spam in `start_screen_stall_probe.lua` so later
-  stage-start freezes are not hidden by the previous room's wait loop.
-- Added relative-frame periodic snapshots and an automatic nametable dump once
-  the probe reaches room `$03`.
-
-## v0.6.169 (2026-05-24) Add start-screen stall probe
-- Added `mesen_probes/lua/start_screen_stall_probe.lua` to capture the frozen
-  stage-start screen state after the announcement overlay patch.
-- The probe logs the custom announcement hook path, stock start-screen update,
-  PPU script/wait calls, room flags, key-enemy marker, and nametable snapshots.
-
-## v0.6.168 (2026-05-24) Remove Golem charge dash boost
-- Removed the Golem charge-only dash boost module and its hack-dialog control.
-- Removed the Golem charge dash reserved spans from the PRG0 overlap ledger;
-  the accepted Gargoyle 2-shot cave now owns those occupied ranges without a
-  mutual-exclusion warning.
-- Simplified the Saramandor `$866D` hook compatibility check back to the active
-  slow-Bullet wrapper path.
-
-## v0.6.167 (2026-05-24) Restore map document encoding
-- Restored the ROM/RAM map HTML files from the last clean UTF-8 backup and
-  reapplied the v0.6.166 inventory changes without re-encoding the Japanese
-  text through PowerShell defaults.
-- Kept the key-enemy RAM ledger and Gargoyle/Golem mutual-exclusion inventory
-  notes while removing the mojibake introduced during the previous map edit.
-
-## v0.6.166 (2026-05-24) Refresh ROM/RAM maps
-- Updated the ROM/RAM map docs from the current inventory check, including the
-  stage-start announcement PRG/CHR spans.
-- Recorded key-enemy runtime RAM `$0723-$072B` and split the remaining
-  entity-tail candidate range to `$072C-$073F`.
-- Added the current code-cave overlap result: only the known Gargoyle two-shot
-  / Golem charge-dash mutual-exclusion spans overlap; stage announcements do
-  not overlap existing patches.
-
-## v0.6.165 (2026-05-24) Fix announcement draw loop index
-- Fixed the stage-start announcement flag branch by replacing the per-label
-  `$915E` call with a `$9471`-style PPU script wait helper.
-- Preserved the caller's `X` register while drawing each label so the room-flag
-  announcement loop no longer runs past its five flag entries.
-- Added migration tolerance for ROMs saved by the v0.6.164 announcement hook.
-
-## v0.6.164 (2026-05-24) Fix stage-start announcement order
-- Fixed the stage-start announcement hook so custom labels are drawn before
-  returning to the stock `$915E` intro update, matching the accepted test-ROM
-  call order.
-- This fixes the v0.6.163 freeze on the start screen where the shrine marker
-  and announcement labels were not displayed.
-
-## v0.6.163 (2026-05-24) Add stage-start announcements
-- Added a stage-start announcement overlay that displays active level settings
-  on the intro screen using the accepted two-column layout:
-  `DARK ROOM`, `FIRE LOSS`, `KEY ENEMY`, `HIDDEN DOOR`, `FIRE SEALED`, and
-  `SPELL SEALED`.
-- Installed custom gameplay CHR tiles for the missing `K` and `P` letters in
-  banks 0/1/2 at tile bytes `$25` and `$27`.
-- Wired the overlay into ROM saves from existing room flags, fire-reset state,
-  and key-enemy settings without adding new per-stage UI fields.
-- Added verification ROM
-  `ROM/TEST_StartScreen_AnnouncementAppSave_All6_v163_stage1.nes`.
-
-## v0.6.162 (2026-05-23) Add Gargoyle two-shot variant
-- Added the accepted `$AE6F` two-Bullet materialization routine for borrowed
-  Gargoyle IDs `$7A/$7B`, matching
-  `TEST_GargoyleTwoBullet_AE6F_SecondXAhead16_DirVelocity_JP_v7_stage6_7B.nes`.
-- Kept stock Gargoyles `$78/$79` on the original single-Bullet path by adding a
-  type gate before the two-shot body.
-- Wired the Gargoyle variant into ROM saves when `$7A/$7B` are present in stage
-  or mirror enemy data, and updated picker/config labels for the new 2-shot
-  Gargoyle entries.
-- Updated the ROM map to document the Gargoyle 2-shot cave placement and its
-  current mutual exclusion with the Golem charge dash cave layout.
-- Added a guard so the Golem charge dash hack does not silently overwrite an
-  already-applied Gargoyle 2-shot ROM.
-
-## v0.6.161 (2026-05-23) Add Gargoyle two-bullet probe
-- Added `mesen_probes/lua/gargoyle_two_bullet_v5_probe.lua` for the successful
-  v5 Gargoyle two-bullet experiment. The probe groups each attack, counts the
-  two `$AE76` materialization calls, logs Bullet writes at `$9D1C/$9D33`, and
-  traces early Bullet lifecycle paths to catch the occasional one-shot-looking
-  case.
-
-## v0.6.160 (2026-05-23) Disable broken Gargoyle rapid-fire patch
-- Disabled the v0.6.159 Gargoyle rapid-fire runtime hook from normal ROM saves
-  after validation showed it prevented Gargoyle bullets from materializing and
-  could interfere with item pickup handling.
-- Restored `$7A/$7B` enemy picker descriptions to neutral Gargoyle #2 labels
-  until the firing path is re-tested with a dedicated probe.
-- Added `mesen_probes/lua/gargoyle_fire_trace_probe.lua` to capture the real
-  Gargoyle child-slot reservation and Bullet materialization path before the
-  next rapid-fire attempt.
-
-## v0.6.159 (2026-05-23) Add Gargoyle rapid fire
-- Added a Gargoyle speed1 #2 rapid-fire variant for `$7A/$7B`; the first shot
-  keeps attack state active and the second shot follows shortly after before
-  the stock reset resumes.
-- Reclaimed the unused padding after the Saramandor Bullet state0 cave and
-  placed the new Gargoyle reset wrapper at `$BEC7-$BEF2`, ahead of the
-  key-enemy split chunks.
-- Updated the enemy picker labels for `$7A/$7B` to describe the rapid-fire
-  Gargoyle variant.
-
-## v0.6.158 (2026-05-23) Clear key enemy gap_fix overlap
-- Relocated the key-enemy initial-slot binder from `$C000` to reclaimed PRG0
-  tail space at `$C1D6`.
-- Split the key-enemy defeat dropper across small verified PRG0 cave gaps,
-  moving its entry from `$C029` to `$BE2F` and clearing the old `$C000/$C029`
-  bytes during migration.
-- Removed the remaining PRG0 overlap with `gap_fix` `$C000-$C087`, allowing
-  key-carrying enemies and the horizontal-gap stabilization patch to coexist.
-
-## v0.6.157 (2026-05-23) Move room flag data to PRG1
-- Moved mapper66 runtime room flags and hidden-door cell data into the PRG1
-  StageExt table, copied during the mapper66 loader tail into `$0778` and
-  `$077C`.
-- Freed PRG0 `$C180-$C1FF` from the old DoorCellTable/RoomFlagTable role and
-  relocated the key-enemy dropped-key handler from `$C0F0` to `$C180`.
-- Returned `$C0F0-$C155` to the runtime block override cave, removing the
-  collision between key-carrying enemies and special block/dark-room runtime
-  handling.
-
-## v0.6.156 (2026-05-23) Fix fall key drop entry
-- Fixed the fall-death key handler to call the relocated key-drop body at
-  `$C02C` instead of the old `$C024` entry. The previous v0.6.155 layout could
-  fall through into the fire-defeat-only `$9D1C` setup and crash when an enemy
-  died by falling.
-
-## v0.6.155 (2026-05-23) Add key enemy fall-death drops
-- Added fall-death support for key-carrying initial enemies. The selected
-  initial enemy now receives the existing fall-death replacement flag during
-  room enemy load, so dropping its footing can trigger the key path.
-- Hooked the original fall-fairy replacement entry to spawn the configured key
-  and then despawn the falling enemy normally. Rooms without an active key
-  target preserve the original fairy replacement behavior.
-- Moved the key enemy defeat and door-light helper caves to make room for the
-  fall-death flagging logic, and added migration from the v0.6.153-v0.6.154
-  cave layout during save.
-
-## v0.6.154 (2026-05-23) Balance key enemy slot hook stack
-- Fixed the production key-enemy initial-slot binder to match the successful
-  v12 experiment: every branch now balances the saved X register with exactly
-  one PLA before returning.
-- Prevented non-target initial enemies from leaking one stack byte each during
-  room setup, which could make stages with multiple enemies immediately clear
-  or otherwise corrupt startup flow.
-- Allowed ROMs saved with the previous v0.6.153 key-enemy binder to be
-  overwritten by the corrected binder during the next save.
-
-## v0.6.153 (2026-05-23) Fix key enemy entry clear
-- Split the configured key-carrying initial enemy slot from the dropped-key
-  runtime state. The StageExt slot now lives in RAM `$072B`, while `$0723`
-  remains only the dropped-key active/tile marker.
-- Fixed a bug where entering a stage could immediately flow into key/clear
-  handling because the configured enemy number was misread as an active dropped
-  key.
-
-## v0.6.152 (2026-05-23) Wire key enemy runtime
-- Added the production runtime patch for per-stage key-carrying initial
-  enemies. Mapper66 stage load now copies the StageExt key enemy slot into RAM,
-  binds that initial placement number to the runtime enemy slot, and drops a
-  key when that enemy is defeated.
-- Added dropped-key pickup handling so the generated key opens the door through
-  the normal key flow without reusing Demon Mirror spawned enemies.
-- Added ROM/RAM overlap guards for the key runtime cave spans. The patch refuses
-  to overwrite non-empty unrelated code instead of silently colliding.
-
-## v0.6.151 (2026-05-23) Add key enemy UI
-- Added enemy order numbers to the tile hover/status-bar enemy text, shown as
-  `敵#N`, so the initial placement index can be identified from the canvas.
-- Added a per-level `鍵持ち敵 (#)` setting that writes the existing stage
-  extension key-enemy slot field. `0` means none; `1-15` correspond to the
-  initial placed enemy order.
-- Added stage extension helper accessors for key-enemy enable/read/write
-  handling.
-
-## v0.6.150 (2026-05-23) Isolate borrowed-ID visual metadata
-- Replaced the v0.6.121 Panel Monster group-wide property/animation rewrites
-  with type-specific hooks, so only the borrowed Panel IDs receive Panel
-  metadata.
-- Chained the Spark Ball property/animation hooks through the Panel selectors
-  so both borrowed-ID systems coexist without reverting each other.
-- Restored the original shared Demonhead/Saramandor group metadata, preventing
-  stock Demon Mirror spawns such as `$50/$51` from inheriting Panel Monster
-  metadata.
-
-## v0.6.149 (2026-05-23) Trace Demon Mirror slot writes
-- Extended the Demon Mirror fire reset probe to log writes to the first four
-  main/sub entity slots. This checks whether mirror-spawned enemies are created
-  and then immediately cleared before the next active-enemy scan.
-
-## v0.6.148 (2026-05-23) Expand Demon Mirror spawn probe
-- Reduced repeated PPU-submit noise in the Demon Mirror fire reset probe and
-  added tracing for the real mirror enemy spawn path (`$9F0C`, `$9F40`,
-  `$9F61`, `$A2B8`) plus the first four entity slots.
-
-## v0.6.147 (2026-05-23) Add Demon Mirror fire reset probe
-- Added a Mesen Lua probe for the per-stage fire reset investigation. It logs
-  the Demon Mirror spawn path, active enemy gate, free-slot result, fire stock
-  bytes, and PPU/HUD update state so the mirror-spawn regression can be
-  separated from the HUD redraw fix.
-
-## v0.6.146 (2026-05-23) Revert post-HUD fire reset hook
-- Reverted the v0.6.145 `$90E6` post-HUD hook because it worsened stage-start
-  behavior and still did not restore Demon Mirror spawning.
-- Restored the v0.6.144-style loader-based fire reset implementation while the
-  Demon Mirror interaction is investigated separately.
-
-## v0.6.145 (2026-05-23) Move fire reset after stage setup
-- Moved the per-stage fire reset runtime out of the `$9071` level-loader cave.
-  The loader now only caches `ROOMFLAGS` and handles hidden doors again.
-- Added a new `$C0C2` post-HUD cave hooked from `$90E6`. It runs after level
-  ready, enemy placement, and HUD buffer setup, then clears `$042E/$042F` and
-  redraws the HUD when `ROOMFLAGS` bit4 is set. This avoids interrupting Demon
-  Mirror setup.
-
-## v0.6.144 (2026-05-23) Fix per-stage fire reset target
-- Fixed the stage fire reset runtime so it no longer clears `$042B`. That byte
-  is part of the HUD/max/cursor state, not just carried stock, and clearing it
-  caused impossible scroll-count display behavior.
-- The reset now clears only `$042E/$042F` and immediately calls `$A1CC` to
-  redraw the fire stock HUD for the new stage.
-
-## v0.6.143 (2026-05-23) Add per-stage fire reset
-- Added a stage setting that resets carried fire / super-fire stock at stage
-  start. The UI stores the setting in `StageExtTable`, while the runtime mirrors
-  it into `RoomFlagTable` bit4 so bank0 stage-load code can apply it without PRG
-  bank switching.
-- Expanded the `$BBE0` room loader cave from 37B to 55B. When bit4 is set for
-  the current room, the loader clears `$042B/$042E/$042F` before play begins.
-- Updated ROM/RAM maps. The bank0 cave fragmented free total is now 218B, with
-  the largest continuous fragment still 46B.
-
-## v0.6.142 (2026-05-23) Add StageExtTable foundation
-- Added a PRG1 `StageExtTable` at `0x8800-0x8A0F`: 16B header plus 64 rooms
-  x 8B. This is the shared per-stage settings foundation for future fire
-  reset, key-carrying enemies, and stage-start announcement features.
-- Added read/write plumbing so mapper66 expansion and mapper66 saves preserve
-  the table, and XML export/import keeps the new per-level fields.
-- Updated the visual ROM map. PRG1 general reserve now starts at `0x8A10` and
-  remains 12,678B.
-
-## v0.6.141 (2026-05-23) Share Panel Monster fire tail
-- Shared the identical Panel Monster marker-write helper and fire-exit tail
-  between the 2-way and 3-way fire caves. The 2-way cave now jumps to the
-  3-way cave's common tail and keeps only a local ready-timer RTS.
-- Reduced the Panel Monster borrowed-ID reservation by another 27B. Borrowed-ID
-  runtime reservations are now 819B total, and the bank0 cave fragmented free
-  total is 238B with a 46B largest fragment.
-
-## v0.6.140 (2026-05-23) Free unused Borrowed-ID reserves
-- Removed the unused `$BF50-$BF68` NOP-only Saramandor variant reservation from
-  the Borrowed-ID runtime span list. This frees 25B in the PRG0 bank0 cave
-  without changing Saramandor, Panel Monster, or Spark Ball behavior.
-- Split the Panel Monster bullet hook and normal fire copy reservations so the
-  unused 10B gap at `$BFAF-$BFB8` is no longer treated as occupied.
-- Updated the visual ROM map: the bank0 cave fragmented free total is now
-  211B, with the largest continuous fragment still 27B.
-
-## v0.6.139 (2026-05-23) Split PRG1 wide-title reserve
-- Reduced the wide-title PRG1 reservation from `0x80D0-0xBB95` to
-  `0x80D0-0x87FF`, leaving a 1,840B title workspace. The confirmed imported
-  title uses 589B.
-- Reclassified `0x8800-0xBB95` as a 13,206B PRG1 general reserve for future
-  stage-load-time tables and non-gameplay-screen code/data.
-
-## v0.6.138 (2026-05-23) Restore visual ROM map layout
-- Rebuilt the current mapper66 ROM map with visual bars for the full ROM,
-  PRG0, the bank0 cave range, and PRG1 so occupied, custom, and reserve regions
-  are easier to inspect.
-- Added a planning section that separates PRG0 runtime code from PRG1-friendly
-  tables and stage-load-time data.
-
-## v0.6.137 (2026-05-23) Move Spark Ball variant caves away from gap_fix
-- Relocated the Dragon-ID Spark Ball variant runtime caves out of the
-  `$C000-$C087` gap_fix cave range. The Spark Ball variant now uses smaller
-  PRG0 free fragments at `$BD26`, `$BE62`, `$BEEA`, `$BFD8`, `$CFDE`, and
-  `$EFC4`.
-- Verified that gap_fix and the Spark Ball variants can be applied together
-  without overlapping reserved PRG spans.
-
-## v0.6.136 (2026-05-23) Preserve normal animation table lookup
-- Restored the animation metadata hook's normal path to reload the original
-  type-group index before reading `$D0E8/$D0E9`. This prevents non-variant
-  characters from using the wrong animation metadata after the Spark Ball
-  variant type check.
-
-## v0.6.135 (2026-05-23) Fix Spark Ball variant animation detection
-- Fixed the Dragon-ID Spark Ball animation hook to read the entity type byte
-  from the active main slot instead of using the animation state scratch value.
-  This keeps normal Dragons rendered as Dragons while allowing `$6A/$6B/$6E/$6F`
-  to render as Spark Balls.
-
-## v0.6.134 (2026-05-23) Restore normal Dragon rendering
-- Reworked the Dragon-ID Spark Ball variants so `$6A/$6B/$6E/$6F` get Spark
-  Ball property and animation metadata through type-specific hooks instead of
-  changing the shared Dragon groups.
-- Restored the shared Dragon property and animation table bytes so normal
-  Dragons `$68/$69/$6C/$6D` no longer turn into Spark Balls.
-
-## v0.6.133 (2026-05-23) Correct Spark Ball pause direction labels
-- Updated picker/config labels for the Dragon-ID Spark Ball pause variants to
-  match confirmed behavior: `$6A/$6E` are up, `$6B/$6F` are down.
-
-## v0.6.132 (2026-05-23) Keep Dragon IDs for Spark Ball pause detection
-- Changed the Dragon-ID Spark Ball variants to keep their original
-  `$6A/$6B/$6E/$6F` type bytes while routing their AI into the stock Spark Ball
-  routines. This leaves a stable identity for the pause hook to inspect.
-- Replaced the sub-slot `+3` marker check with a direct main-slot type check at
-  the `$AB13` Spark Ball speed commit. Stock `$28-$2F` Spark Balls bypass the
-  pause hook path.
-
-## v0.6.131 (2026-05-23) Isolate Spark Ball pause variants
-- Added a marker-based `$AB13` pause hook for the Dragon-ID Spark Ball variants.
-  The wrapper marks sub-slot `+3` with `$A6`, and only marked enemies use the
-  LIFE-hundreds mod3 stop behavior.
-- Moved the fast Dragon-ID wrapper to `$C008` and placed the pause hook at
-  `$C038` so the larger marker-aware wrappers do not overlap.
-- Restored picker/config labels to "Spark Ball pause" for `$6A/$6B/$6E/$6F`.
-
-## v0.6.130 (2026-05-23) Stabilize Dragon-ID Spark Ball variants
-- Added the missing Spark Ball property and animation metadata patches for the
-  borrowed Dragon `$6A/$6B/$6E/$6F` groups. This matches the confirmed test ROM
-  setup more closely and prevents the borrowed IDs from initializing/rendering
-  as unrelated enemies.
-- Kept the LIFE-hundreds pause hook disabled for now because the confirmed
-  marker-free hook also changes original `$28-$2F` Spark Balls.
-- Renamed picker/config labels from "pause" to "variant" until the stop behavior
-  can be isolated cleanly.
-
-## v0.6.129 (2026-05-23) Remove unsafe Spark Ball variant marker
-- Removed the unsafe Spark Ball pause marker experiment. Both main-slot `+2`
-  and sub-slot `+2` could corrupt the borrowed Dragon-ID Spark Ball variants.
-- The Dragon-ID Spark Ball variants now only convert `$6A/$6B/$6E/$6F` into
-  the confirmed stock Spark Ball phases. The global `$AB13` pause hook is no
-  longer applied, so original `$28-$2F` Spark Balls are untouched.
-
-## v0.6.128 (2026-05-23) Move Spark Ball variant marker to sub-slot
-- Moved the Spark Ball pause variant marker off main-slot `+2`, which can affect
-  enemy appearance/initialization.
-- The Dragon-ID Spark Ball variants now mark sub-slot `+2` instead, while
-  original `$28-$2F` Spark Balls still bypass the pause hook.
-
-## v0.6.127 (2026-05-23) Isolate Spark Ball pause variants
-- Fixed the enemy picker so the Dragon-ID Spark Ball pause variants appear as
-  selectable monster entries.
-- Changed the Spark Ball pause hook to check a borrowed-ID marker before
-  applying the LIFE-hundreds mod3 stop. Original `$28-$2F` Spark Balls now keep
-  their stock movement.
-
-## v0.6.126 (2026-05-23) Add Dragon-ID Spark Ball variants
-- Added an always-on Spark Ball variant patch for the accepted Dragon #2 IDs:
-  `$6A/$6B/$6E/$6F`.
-- `$6A/$6E` enter the stock Spark Ball up phase, while `$6B/$6F` enter the
-  accepted right-hand/down phase; slow/fast pairs use the confirmed stock Spark
-  AI entry points.
-- Added the LIFE-hundreds mod3 pause hook at the Spark Ball position commit and
-  updated enemy definitions so the reused Dragon IDs appear as Spark Ball pause
-  variants in the editor.
-
-## v0.6.125 (2026-05-23) Document Spark Ball wall-follow orientation
-- Updated the commented ASM notes for Spark Ball movement to clarify that
-  `cw/ccw` is not always the visible screen rotation.
-- Added the safer wall-follow wording: `$28/$2B` move with the wall on the
-  right-hand side, while `$29/$2A` move with the wall on the left-hand side;
-  the visible loop direction can reverse between inner-wall and outer-wall
-  layouts.
-
-## v0.6.124 (2026-05-23) Revert unstable Panel Monster velocity-sync experiment
-- Reverted the v0.6.123 Panel Monster diagonal Bullet velocity-sync change.
-  It corrupted spawned-enemy behavior, including demon mirror spawns, and made
-  Panel Monster firing/orientation unreliable.
-- Restored the v0.6.122 move-gated Bullet Y hook, which keeps the fixed mouth
-  drift behavior without touching spawned Bullet velocity or mirror spawn flow.
-
-## v0.6.123 (2026-05-23) Use Y velocity for Panel Monster diagonal Bullets
-- Reworked Panel Monster variant diagonal shots to set the spawned Bullet's
-  Y velocity instead of moving Y manually from the Bullet AI hook.
-- Restored the stock Bullet AI entry at `$AFBB`, while keeping the accepted
-  2-way/3-way spawn patterns through a shared diagonal velocity helper.
-- This keeps diagonal motion tied to the stock entity physics path, reducing
-  angle drift when enemy load changes.
-
-## v0.6.122 (2026-05-23) Gate Panel Monster diagonal Y movement on Bullet motion
-- Fixed the production Panel Monster variant Bullet hook so diagonal Y movement
-  is applied only when the stock Bullet movement routine reports active motion.
-- This prevents newly spawned Panel Monster Bullets from drifting vertically
-  while they are still waiting at the mouth before horizontal movement begins.
-
-## v0.6.121 (2026-05-23) Add Panel Monster 2-way and 3-way variants
-- Added an always-on Panel Monster borrowed-ID patch for `$52/$53/$56/$57`
-  as 2-way diagonal shot panels and `$5A/$5B/$66/$67` as 3-way shot panels.
-- The patch keeps the borrowed IDs intact, but routes their AI through Panel
-  Monster wrappers, applies Panel Monster init properties/animations, and
-  hooks Panel Bullet Y movement for the accepted diagonal behavior.
-- Updated the enemy picker and enemy definitions so the borrowed IDs appear as
-  Panel Monster variants instead of Demonhead/Saramandor entries.
-
-## v0.6.120 (2026-05-23) Add Golem charge dash boost to Customizer
-- Added `core/golem_charge_dash.py` and a Golem charge dash boost selector in
-  the game behavior dialog. The selector offers OFF/2x/3x/4x/5x, with 5x
-  matching the accepted test behavior.
-- The production patch chains through the existing Saramandor speed wrapper so
-  Saramandor bullet variants and the Golem charge boost can coexist.
-- The boost targets only the confirmed Golem rush speeds `$26/$5A`; normal
-  walking speeds remain controlled by the existing Golem speed settings.
-
-## v0.6.119 (2026-05-23) Add Golem charge-only 5x dash test ROM
-- Added `TEST_GolemChargeOnly5xMove_JP_v5_stage6.nes`.
-- This keeps the confirmed charge-only `$26/$5A -> $3F/$41` speed remap, but
-  reduces the extra X movement loop from nine passes to four passes, for five
-  total X movements per frame during the rush.
-
-## v0.6.118 (2026-05-23) Fix Golem charge-only branch offsets
-- Added `TEST_GolemChargeOnly10xMove_JP_v4_branchfix_stage6.nes`.
-- The trace confirmed the visible Golem rush uses type `$74`, behavior `$10`,
-  state 4, and X velocity `$26`. The previous v3 test targeted `$26/$5A`, but
-  its branch offsets skipped the `$3F/$41` writes; v4 corrects those branches.
-
-## v0.6.117 (2026-05-23) Add Golem charge trace probe
-- Added `mesen_probes/lua/golem_charge_trace_probe.lua` to capture the real
-  Golem rush/charge moment in Mesen, including behavior/state transitions,
-  X-velocity writes, stock speed-table writes, and actual X-position commits.
-
-## v0.6.116 (2026-05-23) Add Golem charge-only 10x dash test ROM
-- Added `TEST_GolemChargeOnly10xMove_JP_v3_stage6.nes` to keep normal Golem
-  walking speeds unchanged while testing the 10x movement wrapper only on the
-  known charge/attack X-speed bytes `$26/$5A`.
-
-## v0.6.115 (2026-05-23) Fix Golem 10x dash test target speeds
-- Added `TEST_GolemDashMax10xMove_AllSpeeds_JP_v2_stage6.nes`, which expands
-  the Golem speed override from only `$0C/$74` to all known Golem X-speed bytes
-  `$13/$6D/$0C/$74/$26/$5A`.
-- Added `mesen_probes/lua/golem_dash_probe.lua` to log Golem speed-init,
-  stock X commits, and the extra X wrapper entry while testing in Mesen.
-
-## v0.6.114 (2026-05-23) Add Golem max dash 10x-move test ROM
-- Added `TEST_GolemDashMax10xMove_JP_v1_stage6.nes` for the stronger Golem dash
-  experiment.
-- The ROM keeps the max dash speed override from v0.6.113, but the `$86D2`
-  wrapper now applies nine extra X movement passes after the stock movement,
-  for ten total X movements per frame during max-speed Golem dash only.
-
-## v0.6.113 (2026-05-23) Add Golem max dash double-move test ROM
-- Added `TEST_GolemDashMaxDoubleMove_JP_v1_stage6.nes` to test a Golem dash
-  variant that goes beyond speed-table-only tuning.
-- The ROM wraps `$866D -> $8AC0` to raise Golem dash X speeds to `$3F/$41`,
-  then wraps the `$86D2` X-position commit so only those max-speed Golem dashes
-  receive one extra X movement application per frame.
-
-## v0.6.112 (2026-05-23) Add right-facing Ghost right-speed test ROM
-- Added `TEST_GhostRightFacing_RightSpeedOnly_JP_v1_stage6.nes` to verify a
-  type-gated Ghost speed override.
-- The test wraps the stock `$866D -> $8AC0` speed initialization through a
-  `$BEEF` cave and only changes X speed `$1C` to `$38` for right-facing Ghost
-  speed 0 types `$34/$35`, leaving `$36/$37` untouched.
-
-## v0.6.111 (2026-05-23) Add Ghost slowest-speed test ROM
-- Added `TEST_GhostSpeed_Slowest01_7F_JP_v1_stage6.nes` to verify the slowest
-  nonzero Ghost speed 0 values.
-- The test sets right movement to `$01` and left movement to `$7F`, with the
-  existing stage 6 start bytes.
-
-## v0.6.110 (2026-05-23) Add Ghost left-speed limit test ROM
-- Added `TEST_GhostSpeed_LeftOnly64to41_JP_v1_stage6.nes` to test the fastest
-  practical left-movement value for Ghost speed 0.
-- The test leaves the right-movement byte unchanged and changes only the left
-  speed byte from `$64` to `$41`; `$40` remains avoided because it is the stock
-  speed-update skip marker.
-
-## v0.6.109 (2026-05-23) Add Ghost left-speed isolation test ROM
-- Added `TEST_GhostSpeed_LeftOnly64to48_JP_v1_stage6.nes` to verify the Ghost
-  left-movement speed byte independently.
-- The ROM leaves the right-speed byte unchanged and only changes the left
-  speed pair from `$64` to `$48`, plus the existing stage 6 start bytes.
-
-## v0.6.108 (2026-05-23) Log actual Ghost X movement commits
-- Extended the Ghost speed Mesen probe to also hook `$86D2`, where X pixel
-  movement is committed.
-- Replaced the inferred direction label with raw `behLow` logging so left/right
-  conclusions can be made from actual X deltas instead of guessed labels.
-
-## v0.6.107 (2026-05-23) Add Ghost speed write probe
-- Added a Mesen Lua probe that hooks the Ghost/Neul speed initialization write
-  at ASM `$8B01`.
-- The probe logs the active entity slot, type, behavior, speed index, and X
-  velocity value so Ghost speed changes can be verified from emulator traces.
-
-## v0.6.106 (2026-05-22) Explain why the distribution manual uses JP ROMs
-- Expanded the distribution manual intro draft with the rationale for using
-  the Japanese ROM as the normal editing base.
-- Documented the US ROM tradeoffs: the extra license screen adds a step before
-  gameplay and consumes some ROM space, while US-style title visuals can still
-  be imported into a JP-based ROM.
-
-## v0.6.105 (2026-05-22) Stamp exported data and mapper66 ROMs with app version
-- Added a mapper66 ROM metadata stamp at PRG bank1 file `0xFF00-0xFF3F`,
-  using the free area after the runtime block override table and before the
-  copied vectors.
-- ROM saves now write the current `MAGATU_SOLOMON_CUSTOMIZER` app version into
-  that metadata slot for expanded mapper66 ROMs only.
-- Added `customizer_app_version` to skchain-compatible level XML exports while
-  keeping the legacy `app_version="1.1"` value for compatibility.
-- Confirmed the MAGATU PNG-embedded stage XML and global settings JSON already
-  carry `app_version`; this change keeps those paths versioned.
-
-## v0.6.104 (2026-05-22) Add Codex workflow guard
-- Added the project `AGENTS.md` guidance file for future Codex sessions.
-- Documented the required edit workflow: create a `BUP/` backup before editing,
-  then bump the application version and add a `CHANGELOG.md` entry before
-  considering the work complete.
-
-## v0.6.103 (2026-05-22) Keep slow Saramandor bullets through animation timer reuse
-- Fixed the v0.6.102 slow-bullet fix after Mesen logging confirmed main-slot
-  `+12` is the stock Bullet animation timer, not persistent storage.
-- The `$866D` wrapper now recognizes a slow Bullet either by the fresh-spawn
-  marker (`+12=$A5`) or by its already-overridden quarter-speed X velocity
-  (`Xv=$10/$F0`) during later Bullet behavior reinitialization.
-- Stopped depending on persistent marker state in `+12`; the slow-speed wrapper
-  cave now spans `$BF00-$BF4F`, with unused filler moved to `$BF50`.
-
-## v0.6.102 (2026-05-22) Keep slow Saramandor bullets slow after reinit
-- Fixed Saramandor #2 speed 2 bullets potentially returning to normal speed
-  after Bullet state0 changes behavior and the generic entity loop calls
-  `$8AC0` a second time.
-- The `$866D` wrapper now re-stores the slow marker after each slow Bullet
-  speed init, so later Bullet reinitialization keeps the 1/4-speed override.
-- The cave span remains bounded at `$BF00-$BF3F` and still ends before the
-  next registered Saramandor variant cave at `$BF40`.
-
-## v0.6.101 (2026-05-22) Clarify Salamander/Dragon reaction distance labels
-- Re-checked `SUB_B1E9` against ROM bytes and the `SUB_A134` distance updater.
-- Confirmed `$B1F3` / file `0x3203` is the X reaction threshold and `$B1FF` /
-  file `0x320F` is the Y allowance threshold.
-- Updated the game-behavior dialog wording from firing range to reaction
-  distance and changed the preset labels to explicit pixel/tile values.
-
-## v0.6.100 (2026-05-22) Keep Salamander distance tuning without legacy toggle
-- Restored applying the Salamander/Dragon X/Y reaction distance controls.
-- The removed legacy global fireball/despawn checkboxes remain gone; only the
-  two distance bytes are written.
-- Added a distance-only core helper so the UI no longer calls the old global
-  Salamander fireball patch.
-
-## v0.6.99 (2026-05-22) Remove legacy global Salamander bullet toggles
-- Removed the obsolete global Salamander fireball enable/despawn checkboxes
-  from the game behavior dialog.
-- The current implementation uses Saramandor #2 enemy IDs instead of a global
-  toggle, so the old two options were confusing and could write legacy patches.
-- Global settings export/import now ignores those removed legacy keys.
-
-## v0.6.98 (2026-05-22) Saramandor #2 slow marker survives until speed init
-- Fixed the v0.6.97 slow-bullet runtime miss: main-slot +2 is overwritten by
-  the entity loop before `$8AC0`, so the slow marker now uses main-slot +12.
-- The `$866D` speed wrapper checks that one-shot marker before stock `$8AC0`
-  clears +12, then overwrites only marked `$62/$63` bullets to quarter speed.
-- The wrapper now preserves the original A/Y inputs before entering `$8AC0`;
-  `$8AC0` depends on those registers, so touching them first breaks normal
-  entity initialization.
-- Normal Saramandor #2 speed 1 (`$5E/$5F`) and normal game Bullets remain
-  unmarked and unchanged.
-
-## v0.6.97 (2026-05-22) Saramandor #2 slow bullet speed fix
-- Fixed Saramandor #2 speed 2 (`$62/$63`) bullets keeping normal Bullet speed.
-- The patch now marks only the child sub-slot created by Saramandor #2 speed 2
-  and wraps the stock entity speed initializer at `$866D`; after `$8AC0`
-  loads the normal Bullet velocity, marked Bullet entities are overridden to
-  quarter speed (`Xvel=$10/$F0`).
-- Normal Bullets, Panel Monster Bullets, and Saramandor #2 speed 1 (`$5E/$5F`)
-  remain unchanged.
-
-## v0.6.96 (2026-05-22) Mirror picker applies enemy speed
-- Fixed mirror enemy drag-and-drop so the current enemy speed radio button is
-  applied when dropping an enemy into a mirror spawn slot.
-- This makes Saramandor #2 speed 2 place `$62/$63` instead of leaving the slot
-  as `$5E/$5F`, so the 1/4-speed Bullet variant is actually selected.
-
-## v0.6.95 (2026-05-21) Saramandor #2 bullet variants
-- Added always-on ROM patching for the unused Saramandor #2 IDs.
-- `$5E/$5F` now spawn normal-speed Bullet entities, while `$62/$63` spawn
-  1/4-speed Bullet entities. `$66/$67` remain reserved and unchanged.
-- Added Saramandor #2 right/left entries to the monster picker and speed-radio
-  mapping (`5E/62/66`, `5F/63/67`).
-- Registered the Saramandor variant cave ranges with the Room Flag cave
-  verifier so the patch coexists with hidden doors, dark rooms, breakable white
-  walls, and gap-fix patches.
-
-## v0.6.94 (2026-05-21) Restore room flags when loading ROMs
-- Modified ROM loading now restores the Room Flag Table back into each
-  `Level.room_flags`.
-- Per-room settings such as hidden door, no B-fire, no A-stone, and dark room
-  now reappear in the level settings checkboxes when reopening a patched ROM.
-- Existing breakable white / invisible breakable cell restoration remains
-  unchanged.
-
-## v0.6.93 (2026-05-21) Global settings import/export
-- Added JSON export/import buttons to the game behavior/global settings dialog.
-- Export captures the current dialog values for shared ROM behavior settings:
-  start/continue stage, warp feather, initial magic/lives, player speed,
-  enemy behavior tweaks, clear-screen character, gap fix, and dark-room tempo.
-- Import updates the dialog controls only. The ROM is changed after pressing
-  `Apply` or `OK`, matching the rest of the dialog's workflow.
-
-## v0.6.92 (2026-05-21) Top PNG rebuilds from pixels
-- `Top PNG読込` now ignores same-name JSON sidecar layout data.
-- The imported PNG is treated as the source of truth for the 256x64 top band:
-  identical 8x8 tiles are shared, different 8x8 tiles are assigned separate
-  title tile IDs, and the wide-title stream is rebuilt for that band.
-- This avoids preserving old tile-sharing relationships when the PNG has been
-  edited into a different picture.
-
-## v0.6.91 (2026-05-21) Color Top PNG round-trip
-- `Top PNG保存` now exports the title top band as color RGB PNG instead of
-  collapsing it to 4-level grayscale.
-- PNG import now maps each pixel back to the nearest valid color within that
-  cell's actual title palette/attribute context, preserving multi-palette title
-  art instead of flattening it globally.
-- Verified color export/import logic by round-tripping the rendered title image
-  back to all 960 tile pixel patterns with zero mismatches.
-
-## v0.6.90 (2026-05-20) Title palette apply button
-- Added `OK / Cancel / Apply` behavior to the title palette editor.
-- `Apply` writes the selected title colors and refreshes the preview without
-  closing the dialog.
-- `Cancel` restores the colors from when the title palette editor was opened.
-
-## v0.6.89 (2026-05-20) Title palette editor
-- Added a `タイトル色...` button to the title migration dialog.
-- The dialog edits the title BG palette bytes written to PPU `$3F00-$3F0F`
-  through the ROM's title palette script.
-- Only slots whose effective NES color number changes are written back, so
-  equivalent existing bytes such as `$FF` are not unnecessarily normalized.
-
-## v0.6.88 (2026-05-20) Title preview PPU attributes
-- Reverted the incorrect `$24` clear-tile special case in the color title
-  preview. `$24` is now rendered through the real CHR tile, attribute, and
-  palette path like the PPU does.
-- Added the JP title's later hardcoded attribute writes (`$2BEA`, `$2BF0-$2BF6`,
-  `$2BF8-$2BFF`) to the preview attribute map so the preview matches the
-  final title attribute state more closely.
-
-## v0.6.87 (2026-05-20) Title preview backdrop color
-- Fixed the color title preview so clear/background cells (`$24`) are rendered
-  as the title backdrop instead of being treated as ordinary CHR tile art.
-- The title attribute preview now starts from the original `$FF` attribute fill
-  before applying the 21-byte title attribute table.
-
-## v0.6.86 (2026-05-20) Color title preview
-- The title migration dialog preview now renders with the title palette and
-  attribute data instead of fixed grayscale.
-- PNG export/import paths still use the existing 4-level grayscale renderer so
-  editing round-trips are not changed by this preview-only improvement.
+## v0.8.5 (2026-05-30) パッケージ版で同梱アイコンを解決
+- PyInstaller向けに、書き込み可能なアプリルート設定パスと同梱データパスを分離。
+- 相対アセットパスは`_internal`の同梱データディレクトリへフォールバックするようにし、
+  パッケージ済みonedirビルド内で`docs/images/dana.png`を解決できるようにした。
+
+## v0.8.4 (2026-05-30) Danaアイコンを既定アセット化
+- `docs/images/dana.png`を既定のウィンドウアイコンパスにした。
+- 設定済みの相対パスをプロジェクトルートから解決するようにし、絶対ローカルパスなしで同梱アイコンが動くようにした。
+
+## v0.7.169 (2026-05-30) hackインポート後にパレット同期
+- ゲーム/敵設定ダイアログ経由で変更されたメインパレットバイトを検出。
+- 共通設定インポートがパレットを変更した場合、通常のパレット同期経路でエディタ描画、ピッカーアイコン、サムネイルを更新するようにした。
+
+## v0.7.168 (2026-05-30) 共通インポート警告をファイル選択前へ移動
+- 取り消せない共通設定インポートの警告をファイルピッカー表示前に出すようにし、ファイルを選ぶことがインポート続行を意味することを明確化。
+- インポート補助コメントを更新し、ROM由来データはインポート中に即時書き込まれることを明記。
+
+## v0.7.167 (2026-05-30) Panel Variantアイコンの色付けを簡素化
+- Panel Variant A/B/Cのピッカーアイコンから青いハッチオーバーレイを削除。
+- 単純な青 tint により、Panel Variant A/B/Cアイコンを黄色の強化敵と見分けられる状態は維持。
+
+## v0.7.166 (2026-05-30) 共通設定インポート前に警告
+- 一部のROM由来データは即時適用されUndoできないため、共通設定インポート前に明示的な確認を追加。
+- インポート完了メッセージを更新し、即時適用されたROM由来データと、ApplyまたはOKがまだ必要な設定を区別。
+
+## v0.7.164 (2026-05-30) 保存前にconfigディレクトリを作成
+- fresh cloneで無視対象の`config/`ディレクトリが存在しない場合でも、アプリ設定保存時に作成するようにした。
+- ROM履歴保存時も、書き込み前に親ディレクトリを作成するようにした。
+
+## v0.7.163 (2026-05-30) ミラー寿命UIをミラー詳細へ移動
+- 左側ステージ設定からミラー敵寿命コントロールを削除。
+- ミラー詳細ダイアログの寿命コントロール横に、リアルタイム秒数表示を追加。
+
+## v0.7.162 (2026-05-30) 配置拒否時にクリーン状態を保持
+- クリック配置が検証ルールで拒否された場合、直前のUndo、Redo、dirty状態を復元。
+- 敵の上にブロックを置くなどの失敗配置で、データが変わっていないのにステージがdirty扱いになる問題を防止。
+
+## v0.7.161 (2026-05-30) 空削除/空ドラッグでdirtyにしない
+- 右クリック削除、右ドラッグ消去、Ctrlドラッグ開始では、実際の対象が見つかるまでUndoスナップショット作成を遅延。
+- 空の右クリック、空の右ドラッグ消去、空のCtrlドラッグ試行でステージがdirty扱いになる問題を防止。
+
+## v0.7.160 (2026-05-30) お気に入りドラッグのデバッグ出力を削除
+- お気に入りドラッグ&ドロップ処理に残っていたデバッグprintを削除。
+
+## v0.7.159 (2026-05-30) ミラースケジュール操作を調整
+- ミラースケジュールのクイックボタンを入れ替え、「全ON」を左、「全クリア」を右に配置。
+- ダークUIで未チェック時のスケジュールチェックボックスが見えるよう、チェックボックスインジケータに明示的な境界線を追加。
+
+## v0.7.158 (2026-05-30) Panel Variantピッカーアイコン修正
+- Panel Variant A/B/Cのピッカーアイコンを、借用元敵グラフィックではなく正しいPanel Monster方向グラフィックで表示。
+- Panel Variant A/B/Cアイコンに、他の強化敵で使う黄色オーバーレイとは別の青いハッチオーバーレイを付与。
+
+## v0.7.157 (2026-05-30) 範囲操作で16列目を保護
+- 範囲選択、範囲削除、範囲移動、貼り付けが`16列目を編集`ロックを尊重するようにし、ロック中は右端列を変更しないようにした。
+
+## v0.7.156 (2026-05-30) ステージ選択を目立たせる
+- 右側ステージ選択をテストプレイボタンと同系色にしつつ、元のスピンボックス挙動を維持。
+- 右ペインから常時表示のサムネイル再生成ボタンを削除。必要時のサムネイル自動再生成は継続。
+
+## v0.7.155 (2026-05-30) ステージ選択を強調
+- 右側ステージ番号コントロールを拡大・太字化し、より強い緑枠を付けて、ダークUI上で現在のステージ選択が目立つようにした。
+
+## v0.7.154 (2026-05-30) 右側テストプレイショートカット追加
+- 右側Panel Variantコントロールの下へ2つ目の緑色テストプレイボタンを追加し、ピッカー/ステージ編集の作業導線からテストプレイへ届きやすくした。
+- 2つのテストプレイボタンは、どちらも同じ現在ステージテストプレイ処理を呼ぶ。
+
+## v0.7.153 (2026-05-30) アプリUIをダークグリーンテーマへ変更
+- グローバルQtスタイルシートを作り直し、黒ベースに緑の文字、境界線、タブ、コントロール、選択色を使うようにした。
+- ダークテーマ向けに設定の明るさコントロールを更新し、旧ライトグレー設定値を新しいダーク既定値へマップ。
+
+## v0.7.152 (2026-05-30) Panel Variant間隔をフレーム数表示
+- 右側Panel Variantの間隔コントロールを16進`$xx`表示から10進フレーム数へ変更し、原作既定値が`$C0`ではなく`192`として見えるようにした。
+
+## v0.7.150 (2026-05-30) Panel Variant間隔の既定値を原作クールダウンへ
+- Panel Variant A/B/Cの発射間隔が欠落/既定の場合は`192`にし、明示的なA/B/C間隔データがないステージでは原作Panel Monsterのクールダウン閾値を使うようにした。
+
+## v0.7.149 (2026-05-30) Panel Variant ID分類を厳格化
+- A/B/Cグループオフセットhelperを変更し、`LSR`のcarryを即時チェックするようにした。偶数IDは`X=$FF`を返すため、A/B/C runtime速度/間隔バイトを読めない。
+- `$66/$67`を最終Panel runtime有効化条件へ追加し、Saramandor-IDの3方向Panel Variantが親速度ガードの対象範囲と一致するようにした。
+- A/B/C Panel Variantの敵ドロップは、元のドロップ処理が`type >> 2`でインデックスするため、意図的に借用元敵IDの行に従う。
+- 保存適用順序をPanel Variant runtime契約として固定。`panel_monster_stage_variant`は選択されたhook/loaderを意図的に置き換えるため、base PanelとStageExt書き込みの後に実行する必要がある。
+- 現在のfinal split runtime向けにPanel Monsterクールダウン書き込みを修正。`$A575`が`JSR $BE62`へ置き換わった後、UIは`0x258A`のNOPを壊すのではなく、file `0x3E82`の実際のthreshold operandを読み書きするようになった。
+- final split runtimeが間隔helperを再注入する時に現在のグローバルPanel Monsterクールダウンを保持し、保存によってthresholdが`$C0`へ戻らないようにした。
+- Panel Bullet左右速度修正は共有Bullet速度テーブルを更新するため、Bullet弾を撃つ全ての敵へ影響する、というUI注記を追加。
+- Panel Monsterの「キビキビ動作」UI/設定/ROM writerを削除。古い発射前待ちoffsetは、final Panel Variant runtimeでは`0x409D`がA/B/C Bullet速度マーカー比較の一部になっているため安全ではない。
+
+## v0.7.148 (2026-05-30) 借用Panel親の速度再初期化をガード
+- `$866D`親速度ガードの奇数IDチェックは維持。これは既に`LSR`直後に偶数IDでexitする。
+- final split Panel runtime有効化条件を広げ、ROM内にA/B/C IDが存在しない場合でも、古い2-way/3-way借用Panel ID `$52/$53/$56/$57/$5A/$5B`が移設済み共有wrapperを有効化するようにした。
+- これにより、2-wayのみのステージでは借用元敵の移動を継承せず、parent-field clear pathを使える。
+- `$866D`親速度ガードを`$E7A4`へ移動し、繰り返し実行される`$8AC0`速度初期化が、A/B/Cと借用Panel ID `$52/$53/$56/$57/$5A/$5B/$66/$67`について`main+5/main+6/main+8/main+9`をクリアするように拡張。
+- 再保存時には、古い`$E876`と新しい`$E7A4`のPanel speed guard hookの両方を受け入れるようにした。`$866D`を共有するSaramandor署名チェックも含む。
+
+## v0.7.147 (2026-05-30) A/B/C RAM分類をPanel見た目分類から分離
+- A/B/C専用group offset helperを追加し、Panel Variant速度/間隔設定を`$31/$33/$35/$37`、`$41/$43/$45/$47`、`$49/$4B/$4D/$4F`だけが読むようにした。
+- グラフィック/property routing用には広いPanel visual classifierを維持したが、`$0740-$0745` runtime設定offsetの決定には使わないようにした。
+- これにより、古い2-way/3-way Panel Monster variantがA/B/C速度または発射間隔バイトを読む問題を防止。
+
+## v0.7.146 (2026-05-30) Panel Variant方向と2-way drift分離を修正
+- A/B/C Panel Variant AI tailを修正し、共有Panel方向setterへ入る前にparent velocity/subpixel clearを行っても、decode済み方向が保持されるようにした。
+- Panel Variant共有Demonhead-ID wrapperを別の00-fill gapへ移動し、A/B/C runtime有効時は`$52/$53/$56/$57/$5A/$5B`をそこへrouting。
+- 2-way借用Panel MonsterとA/B/C variantが借用元敵の移動を継承しないよう、共有parent-field clear helperを追加。
+- 古いcarry状態に依存せず、共有Panel classifierを中心にA/B/C RAM offset helperを再構築。
+
+## v0.7.145 (2026-05-30) オブジェクト削除時に16列目ロックを尊重
+- `オブジェクト削除`を変更し、`16列目を編集`がOFFの間は、`すべて削除`、ブロックのみ、アイテムのみ、モンスターのみの削除が16列目を触らないようにした。
+
+## v0.7.144 (2026-05-30) 再保存時にPanel Variant速度ガードを許可
+- `$866D`のSaramandor variant署名チェックを更新し、現在のPanel Variant親速度ガードhookを受け入れるようにした。
+- Saramandor patch byteを変更せず、既にPanel Variant A/B/C runtimeを含むROMを再保存できるように修正。
+
+## v0.7.143 (2026-05-30) Panel Variant helperをGargoyle領域から分離
+- Panel Variantのステージdispatch helper、AI dispatch entry、AI dispatch Panel tail、親速度ガード、fire marker tableを、それぞれ検証済みの別gapへ移動。
+- 親速度ガードを厳格化し、採用済みのA/B/C ID範囲だけをクリアし、放棄済みの`$39/$3B/$3D/$3F`範囲は対象外にした。
+- Panel Variant A/B/C split runtimeをRoomFlag cave verifierの許可リストへ追加し、既にパッチ済みのA/B/Cバイトを再保存時に拒否しないようにした。
+- Gargoyle 2-shot runtimeとの偶発的な重複を除去。残るPanel Variantの重複は、古いPanel Monster共有runtimeを意図的に置き換えるものだけ。
+
+## v0.7.142 (2026-05-30) Panel Variant A/B/CでPanel Bullet対称性を強制
+- Panel Variant A/B/C適用時、既存のPanel Bullet左右速度バグ修正も`$3F/$41`プリセットでROMへ適用するようにした。
+- A/B/C Panel Variant runtimeが有効な同じROM内で、通常Panel Monsterに右/左タイミング不一致が出ないようにした。
+
+## v0.7.141 (2026-05-30) Panel Variantの2x/3x Bullet追加ステップを有効化
+- 最終Panel Variant Bullet extra-step helperを`$E823`へ追加。
+- 統合Bullet hookはvelocity table writerを直接呼ぶのではなくwrapper helperを呼ぶようにした。プリセット`2x`は追加の移動変換パスを1回、`3x`は2回実行し、各追加パス後にBullet衝突を確認し、原作state2衝突パスが着弾を処理する前に停止する。
+- `1/4`、`1/2`、高速プリセットで使うbase velocity用として、既存の`$C088`速度テーブルwriterは維持。
+
+## v0.7.140 (2026-05-30) 古いPanel Variant Bullet速度マーカーをクリア
+- 最終Panel Variant fire共通パスを変更し、速度マーカーを持たないべきBulletではchild sub-slot `+7`を明示的にクリアするようにした。
+- 通常Panel MonsterのBulletが、以前Panel Variant A/B/Cで使われたchild slotを再利用した時に、古い`$88-$8B`速度マーカーを継承する問題を防止。
+
+## v0.7.139 (2026-05-30) 新旧VariantでPanel見た目分類を共有
+- `$BFBA`に分割共有Panel type classifierを追加し、tail codeを`$DAB9`へ配置。既存の強化Panel Monster ID（`$52/$53/$56/$57/$5A/$5B/$66/$67`）と新しいPanel Variant A/B/C IDの両方をPanel visualsとしてマークする。
+- initial-magic/livesまたはGargoyle領域を使わないよう、dynamic Bullet speed marker helperを`$BFBA`から元の00-fill gapである`$E89C`へ移動。
+- 最終`$DBDF` property hookと`$C0C2` animation hookを、新A/B/C IDだけを認識するのではなく、そのclassifierを呼ぶように変更。Panel Variant A/B/C有効時に、既存の強化Panel MonsterがDemonhead/Saramandorグラフィックへ戻る問題を防ぐ。
+
+## v0.7.138 (2026-05-30) Panel Variant A/B/CでSpark hookを保持
+- 最終Panel Variant A/B/C runtimeを変更し、`$A556`ではPanel fire jumpを維持しつつ、`$A559`のSpark property hook bodyを保持するようにした。
+- `$A2CC`と`$8B05`はSpark dispatch hook経由のままにし、その後Panel property/animation hookへfall throughする形を維持。最終Panel VariantパスがSpark Ball挙動を消してしまう問題を防ぐ。
+- `panel_monster_stage_variant.RESERVED_SPANS`を古いprototype範囲から、最終runtimeで使う現在のsplit-placement範囲へ更新。
+
+## v0.7.137 (2026-05-30) Panel Variant速度ガード分類を修正
+- `$BD40` Panel Variant速度ガードを変更し、原作`$8AC0` initializer後に`($08)+1`からactive parent IDを読むようにした。以前の`$05`チェックはこの時点では古く、`$8689`がPanel Variant親を動かす前に`main+5/main+8`をクリアできていなかった。
+
+## v0.7.136 (2026-05-30) 採用済みPanel Variant no-drift方式に合わせる
+- 以前の`$8670` common-physics skip案を、局所的な`$866D -> $BD40` speed-initializer guardに置き換え。
+- ガードはまず原作`$8AC0` initializerを実行し、その後、奇数`$30-$4F` Panel Variant親の`main+5/main+8`だけをクリアする。元の`$DBB5-$DBDE`敵速度テーブルをグローバルにゼロ化せず、採用済みNoDrift挙動に従う。
+
+## v0.7.135 (2026-05-30) Panel Variant親でcommon physicsをスキップ
+- `$8670 -> $BD40`にPanel Variant親専用ガードを追加。奇数`$30-$4F` Panel Variant親IDは原作`$8689` common physics stepをスキップし、通常敵は元のA値を復元して`$8689`へジャンプする。
+- 既存の`$BD17` AI-entry velocity clearは維持し、アプリruntimeが借用ID由来の移動継承と共有ループdrift pathの両方を止めるようにした。
+
+## v0.7.134 (2026-05-30) Panel Variant親を静止させる
+- 共有方向setterへジャンプする前に、`$BD17` dispatch helper内でPanel Variant専用の親velocity/subpixel byteクリアを復元。A/B/C親が借用元Ghost/Neul移動を継承するのを防ぎつつ、`$C146` Demonhead path上の直接Demonhead呼び出しは残す。
+
+## v0.7.133 (2026-05-30) Panel Variant AI経路でDemonhead wrapperを保持
+- `$C146`の統合Panel Variant A/B/C AI wrapperを変更し、直接Demonhead-ID variant呼び出しはPanel Variant親扱いではなくDemonhead routing logicを実行するようにした。
+- Panel Variant奇数IDは引き続き`$BD17` dispatch helperから入り、Demonhead entry pointではなく共有方向setterを使う。
+- `$A575`発射間隔hookをガードし、奇数Panel Variant IDだけがステージ別`$0740`間隔cacheを読むようにした。stock/even IDは元の`CMP #$C0`タイミングへ戻る。
+
+## v0.7.132 (2026-05-30) 原作敵速度テーブルの上書きを停止
+- 統合Panel Variant A/B/Cによる`$DBB5-$DBDE`書き込みを削除。この範囲はGolemやDemonheadなどの原作敵が使う原作敵速度テーブルであり、クリアするとPanel Variant runtimeへ入らない敵を壊す可能性がある。
+
+## v0.7.131 (2026-05-30) 原作敵をPanel Variant dispatchから除外
+- 統合Panel Variant A/B/C dispatchを修正し、奇数variant IDだけが新Panel runtimeへ入るようにした。
+- 同じ`$30-$37`および`$40-$4F`テーブル範囲の偶数IDについて、原作AI、property、animation処理を復元し、既存Ghost/Golem系の敵がPanel Monster扱いされないようにした。
+- 偶数IDを原作AI routineへ戻す前に元のA/Yレジスタ状態を保持し、原作敵の移動挙動を維持。
+- Panel fire dispatchも同様に分割。`$34/$36`など既存の偶数Panel IDは通常発射パスを維持し、奇数A/B/C IDは新しいstage-variant発射パスを使う。
+- Panel Variant AI dispatch helperを、既存Saramandor-ID AI wrapperに属する`$BC5B`から、古いprototype gapである`$BD17`へ移動。
+
+## v0.7.130 (2026-05-30) Panel Variant A/B/Cをエディタへ接続
+- 12個のPanel Variant A/B/C IDをモンスターピッカーへ追加: `$31/$33/$35/$37`, `$41/$43/$45/$47`, `$49/$4B/$4D/$4F`。
+- 右側ピッカー領域に、A/B/CのBullet速度と発射間隔を設定するステージ別Panel Variantコントロールを追加。
+- A/B/C速度と間隔値をstage XMLおよびPanelVariantStageTableへ永続化し、A/B/C ID使用時に採用済みfinal split runtimeを適用するようROM保存を接続。
+- 当時のNoDrift candidateを統合保存パスへ接続したが、`$DBB5-$DBDE`が共有の原作敵速度データだと確認されたため、v0.7.132で取り消した。
+
+## v0.7.118 (2026-05-29) Spark Ball variant判定を圧縮
+- 採用済みID集合を変えずに、Spark Ball借用IDチェックを短縮。Dragon-ID wrapperは`AND #$FE`でphase-normalizeし、pause hookは正規化後に`$6A/$6E`をチェックし、property/animation hookはcompact offset ruleで`$6A/$6E/$72/$76`を分類する。
+- Spark Ball variant PRG0 codeを合計26B削減。
+- Panel Monsterの`$A556`署名ガードを更新し、圧縮後の現在Spark Ball property selectorを受け入れるようにした。
+
+## v0.7.110 (2026-05-27) 専用マーカーでPanel Bullet offsetをゲート
+- 安全でないSaramandor child-marker cleanup案を削除。
+- Panel Monster斜めBullet markerをbit7付き値へ変更し、Bullet hookはtagなし`sub+7`値を無視するようにした。
+- Panel Monster斜めoffsetを動作させたまま、Saramandor #2 BulletがPanel Bulletと誤認されるのを防ぐ。
+
+## v0.7.107 (2026-05-27) Saramandor #2の反応範囲を6タイルに
+- Saramandor #2 ID `$5E/$5F/$62/$63`向けに`$B1E9`距離チェックhookを追加。
+- 強化Saramandor IDはX反応threshold `$60`（6タイル）を使うようにした。stock SaramandorとDragonは元の共有`$14` thresholdを維持。
+- 古いUI側の共有Saramandor/Dragon距離書き換えは適用停止し、この範囲変更をvariant専用にした。
+
+## v0.7.106 (2026-05-27) Saramandor低速Bulletを削除
+- Saramandor #2の1/4速度Bullet overrideを削除。`$5E/$5F`と`$62/$63`はいずれも通常速度Bulletを生成する。
+- 現在のpatch pathから、有効な`$B121`、`$AFD1`、`$866D`のslow-Bullet marker/speed hookを削除。
+
+## v0.7.105 (2026-05-27) Panel Monster fire dispatchを圧縮
+- parent typeを`AND #$FE`でpair-normalizeし、採用済みbase ID 4種だけと比較することで、Panel Monster fire dispatchを45Bから31Bへ削減。
+- `$BCF1-$BCFE`を新しい14B bank0 cave gapとして回収。
+
+## v0.7.104 (2026-05-27) Panel Bullet速度対称化修正を追加
+- Panel Monster敵設定に「弾の左右速度バグ修正」を追加。
+- このオプションは右、左、上、下のPanel shot向け原作Bullet velocity table entryだけを書き換えるため、ROM cave領域を消費しない。
+- `$40`境界を挟む方向別`$30/$50`および`$3F/$41` selector pairを追加。生の`$41`は右/下shotには書き込まない。
+
+## v0.7.103 (2026-05-27) Panel Monster fire caveを圧縮
+- 個別のPanel Monster normal / 2-way / 3-way fire bodyを、`$BD88`の1つの共有marker-table fire loopへ置き換え。
+- それらの正確なlegacy byteが存在する場合、古いnormal fire copy `$BFB9-$BFD7`と古い2-way cave `$C088-$C0C1`を回収。
+
+## v0.7.100 (2026-05-26) 敵設定を視覚的にグループ化
+- Enemy設定ダイアログをモンスター系統ごとに並べ替え、関連コントロールを近くに配置。
+- ROM rendererが利用可能な場合、Enemy設定グループへモンスタースプライトを追加。
+
+## v0.7.99 (2026-05-26) variant patchでGargoyleキビキビ待ちを許可
+- 強化Gargoyle patch検証を修正し、アプリ自身のsnappy Gargoyle `$AF2B`待ち値`$01`を受け入れるようにした。
+- 古いrapid-fire実験hookを削除する場合以外は、強化Gargoyle patchが`$AF2B`を`$68`へ戻さないようにした。
+
+## v0.7.98 (2026-05-26) Gargoyle速度調整UIを削除
+- runtime値が信頼できるユーザー向け速度設定ではないため、強化Gargoyle 2発目速度コントロールを削除。
+- 強化Gargoyle 2発目位置コントロールは維持し、内部2発目velocity補正を標準値で適用。
+
+## v0.7.97 (2026-05-26) Gargoyle 2-shot gate branch修正
+- 強化Gargoyle `$7A/$7B/$7E/$7F` gateを修正し、一致IDが原作materialization tailへ入らず2-shot routineへジャンプするようにした。
+
+## v0.7.96 (2026-05-26) 強化Gargoyle調整を追加
+- 強化Gargoyle 2発目offsetと2発目速度の敵UIコントロールを追加。
+- ROM保存中にvariant patchが再適用される時、custom強化Gargoyle調整を保持。
+
+## v0.7.95 (2026-05-26) Gargoyle 2-shot speed 2を追加
+- 強化Gargoyle 2-shot speed-2 ID `$7E/$7F`を追加。ピッカー速度切替、敵ラベル、保存検出、runtime gateを含む。
+
+## v0.7.94 (2026-05-26) panel hackとsparkのhybrid状態を検出
+- Panel Monster挙動コントロール検出を更新し、variant patchが扱うstock-panel/current-Spark hybrid状態と同じ状態を受け入れるようにした。これにより、そのROM状態でEnemyダイアログがPanel Monsterコントロールを無効化しなくなった。
+
+## v0.7.93 (2026-05-26) orig-panel spark hybrid状態を許可
+- Panel Monster variant検証を修正し、原作Panel fire code headが`$A556`に残り、現在のSpark property hook bodyが`$A559`から始まるROMを受け入れるようにした。保存/テストパイプラインがSpark再適用前にPanel dispatchを復元できる。
+
+## v0.7.92 (2026-05-26) panelとspark hookの重複を許可
+- Panel Monster variant検証を修正し、`$A556`のPanel fire dispatch jumpと`$A559`開始のSpark Ball property hookが共存する現在layoutを受け入れるようにした。
+
+## v0.7.91 (2026-05-26) 非表示の挙動ダイアログwidgetを修正
+- hidden behavior-dialog groupを生存させ、Enemy-only viewを開いても、共有apply/export codeが読む可能性のあるwidgetを削除しないようにした。
+
+## v0.7.90 (2026-05-26) 強化Spark Ball調整を追加
+- 強化Spark Ball pause digitと透明Spark Ball blink mask調整の敵UIコントロールを追加。
+- ROM保存中にvariant patchが再適用される時、custom強化Spark Ball調整を保持。
+
+## v0.7.89 (2026-05-26) Salamander挙動グループを非表示化
+- 表示中の敵挙動UIからSalamander behavior groupを削除。
+
+## v0.7.88 (2026-05-26) Salamander Y toleranceを非表示化
+- 表示中の敵挙動UIからSalamander Y toleranceコントロールを削除。
+
+## v0.7.87 (2026-05-26) 敵挙動入口を分離
+- ゲーム挙動編集の横にトップレベルのEnemyボタンを追加し、敵AI設定を一般ゲーム挙動ダイアログから分離。
+
+## v0.7.86 (2026-05-26) 挙動ダイアログlayoutをフラット化
+- ゲーム挙動ダイアログのタブを削除し、敵設定と敵以外の設定が一緒に表示されるようにした。特殊処理ビューアもダイアログ内へ移動。
+
+## v0.7.85 (2026-05-26) 関連編集ボタンを移動
+- 敵ドロップ、デモ入力、クリアメッセージ編集をゲーム挙動ダイアログへ移動し、それらのボタンを左編集ツールパネルから削除。
+
+## v0.7.84 (2026-05-26) フォント設定を即時適用
+- 設定ダイアログのフォント変更を修正し、編集したspin-box値がcommitされ、OK/Apply直後に既存ウィンドウへフォントが再適用されるようにした。
+
+## v0.7.83 (2026-05-26) ステージ選択ペイン切替を追加
+- 右側ステージ選択ペインの表示/非表示を切り替える表示オプションを追加し、小さい画面でスペースを確保できるようにした。
+
+## v0.7.82 (2026-05-26) 表示上のステージ表記を統一
+- プレイ可能なステージを指すUI表記を、レベル/Levelからステージ/Stageへ統一。内部名は変更なし。
+
+## v0.7.81 (2026-05-26) グローバル時間設定を改名
+- 挙動ダイアログのグローバルtime-rateセクション名を`ステージ制限時間`へ変更。
+
+## v0.7.80 (2026-05-26) 制限時間秒数を丸める
+- level time selector表示を`制限時間`へ改名し、推定秒数を整数へ丸めた。
+
+## v0.7.79 (2026-05-26) ミラー寿命ヒントを移動
+- ミラー敵寿命の秒数見積もりを2行目へ移動し、フィールドラベルをコンパクトに保つようにした。
+
+## v0.7.78 (2026-05-26) time-rate秒数を表示
+- level time decreaseヒントを、現在ROMのtime-rate tableから計算した推定秒数表示へ置き換え。
+
+## v0.7.77 (2026-05-26) ミラー寿命秒数を表示
+- ミラー敵寿命ラベルを更新し、値の変更に合わせて概算秒数をリアルタイム表示するようにした。
+
+## v0.7.76 (2026-05-26) テストプレイボタンを強調
+- ファイルパネル内でplayback actionとして目立つよう、テストプレイボタンを大きく緑色にした。
+
+## v0.7.75 (2026-05-26) ウィンドウタイトルを改名
+- メインウィンドウタイトルを`MAGATU_SOLOMON_CUSTOMIZER`から`SOLOMON_CUSTOMIZER`へ変更。
+- Windows AppUserModelIDを`Chaos.MAGATU.SOLOMON_CUSTOMIZER`から`Chaos.SOLOMON_CUSTOMIZER`へ変更。
+- mapper66 ROM metadata magicを`MAGATU_SC_META`から`SOLOMON_CUSTOMIZER_META`へ変更。
+- セッションログヘッダを`SOLOMON_CUSTOMIZER セッションログ`へ変更。
+- PNG埋め込みXML rootを`magatu_solomon_customizer`から`solomon_customizer`へ変更し、それに合わせてformat-version定数を改名。
+
+## v0.7.72 (2026-05-26) 特殊ブロックをm66 cell IDとして保存
+- mapper66特殊ブロックをステージmap cellへ直接保存するように変更: `0xF9`壊せる白、`0xFA`通過可能白、`0x40`透明solid、`0x50`透明壊せる。
+- 古い32-byteの`$0740-$075F` runtime block override listを、描画後にそれらのdirect cell IDを変換する`$0304` grid scannerへ置き換え。
+- 古いPRG1 runtime block override copyを無効化し、保存時にlegacy per-room cell tableをクリアするようにした。
+
+## v0.7.70 (2026-05-26) module別ROM書き込みを棚卸し
+- Transparent Spark Ball Golem-ID AI wrapperを`$8BE2`からoriginal `00` fillの`$E80C`へ移動し、`$8BE2-$8BFD`をinitial magic/lives用に残した。
+
+## v0.7.67 (2026-05-26) ローカルfile dialog依存を削除
+- machine-localな`file_dialog` importを、リポジトリ内の`QFileDialog`互換wrapperへ置き換え。
+- machine-local helper directory向けのhard-coded startup `sys.path` entryを削除。
+- fresh checkoutが外部`PyQt5`依存を宣言するよう、`requirements.txt`を追加。
+
+## v0.7.66 (2026-05-25) 縦Panel Monster spread軸を修正
+- Panel Monster 2-way/3-way spreadを修正し、縦variantではbullet Xをoffsetし、横variantでは引き続きbullet Yをoffsetするようにした。
+- Mesen logで問題を確認。`PM3_DOWN` shotがまだ`$BF69` spread hookに到達し、`$BF98`で`ptr2E+7/Y`を書いていた。
+- Panel Monster bullet hookを70Bから74Bへ拡張し、normal fire copyと重複せず、小さな`$BFAF-$BFB8` gapから4Bを消費。
+
+## v0.7.61 (2026-05-25) 元ROM CRCを記録
+- 後から再構築に使ったsource ROMを識別できるよう、ROM保存global sidecarへ`original_rom_crc32`と`original_rom_size`を追加。
+- これらのfieldはmetadataのみで、import/rebuild logicは依存しない。
+
+## v0.7.60 (2026-05-25) global byte dataを圧縮
+- global sidecarのbyte-table fieldを長い10進配列からcompactな大文字hex stringへ変更: `main_palette_hex`, `demo_input_wait_hex`, `demo_input_joy_hex`, `enemy_drop_c278_hex`, `enemy_drop_c293_hex`, `clear_message_hex`。
+- importは新しいhex-string fieldだけを期待するようにし、短期間だけ存在したdecimal-array形式への互換pathは持たない。
+
+## v0.7.59 (2026-05-25) 不足していたglobal byte tableを追加
+- ROM save sidecarがlevel以外の編集をより多く保持できるよう、common settings JSONへROM-backed global tableを追加: `main_palette_bytes`, `demo_input_wait_bytes`, `demo_input_joy_bytes`, `enemy_drop_c278_bytes`, `enemy_drop_c293_bytes`, `clear_message_bytes`。
+- common settings importはそれらのbyte tableを直接復元し、不正な長さでは古い形式互換を試さず失敗するようにした。
+- Game Behavior settings exportを再確認。combo値はUI labelではなくnumeric dataまたはstable idとして保存される。
+
+## v0.7.58 (2026-05-25) clear-screen presetをidで保存
+- ユーザーが互換baseline versionを明示するまでは後方互換を意図的に無視する、というプロジェクトルールを追加。
+- global settings JSONの`clear_screen_preset`をUI label textから`fairy_original`などのstable internal idへ変更。
+- Clear-screen presetのUI labelを変更しても、保存済みJSON値が変わらないようになった。
+
+## v0.7.57 (2026-05-25) ROMと一緒にproject dataを保存
+- ROM保存時、保存済みROMの隣に再現可能なproject sidecarも書き出すようにした: `<rom>_global_settings.json`と`<rom>_stage_data/level_01.png`から`level_53.png`。
+- stage PNG fileは既存の埋め込みXML形式を再利用し、JSON fileは保存ROM名、stage-data folder名、現在のtitle extra textを含めた既存common-settings export形式を再利用。
+- ROM file書き込み後にsidecar exportが失敗した場合、ROM file自体が失敗したかのように扱わず、アプリは警告する。
+
+## v0.7.56 (2026-05-25) 保存時に空タイトル文字を刻印
+- ROM data保存時、title extra-text行を確認するようにした。空の場合、保存出力に`BUILD YYYYMMDD HHMMSS` timestampを入れ、ゲームのタイトル画面からbuildを識別できるようにした。
+- 既存のtitle extra textは変更せず保持。
+
+## v0.7.55 (2026-05-25) 保存整合性を検証
+- 鍵持ち敵について、保存時のlevel整合性検証を追加。ステージの初期敵数がN未満なのにkey enemy #Nを選んでいる場合、保存を停止するようにした。
+- ROM/IPS保存データは出力書き込み前に一時ROM copy上で構築するようにし、検証失敗や後続保存エラーで開いているROM dataが部分的に変更されたままにならないようにした。
+
+## v0.7.54 (2026-05-25) テストプレイ専用fast-startを追加
+- 確認済みraw-JPの3-byte title skipと3つのstart-screen wait skipに基づく、F9 testplay-only title/start-screen shortcutを追加。
+- shortcutは一時testplay ROMにだけ適用し、その直後に`rom.data`から復元するため、通常ROM保存やIPS出力にはfast-start patchが入らない。
+
+## v0.7.53 (2026-05-25) 透明Spark Ball variantを追加
+- 借用Golem #2 ID上に透明Spark Ball variant `$72/$73/$76/$77`を追加。
+- それらのIDを確認済みSpark Ball移動routineへroutingし、採用済みslow blink effect向けにOAM post-draw hide hookを追加。
+- 新runtime codeは確認済みEA padding spanにだけ配置し、上書きするとステージグラフィックを壊す`0x500C` data areaを回避。
+- 新variant向けに敵ピッカー/config labelと速度mappingを更新。
+
+## v0.7.52 (2026-05-24) Spark BallとDemonhead設定を移動
+- Spark Ball速度とDemonhead snappyコントロールを敵設定タブへ移動。
+- ROM patch挙動の変更はなし。
+
+## v0.7.50 (2026-05-24) Demonhead調整をJP66専用に維持
+- shifted US-style編集サポートを維持するのではなく、Demonhead snappy wait patchをcustomizerで使うJP bank0 layoutへ戻した。
+- US assetはタイトル素材として使用できるが、US ROMは通常編集対象ではない、という扱いに統一。
+
+## v0.7.49 (2026-05-24) Demonhead snappy turn waitを追加
+- post-spawn/post-turn startup waitを`$0F`から`$01`へ最小化するDemonhead snappy設定を追加。
+- patchはDemonhead wait命令列を動的に探すため、JP address `$B2A7`とshifted US-style layoutで動作する。
+
+## v0.7.48 (2026-05-24) Spark Ball速度倍率を追加
+- 専用`$A9DF/$A9E7` signed delta table向けに、Spark Ball移動速度倍率設定を追加。
+- 設定はspeed 1とspeed 2の両方向を更新し、stock Spark Ballと`$A929/$A92D`へ入るDragon-ID Spark Ball variantに影響する。
+
+## v0.7.47 (2026-05-24) Panel Monster snappy variant保存を修正
+- snappy発射前delayが既に`$A55B`を`$10`から`$01`へ変更している場合に、Panel Monster借用ID variant適用が失敗する問題を修正。
+- variant hook導入後、snappy delayをPanel Monster normal/2-way/3-way cave routineへ伝播し、保存/testplay準備後も設定が効き続けるようにした。
+
+## v0.7.46 (2026-05-24) NeulとGhost速度設定を追加
+- Ghost X速度とNeul Y速度へ1つの倍率を適用する「ゴースト＆ヌエル移動速度」敵AI設定を追加。
+- 設定はSP1とSP2のspeed-table pair両方を更新するため、通常版とnoslow variantがピッカー速度システムと整合する。
+- 倍率由来の速度byteを計算する時、engineのspeed-update skip markerである`$40`を避け、負速度は検証済み`$41-$7F`範囲に保つ。
+
+## v0.7.45 (2026-05-24) Panel Monster cooldownを常時編集
+- 追加のPanel Monster cooldown-enableチェックボックスを削除。frame値そのものを設定とし、原作192Fを既定として表示。
+- 非常に短いcooldown値への警告を明確化。リスクは17個の共有sub-slotを使い切ることで、複数の発射敵がいる部屋では発射失敗やbullet生成不整合を引き起こす可能性がある。
+
+## v0.7.44 (2026-05-24) Panel Monsterのキビキビ発射待ちを追加
+- `$A55B`の発射前waitを`$10`から`$01`へ変更するPanel Monster「キビキビ動作」設定を追加。
+- 既存のPanel Monster intervalコントロールをcooldownへ改名し、UIは`$A57A`をframe単位で直接編集するようにした。
+- cooldown復元はsnappy toggleから分離し、各設定を独立して変更できるようにした。
+
+## v0.7.43 (2026-05-24) 共有モンスター速度をGolem外へ移動
+- 共有Golem/Dragon/Gargoyle s0 walk-speedコントロールをGolemグループ内ではなく、独立した敵AIグループへ移動。
+- 共有速度とGolem固有速度の混同を避けるため、当面はGolem-only walk-speedとcharge-speedコントロールをダイアログから削除。
+- この設定について、ダイアログ適用時は共有s0 walk-speed pair `0x5BE0/0x5BE2`だけを変更するようにした。
+
+## v0.7.42 (2026-05-24) 共有モンスター歩行速度を分離
+- 旧Golem walk-speedコントロールを、Golem/Dragon/Gargoyle向け共有s0 walk speedと、別のGolem s1 walk speedへ分割。
+- Golem charge speedは独立したs1-only controlとして維持。
+- global settings export/importに共有monster walk speedを別項目として含めるよう更新。
+
+## v0.7.41 (2026-05-24) Dragonキビキビ動作を追加
+- Dragon専用の攻撃前waitを`$A693` / file `0x26A3`で`$01`へ最小化するDragon「キビキビ動作」global設定を追加。
+- 共有Saramandor flame startup wait `$B0E8`は変更せず、Saramandor timingを変えずにDragon自身のwaitだけに効くようにした。
+- 新Dragon設定をglobal settings export/importおよびresetに含めた。
+
+## v0.7.40 (2026-05-24) Gargoyle cooldown設定を分離
+- Gargoyleのpre-materialize wait `$AE6C`を「キビキビ動作」toggleへ追加し、snappy設定がcooldown以外のwait 3箇所を最小化するようにした。
+- object-pool floodingを避けるため、`$AE49`向けGargoyle post-shot cooldownコントロールを別に追加し、1-frame snappy toggleから外した。
+- cooldown値をglobal settings export/importおよびresetへ含めた。
+
+## v0.7.39 (2026-05-24) キャンバス上端枠を非表示化
+- 左と下の装飾壁は維持しつつ、エディタ専用の上端装飾壁行をlevel canvas描画から削除。
+- 新しいborder layoutに合わせてobject label位置を更新し、ラベルがずれないようにした。
+
+## v0.7.38 (2026-05-24) Gargoyleキビキビ動作を追加
+- 確認済みGargoyle wait threshold 2箇所を`$01`へ書く、Gargoyle「キビキビ動作」global設定を追加。
+- 無効時は元の`$68/$18`値を復元し、借用ID Gargoyle two-bullet variantとは分離して保持。
+- 新設定をglobal settings export/importとreset処理へ含めた。
+
+## v0.7.37 (2026-05-24) デモステージ設定を簡素化
+- game-behaviorダイアログから追加の「change demo stage」チェックボックスを削除。
+- demo stage spinboxはROMの現在値を既定にするようにし、未改造ROMでは6面ではなく原作3面を表示。
+- ダイアログ適用時は選択したdemo stageを直接書き込む。3面を選べば自然に原作値へ復元される。
+
+## v0.7.36 (2026-05-24) attract demo前にwide titleをクリア
+- title-timeout専用hookを`$CB9E`へ追加し、原作attract-demo action `$18`を予約する前に、古いwide-title nametableを`$CC18`でクリアするようにした。
+- 9-byteの`$BC0E-$BC16` / file `0x3C1E-0x3C26` stubを使い、room flagやkey-enemy runtimeと衝突しないようにした。
+- 既存の現行wide-title ROMは保存時にcleanup hookを受け取り、新規wide-title正規化では即時書き込む。
+
+## v0.7.35 (2026-05-24) wide-title RAM trampolineを移動
+- 静的解析により`$03C0-$03DF`がroom block grid `$0304-$03E3`内だと確認されたため、mapper66 wide-title RAM trampolineを`$03C0-$03CD`から`$072C-$0739`へ移動。
+- 古い`$03C0` bootstrapをまだ含む、正規化済みinternal wide-title ROM向けに保存時migrationを追加。
+- `$072C-$0739`を予約し、古いblock grid重複を禁止領域として扱うようにした。
+
+## v0.7.34 (2026-05-24) CHR0 wide-title returnを取り消し
+- テストにより、wide-title trampolineを`PRG0+CHR0`へ戻すと後続のゲーム/スタート画面が壊れることが分かったため、v0.7.33を取り消し。
+- 以前の`PRG0+CHR3` return byteを復元し、自動CHR0正規化を削除。
+
+## v0.7.33 (2026-05-24) wide titleをCHR0へ戻す
+- mapper66 wide-title RAM trampolineのreturn bankを`PRG0+CHR3`から`PRG0+CHR0`へ変更し、タイトル描画後にdemo pre-start、start、clear screenでCHR bank3が選択されたままにならないようにした。
+- 古い`PRG0+CHR3` return byteをまだ含むalready-wide ROM向けに、load/save正規化を追加。
+
+## v0.7.32 (2026-05-24) title idle demo cleanup patchを取り消し
+- action `$18` demo cleanup rerouteと`$BC0E` stubを削除。これらがdemo以外の画面遷移とclear screenの描画を不正にしていたため。
+- 新規wide-title正規化/保存では、原作`$CBBB` attract-demo entryを変更しない形へ復元。
+
+## v0.7.31 (2026-05-24) title cleanup後もattract demo modeを維持
+- v0.7.30の直接`$CBB3` action-table routeを、`$BC0E` / file `0x3C1E`の6-byte stubへ置き換え。このstubは`JSR $CC18`だけを実行し、その後原作`$CBBB` attract-demo entryへ戻る。
+- SHRINE/ROOM画面前にwide-title nametable残りをクリアしつつ、title-idle demo playbackが通常auto-startに変わらないようにした。
+
+## v0.7.30 (2026-05-24) wide-title demo開始cleanupを修正
+- title-idle demo actionを、手動Startで使うのと同じ`$CBB3` start-screen cleanup pathへroutingし、wide-title nametable残骸がSHRINE/ROOM demo pre-start画面へ漏れないようにした。
+- 既にinternal wide-title形式だったROMも含め、JP mapper66 ROMのload/save時に修復を適用。
+
+## v0.7.29 (2026-05-24) title top PNG palette importを分離
+- 4-color Top PNG importを変更し、importしたPNG色を、import top band外では未使用のtitle palette slotにだけ割り当てるようにした。
+- universal background colorと既存lower title palette使用は触らず、top-only importで山/神殿領域が再着色されないようにした。
+
+## v0.7.28 (2026-05-24) 4-color title top PNG importを修正
+- 既存title attribute palette経由で再量子化するのではなく、PNG色をtitle CHR pixel indexへ直接mappingする専用4-color Top PNG import pathを追加。
+- importerはtitle palette #0を更新し、保存済みtop title attributeをpalette #0へ強制するため、cleanな4-color 256x64 title artが保たれる。
+
+## v0.7.27 (2026-05-24) 壁色をパレットエディタへ移動
+- 4-stage wall colorコントロールをgame-behaviorダイアログからpalette editorへ移動し、同じ64-color picker workflowを使うようにした。
+- Palette Applyはcanvas上のwall-color previewを更新し、level thumbnailを再生成する。
+
+## v0.7.26 (2026-05-24) 同梱palette fileに合わせる
+- 共有NES RGB paletteを、192-byte palette reference fileの正確なraw RGB値へ置き換え。
+- binary検証で以前の手入力palette tableがpalette fileと一致しないことが分かったため、これにより旧tableを置き換えた。
+
+## v0.7.25 (2026-05-24) Mesen NES paletteを使用
+- 共有NES RGB paletteを、emulator dataから提供されたMesen palette値へ置き換え。
+- canvas、picker、palette editor、sprite viewer、title preview、wall-color swatchで、palette依存previewが同じ色基準を使うようになった。
+
+## v0.7.24 (2026-05-24) ステージ壁色をpreview
+- stage wall color数値fieldをNES color swatch selectorへ置き換え。
+- game-behavior変更適用後、編集済みwall colorをmain canvasと右側level thumbnailへ同期。
+
+## v0.7.23 (2026-05-24) ステージ壁色table editorを追加
+- ROM `$9122` / file offset `0x1132`の通常ステージwall color table entry 12個向けに、game-behaviorコントロールを追加。
+- editorは1〜48面を4ステージ単位で変更し、末尾の`$80/$80`特殊ステージmarkerは意図的に触らない。
+
+## v0.7.22 (2026-05-24) キャンバスlabel overlay配置を修正
+- object label背景矩形がscene/local座標混在で配置され、黒いlabel boxがtextからずれて見える問題を修正。
+- 同じtile上に重なるlabelのspacingを詰めた。
+
+## v0.7.21 (2026-05-24) object labelをUI overlayとして描画
+- canvas object labelを焼き込みimage textからQGraphicsView overlay textへ変更し、level canvas拡大縮小時もlabelが鮮明に残るようにした。
+- pixelated textを避けるため、内部image-rendered label pathを削除。
+
+## v0.7.20 (2026-05-24) ミラー敵row labelに色付け
+- ピッカー内のmirror enemy row labelに色を付けた。M1は赤、M2は青。
+
+## v0.7.19 (2026-05-24) キャンバスobject labelを追加
+- アイテム、敵、鍵、扉、ミラー、スタート位置、星座、特殊meta itemなどのcanvas objectに短いlabelを重ねる表示オプションを追加。
+- 表示オプションが有効な場合、現在levelおよび全level PNG exportにもobject labelを含める。
+
+## v0.7.18 (2026-05-24) タイトル文字入力を制限
+- 長すぎるtextをUIで入力または貼り付けできないよう、タイトル追加文字ダイアログの入力fieldを32文字に制限。
+
+## v0.7.17 (2026-05-24) US66タイトル素材判定を修正
+- mapper66拡張US ROMがタイトルimport中にJP66として検出され、import title previewが誤ったnametable layoutを使う問題を修正。
+- 拡張ROMのregion検出では、共有mapper66 loader markerより先にoriginal PRG JP/US signatureを優先するようにした。
+
+## v0.7.16 (2026-05-24) legacyタイトル画像ボタンを削除
+- title migration dialogから古いfull-screen title image save/import buttonを削除。絞り込んだTop PNG controlは引き続き利用可能。
+
+## v0.7.15 (2026-05-24) level別time-rate selectorを制限
+- 3以上の値は有効なtable selectorではないため、level別time decrease selectorを0〜2に制限。
+
+## v0.7.14 (2026-05-24) time-rate duration見積もりを表示
+- game-behaviorダイアログ内の3つのglobal LIFE decrease table値の横に、リアルタイムduration見積もりを追加。
+
+## v0.7.13 (2026-05-24) 共通time decrease table改造を追加
+- fast、normal、slowの3つのglobal LIFE decrease table値向けにgame-behaviorコントロールを追加。
+- コントロールはPRG0 cave領域を使わず、原作`$9942` tableを直接編集する。
+
+## v0.7.12 (2026-05-24) time decreaseヒントlabelを分割
+- level settings formが横に伸びないよう、time decrease rate値ガイドを2行目へ移動。
+
+## v0.7.11 (2026-05-24) time decrease rate labelを明確化
+- level setting labelを更新し、time decrease値の意味を表示。0はfast、1はnormal、2はslow。
+
+## v0.7.10 (2026-05-24) 統計のlifetime列lookupを修正
+- enemy lifetime列headerの改名後に内部column lookupを更新していなかったことで発生していた、全level統計ダイアログcrashを修正。
+
+## v0.7.9 (2026-05-24) game-hackダイアログtabを簡素化
+- game behavior hackダイアログを5タブから2タブへ削減。enemy設定とnon-enemy設定に分けた。
+- 既存enemy/AIコントロールはenemy tabへ表示し、その他の全コントロールはnon-enemyにまとめた。
+
+## v0.7.8 (2026-05-24) ミラー敵寿命unitを明確化
+- level settingsとmirror detail labelを更新し、敵寿命がおおよそ設定値×0.5秒であることを表示。
+- 実測例付きtooltipを追加し、stats文言も調整。
+
+## v0.7.5 (2026-05-24) 調整可能なグレーUI設定を追加
+- アプリ全体のグレーUI tone向けに設定コントロールを追加。
+- gray toneはapp configに保存され、settings dialogから即時適用される。
+
+## v0.7.4 (2026-05-24) 柔らかいグレーUIテーマを追加
+- editor canvasは変更せず、既定の白いUI surfaceを柔らかいgray paletteへ変える共有Qt stylesheetを追加。
+
+## v0.7.3 (2026-05-24) level情報をsettingsへ統合
+- separate level-info groupを削除し、残るsummaryをlevel-settings groupへ移動。
+- key position、door position、start position、key-enemy number textは他の場所で編集または表示されるため、summaryから冗長表示を隠した。
+
+## v0.7.2 (2026-05-24) 読み込みROMのmetadata versionを表示
+- metadata stampを既に含むROMを読み込んだ時、ROM info panelに埋め込みMAGATU_SOLOMON_CUSTOMIZER versionを表示。
+
+## v0.7.1 (2026-05-24) key enemy selectorを制約
+- 鍵持ち敵selectorを、選択中ステージに現在配置されている敵数までに制限。
+- 敵削除により保存済みkey enemy numberが無効になった場合、範囲外targetを残さず、設定をクリアして警告を表示。
+
+## v0.7.0 (2026-05-24) 最小機能マイルストーン
+- 最初の0.7 releaseを、現在の最小target feature setが揃ったmilestoneとしてマーク。
+- このreleaseには、採用済みステージ設定基盤、鍵持ち敵サポート、ステージ開始時fire reset、stage-start announcement、現行強化敵variantが含まれる。
+
+## v0.6.173 (2026-05-24) 鍵持ち敵announcementのgate分岐を修正
+- `$B3C0`のstage-start announcement key-enemy gateを修正。no-key branchはroutine `RTS`の1byte後ではなく、routine `RTS`そのものへ着地するようになった。
+- announcement overlayが導入済みで、現在roomにkey enemyがいない場合にroom 4以降のtest playがstart screenでfreezeする問題を修正。
+
+## v0.6.171 (2026-05-24) start announcementのmain caveを移動
+- stage-start announcement main routineを`0x0BF2 / $8BE2`から`0x63CC / $E3BC`へ移動し、mask tableを`0x60CC / $E0BC`へ分割。
+- これにより`$8BE2`のinitial magic routineとの重複を除去。この重複はstage-start initializerを壊し、announcement flagがないroomでもroom 4以降のtest playをfreezeさせていた。
+
+## v0.6.168 (2026-05-24) Golem charge dash boostを削除
+- Golem charge-only dash boost moduleとhack-dialog controlを削除。
+- PRG0 overlap ledgerからGolem charge dash予約spanを削除。採用済みGargoyle 2-shot caveが、それらの占有範囲をmutual-exclusion warningなしで所有するようになった。
+- Saramandor `$866D` hook互換チェックを、active slow-Bullet wrapper pathへ単純化して戻した。
+
+## v0.6.165 (2026-05-24) announcement描画loop indexを修正
+- labelごとの`$915E`呼び出しを`$9471`風PPU script wait helperへ置き換え、stage-start announcement flag branchを修正。
+- 各label描画中にcallerの`X` registerを保持し、room-flag announcement loopが5つのflag entryを超えて走らないようにした。
+- v0.6.164 announcement hookで保存されたROM向けにmigration toleranceを追加。
+
+## v0.6.164 (2026-05-24) stage-start announcement順序を修正
+- custom labelを描いてからstock `$915E` intro updateへ戻るようstage-start announcement hookを修正し、採用済みtest-ROMの呼び出し順に合わせた。
+- shrine markerとannouncement labelが表示されずstart screenでfreezeしていたv0.6.163の問題を修正。
+
+## v0.6.163 (2026-05-24) stage-start announcementを追加
+- intro screen上にactive level settingsを表示するstage-start announcement overlayを追加。採用済み2-column layoutで`DARK ROOM`, `FIRE LOSS`, `KEY ENEMY`, `HIDDEN DOOR`, `FIRE SEALED`, `SPELL SEALED`を表示。
+- bank 0/1/2のtile byte `$25`と`$27`へ、不足していた`K`と`P`文字用custom gameplay CHR tileを導入。
+- 新しいステージ別UI fieldを追加せず、既存room flag、fire-reset状態、key-enemy設定からROM保存時にoverlayを接続。
+
+## v0.6.162 (2026-05-23) Gargoyle 2-shot variantを追加
+- 借用Gargoyle ID `$7A/$7B`向けに、採用済み`$AE6F` two-Bullet materialization routineを追加。
+- two-shot bodyの前にtype gateを追加し、stock Gargoyle `$78/$79`は原作single-Bullet pathに残した。
+- stageまたはmirror enemy dataに`$7A/$7B`が存在する時、Gargoyle variantをROM保存へ接続し、新しい2-shot Gargoyle entry向けにpicker/config labelを更新。
+- Golem charge dash hackが既に適用済みのGargoyle 2-shot ROMを黙って上書きしないようguardを追加。
+
+## v0.6.160 (2026-05-23) 壊れたGargoyle rapid-fire patchを無効化
+- 検証によりGargoyle bulletのmaterializeを妨げ、item pickup処理へ干渉し得ることが分かったため、v0.6.159 Gargoyle rapid-fire runtime hookを通常ROM保存から無効化。
+- firing pathの再確認が済むまで、`$7A/$7B`敵ピッカー説明を中立的なGargoyle #2 labelへ復元。
+
+## v0.6.159 (2026-05-23) Gargoyle rapid fireを追加
+- `$7A/$7B`向けにGargoyle speed1 #2 rapid-fire variantを追加。1発目はattack stateをactiveに保ち、stock resetが再開する前に2発目が短時間後に続く。
+- Saramandor Bullet state0 cave後の未使用paddingを回収し、新しいGargoyle reset wrapperをkey-enemy split chunkより前の`$BEC7-$BEF2`へ配置。
+- `$7A/$7B`の敵ピッカーlabelを更新し、rapid-fire Gargoyle variantを説明するようにした。
+
+## v0.6.158 (2026-05-23) key enemyとgap_fixの重複を解消
+- key-enemy initial-slot binderを`$C000`から、回収済みPRG0 tail領域`$C1D6`へ移設。
+- key-enemy defeat dropperを小さな検証済みPRG0 cave gapへ分割し、entryを`$C029`から`$BE2F`へ移動。migration中に古い`$C000/$C029` byteをクリア。
+- `gap_fix` `$C000-$C087`との残りPRG0重複を削除し、鍵持ち敵とhorizontal-gap stabilization patchが共存できるようにした。
+
+## v0.6.157 (2026-05-23) room flag dataをPRG1へ移動
+- mapper66 runtime room flagとhidden-door cell dataをPRG1 StageExt tableへ移動し、mapper66 loader tail中に`$0778`と`$077C`へコピーするようにした。
+- 古いDoorCellTable/RoomFlagTable役割からPRG0 `$C180-$C1FF`を解放し、key-enemy dropped-key handlerを`$C0F0`から`$C180`へ移設。
+- `$C0F0-$C155`をruntime block override caveへ戻し、鍵持ち敵とspecial block/dark-room runtime処理の衝突を除去。
+
+## v0.6.156 (2026-05-23) fall key drop entryを修正
+- fall-death key handlerを修正し、古い`$C024` entryではなく、移設後key-drop bodyの`$C02C`を呼ぶようにした。以前のv0.6.155 layoutでは、敵が落下死した時にfire-defeat-onlyの`$9D1C` setupへfall throughしてcrashする可能性があった。
+
+## v0.6.155 (2026-05-23) key enemy落下死dropを追加
+- key-carrying initial enemy向けにfall-deathサポートを追加。選択されたinitial enemyはroom enemy load中に既存のfall-death replacement flagを受け取り、足場を落とすとkey pathを発火できる。
+- 原作fall-fairy replacement entryをhookし、設定keyをspawnしてから落下敵を通常どおりdespawnするようにした。active key targetがないroomでは原作fairy replacement挙動を保持。
+- fall-death flagging logic用の余地を作るため、key enemy defeatとdoor-light helper caveを移動し、保存時にv0.6.153-v0.6.154 cave layoutからのmigrationを追加。
+
+## v0.6.154 (2026-05-23) key enemy slot hook stackを均衡化
+- production key-enemy initial-slot binderを成功したv12実験に合わせて修正。全branchがreturn前に、保存したX registerを正確に1つのPLAで均衡させる。
+- targetではないinitial enemyがroom setup中にstack byteを1つずつ漏らす問題を防止。これは敵が複数いるステージで即クリアやstartup flow破壊を起こし得た。
+- 以前のv0.6.153 key-enemy binderで保存されたROMを、次回保存時に修正版binderで上書きできるようにした。
+
+## v0.6.153 (2026-05-23) key enemy entry clearを修正
+- 設定されたkey-carrying initial enemy slotを、dropped-key runtime stateから分離。StageExt slotはRAM `$072B`に置き、`$0723`はdropped-key active/tile marker専用のままにした。
+- 設定enemy numberがactive dropped keyとして誤読され、ステージ開始時に即key/clear処理へ流れ込むbugを修正。
+
+## v0.6.152 (2026-05-23) key enemy runtimeを接続
+- ステージ別key-carrying initial enemy向けproduction runtime patchを追加。Mapper66 stage loadはStageExt key enemy slotをRAMへコピーし、そのinitial placement numberをruntime enemy slotへbindし、その敵撃破時にkeyをdropする。
+- 生成されたkeyがDemon Mirror spawn敵を再利用せず、通常key flowでdoorを開くよう、dropped-key pickup処理を追加。
+- key runtime cave span向けにROM/RAM overlap guardを追加。patchは無関係の非empty codeを黙って衝突上書きせず拒否する。
+
+## v0.6.151 (2026-05-23) key enemy UIを追加
+- tile hover/status-barの敵textに`敵#N`として敵順番号を追加し、canvas上からinitial placement indexを識別できるようにした。
+- 既存stage extension key-enemy slot fieldへ書き込む、level別`鍵持ち敵 (#)`設定を追加。`0`はなし、`1-15`は初期配置敵順に対応。
+- key-enemy enable/read/write処理向けにstage extension helper accessorを追加。
+
+## v0.6.150 (2026-05-23) borrowed-IDの見た目metadataを分離
+- v0.6.121のPanel Monster group-wide property/animation書き換えをtype-specific hookへ置き換え、借用Panel IDだけがPanel metadataを受け取るようにした。
+- Spark Ball property/animation hookをPanel selector経由でchainし、2つのborrowed-ID systemが互いを戻さず共存するようにした。
+- 元の共有Demonhead/Saramandor group metadataを復元し、`$50/$51`などのstock Demon Mirror spawnがPanel Monster metadataを継承しないようにした。
+
+## v0.6.146 (2026-05-23) post-HUD fire reset hookを取り消し
+- stage-start挙動を悪化させ、Demon Mirror spawningも復元しなかったため、v0.6.145の`$90E6` post-HUD hookを取り消し。
+- Demon Mirrorとの相互作用は別途調査しつつ、v0.6.144型のloader-based fire reset実装を復元。
+
+## v0.6.145 (2026-05-23) fire resetをstage setup後へ移動
+- per-stage fire reset runtimeを`$9071` level-loader caveから外した。loaderは再び`ROOMFLAGS` cacheとhidden door処理だけを担当。
+- `$90E6`からhookされる新しい`$C0C2` post-HUD caveを追加。level ready、enemy placement、HUD buffer setup後に実行され、`ROOMFLAGS` bit4がsetされている時に`$042E/$042F`をclearしHUDを再描画する。これによりDemon Mirror setupの中断を避ける。
+
+## v0.6.144 (2026-05-23) per-stage fire reset対象を修正
+- stage fire reset runtimeを修正し、`$042B`をclearしないようにした。このbyteは持ち越しstockだけでなくHUD/max/cursor状態の一部であり、clearすると不可能なscroll-count表示挙動を起こしていた。
+- resetは`$042E/$042F`だけをclearし、すぐに`$A1CC`を呼んで新ステージのfire stock HUDを再描画するようにした。
+
+## v0.6.143 (2026-05-23) per-stage fire resetを追加
+- ステージ開始時に持ち越しfire / super-fire stockをresetするステージ設定を追加。UIは設定を`StageExtTable`へ保存し、runtimeはそれを`RoomFlagTable` bit4へmirrorするため、bank0 stage-load codeがPRG bank switchingなしで適用できる。
+- `$BBE0` room loader caveを37Bから55Bへ拡張。current roomでbit4がsetされている場合、loaderはplay開始前に`$042B/$042E/$042F`をclearする。
+
+## v0.6.142 (2026-05-23) StageExtTable基盤を追加
+- PRG1 `0x8800-0x8A0F`へ`StageExtTable`を追加。16B header + 64 rooms x 8B。将来のfire reset、鍵持ち敵、stage-start announcement機能向け共有per-stage settings基盤。
+- mapper66拡張とmapper66保存がtableを保持し、XML export/importが新per-level fieldを保持するよう、read/write配管を追加。
+
+## v0.6.141 (2026-05-23) Panel Monster fire tailを共有
+- 2-wayと3-way fire cave間で、同一のPanel Monster marker-write helperとfire-exit tailを共有。2-way caveは3-way caveのcommon tailへジャンプし、local ready-timer RTSだけを保持する。
+- Panel Monster borrowed-ID予約をさらに27B削減。Borrowed-ID runtime予約は合計819B、bank0 cave fragmented free totalは238B、最大fragmentは46B。
+
+## v0.6.140 (2026-05-23) 未使用Borrowed-ID予約を解放
+- Borrowed-ID runtime span listから、未使用の`$BF50-$BF68` NOP-only Saramandor variant予約を削除。Saramandor、Panel Monster、Spark Ball挙動を変えず、PRG0 bank0 caveで25Bを解放。
+- Panel Monster bullet hookとnormal fire copy予約を分割し、`$BFAF-$BFB8`の未使用10B gapを占有扱いしないようにした。
+
+## v0.6.139 (2026-05-23) PRG1 wide-title reserveを分割
+- wide-title PRG1予約を`0x80D0-0xBB95`から`0x80D0-0x87FF`へ削減し、1,840Bのtitle workspaceを残した。確認済みimport titleは589Bを使用。
+- `0x8800-0xBB95`を、将来のstage-load-time tableおよびnon-gameplay-screen code/data向け13,206B PRG1 general reserveとして再分類。
+
+## v0.6.137 (2026-05-23) Spark Ball variant caveをgap_fixから移動
+- Dragon-ID Spark Ball variant runtime caveを`$C000-$C087` gap_fix cave範囲外へ移設。Spark Ball variantは`$BD26`, `$BE62`, `$BEEA`, `$BFD8`, `$CFDE`, `$EFC4`の小さなPRG0 free fragmentを使うようになった。
+- gap_fixとSpark Ball variantを、予約PRG spanの重複なしで同時適用できることを検証。
+
+## v0.6.136 (2026-05-23) 通常animation table lookupを保持
+- animation metadata hookの通常pathを復元し、`$D0E8/$D0E9`を読む前に元のtype-group indexをreloadするようにした。Spark Ball variant type check後に、非variant characterが誤ったanimation metadataを使う問題を防ぐ。
+
+## v0.6.135 (2026-05-23) Spark Ball variant animation検出を修正
+- Dragon-ID Spark Ball animation hookを修正し、animation state scratch値ではなくactive main slotからentity type byteを読むようにした。通常DragonはDragonとして描画しつつ、`$6A/$6B/$6E/$6F`はSpark Ballとして描画できる。
+
+## v0.6.134 (2026-05-23) 通常Dragon描画を復元
+- Dragon-ID Spark Ball variantを作り直し、共有Dragon groupを変更するのではなく、type-specific hook経由で`$6A/$6B/$6E/$6F`にSpark Ball propertyとanimation metadataを与えるようにした。
+- 共有Dragon propertyおよびanimation table byteを復元し、通常Dragon `$68/$69/$6C/$6D`がSpark Ball化しないようにした。
+
+## v0.6.133 (2026-05-23) Spark Ball pause方向labelを修正
+- Dragon-ID Spark Ball pause variantのpicker/config labelを確認済み挙動に合わせて更新。`$6A/$6E`は上、`$6B/$6F`は下。
+
+## v0.6.132 (2026-05-23) Spark Ball pause検出用にDragon IDを保持
+- Dragon-ID Spark Ball variantを変更し、AIをstock Spark Ball routineへroutingしつつ、元の`$6A/$6B/$6E/$6F` type byteを保持するようにした。pause hookが確認できる安定IDを残す。
+- sub-slot `+3` marker checkを、`$AB13` Spark Ball speed commitでの直接main-slot type checkへ置き換え。stock `$28-$2F` Spark Ballはpause hook pathを迂回する。
+
+## v0.6.131 (2026-05-23) Spark Ball pause variantを分離
+- Dragon-ID Spark Ball variant向けにmarker-based `$AB13` pause hookを追加。wrapperはsub-slot `+3`を`$A6`でmarkし、markされた敵だけがLIFE百の位mod3停止挙動を使う。
+- 大きくなったmarker-aware wrapper同士が重ならないよう、fast Dragon-ID wrapperを`$C008`へ移動し、pause hookを`$C038`へ配置。
+- `$6A/$6B/$6E/$6F`のpicker/config labelを「Spark Ball pause」へ復元。
+
+## v0.6.130 (2026-05-23) Dragon-ID Spark Ball variantを安定化
+- 借用Dragon `$6A/$6B/$6E/$6F` group向けに、不足していたSpark Ball propertyとanimation metadata patchを追加。確認済みtest ROM setupにより近くなり、借用IDが無関係な敵として初期化/描画される問題を防ぐ。
+- 確認済みmarker-free hookは原作`$28-$2F` Spark Ballも変更してしまうため、LIFE百の位pause hookはいったん無効のままにした。
+- 停止挙動をきれいに分離できるまで、picker/config labelを「pause」から「variant」へ改名。
+
+## v0.6.129 (2026-05-23) 危険なSpark Ball variant markerを削除
+- 安全でないSpark Ball pause marker実験を削除。main-slot `+2`とsub-slot `+2`のどちらも、借用Dragon-ID Spark Ball variantを壊す可能性があった。
+- Dragon-ID Spark Ball variantは、`$6A/$6B/$6E/$6F`を確認済みstock Spark Ball phaseへ変換するだけになった。global `$AB13` pause hookはもう適用されないため、原作`$28-$2F` Spark Ballは触られない。
+
+## v0.6.128 (2026-05-23) Spark Ball variant markerをsub-slotへ移動
+- 敵の見た目/初期化へ影響し得るmain-slot `+2`から、Spark Ball pause variant markerを外した。
+- Dragon-ID Spark Ball variantは代わりにsub-slot `+2`をmarkし、原作`$28-$2F` Spark Ballは引き続きpause hookを迂回する。
+
+## v0.6.127 (2026-05-23) Spark Ball pause variantを分離
+- Dragon-ID Spark Ball pause variantが選択可能なmonster entryとして出るよう、敵ピッカーを修正。
+- LIFE百の位mod3停止を適用する前にborrowed-ID markerを確認するよう、Spark Ball pause hookを変更。原作`$28-$2F` Spark Ballはstock movementを維持。
+
+## v0.6.126 (2026-05-23) Dragon-ID Spark Ball variantを追加
+- 採用済みDragon #2 ID `$6A/$6B/$6E/$6F`向けに、always-on Spark Ball variant patchを追加。
+- `$6A/$6E`はstock Spark Ball up phaseへ入り、`$6B/$6F`は採用済みright-hand/down phaseへ入る。slow/fast pairは確認済みstock Spark AI entry pointを使う。
+- Spark Ball position commitへLIFE百の位mod3 pause hookを追加し、再利用Dragon IDがエディタ内でSpark Ball pause variantとして表示されるよう敵定義を更新。
+
+## v0.6.124 (2026-05-23) 不安定なPanel Monster velocity-sync実験を取り消し
+- v0.6.123のPanel Monster斜めBullet velocity-sync変更を取り消し。これはdemon mirror spawnを含むspawned-enemy挙動を壊し、Panel Monsterの発射/向きを不安定にしていた。
+- v0.6.122の「移動時だけ有効になるBullet Y hook」を復元。生成済みBullet速度やmirror spawn flowに触れず、口元drift修正の挙動を保つ。
+
+## v0.6.123 (2026-05-23) Panel Monster斜めBulletにY velocityを使用
+- Bullet AI hookから手動でYを動かすのではなく、spawned BulletのY velocityを設定するようPanel Monster variantの斜めshotを作り直した。
+- 共有diagonal velocity helperで採用済み2-way/3-way spawn patternを保ちながら、stock Bullet AI entry `$AFBB`を復元。
+- 斜め移動をstock entity physics pathへ結びつけ、enemy load変更時のangle driftを減らした。
+
+## v0.6.122 (2026-05-23) Bullet移動でPanel Monster斜めY移動をゲート
+- production Panel Monster variant Bullet hookを修正し、stock Bullet movement routineがactive motionを報告した時だけ斜めY移動を適用するようにした。
+- 新規spawnされたPanel Monster Bulletが、水平移動開始前に口元で待機している間に縦方向へdriftするのを防ぐ。
+
+## v0.6.121 (2026-05-23) Panel Monster 2方向/3方向variantを追加
+- `$52/$53/$56/$57`を2-way diagonal shot panel、`$5A/$5B/$66/$67`を3-way shot panelとして、always-on Panel Monster borrowed-ID patchを追加。
+- patchはborrowed ID自体を保持しつつ、AIをPanel Monster wrapperへroutingし、Panel Monster init property/animationを適用し、採用済み斜め挙動向けにPanel Bullet Y移動をhookする。
+- borrowed IDがDemonhead/Saramandor entryではなくPanel Monster variantとして表示されるよう、敵ピッカーと敵定義を更新。
+
+## v0.6.120 (2026-05-23) CustomizerへGolem charge dash boostを追加
+- `core/golem_charge_dash.py`とGolem charge dash boost selectorをgame behavior dialogへ追加。selectorはOFF/2x/3x/4x/5xを提供し、5xは採用済みtest挙動に一致。
+- production patchは既存Saramandor speed wrapper経由でchainし、Saramandor bullet variantとGolem charge boostが共存できるようにした。
+- boost対象は確認済みGolem rush speed `$26/$5A`だけ。通常歩行速度は既存Golem speed設定で制御される。
+
+## v0.6.105 (2026-05-22) export dataとmapper66 ROMへapp versionを刻印
+- runtime block override tableの後、copy済みvectorの前にあるfree areaを使い、PRG bank1 file `0xFF00-0xFF3F`へmapper66 ROM metadata stampを追加。
+- ROM保存時、拡張mapper66 ROMだけに現在の`MAGATU_SOLOMON_CUSTOMIZER` app versionをそのmetadata slotへ書き込むようにした。
+- 互換性のためlegacy `app_version="1.1"`値を保持しつつ、既存level XML exportへ`customizer_app_version`を追加。
+- MAGATU PNG埋め込みstage XMLとglobal settings JSONは既に`app_version`を持っていることを確認。この変更でそれらの経路もversion付きに保たれる。
+
+## v0.6.103 (2026-05-22) animation timer再利用で低速Saramandor bulletを維持
+- Mesen loggingによりmain-slot `+12`はpersistent storageではなくstock Bullet animation timerだと確認されたため、v0.6.102 slow-bullet修正を修正。
+- `$866D` wrapperは、後続Bullet behavior reinitialization中に、fresh-spawn marker（`+12=$A5`）または既にoverride済みの1/4速度X velocity（`Xv=$10/$F0`）のどちらかでslow Bulletを認識するようになった。
+- `+12`のpersistent marker状態への依存を停止。slow-speed wrapper caveは`$BF00-$BF4F`に広がり、未使用fillerを`$BF50`へ移動。
+
+## v0.6.102 (2026-05-22) reinit後も低速Saramandor bulletを低速維持
+- Bullet state0がbehaviorを変更し、generic entity loopが`$8AC0`を2回目に呼ぶことで、Saramandor #2 speed 2 bulletが通常速度へ戻る可能性を修正。
+- `$866D` wrapperは各slow Bullet speed init後にslow markerを再保存するようになり、後続Bullet reinitializationでも1/4速度overrideを維持する。
+- cave spanは`$BF00-$BF3F`内に収まり、次の登録済みSaramandor variant caveである`$BF40`より前で終わる。
+
+## v0.6.101 (2026-05-22) Salamander/Dragon反応距離labelを明確化
+- `SUB_B1E9`をROM byteおよび`SUB_A134` distance updaterと照合し直した。
+- `$B1F3` / file `0x3203`がX反応threshold、`$B1FF` / file `0x320F`がY許容thresholdであることを確認。
+- game-behaviorダイアログの文言をfiring rangeからreaction distanceへ更新し、preset labelを明示的なpixel/tile値へ変更。
+
+## v0.6.100 (2026-05-22) legacy toggleなしでSalamander距離調整を維持
+- Salamander/Dragon X/Y reaction distanceコントロールの適用を復元。
+- 削除済みlegacy global fireball/despawnチェックボックスは戻さず、2つのdistance byteだけを書き込む。
+- UIが古いglobal Salamander fireball patchを呼ばないよう、distance-only core helperを追加。
+
+## v0.6.99 (2026-05-22) 古い共通Salamander bullet toggleを削除
+- game behaviorダイアログから、廃止済みglobal Salamander fireball enable/despawnチェックボックスを削除。
+- 現在実装はglobal toggleではなくSaramandor #2 enemy IDを使うため、古い2項目は混乱を招き、legacy patchを書き込み得た。
+- 共通設定のexport/importは、削除済みの古いkeyを無視するようにした。
+
+## v0.6.98 (2026-05-22) Saramandor #2の低速markerを速度初期化まで保持
+- v0.6.97の低速Bullet runtime漏れを修正。main-slot `+2`は`$8AC0`前にentity loopで上書きされるため、低速markerをmain-slot `+12`へ移動した。
+- `$866D`速度wrapperは、原作`$8AC0`が`+12`を消す前にone-shot markerを確認し、marker付きの`$62/$63` Bulletだけを1/4速度へ上書きするようにした。
+- wrapperは`$8AC0`へ入る前のA/Y入力を保持するようにした。`$8AC0`はこれらのregisterに依存するため、先に触ると通常entity初期化が壊れていた。
+- 通常Saramandor #2 speed 1（`$5E/$5F`）と通常ゲームBulletはmarkerなしのまま変更しない。
+
+## v0.6.97 (2026-05-22) Saramandor #2低速Bullet速度修正
+- Saramandor #2 speed 2（`$62/$63`）のBulletが通常Bullet速度のままになる問題を修正。
+- patchはSaramandor #2 speed 2が作ったchild sub-slotだけをmarkし、原作entity速度初期化`$866D`をwrapするようにした。`$8AC0`が通常Bullet速度を読み込んだ後、markされたBullet entityを1/4速度（`Xvel=$10/$F0`）へ上書きする。
+- 通常Bullet、Panel Monster Bullet、Saramandor #2 speed 1（`$5E/$5F`）は変更しない。
+
+## v0.6.96 (2026-05-22) ミラーピッカーで敵速度を適用
+- ミラー敵のドラッグ&ドロップを修正し、敵をミラー出現slotへ落とす時に現在の敵速度radio buttonを適用するようにした。
+- これによりSaramandor #2 speed 2はslotを`$5E/$5F`のままにせず、`$62/$63`を配置するため、1/4速度Bullet variantが実際に選ばれる。
+
+## v0.6.95 (2026-05-21) Saramandor #2 Bullet variantを追加
+- 未使用のSaramandor #2 ID向けに常時適用ROM patchを追加。
+- `$5E/$5F`は通常速度Bullet entityを生成し、`$62/$63`は1/4速度Bullet entityを生成する。`$66/$67`は予約のまま変更しない。
+- Saramandor #2右/左entryをモンスターピッカーと速度radio mapping（`5E/62/66`, `5F/63/67`）へ追加。
+- Saramandor variant cave範囲をRoom Flag cave verifierへ登録し、隠し扉、暗闇、壊せる白壁、gap-fix patchと共存できるようにした。
+
+## v0.6.94 (2026-05-21) ROM読み込み時にroom flagを復元
+- 改造済みROM読み込みで、Room Flag Tableを各`Level.room_flags`へ復元するようにした。
+- patch済みROMを再度開いた時、隠し扉、Bファイア禁止、Aストーン禁止、暗闇などの部屋別設定がlevel settings checkboxへ再表示される。
+- 既存の壊せる白壁/透明壊せるcell復元はそのまま維持。
+
+## v0.6.93 (2026-05-21) 共通設定import/export
+- game behavior/global settingsダイアログへJSON export/importボタンを追加。
+- exportは、開始/continueステージ、ワープ羽、初期魔法/残機、プレイヤー速度、敵挙動調整、clear-screen character、gap fix、暗闇テンポなど、共有ROM挙動設定の現在のダイアログ値を保存する。
+- importはダイアログcontrolだけを更新する。ROMは他のダイアログ操作と同じく`Apply`または`OK`を押した後に変更される。
+
+## v0.6.92 (2026-05-21) Top PNGをpixelから再構築
+- `Top PNG読込`は同名JSON sidecarのlayout dataを無視するようにした。
+- 読み込んだPNGを256x64 top bandの正本として扱い、同一8x8 tileは共有し、異なる8x8 tileには別のtitle tile IDを割り当て、そのband向けにwide-title streamを再構築する。
+- PNGが別の絵に編集された時、古いtile共有関係を保持してしまう問題を防ぐ。
+
+## v0.6.91 (2026-05-21) カラーTop PNG round-trip
+- `Top PNG保存`はtitle top bandを4段階グレースケールへ潰さず、color RGB PNGとしてexportするようにした。
+- PNG importは各pixelを、そのcellの実際のtitle palette/attribute context内で最も近い有効色へ戻すようにし、複数paletteのtitle artを全体一律で平坦化せず保持する。
+- 描画済みtitle imageを全960 tile pixel patternへ戻すround-tripで、color export/import logicの不一致が0件であることを確認。
+
+## v0.6.90 (2026-05-20) title palette Applyボタンを追加
+- title palette editorへ`OK / Cancel / Apply`挙動を追加。
+- `Apply`はダイアログを閉じずに、選択したtitle色を書き込みpreviewを更新する。
+- `Cancel`はtitle palette editorを開いた時点の色へ戻す。
+
+## v0.6.89 (2026-05-20) title palette editorを追加
+- title migrationダイアログへ`タイトル色...`ボタンを追加。
+- ダイアログはROMのtitle palette script経由でPPU `$3F00-$3F0F`へ書かれるtitle BG palette byteを編集する。
+- 実効NES color numberが変わるslotだけを書き戻すため、`$FF`のような等価な既存byteを不要に正規化しない。
+
+## v0.6.88 (2026-05-20) title previewのPPU attribute対応
+- color title previewで誤っていた`$24` clear-tile特別扱いを取り消した。`$24`はPPUと同じく実際のCHR tile、attribute、palette pathで描画される。
+- JP title後半のhardcoded attribute write（`$2BEA`, `$2BF0-$2BF6`, `$2BF8-$2BFF`）をpreview attribute mapへ追加し、previewが最終title attribute状態により近くなるようにした。
+
+## v0.6.87 (2026-05-20) title preview背景色修正
+- color title previewで、clear/background cell（`$24`）を通常CHR tile artとして扱わず、title backdropとして描画するように修正。
+- title attribute previewは、21-byte title attribute table適用前に原作`$FF` attribute fillから開始するようにした。
+
+## v0.6.86 (2026-05-20) color title preview
+- title migrationダイアログのpreviewを、固定グレースケールではなくtitle paletteとattribute dataで描画するようにした。
+- PNG export/import pathは既存の4段階グレースケールrendererを使い続けるため、このpreview改善で編集round-tripは変わらない。
 
 ## v0.6.85 (2026-05-20) Top PNG sidecar layout
-- `Top PNG保存` now uses a timestamped default filename and writes a same-name
-  `.json` sidecar.
-- `Top PNG読込` reads that sidecar when present and restores the title top-band
-  layout before applying pixels.
-- This fixes the fresh-JP `377 cells` vs imported arcade `386 cells` mismatch
-  for Top PNG round-trips.
+- `Top PNG保存`はtimestamp付き既定file名を使い、同名`.json` sidecarを書き出すようにした。
+- `Top PNG読込`はsidecarが存在する場合にそれを読み、pixel適用前にtitle top-band layoutを復元する。
+- fresh-JPの`377 cells`とimport済みarcadeの`386 cells`の差で、Top PNG round-tripが噛み合わない問題を修正。
 
-## v0.6.84 (2026-05-20) Remove duplicate Page position controls
-- Removed the 52/53 Page position spin boxes from the game behavior dialog.
-- The same JP ROM offsets (`0x35D9` / `0x35DD`) are already edited by the
-  canvas meta-item drag path, so keeping both UIs could overwrite a dragged
-  position with stale dialog values.
-- `page_pos.py` remains available as the low-level ROM helper, but the user
-  facing operation is now the canvas drag workflow.
+## v0.6.84 (2026-05-20) 重複したPage位置controlを削除
+- game behaviorダイアログから52/53 Page position spin boxを削除。
+- 同じJP ROM offset（`0x35D9` / `0x35DD`）はcanvas meta-item drag pathで既に編集されるため、両方のUIを残すとdrag済み位置を古いダイアログ値で上書きする可能性があった。
+- `page_pos.py`は低レベルROM helperとして残すが、ユーザー向け操作はcanvas drag workflowに統一。
 
-## v0.6.83 (2026-05-20) Organize game behavior settings
-- Reworked the game behavior dialog into category tabs:
-  `基本`, `プレイヤー`, `敵・AI`, `画面・演出`, and `保守・特殊`.
-- This is a UI organization change only. Patch logic and ROM formats are
-  unchanged from v0.6.82.
+## v0.6.83 (2026-05-20) game behavior設定を整理
+- game behaviorダイアログを`基本`、`プレイヤー`、`敵・AI`、`画面・演出`、`保守・特殊`のcategory tab構成へ作り直した。
+- UI整理だけで、patch logicとROM formatはv0.6.82から変更なし。
 
-## v0.6.82 (2026-05-20) Add initial lives setting
-- Added a global initial Dana lives setting to the game behavior dialog.
-- The patch changes only `$0452` by installing a small `$8BF4` routine and
-  returns with `X=$03`, so the original `$042B` fire-scroll setup is not
-  accidentally changed.
-- The setting restores cleanly to the original `3` lives.
+## v0.6.82 (2026-05-20) 初期残機設定を追加
+- game behaviorダイアログへDanaのglobal初期残機設定を追加。
+- patchは小さな`$8BF4` routineを入れて`$0452`だけを変更し、`X=$03`で戻るため、原作`$042B` fire-scroll setupを誤って変更しない。
+- 設定は原作の`3` livesへきれいに復元できる。
 
-## v0.6.81 (2026-05-20) Polish initial magic UI
-- Improved the initial magic controls in the game behavior dialog with clearer
-  tooltips and help text.
-- Changed the apply log messages for the initial magic patch to Japanese user
-  facing text.
-- No ROM patch format change from v0.6.80.
+## v0.6.81 (2026-05-20) 初期魔法UIを調整
+- game behaviorダイアログの初期魔法controlを、より分かりやすいtooltipとhelp textで改善。
+- 初期魔法patchのapply log messageを日本語のユーザー向け文言へ変更。
+- ROM patch formatはv0.6.80から変更なし。
 
-## v0.6.80 (2026-05-20) Preserve A in initial magic routine
-- Fixed the side effect introduced by v0.6.79 where the score/status area
-  became corrupted during the shrine intro.
-- The `$9144` call site expects `A=0` immediately after returning and uses it
-  to clear `$78-$7C`. The custom `$8BE2` routine now wraps its writes with
-  `PHA/PLA`, preserving A while still leaving X untouched.
-- v0.6.79 test ROMs with the non-preserving routine are accepted and rewritten
-  to the safe 18-byte routine when the setting is applied again.
+## v0.6.80 (2026-05-20) 初期魔法routineでAを保持
+- v0.6.79で入った、shrine intro中にscore/status areaが壊れる副作用を修正。
+- `$9144` call siteは復帰直後に`A=0`であることを期待し、その値で`$78-$7C`をclearする。custom `$8BE2` routineは`PHA/PLA`で書き込みをwrapし、Xは触らないままAを保持するようにした。
+- Aを保持しないroutineが入ったv0.6.79 test ROMは、設定を再適用した時に受け入れ、18-byteの安全なroutineへ書き直す。
 
-## v0.6.79 (2026-05-20) Move initial magic hook to new-game setup
-- Fixed the initial magic patch again. The v0.6.78 `$B606` hook was based on
-  a misread: `$B604` is the Solomon room / ending path, not normal stage
-  startup.
-- The patch now hooks CPU `$9144` (`STX $042B`) in the new-game setup and
-  CPU `$C9E3` (`STX $042B`) in the later stage-start initializer. Both call
-  the same `$8BE2` routine, which writes `$042B/$042E/$042F` and preserves X.
-- ROMs that received the mistaken v0.6.78 `$B606` hook are cleaned up when the
-  setting is applied or restored.
+## v0.6.79 (2026-05-20) 初期魔法hookをnew-game setupへ移動
+- 初期魔法patchを再修正。v0.6.78の`$B606` hookは読み違いで、`$B604`は通常ステージ開始ではなくSolomon room / ending pathだった。
+- patchはnew-game setup内のCPU `$9144`（`STX $042B`）と、後続stage-start initializer内のCPU `$C9E3`（`STX $042B`）をhookするようにした。どちらも同じ`$8BE2` routineを呼び、`$042B/$042E/$042F`を書き、Xを保持する。
+- 誤ったv0.6.78 `$B606` hookを受けたROMは、設定適用または復元時にclean upされる。
 
-## v0.6.78 (2026-05-20) Fix initial magic late reset
-- Fixed the initial magic patch not taking effect in actual stage startup.
-- v0.6.77 hooked CPU `$C9E3`, but the later stage-build path at CPU `$B604`
-  cleared `$042E/$042F` again. The patch now also replaces CPU `$B606`
-  (`STA $042E`) with `JSR $8BE2` while leaving the following original
-  `$B609: STA $042F` intact. The custom routine returns with `A=hi`, so the
-  original `$B609` store writes the intended high byte again.
-- The default setting restores both hooks and the `$8BE2` NOP band.
+## v0.6.78 (2026-05-20) 初期魔法の後段resetを修正
+- 初期魔法patchが実際のステージ開始で効かない問題を修正。
+- v0.6.77はCPU `$C9E3`をhookしたが、後続stage-build pathのCPU `$B604`が`$042E/$042F`を再度clearしていた。patchはCPU `$B606`（`STA $042E`）も`JSR $8BE2`へ置き換え、直後の原作`$B609: STA $042F`は残す。custom routineは`A=hi`で戻るため、原作`$B609` storeが意図したhigh byteを再度書く。
+- 既定設定は両hookと`$8BE2` NOP bandを復元する。
 
-## v0.6.77 (2026-05-20) Add common initial magic settings
-- Added a global "初期魔法" setting to the game behavior dialog.
-- It controls the common stage-start magic max (`$042B`) and initial F/S
-  stock (`$042E/$042F`) without adopting the old BESK three-row
-  demo/start/continue expansion model.
-- The patch uses the verified `$8BE2` NOP band and replaces only CPU `$C9E3`
-  (`STX $042B`) with `JSR $8BE2`.  The `$042C/$042D` fire elapsed-counter
-  clear remains intact, avoiding the unsafe "remove the whole zero-clear"
-  shortcut.
-- Default max `3` + empty stock restores the original hook and NOP band.
+## v0.6.77 (2026-05-20) 共通初期魔法設定を追加
+- game behaviorダイアログへglobalな「初期魔法」設定を追加。
+- 古いBESKのdemo/start/continue 3行拡張modelは採用せず、共通stage-start magic max（`$042B`）と初期F/S stock（`$042E/$042F`）を制御する。
+- patchは検証済み`$8BE2` NOP bandを使い、CPU `$C9E3`（`STX $042B`）だけを`JSR $8BE2`へ置き換える。`$042C/$042D` fire elapsed-counter clearは残し、「zero-clear全体を消す」危険なshortcutを避ける。
+- 既定max `3` + 空stockは原作hookとNOP bandを復元する。
 
-## v0.6.76 (2026-05-20) Allow zero-stage warp feather
-- Extended the warp feather advance setting to `0-53`.
-- `0` is encoded as operand `$FF`, which combines with the normal stage-clear
-  `+1` and wraps to the same room. This allows a "take the feather and return
-  to the same stage" behavior.
+## v0.6.76 (2026-05-20) ワープ羽の0ステージ進行を許可
+- ワープ羽の進行ステージ設定を`0-53`へ拡張。
+- `0`はoperand `$FF`としてencodeされ、通常のstage-clear `+1`と合成されて同じroomへwrapする。これにより「羽を取って同じステージへ戻る」挙動が可能になった。
 
-## v0.6.75 (2026-05-20) Add warp feather advance setting
-- Added a global "ワープ羽" setting to the game behavior dialog.
-- The setting edits the verified JP/JPN66 operand at CPU `$C6A0`
-  (file `0x46B0`). The original operand `$05` combines with the normal
-  stage-clear increment to produce the original 6-stage advance.
-- The patch is signature-verified and can re-edit already changed values.
+## v0.6.75 (2026-05-20) ワープ羽進行設定を追加
+- game behaviorダイアログへglobalな「ワープ羽」設定を追加。
+- 設定はCPU `$C6A0`（file `0x46B0`）の検証済みJP/JPN66 operandを編集する。原作operand `$05`は通常stage-clear incrementと合成され、原作の6ステージ進行を作る。
+- patchは署名検証され、既に変更済みの値も再編集できる。
 
-## v0.6.74 (2026-05-20) Add current RAM map
-- Added `docs/ram_map_current.html`, a working RAM map for JP/customizer
-  development.
-- The map separates confirmed game RAM, current customizer reservations,
-  unsafe regions, and small free candidates. It also documents the `$0460/$0461`
-  sound RAM collision lesson and the current `$0778/$0779` reservation.
+## v0.6.73 (2026-05-20) 星座背景のミラー配置を修正
+- 通常ステージの星座背景グラフィックについて、選択範囲の左右/上下反転を修正。星座背景は3x2の背景オブジェクトなので、左端cellを1点として扱うのではなく、3cell幅の左上位置を中心基準でミラーするようにした。
+- その他のmeta位置、アイテム、敵、デーモンミラー、壊せる白壁marker、透明壊せるmarkerのミラー挙動は従来どおり維持。
 
-## v0.6.73 (2026-05-20) Fix constellation mirror placement
-- Fixed selection horizontal/vertical flip for the normal level constellation
-  background graphic. It is a 3x2 background object, so the editor now mirrors
-  the 3-cell-wide top-left position by its center cell instead of treating the
-  left cell as a single point.
-- Other mirrored meta positions, items, enemies, demon mirrors, breakable white
-  markers, and invisible breakable markers keep their existing behavior.
+## v0.6.72 (2026-05-20) title文字overlay編集を改善
+- titleの「追加文字...」ダイアログは、固定のversion文字列を常に表示するのではなく、現在のoverlay行をwide-title streamから読み戻して初期編集文字列に使うようにした。
+- title overlay textでcomma、period、double quoteを使えるようにした。これらの記号glyphはROM既存の低位font tileを再利用し、未使用の高位CHR tile slotへコピーするため、原作title text routineは触らない。
+- Room Flag bank0 cave帯を変更せず、`VERSION 0.6.72, TEST`と`DARKNESS MIRROR "A"`のような反復編集を確認。
 
-## v0.6.72 (2026-05-20) Improve title text overlay editing
-- The title "追加文字..." dialog now reads the current overlay line back from
-  the wide-title stream and uses it as the initial edit text, instead of always
-  showing a hard-coded version string.
-- Added support for comma, period, and double quote in title overlay text.
-  These punctuation glyphs reuse the ROM's existing low font tiles and are
-  copied into unused high CHR tile slots so the original title text routine
-  remains untouched.
-- Verified repeated edits with `VERSION 0.6.72, TEST` and
-  `DARKNESS MIRROR "A"` while keeping the Room Flag bank0 cave band unchanged.
+## v0.6.71 (2026-05-20) wide-title stream経由のtitle文字overlayを追加
+- title画面へ、中央揃え1行のA-Z / 0-9 / space textを書き込む「追加文字...」操作を追加。原作のPUSH START / TECMO text routineを変更せず、内部wide-title stream経由で描画する。
+- wide streamが`$00-$2F`をcontrol byteとして予約していても安全に描画できるよう、ROM font glyphを未使用の高位CHR tile IDへコピーした。
+- mapper66 loader codeが実際には`0x8010-0x80C5`を占有するため、wide-title bank1 workspace開始位置を`0x80A8`から`0x80D0`へ移動した。
 
-## v0.6.71 (2026-05-20) Add title text overlay through wide-title stream
-- Added a title-screen "追加文字..." action that writes one centered line of
-  A-Z / 0-9 / space text through the internal wide-title stream instead of
-  modifying the original PUSH START / TECMO text routine.
-- Copied the ROM font glyphs into unused high CHR tile IDs so the wide stream
-  can draw them safely despite reserving `$00-$2F` as control bytes.
-- Moved the wide-title bank1 workspace start from `0x80A8` to `0x80D0`,
-  because mapper66 loader code actually occupies `0x8010-0x80C5`; verified
-  clean JP expansion -> wide normalization -> text overlay without touching
-  the Room Flag bank0 cave band.
-- Updated the mapper66 ROM map and title manual notes to match the current
-  JP-wide workflow.
+## v0.6.70 (2026-05-20) F1ショートカットhelpを更新
+- F1ショートカット/helpダイアログを、基本キー、mouse操作、hover quick placement、item flag、selection editing、file loadingの分かりやすいsectionへ再構成。
+- block quick placement、透明壊せる壁、完全なmirror挙動、現在の`SOLOMON_CUSTOMIZER.py` command line entry pointに合わせて古い記述を更新。
 
-## v0.6.70 (2026-05-20) Refresh F1 shortcut help
-- Reworked the F1 shortcut/help dialog into clearer sections for basic keys,
-  mouse actions, hover quick placement, item flags, selection editing, and file
-  loading.
-- Updated outdated entries for block quick placement, transparent breakable
-  walls, full mirror behavior, and the current `SOLOMON_CUSTOMIZER.py` command
-  line entry point.
+## v0.6.69 (2026-05-20) ステージmeta itemをミラー反転
+- 選択範囲の反転で、Solomonのseal markerやJP Page of Time/Space markerなど、ROM-backed位置byteを持つ`level_meta_items`もミラーするようにした。
+- 反転時はeditorが使うmemory上のmarker位置と、各`rom_offset`にある元ROM位置byteの両方を更新する。
 
-## v0.6.69 (2026-05-20) Mirror level meta items
-- Selection flip now also mirrors `level_meta_items` with ROM-backed position
-  bytes, including Solomon's seal markers and JP Page of Time/Space markers.
-- The flip updates both the in-memory marker position used by the editor and
-  the underlying ROM position byte at each `rom_offset`.
+## v0.6.68 (2026-05-20) 選択範囲ミラー挙動を完成
+- 選択範囲の左右/上下反転を拡張し、start、key、door、constellation panel、demon mirrorなどのstage meta位置も対象にした。
+- 左右反転では、速度variantを可能な範囲で保持しつつ、左右向きの敵variantも入れ替えるようにした。
+- 既存の選択反転は地形、アイテム、敵、壊せる白marker、透明壊せるmarkerに対応済みだったため、部屋全体を選択して`F`を押す全体ミラー編集が実用的になった。
 
-## v0.6.68 (2026-05-20) Complete selection mirror behavior
-- Extended selection horizontal/vertical flip to include stage meta positions:
-  start, key, door, constellation panel, and demon mirrors.
-- Horizontal flip now also swaps left/right enemy variants while preserving
-  speed variants where applicable.
-- Existing selection flip already handled terrain, items, enemies, breakable
-  white markers, and invisible breakable markers; this makes full-room mirror
-  editing practical by selecting the whole room and pressing `F`.
+## v0.6.67 (2026-05-19) 透明壊せる壁の配置を堅牢化
+- 通常のblock変更時に古い透明壊せるmarkerを先にclearし、UIが意図的に再追加する前の古いmarker残りを消すようにした。
 
-## v0.6.67 (2026-05-19) Harden invisible breakable wall placement
-- Hardened block replacement so generic block changes clear stale invisible
-  breakable markers before the UI deliberately re-adds them.
-- Generated `ROM/TEST_InvisibleBreakable_JP_v1_editor_3_8.nes` and verified
-  editor `(3,8)` stays visually empty (`$10`) while the mapper66 runtime table
-  stores `$93` for `$90` breakable-block conversion.
+## v0.6.66 (2026-05-19) 透明壊せる壁markerを追加
+- 部屋map上では空白に見えるが、runtimeでは通常の壊せる石へ変換される透明壊せる壁をeditor block typeとして追加。
+- v0.6.65のbank1 breakable-cell tableと`$0760-$076F` runtime listを再利用し、白い壊せる壁と透明壊せる壁が同じ安全な保存経路を共有するようにした。新しいbank0 dataは追加しない。
+- 透明壊せるcellをXMLとROM read/writeで永続化。editorでは編集表示時だけ黄色の内枠で示す。
+- runtime上のsolid判定に合わせ、透明壊せるcell上にはitemやenemyを配置できないようplacement guardを更新。
 
-## v0.6.66 (2026-05-19) Add invisible breakable wall marker
-- Added an editor block type for invisible breakable walls: visually empty in
-  the room map, but converted to normal breakable stone at runtime.
-- Reused the v0.6.65 bank1 breakable-cell table and `$0760-$076F` runtime list,
-  so white breakable walls and invisible breakable walls share the same safe
-  storage path without adding new bank0 data.
-- Persisted invisible breakable cells in XML and ROM read/write. The editor
-  marks them with a yellow inner outline only in edit view.
-- Updated placement guards so items and enemies cannot be placed on invisible
-  breakable cells, matching their runtime solidity.
+## v0.6.65 (2026-05-19) 壊せる白壁dataをbank0外へ移動
+- 壊せる白壁cell保存先を、bank0 RoomFlag cave領域からPRG bank1拡張data file `0xF860-0xFBAF`（bank1上の`$F850-$FB9F`）へ移動。
+- mapper66 loaderは現在roomの16-byte breakable-white listをRAM `$0760-$076F`へcopyするようにした。NMI runtimeは部屋描画後、そのRAM listを読み、選択された`$0304` cellへ`$90`を書き込む。
+- 古いbank0 `0x3D00-0x40FF` breakable-white tableとbit1 room flagを削除し、`0x4010-0x4097`の`gap_fix`との衝突を解消。
+- editor `(3,8)`をruntime `$93`として読み戻せること、`gap_fix`とbreakable-white runtimeが重ならないことを確認。
 
-## v0.6.65 (2026-05-19) Move breakable white wall data out of bank0
-- Moved breakable-white cell storage from the bank0 RoomFlag cave area to PRG
-  bank1 expanded data at file `0xF860-0xFBAF` (`$F850-$FB9F` in bank1).
-- Updated the mapper66 loader to copy the current room's 16-byte breakable-white
-  list into RAM `$0760-$076F`; the NMI runtime now reads that RAM list and writes
-  `$90` to the selected `$0304` cells after the room is drawn.
-- Removed the old bank0 `0x3D00-0x40FF` breakable-white table and bit1 room flag,
-  eliminating the collision with `gap_fix` at `0x4010-0x4097`.
-- Verified compile, ROM generation, readback of editor `(3,8)` as runtime `$93`,
-  and no overlap between `gap_fix` and breakable-white runtime.
+## v0.6.64 (2026-05-19) US title import後もJP66を維持し、壊せる白壁を部屋単位でgate
+- USまたはpatched US title ROMからtitle/CHRを置き換えたJP mapper66 ROMのregion検出を修正。弱いUS66 markerより先にJP66 loader markerを確認するようにし、JP拡張ROMが`JP66`のまま残るようにした。
+- 壊せる白壁cell用の内部room flag bitを追加。現在roomに壊せる白壁cellがない場合、runtimeのbreakable-white routineは即returnするようにし、空tableの部屋に誤って見えない`$90`blockが出るのを防止。
+- v0.6.63のgateなしbreakable-white routineで保存済みのROMも、既存のmarked cellを復元できるようreadback互換を維持。
 
-## v0.6.64 (2026-05-19) Keep JP66 after US title import and gate breakable white per room
-- Fixed region detection for JP mapper66 ROMs whose title/CHR was replaced
-  from a US or patched US title ROM. The JP66 loader marker is now checked
-  before the weaker US66 marker, so JP-expanded ROMs remain `JP66`.
-- Added an internal room flag bit for breakable-white cells. The runtime
-  breakable-white routine now exits immediately unless the current room has
-  breakable-white cells, preventing accidental invisible `$90` blocks in rooms
-  with empty breakable-white tables.
-- Kept readback compatibility with the v0.6.63 unguarded breakable-white
-  routine, so already-saved test ROMs can still restore their marked cells.
+## v0.6.63 (2026-05-19) 壊せる白壁の起動regressionを修正
+- v0.6.62で発生したboot hang/green-screen regressionを修正。breakable-white runtime routineは`$BF50`から`$C0F0`へ移動していたが、dark-stage NMI caveが古い`$BF50` addressを呼び続けていた。
+- dark-stage caveを`$C0F0`呼び出しへ更新し、breakable-white処理がtable dataへ飛び込まず、新しい16-cell対応routineから実行されるようにした。
 
-## v0.6.63 (2026-05-19) Fix breakable white wall boot regression
-- Fixed a boot hang/green-screen regression from v0.6.62. The breakable-white
-  runtime routine moved from `$BF50` to `$C0F0`, but the dark-stage NMI cave
-  still called the old `$BF50` address.
-- Updated the dark-stage cave to call `$C0F0`, so breakable-white processing
-  runs from the new 16-cell-capable routine instead of jumping into table data.
-- Regenerated `ROM/TEST_BreakableWhite_JP_v5_10cells_fixed.nes` for Mesen
-  validation.
+## v0.6.62 (2026-05-19) 壊せる白壁の容量を拡張
+- 壊せる白壁の容量を1部屋8cellから16cellへ増やした。
+- runtime table形式をcount+cellsから`$FF`埋め16-byte room slotへ作り直した。これによりDoorCellTable/RoomFlagTableと重ならず、既存bank0予約領域内に収める。
+- runtime routineをindexed pointer readerへ置き換え、2page目以降の部屋が8-bit absolute-X table前提に依存しないようにした。
 
-## v0.6.62 (2026-05-19) Expand breakable white wall capacity
-- Increased breakable-white wall capacity from 8 to 16 cells per room.
-- Reworked the runtime table format from count+cells to `$FF`-padded 16-byte
-  room slots. This keeps the feature inside the existing bank0 reserved area
-  without overlapping DoorCellTable/RoomFlagTable.
-- Replaced the runtime routine with an indexed pointer reader, so rooms beyond
-  the first page do not depend on an 8-bit absolute-X table assumption.
-- Verified compile and generated `ROM/TEST_BreakableWhite_JP_v4_10cells.nes`
-  with 10 cells in room 1.
+## v0.6.61 (2026-05-19) 壊せる白壁のeditor対応
+- 壊せる白壁をblock pickerへ追加。editorでは白壁として描画しつつ、緑のoutlineで示す。
+- 壊せる白壁cellをXMLとROM save dataへ永続化。ROM出力では見た目のcellは白のままにし、one-shot NMI routineで部屋がactiveになった後、選択された`$0304` cellを`$90`へ変更する。
+- 実装は既存のroom flag基盤を共有し、title wide bank0 cave衝突を避ける。この時点の上限は1部屋8個。
+- editor座標をruntime `$0304` gridへ変換し、editor上のcellとゲーム内の壊せるcellが正しく対応するようにした。
+- JP66 ROM検出を修正。拡張済みJP test ROMがUS66 markerだけでplain `JP`として検出され、アプリが再度拡張しようとしていた。plain JP判定より先にJP66を検出するようにした。
 
-## v0.6.61 (2026-05-19) Breakable white wall editor support
-- Added a block picker entry for breakable white walls: the editor draws them
-  as white walls but marks them with a green outline.
-- Persisted breakable-white cells in XML and ROM save data. ROM output keeps
-  the visual cell as white, then uses a one-shot NMI routine to change selected
-  `$0304` cells to `$90` after the room is active.
-- The implementation shares the existing room flag infrastructure and avoids
-  the title wide bank0 cave collision. Current limit: 8 breakable-white cells
-  per room.
-- Verified compile and generated `ROM/TEST_BreakableWhite_JP_v3_editor_3_8.nes`.
-  Mesen/user validation confirmed editor `(3,8)` must encode runtime grid `$93`
-  (one row lower), so save/readback now converts between editor coordinates and
-  `$0304` grid coordinates.
-- Fixed JP66 ROM detection. Expanded JP test ROMs were previously detected as
-  plain `JP` because only the US66 marker existed, so the app tried to expand
-  them again on load. JP66 is now detected before the plain JP rule.
+## v0.6.60 (2026-05-19) 暗闇ステージtempo既定値を45/100へ変更
+- global dark-stage tempoの既定値を、明45frame、暗100frameへ変更。保存ROM byteは2byte目が合計周期（`light + dark`）のため`[45, 145]`になる。
+- hack dialogのreset/default値とhint textも合わせて更新。
+- 未初期化tempo領域と`[45,145]`のどちらでも`room_flags.get_tempo()`が`(45, 100)`を返すようにした。
 
-## v0.6.60 (2026-05-19) Dark stage tempo default 45/100
-- Changed the global dark-stage tempo default to light 45 frames and dark 100
-  frames. The stored ROM bytes are `[45, 145]` because the second byte is the
-  total period (`light + dark`).
-- Updated the hack dialog reset/default values and hint text to match.
-- Verified `room_flags.get_tempo()` returns `(45, 100)` for an uninitialized
-  tempo area and for `[45,145]`.
+## v0.6.59 (2026-05-19) Top PNG cropの縦offsetを修正
+- 256x64 Top PNG export/import bandが1pixel上にずれていた問題を修正。title preview imageには1pixelの縦表示補正があるが、Top PNG cropは補正前の`y=48`を使っていた。
+- Top PNGは表示補正後の`y=49..112`を使うようになり、上端の空行が消え、下端pixel rowも切れなくなった。
 
-## v0.6.59 (2026-05-19) Fix Top PNG crop vertical offset
-- Fixed the 256x64 Top PNG export/import band being one pixel too high. The
-  title preview image has a one-pixel vertical display correction, but the Top
-  PNG crop still used the pre-correction `y=48` start.
-- Top PNG now uses display-corrected `y=49..112`, so the top blank row is gone
-  and the bottom pixel row is no longer clipped.
-- Verified by exporting `ROM/TEST_title_top_256x64_y49_v059.png`.
+## v0.6.58 (2026-05-19) arcade title固定banner stripを取り込み
+- importしたUS arcade title bannerで下側stripが欠けていた問題を修正。patched US titleは2つのstream blockに加え、code（`$CBC3`, PPU `$29A6`, tiles `$63-$74`）から18cellを書き込む。
+- US arcade import pathは、その固定stripをblock AへmergeしてからJP内部wide-title streamへ変換するようにした。
+- patched US arcade importは、完全な`$63-$74` stripを含む386cellを書き込むようになり、gridが正確に一致する。
 
-## v0.6.58 (2026-05-19) Include arcade title fixed banner strip
-- Fixed the missing lower strip of the imported US arcade title banner. The
-  patched US title writes 18 cells from code (`$CBC3`, PPU `$29A6`, tiles
-  `$63-$74`) in addition to its two stream blocks.
-- The US arcade import path now merges that fixed strip into block A before
-  transcoding to the JP internal wide-title stream.
-- Verified: patched US arcade import now writes 386 cells, including the full
-  `$63-$74` strip, with exact grid match.
+## v0.6.57 (2026-05-19) patched US arcade title ROMのimportを修正
+- 既知の「Title Screen v1-1 / arcade」patched US ROMからのtitle importを修正。これはstock US title streamではないため、stock decoderがtitle dataをgarbageとして解釈し、previewが崩れていた。
+- patched US arcade title decoderを`$CBA6`で検出し、2つのarcade形式stream（`$CD5F`と`$CDF5`）をdecodeしてから、JP内部wide-title bank1 streamへ書き込むようにした。
+- そのarcade sourceでは、signatureが一致する場合だけarcade attribute table `$CCAF -> $CD58`をcopyし、既知のJP側color調整を適用する。
+- clean JP loadからauto mapper66/wide normalize後、patched US arcade titleをimportしても、targetは`JP66`を維持し、Room Flag bank0 caveを触らない。
 
-## v0.6.57 (2026-05-19) Import patched US arcade title ROMs correctly
-- Fixed title import from the known "Title Screen v1-1 / arcade" patched US
-  ROM. It is not a stock US title stream, so the stock decoder interpreted the
-  title data as garbage and the preview became scrambled.
-- Added detection for the patched US arcade title decoder at `$CBA6` and decode
-  its two arcade-format streams at `$CD5F` and `$CDF5` before writing them into
-  the JP internal wide-title bank1 streams.
-- For that arcade source, copy the arcade attribute table `$CCAF -> $CD58` and
-  apply the known JP-side color adjustments only when their signatures match.
-- Verified: clean JP load -> auto mapper66/wide normalize -> import patched US
-  arcade title gives 368 expected cells with exact grid match, keeps the target
-  `JP66`, and does not touch the Room Flag bank0 cave.
+## v0.6.56 (2026-05-19) US title import後もJP wide targetをJPのまま維持
+- US titleを一度importした後のtitle importを修正。US title CHRをJP wide-title ROMへcopyすると、generic binary region detectorが`US66`と判定し、その後JP raw ROMからimportしようとすると`title import target must be JP/JP66 (target=US66)`で失敗していた。
+- `title_screen._verify()`は、CHR由来のregion検出よりもcustomizer内部のJP wide-title bootstrap signatureを強い不変条件として扱うようにした。そのsignatureを持つmapper66 ROMは`JP66`に分類される。
+- clean JP load、clean US title import、clean JP title再importの順でも成功し、targetはJP wideのまま残る。
 
-## v0.6.56 (2026-05-19) Keep JP wide targets JP after US title import
-- Fixed title import after a US title had already been imported. Copying the
-  US title CHR into the JP wide-title ROM made the generic binary region
-  detector report `US66`, so a later import from a JP raw ROM failed with
-  `title import target must be JP/JP66 (target=US66)`.
-- `title_screen._verify()` now treats the customizer's internal JP wide-title
-  bootstrap signature as a stronger invariant than CHR-based region detection.
-  A mapper66 ROM with that signature is classified as `JP66`.
-- Verified sequence: clean JP load -> import clean US title -> import clean JP
-  title again. Both imports now succeed and the target remains JP wide.
+## v0.6.55 (2026-05-19) JP load時のwide-normalization regressionを修正
+- `MainWindow.load_rom()`のregressionを修正。古いlog block整理中にmapper66 expansion呼び出しが誤って削除され、clean JP ROMがmapper3のまま残り、title importが「target ROM is not in the internal wide-title format」で失敗していた。
+- 読み込み順序を復元。元のraw ROM byteを保存し、mapper3 JP ROMをmapper66へ拡張してから、JP wide-title normalizationを実行する。
 
-## v0.6.55 (2026-05-19) Fix JP load wide-normalization regression
-- Fixed a regression in `MainWindow.load_rom()`: the mapper66 expansion call
-  had been accidentally removed while cleaning a stale log block. Clean JP ROMs
-  were therefore left as mapper3, and title import failed with
-  "target ROM is not in the internal wide-title format".
-- Restored the load sequence: save original raw ROM bytes, expand mapper3 JP
-  ROMs to mapper66, then run JP wide-title normalization.
-- Verified the user path: clean JP load -> `JP66` / wide title true -> import
-  title from `Solomons Key (USA).zip` -> `US stock -> JP wide`, with the Room
-  Flag bank0 cave untouched.
+## v0.6.54 (2026-05-19) 設計安全性を見直し
+- 現在のload pathではmapper66拡張後にJP ROMを正規化するにもかかわらず、title wide normalizationが無効だと表示していた古いload-time log blockを削除。
+- 古い実験的な`apply_wide_arcade_title()` APIを無効化。v9 recipeはbank0 Room Flag caveへ書き込むため、統合customizerでは安全ではない。対応pathは`normalize_title_to_wide()` + `transcode_title()`とし、Room Flag caveを触らない。
 
-## v0.6.54 (2026-05-19) Design safety pass
-- Removed a stale load-time log block that still said title wide
-  normalization was disabled even though the current load path does normalize
-  JP ROMs after mapper66 expansion.
-- Disabled the old experimental `apply_wide_arcade_title()` API. That v9
-  recipe writes to the bank0 Room Flag cave and is unsafe for the integrated
-  customizer. The supported path is now `normalize_title_to_wide()` plus
-  `transcode_title()`, which keeps the Room Flag cave untouched.
-- Re-ran core smoke checks: JP mapper66 expansion, wide-title normalization,
-  Room Flag cave band preservation, full Python compile, and offscreen
-  MainWindow layout creation.
+## v0.6.53 (2026-05-19) layout復元guardを追加
+- 復元されるwindow sizeとsplitter sizeにguardを追加。別monitorや大きすぎるdesktopで保存された設定により、中央のlevel editorが使えないほど狭く潰れないようにした。
+- 復元window sizeは利用可能screen内にclampし、実用的な最小値を持たせた。splitter復元も、panelが小さすぎる場合や中央editorが圧迫される場合は安全なpanel幅へfallbackする。
+- side panelに最大幅を設定し、level editorには最小幅を設定。長いlabelやtool groupが中央editorを細い帯まで押し潰すのを防ぐ。
 
-## v0.6.53 (2026-05-19) Layout restore guard
-- Added guards for restored window size and splitter sizes. Saved settings from
-  another monitor or an oversized desktop can no longer collapse the central
-  level editor to an unusably small width.
-- The restored window size is clamped to the available screen, with practical
-  minimums. Splitter restore now falls back to safe panel widths if any panel
-  is too small or the central editor is squeezed.
-- Side panels now have maximum widths and the level editor has a minimum width,
-  preventing long labels/tool groups from forcing the central editor down to a
-  tiny strip.
+## v0.6.52 (2026-05-19) title上部PNG限定編集
+- title-screenダイアログに上部title graphic band向けボタンを追加。
+  - `Top PNG保存...`: `x=0..255, y=48..111`を256x64 grayscale PNG/BMPとしてexport。
+  - `Top PNG読込...`: 256x64 imageを同じbandへimportし、下側の山/神殿部分は触らない。
+- 編集対象はNES tile row 6..13で、title logo/banner領域を含み、下側の圧縮された風景領域を避ける。
 
-## v0.6.52 (2026-05-19) Limited top-title PNG edit
-- Added title-screen dialog buttons for the upper title graphic band:
-  - `Top PNG保存...`: exports `x=0..255, y=48..111` as a 256x64 grayscale
-    PNG/BMP.
-  - `Top PNG読込...`: imports a 256x64 image into that same band and leaves
-    the lower mountain/temple half untouched.
-- The edit target is NES tile rows 6..13, which covers the title logo/banner
-  area and avoids the lower compressed-looking scenery area.
-- Verified an export/import round trip on a JP mapper66 wide-normalized ROM:
-  title grid unchanged and `apply_title_image()` reported 0 CHR updates.
+## v0.6.51 (2026-05-19) ユーザー所有ROMからJP wide titleをimport
+- 公開build方針として、third-party US title-screen IPSやROMは同梱しない。ユーザーが所有するROMを選択する。US titleが欲しい場合はclean US ROMを選び、個人的にIPS適用済みUS ROMを持っている場合はそれも選択できる。
+- mapper66 JP wide-title形式向けに`title_screen.transcode_title()`を作り直した。stock PRG title blockをbank0へcopyするのではなく、source titleをdecodeし、target JP wide-title bank1 workspaceへtitle streamを再encodeする。
+- title importはRoom Flag bank0 cave帯`0x3BEE-0x4210`を触らない。targetはmapper66 wide-titleのまま残る。
 
-## v0.6.51 (2026-05-19) JP wide title import from user-owned ROM
-- Public-build policy change: do not bundle the third-party US title-screen
-  IPS or any ROM. Users can select a ROM they own. If they want the US title,
-  they select a clean US ROM; if they privately have an IPS-patched US ROM,
-  that ROM can be selected too.
-- Reworked `title_screen.transcode_title()` for the mapper66 JP wide-title
-  format. It no longer copies stock PRG title blocks into bank0. Instead it
-  decodes the source title and re-encodes the title streams into the target
-  JP wide-title bank1 workspace.
-- Verified static imports:
-  - clean US title -> JP wide: grid equality true, 377 cells.
-  - user-owned US arcade-title ROM -> JP wide: grid equality true, 220 cells.
-  - old JP v9 wide-title ROM -> JP wide: grid equality true, 386 cells.
-- Safety check: Room Flag bank0 cave band `0x3BEE-0x4210` is untouched by
-  title import. The target remains mapper66 wide-title after import.
-
-## v0.6.50 (2026-05-19) JP wide title auto-normalize test path fix
-- Fixed the root cause of `TEST_TitleWideTramp_JP_v2.nes` showing a broken
-  stage 1: the test builder used `m66_expander.change_mapper()` directly.
-  That creates the mapper66 shell but does not populate the fixed m66 level
-  data area (`0xC010-0xF510`). Stage 1 therefore read zero-filled room data.
-- Added `build_TitleWideTramp_JP_v3.py`, which uses the real application path:
-  `load_all_levels()` -> `m66_expander.expand_rom()` -> `normalize_title_to_wide()`.
-  Static checks confirm that m66 level data, CHR bank3, `$CD58`, and the Room
-  Flag bank0 cave band are preserved.
-- Re-enabled JP load-time title normalization after mapper66 expansion in
-  `main_window.py`, with fail-safe logging if normalization is not applicable.
-  The normalization runs after `expand_rom()`, not after bare `change_mapper()`.
-- Generated `ROM/TEST_TitleWideTramp_JP_v3_expand.nes` for Mesen verification.
+## v0.6.50 (2026-05-19) JP wide title自動正規化のtest pathを修正
+- JP wide title自動正規化を、mapper66拡張後の実アプリ読み込み経路で実行するように修正。
+- `m66_expander.change_mapper()`だけでは固定m66 level data area（`0xC010-0xF510`）が埋まらず、ステージデータがzero-fillになる問題を避けるため、`load_all_levels()`、`m66_expander.expand_rom()`、`normalize_title_to_wide()`の順序を使う。
+- `main_window.py`でmapper66拡張後にJP load-time title normalizationを再有効化し、適用できない場合はfail-safe loggingで読み込みを継続するようにした。
 
 ## v0.6.49 (2026-05-19) ★JP wide タイトル RAM-trampoline 機構 (再設計・実装)
 - ★v0.6.48 で無効化した「読込時タイトル自動wide正規化」を、
@@ -2212,9 +1015,8 @@
   bank0 復帰 → RTS (純サブルーチン・スタック不可侵)。RAM 実行ゆえ
   PRG bank 切替の影響を受けない (定石)。
 - ★twin-stub 案は破棄: bank1 の CPU $CC4F 像 = expander level
-  data ゆえ同番地 stub 不可。skchain l_a1 も実は PRG 非切替
-  (bank0[$8011]=$AD で $13 AND=$01) と判明。設計を Codex と
-  往復レビュー (Codex_Exchange/) し RAM-trampoline に収束。
+  data ゆえ同番地 stub 不可。既存loader相当処理も実は PRG 非切替
+  (bank0[$8011]=$AD で $13 AND=$01) と判明し、RAM-trampoline に収束。
 - ★Room Flag/暗闇/隠し扉/gap_fix と ★完全共存 (静的検証: 
   normalize↔Room Flag↔gap_fix 全順序で RoomFlagError 無し・
   Room Flag 占有帯 file 0x3BEE-0x4210 が素拡張とバイト完全一致)。
@@ -2223,26 +1025,18 @@
 - 安全: 署名10点 (stock $CC4F/$CCB6/$CE08/$CEA3/$CD80 caller-B/
   SW両bank/bank1域全0/l_a2・vector/Room Flag帯非交差)、不一致は
   TitleScreenError で ★out 無改変中止 (フォールバック/部分書込禁止)。
-- room_flags.py 台帳に bank1 widetitle・SW・RAM $03C0-$03DF を
-  ★追記 (二重管理防止=前回事故の根因対策)。
 - ★bugfix: bootstrap copy-loop の BPL 変位 0xF6→0xF7。v1 は分岐先が
   LDX 即値オペランドにずれループ後ゴミ実行→★起動不可 (ユーザー報告
   「うごかない」)。6502 実行シミュレーションで copy14B+JMP$03C0 実証。
-- TEST ROM: v1 ROM/TEST_TitleWideTramp_JP_v1.nes (crc 3C4D3F8A=★BPL
-  不具合・保持) / ★v2 ROM/TEST_TitleWideTramp_JP_v2.nes (crc
-  7A32E62A=修正版)。恒久再現 build_TitleWideTramp_JP_v{1,2}.py。
 - ★未完: 実機(Mesen)で v2 の trampoline 実行・タイトル表示・Room
   Flag 併用テストプレイ を要確認。確認が通って初めて load時自動
   正規化フックを再有効化する。
-- 設計: docs/wide_title_trampoline_design.html / Codex_Exchange/。
 
 ## v0.6.48 (2026-05-18) ★リグレッション修正
 - ★重大: v0.6.47 の読込時タイトル自動wide正規化が、bank0 cave
   ($BBDE-$C200) を ★Room Flag 機能群 (LOADER$BBE0/MAGICGATE
   $BC20/DOORPREDRAW$BC40/DARK$BC80/gap_fix) と奪い合い、
   clean JP 読込→テストプレイで RoomFlagError(別改造競合)発生。
-  二重管理: room_flags.py の PRG cave台帳を確認せず「最初のEA
-  列」を取った私の過失
 - 修正: ★読込時の自動正規化を一時無効化 (load_rom のフックを
   no-op化)。clean JP 読込は従来どおり stock のまま=cave非妨害=
   ★テストプレイ復旧 (bank0 cave帯が plain拡張と完全一致を検証)
@@ -2299,7 +1093,6 @@
   - 全署名二重検証。clean JP/把握済stock JP のみ。改造済/別版/
     US/再適用 は安全に中止。拡張ROM(mapper66)対応(PRG offset
     不変・CHR非改変)
-  - 実機確認用 TEST_TitleNorm_JP_v1.nes 生成(stockと同一表示か)
 
 ## v0.6.44 (2026-05-18)
 - 「広域arcadeタイトル移植(JP)」を追加(タイトル移植ダイアログ)
@@ -2307,9 +1100,7 @@
     広域タイトル(当方arcade形式 6502デコーダ@$CC4F + banner
     +$CBC3固定帯@$CEA3 + 山@JP cave + $CCB6 ptr→cave +
     CHR bank3 + $CD58←arcade$CCAF + 色4点)を移植
-  - 実機検証済 recipe(解析 R201 / build_TitleWide_JP_v9.py)。
-    core.title_screen.apply_wide_arcade_title。clean JP+arcade
-    で ★CRC 0BF323D8 一致を smoke 検証(実機確認版とbyte等価)
+  - core.title_screen.apply_wide_arcade_titleを追加。
   - 全パッチ ★before署名二重検証・不一致は中止(フォールバック
     禁止)。region gate=JP/JP66のみ(US$9604相当をJP同番地に
     当てると破壊ゆえ US 不可)。改造済/別版/非arcade source/
@@ -2319,8 +1110,6 @@
   - ★著作権: arcade の CHR/stream/attribute は ★ユーザー所有
     ROM から抽出(ツール非埋込)。埋め込みは当方デコーダ+色
     patch定数のみ
-  - 再現用 build script: プロジェクト直下 build_TitleWide_JP_
-    v1..v4.py / v9.py (診断・比較・恒久保存)
 
 ## v0.6.43 (2026-05-18)
 - Phase2 基盤(UI未接続): arcade形式 広域タイトル stream の
@@ -2328,8 +1117,6 @@
   encode_arcade_stream)。$30-$FF タイル規則・$2F終端を強制
   - 実 arcade ROM ストリームで ★往復完全一致を検証
     (135 writes ⇄ 再エンコード、PPUADDR $28C5..$2997、118タイル)
-  - 設計/地固めは解析CHANGELOG R199 / memory に恒久化
-    (cave撤回→in-place置換、JP hook $CB80、共有$CDFC/$CD76保全)
 
 ## v0.6.42 (2026-05-18)
 - タイトル画像 位置補正の縦方向を修正: 「上1px→下」ではなく
@@ -2514,13 +1301,8 @@
     サウンドが $0461 を書込むのを確認)
   - 対策: ROOMFLAGS=$0778 / 暗闇フェーズ=$0779 へ移設(LOADER/
     MAGICGATE/DOORPREDRAW/DARK 全cave)。$0778/$0779 は entity 21slot
-    終端 $0722 の後ろ かつ ramfree3_probe 285秒沈黙の二重安全域
-    (実ROM $B328/$B33D ポインタ表で 21slot/$057F-$0722 を接地確認)
+    終端 $0722 の後ろにある安全域を使う
   - 隠し扉/B火球禁止/A換石禁止/暗闇 すべて同一移設で継続動作
-  - 確認ROM: ROM/TEST_DarkFix_v1.nes (stage1&3 暗闇)
-  - ★再発防止: room_flags.py 冒頭に「CUSTOM RAM RESERVE 予約台帳」を
-    新設(現割当/禁止域/新規RAM手順)。今後 常駐RAMは台帳を見て追記
-    してから使う運用に(毎回ゼロ探索を禁止)。memory にも横断記録
 
 ## v0.6.24 (2026-05-18)
 - 全レベル統計に3列追加: 「タイル」(tileset_no)/「時間減少」
@@ -2593,7 +1375,7 @@
 
 ## v0.6.15 (2026-05-18)
 - デモ操作編集に編集上の注記を追加(簡潔): 最後に死ぬ動きは不要、
-  34ステップ使い切りでデモ終了(ダイアログ説明＋MANUAL)
+  34ステップ使い切りでデモ終了(ダイアログ説明)
 
 ## v0.6.14 (2026-05-18)
 - デモ操作編集 (attract mode 入力データ) を追加
@@ -2607,7 +1389,6 @@
   - core/demo_input.py 新規: 位置+署名($CBEC 26B)二重検証、不一致は
     DemoInputError で中止。デモ領域は US 再配置ゾーン=JP専用
     (US は署名不一致で安全中止)。標準/拡張ROM共通(自動テスト確認)
-  - 確認ROM: ROM/TEST_DemoInput_v1.nes (右移動↔ジャンプの単純デモ)
 
 ## v0.6.13 (2026-05-18)
 - ゲーム挙動改造ダイアログのサイズ/位置を記憶・復元
@@ -2641,7 +1422,6 @@
     (NMI完全無影響)。gap_fix と双方向 非破壊 共存(自動テスト確認)
   - core/room_flags.py 拡張 (BIT_DARK/DARK_CAVE/get_tempo/
     set_tempo)、main_window/hack_dialog UI、標準/拡張ROM共通
-  - 実機実験: TEST_Dark_v1〜v4 で常時/明滅/ゲート確認済
 
 ## v0.6.10 (2026-05-17)
 - ゲーム挙動改造に「原作バグ回避: 落下中の横穴侵入を安定化」を追加
@@ -2657,7 +1437,6 @@
     同時適用可能(拡張ROM・双方向で非破壊を自動テスト確認)
   - ゲーム挙動改造ダイアログに ON/OFF チェックボックス追加
   - 標準/拡張ROM共通(cave は bank0 verbatim 領域 file 0x4010)
-  - 詳細 docs/gap_entry_mechanism.html / 解析 asm Round 182
 
 ## v0.6.9 (2026-05-17)
 - 敵ドロップ編集: 効果名をユーザー実機知識で確定 + 未確定値を検証用に開放
@@ -2676,22 +1455,18 @@
     UIに使用敵を明示
   - core/enemy_drop.py 新設: 位置+署名($C248/$C20F)ダブル検証、
     不一致/不正値は EnemyDropError で中止 (フォールバック禁止)、
-    「原作に戻す」で完全復元。Codex ENEMY_DROP_PROBABILITY と
-    相互検証一致
+    「原作に戻す」で完全復元。
   - ROM直書き(既存挙動改造hackと同様、project非依存)。標準/拡張
     ROM共通 (table は bank0 verbatim 領域 file 0x4288/0x42A3)
   - 通常アイテムを落とさせるには別途 code-cave 変換層が必要(非対応)
 
 ## v0.6.7 (2026-05-17)
-- アイテムピッカーの不足を解消 (Codex指摘13)
+- アイテムピッカーの不足を解消
   - skc_config.xml <item_definitions> を正本に自前抽出した「配置可能」
     46件へ ITEMS_LIST を拡張 (旧36件)。追加=$05 Demon Mirror /
     $09・$0A・$0B・$0D・$0F modifiable系 / $21 Egyptian Head /
     $37 Mini-Dana / $38・$39 Tecmo Bunny の10件
   - glitch/garbage/Nothing 18件は配置で壊れ得るため従来どおり非表示
-  - 抽出は PRG_SPRITE_USAGE_STATIC と相互検証 (gameplayキャラ群
-    自前27 ⇔ Codex 27 で独立一致)。Codex compact を写さず自前再構成
-  - 抽出物を output/PICKER_EXTRACT_20260517.txt/csv に保存
   - カテゴリ追加なし・既存 _populate_all パイプラインそのまま (UX非破壊)
 
 ## v0.6.6 (2026-05-17)
@@ -2704,7 +1479,6 @@
     $91CC フックを "20 50 BC" に変更 (非重複を自動検証)
   - ※A禁止は階段が作れず進行不能になり得る独立option (tooltip警告)
   - 自己テスト: A/B/A+B 全組合せで apply・冪等・原作復元 OK
-  - 確認ROM: ROM/TEST_RoomFlag_AB.nes (ステージ1 A+B両禁止)
 
 ## v0.6.5 (2026-05-17)
 - Room Flag Table 拡張 — ステップ2: 隠し扉 (bit0) を統合
@@ -2719,8 +1493,7 @@
     全て bank0 空き $BBDE-$C1FF 内、非重複を自動検証
   - 原作復元はフック3点($9071/$8326/$91CC)のみ戻す死にコード方式
   - $91C1 署名検証を追加 (位置+署名トリプル検証)
-  - 実機実証 TEST_HiddenDoor.nes と同一機構を部屋別へ一般化
-  - 確認ROM: ROM/TEST_HiddenDoor_APP.nes (ステージ1隠し扉)
+  - 実機実証済みの隠し扉機構を部屋別へ一般化
 
 ## v0.6.4 (2026-05-17)
 - Room Flag Table 拡張 (画面ごとの挙動改造) を本編に統合 — ステップ1
@@ -2734,8 +1507,6 @@
   - 標準ROM/拡張ROM(mapper66)共通。expander が bank0 を verbatim
     コピーするため file offset 不変
   - プロジェクトXMLに room_flags 属性を永続化 (後方互換: 既定0)
-  - 実機実証: TEST_RoomFlag_P1/P2 と同一 cave 構造。確認ROMで
-    一面=B火球不可/A換石可、二面=復活 をユーザー実機確認済
   - core/room_flags.py 新規、level.py / xml_io.py / saver.py /
     ui/main_window.py 拡張
   - 隠し扉(bit0)は同 RoomFlagTable のステップ2で実装予定
@@ -2758,7 +1529,6 @@
     ゾーン($C400-$CFFF)のため位置はJP/US個別特定
     (JP file 0x4BD1 / US 0x4B20)。位置+シグネチャ ダブル検証
   - core/demo_stage_hack.py 新規、hack_dialog に項目追加
-  - 確認ROM ROM/TEST_Demo_Stage6.nes
   - 副作用: $0433/$80/残機/$0452 連動するがデモ(attract)では無害
 
 ## v0.6.1 (2026-05-16)
@@ -2769,7 +1539,6 @@
   - ROM解析(Round 110/128/131/132)で確定。type=0x0FBC /
     state base=0x0F6D。位置+シグネチャ ダブル検証、改造ROM再適用可
   - core/clearscreen_hack.py 新規、hack_dialog に項目追加
-  - 確認ROM ROM/TEST_CS_Golem_v00.nes / TEST_CS_Gargoyle_v04.nes
 
 
 ## v0.6.0 (2026-05-16)
@@ -2830,14 +1599,14 @@
   - AI_GOLEM $AD11 dispatch シグネチャ(待ちバイト不含)でJP/US自動判定
   - US=JP+$140。検証失敗時 GolemHackError でパッチ中止
 - 【重要】Golem 移動速度は $AD5F/$AD95/$AE0F の #$01 が速度値兼behaviorビット
-  マスクのため変更不可($02で無限ループ)。Codex解析+ROMバイト検証で確定。
+  マスクのため変更不可($02で無限ループ)。ROMバイト検証で確定。
   速度UPは別アプローチ(speed-index表/速度表)が必要、別途調整予定
 
 ## v0.4.4 (2026-05-16)
 - ゲーム挙動改造ダイアログに「パネルモンスター発射間隔」を追加
   - 秒指定スピンボックス (0.8〜4.5秒、0.1刻み) + ON/OFFチェック
   - OFFで原作(約3.47秒)復元
-  - Codex解析+ROMバイト検証で確定: 周期=(しきい値$A57A+発射ディレイ$10)/60秒
+  - ROMバイト検証で確定: 周期=(しきい値$A57A+発射ディレイ$10)/60秒
   - 設定式 しきい値=round(秒*60)-16、安全下限$20でclamp
 - 新モジュール `core/panel_monster_hack.py`: 位置+シグネチャ ダブル検証
   - threshold直後の安定領域でJP/US自動判定 (US=JP+$140, JSR先差で別sig)
@@ -2846,7 +1615,7 @@
 
 ## v0.4.3 (2026-05-16)
 - サラマンダー火球化に「ダーナ被弾」を追加（実機検証で完成）
-  - Codex解析+ROMバイト検証: ダーナ被弾判定 SUB_81B1 は status & $03 != 0 を除外
+  - ROMバイト検証: ダーナ被弾判定 SUB_81B1 は status & $03 != 0 を除外
   - status $C6→$C0 (file 0x311A/$B10A): $C0&$03=0 で被弾有効化
   - $B0AC ORA #$02 → ORA #$00 (file 0x30BD/$B0AD): bit1再セット抑制で被弾を維持
   - これらを火球化ON時に必須セット、OFFで原作復元
@@ -2858,7 +1627,7 @@
 
 ## v0.4.2 (2026-05-15)
 - 【重要修正】サラマンダー改造の X/Y 距離しきい値が逆だったのを訂正
-  - Codex解析 + SUB_A134 実コード検証で sub-slot[4]=Y距離 / sub-slot[5]=X距離 と判明
+  - SUB_A134 実コード検証で sub-slot[4]=Y距離 / sub-slot[5]=X距離 と判明
     (解析資料 Round 67 のコメントが X/Y 逆で誤っていた → asm も訂正)
   - SUB_B1E9 しきい値A ($B1F3 file 0x3203) = X距離ゲート (原作$14)
   - SUB_B1E9 しきい値B ($B1FF file 0x320F) = Y距離ゲート (原作$10)
@@ -2932,17 +1701,11 @@
   - $B4F4(JP)/$B924(US): 敵リスト1体目 落下死→妖精出現フラグ有効化
   - $B500(JP)/$B930(US): マイティボンジャック出現処理
   - 全既存エントリの説明文を改善
-- 技術文書 (docs/rom_analysis.html): ドロップスケジュール デッドティック解析を追加
-  - 全16パターンのビットマップ可視化
-  - 6502スケジュール読み取りルーチン ($A0B0〜$A130) の逆アセンブル
-  - デッドティック発生メカニズムの完全解明（$043C/$043E初期化問題）
-  - 世界初文書化候補としてマーク
 
 ## v0.2.8 (2026-05-12)
 - ゲーム挙動改造ダイアログの整理
   - BESK方式ステージセレクトを廃止（簡易3バイト方式に統一）
   - 開始ライフポイント変更機能を削除
-  - ROM編集方針をMANUAL.mdに文書化（データ値書換えのみ、プログラム命令書換え極力回避）
 - パレット編集の強化
   - パレットプリセット保存/読込機能（JSON形式）
   - スプライトパレットにキャラクター名ラベル追加（主人公/サラマンダー/ガーゴイル/ゴブリン）
@@ -2965,7 +1728,7 @@
   - 星座パネルがある場合: タイルセットは星座グループに強制決定、spinboxをグレーアウト
   - 星座パネルなしの場合: タイルセットは自由選択可
   - 星座選択時にタイルセットを連動更新（グループ0=tileset0, グループ1=tileset1, グループ2=tileset2）
-  - タイルセット変更時の星座グループ連動も実装（C++ skchain互換、グループ内相対位置保持）
+  - タイルセット変更時の星座グループ連動も実装（グループ内相対位置保持）
 
 ## v0.2.5 (2026-05-11)
 - EU版ROM非対応を明確化
@@ -3006,15 +1769,6 @@
 
 ## v0.2.0 (2026-05-11) ★ マイルストーン
 
-### ドキュメント更新（バージョン据え置き）
-- `MANUAL.md` を v0.2.0 仕様に更新
-  - ショートカット (F1/Ctrl+F1/F9/F10/1-0キー) 補足
-  - BROWN_WHITE 廃止の注記
-  - 敵セクションに SP1/SP2/SP3・noslow 版の説明追加
-  - ROM自動拡張・特殊処理ビューワ・パレット編集・テストプレイ・履歴セクション新規
-  - 制限事項を最新状態に整理
-
-### 区切り
 - **コア機能完成版として v0.2.0 を確定**
 - v0.1.x からの累積成果:
   - レベル編集（タイル/敵/アイテム/メタ/ミラー/星座）
@@ -3026,14 +1780,12 @@
   - noslowフラグ解析完了（ピッカー登録済み）
   - サムネイル付きレベル選択・お気に入りバー・パレット編集
   - テストプレイ連携・IPS出力
-  - 改造ROM 10作品で動作検証済（skchain互換）
+  - 既存改造ROM 10作品で動作検証済
   - BROWN_WHITE廃止整理（実機で意味なしと確定）
-- **検証済み互換性**: skchain v1.1 製の改造ROM全10作品で正常動作
-- **今後の方針**: `docs/future_plan.html` 参照（v0.2.0以降のロードマップ）
+- **検証済み互換性**: 既存改造ROM全10作品で正常動作
 
 ### 今回の変更
 - バージョン 0.1.99 → 0.2.0
-- `docs/future_plan.html` を新規作成（特殊処理エディタの実装方針・残タスク）
 
 ## v0.1.99 (2026-05-11)
 
@@ -3041,15 +1793,14 @@
 - **BROWN_WHITE (壊せる白ブロック) を廃止**
   - ユーザー検証により実機で「壊せない白壁」と完全に同じ挙動と判明
   - 両ビットONでも brown bit による破壊判定は発動しない（白bitが優先）→ 冗長表現
-  - 10作品の改造ROM(skchain製)でも誰一人使用していない死にスペック
+  - 10作品の既存改造ROMでも使用されていない死にスペック
 - **変更内容**
   - `Level._walls_to_wall_type`: 両ビットON時 BROWN_WHITE → WHITE へ正規化
   - `LevelRenderer`: 青フィルター除去、WHITE と同等に描画
   - `stats_dialog`: 「壊白」列を削除（列インデックス前倒し）
   - `main_window`: ホバー表示の「壊せる白」表記を削除、m66展開後コメント整理
-  - `element_picker`: 既に v0.1.x で削除済みのまま維持
-  - 互換性: 過去データに BROWN_WHITE があっても WHITE として扱われる（情報落ち＝挙動上は等価）
-- `docs/roadmap.html` 9-14 を WONTFIX に変更
+- `element_picker`: 既に v0.1.x で削除済みのまま維持
+- 互換性: 過去データに BROWN_WHITE があっても WHITE として扱われる（情報落ち＝挙動上は等価）
 
 ## v0.1.98 (2026-05-11)
 
@@ -3058,17 +1809,6 @@
   - ピッカー `ENEMIES_LIST` に Ghost(right/left, noslow)・Neul(up/down, noslow) 4種を追加
   - `ENEMY_SPEED_TABLE` も拡張: 0x40/0x42/0x44/0x46 をbase codeとして sp1/sp2 を選択可能に
   - 既存の通常版0x30-0x3F 4種と並んで合計8種選択可能（×sp1/sp2 = 実質16種）
-
-## v0.1.97 (2026-05-11)
-
-### ドキュメント
-- **noslowフラグの正体を解明**
-  - 0x40-0x4F の "noslow" 版 Neul/Ghost は「壁にぶつかって反転する時に減速しない」特性
-  - 通常版 0x30-0x3F は壁反転時に一瞬減速、noslow版はトップスピードのまま反転（凶悪化）
-  - 独立フラグではなく敵コード自体に埋め込み済み → ピッカーから直接選択可能（UI追加不要）
-  - 出典: `solomon's_key_rom_map.html` L424
-  - `docs/rom_analysis.html` の敵コード表を分割して説明追記
-  - `docs/roadmap.html` 9-13 をDONEに変更
 
 ## v0.1.96 (2026-05-11)
 
@@ -3083,7 +1823,7 @@
 
 ### 追加
 - **item_bitmasks のサポート**（Level 20: Bat Symbol、Level 30: Opal の一括配置）
-  - skchain と同じ仕組み: 24バイト (16×12 ビット) の bitmap で同種アイテムを多数配置
+  - 既存形式と同じ仕組み: 24バイト (16×12 ビット) の bitmap で同種アイテムを多数配置
   - 標準ROMの容量節約のための仕組み（通常のアイテムストリームでは入りきらないため）
   - `SkcConfig` に `item_bitmasks` 属性を追加、XML から読み込み
   - `MainWindow._apply_item_bitmasks()` で ROM data の bitmap を解読し、各レベルの items に追加
@@ -3094,7 +1834,7 @@
 
 ### 修正
 - **MBJ 位置検出を X2 (内部状態用) から X1 (叩く場所 = 出現位置) に変更**
-  - BESK のドキュメント参照: 「X1 = 叩く場所の座標 / X2 = 出現する場所の座標」
+  - BESK互換の仕様では「X1 = 叩く場所の座標 / X2 = 出現する場所の座標」
   - 実機検証では MBJ は X1 の位置に出現するため、X1 を使う
   - X1 は通常のアイテムバッファ形式 `y = (b >> 4) - 1` で復元できるシンプルな式
 - ハードコードオーバーライドテーブルを撤廃、純粋な解析ロジックに戻した
@@ -3159,12 +1899,6 @@
   - Level 49: (13,9)→(2,7), (7,4)→(5,5)
   - Level 50: (12,5)→(9,5)
   - Level 52, 53: (1,9)→(7,11)
-
-## v0.1.88 (2026-05-11)
-
-### ドキュメント
-- `special_process.py` モジュールに BESK のパースアルゴリズム (SP1/SP2) との対応関係を明記
-- BESK の SP1Check (位置テーブル経由配置) と等価な検出を実装済みであることを記載
 
 ## v0.1.87 (2026-05-11)
 
@@ -3262,7 +1996,7 @@
   - 修正: 自動拡張変換後の再パースを廃止し、通常ROMから読んだ `levels` をそのまま使用
   - これによりエディタ上で BROWN_WHITE が青フィルター付きで正しく表示される
 - 既知の制約: 改造ROM保存時、拡張形式に書き出す段階で BROWN_WHITE は普通の白 (0xf8) になる
-  - skchain (C++) も同じ制約あり。拡張ROMフォーマットでの BROWN_WHITE 表現は未解明
+  - 既存形式でも同じ制約あり。拡張ROMフォーマットでの BROWN_WHITE 表現は未解明
   - 解析タスクとして 9-14 にロードマップ追加予定
 
 ## v0.1.78 (2026-05-11)
@@ -3281,7 +2015,6 @@
 ### 内部
 - `element_picker.py` に `ENEMY_SPEED_TABLE`, `apply_enemy_speed()`, `base_code_from_actual()` を新設
 - `ElementPicker.get_enemy_speed()` / `set_enemy_speed()` API追加
-- バックアップ: `BUP/20260511_enemy_speed/`
 
 ## v0.1.77 (2026-05-11)
 
@@ -3313,12 +2046,11 @@
     - **出現する敵**: 最大7体ぶんのコンボボックス（敵アイコン + 名前）
     - **クイック操作**: スケジュール全クリア/全ON、敵セットクリア
   - スポーン敵の生存時間 (Saramander/DemonHead 用 TTL) スピンボックス
-- skchain 風 UI に寄せて 16進数を見ずに編集可能
+- 16進数を見ずに編集可能なUIにした
 - 拡張ROM (mapper 66) のレイアウトに直接読み書き
 
 ### 内部
 - 新ファイル: `magatu_skc/ui/mirror_dialog.py`
-- バックアップ: `BUP/20260511_mirror_dialog/`
 
 ## v0.1.74 (2026-05-11)
 
@@ -3383,12 +2115,10 @@
     - ゲーム挙動改造（HACK ダイアログでROMが変わったとき）
     - テストプレイ起動
     - 各種失敗時のエラー情報
-  - 何も操作がないセッション（開始/終了のみ）はファイル出力しない
-- 旧 ROADMAP 10-4「改造履歴ログ」を消化
+- 何も操作がないセッション（開始/終了のみ）はファイル出力しない
 
 ### 内部
 - `_session_log: list[str]`、`_log(msg)`、`_save_session_log()` を新設
-- バックアップ: `BUP/20260511_session_log/`
 
 ## v0.1.69 (2026-05-11)
 
@@ -3404,7 +2134,7 @@
 - **ROM読込時の自動拡張変換 (mapper 3 → 66)**
   - 通常ROMを読み込むと自動的に拡張ROM形式 (96KB, mapper 66) に変換される
   - 容量制約 (敵726バイト / アイテム1402バイト) が事実上無くなる（1レベル=256バイト固定 × 53レベル）
-  - C++ skchain `Rom_expander.cpp` の `change_mapper / patch_mirror_*` を完全移植
+  - `change_mapper / patch_mirror_*` 相当の処理を実装
   - `core/m66_expander.py` 新設
 - **ROM情報表示**: 自動変換時に「⚙ 拡張ROMに自動変換 (mapper 66)」を表示
 - **IPS出力を拡張ROMでも有効化**:
@@ -3416,7 +2146,6 @@
 - `MainWindow.load_rom` で `m66_expander.expand_rom(rom, levels)` 呼び出し
 - 変換後 `load_all_levels(rom)` で拡張ROM形式から再パース
 - `_auto_expanded` フラグを保持
-- バックアップ: `BUP/20260511_rom_expander/`
 
 ## v0.1.67 (2026-05-11)
 
@@ -3636,7 +2365,6 @@
   - スタート位置にブロック → 主人公が埋まってクリア不能
   - 扉位置にブロック → 出られなくてクリア不能
   - どちらも配置を拒否、ステータスバーで通知
-- 配置レギュレーションマトリックス（rom_analysis.html）も同期更新
 
 ## v0.1.43 (2026-05-10)
 
@@ -3837,7 +2565,6 @@
 ### 変更
 - 「家族の呪い解除」「鬼畜仕様」等の煽り表現を全廃
   - UI: コンボボックス見出しを「コンティニュー上限」に変更
-  - CHANGELOG / MANUAL / rom_analysis.html からも該当表現を削除
   - 機能名は事実ベースのニュートラルな表現に統一
 
 ## v0.1.24 (2026-05-10)
@@ -3851,15 +2578,6 @@
     - 42 / 48 / PRINSESS / SOLOMON / HIDDEN まで
     - **時間の間まで（全ステージ・最終）**
   - JP/USA/EU 全リージョン共通で動作（基本ゲームロジック領域）
-
-### 解析
-- BESK で test42.nes を生成→差分1バイト確認で完全特定
-- 6502 アセンブリ逆解析:
-  - 0x4A57: `LDX #$28` の即値オペランドが上限値
-  - 0x4A59: `CPX $0428` で現在ステージRAM比較
-  - 0x4A5C: `BCS` で範囲内なら継続OK分岐
-- ネット上には未文書化、世界初文書化候補
-- `docs/rom_analysis.html` の「ロストテクノロジー候補3」を「解析完了」に格上げ
 
 ## v0.1.23 (2026-05-10)
 
@@ -3934,7 +2652,7 @@
 
 ### 追加
 - **ホバーハイライト** (Phase 4-4): マウス位置のタイルを白枠で強調
-- **レベル設定UI** (Phase 2-7, 2-8, 2-6 / skchain移植):
+- **レベル設定UI** (Phase 2-7, 2-8, 2-6):
   - **タイルセット切替** スピンボックス (0-2)
   - **時間減少率** スピンボックス (0-15)
   - **敵寿命** スピンボックス (0-255)
@@ -3995,29 +2713,15 @@
 ## v0.1.13 (2026-05-10)
 
 ### 追加
-- **skchain互換 XML 入出力** を実装
+- **既存形式互換 XML 入出力** を実装
   - 新規モジュール `magatu_skc/core/xml_io.py`
   - 4ボタン追加（ファイル欄）:
-    - **XML出力(現在)**: 現在のレベルを skchain 形式 XML として保存
+    - **XML出力(現在)**: 現在のレベルを既存形式XMLとして保存
     - **XML出力(全)**: 全53レベルを `level-NN.xml` ファイル群でフォルダ保存
     - **XML読込(現在)**: XMLから読み込んで現在のレベルに上書き
     - **XML読込(全)**: フォルダから `level-NN.xml` を一括読み込み
-  - skchain v1.1 のXMLフォーマット完全互換（相互運用可能）
+  - 既存XMLフォーマット互換（相互運用可能）
   - 53レベル全てで round-trip 完全一致を検証済み
-
-### XMLフォーマット
-```xml
-<skchain app_version="1.1">
-  <level start_position="..." door_position="..." key_position="..."
-         key_status="..." spawn_enemy_lifetime="..." time_decrease_rate="..."
-         constellation_no="..." constellation_position="..." tileset="...">
-    <blocks><block_row no="0" value="2,2,..."/>...</blocks>
-    <items><item no="0" element_no="N" position="x,y"/>...</items>
-    <enemies><enemy no="0" element_no="N" position="x,y"/>...</enemies>
-    <mirrors><mirror no="0" position="x,y" schedule="N" enemy_set="N"/>...</mirrors>
-  </level>
-</skchain>
-```
 
 ## v0.1.12 (2026-05-10)
 
@@ -4101,7 +2805,7 @@ USA ROM 全53レベルの重複パターン調査:
 ### 変更
 - Ctrl+左クリック移動を「2回クリック方式」から「ドラッグ&ドロップ方式」に変更
   - **Ctrl押下しながら左ボタンで掴む** → そのままマウス移動で要素が追従 → **Ctrl解放 or ボタン解放で確定**
-  - 直感的でシンプル。skchain本家のShift+クリックよりも自然
+  - 直感的でシンプルな操作にした
   - 旧方式（2回クリック）は廃止
 
 ## v0.1.5 (2026-05-10)
@@ -4128,9 +2832,9 @@ USA ROM 全53レベルの重複パターン調査:
 ### 修正
 - ピッカー（編集対象リスト）のアイテム/敵アイコンの色がおかしい不具合を修正
   - 原因1: `mask_brick_color=True` がスプライトの本体色（palette index 1）まで透明化していたため、本体ピクセルが消失して全アイテムが青っぽく/スカスカに見えていた
-  - 原因2: ピッカーのアイコンが常にタイルセット0で描画されていた（skchainは現在レベルのタイルセットで描画）
+  - 原因2: ピッカーのアイコンが常にタイルセット0で描画されていた
   - 対応: マスク廃止 + `tile_renderer.get_tile_image()` を経由して描画。`set_current_tileset_no()` を追加し、レベル切替時にアイコンを現在レベルのタイルセットで再描画するように変更
-  - 結果: 配置時とピッカーの色が完全一致（skchain互換）
+  - 結果: 配置時とピッカーの色が完全一致
 
 ## v0.1.2 (2026-05-10)
 
@@ -4144,13 +2848,13 @@ USA ROM 全53レベルの重複パターン調査:
 
 ### 修正
 - BESK等の旧エディタで改造されたROMが「Unknown ROM region」で読み込めない不具合を修正
-  - 原因: BESKがリージョン判定オフセット (0x0bf2) も上書きするため、skchain互換のルールベース判定が外れる
+  - 原因: BESKがリージョン判定オフセット (0x0bf2) も上書きするため、ルールベース判定が外れる
   - 対策: ルールが外れた場合、CHR-ROM の CRC32 によるフォールバック判定を追加（CHR-ROM はエディタが触らないので信頼できる）
   - 既知CHR CRC32: US=`FAD8A464`, JP=`EBCA054B`（EU は未確認）
 
 ## v0.1.0 (2026-05-10)
 
-初回リリース。skchain (kaimitai作 C++) の主要機能を Python に移植。
+初回リリース。主要なROMエディタ機能をPythonで実装。
 
 ### 機能
 - ROM読み込み (US / JP / EU / 拡張ROM US66 自動判別)
@@ -4165,7 +2869,7 @@ USA ROM 全53レベルの重複パターン調査:
 - 単一レベル / 全レベル PNG エクスポート
 - グリッド表示切替
 - 隠し要素オーバーレイ表示
-- skchain互換 skc_config.xml の流用
+- 既存形式の `skc_config.xml` を利用
 
 ### キーバインド
 - F1: ヘルプ
@@ -4180,8 +2884,3 @@ USA ROM 全53レベルの重複パターン調査:
 - デーモンミラーのドロップスケジュール・敵セット編集UI未実装
 - アイテム/敵の選択UIが英語表記のみ
 - 起動時自動バックアップ未実装
-
-### 移植元
-[skchain v1.1](https://github.com/kaimitai/skchain) by kaimitai
-- 対象: Solomon's Key (NES) ROMエディタ
-- 元実装: C++20 + Dear ImGui + SDL2

@@ -6,6 +6,7 @@
 !.gitignore
 !CHANGELOG.md
 !MANUAL.md
+!MANUAL.en.md
 !README.md
 !requirements.txt
 !SOLOMON_CUSTOMIZER.py
@@ -18,7 +19,6 @@
 !docs/
 !docs/ram_map_current.html
 !docs/rom_map_jp_mapper66_current.html
-!docs/panel_monster_asm_analysis.md
 !docs/images/
 !docs/images/dana.png
 !docs/images/readme_main_window.png

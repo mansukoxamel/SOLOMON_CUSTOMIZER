@@ -1,5 +1,9 @@
 # SOLOMON_CUSTOMIZER
 
+[日本語](#日本語) / [English](#english)
+
+## 日本語
+
 ファミコン版『ソロモンの鍵』を、ステージエディタの範囲を超えて改造できるカスタマイザーです。  
 日本版ROMを mapper66 / wide-title 形式へ自動拡張し、ステージ配置だけでなく、敵AI、弾速、部屋別ルール、タイトル画面、パレット、テストプレイ用ROM生成までGUIから扱えます。
 
@@ -42,3 +46,60 @@ python SOLOMON_CUSTOMIZER.py
 ```
 
 詳細な操作は [MANUAL.md](MANUAL.md) を参照してください。
+
+## 参考・謝辞
+
+SOLOMON_CUSTOMIZERの開発では、過去に作られたソロモンの鍵向け編集・解析ツールから多くの知見を参考にしています。
+
+- BESK（Binary Editor for Solomon's Key）
+- skedit
+- skchain
+
+これらのツールと作者の方々に感謝します。
+
+## English
+
+SOLOMON_CUSTOMIZER is a GUI customizer for the Famicom version of *Solomon's Key*.
+It automatically expands the Japanese ROM to the mapper66 / wide-title format and lets you edit much more than stage layouts.
+
+### Highlights
+
+- Converts a Japanese ROM into the expanded mapper66 / wide-title format
+- Edits all 53 stages: blocks, items, enemies, keys, doors, and start positions
+- Configures room rules such as B-fire disable, A-button stone disable, hidden doors, and dark rooms
+- Edits Demon Mirror enemy spawns, schedules, and enemy lifetimes
+- Adjusts panel monster projectile timing/speed and applies projectile bug fixes
+- Tunes enemy behaviors and speed values, including enhanced enemy variants
+- Edits item drops, player starting values, timers, palettes, wall colors, and title-screen assets
+- Exports `.nes`, `.ips`, stage-data `.png`, and settings `.json` files
+- Builds a temporary test ROM from the current stage for emulator playtesting
+
+### Important
+
+- ROM data is not included in this repository.
+- Use this tool with a ROM you own.
+- US ROMs are not normal editing targets; they are only used as limited asset sources, such as for title-screen import.
+
+### Run
+
+Requirements:
+
+- Python 3.10 or later
+- PyQt5
+
+```bat
+pip install -r requirements.txt
+python SOLOMON_CUSTOMIZER.py
+```
+
+For detailed usage, see [MANUAL.en.md](MANUAL.en.md).
+
+### Credits
+
+SOLOMON_CUSTOMIZER was developed with reference to knowledge from earlier Solomon's Key editing and research tools:
+
+- BESK (Binary Editor for Solomon's Key)
+- skedit
+- skchain
+
+Many thanks to these tools and their authors.
