@@ -1,17 +1,18 @@
 """スプライト/キャラクタービューア
 
-2モード:
+3モード:
+  - ROMフレームデータ: $D0E8 機構由来の16x16スプライトを一覧。
   - キャラクター: skc_config のメタタイル定義で組み立てた実キャラ
     (アイテム/敵/メタ) を名前付きで一覧。tile_renderer 使用。
   - 生CHRタイル: CHR-ROM の 8x8 タイルを素のまま一覧 (上級者向け)。
 
-読込専用（ROM は変更しない）。
+ROMフレームデータは、ダブルクリックで16x16ピクセル編集へ接続できる。
 """
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QSpinBox,
     QScrollArea, QWidget, QGridLayout, QDialogButtonBox, QCheckBox
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QImage, QPixmap, QColor
 
 from ..nes.tile import NesTile, NES_TILE_W, NES_GFX_TILE_BYTE_SIZE
@@ -27,8 +28,48 @@ TILES_PER_BANK = 512
 BANK_COLS = 16
 
 
+class RomFrameImageLabel(QLabel):
+    frame_double_clicked = pyqtSignal(int)
+
+    def __init__(self, item_count, cols, cell_w, cell_h, parent=None):
+        super().__init__(parent)
+        self._item_count = int(item_count)
+        self._cols = int(cols)
+        self._cell_w = int(cell_w)
+        self._cell_h = int(cell_h)
+        self._gap = 4
+        self.setMouseTracking(True)
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() != Qt.LeftButton:
+            super().mouseDoubleClickEvent(event)
+            return
+        x = event.pos().x() - self._gap
+        y = event.pos().y() - self._gap
+        stride_w = self._cell_w + self._gap
+        stride_h = self._cell_h + self._gap
+        if x < 0 or y < 0 or stride_w <= 0 or stride_h <= 0:
+            super().mouseDoubleClickEvent(event)
+            return
+        col = x // stride_w
+        row = y // stride_h
+        local_x = x % stride_w
+        local_y = y % stride_h
+        if col >= self._cols or local_x >= self._cell_w or local_y >= self._cell_h:
+            super().mouseDoubleClickEvent(event)
+            return
+        idx = int(row * self._cols + col)
+        if 0 <= idx < self._item_count:
+            self.frame_double_clicked.emit(idx)
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
+
+
 class SpriteViewer(QDialog):
-    """スプライト/キャラクタービューア（読込専用）"""
+    """スプライト/キャラクタービューア"""
+
+    rom_changed = pyqtSignal()
 
     def __init__(self, rom, tile_renderer=None, config=None, parent=None):
         super().__init__(parent)
@@ -39,6 +80,7 @@ class SpriteViewer(QDialog):
         self.rom = rom
         self.tile_renderer = tile_renderer
         self.config = config
+        self._editor_dialogs = {}
 
         data = rom.data
         self.chr_start = 16 + data[4] * 0x4000
@@ -103,6 +145,7 @@ class SpriteViewer(QDialog):
             self.rb_bank = QComboBox()
             for b in range(self.bank_count):
                 self.rb_bank.addItem(f"Bank {b}")
+            self.rb_bank.setCurrentIndex(min(2, self.bank_count - 1))
             self.rb_bank.currentIndexChanged.connect(self._render_romframes)
             self.ctrl_layout.addWidget(self.rb_bank)
 
@@ -114,6 +157,11 @@ class SpriteViewer(QDialog):
             self.rb_pal.setCurrentIndex(4)
             self.rb_pal.currentIndexChanged.connect(self._render_romframes)
             self.ctrl_layout.addWidget(self.rb_pal)
+
+            self.rb_duplicates = QCheckBox("重複参照も表示")
+            self.rb_duplicates.setToolTip("同じleft/right/attrを参照するROMフレームも個別に表示")
+            self.rb_duplicates.stateChanged.connect(self._render_romframes)
+            self.ctrl_layout.addWidget(self.rb_duplicates)
 
             self.ctrl_layout.addWidget(QLabel("拡大:"))
             self.rb_zoom = QSpinBox()
@@ -131,9 +179,8 @@ class SpriteViewer(QDialog):
             self.cat_combo = QComboBox()
             self.cat_combo.addItems([
                 "アイテム", "敵", "メタ", "全メタタイル",
-                "★全網羅 (全tile_def×全tileset)",
-                "★ROM由来 全キャラ(組立16x16)"])
-            self.cat_combo.setCurrentIndex(5)  # 既定: ROM由来 全キャラ
+                "★全網羅 (全tile_def×全tileset)"])
+            self.cat_combo.setCurrentIndex(1)
             self.cat_combo.currentIndexChanged.connect(self._render_chars)
             self.ctrl_layout.addWidget(self.cat_combo)
 
@@ -255,9 +302,6 @@ class SpriteViewer(QDialog):
         return best
 
     def _render_chars(self):
-        if self.cat_combo.currentText().startswith("★ROM由来"):
-            self._render_rom_assembled()
-            return
         sel_ts = self.ts_combo.currentIndex()
         all_ts = (sel_ts >= len(self.config.tilesets))  # "全部(網羅)"
         zoom = self.zoom_spin.value()
@@ -332,11 +376,34 @@ class SpriteViewer(QDialog):
         except Exception:
             return pal.SubPalette([0x0f, 0x00, 0x10, 0x30])
 
+    def _display_palette_rgb(self, palette_index: int):
+        """Return display QRgb colors for the selected ROM palette.
+
+        ROM sprite palettes store three visible colors followed by a separator.
+        CHR sprite pixel value 0 is transparent; values 1-3 map to those first
+        three ROM bytes.
+        """
+        off = PALETTE_OFFSET + palette_index * 4
+        if palette_index >= 4:
+            try:
+                colors = [self.rom.data[off + i] & 0x3F for i in range(3)]
+            except Exception:
+                colors = [0x00, 0x10, 0x30]
+            return [None] + [QColor(*pal.get_nes_color(v)).rgb() for v in colors]
+        try:
+            sub_pal = pal.load_palette_from_rom(self.rom.data, off)
+        except Exception:
+            sub_pal = pal.SubPalette([0x0f, 0x00, 0x10, 0x30])
+        return [QColor(*sub_pal.get_rgb(i)).rgb() for i in range(4)]
+
+    def _sprite_palette_rgb(self, sprite_palette_no: int):
+        return self._display_palette_rgb(4 + (int(sprite_palette_no) & 3))
+
     def _render_raw(self):
         bank = self.bank_combo.currentIndex()
         zoom = self.zoom_spin.value()
         show_grid = self.grid_chk.isChecked()
-        sub_pal = self._get_subpalette()
+        palette_index = self.pal_combo.currentIndex()
 
         first = bank * TILES_PER_BANK
         last = min(first + TILES_PER_BANK, self.total_tiles)
@@ -351,7 +418,7 @@ class SpriteViewer(QDialog):
 
         img = QImage(img_w, img_h, QImage.Format_ARGB32)
         img.fill(QColor(40, 40, 40) if show_grid else QColor(0, 0, 0))
-        rgb = [QColor(*sub_pal.get_rgb(i)).rgb() for i in range(4)]
+        rgb = self._display_palette_rgb(palette_index)
 
         for ti in range(n):
             tile_no = first + ti
@@ -365,6 +432,8 @@ class SpriteViewer(QDialog):
             for y in range(NES_TILE_W):
                 for x in range(NES_TILE_W):
                     color = rgb[tile.pixels[y][x]]
+                    if color is None:
+                        continue
                     px0, py0 = ox + x * zoom, oy + y * zoom
                     for dy in range(zoom):
                         for dx in range(zoom):
@@ -421,15 +490,33 @@ class SpriteViewer(QDialog):
                                   rom[cf(a + 1)], rom[cf(a + 2)]))
         return items
 
-    # 確定: CNROM ラッチ $8C79→$8D20=$96 → CHR bank 2 固定
-    SPRITE_BANK = 2
+    @staticmethod
+    def _romframe_edit_key(item):
+        return item[3], item[4], item[5]
+
+    def _romframe_ref_counts(self, items):
+        counts = {}
+        for item in items:
+            key = self._romframe_edit_key(item)
+            counts[key] = counts.get(key, 0) + 1
+        return counts
+
+    def _dedupe_romframe_items(self, items):
+        seen = set()
+        out = []
+        for item in items:
+            key = self._romframe_edit_key(item)
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(item)
+        return out
 
     def _draw_8x16(self, img, rgb, ox, oy, byte_idx, bank, zoom,
                    hflip=False, vflip=False):
         """NES 8x16: tile bit0=パターンテーブル($0000/$1000)、
-        byte&$FE=上タイル/+1=下。bank は SPRITE_BANK 固定。
+        byte&$FE=上タイル/+1=下。bank は画面のCHRバンク選択を使う。
         attr由来の H/V flip 適用。"""
-        bank = self.SPRITE_BANK
         half = 256 if (byte_idx & 1) else 0   # bit0=1 → $1000領域
         top = half + (byte_idx & 0xFE)
         for sub, tn in ((0, top), (1, top + 1)):
@@ -462,15 +549,12 @@ class SpriteViewer(QDialog):
         bank = self.rb_bank.currentIndex()
         zoom = self.rb_zoom.value()
         pal_sel = self.rb_pal.currentIndex()  # 0-3=固定SPR, 4=attr自動
-        items = self._romframe_items()
-
-        subpals = []
-        for pi in range(8):
-            try:
-                subpals.append(pal.load_palette_from_rom(
-                    self.rom.data, PALETTE_OFFSET + pi * 4))
-            except Exception:
-                subpals.append(pal.SubPalette([0x0f, 0x00, 0x10, 0x30]))
+        all_items = self._romframe_items()
+        counts = self._romframe_ref_counts(all_items)
+        show_duplicates = getattr(self, "rb_duplicates", None) is not None and self.rb_duplicates.isChecked()
+        items = all_items if show_duplicates else self._dedupe_romframe_items(all_items)
+        self._romframe_render_items = list(items)
+        self._romframe_render_bank = bank
 
         cols = 16
         cw = 16 * zoom
@@ -496,70 +580,69 @@ class SpriteViewer(QDialog):
                 p1 = p2 = pal_sel
             h1, v1 = (attr >> 4) & 1, (attr >> 5) & 1
             h2, v2 = (attr >> 1) & 1, (attr >> 0) & 1
-            r1 = [QColor(*subpals[4 + p1].get_rgb(k)).rgb() for k in range(4)]
-            r2 = [QColor(*subpals[4 + p2].get_rgb(k)).rgb() for k in range(4)]
-            self._draw_8x16(img, r1, ox, oy, t1, 2, zoom, h1, v1)
-            self._draw_8x16(img, r2, ox + 8 * zoom, oy, t2, 2, zoom, h2, v2)
-            p.drawText(ox, oy + 16 * zoom + 10, f"g{g:02X}s{s:02X}f{fi}")
+            r1 = self._sprite_palette_rgb(p1)
+            r2 = self._sprite_palette_rgb(p2)
+            self._draw_8x16(img, r1, ox, oy, t1, bank, zoom, h1, v1)
+            self._draw_8x16(img, r2, ox + 8 * zoom, oy, t2, bank, zoom, h2, v2)
+            refs = counts.get(self._romframe_edit_key((g, s, fi, t1, t2, attr)), 1)
+            ref_text = f"x{refs}" if refs > 1 and not show_duplicates else ""
+            p.drawText(ox, oy + 16 * zoom + 10, f"g{g:02X}s{s:02X}f{fi}{ref_text}")
         p.end()
-        lbl = QLabel()
+        lbl = RomFrameImageLabel(len(items), cols, cw, ch)
         lbl.setPixmap(QPixmap.fromImage(img))
         lbl.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        lbl.setToolTip("ダブルクリックでこのフレームを16x16ピクセル編集で開く")
+        lbl.frame_double_clicked.connect(self._on_romframe_double_clicked)
         old = self.scroll.takeWidget()
         if old:
             old.deleteLater()
         self.scroll.setWidget(lbl)
+        if show_duplicates:
+            count_text = f"{len(items)} フレーム参照"
+        else:
+            count_text = f"{len(items)} 編集対象 / {len(all_items)} フレーム参照"
         self.hover_label.setText(
-            f"{len(items)} フレーム / $D0E8機構由来 / Bank {bank} / "
-            "16x16(8x16スプライト) / ROM直読み・configに依存しない全網羅")
+            f"{count_text} / $D0E8機構由来 / Bank {bank} / "
+            "16x16(8x16スプライト) / ROM直読み・configに依存しない")
 
-    # ---- ★ROM由来 全キャラ(組立) をキャラクターモードに表示 ----
-    def _render_rom_assembled(self):
-        zoom = self.zoom_spin.value()
-        items = self._romframe_items()
-        subpals = []
-        for pi in range(8):
-            try:
-                subpals.append(pal.load_palette_from_rom(
-                    self.rom.data, PALETTE_OFFSET + pi * 4))
-            except Exception:
-                subpals.append(pal.SubPalette([0x0f, 0x00, 0x10, 0x30]))
+    def _on_romframe_double_clicked(self, index):
+        items = getattr(self, "_romframe_render_items", [])
+        if not (0 <= int(index) < len(items)):
+            return
+        item = items[int(index)]
+        _, _, _, t1, t2, attr = item
+        bank = getattr(self, "_romframe_render_bank", self.rb_bank.currentIndex())
+        editor_key = (int(bank), int(t1), int(t2), int(attr))
+        old = self._editor_dialogs.get(editor_key)
+        if old is not None and old.isVisible():
+            old.raise_()
+            old.activateWindow()
+            return
+        from .pixel_editor_dialog import PixelEditorDialog
+        dlg = PixelEditorDialog(
+            self.rom,
+            parent=self,
+            initial_key=(t1, t2, attr),
+            initial_bank=bank,
+        )
+        dlg.setAttribute(Qt.WA_DeleteOnClose, True)
+        dlg.rom_changed.connect(self._on_editor_rom_changed)
+        from weakref import ref as weakref_ref
+        owner_ref = weakref_ref(self)
 
-        old = self.scroll.takeWidget()
-        if old:
-            old.deleteLater()
-        host = QWidget()
-        grid = QGridLayout(host)
-        grid.setSpacing(6)
-        cols = 6
-        for i, (g, s, fi, t1, t2, attr) in enumerate(items):
-            # 確定 attr decode + CHR bank 2 固定 (Codex検証/ROM一致)
-            p1, p2 = (attr >> 6) & 3, (attr >> 2) & 3
-            h1, v1 = (attr >> 4) & 1, (attr >> 5) & 1
-            h2, v2 = (attr >> 1) & 1, (attr >> 0) & 1
-            r1 = [QColor(*subpals[4 + p1].get_rgb(k)).rgb() for k in range(4)]
-            r2 = [QColor(*subpals[4 + p2].get_rgb(k)).rgb() for k in range(4)]
-            cell_img = QImage(16 * zoom, 16 * zoom, QImage.Format_ARGB32)
-            cell_img.fill(QColor(60, 60, 60))
-            self._draw_8x16(cell_img, r1, 0, 0, t1, 2, zoom, h1, v1)
-            self._draw_8x16(cell_img, r2, 8 * zoom, 0, t2, 2, zoom, h2, v2)
-            cell = QWidget()
-            cl = QVBoxLayout(cell)
-            cl.setContentsMargins(2, 2, 2, 2)
-            cl.setSpacing(1)
-            pic = QLabel()
-            pic.setPixmap(QPixmap.fromImage(cell_img))
-            pic.setAlignment(Qt.AlignCenter)
-            name = self.GROUP_NAMES.get(g, f"grp{g:02X}")
-            txt = QLabel(f"{name}\ng{g:02X}s{s:02X}f{fi}")
-            txt.setAlignment(Qt.AlignCenter)
-            txt.setWordWrap(True)
-            txt.setStyleSheet("font-size: 9px;")
-            cl.addWidget(pic)
-            cl.addWidget(txt)
-            grid.addWidget(cell, i // cols, i % cols)
-        host.setLayout(grid)
-        self.scroll.setWidget(host)
-        self.hover_label.setText(
-            f"{len(items)} キャラ(組立16x16) / $D0E8由来 / "
-            "CHRバンク自動補正 / configに依存しない全網羅")
+        def clear_editor_dialog(_obj=None, owner_ref=owner_ref, editor_key=editor_key):
+            owner = owner_ref()
+            if owner is not None:
+                owner._editor_dialogs.pop(editor_key, None)
+
+        dlg.destroyed.connect(clear_editor_dialog)
+        self._editor_dialogs[editor_key] = dlg
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
+
+    def _on_editor_rom_changed(self):
+        mode_txt = self.mode_combo.currentText() if hasattr(self, "mode_combo") else ""
+        if mode_txt.startswith("★ROM"):
+            self._render_romframes()
+        self.rom_changed.emit()

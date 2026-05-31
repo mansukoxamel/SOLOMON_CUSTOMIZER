@@ -443,6 +443,15 @@ class MainWindow(QMainWindow):
         self.btn_title_screen.setEnabled(False)
         el.addWidget(self.btn_title_screen, 3, 0)
 
+        self.btn_pixel_editor = QPushButton("16x16ピクセル編集")
+        self.btn_pixel_editor.setToolTip(
+            "ROMフレーム由来の16x16スプライトを1ピクセル単位で編集。"
+            "16x16画像の取り込みにも対応。"
+        )
+        self.btn_pixel_editor.clicked.connect(self._on_show_pixel_editor)
+        self.btn_pixel_editor.setEnabled(False)
+        el.addWidget(self.btn_pixel_editor, 3, 1)
+
         left_layout.addWidget(edit_group)
 
         # レベル設定（編集UI - skchain移植）
@@ -985,6 +994,7 @@ class MainWindow(QMainWindow):
             self.btn_palette.setEnabled(True)
             self.btn_title_screen.setEnabled(True)
             self.btn_sprite_viewer.setEnabled(True)
+            self.btn_pixel_editor.setEnabled(True)
             self.btn_test_play.setEnabled(True)
             self.btn_test_play_right.setEnabled(True)
             self.meta_group.setEnabled(True)
@@ -3492,14 +3502,60 @@ class MainWindow(QMainWindow):
         )
         dlg.exec_()
 
+    def _reload_chr_renderers(self):
+        """Rebuild renderers after direct CHR-ROM edits."""
+        if not self.rom or self.config is None:
+            return
+        from ..core.constants import ROM_OFFSETS
+        gfx_offset = ROM_OFFSETS[self.rom.base_region()]["gfx"]
+        if self.rom.is_expanded():
+            gfx_offset = 0x10010
+        nes_tiles = load_chr_tiles(bytes(self.rom.data), gfx_offset, c.NES_TILE_COUNT)
+        self.tile_renderer = TileRenderer(self.config, nes_tiles)
+        self.level_renderer = LevelRenderer(self.tile_renderer, self.config)
+        self._sync_wall_color_preview()
+        if self.picker is not None:
+            self.picker.set_tile_renderer(self.tile_renderer, self.config)
+
+    def _on_show_pixel_editor(self):
+        """16x16 sprite pixel editor (writes CHR-ROM tiles)."""
+        if not self.rom:
+            return
+        from .pixel_editor_dialog import PixelEditorDialog
+        before = bytes(self.rom.data)
+        dlg = PixelEditorDialog(self.rom, parent=self)
+        dlg.exec_()
+        if bytes(self.rom.data) != before:
+            self._reload_chr_renderers()
+            self._set_dirty(True)
+            self._refresh_view()
+            self._generate_all_thumbnails()
+            self.statusBar().showMessage("16x16ピクセル編集: CHRを書き換えました", 4000)
+            self._log("16x16ピクセル編集: CHR書換")
+
     def _on_show_sprite_viewer(self):
-        """スプライトビューア (CHR-ROM 全タイル、読込専用)"""
+        """スプライトビューア (CHR-ROM 全タイル、編集画面へ接続可)"""
         if not self.rom:
             return
         from .sprite_viewer import SpriteViewer
+        before = bytes(self.rom.data)
+        self._sprite_viewer_rom_changed_seen = False
         dlg = SpriteViewer(self.rom, tile_renderer=self.tile_renderer,
                            config=self.config, parent=self)
+        dlg.rom_changed.connect(self._on_sprite_viewer_rom_changed)
         dlg.exec_()
+        if bytes(self.rom.data) != before and not self._sprite_viewer_rom_changed_seen:
+            self._on_sprite_viewer_rom_changed()
+        self._sprite_viewer_rom_changed_seen = False
+
+    def _on_sprite_viewer_rom_changed(self):
+        self._sprite_viewer_rom_changed_seen = True
+        self._reload_chr_renderers()
+        self._set_dirty(True)
+        self._refresh_view()
+        self._generate_all_thumbnails()
+        self.statusBar().showMessage("スプライトビューア経由: CHRを書き換えました", 4000)
+        self._log("スプライトビューア経由: CHR書換")
 
     def _on_show_mirror(self):
         """ミラー詳細設定ダイアログ"""
