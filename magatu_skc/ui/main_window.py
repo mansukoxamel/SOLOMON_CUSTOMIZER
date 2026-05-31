@@ -716,7 +716,7 @@ class MainWindow(QMainWindow):
             if item is not None:
                 item.setIcon(QIcon(pix))
 
-    def _apply_item_bitmasks(self, rom, config, levels):
+    def _apply_item_bitmasks(self, rom, config, levels, rom_data=None):
         """skc_config.xml の item_bitmasks を ROM データから読み出して
         該当レベルの items に追加する。
 
@@ -732,9 +732,6 @@ class MainWindow(QMainWindow):
         ibs = getattr(config, "item_bitmasks", None) or []
         if not ibs:
             return
-        # 拡張ROMへ変換するとXML指定offsetのバイトはゼロ化されるため、
-        # 必ず変換前(=元)ROMバイトから bitmap を読む
-        rom_data = getattr(self, "original_rom_data", None)
         if rom_data is None:
             rom_data = bytes(rom.data)
         for entry in ibs:
@@ -765,6 +762,19 @@ class MainWindow(QMainWindow):
                             continue
                         lv.items.append(LevelElement(ElementType.ITEM, pos, item_no))
                         existing.add((pos, item_no))
+
+    def _clear_item_bitmasks(self, rom, config):
+        from ..core import constants as c
+
+        ibs = getattr(config, "item_bitmasks", None) or []
+        for entry in ibs:
+            try:
+                offset = int(entry["offset"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            end = offset + c.TILE_BITMASK_BYTE_SIZE
+            if 0 <= offset and end <= len(rom.data):
+                rom.data[offset:end] = bytes(c.TILE_BITMASK_BYTE_SIZE)
 
     def _load_bonus_stage_table(self, rom):
         """ボーナスステージ(51面)のアイテム位置・アイテムリストをROMから読み込み"""
@@ -939,9 +949,13 @@ class MainWindow(QMainWindow):
             self.level_renderer = LevelRenderer(self.tile_renderer, config)
             self._sync_wall_color_preview()
 
-            # item_bitmasks を適用 (Level 20 の Bat Symbol、Level 30 の Opal 等)
-            # 通常のアイテムストリームには無く、ROM内の 24byte bitmap で一括配置されている
-            self._apply_item_bitmasks(rom, config, levels)
+            # item_bitmasks are a raw-ROM storage shortcut. Convert them into
+            # editable stage data only during raw-ROM auto expansion, then
+            # clear the copied source bytes so mapper66 reloads do not recreate
+            # deleted items.
+            if auto_expanded:
+                self._apply_item_bitmasks(rom, config, levels, rom_data=loaded_rom_data)
+            self._clear_item_bitmasks(rom, config)
 
             # ピッカーにレンダラを渡してアイコン付きリストにする
             self.picker.set_tile_renderer(self.tile_renderer, config)
