@@ -34,6 +34,8 @@
 - このリポジトリにROMデータは含まれません。
 - 所有しているROMを読み込んで使う前提です。
 - US ROMは通常編集対象ではなく、タイトル移植など限定用途の素材としてだけ扱います。
+- 『ソロモンの鍵』および関連する名称・画像・ゲーム内容の権利は、テクモ / コーエーテクモゲームスおよび各権利者に帰属します。
+- このツールは非公式のファン制作ツールです。権利上の問題や掲載内容への懸念がある場合は、GitHub Issues等でご連絡ください。確認次第、該当内容を修正または削除します。
 
 ## 起動
 
@@ -79,6 +81,8 @@ It automatically expands the Japanese ROM to the mapper66 / wide-title format an
 - ROM data is not included in this repository.
 - Use this tool with a ROM you own.
 - US ROMs are not normal editing targets; they are only used as limited asset sources, such as for title-screen import.
+- *Solomon's Key* and related names, images, and game content are owned by Tecmo / Koei Tecmo Games and their respective rights holders.
+- This is an unofficial fan-made tool. If any rights holder has concerns about this project or its contents, please contact us through GitHub Issues so the relevant material can be modified or removed.
 
 ### Run
 
