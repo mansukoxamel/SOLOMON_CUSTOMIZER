@@ -1,5 +1,11 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.35 (2026-06-02) ステージのコピー/貼り付け/入れ替えを追加
+- 右側のステージ選択ペインへ、現在ステージを内部コピーし、別ステージへ貼り付ける操作を追加した。
+- 現在ステージと指定ステージのデータ一式を入れ替える操作を追加した。
+- ステージ操作は編集可能ROMだけで有効にし、読み取り専用ROMでは無効化するようにした。
+- 入れ替えを1回のUndo/Redoで戻せるよう、複数ステージのスナップショット履歴に対応した。
+
 ## v0.8.34 (2026-06-02) Panel Variant final splitの署名確認を強化
 - `panel_monster_stage_variant.apply_final_split_test_candidate()` がROMへ書き込む前に、hookサイト、AI table、各小routine配置先、PRG1 loader/tableをまとめて検証するようにした。
 - 署名不一致時は書込み前に中止し、ROMが半端に変更されないようにした。

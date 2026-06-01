@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QLabel,
     QPushButton, QSpinBox, QFileDialog, QMessageBox, QSplitter,
     QGroupBox, QComboBox, QCheckBox, QListWidget, QApplication,
-    QToolBar, QAction, QRadioButton, QButtonGroup
+    QToolBar, QAction, QRadioButton, QButtonGroup, QInputDialog
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QPixmap, QKeySequence, QCursor
@@ -78,6 +78,7 @@ class MainWindow(QMainWindow):
         self.current_level_no = 0
         self._read_only_mode = False
         self._read_only_reason = ""
+        self._stage_clipboard = None
         self.show_grid = False
         self.show_object_labels = False
         # Ctrl+クリックでの要素移動: 1回目で掴む、2回目で移動先
@@ -128,6 +129,21 @@ class MainWindow(QMainWindow):
             "編集不可: 閲覧/ステージ出力専用ROMです", 3000
         )
         return True
+
+    def _update_stage_operation_buttons(self):
+        can_edit = bool(self.levels) and not self._is_read_only()
+        if hasattr(self, "btn_stage_copy"):
+            self.btn_stage_copy.setEnabled(can_edit)
+        if hasattr(self, "btn_stage_paste"):
+            self.btn_stage_paste.setEnabled(can_edit and self._stage_clipboard is not None)
+        if hasattr(self, "btn_stage_swap"):
+            self.btn_stage_swap.setEnabled(can_edit)
+        if hasattr(self, "lbl_stage_clipboard"):
+            if self._stage_clipboard is None:
+                self.lbl_stage_clipboard.setText("コピー元: なし")
+            else:
+                source_no = int(self._stage_clipboard["source_level_no"]) + 1
+                self.lbl_stage_clipboard.setText(f"コピー元: L{source_no:02d}")
 
     def _restore_window_state(self):
         """設定からウィンドウ位置・サイズ・最大化状態を復元"""
@@ -681,6 +697,31 @@ class MainWindow(QMainWindow):
         self.spin_level.valueChanged.connect(self._on_level_changed)
         v.addWidget(self.spin_level)
 
+        stage_ops = QHBoxLayout()
+        self.btn_stage_copy = QPushButton("面コピー")
+        self.btn_stage_copy.setToolTip("現在のステージデータ一式を内部クリップボードへコピー")
+        self.btn_stage_copy.clicked.connect(self._on_stage_copy)
+        self.btn_stage_copy.setEnabled(False)
+        stage_ops.addWidget(self.btn_stage_copy)
+
+        self.btn_stage_paste = QPushButton("貼り付け")
+        self.btn_stage_paste.setToolTip("コピーしたステージデータ一式で現在のステージを上書き")
+        self.btn_stage_paste.clicked.connect(self._on_stage_paste)
+        self.btn_stage_paste.setEnabled(False)
+        stage_ops.addWidget(self.btn_stage_paste)
+        v.addLayout(stage_ops)
+
+        self.btn_stage_swap = QPushButton("面入れ替え...")
+        self.btn_stage_swap.setToolTip("現在のステージと指定ステージのデータ一式を入れ替え")
+        self.btn_stage_swap.clicked.connect(self._on_stage_swap)
+        self.btn_stage_swap.setEnabled(False)
+        v.addWidget(self.btn_stage_swap)
+
+        self.lbl_stage_clipboard = QLabel("コピー元: なし")
+        self.lbl_stage_clipboard.setObjectName("stageClipboardLabel")
+        self.lbl_stage_clipboard.setWordWrap(True)
+        v.addWidget(self.lbl_stage_clipboard)
+
         from PyQt5.QtWidgets import QListView
         self.list_levels = QListWidget()
         # サムネイル表示用のサイズ設定（画像のみ・テキストなし）
@@ -1069,6 +1110,8 @@ class MainWindow(QMainWindow):
             self.btn_save_ips.setEnabled(edit_enabled)
             self.btn_stage_load.setEnabled(edit_enabled)
             self.btn_stage_save.setEnabled(True)
+            self._stage_clipboard = None
+            self._update_stage_operation_buttons()
             self.btn_clear.setEnabled(edit_enabled)
             self.btn_stats.setEnabled(True)
             self.btn_hack.setEnabled(edit_enabled)
@@ -1653,6 +1696,120 @@ class MainWindow(QMainWindow):
         if level_elem is not None:
             return xml_element_to_level(level_elem)
         return None
+
+    # ====== Stage copy / paste / swap ======
+
+    @staticmethod
+    def _stage_label(level_no: int) -> str:
+        return f"L{level_no + 1:02d}"
+
+    def _sync_stage_sidecar_to_level(self, level_no: int):
+        if 0 <= level_no < len(self.levels):
+            self._sync_enemy_codes_from_rom(level_no)
+
+    def _refresh_changed_stages(self, level_nos):
+        changed = sorted({ln for ln in level_nos if 0 <= ln < len(self.levels)})
+        for level_no in changed:
+            self._write_mirror_data_to_rom(level_no)
+            self._refresh_thumbnail(level_no)
+        self._sync_mirror_panel()
+        self._refresh_view()
+        self._update_stage_operation_buttons()
+
+    def _on_stage_copy(self):
+        if not self.levels:
+            return
+        if self._reject_read_only_edit():
+            return
+        source_no = self.current_level_no
+        self._sync_stage_sidecar_to_level(source_no)
+        self._stage_clipboard = {
+            "source_level_no": source_no,
+            "level": copy.deepcopy(self.levels[source_no]),
+        }
+        self._update_stage_operation_buttons()
+        self.statusBar().showMessage(
+            f"{self._stage_label(source_no)} をコピーしました", 3000
+        )
+        self._log(f"ステージコピー: {self._stage_label(source_no)}")
+
+    def _on_stage_paste(self):
+        if not self.levels or self._stage_clipboard is None:
+            return
+        if self._reject_read_only_edit():
+            return
+        target_no = self.current_level_no
+        source_no = int(self._stage_clipboard["source_level_no"])
+        reply = QMessageBox.question(
+            self,
+            "ステージ貼り付け",
+            f"{self._stage_label(source_no)} のデータを "
+            f"{self._stage_label(target_no)} へ貼り付けます。\n\n"
+            f"{self._stage_label(target_no)} の現在の内容は上書きされます。",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+        self._sync_stage_sidecar_to_level(target_no)
+        self._push_undo_levels([target_no], focus_level_no=target_no)
+        self.levels[target_no] = copy.deepcopy(self._stage_clipboard["level"])
+        self._refresh_changed_stages([target_no])
+        self.statusBar().showMessage(
+            f"{self._stage_label(source_no)} を {self._stage_label(target_no)} へ貼り付けました",
+            4000,
+        )
+        self._log(
+            f"ステージ貼り付け: {self._stage_label(source_no)} -> {self._stage_label(target_no)}"
+        )
+
+    def _on_stage_swap(self):
+        if not self.levels:
+            return
+        if self._reject_read_only_edit():
+            return
+        current_no = self.current_level_no
+        default_no = current_no + 2 if current_no + 1 < len(self.levels) else current_no
+        target_stage_no, ok = QInputDialog.getInt(
+            self,
+            "ステージ入れ替え",
+            f"{self._stage_label(current_no)} と入れ替えるステージ番号:",
+            default_no,
+            1,
+            len(self.levels),
+            1,
+        )
+        if not ok:
+            return
+        target_no = target_stage_no - 1
+        if target_no == current_no:
+            self.statusBar().showMessage("同じステージは入れ替え不要です", 2500)
+            return
+        reply = QMessageBox.question(
+            self,
+            "ステージ入れ替え",
+            f"{self._stage_label(current_no)} と {self._stage_label(target_no)} の"
+            "データ一式を入れ替えます。",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+        self._sync_stage_sidecar_to_level(current_no)
+        self._sync_stage_sidecar_to_level(target_no)
+        self._push_undo_levels([current_no, target_no], focus_level_no=current_no)
+        self.levels[current_no], self.levels[target_no] = (
+            self.levels[target_no],
+            self.levels[current_no],
+        )
+        self._refresh_changed_stages([current_no, target_no])
+        self.statusBar().showMessage(
+            f"{self._stage_label(current_no)} と {self._stage_label(target_no)} を入れ替えました",
+            4000,
+        )
+        self._log(
+            f"ステージ入れ替え: {self._stage_label(current_no)} <-> {self._stage_label(target_no)}"
+        )
 
     # ====== Level navigation ======
 
@@ -4018,6 +4175,9 @@ class MainWindow(QMainWindow):
 
         ドラッグ塗り/消し中は _suppress_next_undo フラグでスキップ。
         """
+        self._push_undo_levels([self.current_level_no], focus_level_no=self.current_level_no)
+
+    def _push_undo_levels(self, level_nos, focus_level_no=None):
         if not self.levels:
             return
         if self._is_read_only():
@@ -4027,8 +4187,23 @@ class MainWindow(QMainWindow):
             return
         if getattr(self, '_suppress_next_undo', False):
             return
-        snap = (self.current_level_no, copy.deepcopy(self.levels[self.current_level_no]))
-        self._undo_stack.append(snap)
+        valid_level_nos = sorted({
+            int(level_no)
+            for level_no in level_nos
+            if 0 <= int(level_no) < len(self.levels)
+        })
+        if not valid_level_nos:
+            return
+        if focus_level_no not in valid_level_nos:
+            focus_level_no = valid_level_nos[0]
+        entry = {
+            "focus_level_no": int(focus_level_no),
+            "levels": {
+                level_no: copy.deepcopy(self.levels[level_no])
+                for level_no in valid_level_nos
+            },
+        }
+        self._undo_stack.append(entry)
         if len(self._undo_stack) > self._undo_limit:
             self._undo_stack.pop(0)
         # 新規編集時は redo はクリア
@@ -4062,40 +4237,86 @@ class MainWindow(QMainWindow):
         if not self._undo_stack or not self.levels:
             self.statusBar().showMessage("Undo履歴なし", 2000)
             return
-        level_no, snap = self._undo_stack.pop()
+        entry = self._undo_stack.pop()
         # 現在状態を redo に push
-        cur_snap = (level_no, copy.deepcopy(self.levels[level_no]))
-        self._redo_stack.append(cur_snap)
-        self.levels[level_no] = snap
+        self._redo_stack.append(self._snapshot_current_for_undo_entry(entry))
+        focus_level_no, label = self._restore_undo_entry(entry)
         # 該当レベルへ移動して再描画
-        if level_no != self.current_level_no:
-            self.spin_level.setValue(level_no + 1)
+        if focus_level_no != self.current_level_no:
+            self.spin_level.setValue(focus_level_no + 1)
         else:
             self._refresh_view()
         self.statusBar().showMessage(
-            f"Undo: L{level_no + 1} (履歴 {len(self._undo_stack)} 件)", 2500
+            f"Undo: {label} (履歴 {len(self._undo_stack)} 件)", 2500
         )
 
     def _on_redo(self):
         if not self._redo_stack or not self.levels:
             self.statusBar().showMessage("Redo履歴なし", 2000)
             return
-        level_no, snap = self._redo_stack.pop()
-        cur_snap = (level_no, copy.deepcopy(self.levels[level_no]))
-        self._undo_stack.append(cur_snap)
-        self.levels[level_no] = snap
-        if level_no != self.current_level_no:
-            self.spin_level.setValue(level_no + 1)
+        entry = self._redo_stack.pop()
+        self._undo_stack.append(self._snapshot_current_for_undo_entry(entry))
+        focus_level_no, label = self._restore_undo_entry(entry)
+        if focus_level_no != self.current_level_no:
+            self.spin_level.setValue(focus_level_no + 1)
         else:
             self._refresh_view()
         self.statusBar().showMessage(
-            f"Redo: L{level_no + 1} (履歴 {len(self._redo_stack)} 件)", 2500
+            f"Redo: {label} (履歴 {len(self._redo_stack)} 件)", 2500
         )
 
     def _clear_undo_history(self):
         """ROM読込/XML読込時にUndo履歴をリセット"""
         self._undo_stack.clear()
         self._redo_stack.clear()
+
+    def _undo_entry_levels(self, entry):
+        if isinstance(entry, dict) and "levels" in entry:
+            return {
+                int(level_no): snap
+                for level_no, snap in entry["levels"].items()
+                if 0 <= int(level_no) < len(self.levels)
+            }
+        level_no, snap = entry
+        if 0 <= int(level_no) < len(self.levels):
+            return {int(level_no): snap}
+        return {}
+
+    def _undo_entry_focus_level_no(self, entry, level_nos):
+        if isinstance(entry, dict) and "focus_level_no" in entry:
+            focus_level_no = int(entry["focus_level_no"])
+            if focus_level_no in level_nos:
+                return focus_level_no
+        return level_nos[0] if level_nos else self.current_level_no
+
+    def _undo_entry_label(self, level_nos):
+        labels = [self._stage_label(level_no) for level_no in sorted(level_nos)]
+        if len(labels) <= 2:
+            return ", ".join(labels)
+        return f"{labels[0]} ほか{len(labels) - 1}面"
+
+    def _snapshot_current_for_undo_entry(self, entry):
+        levels = self._undo_entry_levels(entry)
+        level_nos = sorted(levels.keys())
+        focus_level_no = self._undo_entry_focus_level_no(entry, level_nos)
+        return {
+            "focus_level_no": focus_level_no,
+            "levels": {
+                level_no: copy.deepcopy(self.levels[level_no])
+                for level_no in level_nos
+            },
+        }
+
+    def _restore_undo_entry(self, entry):
+        levels = self._undo_entry_levels(entry)
+        level_nos = sorted(levels.keys())
+        focus_level_no = self._undo_entry_focus_level_no(entry, level_nos)
+        for level_no in level_nos:
+            self.levels[level_no] = copy.deepcopy(levels[level_no])
+            self._write_mirror_data_to_rom(level_no)
+            self._refresh_thumbnail(level_no)
+        self._sync_mirror_panel()
+        return focus_level_no, self._undo_entry_label(level_nos)
 
     def _show_keymap(self):
         msg = """<b>基本</b><br>
