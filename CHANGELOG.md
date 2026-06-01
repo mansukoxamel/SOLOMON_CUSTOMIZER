@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.34 (2026-06-02) Panel Variant final splitの署名確認を強化
+- `panel_monster_stage_variant.apply_final_split_test_candidate()` がROMへ書き込む前に、hookサイト、AI table、各小routine配置先、PRG1 loader/tableをまとめて検証するようにした。
+- 署名不一致時は書込み前に中止し、ROMが半端に変更されないようにした。
+- 既存のStageExt loader、旧Panel Variant prototype、適用済みfinal splitは正規の移行元/再適用元として受け入れるようにした。
+
 ## v0.8.33 (2026-06-01) US/skchain ROMを読み取り専用で受け入れ
 - skchain US66 mapper66 ROMを厳密署名で判定し、閲覧/ステージ出力専用で読み込めるようにした。
 - US/JP mapper3改造ROMも通常編集から分離し、読み取り専用ならステージ表示/出力できるようにした。

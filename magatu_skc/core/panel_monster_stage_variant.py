@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from . import panel_bullet_speed_fix, panel_monster_variant, spark_ball_variant
+from . import panel_bullet_speed_fix, panel_monster_variant, spark_ball_variant, stage_ext
 
 
 class PanelMonsterStageVariantError(ValueError):
@@ -1017,6 +1017,365 @@ def panel_variant_split_placement_candidate() -> dict[str, object]:
     }
 
 
+ORIG_FINAL_PARENT_FIELD_CLEAR_HELPER = bytes.fromhex(
+    "0008210001000100010001000140010101"
+)
+ORIG_FINAL_PARENT_SPEED_GUARD = bytes.fromhex(
+    "00010001200904410000000000000000000000000fe007e017d0183010000000"
+    "00010001000100010001000110111011000105413c7900012008aaac0280701c"
+    "08306f"
+)
+ORIG_FINAL_BULLET_SPEED_EXTRA_HELPER = bytes.fromhex(
+    "000001000100010001ddc1155100012aaf000100010001000100005354449648"
+    "00a494222400409204100096a014f000000001aca9b2490121524b5899450144"
+    "d3201909532b09000100000000000000000000"
+)
+ORIG_FINAL_AI_WRAPPER_CANDIDATE = bytes.fromhex(
+    "000000001103d1e0410181381100610e0500190381000100e10001bfdcb5e622"
+    "f0808c491837605128a0561d4416b63c5808c400014ad91a094b53"
+)
+ORIG_FINAL_ABC_GROUP_OFFSET_HELPER = bytes.fromhex(
+    "00000000000000000000000000000000000000004004000000011c7136d9"
+)
+
+
+def _fill(byte: int, size: int) -> bytes:
+    return bytes([byte & 0xFF] * int(size))
+
+
+def _pad(blob: bytes, size: int, fill: int = 0xEA) -> bytes:
+    blob = bytes(blob)
+    if len(blob) >= size:
+        return blob[:size]
+    return blob + _fill(fill, size - len(blob))
+
+
+def _unique_signatures(signatures: tuple[bytes, ...]) -> tuple[bytes, ...]:
+    out: list[bytes] = []
+    for sig in signatures:
+        sig = bytes(sig)
+        if sig not in out:
+            out.append(sig)
+    return tuple(out)
+
+
+def _expect_signature(rom_data: bytearray, off: int, name: str,
+                      signatures: tuple[bytes, ...]) -> None:
+    accepted = _unique_signatures(signatures)
+    if not accepted:
+        raise PanelMonsterStageVariantError(f"{name} has no accepted signatures.")
+    size = len(accepted[0])
+    if any(len(sig) != size for sig in accepted):
+        raise PanelMonsterStageVariantError(f"{name} signature table size mismatch.")
+    cur = bytes(rom_data[off:off + size])
+    if cur in accepted:
+        return
+    expected = " / ".join(sig.hex(" ") for sig in accepted[:3])
+    if len(accepted) > 3:
+        expected += " / ..."
+    raise PanelMonsterStageVariantError(
+        f"{name} signature mismatch at file 0x{off:X} CPU ${_cpu(off):04X}: "
+        f"got {cur.hex(' ')}, expected {expected}"
+    )
+
+
+def _validate_panel_variant_table_signature(rom_data: bytearray) -> None:
+    raw = bytes(rom_data[TABLE_OFFSET:TABLE_END])
+    if raw == bytes(TABLE_LENGTH):
+        return
+    if (
+        raw.startswith(MAGIC)
+        and raw[len(MAGIC)] == FORMAT
+        and raw[len(MAGIC) + 1] == ENTRY_SIZE
+        and raw[len(MAGIC) + 2] == ROOM_COUNT
+    ):
+        return
+    raise PanelMonsterStageVariantError(
+        f"PanelVariantStageTable signature mismatch at file 0x{TABLE_OFFSET:X}: "
+        f"got {raw[:16].hex(' ')}"
+    )
+
+
+def _validate_runtime_loader_signature(rom_data: bytearray) -> None:
+    _expect_signature(
+        rom_data,
+        OFF_M66_LOADER_TAIL,
+        "mapper66 loader tail",
+        (ORIG_M66_LOADER_TAIL, HOOK_M66_LOADER_TAIL),
+    )
+    _expect_signature(
+        rom_data,
+        OFF_PRG1_RUNTIME_LOADER,
+        "Panel Variant PRG1 runtime loader",
+        (
+            _fill(0x00, 0x60),
+            stage_ext.RUNTIME_LOADER + _fill(0x00, 0x60 - len(stage_ext.RUNTIME_LOADER)),
+            RUNTIME_LOADER + _fill(0x00, 0x60 - len(RUNTIME_LOADER)),
+        ),
+    )
+
+
+def _validate_final_split_signatures(
+    rom_data: bytearray,
+    final_state0_interval_helper: bytes,
+) -> None:
+    """Verify every final split writer before mutating ROM bytes."""
+    _validate_panel_variant_table_signature(rom_data)
+    _validate_runtime_loader_signature(rom_data)
+    panel_bullet_speed_fix.current_state(rom_data)
+
+    _expect_signature(
+        rom_data,
+        panel_monster_variant.OFF_HOOK_PANEL_FIRE,
+        "$A556 Panel fire/property hook site",
+        (
+            panel_monster_variant.ORIG_PANEL_FIRE,
+            panel_monster_variant.HOOK_PANEL_FIRE,
+            HOOK_PANEL_FIRE_WITH_SPARK_PROPERTY,
+        ),
+    )
+    _expect_signature(
+        rom_data,
+        panel_monster_variant.OFF_HOOK_BULLET_MOVE,
+        "$AFBB Bullet movement hook site",
+        (
+            panel_monster_variant.ORIG_BULLET_MOVE_HOOK,
+            panel_monster_variant.HOOK_BULLET_MOVE,
+        ),
+    )
+    _expect_signature(
+        rom_data,
+        OFF_STATE0_INTERVAL_HOOK,
+        "$A575 state0 interval hook site",
+        (
+            ORIG_STATE0_INTERVAL_HOOK,
+            V7_STATE0_INTERVAL_HOOK,
+            V8_STATE0_INTERVAL_HOOK,
+            HOOK_STATE0_INTERVAL,
+            FINAL_HOOK_STATE0_INTERVAL,
+        ),
+    )
+    _expect_signature(
+        rom_data,
+        panel_monster_variant.OFF_A2CC,
+        "$A2CC property dispatch hook site",
+        (
+            panel_monster_variant.ORIG_A2CC_HEAD,
+            panel_monster_variant.HOOK_A2CC,
+            panel_monster_variant.HOOK_A2CC_SPARK,
+            panel_monster_variant.HOOK_A2CC_SPARK_CURRENT,
+            HOOK_A2CC_SPARK_PROPERTY,
+        ),
+    )
+    _expect_signature(
+        rom_data,
+        panel_monster_variant.OFF_8B05,
+        "$8B05 animation dispatch hook site",
+        (
+            panel_monster_variant.ORIG_8B05_HEAD,
+            panel_monster_variant.HOOK_8B05,
+            panel_monster_variant.HOOK_8B05_SPARK,
+            HOOK_8B05_SPARK_ANIM,
+        ),
+    )
+    _expect_signature(
+        rom_data,
+        OFF_SPEED_INIT_CALL,
+        "$866D speed init hook site",
+        (
+            ORIG_SPEED_INIT_CALL,
+            PREV_HOOK_SPEED_INIT_CALL,
+            PREV_HOOK_SPEED_INIT_CALL_E876,
+            HOOK_SPEED_INIT_CALL,
+        ),
+    )
+
+    ai_entry = _word(FINAL_AI_DISPATCH_ENTRIES["entry"])
+    old_panel_entry = _word(CPU_FINAL_AI_WRAPPER_CANDIDATE)
+    for off, name in (
+        (panel_monster_variant.OFF_AI_DEMON_52_53, "$A34C Panel Monster 2-way borrowed AI"),
+        (panel_monster_variant.OFF_AI_DEMON_56_57, "$A34E Panel Monster 2-way borrowed AI"),
+        (panel_monster_variant.OFF_AI_DEMON_5A_5B, "$A350 Panel Monster 3-way borrowed AI"),
+    ):
+        _expect_signature(
+            rom_data,
+            off,
+            name,
+            (
+                panel_monster_variant.ORIG_AI_DEMON,
+                _word(panel_monster_variant.CPU_AI_DEMON_WRAPPER),
+                old_panel_entry,
+            ),
+        )
+    for off, name in (
+        (OFF_AI_RANGE_30_33, "$A33C Panel Variant C AI"),
+        (OFF_AI_RANGE_34_37, "$A33E Panel Variant C AI"),
+        (OFF_AI_RANGE_40_43, "$A344 Panel Variant A AI"),
+        (OFF_AI_RANGE_44_47, "$A346 Panel Variant A AI"),
+        (OFF_AI_RANGE_48_4B, "$A348 Panel Variant B AI"),
+        (OFF_AI_RANGE_4C_4F, "$A34A Panel Variant B AI"),
+    ):
+        _expect_signature(rom_data, off, name, (_word(0xABF7), ai_entry))
+
+    for off, blob, name, signatures in (
+        (
+            panel_monster_variant.OFF_FIRE_DISPATCH,
+            FINAL_FIRE_DISPATCH,
+            "Panel Variant final fire dispatch",
+            (_fill(0xEA, len(FINAL_FIRE_DISPATCH)), panel_monster_variant.CAVE_FIRE_DISPATCH[:len(FINAL_FIRE_DISPATCH)]),
+        ),
+        (
+            OFF_FINAL_AI_DISPATCH_HELPER,
+            FINAL_AI_DISPATCH_HELPER,
+            "Panel Variant final AI dispatch helper",
+            (_fill(0x00, len(FINAL_AI_DISPATCH_HELPER)),),
+        ),
+        (
+            OFF_FINAL_AI_DISPATCH_PANEL_HELPER,
+            FINAL_AI_DISPATCH_PANEL_HELPER,
+            "Panel Variant final AI dispatch panel tail",
+            (_fill(0x00, len(FINAL_AI_DISPATCH_PANEL_HELPER)),),
+        ),
+        (
+            OFF_FINAL_PARENT_SPEED_GUARD,
+            FINAL_PARENT_SPEED_GUARD,
+            "Panel Variant final parent speed guard",
+            (ORIG_FINAL_PARENT_SPEED_GUARD,),
+        ),
+        (
+            OFF_FINAL_PANEL_TYPE_CLASSIFIER,
+            FINAL_PANEL_TYPE_CLASSIFIER,
+            "Panel Variant final shared Panel type classifier",
+            (_fill(0xEA, len(FINAL_PANEL_TYPE_CLASSIFIER)),),
+        ),
+        (
+            OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL,
+            FINAL_PANEL_TYPE_CLASSIFIER_TAIL,
+            "Panel Variant final shared Panel type classifier tail",
+            (_fill(0x00, len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL)),),
+        ),
+        (
+            OFF_FINAL_STAGE_DISPATCH_TAIL,
+            FINAL_STAGE_DISPATCH_TAIL,
+            "Panel Variant final stage dispatch tail",
+            (_fill(0xEA, len(FINAL_STAGE_DISPATCH_TAIL)),),
+        ),
+        (
+            panel_monster_variant.OFF_FIRE_3WAY,
+            FINAL_FIRE_COMMON,
+            "Panel Variant final common fire loop",
+            (_fill(0xEA, len(FINAL_FIRE_COMMON)), panel_monster_variant.CAVE_FIRE_3WAY[:len(FINAL_FIRE_COMMON)]),
+        ),
+        (
+            OFF_FINAL_STATE0_INTERVAL_HELPER,
+            final_state0_interval_helper,
+            "Panel Variant final interval helper",
+            (
+                _fill(0xEA, len(final_state0_interval_helper)),
+                spark_ball_variant.CAVE_PROPERTY_HOOK[:len(final_state0_interval_helper)],
+                STATE0_INTERVAL_HELPER[:len(final_state0_interval_helper)],
+            ),
+        ),
+        (
+            OFF_FINAL_GROUP_RAM_OFFSET_HELPER,
+            FINAL_GROUP_RAM_OFFSET_HELPER,
+            "Panel Variant final group RAM offset helper",
+            (_fill(0xEA, len(FINAL_GROUP_RAM_OFFSET_HELPER)),),
+        ),
+        (
+            OFF_FINAL_ABC_GROUP_OFFSET_HELPER,
+            FINAL_ABC_GROUP_OFFSET_HELPER,
+            "Panel Variant final A/B/C-only group offset helper",
+            (_fill(0x00, len(FINAL_ABC_GROUP_OFFSET_HELPER)), ORIG_FINAL_ABC_GROUP_OFFSET_HELPER),
+        ),
+        (
+            OFF_FINAL_SPEED_SELECT_HELPER,
+            FINAL_SPEED_SELECT_HELPER,
+            "Panel Variant final speed select helper",
+            (_fill(0xEA, len(FINAL_SPEED_SELECT_HELPER)),),
+        ),
+        (
+            OFF_FINAL_STATIC_MARKER_HELPER,
+            FINAL_STATIC_MARKER_HELPER,
+            "Panel Variant final static marker helper",
+            (_fill(0xEA, len(FINAL_STATIC_MARKER_HELPER)),),
+        ),
+        (
+            OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER,
+            FINAL_DYNAMIC_SPEED_MARKER_HELPER,
+            "Panel Variant final dynamic speed marker helper",
+            (_fill(0x00, len(FINAL_DYNAMIC_SPEED_MARKER_HELPER)),),
+        ),
+        (
+            OFF_FINAL_PARENT_FIELD_CLEAR_HELPER,
+            FINAL_PARENT_FIELD_CLEAR_HELPER,
+            "Panel Variant final parent field clear helper",
+            (ORIG_FINAL_PARENT_FIELD_CLEAR_HELPER,),
+        ),
+        (
+            OFF_FINAL_BULLET_SPEED_EXTRA_HELPER,
+            FINAL_BULLET_SPEED_EXTRA_HELPER,
+            "Panel Variant final Bullet speed extra-step helper",
+            (ORIG_FINAL_BULLET_SPEED_EXTRA_HELPER,),
+        ),
+        (
+            OFF_FINAL_BULLET_SPEED_APPLY,
+            FINAL_BULLET_SPEED_APPLY + FINAL_BULLET_SPEED_TABLE,
+            "Panel Variant final Bullet speed apply/table",
+            (
+                _fill(0xEA, len(FINAL_BULLET_SPEED_APPLY) + len(FINAL_BULLET_SPEED_TABLE)),
+                _pad(STATE0_INTERVAL_HELPER, len(FINAL_BULLET_SPEED_APPLY) + len(FINAL_BULLET_SPEED_TABLE)),
+            ),
+        ),
+        (
+            OFF_FINAL_AI_WRAPPER_CANDIDATE,
+            FINAL_AI_WRAPPER_CANDIDATE,
+            "Panel Variant final shared AI wrapper",
+            (ORIG_FINAL_AI_WRAPPER_CANDIDATE,),
+        ),
+        (
+            OFF_FINAL_FIRE_MARKER_TABLE,
+            FINAL_FIRE_MARKER_TABLE,
+            "Panel Variant final fire marker table",
+            (_fill(0xEA, len(FINAL_FIRE_MARKER_TABLE)),),
+        ),
+        (
+            panel_monster_variant.OFF_BULLET_HOOK,
+            FINAL_MERGED_PANEL_BULLET_HOOK,
+            "Panel Variant final merged Bullet hook",
+            (
+                _fill(0xEA, len(FINAL_MERGED_PANEL_BULLET_HOOK)),
+                _pad(panel_monster_variant.CAVE_BULLET_HOOK, len(FINAL_MERGED_PANEL_BULLET_HOOK)),
+            ),
+        ),
+        (
+            OFF_FINAL_STAGE_DISPATCH_HELPER,
+            FINAL_STAGE_DISPATCH_HELPER,
+            "Panel Variant final stage dispatch helper",
+            (_fill(0xEA, len(FINAL_STAGE_DISPATCH_HELPER)),),
+        ),
+        (
+            panel_monster_variant.OFF_PROPERTY_HOOK,
+            FINAL_STAGE_PROPERTY_HOOK,
+            "Panel Variant final property hook",
+            (
+                _fill(0xEA, len(FINAL_STAGE_PROPERTY_HOOK)),
+                panel_monster_variant.CAVE_PROPERTY_HOOK[:len(FINAL_STAGE_PROPERTY_HOOK)],
+            ),
+        ),
+        (
+            panel_monster_variant.OFF_ANIM_HOOK,
+            FINAL_STAGE_ANIM_HOOK,
+            "Panel Variant final animation hook",
+            (
+                _fill(0xEA, len(FINAL_STAGE_ANIM_HOOK)),
+                panel_monster_variant.CAVE_ANIM_HOOK[:len(FINAL_STAGE_ANIM_HOOK)],
+            ),
+        ),
+    ):
+        _expect_signature(rom_data, off, name, (*signatures, blob))
+
+
 def apply_final_split_test_candidate(rom_data: bytearray, levels: list = None) -> list[str]:
     """Apply the accepted split Panel Variant runtime."""
     if rom_data is None:
@@ -1036,6 +1395,9 @@ def apply_final_split_test_candidate(rom_data: bytearray, levels: list = None) -
     )
     if len(rom_data) < min_len:
         raise PanelMonsterStageVariantError("ROM is too short for final split Panel Variant test candidate.")
+
+    final_state0_interval_helper = _final_state0_interval_helper_for_rom(rom_data)
+    _validate_final_split_signatures(rom_data, final_state0_interval_helper)
 
     changed: list[str] = []
     if patch_table(rom_data, levels):
@@ -1077,7 +1439,6 @@ def apply_final_split_test_candidate(rom_data: bytearray, levels: list = None) -
     ):
         _write_blob(rom_data, off, ai_entry, changed, name)
 
-    final_state0_interval_helper = _final_state0_interval_helper_for_rom(rom_data)
     for off, blob, name in (
         (panel_monster_variant.OFF_FIRE_DISPATCH, FINAL_FIRE_DISPATCH, "Panel Variant final fire dispatch"),
         (OFF_FINAL_AI_DISPATCH_HELPER, FINAL_AI_DISPATCH_HELPER, "Panel Variant final AI dispatch helper"),
