@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QLabel,
     QPushButton, QSpinBox, QFileDialog, QMessageBox, QSplitter,
     QGroupBox, QComboBox, QCheckBox, QListWidget, QApplication,
-    QToolBar, QAction, QRadioButton, QButtonGroup, QInputDialog
+    QToolBar, QAction, QRadioButton, QButtonGroup
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QPixmap, QKeySequence, QCursor
@@ -79,6 +79,7 @@ class MainWindow(QMainWindow):
         self._read_only_mode = False
         self._read_only_reason = ""
         self._stage_clipboard = None
+        self._stage_swap_source_no = None
         self.show_grid = False
         self.show_object_labels = False
         # Ctrl+クリックでの要素移動: 1回目で掴む、2回目で移動先
@@ -138,8 +139,21 @@ class MainWindow(QMainWindow):
             self.btn_stage_paste.setEnabled(can_edit and self._stage_clipboard is not None)
         if hasattr(self, "btn_stage_swap"):
             self.btn_stage_swap.setEnabled(can_edit)
+        if hasattr(self, "spin_stage_swap_target"):
+            self.spin_stage_swap_target.setEnabled(can_edit)
+            if can_edit:
+                self.spin_stage_swap_target.setRange(1, len(self.levels))
+            else:
+                self._stage_swap_source_no = None
+                self.spin_stage_swap_target.setVisible(False)
+                if hasattr(self, "btn_stage_swap"):
+                    self.btn_stage_swap.setText("面入れ替え")
         if hasattr(self, "lbl_stage_clipboard"):
-            if self._stage_clipboard is None:
+            if self._stage_swap_source_no is not None:
+                self.lbl_stage_clipboard.setText(
+                    f"入れ替え元: {self._stage_label(self._stage_swap_source_no)}"
+                )
+            elif self._stage_clipboard is None:
                 self.lbl_stage_clipboard.setText("コピー元: なし")
             else:
                 source_no = int(self._stage_clipboard["source_level_no"]) + 1
@@ -711,11 +725,21 @@ class MainWindow(QMainWindow):
         stage_ops.addWidget(self.btn_stage_paste)
         v.addLayout(stage_ops)
 
-        self.btn_stage_swap = QPushButton("面入れ替え...")
+        swap_row = QHBoxLayout()
+        self.btn_stage_swap = QPushButton("面入れ替え")
         self.btn_stage_swap.setToolTip("現在のステージと指定ステージのデータ一式を入れ替え")
         self.btn_stage_swap.clicked.connect(self._on_stage_swap)
         self.btn_stage_swap.setEnabled(False)
-        v.addWidget(self.btn_stage_swap)
+        swap_row.addWidget(self.btn_stage_swap, 1)
+
+        self.spin_stage_swap_target = _InvertedSpinBox()
+        self.spin_stage_swap_target.setObjectName("stageSwapTargetSpin")
+        self.spin_stage_swap_target.setRange(1, c.LEVEL_COUNT)
+        self.spin_stage_swap_target.setMinimumHeight(30)
+        self.spin_stage_swap_target.setMinimumWidth(58)
+        self.spin_stage_swap_target.setVisible(False)
+        swap_row.addWidget(self.spin_stage_swap_target)
+        v.addLayout(swap_row)
 
         self.lbl_stage_clipboard = QLabel("コピー元: なし")
         self.lbl_stage_clipboard.setObjectName("stageClipboardLabel")
@@ -1111,6 +1135,11 @@ class MainWindow(QMainWindow):
             self.btn_stage_load.setEnabled(edit_enabled)
             self.btn_stage_save.setEnabled(True)
             self._stage_clipboard = None
+            self._stage_swap_source_no = None
+            if hasattr(self, "spin_stage_swap_target"):
+                self.spin_stage_swap_target.setVisible(False)
+            if hasattr(self, "btn_stage_swap"):
+                self.btn_stage_swap.setText("面入れ替え")
             self._update_stage_operation_buttons()
             self.btn_clear.setEnabled(edit_enabled)
             self.btn_stats.setEnabled(True)
@@ -1768,33 +1797,55 @@ class MainWindow(QMainWindow):
             return
         if self._reject_read_only_edit():
             return
-        current_no = self.current_level_no
-        default_no = current_no + 2 if current_no + 1 < len(self.levels) else current_no
-        target_stage_no, ok = QInputDialog.getInt(
-            self,
-            "ステージ入れ替え",
-            f"{self._stage_label(current_no)} と入れ替えるステージ番号:",
-            default_no,
-            1,
-            len(self.levels),
-            1,
-        )
-        if not ok:
+        if self._stage_swap_source_no is None:
+            self._begin_stage_swap(self.current_level_no)
             return
-        target_no = target_stage_no - 1
-        if target_no == current_no:
+
+        source_no = self._stage_swap_source_no
+        target_no = self.spin_stage_swap_target.value() - 1
+        if target_no == source_no:
             self.statusBar().showMessage("同じステージは入れ替え不要です", 2500)
+            self.spin_stage_swap_target.setFocus()
+            self.spin_stage_swap_target.selectAll()
             return
         reply = QMessageBox.question(
             self,
             "ステージ入れ替え",
-            f"{self._stage_label(current_no)} と {self._stage_label(target_no)} の"
+            f"{self._stage_label(source_no)} と {self._stage_label(target_no)} の"
             "データ一式を入れ替えます。",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
+        self._swap_stages(source_no, target_no)
+        self._finish_stage_swap()
+
+    def _begin_stage_swap(self, source_no: int):
+        self._stage_swap_source_no = source_no
+        default_no = source_no + 2 if source_no + 1 < len(self.levels) else source_no
+        self.spin_stage_swap_target.blockSignals(True)
+        self.spin_stage_swap_target.setRange(1, len(self.levels))
+        self.spin_stage_swap_target.setValue(default_no)
+        self.spin_stage_swap_target.blockSignals(False)
+        self.spin_stage_swap_target.setVisible(True)
+        self.spin_stage_swap_target.setFocus()
+        self.spin_stage_swap_target.selectAll()
+        self.btn_stage_swap.setText("入替実行")
+        self._update_stage_operation_buttons()
+
+    def _finish_stage_swap(self):
+        self._stage_swap_source_no = None
+        self.spin_stage_swap_target.setVisible(False)
+        self.btn_stage_swap.setText("面入れ替え")
+        self._update_stage_operation_buttons()
+
+    def _set_stage_swap_target_from_thumbnail(self, level_no: int):
+        if self._stage_swap_source_no is None:
+            return
+        self.spin_stage_swap_target.setValue(level_no + 1)
+
+    def _swap_stages(self, current_no: int, target_no: int):
         self._sync_stage_sidecar_to_level(current_no)
         self._sync_stage_sidecar_to_level(target_no)
         self._push_undo_levels([current_no, target_no], focus_level_no=current_no)
@@ -1826,6 +1877,8 @@ class MainWindow(QMainWindow):
         self._refresh_view()
 
     def _on_list_changed(self, row: int):
+        if row >= 0:
+            self._set_stage_swap_target_from_thumbnail(row)
         if row < 0 or row == self.current_level_no:
             return
         # 離れる側のサムネを最新化
