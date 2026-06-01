@@ -78,6 +78,34 @@
     <div class="labels"><span>file 0x0000</span><span>0x8010</span><span>0x10010</span><span>0x1800F</span></div>
   </div>
 
+  <h2>1.1 change_mapper 初期変換パッチ</h2>
+  <div class="note">
+    <b>入口条件:</b>
+    <code>m66_expander.change_mapper()</code> は確認済み日本版オリジナル通常ROM CRC
+    <code>013ED497</code> / <code>5B49FEDB</code> / <code>2FE9E2CA</code> のみを変換対象にする。
+    そのため下表の before byte はJP原本CRCで固定される。未確認JP改変ROM、US/EU ROM、既に拡張済みのROMは入口で拒否する。
+  </div>
+  <table>
+    <tr><th>処理</th><th>file offset</th><th>CPU / bank</th><th>初期変換で書く値</th><th>根拠・用途</th><th>後続の所有者</th></tr>
+    <tr><td>iNES header</td><td class="num">0x0004 / 0x0006-0x000F</td><td class="num">header</td><td><code>PRG=04</code>, mapper66 (<code>0x20/0x40</code>), byte7-15 clear</td><td>PRGを32KBから64KBへ拡張し、mapper3通常ROMからmapper66拡張ROMへ形式変更する。NES 1.0ヘッダとして保存する。</td><td><code>change_mapper()</code></td></tr>
+    <tr><td>PRG0 copy</td><td class="num">0x0010-0x800F</td><td class="num">$8000-$FFFF</td><td>JP原本PRG0をそのままコピー後、下表のPRG0差分だけ上書き</td><td>原作PRG0を基本互換レイヤーとして維持する。PRG0の追加改造は保存時モジュールが予約スパン内で追記する。</td><td><code>change_mapper()</code> / 保存時各モジュール</td></tr>
+    <tr><td>bank marker bytes</td><td class="num">0x00FF-0x0102</td><td class="num">$80EF-$80F2</td><td><code>00 01 02 03</code> (JP原本は <code>10 11 12 13</code>)</td><td>skchain由来mapper66初期変換のbank値テーブル。l_a1/l_a2系のbank切替処理が参照する固定値として扱う。</td><td><code>change_mapper()</code></td></tr>
+    <tr><td>single byte patch</td><td class="num">0x0D30</td><td class="num">$8D20</td><td><code>00</code> (JP原本は <code>96</code>)</td><td>skchain由来mapper66初期変換の固定byte。JP CRCで入口を固定しているため、未確認ROMへは適用しない。</td><td><code>change_mapper()</code></td></tr>
+    <tr><td>NOP x3</td><td class="num">0x1812-0x1814</td><td class="num">$9802-$9804</td><td><code>EA EA EA</code> (JP原本ASMは <code>STA $0304,X</code>)</td><td>元の画面/レベルバッファ書込の一部を無効化し、mapper66用loader側の固定データ展開と衝突しないようにする。</td><td><code>change_mapper()</code></td></tr>
+    <tr><td>l_a1 subroutine</td><td class="num">0x1986-0x19A5</td><td class="num">$9976-$9995</td><td>32B routine。自己参照絶対アドレスはJP配置から動的生成。</td><td>PRG0側からmapper66 bank/PRG1処理へ渡るための小routine。内部に配置依存アドレスを持つため、JP offset専用で生成する。</td><td><code>change_mapper()</code></td></tr>
+    <tr><td>mirror rate pointers</td><td class="num">0x5C10-0x5C11 / 0x5C20-0x5C21</td><td class="num">$DC00-$DC11</td><td><code>80 88</code> / <code>07 07</code> = <code>$0780</code>, <code>$0788</code></td><td>原作のmirror rate pointer table先頭を、mapper66用の固定RAM staging先へ向ける。元データは変換前に読み出し、PRG1のmirror/drop scheduleへ展開する。</td><td><code>change_mapper()</code> / <code>patch_mirror_drop_schedule_bytes()</code></td></tr>
+    <tr><td>mirror enemy pointers</td><td class="num">0x5C30-0x5C31 / 0x5C41-0x5C42</td><td class="num">$DC20-$DC32</td><td><code>C0 C8</code> / <code>07 07</code> = <code>$07C0</code>, <code>$07C8</code></td><td>原作のmirror enemy pointer table先頭を、mapper66用の固定RAM staging先へ向ける。元敵セットは変換前に読み出し、各m66 level recordへ展開する。</td><td><code>change_mapper()</code> / <code>patch_mirror_enemy_set_bytes()</code></td></tr>
+    <tr><td>enemy pointer table</td><td class="num">0x5CFC-0x5D64</td><td class="num">$DCEC-$DD54</td><td>53 entries all <code>$07A0</code></td><td>原作の可変長enemy data pointer tableを、mapper66の固定level data処理で使うRAM staging先へ向ける。</td><td><code>change_mapper()</code> / <code>m66.save_all_levels_m66()</code></td></tr>
+    <tr><td>item pointer table</td><td class="num">0x6A2C-0x6A94</td><td class="num">$EA1C-$EA84</td><td>53 entries all <code>$0790</code></td><td>原作の可変長item data pointer tableを、mapper66の固定level data処理で使うRAM staging先へ向ける。</td><td><code>change_mapper()</code> / <code>m66.save_all_levels_m66()</code></td></tr>
+    <tr><td>bank0 cave clear</td><td class="num">0x3FF2-0x4021</td><td class="num">$BFE2-$C011</td><td>48B <code>00</code> (JP原本はEA埋め)</td><td>skchain由来mapper66初期変換の空き領域クリア。現行保存時はこの周辺をSpark Ball / Key enemy / gap_fixなどの予約済みroutineが上書きするため、空き扱いしない。</td><td><code>change_mapper()</code> / 保存時各モジュール</td></tr>
+    <tr><td>l_a2 loader</td><td class="num">0x8010-0x80C5</td><td class="num">PRG1 $8000-$80B5</td><td>182B mapper66 loader</td><td>拡張PRG1先頭に配置されるmapper66 level loader。原本ではCHR先頭だった領域をPRG1へ転用する。</td><td><code>change_mapper()</code>; 後続のwide titleは0x80D0以降を使用</td></tr>
+    <tr><td>loader guard</td><td class="num">0x80C6-0x80CF</td><td class="num">PRG1 $80B6-$80BF</td><td>初期zero-fill</td><td>l_a2 loader直後の10B guard。wide title decoder/dataは0x80D0から開始し、このguardを踏まない。</td><td><code>change_mapper()</code></td></tr>
+    <tr><td>expanded level area</td><td class="num">0xC010-0xF50F</td><td class="num">PRG1 $C000-$F4FF</td><td><code>change_mapper()</code>単体ではzero-fill</td><td><code>expand_rom()</code> が直後に各Levelを固定256B形式で保存する。<code>change_mapper()</code>単体ではステージデータが未展開になるため、通常ロード経路では <code>load_all_levels()</code> → <code>expand_rom()</code> の順序を守る。</td><td><code>m66.save_all_levels_m66()</code></td></tr>
+    <tr><td>mirror/drop schedule area</td><td class="num">0xF510-0xF85F</td><td class="num">PRG1 $F500-$F84F</td><td><code>change_mapper()</code>単体ではzero-fill</td><td>変換前にJP原本から読み出したmirror enemy set / drop scheduleを、<code>expand_rom()</code> 内で各部屋ローカルへ展開する。</td><td><code>patch_mirror_enemy_set_bytes()</code> / <code>patch_mirror_drop_schedule_bytes()</code></td></tr>
+    <tr><td>vectors copy</td><td class="num">0x10000-0x1000F</td><td class="num">PRG1 $FFF0-$FFFF</td><td>JP原本PRG末尾16Bをコピー</td><td>拡張後PRG全体の末尾へ割り込みベクタを移す。元CHR末尾ではなく、元PRG末尾 <code>0x8000-0x800F</code> からコピーする。</td><td><code>change_mapper()</code></td></tr>
+    <tr><td>CHR relocation</td><td class="num">0x10010-0x1800F</td><td class="num">CHR</td><td>JP原本CHR <code>0x8010-0x1000F</code> をコピー</td><td>PRG1を挿入したぶんCHR-ROMを後方へ移動する。CHR内容自体は初期変換では改変しない。</td><td><code>change_mapper()</code> / pixel editor等が後で編集可能</td></tr>
+  </table>
+
   <h2>2. PRG0 全体</h2>
   <div class="map">
     <h3>PRG0 / file 0x0010-0x800F / CPU $8000-$FFFF</h3>

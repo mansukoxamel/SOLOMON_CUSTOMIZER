@@ -1,12 +1,15 @@
-"""通常ROM (mapper 3) → 拡張ROM (mapper 66) 変換
+"""日本版通常ROM (mapper 3) → 拡張ROM (mapper 66) 変換
 
 C++ skchain `Rom_expander.cpp` の change_mapper() / patch_mirror_*() / remove_blocks_behind_demon_mirrors() を移植。
 
 通常ROMに編集を加えて保存しようとすると敵データ計726バイトの上限を超えやすいため、
-このエディタでは読込時に自動的に拡張ROM (mapper 66, 96KB) に変換する。
+このエディタでは日本版通常ROMの読込時に自動的に拡張ROM (mapper 66, 96KB) に変換する。
+通常編集対象は日本版ROMのみで、US/EU版のmapper66変換は行わない。
 """
 from . import constants as c
 from . import m66
+from . import region as region_mod
+from .rom import crc32_hex, is_known_jp_original_data
 from .element import Wall, byte_from_position
 from .level import Level
 
@@ -63,17 +66,49 @@ def parse_enemy_sets_std(rom_data: bytes, region: str) -> list:
 
 
 _REGION_PATCH_OFFSETS = {
-    "US": {"nop3": 6287, "sub1": 6659, "zero48": 16370, "byte_0d30": 3376,
-           "tbl_5c10": 23568, "tbl_5c20": 23584, "tbl_5c30": 23600, "tbl_5c41": 23617,
-           "lvl_lo": 23804, "lvl_hi": 23857, "lvl2_lo": 27180, "lvl2_hi": 27233},
     "JP": {"nop3": 6162, "sub1": 6534, "zero48": 16370, "byte_0d30": 3376,
            "tbl_5c10": 23568, "tbl_5c20": 23584, "tbl_5c30": 23600, "tbl_5c41": 23617,
            "lvl_lo": 23804, "lvl_hi": 23857, "lvl2_lo": 27180, "lvl2_hi": 27233},
 }
 
 
-def change_mapper(src: bytes, region: str = "US") -> bytearray:
-    """C++ change_mapper の移植（リージョン対応版）
+def _require_jp_region(region: str):
+    if region != "JP":
+        raise ValueError(
+            "mapper66変換は日本版 Solomon no Kagi の通常ROM専用です。"
+            f"region={region!r} は通常編集対象外です。"
+        )
+
+
+def _require_jp_standard_rom(src: bytes, region: str):
+    _require_jp_region(region)
+    try:
+        detected = region_mod.detect_region(src)
+    except ValueError as exc:
+        raise ValueError(
+            "mapper66変換は日本版 Solomon no Kagi の通常ROM専用です。"
+            "ROM実体のリージョンを確認できません。"
+        ) from exc
+    if region_mod.is_expanded(detected):
+        raise ValueError(
+            "mapper66変換は日本版 Solomon no Kagi の通常ROM専用です。"
+            f"region={detected!r} は既に拡張ROMです。"
+        )
+    detected_base = region_mod.base_region(detected)
+    if detected_base != "JP":
+        raise ValueError(
+            "mapper66変換は日本版 Solomon no Kagi の通常ROM専用です。"
+            f"ROM実体は region={detected!r} です。"
+        )
+    if not is_known_jp_original_data(src):
+        raise ValueError(
+            "mapper66変換は確認済みの日本版オリジナル通常ROM専用です。"
+            f"CRC32={crc32_hex(src)} は通常編集対象外です。"
+        )
+
+
+def change_mapper(src: bytes, region: str = "JP") -> bytearray:
+    """C++ change_mapper の移植（JP版専用）
 
     通常ROM (32KB PRG + 32KB CHR + 16ヘッダ = 65552B) を
     拡張ROM (64KB PRG + 32KB CHR + 16ヘッダ = 98320B) に再構成する。
@@ -83,8 +118,10 @@ def change_mapper(src: bytes, region: str = "US") -> bytearray:
     if len(src) < 65552:
         raise ValueError(f"Standard ROM size mismatch: {len(src)} (expected >= 65552)")
 
+    _require_jp_standard_rom(src, region)
+
     if region not in _REGION_PATCH_OFFSETS:
-        raise ValueError(f"change_mapper: region '{region}' is not supported (US/JP only)")
+        raise ValueError(f"change_mapper: region '{region}' is not supported (JP only)")
 
     p = _REGION_PATCH_OFFSETS[region]
 
@@ -101,7 +138,7 @@ def change_mapper(src: bytes, region: str = "US") -> bytearray:
         result[65552 + i] = src[32784 + i]
 
     # iNES ヘッダ書換: PRG=64KB(=4×16KB), mapper bits = 66
-    # EU版はNES 2.0ヘッダ(byte7=0x08等)なので、bytes 7-15 をクリアしてNES 1.0に統一
+    # Keep the expanded output as NES 1.0 by clearing bytes 7-15.
     result[4] = 4
     for i in range(7, 16):
         result[i] = 0
@@ -129,7 +166,7 @@ def change_mapper(src: bytes, region: str = "US") -> bytearray:
         result[p["lvl2_hi"] + i] = 7
 
     # サブルーチン1 (32B) — 内部に自己参照の絶対アドレスを含むため動的生成
-    # US版では $9A00 (= sub1 CPU addr + 13) を参照。リージョンでオフセットが変わる。
+    # The absolute self-reference depends on the final subroutine CPU address.
     sub1 = p["sub1"]
     sub1_cpu = 0x8000 + (sub1 - 16)  # ファイルオフセット → CPU アドレス
     data_addr = sub1_cpu + 13        # サブルーチン内 position 13 の CPU アドレス
@@ -252,19 +289,20 @@ def expand_rom(rom, levels: list):
     rom: Rom オブジェクト（事前に通常ROMとして読み込まれていること）
     levels: 既にパースされた Level オブジェクトのリスト
 
-    in-place で rom.data を書き換え、rom.region を "US66" に変更する。
+    in-place で rom.data を書き換え、rom.region を "JP66" に変更する。
     """
     if rom.is_expanded():
         return  # すでに拡張ROMなので何もしない
 
     src_region = rom.base_region()
     src_data = bytes(rom.data)
+    _require_jp_standard_rom(src_data, src_region)
 
     # 変換前にミラー関連データを通常ROMから取り出す
     drop_schedules = parse_drop_schedules_std(src_data, src_region)
     enemy_sets = parse_enemy_sets_std(src_data, src_region)
 
-    # ROMフレームを mapper 66 形式に再構成（リージョン別パッチアドレス）
+    # ROMフレームを mapper 66 形式に再構成（JP版パッチアドレス）
     new_data = change_mapper(src_data, region=src_region)
 
     # ミラー裏のブロックを除去（C++と同じ前処理）
@@ -284,4 +322,4 @@ def expand_rom(rom, levels: list):
     # rom オブジェクトを書き換え
     rom.data = new_data
     # ソースリージョンに応じた拡張リージョン名（base_region で元に戻せる）
-    rom.region = src_region + "66"  # "US66" / "JP66" / "EU66"
+    rom.region = src_region + "66"  # "JP66"

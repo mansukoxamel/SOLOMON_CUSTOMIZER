@@ -61,12 +61,70 @@ def load_rom_data(path: str) -> tuple:
     return (p.name, data)
 
 
-# 既知のJP ROM CRC32値（iNESヘッダ込み、表示用）
-KNOWN_CRC32 = {
-    "013ED497": "Solomon no Kagi (Japan)",
-    "5B49FEDB": "Solomon no Kagi (Japan)",
-    "2FE9E2CA": "Solomon no Kagi (Japan)",
+# 既知のJPオリジナルROM CRC32値（iNESヘッダ込み）
+KNOWN_JP_ORIGINAL_CRC32 = {
+    "013ED497",
+    "5B49FEDB",
+    "2FE9E2CA",
 }
+
+# 既知ROM CRC32値（表示用）
+KNOWN_CRC32 = {
+    crc: "Solomon no Kagi (Japan)"
+    for crc in KNOWN_JP_ORIGINAL_CRC32
+}
+
+
+def crc32_hex(data: bytes) -> str:
+    return f"{zlib.crc32(bytes(data)) & 0xffffffff:08X}"
+
+
+def ines_mapper_no(data: bytes):
+    data = bytes(data)
+    if len(data) < 8 or data[:4] != b"NES\x1a":
+        return None
+    return (data[6] >> 4) | (data[7] & 0xF0)
+
+
+def is_known_jp_original_data(data: bytes) -> bool:
+    return crc32_hex(data) in KNOWN_JP_ORIGINAL_CRC32
+
+
+def has_customizer_metadata(data: bytes) -> bool:
+    from . import rom_metadata
+    return rom_metadata.read_metadata(bytes(data)) is not None
+
+
+_SKCHAIN_US66_HEADER = bytes.fromhex("4E45531A040420400000000000000000")
+_SKCHAIN_US66_L_A1 = bytes.fromhex(
+    "10BD009A9DCF07CAD0F74CD00760A9139D1180200180A9039D11804C009A009A"
+)
+_SKCHAIN_US66_CHECKS = (
+    (0x0000, _SKCHAIN_US66_HEADER),
+    (0x00FF, bytes.fromhex("00010203")),
+    (0x0D30, bytes.fromhex("00")),
+    (0x188F, bytes.fromhex("EAEAEA")),
+    (0x1A03, _SKCHAIN_US66_L_A1),
+    (0x3FF2, bytes(16)),
+    (0x5C10, bytes.fromhex("8088")),
+    (0x5C20, bytes.fromhex("0707")),
+    (0x5C30, bytes.fromhex("C0C8")),
+    (0x5C41, bytes.fromhex("0707")),
+    (0x5CFC, bytes.fromhex("A0A0A0A0A0A0A0A0")),
+    (0x5D31, bytes.fromhex("0707070707070707")),
+    (0x6A2C, bytes.fromhex("9090909090909090")),
+    (0x6A61, bytes.fromhex("0707070707070707")),
+    (0x802C, bytes.fromhex("00C9F8F017293FC9")),
+)
+
+
+def is_skchain_us66_data(data: bytes) -> bool:
+    """skchain系のUS mapper66拡張ROMかどうか。"""
+    if len(data) != 98320:
+        return False
+    if len(data) < 0x8034:
+        return False
+    return all(data[off:off + len(sig)] == sig for off, sig in _SKCHAIN_US66_CHECKS)
 
 
 class Rom:
@@ -92,6 +150,43 @@ class Rom:
     def get_known_name(self) -> str:
         """正規ROMの場合は名称、不明なら空文字"""
         return KNOWN_CRC32.get(self.get_crc32_hex(), "")
+
+    def is_known_jp_original(self) -> bool:
+        """確認済みの日本版オリジナル通常ROMかどうか。"""
+        return is_known_jp_original_data(bytes(self.data))
+
+    def has_customizer_metadata(self) -> bool:
+        return has_customizer_metadata(bytes(self.data))
+
+    def is_skchain_us66(self) -> bool:
+        return is_skchain_us66_data(bytes(self.data))
+
+    def ines_mapper_no(self):
+        return ines_mapper_no(bytes(self.data))
+
+    def is_mapper3(self) -> bool:
+        return self.ines_mapper_no() == 3
+
+    def is_supported_editor_input(self) -> bool:
+        """通常編集入口で受け付けるROMかどうか。"""
+        if self.base_region() != "JP":
+            return False
+        if self.is_expanded():
+            return self.region == "JP66" and self.has_customizer_metadata()
+        return self.is_known_jp_original()
+
+    def readonly_input_reason(self) -> str:
+        """編集不可の閲覧/エクスポート専用入口なら理由を返す。"""
+        if self.is_supported_editor_input():
+            return ""
+        if self.is_skchain_us66():
+            return "skchain US66 mapper66 ROM"
+        if not self.is_expanded() and self.is_mapper3() and self.region in ("US", "JP"):
+            return f"{self.region} mapper3 ROM"
+        return ""
+
+    def is_supported_readonly_input(self) -> bool:
+        return bool(self.readonly_input_reason())
 
     @classmethod
     def load(cls, path: str) -> "Rom":

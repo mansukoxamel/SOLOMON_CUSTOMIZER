@@ -76,6 +76,8 @@ class MainWindow(QMainWindow):
         self.tile_renderer: TileRenderer = None
         self.level_renderer: LevelRenderer = None
         self.current_level_no = 0
+        self._read_only_mode = False
+        self._read_only_reason = ""
         self.show_grid = False
         self.show_object_labels = False
         # Ctrl+クリックでの要素移動: 1回目で掴む、2回目で移動先
@@ -115,6 +117,17 @@ class MainWindow(QMainWindow):
         from datetime import datetime
         ts = datetime.now().strftime("%H:%M:%S")
         self._session_log.append(f"[{ts}] {msg}")
+
+    def _is_read_only(self) -> bool:
+        return bool(getattr(self, "_read_only_mode", False))
+
+    def _reject_read_only_edit(self) -> bool:
+        if not self._is_read_only():
+            return False
+        self.statusBar().showMessage(
+            "編集不可: 閲覧/ステージ出力専用ROMです", 3000
+        )
+        return True
 
     def _restore_window_state(self):
         """設定からウィンドウ位置・サイズ・最大化状態を復元"""
@@ -776,7 +789,7 @@ class MainWindow(QMainWindow):
             if 0 <= offset and end <= len(rom.data):
                 rom.data[offset:end] = bytes(c.TILE_BITMASK_BYTE_SIZE)
 
-    def _load_bonus_stage_table(self, rom):
+    def _load_bonus_stage_table(self, rom, allow_mutation: bool = True):
         """ボーナスステージ(51面)のアイテム位置・アイテムリストをROMから読み込み"""
         from ..core.element import position_from_byte
         from ..core.constants import ROM_OFFSETS
@@ -790,7 +803,8 @@ class MainWindow(QMainWindow):
             # JP版バグ修正: 位置[2]=0xD2(2,12)が画面外 → 0xB2(2,10)に補正
             if region == "JP" and len(pos_bytes) > 2 and pos_bytes[2] == 0xD2:
                 pos_bytes[2] = 0xB2
-                rom.data[pos_addr + 2] = 0xB2
+                if allow_mutation:
+                    rom.data[pos_addr + 2] = 0xB2
             positions = [position_from_byte(b) for b in pos_bytes]
             # 全32スポットの位置を保持（ドラッグ移動用）
             self._bonus_positions = list(positions)
@@ -829,6 +843,8 @@ class MainWindow(QMainWindow):
     def _write_bonus_positions_to_rom(self):
         """_bonus_positions をROMに書き戻す"""
         if not self.rom or not getattr(self, "_bonus_positions", None):
+            return
+        if self._reject_read_only_edit():
             return
         from ..core.element import byte_from_position
         from ..core.constants import ROM_OFFSETS
@@ -882,6 +898,8 @@ class MainWindow(QMainWindow):
             self.tile_renderer.clear_cache()
 
     def _on_hack_dialog_applied(self):
+        if self._reject_read_only_edit():
+            return
         self._set_dirty(True)
         self._sync_wall_color_preview()
         self._refresh_view()
@@ -902,16 +920,51 @@ class MainWindow(QMainWindow):
         try:
             rom = Rom.load(path)
             loaded_rom_data = bytes(rom.data)
+            editor_input = rom.is_supported_editor_input()
+            read_only_reason = "" if editor_input else rom.readonly_input_reason()
+            read_only_mode = bool(read_only_reason)
+            if not editor_input and not read_only_mode:
+                crc_hex = rom.get_crc32_hex()
+                if rom.base_region() != "JP":
+                    msg = (
+                        "このROMは通常編集入口にも、閲覧/ステージ出力専用入口にも該当しません。\n"
+                        "読み取り専用で受け入れるのは skchain US66 mapper66 ROM、"
+                        "または US/JP mapper3 ROM だけです。\n"
+                        f"Region: {rom.region}\nCRC32: {crc_hex}"
+                    )
+                    QMessageBox.warning(self, "非対応ROM", msg)
+                    self.statusBar().showMessage("ROM読込を中止: 非対応ROM")
+                    self._log(f"ROM読込拒否: {path} ({rom.region}, CRC32={crc_hex})")
+                    return
+                if rom.is_expanded() and not rom.has_customizer_metadata():
+                    msg = (
+                        "日本版 mapper66 拡張ROMは、本アプリで保存したROMだけ読み込めます。\n"
+                        "SOLOMON_CUSTOMIZERのメタデータが見つかりません。\n"
+                        f"CRC32: {crc_hex}"
+                    )
+                    QMessageBox.warning(self, "非対応ROM", msg)
+                    self.statusBar().showMessage("ROM読込を中止: 未確認JP66拡張ROMは非対応")
+                    self._log(f"ROM読込拒否: {path} ({rom.region}, CRC32={crc_hex}, no metadata)")
+                    return
+                msg = (
+                    "このアプリの通常編集対象は日本版 Solomon no Kagi のROM、"
+                    "または本アプリで保存した日本版 mapper66 拡張ROMだけです。\n"
+                    f"CRC32: {crc_hex}"
+                )
+                QMessageBox.warning(self, "非対応ROM", msg)
+                self.statusBar().showMessage("ROM読込を中止: 非対応ROM")
+                self._log(f"ROM読込拒否: {path} ({rom.region}, CRC32={crc_hex})")
+                return
             levels = load_all_levels(rom)
 
             # ボーナスステージテーブル読み込み（拡張前のアドレスで読む必要がある）
-            self._load_bonus_stage_table(rom)
+            self._load_bonus_stage_table(rom, allow_mutation=False)
 
             # 通常ROM (mapper 3) なら自動的に拡張ROM (mapper 66) に変換
             # 容量制約 (敵726B/アイテム1402B) を回避するため
             auto_expanded = False
             self.original_rom_data = loaded_rom_data
-            if not rom.is_expanded():
+            if not read_only_mode and not rom.is_expanded():
                 from ..core import m66_expander
                 m66_expander.expand_rom(rom, levels)
                 auto_expanded = True
@@ -919,7 +972,7 @@ class MainWindow(QMainWindow):
             # JP ROM is normalized to the internal wide-title format after
             # mapper66 expansion. This must run after expand_rom(), because
             # bare change_mapper() does not populate the m66 level-data area.
-            if rom.base_region() == "JP":
+            if not read_only_mode and rom.base_region() == "JP":
                 try:
                     from ..core import title_screen
                     if not title_screen.is_wide_normalized(rom.data):
@@ -932,6 +985,9 @@ class MainWindow(QMainWindow):
                     # Fail-safe: title normalization must never prevent ROM load.
                     self._log(f"タイトル自動wide正規化: スキップ ({type(e).__name__}: {e})")
 
+            if not read_only_mode:
+                self._load_bonus_stage_table(rom, allow_mutation=True)
+
             cfg_path = Path(__file__).parent.parent / "skc_config.xml"
             config = SkcConfig.load(str(cfg_path), rom_data=bytes(rom.data), region=rom.region)
 
@@ -942,6 +998,8 @@ class MainWindow(QMainWindow):
             nes_tiles = load_chr_tiles(bytes(rom.data), gfx_offset, c.NES_TILE_COUNT)
 
             self.rom = rom
+            self._read_only_mode = read_only_mode
+            self._read_only_reason = read_only_reason
             self._auto_expanded = auto_expanded
             self.levels = levels
             self.config = config
@@ -955,7 +1013,8 @@ class MainWindow(QMainWindow):
             # deleted items.
             if auto_expanded:
                 self._apply_item_bitmasks(rom, config, levels, rom_data=loaded_rom_data)
-            self._clear_item_bitmasks(rom, config)
+            if not read_only_mode:
+                self._clear_item_bitmasks(rom, config)
 
             # ピッカーにレンダラを渡してアイコン付きリストにする
             self.picker.set_tile_renderer(self.tile_renderer, config)
@@ -980,12 +1039,20 @@ class MainWindow(QMainWindow):
                 version_note = (
                     f"<br>Customizer: <code>v{customizer_version}</code>"
                 )
+            readonly_note = ""
+            if read_only_mode:
+                readonly_note = (
+                    "<br><span style='color:#ff4d4d; font-weight:700'>"
+                    f"編集不可: 閲覧/ステージ出力専用 ({read_only_reason})"
+                    "</span>"
+                )
             info_html = (
                 f"<b>{rom.display_name}</b><br>"
                 f"[{rom.region}, {len(rom)/1024:.0f}KB]<br>"
                 f"CRC32: <code>{crc_hex}</code> {verify_mark}"
                 f"{version_note}"
                 f"{expand_note}"
+                f"{readonly_note}"
             )
             if known:
                 info_html += f"<br><span style='color:#aaa'>{known}</span>"
@@ -995,37 +1062,46 @@ class MainWindow(QMainWindow):
             # ROM読込でアイコンが揃ったので、お気に入りを復元
             saved_favs = self._app_config.get("picker_favorites", [])
             self.picker.restore_favorites(saved_favs)
+            edit_enabled = not read_only_mode
             # 拡張ROM保存対応 (Phase 2-1)
-            self.btn_save_rom.setEnabled(True)
+            self.btn_save_rom.setEnabled(edit_enabled)
             # IPS出力は通常ROM時の original_rom_data を基準にするため拡張ROMでも有効
-            self.btn_save_ips.setEnabled(True)
-            self.btn_stage_load.setEnabled(True)
+            self.btn_save_ips.setEnabled(edit_enabled)
+            self.btn_stage_load.setEnabled(edit_enabled)
             self.btn_stage_save.setEnabled(True)
-            self.btn_clear.setEnabled(True)
+            self.btn_clear.setEnabled(edit_enabled)
             self.btn_stats.setEnabled(True)
-            self.btn_hack.setEnabled(True)
-            self.btn_enemy_hack.setEnabled(True)
-            self.btn_palette.setEnabled(True)
-            self.btn_title_screen.setEnabled(True)
-            self.btn_sprite_viewer.setEnabled(True)
-            self.btn_pixel_editor.setEnabled(True)
-            self.btn_test_play.setEnabled(True)
-            self.btn_test_play_right.setEnabled(True)
-            self.meta_group.setEnabled(True)
+            self.btn_hack.setEnabled(edit_enabled)
+            self.btn_enemy_hack.setEnabled(edit_enabled)
+            self.btn_palette.setEnabled(edit_enabled)
+            self.btn_title_screen.setEnabled(edit_enabled)
+            self.btn_sprite_viewer.setEnabled(edit_enabled)
+            self.btn_pixel_editor.setEnabled(edit_enabled)
+            self.btn_test_play.setEnabled(edit_enabled)
+            self.btn_test_play_right.setEnabled(edit_enabled)
+            self.meta_group.setEnabled(edit_enabled)
+            self.picker.setEnabled(edit_enabled)
+            self.chk_edit_col15.setEnabled(edit_enabled)
             self.spin_level.setValue(1)
             self._refresh_view()
             # 全レベルのサムネイル生成（53枚、約1〜3秒）
             self.statusBar().showMessage("サムネイル生成中...")
             QApplication.processEvents()
             self._generate_all_thumbnails()
-            self.statusBar().showMessage(f"読み込み完了: {len(levels)}ステージ")
+            status_suffix = " (編集不可)" if read_only_mode else ""
+            self.statusBar().showMessage(f"読み込み完了: {len(levels)}ステージ{status_suffix}")
             # 読込成功 → 再読込ボタンを有効化、履歴に追加、Undo履歴クリア、未保存マーククリア
             self.last_loaded_path = path
             self.btn_reload.setEnabled(True)
             self._add_to_history(path)
             self._clear_undo_history()
             self._set_dirty(False)
-            self._log(f"ROM読込: {path}" + (" (拡張に自動変換)" if auto_expanded else ""))
+            log_suffix = ""
+            if auto_expanded:
+                log_suffix = " (拡張に自動変換)"
+            elif read_only_mode:
+                log_suffix = f" (読み取り専用: {read_only_reason})"
+            self._log(f"ROM読込: {path}{log_suffix}")
         except Exception as e:
             QMessageBox.critical(self, "ロード失敗", f"{type(e).__name__}: {e}")
 
@@ -1097,6 +1173,8 @@ class MainWindow(QMainWindow):
     def _on_save_rom(self):
         if not self.rom:
             return
+        if self._reject_read_only_edit():
+            return
         # デフォルト名: 元ROM名のステム + _YYYYMMDD_HHMMSS.nes
         from datetime import datetime
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1141,6 +1219,8 @@ class MainWindow(QMainWindow):
     def _on_test_play(self):
         """現在の編集状態 + ステージ選択(現在レベル) で一時ROMを生成しエミュ起動"""
         if not self.rom or not self.levels:
+            return
+        if self._reject_read_only_edit():
             return
         emu_path = self._app_config.get("emulator_path", "")
         if not emu_path or not os.path.exists(emu_path):
@@ -1229,6 +1309,8 @@ class MainWindow(QMainWindow):
 
     def _on_save_ips(self):
         if not self.rom:
+            return
+        if self._reject_read_only_edit():
             return
 
         # 1. 原本ROM（市販吸出し）を選択
@@ -1423,6 +1505,8 @@ class MainWindow(QMainWindow):
     # ====== ステージデータ読込 (PNG埋め込みXML) ======
 
     def _on_stage_data_load(self):
+        if self._reject_read_only_edit():
+            return
         if self.rb_stage_current.isChecked():
             self._on_png_import_current()
         else:
@@ -1476,6 +1560,8 @@ class MainWindow(QMainWindow):
     def _load_stage_png_to_current(self, path: str) -> bool:
         if not self.levels:
             return False
+        if self._reject_read_only_edit():
+            return False
         xml_str = self._extract_xml_from_png(path)
         if xml_str is None:
             QMessageBox.warning(self, "読込失敗", "このPNGにはステージデータが埋め込まれていません")
@@ -1511,6 +1597,8 @@ class MainWindow(QMainWindow):
     def _on_png_import_current(self):
         if not self.levels:
             return
+        if self._reject_read_only_edit():
+            return
         from .file_dialog_compat import get_file
         path = get_file(self, title="ステージデータPNGを選択", filter="*.png")
         if not path:
@@ -1522,6 +1610,8 @@ class MainWindow(QMainWindow):
 
     def _on_png_import_all(self):
         if not self.levels:
+            return
+        if self._reject_read_only_edit():
             return
         from .file_dialog_compat import get_folder
         folder = get_folder(self, title="ステージデータPNGフォルダを選択")
@@ -1839,6 +1929,8 @@ class MainWindow(QMainWindow):
         """左クリック: 選択中の要素を配置（Ctrl+左ドラッグは drag_* シグナル側で処理）"""
         if not self.levels:
             return
+        if self._reject_read_only_edit():
+            return
         # 16列目の編集ロック
         if not self.chk_edit_col15.isChecked() and tile[0] == 15:
             self.statusBar().showMessage("16列目は編集不可です（「16列目を編集」をONにしてください）", 2000)
@@ -2086,6 +2178,8 @@ class MainWindow(QMainWindow):
         """Ctrl+左クリックで要素を掴む。掴んだ element の参照を保持"""
         if not self.levels:
             return
+        if self._reject_read_only_edit():
+            return
         lv = self.levels[self.current_level_no]
         self._move_pending = None  # リセット
 
@@ -2197,6 +2291,9 @@ class MainWindow(QMainWindow):
         """ドラッグ中、掴んでいる要素を tile に追従させる"""
         if not self.levels or self._move_pending is None:
             return
+        if self._reject_read_only_edit():
+            self._move_pending = None
+            return
         lv = self.levels[self.current_level_no]
         mp = self._move_pending
         kind = mp["kind"]
@@ -2249,6 +2346,9 @@ class MainWindow(QMainWindow):
 
     def _on_drag_end(self):
         """Ctrl解放 / マウス解放でドラッグ確定"""
+        if self._is_read_only():
+            self._move_pending = None
+            return
         if self._move_pending is not None:
             kind = self._move_pending.get("kind")
             if kind == "selection":
@@ -2276,6 +2376,8 @@ class MainWindow(QMainWindow):
           - メタ要素（鍵/扉/スタート/ミラー）は移動が原則なので削除対象外
         """
         if not self.levels:
+            return
+        if self._reject_read_only_edit():
             return
         # 16列目の編集ロック
         if not self.chk_edit_col15.isChecked() and tile[0] == 15:
@@ -2514,6 +2616,8 @@ class MainWindow(QMainWindow):
 
     def _paste_clipboard(self):
         """クリップボードを選択範囲の左上 or ホバー位置にペースト"""
+        if self._reject_read_only_edit():
+            return
         if self._clipboard is None or not self.levels:
             self.statusBar().showMessage("クリップボードが空です", 1500)
             return
@@ -2534,11 +2638,15 @@ class MainWindow(QMainWindow):
 
     def _cut_selection(self):
         """切り取り = コピー + 範囲削除"""
+        if self._reject_read_only_edit():
+            return
         self._copy_selection()
         self._delete_in_selection()
 
     def _delete_in_selection(self):
         """選択範囲内の要素を全削除"""
+        if self._reject_read_only_edit():
+            return
         bounds = self._get_selection_bounds()
         if bounds is None or not self.levels:
             self.statusBar().showMessage("選択範囲がありません", 1500)
@@ -2586,6 +2694,8 @@ class MainWindow(QMainWindow):
         self._flip_selection(horizontal=False)
 
     def _flip_selection(self, horizontal: bool):
+        if self._reject_read_only_edit():
+            return
         bounds = self._get_selection_bounds()
         if bounds is None or not self.levels:
             self.statusBar().showMessage("選択範囲がありません", 1500)
@@ -3026,6 +3136,8 @@ class MainWindow(QMainWindow):
         """
         if self._hover_tile is None or not self.levels:
             return
+        if self._reject_read_only_edit():
+            return
         mode, _ = self.picker.get_current()
         from .element_picker import (
             BLOCK_NONE, BLOCK_BROWN, BLOCK_WHITE, BLOCK_BROWN_WHITE,
@@ -3096,11 +3208,15 @@ class MainWindow(QMainWindow):
         max_enemy = min(len(lv.enemies), c.ENEMY_COUNT_MAX)
         from ..core import stage_ext as _se
         current = _se.get_key_enemy_number(lv)
+        display_current = current
         if current > max_enemy:
-            _se.set_key_enemy_number(lv, 0)
-            current = 0
-            self._set_dirty(True)
-            if warn:
+            if self._is_read_only():
+                display_current = 0
+            else:
+                _se.set_key_enemy_number(lv, 0)
+                display_current = 0
+                self._set_dirty(True)
+            if warn and not self._is_read_only():
                 QMessageBox.warning(
                     self,
                     "鍵持ち敵設定を解除",
@@ -3108,7 +3224,7 @@ class MainWindow(QMainWindow):
                 )
         old_block = self.spin_key_enemy.blockSignals(True)
         self.spin_key_enemy.setRange(0, max_enemy)
-        self.spin_key_enemy.setValue(current)
+        self.spin_key_enemy.setValue(display_current)
         self.spin_key_enemy.blockSignals(old_block)
         self.spin_key_enemy.setToolTip(
             f"0=なし。1から{max_enemy}は初期配置敵の順番です。このステージの敵数: {len(lv.enemies)}"
@@ -3185,6 +3301,8 @@ class MainWindow(QMainWindow):
     def _on_panel_variant_setting_changed(self, key):
         if self._meta_loading or not self.levels:
             return
+        if self._reject_read_only_edit():
+            return
         if key not in getattr(self, "_panel_variant_controls", {}):
             return
         self._push_undo()
@@ -3199,6 +3317,8 @@ class MainWindow(QMainWindow):
 
     def _on_meta_tileset_changed(self, val):
         if self._meta_loading or not self.levels:
+            return
+        if self._reject_read_only_edit():
             return
         self._push_undo()
         level = self.levels[self.current_level_no]
@@ -3217,6 +3337,8 @@ class MainWindow(QMainWindow):
     def _on_meta_time_dr_changed(self, val):
         self._update_time_dr_hint()
         if self._meta_loading or not self.levels:
+            return
+        if self._reject_read_only_edit():
             return
         self._push_undo()
         self.levels[self.current_level_no].time_decrease_rate = val
@@ -3244,6 +3366,8 @@ class MainWindow(QMainWindow):
     def _on_meta_no_bfire_toggled(self, checked):
         if self._meta_loading or not self.levels:
             return
+        if self._reject_read_only_edit():
+            return
         self._push_undo()
         from ..core import room_flags as _rf
         lv = self.levels[self.current_level_no]
@@ -3256,6 +3380,8 @@ class MainWindow(QMainWindow):
 
     def _on_meta_no_astone_toggled(self, checked):
         if self._meta_loading or not self.levels:
+            return
+        if self._reject_read_only_edit():
             return
         self._push_undo()
         from ..core import room_flags as _rf
@@ -3270,6 +3396,8 @@ class MainWindow(QMainWindow):
     def _on_meta_hidden_door_toggled(self, checked):
         if self._meta_loading or not self.levels:
             return
+        if self._reject_read_only_edit():
+            return
         self._push_undo()
         from ..core import room_flags as _rf
         lv = self.levels[self.current_level_no]
@@ -3282,6 +3410,8 @@ class MainWindow(QMainWindow):
 
     def _on_meta_dark_toggled(self, checked):
         if self._meta_loading or not self.levels:
+            return
+        if self._reject_read_only_edit():
             return
         self._push_undo()
         from ..core import room_flags as _rf
@@ -3296,6 +3426,8 @@ class MainWindow(QMainWindow):
     def _on_meta_fire_reset_toggled(self, checked):
         if self._meta_loading or not self.levels:
             return
+        if self._reject_read_only_edit():
+            return
         self._push_undo()
         from ..core import stage_ext as _se
         lv = self.levels[self.current_level_no]
@@ -3305,6 +3437,8 @@ class MainWindow(QMainWindow):
 
     def _on_meta_key_enemy_changed(self, enemy_number):
         if self._meta_loading or not self.levels:
+            return
+        if self._reject_read_only_edit():
             return
         max_enemy = min(len(self.levels[self.current_level_no].enemies), c.ENEMY_COUNT_MAX)
         if enemy_number > max_enemy:
@@ -3319,6 +3453,8 @@ class MainWindow(QMainWindow):
 
     def _on_meta_constellation_changed(self, idx):
         if self._meta_loading or not self.levels:
+            return
+        if self._reject_read_only_edit():
             return
         self._push_undo()
         lv = self.levels[self.current_level_no]
@@ -3342,6 +3478,8 @@ class MainWindow(QMainWindow):
 
     def _on_meta_const_pos_changed(self, _val):
         if self._meta_loading or not self.levels:
+            return
+        if self._reject_read_only_edit():
             return
         lv = self.levels[self.current_level_no]
         if lv.has_constellation():
@@ -3371,6 +3509,8 @@ class MainWindow(QMainWindow):
     def _on_show_hack(self):
         if not self.rom:
             return
+        if self._reject_read_only_edit():
+            return
         from .hack_dialog import HackDialog
         # 変更前のスナップショット
         before = bytes(self.rom.data)
@@ -3398,6 +3538,8 @@ class MainWindow(QMainWindow):
     def _on_show_enemy_hack(self):
         if not self.rom:
             return
+        if self._reject_read_only_edit():
+            return
         from .hack_dialog import HackDialog
         before = bytes(self.rom.data)
         before_palette = self._main_palette_bytes()
@@ -3421,6 +3563,8 @@ class MainWindow(QMainWindow):
         """パレット編集ダイアログを開く"""
         if not self.rom:
             return
+        if self._reject_read_only_edit():
+            return
         from .palette_dialog import PaletteDialog, PALETTE_OFFSET
         before = bytes(self.rom.data[PALETTE_OFFSET:PALETTE_OFFSET + 32])
         dlg = PaletteDialog(self.rom.data, parent=self, tile_renderer=self.tile_renderer)
@@ -3433,6 +3577,8 @@ class MainWindow(QMainWindow):
     def _on_show_enemy_drop(self):
         """敵ドロップ効果表 編集ダイアログ (グローバル)"""
         if not self.rom:
+            return
+        if self._reject_read_only_edit():
             return
         from .enemy_drop_dialog import EnemyDropDialog
         from ..core import enemy_drop as _ed
@@ -3452,6 +3598,8 @@ class MainWindow(QMainWindow):
         """デモ操作編集ダイアログ (34step固定・JP)"""
         if not self.rom:
             return
+        if self._reject_read_only_edit():
+            return
         from .demo_input_dialog import DemoInputDialog
         from ..core import demo_input as _di
         o0, o1 = _di.OFF_WAIT, _di.OFF_JOY + _di.STEPS
@@ -3469,6 +3617,8 @@ class MainWindow(QMainWindow):
     def _on_show_clear_message(self):
         """クリア画面メッセージ編集 (同字数・JP)"""
         if not self.rom:
+            return
+        if self._reject_read_only_edit():
             return
         from .clear_message_dialog import ClearMessageDialog
         from ..core import clear_message as _cm
@@ -3490,6 +3640,8 @@ class MainWindow(QMainWindow):
     def _on_show_title_screen(self):
         """タイトル画面 抽出/差し替え (CHR bank3 + 描画領域、R196)"""
         if not self.rom:
+            return
+        if self._reject_read_only_edit():
             return
         from .title_screen_dialog import TitleScreenDialog
         from ..core import title_screen as _ts
@@ -3535,6 +3687,8 @@ class MainWindow(QMainWindow):
         """16x16 sprite pixel editor (writes CHR-ROM tiles)."""
         if not self.rom:
             return
+        if self._reject_read_only_edit():
+            return
         from .pixel_editor_dialog import PixelEditorDialog
         before = bytes(self.rom.data)
         dlg = PixelEditorDialog(self.rom, parent=self)
@@ -3551,6 +3705,8 @@ class MainWindow(QMainWindow):
         """スプライトビューア (CHR-ROM 全タイル、編集画面へ接続可)"""
         if not self.rom:
             return
+        if self._reject_read_only_edit():
+            return
         from .sprite_viewer import SpriteViewer
         before = bytes(self.rom.data)
         self._sprite_viewer_rom_changed_seen = False
@@ -3563,6 +3719,8 @@ class MainWindow(QMainWindow):
         self._sprite_viewer_rom_changed_seen = False
 
     def _on_sprite_viewer_rom_changed(self):
+        if self._reject_read_only_edit():
+            return
         self._sprite_viewer_rom_changed_seen = True
         self._reload_chr_renderers()
         self._set_dirty(True)
@@ -3575,6 +3733,8 @@ class MainWindow(QMainWindow):
         """ミラー詳細設定ダイアログ"""
         if not self.rom or not self.levels:
             return
+        if self._reject_read_only_edit():
+            return
         from .mirror_dialog import MirrorDialog
         lv = self.levels[self.current_level_no]
         before = bytes(self.rom.data)
@@ -3586,6 +3746,8 @@ class MainWindow(QMainWindow):
 
     def _on_mirror_changed(self):
         """ミラーダイアログの Apply からコールバック"""
+        if self._reject_read_only_edit():
+            return
         self._set_dirty(True)
         self._sync_mirror_panel()
         self._refresh_view()
@@ -3593,6 +3755,9 @@ class MainWindow(QMainWindow):
     def _sync_mirror_panel(self):
         """ミラー敵セットパネルに現在レベルのデータを反映"""
         if not self.rom or not self.levels:
+            return
+        if not self.rom.is_expanded():
+            self.picker.mirror_panel.load_enemies([], [])
             return
         from ..core import m66
         ln = self.current_level_no
@@ -3615,6 +3780,8 @@ class MainWindow(QMainWindow):
     def _sync_enemy_codes_from_rom(self, level_no: int):
         """ROMのミラー実データ（敵セット＋スケジュール）をLevelに同期（エクスポート前に呼ぶ）"""
         if not self.rom or not self.levels:
+            return
+        if not self.rom.is_expanded():
             return
         from ..core import m66
         lv = self.levels[level_no]
@@ -3641,6 +3808,10 @@ class MainWindow(QMainWindow):
         """Levelのミラー実データ（敵セット＋スケジュール）をROMに書き戻す（インポート後に呼ぶ）"""
         if not self.rom or not self.levels:
             return
+        if self._reject_read_only_edit():
+            return
+        if not self.rom.is_expanded():
+            return
         from ..core import m66
         lv = self.levels[level_no]
         for mirror_no in range(2):
@@ -3666,6 +3837,10 @@ class MainWindow(QMainWindow):
         """ミラー敵セットパネルのコンボが変更された"""
         if not self.rom or not self.levels:
             return
+        if self._reject_read_only_edit():
+            return
+        if not self.rom.is_expanded():
+            return
         from ..core import m66
         ln = self.current_level_no
         for mirror_no in range(2):
@@ -3687,6 +3862,8 @@ class MainWindow(QMainWindow):
     def _on_bonus_panel_items_changed(self, new_codes: list):
         """ピッカー下部のボーナスパネルでD&Dによりアイテムが変更された"""
         if not self.rom or self.current_level_no != 50:
+            return
+        if self._reject_read_only_edit():
             return
         from ..core.constants import ROM_OFFSETS
         region = self.rom.base_region()
@@ -3728,6 +3905,8 @@ class MainWindow(QMainWindow):
         - BGパレット (0-3): グループごとにslot 0(背景主色)が異なるが、slot 1/2 は共通
         - SPRパレット (4-7): 全グループで完全に同じ値
         """
+        if self._reject_read_only_edit():
+            return
         self._set_dirty(True)
         if not self.config or not self.rom:
             return
@@ -3785,6 +3964,8 @@ class MainWindow(QMainWindow):
         """
         if not self.levels:
             return
+        if self._reject_read_only_edit():
+            return
 
         labels = {
             "all": "すべての編集対象（ブロック/アイテム/敵）",
@@ -3839,6 +4020,11 @@ class MainWindow(QMainWindow):
         """
         if not self.levels:
             return
+        if self._is_read_only():
+            self.statusBar().showMessage(
+                "編集不可: 閲覧/ステージ出力専用ROMです", 3000
+            )
+            return
         if getattr(self, '_suppress_next_undo', False):
             return
         snap = (self.current_level_no, copy.deepcopy(self.levels[self.current_level_no]))
@@ -3852,6 +4038,11 @@ class MainWindow(QMainWindow):
 
     def _set_dirty(self, dirty: bool):
         """未保存フラグを更新してタイトルバーに反映"""
+        if dirty and self._is_read_only():
+            self.statusBar().showMessage(
+                "編集不可: 閲覧/ステージ出力専用ROMです", 3000
+            )
+            return
         # クリーン → 編集状態に切り替わった瞬間のみログを残す
         if dirty and not self._dirty:
             lv = (self.current_level_no + 1) if self.levels else "?"
