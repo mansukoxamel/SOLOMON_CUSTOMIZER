@@ -1908,18 +1908,18 @@ def read_table(rom_data: bytes, levels: list = None) -> list[bytes]:
 
 def _build_runtime_loader() -> bytes:
     # This supersedes stage_ext.RUNTIME_LOADER while preserving its side effects.
-    # StageExt pointer starts at entry byte2: bank1 CPU $8802 + room*8.
+    # StageExt pointer starts at entry byte0: bank1 CPU $8800 + room*8.
     # PanelVariant pointer starts at entry byte0: bank1 CPU $8A70 + room*16.
     return bytes.fromhex(
         "a9 ff 8d 2a 07 8d 2b 07"
         "a9 00 8d 23 07 8d 24 07 8d 29 07"
-        "ad 28 04 0a 0a 0a 18 69 02 85 00"
+        "ad 28 04 0a 0a 0a 85 00"
         "a9 88 69 00 85 01"
-        "a0 00 b1 00 8d 2b 07"
-        "a0 04 b1 00 8d 78 07"
-        "a0 05 b1 00 8d 7c 07"
-        "ad 28 04 0a 0a 0a 0a 18 69 70 85 00"
-        "a9 8a 69 00 85 01"
+        "a0 02 b1 00 8d 2b 07"
+        "a0 06 b1 00 8d 78 07"
+        "a0 07 b1 00 8d 7c 07"
+        "ad 28 04 4a 4a 4a 4a 18 69 8a 85 01"
+        "ad 28 04 0a 0a 0a 0a 18 69 70 85 00 90 02 e6 01"
         "a0 0f b1 00 99 40 07 88 10 f8"
         "60"
     )
