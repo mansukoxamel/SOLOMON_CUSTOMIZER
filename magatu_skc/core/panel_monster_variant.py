@@ -118,6 +118,7 @@ OFF_FIRE_DISPATCH = _cf(CPU_FIRE_DISPATCH)
 OFF_AI_SARAM_WRAPPER = _cf(CPU_AI_SARAM_WRAPPER)
 OFF_FIRE_3WAY = _cf(CPU_FIRE_3WAY)
 OFF_BULLET_HOOK = _cf(CPU_BULLET_HOOK)
+BULLET_HOOK_SLOT_SIZE = 0x51
 OFF_FIRE_2WAY = _cf(CPU_FIRE_2WAY)
 OFF_AI_DEMON_WRAPPER = _cf(CPU_AI_DEMON_WRAPPER)
 OFF_PROPERTY_HOOK = _cf(CPU_PROPERTY_HOOK)
@@ -421,6 +422,12 @@ def _build_anim_hook() -> bytes:
 
 CAVE_FIRE_DISPATCH = _build_fire_dispatch()
 CAVE_BULLET_HOOK = _build_bullet_hook()
+CAVE_BULLET_HOOK_SLOT = (
+    CAVE_BULLET_HOOK
+    + bytes([0xEA] * (BULLET_HOOK_SLOT_SIZE - len(CAVE_BULLET_HOOK)))
+)
+
+
 def _build_fire_normal(fire_delay: int) -> bytes:
     return _with_fire_delay(ORIG_PANEL_FIRE, fire_delay)
 
@@ -435,7 +442,7 @@ RESERVED_SPANS = (
     (OFF_FIRE_DISPATCH, len(CAVE_FIRE_DISPATCH)),
     (OFF_AI_SARAM_WRAPPER, len(CAVE_AI_SARAM_WRAPPER)),
     (OFF_FIRE_3WAY, len(CAVE_FIRE_3WAY)),
-    (OFF_BULLET_HOOK, len(CAVE_BULLET_HOOK)),
+    (OFF_BULLET_HOOK, len(CAVE_BULLET_HOOK_SLOT)),
     (OFF_AI_DEMON_WRAPPER, len(CAVE_AI_DEMON_WRAPPER)),
     (OFF_PROPERTY_HOOK, len(CAVE_PROPERTY_HOOK)),
     (OFF_ANIM_HOOK, len(CAVE_ANIM_HOOK)),
@@ -555,7 +562,7 @@ def apply(rom_data) -> list[str]:
         (OFF_FIRE_DISPATCH, CAVE_FIRE_DISPATCH, "Panel Monster variant fire dispatch $BCD2"),
         (OFF_AI_SARAM_WRAPPER, CAVE_AI_SARAM_WRAPPER, "Panel Monster variant Saramandor-ID AI wrapper $BC5B"),
         (OFF_FIRE_3WAY, cave_fire_3way, "Panel Monster common fire loop $BD88"),
-        (OFF_BULLET_HOOK, CAVE_BULLET_HOOK, "Panel Monster diagonal Bullet hook $BF69"),
+        (OFF_BULLET_HOOK, CAVE_BULLET_HOOK_SLOT, "Panel Monster diagonal Bullet hook $BF69"),
         (OFF_AI_DEMON_WRAPPER, CAVE_AI_DEMON_WRAPPER, "Panel Monster Demonhead-ID AI wrapper $C146"),
         (OFF_PROPERTY_HOOK, CAVE_PROPERTY_HOOK, "Panel Monster type-specific property hook $DBDF"),
         (OFF_ANIM_HOOK, CAVE_ANIM_HOOK, "Panel Monster type-specific animation hook $C0C2"),

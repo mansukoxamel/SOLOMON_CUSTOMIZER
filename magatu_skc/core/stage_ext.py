@@ -28,6 +28,7 @@ RAM_RUNTIME_DOOR_CELL = 0x077C
 OFF_M66_LOADER_TAIL = 0x80C4
 CPU_PRG1_STAGE_EXT_COPY = 0x8A00
 OFF_PRG1_STAGE_EXT_COPY = 0x8A10
+PRG1_STAGE_EXT_COPY_SLOT_SIZE = 0x60
 ORIG_M66_LOADER_TAIL = bytes.fromhex("60 00 00")
 HOOK_M66_LOADER_TAIL = bytes((0x4C, CPU_PRG1_STAGE_EXT_COPY & 0xFF, CPU_PRG1_STAGE_EXT_COPY >> 8))
 
@@ -147,17 +148,21 @@ def _build_runtime_loader() -> bytes:
 
 
 RUNTIME_LOADER = _build_runtime_loader()
+RUNTIME_LOADER_SLOT = (
+    RUNTIME_LOADER
+    + bytes([0x00] * (PRG1_STAGE_EXT_COPY_SLOT_SIZE - len(RUNTIME_LOADER)))
+)
 
 
 def apply_runtime_loader(rom_data: bytearray) -> list:
-    if len(rom_data) < OFF_PRG1_STAGE_EXT_COPY + len(RUNTIME_LOADER):
+    if len(rom_data) < OFF_PRG1_STAGE_EXT_COPY + len(RUNTIME_LOADER_SLOT):
         return []
     cur = bytes(rom_data[OFF_M66_LOADER_TAIL:OFF_M66_LOADER_TAIL + len(ORIG_M66_LOADER_TAIL)])
     if cur not in (ORIG_M66_LOADER_TAIL, HOOK_M66_LOADER_TAIL):
         return []
     changed = []
-    if bytes(rom_data[OFF_PRG1_STAGE_EXT_COPY:OFF_PRG1_STAGE_EXT_COPY + len(RUNTIME_LOADER)]) != RUNTIME_LOADER:
-        rom_data[OFF_PRG1_STAGE_EXT_COPY:OFF_PRG1_STAGE_EXT_COPY + len(RUNTIME_LOADER)] = RUNTIME_LOADER
+    if bytes(rom_data[OFF_PRG1_STAGE_EXT_COPY:OFF_PRG1_STAGE_EXT_COPY + len(RUNTIME_LOADER_SLOT)]) != RUNTIME_LOADER_SLOT:
+        rom_data[OFF_PRG1_STAGE_EXT_COPY:OFF_PRG1_STAGE_EXT_COPY + len(RUNTIME_LOADER_SLOT)] = RUNTIME_LOADER_SLOT
         changed.append("StageExt runtime loader")
     if cur != HOOK_M66_LOADER_TAIL:
         rom_data[OFF_M66_LOADER_TAIL:OFF_M66_LOADER_TAIL + len(HOOK_M66_LOADER_TAIL)] = HOOK_M66_LOADER_TAIL

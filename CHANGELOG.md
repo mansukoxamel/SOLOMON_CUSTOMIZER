@@ -1,5 +1,9 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.44 (2026-06-03) 再保存時のPanel Variant loader署名エラー修正
+- オリジナルROM読込後に保存したmapper66 ROMを続けて再保存すると、StageExt/Panel Monsterの短い旧runtimeとPanel Variantの長いruntimeが共有領域で混在し、Panel Variantの署名検証で保存失敗する問題を修正した。
+- StageExt runtime loaderは予約済み96B全体をStageExt loader + 00埋めに、Panel Monster Bullet hookは予約済み81B全体を旧hook + EA埋めに正規化し、その後Panel Variantが必要な場合は従来どおり最終runtimeで上書きするようにした。
+
 ## v0.8.43 (2026-06-02) ミラー出現敵パネルの非出現表示を追加
 - ミラー詳細設定の出現タイミングが全OFFのミラーは、下部のミラー出現敵セット行をグレーアウトするようにした。
 - 敵セット自体は保持したまま、出現スケジュールが無効なため実際には出ない状態をメイン画面上で判別できるようにした。
