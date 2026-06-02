@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (
     QToolBar, QAction, QRadioButton, QButtonGroup
 )
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QPixmap, QKeySequence, QCursor
+from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor
 
 from .. import __version__
 from ..core.rom import Rom, KNOWN_CRC32
@@ -1769,6 +1769,27 @@ class MainWindow(QMainWindow):
         self._refresh_view()
         self._update_stage_operation_buttons()
 
+    def _highlight_stage_items_for_confirmation(self, level_nos):
+        rows = sorted({ln for ln in level_nos if 0 <= ln < self.list_levels.count()})
+        previous = {}
+        for row in rows:
+            item = self.list_levels.item(row)
+            if item is None:
+                continue
+            previous[row] = item.data(Qt.BackgroundRole)
+            item.setData(Qt.BackgroundRole, QColor("#facc15"))
+        self.list_levels.viewport().update()
+        QApplication.processEvents()
+
+        def restore():
+            for row, background in previous.items():
+                item = self.list_levels.item(row)
+                if item is not None:
+                    item.setData(Qt.BackgroundRole, background)
+            self.list_levels.viewport().update()
+
+        return restore
+
     def _on_stage_copy(self):
         if not self.levels:
             return
@@ -1793,15 +1814,19 @@ class MainWindow(QMainWindow):
             return
         target_no = self.current_level_no
         source_no = int(self._stage_clipboard["source_level_no"])
-        reply = QMessageBox.question(
-            self,
-            "ステージ貼り付け",
-            f"{self._stage_label(source_no)} のデータを "
-            f"{self._stage_label(target_no)} へ貼り付けます。\n\n"
-            f"{self._stage_label(target_no)} の現在の内容は上書きされます。",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
+        restore_highlight = self._highlight_stage_items_for_confirmation([source_no, target_no])
+        try:
+            reply = QMessageBox.question(
+                self,
+                "ステージ貼り付け",
+                f"{self._stage_label(source_no)} のデータを "
+                f"{self._stage_label(target_no)} へ貼り付けます。\n\n"
+                f"{self._stage_label(target_no)} の現在の内容は上書きされます。",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+        finally:
+            restore_highlight()
         if reply != QMessageBox.Yes:
             return
         self._sync_stage_sidecar_to_level(target_no)
@@ -1832,14 +1857,18 @@ class MainWindow(QMainWindow):
             self.spin_stage_swap_target.setFocus()
             self.spin_stage_swap_target.selectAll()
             return
-        reply = QMessageBox.question(
-            self,
-            "ステージ入れ替え",
-            f"{self._stage_label(source_no)} と {self._stage_label(target_no)} の"
-            "データ一式を入れ替えます。",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
+        restore_highlight = self._highlight_stage_items_for_confirmation([source_no, target_no])
+        try:
+            reply = QMessageBox.question(
+                self,
+                "ステージ入れ替え",
+                f"{self._stage_label(source_no)} と {self._stage_label(target_no)} の"
+                "データ一式を入れ替えます。",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+        finally:
+            restore_highlight()
         if reply != QMessageBox.Yes:
             return
         self._swap_stages(source_no, target_no)
