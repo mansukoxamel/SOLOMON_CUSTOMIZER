@@ -3996,7 +3996,12 @@ class MainWindow(QMainWindow):
         o, n = _ed.OFF_C293, _ed.LEN_C293
         before = bytes(self.rom.data[o:o + n])
         try:
-            dlg = EnemyDropDialog(self.rom.data, parent=self)
+            dlg = EnemyDropDialog(
+                self.rom.data,
+                parent=self,
+                tile_renderer=self.tile_renderer,
+                config=self.config,
+            )
         except _ed.EnemyDropError as e:
             QMessageBox.critical(self, "敵ドロップ編集 不可", str(e))
             return
