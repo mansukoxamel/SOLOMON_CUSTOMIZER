@@ -4174,10 +4174,12 @@ class MainWindow(QMainWindow):
             return
         if not self.rom.is_expanded():
             self.picker.mirror_panel.load_enemies([], [])
+            self.picker.mirror_panel.set_mirror_active_states([False, False])
             return
         from ..core import m66
         ln = self.current_level_no
         codes = [[], []]
+        active = [False, False]
         for mirror_no in range(2):
             if mirror_no == 0:
                 local = m66.OFFSET_M66_LOCAL_SCHED_ENEMY_1_DATA
@@ -4191,7 +4193,16 @@ class MainWindow(QMainWindow):
                 codes[mirror_no].append(b)
             while len(codes[mirror_no]) < 7:
                 codes[mirror_no].append(0)
+            sched_off = m66.OFFSET_M66_DROP_SCHED_DATA + (ln * 2 + mirror_no) * 8
+            for i in range(8):
+                byte = self.rom.data[sched_off + i]
+                if i == 0:
+                    byte &= 0x3F
+                if byte:
+                    active[mirror_no] = True
+                    break
         self.picker.mirror_panel.load_enemies(codes[0], codes[1])
+        self.picker.mirror_panel.set_mirror_active_states(active)
 
     def _sync_enemy_codes_from_rom(self, level_no: int):
         """ROMのミラー実データ（敵セット＋スケジュール）をLevelに同期（エクスポート前に呼ぶ）"""

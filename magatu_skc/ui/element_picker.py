@@ -2,7 +2,8 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QGroupBox, QButtonGroup, QRadioButton, QListWidget, QListWidgetItem,
-    QListView, QAbstractItemView, QStackedWidget, QScrollArea, QSizePolicy
+    QListView, QAbstractItemView, QStackedWidget, QScrollArea, QSizePolicy,
+    QGraphicsOpacityEffect
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QMimeData
 from PyQt5.QtGui import QPixmap, QIcon, QImage, QDrag
@@ -326,6 +327,11 @@ class DraggablePickerList(QListWidget):
 
 
 MIRROR_ENEMY_SET_MAX = 7
+MIRROR_ROW_LABEL_STYLES = (
+    "color:#d42020; font-weight:bold;",
+    "color:#1d5fd1; font-weight:bold;",
+)
+MIRROR_ROW_LABEL_DISABLED_STYLE = "color:#777777; font-weight:bold;"
 
 
 class _MirrorRow(QListWidget):
@@ -455,6 +461,9 @@ class MirrorEnemyPanel(QWidget):
         self._tile_renderer = None
         self._config = None
         self._rows = []  # [_MirrorRow, _MirrorRow]
+        self._row_labels = []
+        self._row_effects = []
+        self._label_effects = []
         self._build_ui()
 
     def _build_ui(self):
@@ -468,16 +477,47 @@ class MirrorEnemyPanel(QWidget):
             row_layout.setContentsMargins(0, 0, 0, 0)
             row_layout.setSpacing(2)
             row_lbl = QLabel(f"<small>M{m + 1}</small>")
-            row_lbl.setStyleSheet(
-                "color:#d42020; font-weight:bold;" if m == 0
-                else "color:#1d5fd1; font-weight:bold;")
+            row_lbl.setStyleSheet(MIRROR_ROW_LABEL_STYLES[m])
             row_lbl.setFixedWidth(18)
             row_layout.addWidget(row_lbl)
+            self._row_labels.append(row_lbl)
+            label_effect = QGraphicsOpacityEffect(row_lbl)
+            row_lbl.setGraphicsEffect(label_effect)
+            self._label_effects.append(label_effect)
             row = _MirrorRow()
+            row_effect = QGraphicsOpacityEffect(row)
+            row.setGraphicsEffect(row_effect)
+            self._row_effects.append(row_effect)
             row.slot_changed.connect(self.enemies_changed.emit)
             row_layout.addWidget(row, 1)
             self._rows.append(row)
             layout.addLayout(row_layout)
+
+    def set_mirror_active(self, mirror_no: int, active: bool):
+        if not (0 <= mirror_no < len(self._rows)):
+            return
+        row = self._rows[mirror_no]
+        label = self._row_labels[mirror_no]
+        row.setEnabled(bool(active))
+        label.setEnabled(bool(active))
+        opacity = 1.0 if active else 0.28
+        self._row_effects[mirror_no].setOpacity(opacity)
+        self._label_effects[mirror_no].setOpacity(opacity)
+        label.setStyleSheet(
+            MIRROR_ROW_LABEL_STYLES[mirror_no]
+            if active else MIRROR_ROW_LABEL_DISABLED_STYLE
+        )
+        if active:
+            row.setToolTip("")
+            label.setToolTip("")
+        else:
+            tip = "ミラー詳細設定の出現タイミングが全OFFのため、この敵セットは出現しません。"
+            row.setToolTip(tip)
+            label.setToolTip(tip)
+
+    def set_mirror_active_states(self, states: list):
+        for mirror_no in range(min(2, len(states))):
+            self.set_mirror_active(mirror_no, bool(states[mirror_no]))
 
     def set_renderers(self, tile_renderer, config):
         self._tile_renderer = tile_renderer
