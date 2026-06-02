@@ -747,7 +747,29 @@ class MainWindow(QMainWindow):
         v.addWidget(self.lbl_stage_clipboard)
 
         from PyQt5.QtWidgets import QListView
-        self.list_levels = QListWidget()
+
+        class _StageListWidget(QListWidget):
+            def __init__(self, owner):
+                super().__init__()
+                self._owner = owner
+
+            def keyPressEvent(self, event):
+                if event.modifiers() == Qt.ControlModifier:
+                    if event.key() == Qt.Key_C:
+                        self._owner._on_stage_copy()
+                        event.accept()
+                        return
+                    if event.key() == Qt.Key_V:
+                        self._owner._on_stage_paste()
+                        event.accept()
+                        return
+                    if event.key() == Qt.Key_X:
+                        self._owner._on_stage_swap()
+                        event.accept()
+                        return
+                super().keyPressEvent(event)
+
+        self.list_levels = _StageListWidget(self)
         # サムネイル表示用のサイズ設定（画像のみ・テキストなし）
         self._thumb_size = QSize(160, 120)  # 16:12 比率
         self.list_levels.setIconSize(self._thumb_size)
