@@ -757,6 +757,8 @@ class MainWindow(QMainWindow):
         self.list_levels.setResizeMode(QListView.Adjust)
         self.list_levels.setWrapping(True)
         self.list_levels.setSpacing(2)
+        self.list_levels.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.list_levels.customContextMenuRequested.connect(self._on_level_context_menu)
         # アイテム自体のサイズも明示しないとIconModeで潰れる
         item_size = QSize(self._thumb_size.width() + 8, self._thumb_size.height() + 8)
         for i in range(c.LEVEL_COUNT):
@@ -1844,6 +1846,40 @@ class MainWindow(QMainWindow):
         if self._stage_swap_source_no is None:
             return
         self.spin_stage_swap_target.setValue(level_no + 1)
+
+    def _on_level_context_menu(self, pos):
+        if not self.levels:
+            return
+        item = self.list_levels.itemAt(pos)
+        if item is None:
+            return
+        row = self.list_levels.row(item)
+        if not (0 <= row < len(self.levels)):
+            return
+
+        if row >= 0:
+            self._set_stage_swap_target_from_thumbnail(row)
+        if row != self.current_level_no:
+            self.list_levels.setCurrentRow(row)
+
+        from PyQt5.QtWidgets import QMenu
+        menu = QMenu(self)
+        copy_action = menu.addAction("面コピー")
+        paste_action = menu.addAction("貼り付け")
+        swap_action = menu.addAction(self.btn_stage_swap.text())
+
+        can_edit = not self._is_read_only()
+        copy_action.setEnabled(can_edit)
+        paste_action.setEnabled(can_edit and self._stage_clipboard is not None)
+        swap_action.setEnabled(can_edit)
+
+        action = menu.exec_(self.list_levels.viewport().mapToGlobal(pos))
+        if action == copy_action:
+            self._on_stage_copy()
+        elif action == paste_action:
+            self._on_stage_paste()
+        elif action == swap_action:
+            self._on_stage_swap()
 
     def _swap_stages(self, current_no: int, target_no: int):
         self._sync_stage_sidecar_to_level(current_no)
