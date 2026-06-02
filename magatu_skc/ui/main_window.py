@@ -9,8 +9,8 @@ from PyQt5.QtWidgets import (
     QGroupBox, QComboBox, QCheckBox, QListWidget, QApplication,
     QToolBar, QAction, QRadioButton, QButtonGroup
 )
-from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor
+from PyQt5.QtCore import Qt, QSize, QEvent
+from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor, QPainter, QPen
 
 from .. import __version__
 from ..core.rom import Rom, KNOWN_CRC32
@@ -58,6 +58,67 @@ _ENEMY_HORIZONTAL_MIRROR = {
 
 def _mirror_enemy_code_horizontal(code: int) -> int:
     return _ENEMY_HORIZONTAL_MIRROR.get(code, code)
+
+
+class _EnemyCountIndicator(QWidget):
+    """Compact initial-enemy count gauge over the level canvas."""
+
+    _SAFE_COLOR = QColor("#22c55e")
+    _WARN_COLOR = QColor("#facc15")
+    _DANGER_COLOR = QColor("#ef4444")
+    _EMPTY_BG = QColor(0, 0, 0, 145)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._count = 0
+        self._maximum = c.ENEMY_COUNT_MAX
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setFixedHeight(28)
+        self.setMinimumWidth(92)
+        self.setToolTip("敵配置数 0/15")
+
+    def set_count(self, count: int, maximum: int = c.ENEMY_COUNT_MAX):
+        self._count = max(0, int(count))
+        self._maximum = max(1, int(maximum))
+        self.setToolTip(f"敵配置数 {self._count}/{self._maximum}")
+        self.update()
+
+    def _slot_color(self, index: int) -> QColor:
+        if index >= 13:
+            return QColor(self._DANGER_COLOR)
+        if index >= 9:
+            return QColor(self._WARN_COLOR)
+        return QColor(self._SAFE_COLOR)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, False)
+
+        x = 4
+        y = 5
+        slot_h = 18
+        label_w = 52 if self.width() >= 260 else 0
+        gap = 4 if self.width() >= 260 else 2
+        slot_area_w = max(self._maximum * 3, self.width() - 8 - label_w)
+        slot_w = max(3, (slot_area_w - gap * (self._maximum - 1)) // self._maximum)
+        for index in range(1, self._maximum + 1):
+            color = self._slot_color(index)
+            is_filled = index <= self._count
+            border = QColor(color)
+            border.setAlpha(230 if is_filled else 135)
+            fill = QColor(color if is_filled else self._EMPTY_BG)
+            if not is_filled:
+                fill.setAlpha(105)
+            painter.setPen(QPen(border, 1))
+            painter.setBrush(fill)
+            painter.drawRect(x, y, slot_w, slot_h)
+            x += slot_w + gap
+
+        if label_w:
+            text_color = self._slot_color(min(max(self._count, 1), self._maximum))
+            painter.setPen(text_color)
+            painter.drawText(x + 4, 5, label_w, 18, Qt.AlignVCenter | Qt.AlignLeft, f"{self._count}/{self._maximum}")
 
 
 class MainWindow(QMainWindow):
@@ -265,6 +326,9 @@ class MainWindow(QMainWindow):
         self._dirty = False
         self.level_view.rom_dropped.connect(self.load_rom)
         self.level_view.stage_png_dropped.connect(self._on_stage_png_dropped)
+        self.enemy_count_indicator = _EnemyCountIndicator(self.level_view.viewport())
+        self.enemy_count_indicator.hide()
+        self.level_view.viewport().installEventFilter(self)
 
         # スプリッター
         self.splitter = QSplitter(Qt.Horizontal)
@@ -299,6 +363,53 @@ class MainWindow(QMainWindow):
         self.lbl_hover_info = QLabel("")
         self.lbl_hover_info.setMinimumWidth(420)
         self.statusBar().addPermanentWidget(self.lbl_hover_info)
+
+    def eventFilter(self, obj, event):
+        if (hasattr(self, "level_view") and
+                obj is self.level_view.viewport() and
+                event.type() in (QEvent.Resize, QEvent.Show)):
+            self._position_enemy_count_indicator()
+        return super().eventFilter(obj, event)
+
+    def _position_enemy_count_indicator(self):
+        if not hasattr(self, "enemy_count_indicator"):
+            return
+        indicator = self.enemy_count_indicator
+        viewport = self.level_view.viewport()
+        h = indicator.height()
+        w = min(356, max(indicator.minimumWidth(), viewport.width() - 8))
+        indicator.resize(w, h)
+        x = max(4, (viewport.width() - w) // 2)
+        y = 10
+
+        pixmap_item = getattr(self.level_view, "_pixmap_item", None)
+        if pixmap_item is not None:
+            scene_rect = pixmap_item.mapRectToScene(pixmap_item.boundingRect())
+            top = self.level_view.mapFromScene(scene_rect.topLeft()).y()
+            bottom = self.level_view.mapFromScene(scene_rect.bottomRight()).y()
+            top_margin = max(0, top)
+            bottom_margin = max(0, viewport.height() - bottom)
+            if top_margin >= h + 8:
+                y = max(4, (top_margin - h) // 2)
+            elif bottom_margin >= h + 8:
+                y = bottom + max(4, (bottom_margin - h) // 2)
+            else:
+                y = 8
+
+        indicator.move(x, y)
+        indicator.raise_()
+
+    def _update_enemy_count_indicator(self):
+        if not hasattr(self, "enemy_count_indicator"):
+            return
+        if not self.levels or not (0 <= self.current_level_no < len(self.levels)):
+            self.enemy_count_indicator.hide()
+            return
+        level = self.levels[self.current_level_no]
+        count = len(getattr(level, "enemies", []) or [])
+        self.enemy_count_indicator.set_count(count, c.ENEMY_COUNT_MAX)
+        self.enemy_count_indicator.show()
+        self._position_enemy_count_indicator()
 
     def _build_left_panel(self) -> QWidget:
         left_widget = QWidget()
@@ -2032,8 +2143,10 @@ class MainWindow(QMainWindow):
 
     def _refresh_view(self):
         if not self.levels or self.level_renderer is None:
+            self._update_enemy_count_indicator()
             return
         if not (0 <= self.current_level_no < len(self.levels)):
+            self._update_enemy_count_indicator()
             return
         level = self.levels[self.current_level_no]
         # ピッカーのアイコンを現在レベルのタイルセットで再描画（skchain互換）
@@ -2054,6 +2167,7 @@ class MainWindow(QMainWindow):
             bonus_items=self._get_bonus_items(),
         )
         self.level_view.set_image(img)
+        self._update_enemy_count_indicator()
         self._sync_object_labels()
         self._update_info()
         self._load_meta_to_ui()
