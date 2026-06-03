@@ -1377,6 +1377,19 @@ class MainWindow(QMainWindow):
         self._save_history()
         self.statusBar().showMessage("履歴をクリアしました", 2000)
 
+    def _show_save_failure(self, title: str, error: Exception, log_prefix: str,
+                           extra_message: str = ""):
+        if isinstance(error, saver.SavePreflightError):
+            msg = error.dialog_message()
+            log_msg = error.log_message()
+        else:
+            msg = f"{type(error).__name__}: {error}"
+            log_msg = msg
+        if extra_message:
+            msg = f"{msg}\n\n{extra_message}"
+        QMessageBox.critical(self, title, msg)
+        self._log(f"{log_prefix}: {log_msg}")
+
     def _on_save_rom(self):
         if not self.rom:
             return
@@ -1420,8 +1433,7 @@ class MainWindow(QMainWindow):
             self._set_dirty(False)
             self._log(f"ROM保存: {path}{bundle_msg}")
         except Exception as e:
-            QMessageBox.critical(self, "保存失敗", f"{type(e).__name__}: {e}")
-            self._log(f"ROM保存失敗: {type(e).__name__}: {e}")
+            self._show_save_failure("保存失敗", e, "ROM保存失敗")
 
     def _on_test_play(self):
         """現在の編集状態 + ステージ選択(現在レベル) で一時ROMを生成しエミュ起動"""
@@ -1497,10 +1509,12 @@ class MainWindow(QMainWindow):
                 # rom.data を編集前に戻す（テストプレイ用の改変を残さない）
                 self.rom.data = original_data
         except Exception as e:
-            QMessageBox.critical(
-                self, "テストプレイ準備失敗",
-                f"{type(e).__name__}: {e}\n\n"
-                "通常の「改造ROMとして保存」でも同じエラーが出る場合、ROM容量の制約です。"
+            self._show_save_failure(
+                "テストプレイ準備失敗",
+                e,
+                "テストプレイ準備失敗",
+                "通常の「改造ROMとして保存」でも同じエラーが出る場合、"
+                "保存前チェックまたはROM容量の制約です。",
             )
             return
 
@@ -1537,8 +1551,7 @@ class MainWindow(QMainWindow):
         try:
             modified_data = saver.build_saved_rom_data(self.rom, self.levels)
         except Exception as e:
-            QMessageBox.critical(self, "IPS生成失敗", f"{type(e).__name__}: {e}")
-            self._log(f"IPS保存失敗: {type(e).__name__}: {e}")
+            self._show_save_failure("IPS生成失敗", e, "IPS保存失敗")
             return
 
         # 3. IPS保存先を選択

@@ -1,5 +1,9 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.45 (2026-06-03) 保存前チェック失敗表示を整理
+- ROM保存、テストプレイ準備、IPS生成で保存用ROMを構築する際、どの保存工程で署名検証や予約領域検証に失敗したかを共通形式で表示するようにした。
+- ユーザー向けダイアログは短い原因表示に抑え、巨大な署名バイト列などの詳細はログへ出すようにした。
+
 ## v0.8.44 (2026-06-03) 再保存時のPanel Variant loader署名エラー修正
 - オリジナルROM読込後に保存したmapper66 ROMを続けて再保存すると、StageExt/Panel Monsterの短い旧runtimeとPanel Variantの長いruntimeが共有領域で混在し、Panel Variantの署名検証で保存失敗する問題を修正した。
 - StageExt runtime loaderは予約済み96B全体をStageExt loader + 00埋めに、Panel Monster Bullet hookは予約済み81B全体を旧hook + EA埋めに正規化し、その後Panel Variantが必要な場合は従来どおり最終runtimeで上書きするようにした。

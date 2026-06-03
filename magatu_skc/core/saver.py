@@ -10,6 +10,57 @@ class SaveError(Exception):
     pass
 
 
+def _shorten(text: str, limit: int = 360) -> str:
+    text = str(text)
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + "..."
+
+
+def _summarize_failure(text: str) -> str:
+    text = str(text).strip()
+    for marker in (": got ", ", expected ", " expected "):
+        if marker in text:
+            text = text.split(marker, 1)[0]
+            break
+    return _shorten(text)
+
+
+class SavePreflightError(SaveError):
+    """Save-time ROM validation failed in a named writer step."""
+
+    def __init__(self, step: str, cause: Exception):
+        self.step = str(step)
+        self.cause_type = type(cause).__name__
+        self.cause_detail = str(cause)
+        super().__init__(f"{self.step}: {self.cause_type}: {self.cause_detail}")
+
+    def dialog_message(self) -> str:
+        reason = _summarize_failure(self.cause_detail)
+        return (
+            "保存前チェックで問題が見つかったため、ROM保存を中止しました。\n\n"
+            f"工程: {self.step}\n"
+            f"原因: {self.cause_type}: {reason}\n\n"
+            "別の改造、古い保存ROM、破損したROM、または保存データの制約に"
+            "該当している可能性があります。詳細はログを確認してください。"
+        )
+
+    def log_message(self) -> str:
+        return (
+            f"保存前チェック失敗: step={self.step}; "
+            f"cause={self.cause_type}: {self.cause_detail}"
+        )
+
+
+def _run_save_step(step: str, func, *args, **kwargs):
+    try:
+        return func(*args, **kwargs)
+    except SavePreflightError:
+        raise
+    except Exception as e:
+        raise SavePreflightError(step, e) from e
+
+
 def validate_level_consistency(levels: list):
     """Check editor-level relationships before writing them into ROM bytes."""
     from . import stage_ext
@@ -146,6 +197,14 @@ def _uses_gargoyle_two_shot(levels: list) -> bool:
     return False
 
 
+def _write_standard_level_data(rom: Rom, levels: list):
+    region = rom.base_region()
+    for i, lv in enumerate(levels):
+        write_block_data(rom, lv, i)
+    write_enemy_data(rom, levels, region)
+    write_item_data(rom, levels, region)
+
+
 def save_levels_to_rom(rom: Rom, levels: list):
     """全レベルをROMに書き戻す（標準ROM/拡張ROM両対応）
 
@@ -153,19 +212,15 @@ def save_levels_to_rom(rom: Rom, levels: list):
         rom: 書き込み先ROM
         levels: 53個のLevelリスト
     """
-    validate_level_consistency(levels)
+    _run_save_step("ステージ整合性チェック", validate_level_consistency, levels)
 
     if rom.is_expanded():
         # 拡張ROM (US66): 1レベル=256バイト固定の構造で書き戻し
         from . import m66
-        m66.save_all_levels_m66(rom, levels)
+        _run_save_step("mapper66ステージデータ書き込み", m66.save_all_levels_m66, rom, levels)
     else:
-        region = rom.base_region()
         # 標準ROM
-        for i, lv in enumerate(levels):
-            write_block_data(rom, lv, i)        # ブロックデータ
-        write_enemy_data(rom, levels, region)   # 敵データ
-        write_item_data(rom, levels, region)    # アイテムデータ
+        _run_save_step("通常ROMステージデータ書き込み", _write_standard_level_data, rom, levels)
 
     # Room Flag Table 拡張 (画面ごとの挙動改造)。標準/拡張ROM 共通。
     # bank0 cave の file offset は expander が verbatim コピーするため不変。
@@ -183,15 +238,15 @@ def save_levels_to_rom(rom: Rom, levels: list):
     # panel_monster_variant, and its PRG1 loader supersedes stage_ext's loader.
     # If these calls are reordered, the later writer can overwrite the final
     # hooks/loader and break Panel Variant enemies or room-load cache copying.
-    saramandor_variant.apply(rom.data)
-    panel_monster_variant.apply(rom.data)
-    spark_ball_variant.apply(rom.data)
-    drop_pickup_guard.apply(rom.data)
+    _run_save_step("Saramandor variant runtime検証/適用", saramandor_variant.apply, rom.data)
+    _run_save_step("Panel Monster variant runtime検証/適用", panel_monster_variant.apply, rom.data)
+    _run_save_step("Spark Ball variant runtime検証/適用", spark_ball_variant.apply, rom.data)
+    _run_save_step("drop pickup guard検証/適用", drop_pickup_guard.apply, rom.data)
     if _uses_gargoyle_two_shot(levels):
-        gargoyle_variant.apply(rom.data)
-    title_screen.migrate_wide_title_trampoline_ram(rom.data)
-    title_screen.apply_wide_title_idle_demo_cleanup(rom.data)
-    ensure_default_title_text(rom)
+        _run_save_step("Gargoyle 2-shot runtime検証/適用", gargoyle_variant.apply, rom.data)
+    _run_save_step("wide-title trampoline RAM移行", title_screen.migrate_wide_title_trampoline_ram, rom.data)
+    _run_save_step("wide-title idle demo cleanup検証/適用", title_screen.apply_wide_title_idle_demo_cleanup, rom.data)
+    _run_save_step("タイトル初期テキスト確認/適用", ensure_default_title_text, rom)
     breakable_runtime_cells = []
     for lv in levels:
         breakable = set(getattr(lv, "breakable_white_cells", set()) or [])
@@ -213,24 +268,28 @@ def save_levels_to_rom(rom: Rom, levels: list):
         runtime_room_flags.append(flags)
     door_cells = [byte_from_position(lv.fixed_door_pos) for lv in levels]
     if rom.is_expanded():
-        stage_ext.patch_table(rom.data, levels, runtime_room_flags, door_cells)
-        stage_ext.apply_runtime_loader(rom.data)
-    stage_announcement.apply(rom.data, levels, runtime_room_flags)
-    room_flags.apply(
+        _run_save_step("StageExt table書き込み", stage_ext.patch_table, rom.data, levels, runtime_room_flags, door_cells)
+        _run_save_step("StageExt runtime loader検証/適用", stage_ext.apply_runtime_loader, rom.data)
+    _run_save_step("開始画面アナウンス検証/適用", stage_announcement.apply, rom.data, levels, runtime_room_flags)
+    _run_save_step(
+        "Room Flag runtime検証/適用",
+        room_flags.apply,
         rom.data,
         runtime_room_flags,
         door_cells,
         breakable_runtime_cells,
     )
-    key_enemy_runtime.apply(
+    _run_save_step(
+        "Key enemy runtime検証/適用",
+        key_enemy_runtime.apply,
         rom.data,
         any(stage_ext.key_enemy_enabled(lv) for lv in levels),
     )
     if rom.is_expanded() and panel_monster_stage_variant.has_panel_stage_runtime_ids(levels):
-        panel_monster_stage_variant.apply(rom.data, levels)
+        _run_save_step("Panel Variant runtime検証/適用", panel_monster_stage_variant.apply, rom.data, levels)
     if rom.is_expanded():
         from . import rom_metadata
-        rom_metadata.write_metadata(rom.data)
+        _run_save_step("Customizer metadata書き込み", rom_metadata.write_metadata, rom.data)
 
 
 def build_saved_rom_data(rom: Rom, levels: list) -> bytes:
