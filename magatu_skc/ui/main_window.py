@@ -17,7 +17,7 @@ from ..core.rom import Rom, KNOWN_CRC32
 from ..core.level import Level, load_all_levels
 from ..core.element import Wall, ElementType, LevelElement
 from ..core import constants as c
-from ..core.config import resolve_project_path
+from ..core.config import resolve_project_path, save_config
 from ..core import saver, ips, wall_color_hack
 from ..gfx.tile_renderer import TileRenderer
 from ..gfx.level_renderer import LevelRenderer
@@ -1390,6 +1390,38 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, title, msg)
         self._log(f"{log_prefix}: {log_msg}")
 
+    def _preferred_save_dir(self) -> Path:
+        for value in (
+            self._app_config.get("last_save_dir", ""),
+            self.last_loaded_path,
+            self._history[0] if self._history else "",
+        ):
+            if not value:
+                continue
+            try:
+                p = Path(value)
+                folder = p if p.is_dir() else p.parent
+                if folder.exists():
+                    return folder
+            except Exception:
+                continue
+        return Path.cwd()
+
+    def _default_save_path(self, default_name: str) -> str:
+        return str(self._preferred_save_dir() / default_name)
+
+    def _remember_save_path(self, path: str) -> None:
+        self._remember_save_dir(Path(path).parent)
+
+    def _remember_save_dir(self, folder) -> None:
+        try:
+            folder = str(Path(folder))
+            if folder and Path(folder).exists():
+                self._app_config["last_save_dir"] = folder
+                save_config(self._app_config)
+        except Exception:
+            pass
+
     def _on_save_rom(self):
         if not self.rom:
             return
@@ -1406,7 +1438,7 @@ class MainWindow(QMainWindow):
         stem = Path(src_name).stem
         default_name = f"{stem}_{ts}.nes"
         path, _ = QFileDialog.getSaveFileName(
-            self, "改造ROMの保存先", default_name,
+            self, "改造ROMの保存先", self._default_save_path(default_name),
             "NES ROMs (*.nes);;All files (*)"
         )
         if not path:
@@ -1414,6 +1446,7 @@ class MainWindow(QMainWindow):
         try:
             saved_data = saver.build_saved_rom_data(self.rom, self.levels)
             saver.write_rom_data(saved_data, path)
+            self._remember_save_path(path)
             self.rom.data = bytearray(saved_data)
             self.rom._crc32 = None
             bundle_msg = ""
@@ -1563,7 +1596,7 @@ class MainWindow(QMainWindow):
         stem = Path(src_name).stem
         default_name = f"{stem}_{ts}.ips"
         path, _ = QFileDialog.getSaveFileName(
-            self, "IPSパッチ保存", default_name,
+            self, "IPSパッチ保存", self._default_save_path(default_name),
             "IPS Patch (*.ips);;All files (*)"
         )
         if not path:
@@ -1571,6 +1604,7 @@ class MainWindow(QMainWindow):
 
         try:
             ips.save_ips_patch(base_data, modified_data, path)
+            self._remember_save_path(path)
             self.statusBar().showMessage(f"IPS保存完了: {path}", 5000)
             self._log(f"IPS保存: {path} (原本: {base_path})")
         except Exception as e:
@@ -1638,9 +1672,9 @@ class MainWindow(QMainWindow):
         from datetime import datetime
         rom_stem = Path(self.rom.display_name).stem if self.rom and self.rom.display_name else "unknown"
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        app_dir = Path(__file__).resolve().parent.parent.parent
-        export_dir = app_dir / "exports" / f"{rom_stem}_{ts}"
+        export_dir = self._preferred_save_dir() / f"{rom_stem}_stage_data_{ts}"
         export_dir.mkdir(parents=True, exist_ok=True)
+        self._remember_save_dir(export_dir.parent)
         return export_dir
 
     def _save_png_with_xml(self, img, level, path):
@@ -1680,8 +1714,16 @@ class MainWindow(QMainWindow):
     def _on_export_current(self):
         if not self.levels or self.level_renderer is None:
             return
-        export_dir = self._make_export_dir()
-        path = export_dir / f"level_{self.current_level_no + 1:02d}.png"
+        from datetime import datetime
+        stage_no = self.current_level_no + 1
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        default_name = f"level_{stage_no:02d}_{ts}.png"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "ステージデータPNGの保存先", self._default_save_path(default_name),
+            "PNG Images (*.png);;All files (*)"
+        )
+        if not path:
+            return
         level = self.levels[self.current_level_no]
         img = self.level_renderer.render(
             level,
@@ -1693,6 +1735,7 @@ class MainWindow(QMainWindow):
         )
         self._sync_enemy_codes_from_rom(self.current_level_no)
         self._save_png_with_xml(img, level, path)
+        self._remember_save_path(path)
         self.statusBar().showMessage(f"保存: {path} (XML埋込)", 5000)
 
     def _on_export_all(self):
