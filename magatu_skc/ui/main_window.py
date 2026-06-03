@@ -734,7 +734,7 @@ class MainWindow(QMainWindow):
         wrap_layout.setContentsMargins(0, 0, 0, 0)
         wrap_layout.setSpacing(4)
 
-        group = QGroupBox("Panel Variant")
+        group = QGroupBox("強化パネルモンスター設定")
         group.setToolTip("A/B/Cパネルモンスターの弾速度と発射間隔をステージごとに設定")
         layout = QFormLayout(group)
         layout.setContentsMargins(6, 4, 6, 4)
