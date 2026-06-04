@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Solomon's Key NES - サウンドエンジン解析</title>
+<style>
+  body { font-family: "Segoe UI", "Yu Gothic UI", sans-serif; background: #1a1a1a; color: #e0e0e0; margin: 0; padding: 24px 40px; line-height: 1.6; max-width: 1200px; margin: 0 auto; }
+  h1 { border-bottom: 2px solid #d04848; padding-bottom: 8px; color: #ff8866; font-size: 26px; }
+  h2 { color: #66ccff; border-left: 4px solid #66ccff; padding-left: 10px; margin-top: 36px; font-size: 20px; }
+  h3 { color: #ffcc66; margin-top: 24px; font-size: 16px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0 24px 0; font-size: 14px; }
+  th { background: #333; color: #ffcc66; padding: 8px 10px; text-align: left; border-bottom: 2px solid #555; }
+  td { padding: 6px 10px; border-bottom: 1px solid #333; vertical-align: top; }
+  tr:hover { background: #2a2a2a; }
+  td.addr { color: #aaff99; font-family: monospace; white-space: nowrap; }
+  td.code { color: #ffcc66; font-family: monospace; white-space: nowrap; }
+  td.desc { color: #ddd; }
+  .note { background: #222; border-left: 3px solid #66ccff; padding: 8px 12px; margin: 8px 0; font-size: 13px; color: #aaa; }
+  .warn { background: #2a1a1a; border-left: 3px solid #ff6666; padding: 8px 12px; margin: 8px 0; font-size: 13px; color: #ffaaaa; }
+  code { background: #2a2a2a; padding: 1px 6px; border-radius: 3px; color: #aaff99; font-family: "Consolas", monospace; font-size: 13px; }
+  pre { background: #222; padding: 12px; border-radius: 4px; overflow-x: auto; color: #ccc; font-family: "Consolas", monospace; font-size: 13px; }
+  .badge-ok { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; background: #2a5a2a; color: #aaffaa; }
+  .meta { color: #888; font-size: 12px; margin-bottom: 24px; }
+</style>
+</head>
+<body>
+
+<h1>Solomon's Key (NES) サウンドエンジン解析</h1>
+<div class="meta">解析日: 2026-05-11 / 出典: NSFファイル + USA ROM バイナリ逆解析 + ピアノ楽譜PDF照合</div>
+
+<div class="note">
+NSFファイル（4,256 bytes）とUSA ROM のバイナリ比較で<b>99.2%一致</b>を確認。<br>
+楽譜PDF（変ホ長調 = Eb major / C minor）との照合で音程マッピングを確定。<br>
+6502逆アセンブルでサウンドエンジンの内部構造を解明。
+</div>
+
+<div class="note">
+2026-06-04追記: 実ASM <code>SUB_F190</code> / <code>SUB_F235</code> を再確認し、
+コマンド表を更新。旧メモの <code>F8=transpose</code>、<code>F5=return</code>、
+<code>F6=pattern end</code> は誤り。現行解釈は <code>F8=DUTY</code>、
+<code>F4=RETURN</code>、<code>F5=LOOP_START</code>、<code>F6=LOOP_DEC_BNE</code>、
+<code>F9=CHANNEL_END</code>。
+</div>
+
+<div class="note">
+2026-06-04 MIDI照合追記: ユーザー提供 <code>D:/DL/title-song.mid</code> を
+ROM内1曲目 <code>sound id $01</code> と照合。メロディtrackは <code>$F650</code>
+と366/366音、ベースtrackは <code>$F592</code> と352/352音が完全一致。
+したがって音名変換（ノートbyte → C/D/E表記）はこの範囲で妥当。
+長さはMIDI側のクオンタイズや <code>0x0C</code> ホールド表現で揺れるため、音程一致を主根拠とする。
+</div>
+
+<h2>1. メモリマップ</h2>
+
+<table>
+<tr><th>領域</th><th>CPU アドレス</th><th>ROM オフセット</th><th>サイズ</th><th>内容</th></tr>
+<tr><td class="desc">サウンドエンジン</td><td class="addr">$F000〜$F134</td><td class="addr">0x7010〜0x7144</td><td>〜308 B</td><td>再生ルーチン（Play routine）</td></tr>
+<tr><td class="desc">初期化ルーチン</td><td class="addr">$F134〜$F190</td><td class="addr">0x7144〜0x71A0</td><td>〜92 B</td><td>トラック初期化（Init routine）</td></tr>
+<tr><td class="desc">ストリームパーサ</td><td class="addr">$F190〜$F235</td><td class="addr">0x71A0〜0x7245</td><td>〜165 B</td><td>音符/コマンド解釈</td></tr>
+<tr><td class="desc">コマンドハンドラ</td><td class="addr">$F235〜$F368</td><td class="addr">0x7245〜0x7378</td><td>〜307 B</td><td>F0〜F9 コマンド処理</td></tr>
+<tr><td class="desc"><b>周波数テーブル</b></td><td class="addr"><b>$F368</b></td><td class="addr"><b>0x7378</b></td><td>24 B</td><td>12音 × 2バイト（基準オクターブ）</td></tr>
+<tr><td class="desc"><b>デュレーションテーブル</b></td><td class="addr"><b>$F380</b></td><td class="addr"><b>0x7390</b></td><td>26 B</td><td>音符長テーブル。原作データでは主にindex 0〜24（0x80〜0x98）を使用。</td></tr>
+<tr><td class="desc">エンベロープデータ</td><td class="addr">$F39A〜$F47C</td><td class="addr">0x73AA〜0x748C</td><td>〜226 B</td><td>音色パラメータ</td></tr>
+<tr><td class="desc"><b>曲ポインタテーブル</b></td><td class="addr"><b>$F47C</b></td><td class="addr"><b>0x748C</b></td><td>52 B</td><td>26曲 × 2バイト アドレス</td></tr>
+<tr><td class="desc">トラックヘッダ</td><td class="addr">$F4B0〜$F592</td><td class="addr">0x74C0〜0x75A2</td><td>〜226 B</td><td>26曲のチャンネル割当</td></tr>
+<tr><td class="desc"><b>楽曲データ</b></td><td class="addr"><b>$F592〜$FFFF</b></td><td class="addr"><b>0x75A2〜0x800F</b></td><td>〜2,670 B</td><td>全26曲の音符・コマンド列</td></tr>
+</table>
+
+<h2>2. 音符バイトフォーマット</h2>
+
+<h3>2-1. ノートバイト（0x00〜0x7F）</h3>
+
+<pre>
+ビット配置:  [octave:4bit][semitone:4bit]
+
+  上位4ビット = オクターブ番号（0〜7）
+    ROM octave 0 = 実音 octave 2 (C2〜B2, 65〜123 Hz)
+    ROM octave 1 = 実音 octave 3 (C3〜B3, 131〜247 Hz)
+    ROM octave 2 = 実音 octave 4 (C4〜B4, 262〜494 Hz)
+    ...
+
+  下位4ビット = 半音番号（0〜11）
+    0=C, 1=C#, 2=D, 3=D#(Eb), 4=E, 5=F, 6=F#, 7=G, 8=G#(Ab), 9=A, 10=A#(Bb), 11=B
+    12(0x0C) = ホールド/タイ（直前の音程を維持して長さを足す）
+</pre>
+
+<table>
+<tr><th>バイト値</th><th>オクターブ</th><th>半音</th><th>実音</th><th>周波数(Hz)</th></tr>
+<tr><td class="code">0x00</td><td>0</td><td>C</td><td>C2</td><td>65.4</td></tr>
+<tr><td class="code">0x07</td><td>0</td><td>G</td><td>G2</td><td>98.0</td></tr>
+<tr><td class="code">0x0B</td><td>0</td><td>B</td><td>B2</td><td>123.5</td></tr>
+<tr><td class="code">0x10</td><td>1</td><td>C</td><td>C3</td><td>130.8</td></tr>
+<tr><td class="code">0x13</td><td>1</td><td>D#</td><td>Eb3</td><td>155.6</td></tr>
+<tr><td class="code">0x15</td><td>1</td><td>F</td><td>F3</td><td>174.6</td></tr>
+<tr><td class="code">0x17</td><td>1</td><td>G</td><td>G3</td><td>196.0</td></tr>
+<tr><td class="code">0x20</td><td>2</td><td>C</td><td>C4</td><td>261.6</td></tr>
+<tr><td class="code">0x27</td><td>2</td><td>G</td><td>G4</td><td>392.0</td></tr>
+</table>
+
+<h3>2-2. デュレーションバイト（0x80〜0xEF / 原作実使用 0x80〜0x98）</h3>
+
+<p>実ASMは <code>AND #$3F</code> でindex化し、<code>$F380 + index</code> からframe数を読む。一度設定すると次の変更まで持続。原作シーケンスで確認できる通常範囲は <code>0x80〜0x98</code>。</p>
+
+<table>
+<tr><th>バイト</th><th>Index</th><th>Ticks</th><th>備考</th></tr>
+<tr><td class="code">0x80</td><td>0</td><td>1</td><td>最短</td></tr>
+<tr><td class="code">0x81</td><td>1</td><td>2</td><td></td></tr>
+<tr><td class="code">0x82</td><td>2</td><td>4</td><td></td></tr>
+<tr><td class="code">0x83</td><td>3</td><td>6</td><td></td></tr>
+<tr><td class="code">0x84</td><td>4</td><td>8</td><td></td></tr>
+<tr><td class="code">0x85</td><td>5</td><td>12</td><td>基本長の一つ</td></tr>
+<tr><td class="code">0x86</td><td>6</td><td>16</td><td></td></tr>
+<tr><td class="code">0x87</td><td>7</td><td>24</td><td>基本長の一つ</td></tr>
+<tr><td class="code">0x88</td><td>8</td><td>32</td><td></td></tr>
+<tr><td class="code">0x89</td><td>9</td><td>48</td><td></td></tr>
+<tr><td class="code">0x8A</td><td>10</td><td>64</td><td></td></tr>
+<tr><td class="code">0x8B</td><td>11</td><td>96</td><td></td></tr>
+<tr><td class="code">0x8C</td><td>12</td><td>128</td><td></td></tr>
+<tr><td class="code">0x8D</td><td>13</td><td>192</td><td></td></tr>
+<tr><td class="code">0x8E</td><td>14</td><td>5</td><td>短い装飾音系</td></tr>
+<tr><td class="code">0x8F</td><td>15</td><td>10</td><td>短い装飾音系</td></tr>
+<tr><td class="code">0x90</td><td>16</td><td>15</td><td></td></tr>
+<tr><td class="code">0x91</td><td>17</td><td>20</td><td></td></tr>
+<tr><td class="code">0x92</td><td>18</td><td>25</td><td></td></tr>
+<tr><td class="code">0x93</td><td>19</td><td>30</td><td></td></tr>
+<tr><td class="code">0x94</td><td>20</td><td>40</td><td></td></tr>
+<tr><td class="code">0x95</td><td>21</td><td>50</td><td></td></tr>
+<tr><td class="code">0x96</td><td>22</td><td>60</td><td></td></tr>
+<tr><td class="code">0x97</td><td>23</td><td>70</td><td></td></tr>
+<tr><td class="code">0x98</td><td>24</td><td>80</td><td>原作データで確認済み</td></tr>
+</table>
+
+<h2>3. コマンドバイト（0xF0〜0xF9）</h2>
+
+<table>
+<tr><th>バイト</th><th>引数</th><th>機能</th></tr>
+<tr><td class="code">F0 xx</td><td>1バイト</td><td>INSTRUMENT。$F39Aの音色プリセットポインタを選ぶ。</td></tr>
+<tr><td class="code">F1 xx</td><td>1バイト</td><td>VOLUME。channel state +5 の下位4bitを設定。</td></tr>
+<tr><td class="code">F2 lo hi</td><td>2バイト</td><td>JUMP。シーケンス位置を$hiloへ移動。主にループ。</td></tr>
+<tr><td class="code">F3 lo hi</td><td>2バイト</td><td>CALL。戻り位置を保存し、$hiloのパターンを再生。</td></tr>
+<tr><td class="code">F4</td><td>なし</td><td>RETURN。CALL元へ戻る。</td></tr>
+<tr><td class="code">F5 xx</td><td>1バイト</td><td>LOOP_START。ループ回数を保存し、直後の位置をループ先にする。</td></tr>
+<tr><td class="code">F6</td><td>なし</td><td>LOOP_DEC_BNE。回数を減らし、0でなければLOOP_START直後へ戻る。</td></tr>
+<tr><td class="code">F7 xx</td><td>1バイト</td><td>SWEEP。APU $4001 へ直接書き込む。</td></tr>
+<tr><td class="code">F8 xx</td><td>1バイト</td><td>DUTY。pulse波形デューティを設定。移調ではない。</td></tr>
+<tr><td class="code">F9</td><td>なし</td><td>CHANNEL_END。該当チャンネルを停止してシーケンス処理を抜ける。</td></tr>
+</table>
+
+<h2>4. トラック構造</h2>
+
+<h3>4-1. 曲ポインタテーブル（$F47C）</h3>
+<p>26曲 × 2バイト（リトルエンディアン）のアドレステーブル。各エントリがトラックヘッダを指す。</p>
+
+<h3>4-2. トラックヘッダ形式</h3>
+<pre>
+[ch_id] [ptr_lo] [ptr_hi]   ← チャンネル割当 + 楽曲データアドレス
+[ch_id] [ptr_lo] [ptr_hi]   ← 2チャンネル目
+...                          ← 最大8チャンネル
+
+ch_id の最上位ビット(bit7): 先頭チャンネルフラグ
+ch_id の下位ビット: チャンネル番号 (0〜7)
+  偶数(0,2,4,6): パルス系チャンネル
+  奇数(1,3,5,7): パルス2/三角波/ノイズ系
+</pre>
+
+<h3>4-3. 全26トラック一覧</h3>
+
+<table>
+<tr><th>#</th><th>SE id</th><th>ポインタ</th><th>チャンネル数</th><th>確定用途 (R171: ユーザー実機耳識別 + se_probe + 静的照合)</th></tr>
+<tr><td>1</td><td>$01</td><td class="addr">$F4B0</td><td>3ch (81,03,07)</td><td><b>ステージ BGM</b>（Codex「BGMなし」は誤り）</td></tr>
+<tr><td>2</td><td>$02</td><td class="addr">$F4B9</td><td>3ch (81,03,07)</td><td><b>ボーナス面 BGM</b></td></tr>
+<tr><td>3</td><td>$03</td><td class="addr">$F4C2</td><td>6ch</td><td>死亡（時間切れ死も同じ）</td></tr>
+<tr><td>4</td><td>$04</td><td class="addr">$F4D4</td><td>3ch (81,03,07)</td><td>残り時間 警告</td></tr>
+<tr><td>5</td><td>$05</td><td class="addr">$F4DD</td><td>4ch</td><td>ゲームオーバー</td></tr>
+<tr><td>6</td><td>$06</td><td class="addr">$F4E9</td><td>3ch</td><td>1UP</td></tr>
+<tr><td>7</td><td>$07</td><td class="addr">$F4F2</td><td>1ch (84)</td><td>石を作る</td></tr>
+<tr><td>8</td><td>$08</td><td class="addr">$F4F5</td><td>1ch (86)</td><td>石を消す（A換石で壊せるブロック除去）</td></tr>
+<tr><td>9</td><td>$09</td><td class="addr">$F4F8</td><td>2ch (84,06)</td><td>炎(火球)で敵を倒した</td></tr>
+<tr><td>10</td><td>$0A</td><td class="addr">$F4FE</td><td>1ch (84)</td><td>炎(火球)発射（旧「mirror setup」は誤り）</td></tr>
+<tr><td>11</td><td>$0B</td><td class="addr">$F501</td><td>1ch (86)</td><td>ドラゴン/サラマンダーの火炎</td></tr>
+<tr><td>12</td><td>$0C</td><td class="addr">$F504</td><td>4ch</td><td>ポーズ音</td></tr>
+<tr><td>13</td><td>$0D</td><td class="addr">$F510</td><td>1ch (84)</td><td>アイテム取得</td></tr>
+<tr><td>14</td><td>$0E</td><td class="addr">$F513</td><td>1ch (84)</td><td>★没ジングル: 譜面実在($FBCC-$FEFF)だが起動時($8E7A)に即かき消され実質無音</td></tr>
+<tr><td>15</td><td>$0F</td><td class="addr">$F516</td><td>3ch</td><td>妖精取得</td></tr>
+<tr><td>16</td><td>$10</td><td class="addr">$F51F</td><td>4ch (81,03,05,07)</td><td><b>エンディング BGM</b></td></tr>
+<tr><td>17</td><td>$11</td><td class="addr">$F52B</td><td>1ch (84)</td><td>頭突き音（壊れる/壊れないブロック両方とも同じ=接触音）</td></tr>
+<tr><td>18</td><td>$12</td><td class="addr">$F52E</td><td>1ch (84)</td><td>A換石の術を壊せない白ブロック($F8≤)に使った時の音</td></tr>
+<tr><td>19</td><td>$13</td><td class="addr">$F531</td><td>2ch (81,03)</td><td>スコア加算中（旧「fireball」はACTION id混同の誤り）</td></tr>
+<tr><td>20</td><td>$14</td><td class="addr">$F537</td><td>4ch</td><td>ステージ開始（光の輪演出）</td></tr>
+<tr><td>21</td><td>$15</td><td class="addr">$F543</td><td>6ch</td><td>ステージクリア</td></tr>
+<tr><td>22</td><td>$16</td><td class="addr">$F555</td><td>3ch</td><td>鍵取得</td></tr>
+<tr><td>23</td><td>$17</td><td class="addr">$F55E</td><td>1ch (84)</td><td>パネルモンスター/Bullet 発射</td></tr>
+<tr><td>24</td><td>$18</td><td class="addr">$F561</td><td>8ch（全チャンネル）</td><td>★空プレースホルダ枠(無音): 8ch確保だが実譜面は$FF7A-$FFFFの退化ループ+EA詰め。タイトル曲用に枠だけ確保された痕跡</td></tr>
+<tr><td>25</td><td>$19</td><td class="addr">$F579</td><td>4ch</td><td>迷宮崩れ 1（エンディング）</td></tr>
+<tr><td>26</td><td>$1A</td><td class="addr">$F585</td><td>4ch</td><td>迷宮崩れ 2（エンディング）</td></tr>
+</table>
+<p><b>確定経緯:</b> 過去セッション(4c9fdc98 / Round 97)でユーザーが実機の耳で全26曲を識別したリストが会話履歴にのみ存在しファイル未保存だったものを復元。本セッション R171 で se_probe($F134実起動1点フック)+静的コード照合で全件裏取り・確定。旧ROM解析の推測誤り($0A/$13/$18/$11/$12)を訂正。</p>
+
+<h2>5. 周波数テーブル（$F368）</h2>
+
+<p>基準オクターブ（octave 2）の12音の周期値。上位オクターブは右シフトで生成。</p>
+
+<table>
+<tr><th>Index</th><th>音名</th><th>Period値</th><th>周波数 (Hz)</th><th>誤差</th></tr>
+<tr><td>0</td><td>C</td><td class="code">1710 (0x06AE)</td><td>65.4</td><td>-1 cent</td></tr>
+<tr><td>1</td><td>C#</td><td class="code">1614 (0x064E)</td><td>69.3</td><td>-1 cent</td></tr>
+<tr><td>2</td><td>D</td><td class="code">1523 (0x05F3)</td><td>73.4</td><td>0 cent</td></tr>
+<tr><td>3</td><td>D# (Eb)</td><td class="code">1438 (0x059E)</td><td>77.7</td><td>-1 cent</td></tr>
+<tr><td>4</td><td>E</td><td class="code">1357 (0x054D)</td><td>82.4</td><td>-1 cent</td></tr>
+<tr><td>5</td><td>F</td><td class="code">1281 (0x0501)</td><td>87.3</td><td>-1 cent</td></tr>
+<tr><td>6</td><td>F# (Gb)</td><td class="code">1209 (0x04B9)</td><td>92.4</td><td>-1 cent</td></tr>
+<tr><td>7</td><td>G</td><td class="code">1141 (0x0475)</td><td>98.0</td><td>-1 cent</td></tr>
+<tr><td>8</td><td>G# (Ab)</td><td class="code">1077 (0x0435)</td><td>103.8</td><td>-1 cent</td></tr>
+<tr><td>9</td><td>A</td><td class="code">1016 (0x03F8)</td><td>110.0</td><td>0 cent</td></tr>
+<tr><td>10</td><td>A# (Bb)</td><td class="code">959 (0x03BF)</td><td>116.5</td><td>0 cent</td></tr>
+<tr><td>11</td><td>B</td><td class="code">905 (0x0389)</td><td>123.5</td><td>0 cent</td></tr>
+</table>
+
+<div class="note">
+周波数の計算式: <code>freq = 1,789,773 / (16 × (period + 1))</code><br>
+NES NTSC CPUクロック = 1,789,773 Hz
+</div>
+
+<h2>6. メインBGM冒頭の楽譜照合</h2>
+
+<h3>Track 1 メロディ（$F592〜）</h3>
+
+<pre>
+ROM データ:  F0 06 F1 09 F8 00 88 13 84 15 13 88 12 84 13 12 88 11 84 12 11 88 10 84 11 10 87 0B 10 12 13
+
+デコード結果:
+  F0 06       : INSTRUMENT = 6
+  F1 09       : VOLUME = 9
+  F8 00       : DUTY = 0（pulse波形デューティ設定）
+  88          : デュレーション = 32 frames
+  13          : ♪ Eb3
+  84          : デュレーション = 8 frames
+  15 13       : ♪ F3 Eb3
+  88 12       : 2分音符 ♪ D3
+  84 13 12    : 8分音符 ♪ Eb3 D3
+  88 11       : 2分音符 ♪ C#3 (Db3)
+  84 12 11    : 8分音符 ♪ D3 Db3
+  88 10       : 2分音符 ♪ C3
+  84 11 10    : 8分音符 ♪ Db3 C3
+  87          : デュレーション = 24 frames
+  0B 10 12 13 : ♪ B2 → C3 → D3 → Eb3（上行経過音）
+
+ユーザー提供MIDIとの音程照合: <span class="badge-ok">完全一致</span>
+ソロモンの鍵メインテーマの冒頭、半音階下降 → 上行解決のモチーフ。
+</pre>
+
+<h2>7. 編集可能性</h2>
+
+<table>
+<tr><th>改造内容</th><th>難易度</th><th>方法</th></tr>
+<tr><td class="desc">音程を変える（ドレミ変更）</td><td>★☆☆ 簡単</td><td>ノートバイトを書き換えるだけ。上位4bit=オクターブ、下位4bit=半音。</td></tr>
+<tr><td class="desc">テンポを変える</td><td>★☆☆ 簡単</td><td>デュレーションテーブル($F380)の値を変更。</td></tr>
+<tr><td class="desc">音色を変える</td><td>★★☆ 中</td><td>F0/F1/F8コマンドのパラメータ変更、またはエンベロープテーブル編集。</td></tr>
+<tr><td class="desc">曲の長さを変える</td><td>★★★ 難</td><td>パターン追加/削除はアドレスが変わるため、全ポインタ再計算が必要。</td></tr>
+<tr><td class="desc">完全に新しい曲に差替え</td><td>★★★ 難</td><td>曲データ領域(約2.6KB)に収まる範囲で新規作曲+バイト列生成。</td></tr>
+</table>
+
+<div class="warn">
+<b>注意:</b> 楽曲データ領域は約2,670バイトで26曲すべてが詰まっている。<br>
+曲を長くすると後続曲のアドレスがずれるため、単純な長さ変更は不可。<br>
+音程・テンポ・音色の変更は同一バイト数なので安全に改造可能。
+</div>
+
+</body>
+</html>

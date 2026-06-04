@@ -606,6 +606,14 @@ class MainWindow(QMainWindow):
         self.btn_pixel_editor.setEnabled(False)
         el.addWidget(self.btn_pixel_editor, 3, 1)
 
+        self.btn_sound_viewer = QPushButton("音楽データ表示")
+        self.btn_sound_viewer.setToolTip(
+            "ROM内サウンドデータをC/D/E表記のテキストで表示（読取専用）"
+        )
+        self.btn_sound_viewer.clicked.connect(self._on_show_sound_viewer)
+        self.btn_sound_viewer.setEnabled(False)
+        el.addWidget(self.btn_sound_viewer, 4, 0, 1, 2)
+
         left_layout.addWidget(edit_group)
 
         # レベル設定（編集UI - skchain移植）
@@ -1284,6 +1292,7 @@ class MainWindow(QMainWindow):
             self.btn_title_screen.setEnabled(edit_enabled)
             self.btn_sprite_viewer.setEnabled(edit_enabled)
             self.btn_pixel_editor.setEnabled(edit_enabled)
+            self.btn_sound_viewer.setEnabled(True)
             self.btn_test_play.setEnabled(edit_enabled)
             self.btn_test_play_right.setEnabled(edit_enabled)
             self.meta_group.setEnabled(edit_enabled)
@@ -4172,6 +4181,18 @@ class MainWindow(QMainWindow):
             self._generate_all_thumbnails()
             self.statusBar().showMessage("16x16ピクセル編集: CHRを書き換えました", 4000)
             self._log("16x16ピクセル編集: CHR書換")
+
+    def _on_show_sound_viewer(self):
+        """サウンドデータ表示 (読取専用)."""
+        if not self.rom:
+            return
+        from .sound_viewer import SoundViewer
+        try:
+            dlg = SoundViewer(self.rom, parent=self)
+        except Exception as e:
+            QMessageBox.critical(self, "音楽データ表示 不可", f"{type(e).__name__}: {e}")
+            return
+        dlg.exec_()
 
     def _on_show_sprite_viewer(self):
         """スプライトビューア (CHR-ROM 全タイル、編集画面へ接続可)"""
