@@ -2656,6 +2656,9 @@ class MainWindow(QMainWindow):
             return
         if self._reject_read_only_edit():
             return
+        if self._is_locked_col15_tile(tile):
+            self._show_col15_locked_message()
+            return
         lv = self.levels[self.current_level_no]
         self._move_pending = None  # リセット
 
@@ -2773,6 +2776,18 @@ class MainWindow(QMainWindow):
         lv = self.levels[self.current_level_no]
         mp = self._move_pending
         kind = mp["kind"]
+        selection_target = None
+        if kind == "selection":
+            clip = mp["clip"]
+            ox = tile[0] - mp["click_offset"][0]
+            oy = tile[1] - mp["click_offset"][1]
+            if self._clip_targets_locked_col15(clip, ox, oy):
+                self._show_col15_locked_message("16列目へは移動できません（「16列目を編集」をONにしてください）")
+                return
+            selection_target = (clip, ox, oy)
+        elif self._is_locked_col15_tile(tile):
+            self._show_col15_locked_message("16列目へは移動できません（「16列目を編集」をONにしてください）")
+            return
 
         if kind in ("item", "enemy"):
             mp["ref"].position = tile
@@ -2808,9 +2823,7 @@ class MainWindow(QMainWindow):
             mp["current_pos"] = tile
         elif kind == "selection":
             # ベース状態（削除後の状態）に復元してから新位置に貼り直す
-            clip = mp["clip"]
-            ox = tile[0] - mp["click_offset"][0]
-            oy = tile[1] - mp["click_offset"][1]
+            clip, ox, oy = selection_target
             self.levels[self.current_level_no] = copy.deepcopy(self._drag_base_level)
             self._paste_clipboard_at(clip, ox, oy)
             # 選択範囲も新位置に追従
@@ -2969,8 +2982,47 @@ class MainWindow(QMainWindow):
     def _is_col15_locked(self) -> bool:
         return hasattr(self, "chk_edit_col15") and not self.chk_edit_col15.isChecked()
 
+    def _is_locked_col15_tile(self, tile) -> bool:
+        return (
+            tile is not None
+            and len(tile) >= 1
+            and tile[0] == 15
+            and self._is_col15_locked()
+        )
+
+    def _show_col15_locked_message(self, message: str | None = None):
+        self.statusBar().showMessage(
+            message or "16列目は編集不可です（「16列目を編集」をONにしてください）",
+            2000,
+        )
+
     def _can_edit_tile_pos(self, x: int, y: int) -> bool:
         return 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H and not (x == 15 and self._is_col15_locked())
+
+    def _clip_targets_locked_col15(self, clip, ox: int, oy: int) -> bool:
+        """Return True if moving clip content would edit locked column 15."""
+        if clip is None or not self._is_col15_locked():
+            return False
+
+        def hits_locked_col15(rel_pos):
+            rx, ry = rel_pos
+            tx, ty = ox + rx, oy + ry
+            return 0 <= ty < c.LEVEL_H and tx == 15
+
+        for rel_pos in clip.get("blocks", {}):
+            if hits_locked_col15(rel_pos):
+                return True
+        for rel_cells in clip.get("runtime_markers", {}).values():
+            for rel_pos in rel_cells:
+                if hits_locked_col15(rel_pos):
+                    return True
+        for it_data in clip.get("items", []):
+            if hits_locked_col15(it_data["rel_pos"]):
+                return True
+        for en_data in clip.get("enemies", []):
+            if hits_locked_col15(en_data["rel_pos"]):
+                return True
+        return False
 
     def _normalize_selection_endpoints(self, start, end):
         if start is None or end is None:
