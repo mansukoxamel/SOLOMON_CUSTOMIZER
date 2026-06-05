@@ -1908,6 +1908,9 @@ class MainWindow(QMainWindow):
                     loaded_count += 1
             self._sync_mirror_panel()
             self._refresh_view()
+            if loaded_count > 0:
+                self._generate_all_thumbnails()
+                self._set_dirty(True)
             self._clear_undo_history()
             QMessageBox.information(
                 self, "完了",
