@@ -466,6 +466,14 @@ class MainWindow(QMainWindow):
         self._stage_scope_group.addButton(self.rb_stage_all)
         stage_scope_row.addWidget(self.rb_stage_current)
         stage_scope_row.addWidget(self.rb_stage_all)
+        self.chk_stage_png_secrets = QCheckBox("隠し表示")
+        self.chk_stage_png_secrets.setChecked(True)
+        self.chk_stage_png_secrets.setToolTip(
+            "ON: 制作者確認用として隠しアイテムや特殊ブロックを画像にも表示します。\n"
+            "OFF: 友人へ渡すプレイ用として隠し要素を画像から隠します。\n"
+            "PNG内のステージデータXMLはON/OFFに関係なく保持されます。"
+        )
+        stage_scope_row.addWidget(self.chk_stage_png_secrets)
         fl.addLayout(stage_scope_row)
 
         stage_btn_row = QHBoxLayout()
@@ -491,6 +499,16 @@ class MainWindow(QMainWindow):
         self.chk_hidden.setChecked(False)
         self.chk_hidden.toggled.connect(self._refresh_view)
         ol.addWidget(self.chk_hidden)
+        # 特殊処理マーカー表示 (Per-Room Special Process で動的配置されるマス)
+        self.chk_special_marks = QCheckBox("特殊処理マーカー表示")
+        self.chk_special_marks.setChecked(True)
+        self.chk_special_marks.setToolTip(
+            "ROMのハードコード特殊処理が動的に配置するマスを枠で表示。\n"
+            "緑=壊せるブロック / 水色=強制クリア\n"
+            "例: Stage 50 SOLOMON の (7,1) (12,7) (3,3) は壊せる隠しブロックとして配置される"
+        )
+        self.chk_special_marks.toggled.connect(self._refresh_view)
+        ol.addWidget(self.chk_special_marks)
         self.chk_object_labels = QCheckBox("キャンバス上のオブジェクト名表示")
         self.chk_object_labels.setToolTip(
             "ONにすると、キャンバス上の鍵・扉・アイテム・敵・ミラーなどに"
@@ -507,17 +525,6 @@ class MainWindow(QMainWindow):
         self.chk_stage_selector.toggled.connect(self._on_stage_selector_toggled)
         ol.addWidget(self.chk_stage_selector)
         # 16列目（右端）の表示・編集
-        # 特殊処理マーカー表示 (Per-Room Special Process で動的配置されるマス)
-        self.chk_special_marks = QCheckBox("特殊処理マーカー表示")
-        self.chk_special_marks.setChecked(True)
-        self.chk_special_marks.setToolTip(
-            "ROMのハードコード特殊処理が動的に配置するマスを枠で表示。\n"
-            "緑=壊せるブロック / 水色=強制クリア\n"
-            "例: Stage 50 SOLOMON の (7,1) (12,7) (3,3) は壊せる隠しブロックとして配置される"
-        )
-        self.chk_special_marks.toggled.connect(self._refresh_view)
-        ol.addWidget(self.chk_special_marks)
-
         self.chk_edit_col15 = QCheckBox("16列目を編集")
         self.chk_edit_col15.setChecked(False)
         self.chk_edit_col15.setToolTip(
@@ -1738,7 +1745,12 @@ class MainWindow(QMainWindow):
             level,
             level_no=self.current_level_no,
             show_grid=self.show_grid,
-            show_hidden_overlay=self.chk_hidden.isChecked(),
+            show_hidden_overlay=(
+                self.chk_hidden.isChecked()
+                and self.chk_stage_png_secrets.isChecked()
+            ),
+            show_secret_elements=self.chk_stage_png_secrets.isChecked(),
+            special_marks=self._get_special_marks(self.current_level_no),
             show_border=True,
             bonus_items=self._get_bonus_items(),
         )
@@ -1758,7 +1770,12 @@ class MainWindow(QMainWindow):
                 level,
                 level_no=i,
                 show_grid=self.show_grid,
-                show_hidden_overlay=self.chk_hidden.isChecked(),
+                show_hidden_overlay=(
+                    self.chk_hidden.isChecked()
+                    and self.chk_stage_png_secrets.isChecked()
+                ),
+                show_secret_elements=self.chk_stage_png_secrets.isChecked(),
+                special_marks=self._get_special_marks(i),
                 show_border=True,
                 bonus_items=bonus,
             )
@@ -2251,17 +2268,18 @@ class MainWindow(QMainWindow):
         # ミラー敵セットパネル更新
         self._sync_mirror_panel()
 
-    def _get_special_marks(self):
+    def _get_special_marks(self, level_no=None):
         """特殊処理マーカーを抽出して返す（チェックOFFや未対応リージョンなら None）"""
         if not getattr(self, "chk_special_marks", None) or not self.chk_special_marks.isChecked():
             return None
         if not self.rom:
             return None
+        target_level_no = self.current_level_no if level_no is None else level_no
         try:
             from ..core import special_process as sp
             region = self.rom.base_region()
             return sp.find_marks_for_level(
-                bytes(self.rom.data), region, self.current_level_no
+                bytes(self.rom.data), region, target_level_no
             )
         except Exception:
             return None

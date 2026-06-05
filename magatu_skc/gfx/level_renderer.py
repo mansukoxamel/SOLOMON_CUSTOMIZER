@@ -3,6 +3,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QImage, QPainter, QPen, QColor, QBrush, QPolygon
 
 from ..core import constants as c
+from ..core import room_flags
 from ..core.element import Wall, ElementType
 from ..core.level import Level
 from .tile_renderer import TileRenderer
@@ -154,7 +155,8 @@ class LevelRenderer:
                selection_rect: tuple = None,
                special_marks: dict = None,
                show_border: bool = False,
-               bonus_items: list = None) -> QImage:
+               bonus_items: list = None,
+               show_secret_elements: bool = True) -> QImage:
         """show_col15=False のとき、左に1列分の黒パディングを追加して
         左右対称な見た目にする (ホバー/クリック座標は LevelView 側で自動補正)
 
@@ -217,7 +219,7 @@ class LevelRenderer:
 
             # Editor-only marker: white-looking blocks that become normal breakable stone.
             bw_cells = getattr(level, "breakable_white_cells", set())
-            if bw_cells:
+            if show_secret_elements and bw_cells:
                 pen = QPen(QColor(80, 230, 90, 255))
                 pen.setWidth(3)
                 painter.setPen(pen)
@@ -227,7 +229,7 @@ class LevelRenderer:
                         painter.drawRect(x * tw + 1, y * tw + 1, tw - 3, tw - 3)
 
             ib_cells = getattr(level, "invisible_breakable_cells", set())
-            if ib_cells:
+            if show_secret_elements and ib_cells:
                 pen = QPen(QColor(255, 220, 40, 255))
                 pen.setWidth(3)
                 painter.setPen(pen)
@@ -237,7 +239,7 @@ class LevelRenderer:
                         painter.drawRect(x * tw + 4, y * tw + 4, tw - 9, tw - 9)
 
             pw_cells = getattr(level, "passable_white_cells", set())
-            if pw_cells:
+            if show_secret_elements and pw_cells:
                 pen = QPen(QColor(80, 190, 255, 255))
                 pen.setWidth(3)
                 painter.setPen(pen)
@@ -248,7 +250,7 @@ class LevelRenderer:
                         painter.drawLine(x * tw + tw - 4, y * tw + 3, x * tw + 3, y * tw + tw - 4)
 
             pb_cells = getattr(level, "passable_brown_cells", set())
-            if pb_cells:
+            if show_secret_elements and pb_cells:
                 pen = QPen(QColor(80, 190, 255, 255))
                 pen.setWidth(3)
                 painter.setPen(pen)
@@ -259,7 +261,7 @@ class LevelRenderer:
                         painter.drawLine(x * tw + tw - 4, y * tw + 3, x * tw + 3, y * tw + tw - 4)
 
             sb_cells = getattr(level, "solid_brown_cells", set())
-            if sb_cells:
+            if show_secret_elements and sb_cells:
                 pen = QPen(QColor(255, 120, 220, 255))
                 pen.setWidth(3)
                 painter.setPen(pen)
@@ -269,7 +271,7 @@ class LevelRenderer:
                         painter.drawEllipse(x * tw + 4, y * tw + 4, tw - 9, tw - 9)
 
             is_cells = getattr(level, "invisible_solid_cells", set())
-            if is_cells:
+            if show_secret_elements and is_cells:
                 pen = QPen(QColor(255, 120, 220, 255))
                 pen.setWidth(3)
                 painter.setPen(pen)
@@ -280,12 +282,16 @@ class LevelRenderer:
 
             # 4. ドア（tile_defの transparent 属性を尊重 - Noneで自動判定）
             if not level.is_door_removed():
-                door_anim = self.get_metadata_animation(MD_DOOR)
-                door_img = self.tr.get_tile_image(
-                    door_anim, ts_no, transparent=None, bg_main_color=wall_color)
-                dx, dy = level.fixed_door_pos
-                if 0 <= dx < c.LEVEL_W and 0 <= dy < c.LEVEL_H:
-                    painter.drawImage(dx * tw, dy * tw, door_img)
+                door_is_hidden = bool(
+                    getattr(level, "room_flags", 0) & room_flags.BIT_HIDDEN_DOOR
+                )
+                if show_secret_elements or not door_is_hidden:
+                    door_anim = self.get_metadata_animation(MD_DOOR)
+                    door_img = self.tr.get_tile_image(
+                        door_anim, ts_no, transparent=None, bg_main_color=wall_color)
+                    dx, dy = level.fixed_door_pos
+                    if 0 <= dx < c.LEVEL_W and 0 <= dy < c.LEVEL_H:
+                        painter.drawImage(dx * tw, dy * tw, door_img)
 
             # 5. 鍵
             if not level.is_key_removed():
@@ -296,15 +302,18 @@ class LevelRenderer:
                 if 0 <= kx < c.LEVEL_W and 0 <= ky < c.LEVEL_H:
                     if level.is_key_in_block():
                         # ブロック内: アイテム → 半透明ブロックの順
-                        painter.drawImage(kx * tw, ky * tw, key_img)
-                        painter.setOpacity(0.5)
                         painter.drawImage(kx * tw, ky * tw, brown_img)
-                        painter.setOpacity(1.0)
+                        if show_secret_elements:
+                            painter.drawImage(kx * tw, ky * tw, key_img)
+                            painter.setOpacity(0.5)
+                            painter.drawImage(kx * tw, ky * tw, brown_img)
+                            painter.setOpacity(1.0)
                     elif level.is_key_hidden():
                         # 隠し: 半透明アイテム
-                        painter.setOpacity(0.5)
-                        painter.drawImage(kx * tw, ky * tw, key_img)
-                        painter.setOpacity(1.0)
+                        if show_secret_elements:
+                            painter.setOpacity(0.5)
+                            painter.drawImage(kx * tw, ky * tw, key_img)
+                            painter.setOpacity(1.0)
                     else:
                         painter.drawImage(kx * tw, ky * tw, key_img)
 
@@ -322,10 +331,11 @@ class LevelRenderer:
                     anim, ts_no, transparent=None, bg_main_color=wall_color)
                 painter.drawImage(mx * tw, my * tw, m_img)
                 # ミラー識別: 1=赤枠, 2=青枠
-                border_color = QColor(255, 60, 60) if mi == 0 else QColor(60, 120, 255)
-                painter.setPen(QPen(border_color, 1))
-                painter.setBrush(Qt.NoBrush)
-                painter.drawRect(mx * tw, my * tw, tw - 1, tw - 1)
+                if show_secret_elements:
+                    border_color = QColor(255, 60, 60) if mi == 0 else QColor(60, 120, 255)
+                    painter.setPen(QPen(border_color, 1))
+                    painter.setBrush(Qt.NoBrush)
+                    painter.drawRect(mx * tw, my * tw, tw - 1, tw - 1)
 
             # 7. アイテム
             for item in level.items:
@@ -339,15 +349,18 @@ class LevelRenderer:
                 if item.is_in_block():
                     # ブロック内: アイテムを下に描画 → 半透明ブロックを上に重ねて
                     # 「ブロック越しにアイテムが透けて見える」表現
-                    painter.drawImage(ix * tw, iy * tw, item_img)
-                    painter.setOpacity(0.5)
                     painter.drawImage(ix * tw, iy * tw, brown_img)
-                    painter.setOpacity(1.0)
+                    if show_secret_elements:
+                        painter.drawImage(ix * tw, iy * tw, item_img)
+                        painter.setOpacity(0.5)
+                        painter.drawImage(ix * tw, iy * tw, brown_img)
+                        painter.setOpacity(1.0)
                 elif item.is_hidden():
                     # 隠し（ブロック無し）: アイテムを半透明で描画
-                    painter.setOpacity(0.4)
-                    painter.drawImage(ix * tw, iy * tw, item_img)
-                    painter.setOpacity(1.0)
+                    if show_secret_elements:
+                        painter.setOpacity(0.4)
+                        painter.drawImage(ix * tw, iy * tw, item_img)
+                        painter.setOpacity(1.0)
                 else:
                     painter.drawImage(ix * tw, iy * tw, item_img)
 
@@ -410,14 +423,17 @@ class LevelRenderer:
                 in_block = wall_at == Wall.BROWN
 
                 if in_block:
-                    painter.drawImage(mx * tw, my * tw, meta_img)
-                    painter.setOpacity(0.5)
                     painter.drawImage(mx * tw, my * tw, brown_img)
-                    painter.setOpacity(1.0)
+                    if show_secret_elements:
+                        painter.drawImage(mx * tw, my * tw, meta_img)
+                        painter.setOpacity(0.5)
+                        painter.drawImage(mx * tw, my * tw, brown_img)
+                        painter.setOpacity(1.0)
                 elif mi.transparent:
-                    painter.setOpacity(0.4)
-                    painter.drawImage(mx * tw, my * tw, meta_img)
-                    painter.setOpacity(1.0)
+                    if show_secret_elements:
+                        painter.setOpacity(0.4)
+                        painter.drawImage(mx * tw, my * tw, meta_img)
+                        painter.setOpacity(1.0)
                 else:
                     painter.drawImage(mx * tw, my * tw, meta_img)
 
@@ -481,7 +497,7 @@ class LevelRenderer:
                     painter.drawLine(0, y * tw, img_w, y * tw)
 
             # 11. 特殊処理マーカー (Per-Room Special Process で動的配置されるマス)
-            if special_marks:
+            if show_secret_elements and special_marks:
                 mark_colors = {
                     "breakable":             QColor(80, 230, 90, 255),    # 緑実線: 即壊せる
                     "breakable_conditional": QColor(80, 230, 90, 255),    # 緑点線: 条件付き
