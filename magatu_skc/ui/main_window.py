@@ -2298,7 +2298,7 @@ class MainWindow(QMainWindow):
                 # 一時ファイルへ書き出し
                 tmpdir = Path(tempfile.gettempdir()) / "magatu_skc_testplay"
                 tmpdir.mkdir(parents=True, exist_ok=True)
-                tmp_rom = tmpdir / "testplay.nes"
+                tmp_rom = tmpdir / f"testplay_stage{stage_no:02d}.nes"
                 saver.write_rom_file(self.rom, str(tmp_rom))
             finally:
                 # rom.data を編集前に戻す（テストプレイ用の改変を残さない）
