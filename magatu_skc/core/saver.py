@@ -230,7 +230,7 @@ def save_levels_to_rom(rom: Rom, levels: list):
         room_flags, saramandor_variant, panel_monster_variant,
         panel_monster_stage_variant, spark_ball_variant, gargoyle_variant,
         stage_ext, key_enemy_runtime, stage_announcement, title_screen,
-        drop_pickup_guard,
+        drop_pickup_guard, special_process,
     )
     from .element import byte_from_position
     # IMPORTANT: this apply order is part of the ROM layout contract.
@@ -289,6 +289,12 @@ def save_levels_to_rom(rom: Rom, levels: list):
         _run_save_step("Panel Variant runtime検証/適用", panel_monster_stage_variant.apply, rom.data, levels)
     if rom.is_expanded():
         from . import rom_metadata
+        _run_save_step(
+            "原作item bitmap特殊処理無効化",
+            special_process.disable_imported_item_bitmask_processes,
+            rom.data,
+            rom.base_region(),
+        )
         _run_save_step("Customizer metadata書き込み", rom_metadata.write_metadata, rom.data)
 
 

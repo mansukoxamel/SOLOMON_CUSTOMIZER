@@ -142,6 +142,44 @@ def get_special_process_bytes(rom_data: bytes, region: str, level_no: int):
     return addr, bytes(rom_data[addr:addr + length])
 
 
+ITEM_BITMASK_SP2_SIGNATURES = {
+    ("JP", 19): bytes.fromhex("20 9e bb a9 b2 85 00 a9 bb 85 01 a9 04 20 ce 99"),
+    ("JP", 29): bytes.fromhex("20 9e bb a9 ca 85 00 a9 bb 85 01 a9 27 20 ce 99"),
+    ("US", 19): bytes.fromhex("20 ce bf a9 e2 85 00 a9 bf 85 01 a9 04 20 ce 99"),
+    ("US", 29): bytes.fromhex("20 ce bf a9 fa 85 00 a9 bf 85 01 a9 27 20 ce 99"),
+}
+
+
+def disable_imported_item_bitmask_processes(rom_data: bytearray, region: str) -> list[str]:
+    """Disable original SP2 bitmap item placement after importing it as level data.
+
+    Level 20 Bat Symbol and Level 30 Blue Opal are imported into editable stage
+    data on raw-ROM load. In mapper66 saves the original bitmap routine must not
+    run again, especially because later code caves can occupy the old bitmap
+    byte range.
+    """
+    changed = []
+    for level_no in (19, 29):
+        sig = ITEM_BITMASK_SP2_SIGNATURES.get((region, level_no))
+        if sig is None:
+            continue
+        addr = get_special_process_address(rom_data, region, level_no)
+        if addr < 0:
+            continue
+        cur = bytes(rom_data[addr:addr + len(sig)])
+        nops = bytes([0xEA] * len(sig))
+        if cur == nops:
+            continue
+        if cur != sig:
+            raise ValueError(
+                f"Level {level_no + 1} item bitmap special process signature mismatch "
+                f"at 0x{addr:04X}: got {cur.hex(' ')}"
+            )
+        rom_data[addr:addr + len(sig)] = nops
+        changed.append(f"Stage {level_no + 1}")
+    return changed
+
+
 # ---- 既知のサブルーチン呼び出しパターン (注釈用) ----
 # (region, ROMオフセット差) を考慮するために RAM アドレスベースで持つ
 # RAM addr → 説明

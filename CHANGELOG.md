@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.76 (2026-06-06) item bitmap特殊処理の再実行を抑止
+- 原作ROMから取り込んだ Stage 20 Bat Symbol / Stage 30 Blue Opal のbitmap配置特殊処理を、mapper66保存時に無効化するようにした。
+- Stage 30で旧bitmap領域末尾がRoom Flag loader code caveと重なり、テストプレイ時に最下段へ余計なOpalが出る問題を修正した。
+- ROM管理簿と解析資料に、Stage 30 Blue Opal bitmap と Room Flag loader code cave の重なり、および保存時の無効化条件を追記した。
+
 ## v0.8.75 (2026-06-06) 特殊処理系移動のUndo/Redoを修正
 - Undo/Redo履歴にROM直値のスナップショットも含め、条件付き壊せる白ブロック、Mighty Bomb Jack、Tecmo Bunny などの特殊処理系マーカー移動を元に戻せるようにした。
 - Undo/Redo復元時にROMオフセット付きメタアイテム位置をROMから再同期し、Solomon's Seal、Page、Tecmo Bunny などの表示位置が履歴復元後も一致するようにした。
