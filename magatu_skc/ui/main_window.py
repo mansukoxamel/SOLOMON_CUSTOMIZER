@@ -1081,6 +1081,28 @@ class MainWindow(QMainWindow):
                 imported += 1
         return imported
 
+    def _import_original_jp_stage52_53_breakable_white(self, source_data: bytes, levels,
+                                                       allow_mutation: bool = True):
+        """Stage 52/53 の無条件特殊処理ブロックを編集用ステージデータへ取り込む。"""
+        if not allow_mutation or not is_known_jp_original_data(source_data):
+            return 0
+        if not levels or len(levels) <= 52:
+            return 0
+        imported = 0
+        positions = ((6, 3), (7, 3), (8, 3), (7, 8))
+        for level_no in (51, 52):
+            level = levels[level_no]
+            for pos in positions:
+                x, y = pos
+                if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+                    continue
+                if level.tiles[y][x] != Wall.WHITE:
+                    continue
+                if pos not in level.breakable_white_cells:
+                    level.breakable_white_cells.add(pos)
+                    imported += 1
+        return imported
+
     def _patch_stage50_breakable_white_hardcode(self, source_data: bytes, rom) -> int:
         """Stage 50 の無条件 $90 書き込み3箇所を止める。"""
         if rom is None or not is_known_jp_original_data(source_data):
@@ -1095,6 +1117,26 @@ class MainWindow(QMainWindow):
             return 0
         rom.data[off:off + len(expected)] = disabled
         return 3
+
+    def _patch_stage52_53_breakable_white_hardcode(self, source_data: bytes, rom) -> int:
+        """Stage 52/53 の共有ルーチンにある無条件 $90 書き込み4箇所を止める。"""
+        if rom is None or not is_known_jp_original_data(source_data):
+            return 0
+        patches = (
+            (0x35E8, bytes.fromhex("8d9b03"), 1),
+            (0x360D, bytes.fromhex("9d4a03"), 3),
+        )
+        disabled_count = 0
+        for off, expected, count in patches:
+            disabled = bytes([0xEA] * len(expected))
+            current = bytes(rom.data[off:off + len(expected)])
+            if current == disabled:
+                continue
+            if current != expected:
+                continue
+            rom.data[off:off + len(expected)] = disabled
+            disabled_count += count
+        return disabled_count
 
     def _get_bonus_items(self):
         """現在のレベルがボーナスステージ(index 50)ならボーナスアイテムを返す"""
@@ -1238,6 +1280,7 @@ class MainWindow(QMainWindow):
             # ボーナスステージテーブル読み込み（拡張前のアドレスで読む必要がある）
             self._load_bonus_stage_table(rom, allow_mutation=False)
             imported_stage50_breakable = 0
+            imported_stage52_53_breakable = 0
             if not read_only_mode:
                 imported_stage50_breakable = self._import_original_jp_stage50_breakable_white(
                     loaded_rom_data, levels, allow_mutation=True
@@ -1245,6 +1288,13 @@ class MainWindow(QMainWindow):
                 if imported_stage50_breakable:
                     self._log(
                         "JP版特殊処理補正: Stage 50 の無条件壊せる白ブロック3箇所をステージデータへ取り込み"
+                    )
+                imported_stage52_53_breakable = self._import_original_jp_stage52_53_breakable_white(
+                    loaded_rom_data, levels, allow_mutation=True
+                )
+                if imported_stage52_53_breakable:
+                    self._log(
+                        "JP版特殊処理補正: Stage 52/53 の無条件壊せる白ブロック各4箇所をステージデータへ取り込み"
                     )
                 fixed_enemy_count = self._normalize_original_jp_enemy_data(
                     rom, levels, allow_mutation=True
@@ -1269,6 +1319,14 @@ class MainWindow(QMainWindow):
                     if disabled_count:
                         self._log(
                             "JP版特殊処理補正: Stage 50 の無条件壊せる白ブロック生成コードを無効化"
+                        )
+                if imported_stage52_53_breakable:
+                    disabled_count = self._patch_stage52_53_breakable_white_hardcode(
+                        loaded_rom_data, rom
+                    )
+                    if disabled_count:
+                        self._log(
+                            "JP版特殊処理補正: Stage 52/53 の無条件壊せる白ブロック生成コードを無効化"
                         )
 
             # JP ROM is normalized to the internal wide-title format after
