@@ -1230,6 +1230,84 @@ class MainWindow(QMainWindow):
         self._set_dirty(True)
         return True
 
+    def _stage52_53_conditional_breakable_positions(self):
+        """Stage 52/53 共有の条件付き壊せる白ブロック座標をROMから読む。"""
+        if self.rom is None or len(self.rom.data) <= 0x3609:
+            return None
+        data = self.rom.data
+        if bytes(data[0x3601:0x3604]) != bytes.fromhex("a67ee0"):
+            return None
+        if bytes(data[0x3605:0x3607]) != bytes.fromhex("d0e4"):
+            return None
+        if data[0x3607] != 0x8D or data[0x3609] != 0x03:
+            return None
+        from ..core.element import position_from_byte
+        trigger = position_from_byte(data[0x3604])
+        target_byte = (data[0x3608] - 0x04) & 0xFF
+        target = position_from_byte(target_byte)
+        for pos in (trigger, target):
+            x, y = pos
+            if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+                return None
+        return {"trigger": trigger, "target": target}
+
+    def _stage52_53_conditional_breakable_marker_at(self, tile):
+        if self.current_level_no not in (51, 52):
+            return None
+        if not getattr(self, "chk_special_marks", None) or not self.chk_special_marks.isChecked():
+            return None
+        positions = self._stage52_53_conditional_breakable_positions()
+        if not positions:
+            return None
+        if tile == positions["trigger"]:
+            return "trigger"
+        if tile == positions["target"]:
+            return "target"
+        return None
+
+    def _move_stage52_53_conditional_breakable_marker(self, marker_kind: str, tile):
+        if self.rom is None:
+            return False
+        positions = self._stage52_53_conditional_breakable_positions()
+        if not positions or marker_kind not in ("trigger", "target"):
+            return False
+        from ..core.element import byte_from_position
+        pos_byte = byte_from_position(tile)
+        if marker_kind == "trigger":
+            self.rom.data[0x3604] = pos_byte
+        else:
+            self.rom.data[0x3608] = (pos_byte + 0x04) & 0xFF
+        self._set_dirty(True)
+        return True
+
+    def _conditional_breakable_marker_at(self, tile):
+        stage50_marker = self._stage50_conditional_breakable_marker_at(tile)
+        if stage50_marker is not None:
+            return {"group": "stage50", "sub": stage50_marker}
+        stage52_53_marker = self._stage52_53_conditional_breakable_marker_at(tile)
+        if stage52_53_marker is not None:
+            return {"group": "stage52_53", "sub": stage52_53_marker}
+        return None
+
+    def _move_conditional_breakable_marker(self, group: str, marker_kind: str, tile):
+        if group == "stage50":
+            return self._move_stage50_conditional_breakable_marker(marker_kind, tile)
+        if group == "stage52_53":
+            return self._move_stage52_53_conditional_breakable_marker(marker_kind, tile)
+        return False
+
+    def _conditional_breakable_positions(self, group: str):
+        if group == "stage50":
+            return self._stage50_conditional_breakable_positions()
+        if group == "stage52_53":
+            return self._stage52_53_conditional_breakable_positions()
+        return None
+
+    def _conditional_breakable_group_label(self, group: str):
+        if group == "stage52_53":
+            return "Stage 52/53"
+        return "Stage 50"
+
     def _get_bonus_items(self):
         """現在のレベルがボーナスステージ(index 50)ならボーナスアイテムを返す"""
         if self.current_level_no == 50 and getattr(self, "_bonus_items", None):
@@ -3054,16 +3132,18 @@ class MainWindow(QMainWindow):
                         f"ボーナススポット[{bi}] を掴み中 → ドラッグで移動", 0)
                     return
 
-        special_marker = self._stage50_conditional_breakable_marker_at(tile)
+        special_marker = self._conditional_breakable_marker_at(tile)
         if special_marker is not None:
             self._push_undo()
             self._move_pending = {
-                "kind": "stage50_cond_breakable",
-                "sub": special_marker,
+                "kind": "conditional_breakable",
+                "group": special_marker["group"],
+                "sub": special_marker["sub"],
             }
-            label = "トリガー" if special_marker == "trigger" else "出現先"
+            group_label = self._conditional_breakable_group_label(special_marker["group"])
+            label = "トリガー" if special_marker["sub"] == "trigger" else "出現先"
             self.statusBar().showMessage(
-                f"Stage 50 条件付き壊せる白ブロック[{label}]を掴み中 → ドラッグで移動", 0
+                f"{group_label} 条件付き壊せる白ブロック[{label}]を掴み中 → ドラッグで移動", 0
             )
             self._refresh_view()
             return
@@ -3181,8 +3261,8 @@ class MainWindow(QMainWindow):
             self._bonus_positions[bi] = tile
             # _bonus_items も再構築（レンダラー用）
             self._rebuild_bonus_items_from_positions()
-        elif kind == "stage50_cond_breakable":
-            self._move_stage50_conditional_breakable_marker(mp["sub"], tile)
+        elif kind == "conditional_breakable":
+            self._move_conditional_breakable_marker(mp["group"], mp["sub"], tile)
         elif kind == "block":
             # 通り過ぎたタイルの「元の壁」を復元してから新位置にブロック配置
             cx, cy = mp["current_pos"]
@@ -3232,13 +3312,15 @@ class MainWindow(QMainWindow):
                     self.rom.data[mi.rom_offset] = byte_from_position(mi.position)
                 self.statusBar().showMessage(
                     f"{mi.description} 移動完了 → {mi.position}", 2000)
-            elif kind == "stage50_cond_breakable":
+            elif kind == "conditional_breakable":
+                group = self._move_pending.get("group")
                 sub = self._move_pending.get("sub")
-                positions = self._stage50_conditional_breakable_positions() or {}
+                positions = self._conditional_breakable_positions(group) or {}
                 pos = positions.get(sub)
+                group_label = self._conditional_breakable_group_label(group)
                 label = "トリガー" if sub == "trigger" else "出現先"
                 self.statusBar().showMessage(
-                    f"Stage 50 条件付き壊せる白ブロック[{label}]移動完了 → {pos}", 2000
+                    f"{group_label} 条件付き壊せる白ブロック[{label}]移動完了 → {pos}", 2000
                 )
             else:
                 self.statusBar().showMessage("移動完了", 2000)
