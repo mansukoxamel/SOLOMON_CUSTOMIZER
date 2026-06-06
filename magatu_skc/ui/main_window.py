@@ -5071,6 +5071,72 @@ class MainWindow(QMainWindow):
                 )
                 return
 
+            if not lv.is_door_removed() and lv.fixed_door_pos == self._hover_tile:
+                if self._reject_read_only_edit():
+                    return
+                if flag == 0x80:
+                    self.statusBar().showMessage(
+                        "扉はブロック内状態に変更できません", 1500
+                    )
+                    return
+                from ..core import room_flags as _rf
+                hidden = bool(lv.room_flags & _rf.BIT_HIDDEN_DOOR)
+                new_hidden = (flag == 0x40)
+                if hidden == new_hidden:
+                    state = "隠し" if hidden else "通常"
+                    self.statusBar().showMessage(
+                        f"ホバー位置の扉状態: {state}", 1500
+                    )
+                    return
+                self._push_undo()
+                if new_hidden:
+                    lv.room_flags |= _rf.BIT_HIDDEN_DOOR
+                else:
+                    lv.room_flags &= ~_rf.BIT_HIDDEN_DOOR
+                self._meta_loading = True
+                try:
+                    self.chk_hidden_door.setChecked(new_hidden)
+                finally:
+                    self._meta_loading = False
+                self._refresh_view()
+                self._refresh_thumbnails_after_edit()
+                self._set_dirty(True)
+                self._update_hover_info(self._hover_tile)
+                self._update_info()
+                self.statusBar().showMessage(
+                    f"ホバー位置の扉状態を{label}に変更", 1500
+                )
+                return
+
+            if flag == 0x40 and any(
+                mirror.position == self._hover_tile for mirror in lv.demon_mirrors
+            ):
+                if self._reject_read_only_edit():
+                    return
+                item_no = 0x48
+                idx = lv.get_item_index(self._hover_tile)
+                if idx >= 0:
+                    if lv.items[idx].element_no == item_no:
+                        self.statusBar().showMessage(
+                            "デーモンミラー上の隠しアイテムは設定済みです", 1500
+                        )
+                        return
+                    self._push_undo()
+                    lv.items[idx].element_no = item_no
+                    action = "変更"
+                else:
+                    self._push_undo()
+                    lv.items.append(LevelElement(ElementType.ITEM, self._hover_tile, item_no))
+                    action = "追加"
+                self._refresh_view()
+                self._refresh_thumbnails_after_edit()
+                self._set_dirty(True)
+                self._update_hover_info(self._hover_tile)
+                self.statusBar().showMessage(
+                    f"デーモンミラー上に隠しアイテム 0x48 を{action}", 1500
+                )
+                return
+
             idx = lv.get_item_index(self._hover_tile)
             if idx >= 0:
                 if self._reject_read_only_edit():
@@ -5108,7 +5174,7 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(msg, 1500)
                 return
         self.statusBar().showMessage(
-            "ホバー位置に状態変更できるアイテム/鍵がありません", 1500
+            "ホバー位置に状態変更できるアイテム/鍵/扉がありません", 1500
         )
 
     def _quick_place_at_hover(self, n: int):
@@ -6224,8 +6290,8 @@ Alt+左クリック: スポイト（そのマスの要素をピッカーに取�
 Delete / Backspace: ホバー位置を削除<br>
 <br>
 <b>アイテムフラグ</b><br>
-N: ホバー位置のアイテム/鍵を通常に変更<br>
-H: ホバー位置のアイテム/鍵を隠しに変更<br>
+N: ホバー位置のアイテム/鍵/扉を通常に変更<br>
+H: ホバー位置のアイテム/鍵/扉を隠しに変更（デーモンミラー上では隠しアイテム0x48を配置）<br>
 B: ホバー位置のアイテム/鍵をブロック内に変更<br>
 <br>
 <b>範囲編集</b><br>
