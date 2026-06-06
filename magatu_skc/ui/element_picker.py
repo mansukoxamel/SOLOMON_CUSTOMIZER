@@ -1127,7 +1127,10 @@ class ElementPicker(QWidget):
             value = float(size)
         except Exception:
             value = ICON_SIZE
-        self._marker_source_tile_size = max(float(ICON_SIZE), value)
+        new_size = max(float(ICON_SIZE), value)
+        if abs(self._marker_source_tile_size - new_size) < 0.01:
+            return
+        self._marker_source_tile_size = new_size
         if self.tile_renderer is not None and self.config is not None:
             self._populate_all()
 
@@ -1315,43 +1318,71 @@ class ElementPicker(QWidget):
         UserRole に (mode, value) のタプルを格納する。
         カテゴリ: [0]ブロック  [1]キャラ  [2]アイテム  [3]モンスター
         """
+        restore_data = (self.current_mode, self.current_value)
+        blocked_lists = []
         for lst in self._picker_lists:
+            was_blocked = lst.blockSignals(True)
+            blocked_lists.append((lst, was_blocked))
             lst.clear()
 
-        # カテゴリ0: ブロック
-        for val in self._block_order:
-            label = BLOCK_PICKER_LABELS.get(val, str(val))
-            self._add_picker_item(0, MODE_BLOCK, val, label, self._make_block_icon(val))
+        try:
+            # カテゴリ0: ブロック
+            for val in self._block_order:
+                label = BLOCK_PICKER_LABELS.get(val, str(val))
+                self._add_picker_item(0, MODE_BLOCK, val, label, self._make_block_icon(val))
 
-        # カテゴリ1: キャラ（プレイヤー / 鍵 / 扉 / ミラー）
-        for label, val in [
-            ("プレイヤースタート", "start"),
-            ("鍵", "key"),
-            ("扉", "door"),
-            ("ミラー1 (Spawn1)", "mirror1"),
-            ("ミラー2 (Spawn2)", "mirror2"),
-        ]:
-            self._add_picker_item(1, MODE_META, val, label, self._make_meta_icon(val))
+            # カテゴリ1: キャラ（プレイヤー / 鍵 / 扉 / ミラー）
+            for label, val in [
+                ("プレイヤースタート", "start"),
+                ("鍵", "key"),
+                ("扉", "door"),
+                ("ミラー1 (Spawn1)", "mirror1"),
+                ("ミラー2 (Spawn2)", "mirror2"),
+            ]:
+                self._add_picker_item(1, MODE_META, val, label, self._make_meta_icon(val))
 
-        # カテゴリ2: アイテム (名前は item_desc 単一ソースから解決)
-        for code in ITEMS_LIST:
-            label = f"0x{code:02x} {item_name(code, self.config)}"
-            self._add_picker_item(2, MODE_ITEM, code, label, self._make_item_icon(code))
+            # カテゴリ2: アイテム (名前は item_desc 単一ソースから解決)
+            for code in ITEMS_LIST:
+                label = f"0x{code:02x} {item_name(code, self.config)}"
+                self._add_picker_item(2, MODE_ITEM, code, label, self._make_item_icon(code))
 
-        # カテゴリ3: モンスター
-        for code, name in ENEMIES_LIST:
-            label = f"0x{code:02x} {name}"
-            self._add_picker_item(3, MODE_ENEMY, code, label, self._make_enemy_icon(code))
+            # カテゴリ3: モンスター
+            for code, name in ENEMIES_LIST:
+                label = f"0x{code:02x} {name}"
+                self._add_picker_item(3, MODE_ENEMY, code, label, self._make_enemy_icon(code))
 
-        # 各リストの高さをコンテンツに合わせる
-        for lst in self._picker_lists:
-            self._adjust_list_height(lst)
+            # 各リストの高さをコンテンツに合わせる
+            for lst in self._picker_lists:
+                self._adjust_list_height(lst)
 
-        # 茶色ブロック (index 1) を初期選択
-        default_row = self._block_order.index(BLOCK_BROWN) if BLOCK_BROWN in self._block_order else 0
-        self._picker_lists[0].setCurrentRow(default_row)
+            if not self._select_data_silently(restore_data):
+                default_row = (
+                    self._block_order.index(BLOCK_BROWN)
+                    if BLOCK_BROWN in self._block_order else 0
+                )
+                self._picker_lists[0].setCurrentRow(default_row)
+                self.current_mode = MODE_BLOCK
+                self.current_value = BLOCK_BROWN
+        finally:
+            for lst, was_blocked in blocked_lists:
+                lst.blockSignals(was_blocked)
         # お気に入りアイコンを最新パレットで再構築
         self._refresh_favorite_icons()
+
+    def _select_data_silently(self, data) -> bool:
+        """再描画後に現在選択中の項目を復元する。selection_changed は出さない。"""
+        if not isinstance(data, tuple) or len(data) != 2:
+            return False
+        target_mode, target_value = data
+        for lst in self._picker_lists:
+            for i in range(lst.count()):
+                it = lst.item(i)
+                if it.data(Qt.UserRole) == (target_mode, target_value):
+                    lst.setCurrentRow(i)
+                    self.current_mode = target_mode
+                    self.current_value = target_value
+                    return True
+        return False
 
     def set_block_order(self, order):
         """ブロックピッカー順を復元する。未知値/欠落は既定順で補完する。"""
