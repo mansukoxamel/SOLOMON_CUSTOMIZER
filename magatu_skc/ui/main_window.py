@@ -3009,15 +3009,6 @@ class MainWindow(QMainWindow):
             )
         except Exception:
             marks = {}
-        if self.config is not None:
-            for mi in getattr(self.config, "level_meta_items", []) or []:
-                if int(getattr(mi, "level_no", -1)) != int(target_level_no):
-                    continue
-                if int(getattr(mi, "no", -1)) not in (10, 11):
-                    continue
-                pos = tuple(getattr(mi, "position", ()))
-                if len(pos) == 2 and 0 <= pos[0] < c.LEVEL_W and 0 <= pos[1] < c.LEVEL_H:
-                    marks[pos] = "tecmo_bunny"
         return marks or None
 
     def _build_editor_overlays(self, level, special_marks=None):
@@ -5568,6 +5559,8 @@ class MainWindow(QMainWindow):
                 for level_no in valid_level_nos
             },
         }
+        if self.rom is not None:
+            entry["rom_data"] = bytes(self.rom.data)
         self._undo_stack.append(entry)
         if len(self._undo_stack) > self._undo_limit:
             self._undo_stack.pop(0)
@@ -5664,18 +5657,37 @@ class MainWindow(QMainWindow):
         levels = self._undo_entry_levels(entry)
         level_nos = sorted(levels.keys())
         focus_level_no = self._undo_entry_focus_level_no(entry, level_nos)
-        return {
+        snapshot = {
             "focus_level_no": focus_level_no,
             "levels": {
                 level_no: copy.deepcopy(self.levels[level_no])
                 for level_no in level_nos
             },
         }
+        if self.rom is not None:
+            snapshot["rom_data"] = bytes(self.rom.data)
+        return snapshot
+
+    def _sync_rom_backed_level_meta_positions(self):
+        if self.rom is None or self.config is None:
+            return
+        from ..core.element import position_from_byte
+        for mi in getattr(self.config, "level_meta_items", []) or []:
+            rom_offset = int(getattr(mi, "rom_offset", -1))
+            if 0 <= rom_offset < len(self.rom.data):
+                mi.position = position_from_byte(self.rom.data[rom_offset])
 
     def _restore_undo_entry(self, entry):
         levels = self._undo_entry_levels(entry)
         level_nos = sorted(levels.keys())
         focus_level_no = self._undo_entry_focus_level_no(entry, level_nos)
+        if (
+            isinstance(entry, dict)
+            and "rom_data" in entry
+            and self.rom is not None
+        ):
+            self.rom.data = bytearray(entry["rom_data"])
+            self._sync_rom_backed_level_meta_positions()
         for level_no in level_nos:
             self.levels[level_no] = copy.deepcopy(levels[level_no])
             self._write_mirror_data_to_rom(level_no)

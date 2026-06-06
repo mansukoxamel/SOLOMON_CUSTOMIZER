@@ -393,7 +393,6 @@ class LevelView(QGraphicsView):
             "empty_forced": self._marker_color("special_empty_marker_color"),
             "trigger": self._marker_color("special_trigger_marker_color"),
             "bomb_jack_trigger": self._marker_color("special_trigger_marker_color"),
-            "tecmo_bunny": self._marker_color("special_trigger_marker_color"),
             "hidden_bomb_jack": self._marker_color("hidden_marker_color"),
         }
         for key, kind in special.items():
