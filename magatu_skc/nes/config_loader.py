@@ -49,8 +49,8 @@ class TilesetDef:
 class MetaItemDef:
     """level_meta_item: ソロモンの紋章（六芒星）、ボムジャック、テクモバニー、Page of Time/Space 等
 
-    Solomon's seal は1バイトのROMオフセット指定（位置エンコード byte）。
-    Tecmo bunny / Page は静的位置 (position 属性)。
+    Solomon's seal / JP Tecmo bunny / JP Page は1バイトのROMオフセット指定（位置エンコード byte）。
+    offset 未特定のリージョンは静的位置 (position 属性)。
     """
     def __init__(self, no: int, level_no: int, animation: int,
                  transparent: bool, position: tuple, description: str,

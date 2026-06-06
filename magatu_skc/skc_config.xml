@@ -40,9 +40,8 @@
       <item_bitmask level_no="19" item_no="0x04" region="JP" offset="0x3bc2" />
       <item_bitmask level_no="29" item_no="0x27" region="JP" offset="0x3bda" />
     </item_bitmasks>
-    <!-- meta items are solomon's seals, mighty bomb jack and tecmo bunny (position offset unknown) -->
-    <!-- in the future we hope to find out how to move these between levels -->
-    <!-- the tecmo bunny and page offsets are unknown at this point, so its position is static -->
+    <!-- meta items are solomon's seals, mighty bomb jack and tecmo bunny -->
+    <!-- the tecmo bunny JP offsets point to the LDA #position operands before JMP $B49C. -->
     <!-- TODO: Add overlay to breakable white blocks, and see if we can find the offsets -->
     <level_meta_items>
       <!-- US specific: Seals and Bomb Jacks -->
@@ -69,8 +68,10 @@
       <level_meta_item no="8" description="Bomb Jack (meta)" level_no="16" animation="67" region="JP" offset="0x346f" />
       <level_meta_item no="9" description="Bomb Jack (meta)" level_no="38" animation="67" region="JP" offset="0x3564" />
 
-      <level_meta_item no="10" description="Tecmo bunny (meta)" level_no="19" animation="69" transparent="true" position="0,1" />
-      <level_meta_item no="11" description="Tecmo bunny (meta)" level_no="37" animation="69" transparent="true" position="14,8" />
+      <level_meta_item no="10" description="Tecmo bunny (meta)" level_no="19" animation="69" transparent="true" region="JP" offset="0x34a1" />
+      <level_meta_item no="11" description="Tecmo bunny (meta)" level_no="37" animation="69" transparent="true" region="JP" offset="0x357b" />
+      <level_meta_item no="10" description="Tecmo bunny (meta)" level_no="19" animation="69" transparent="true" region="US66,US" position="0,1" />
+      <level_meta_item no="11" description="Tecmo bunny (meta)" level_no="37" animation="69" transparent="true" region="US66,US" position="14,8" />
       <!-- Page of Time/Space: JP は実ROMの特殊処理スクリプト
            (R188/R189) の LDX #$XX オペランドを offset で読む
            =決め打ちでなくROM準拠・移動可。$B5C9=file0x35d9(面52)/

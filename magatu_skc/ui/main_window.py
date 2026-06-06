@@ -1368,6 +1368,75 @@ class MainWindow(QMainWindow):
             return self._move_stage52_53_conditional_breakable_marker(marker_kind, tile)
         return False
 
+    def _bomb_jack_meta_for_level(self, level_no: int):
+        if self.config is None:
+            return None
+        for mi in getattr(self.config, "level_meta_items", []) or []:
+            if int(getattr(mi, "level_no", -1)) != int(level_no):
+                continue
+            desc = (str(getattr(mi, "description", "")) or "").lower()
+            if "bomb jack" in desc and int(getattr(mi, "rom_offset", -1)) >= 0:
+                return mi
+        return None
+
+    def _bomb_jack_spawn_offset(self, mi) -> int:
+        return int(getattr(mi, "rom_offset", -1)) + 0x10
+
+    def _bomb_jack_positions(self, level_no: int = None):
+        """Mighty Bomb Jack の頭突き判定/出現先をROMから読む。"""
+        if self.rom is None:
+            return None
+        target_level = self.current_level_no if level_no is None else int(level_no)
+        mi = self._bomb_jack_meta_for_level(target_level)
+        if mi is None:
+            return None
+        trigger_off = int(getattr(mi, "rom_offset", -1))
+        spawn_off = self._bomb_jack_spawn_offset(mi)
+        data = self.rom.data
+        if trigger_off < 3 or spawn_off < 1 or spawn_off + 2 >= len(data):
+            return None
+        if bytes(data[trigger_off - 3:trigger_off]) != bytes.fromhex("a57fc9"):
+            return None
+        if bytes(data[trigger_off + 1:trigger_off + 3]) != bytes.fromhex("d0f7"):
+            return None
+        if data[spawn_off - 1] != 0xA9 or bytes(data[spawn_off + 1:spawn_off + 3]) != bytes.fromhex("8588"):
+            return None
+        from ..core.element import position_from_byte
+        trigger = position_from_byte(data[trigger_off])
+        spawn = position_from_byte(data[spawn_off])
+        for pos in (trigger, spawn):
+            x, y = pos
+            if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+                return None
+        return {"trigger": trigger, "spawn": spawn, "meta": mi}
+
+    def _bomb_jack_marker_at(self, tile):
+        if not getattr(self, "chk_special_marks", None) or not self.chk_special_marks.isChecked():
+            return None
+        positions = self._bomb_jack_positions()
+        if not positions:
+            return None
+        if tile == positions["trigger"]:
+            return "trigger"
+        if tile == positions["spawn"]:
+            return "spawn"
+        return None
+
+    def _move_bomb_jack_marker(self, marker_kind: str, tile, level_no: int = None):
+        positions = self._bomb_jack_positions(level_no)
+        if not positions or marker_kind not in ("trigger", "spawn"):
+            return False
+        from ..core.element import byte_from_position
+        pos_byte = byte_from_position(tile)
+        mi = positions["meta"]
+        if marker_kind == "trigger":
+            self.rom.data[int(mi.rom_offset)] = pos_byte
+            mi.position = tile
+        else:
+            self.rom.data[self._bomb_jack_spawn_offset(mi)] = pos_byte
+        self._set_dirty(True)
+        return True
+
     def _conditional_breakable_positions(self, group: str):
         if group == "stage49":
             return self._stage49_conditional_breakable_positions()
@@ -2112,7 +2181,7 @@ class MainWindow(QMainWindow):
                 bonus_items=bonus,
             )
             self._sync_enemy_codes_from_rom(i)
-            self._save_png_with_xml(img, level, stage_dir / f"level_{i + 1:02d}.png")
+            self._save_png_with_xml(img, level, stage_dir / f"level_{i + 1:02d}.png", level_no=i)
             QApplication.processEvents()
         return stage_dir
 
@@ -2126,7 +2195,206 @@ class MainWindow(QMainWindow):
         self._remember_save_dir(export_dir.parent)
         return export_dir
 
-    def _save_png_with_xml(self, img, level, path):
+    @staticmethod
+    def _is_stage_level_meta_position_target(mi) -> bool:
+        no = int(getattr(mi, "no", -1))
+        if 0 <= no <= 7:
+            return True
+        return no in (10, 11, 12, 13)
+
+    @staticmethod
+    def _stage_level_meta_kind(no: int) -> str:
+        if 0 <= no <= 7:
+            return "solomon_seal"
+        if no in (10, 11):
+            return "tecmo_bunny"
+        if no == 12:
+            return "page_space"
+        if no == 13:
+            return "page_time"
+        return "unknown"
+
+    def _collect_stage_level_meta_positions(self, level_no: int) -> list:
+        if self.config is None:
+            return []
+        from ..core.element import position_from_byte
+
+        result = []
+        for mi in getattr(self.config, "level_meta_items", []) or []:
+            if int(getattr(mi, "level_no", -1)) != int(level_no):
+                continue
+            if not self._is_stage_level_meta_position_target(mi):
+                continue
+            rom_offset = int(getattr(mi, "rom_offset", -1))
+            if self.rom is not None and 0 <= rom_offset < len(self.rom.data):
+                pos = position_from_byte(self.rom.data[rom_offset])
+            else:
+                pos = tuple(getattr(mi, "position", (0, 0)))
+            result.append({
+                "kind": self._stage_level_meta_kind(int(getattr(mi, "no", -1))),
+                "no": int(getattr(mi, "no", -1)),
+                "level_no": int(level_no),
+                "description": str(getattr(mi, "description", "")),
+                "position": [int(pos[0]), int(pos[1])],
+            })
+        return result
+
+    @staticmethod
+    def _parse_stage_level_meta_entry(entry):
+        pos = entry.attrib.get("position", "")
+        parts = pos.strip().split(",")
+        if len(parts) != 2:
+            raise ValueError("level_meta_positions position must be x,y.")
+        x = int(parts[0])
+        y = int(parts[1])
+        if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+            raise ValueError(f"level_meta_positions position out of range: {x},{y}")
+        return (
+            int(entry.attrib["no"]),
+            int(entry.attrib["level_no"]),
+            (x, y),
+        )
+
+    def _apply_stage_level_meta_positions_from_xml(self, root, target_level_no: int) -> list:
+        positions_elem = root.find("level_meta_positions")
+        if positions_elem is None or self.config is None:
+            return []
+        from ..core.element import byte_from_position, position_from_byte
+
+        meta_by_key = {
+            (int(getattr(mi, "no", -1)), int(getattr(mi, "level_no", -1))): mi
+            for mi in getattr(self.config, "level_meta_items", []) or []
+        }
+        changed = []
+        for entry in positions_elem.findall("meta"):
+            no, level_no, pos = self._parse_stage_level_meta_entry(entry)
+            if int(level_no) != int(target_level_no):
+                continue
+            if not (0 <= no <= 7 or no in (10, 11, 12, 13)):
+                continue
+            mi = meta_by_key.get((no, level_no))
+            if mi is None:
+                continue
+            rom_offset = int(getattr(mi, "rom_offset", -1))
+            old_pos = tuple(getattr(mi, "position", (0, 0)))
+            if self.rom is not None and 0 <= rom_offset < len(self.rom.data):
+                old_pos = position_from_byte(self.rom.data[rom_offset])
+                self.rom.data[rom_offset] = byte_from_position(pos)
+            mi.position = pos
+            if old_pos != pos:
+                changed.append(str(getattr(mi, "description", "") or f"meta {no}"))
+        return changed
+
+    def _conditional_breakable_groups_for_level(self, level_no: int) -> list:
+        if int(level_no) == 48:
+            return ["stage49"]
+        if int(level_no) == 49:
+            return ["stage50"]
+        if int(level_no) in (51, 52):
+            return ["stage52_53"]
+        return []
+
+    def _collect_stage_conditional_breakable_positions(self, level_no: int) -> list:
+        result = []
+        for group in self._conditional_breakable_groups_for_level(level_no):
+            positions = self._conditional_breakable_positions(group)
+            if not positions:
+                continue
+            for sub, pos in positions.items():
+                result.append({
+                    "level_no": int(level_no),
+                    "group": group,
+                    "sub": sub,
+                    "position": [int(pos[0]), int(pos[1])],
+                })
+        return result
+
+    @staticmethod
+    def _parse_stage_conditional_breakable_entry(entry):
+        pos = entry.attrib.get("position", "")
+        parts = pos.strip().split(",")
+        if len(parts) != 2:
+            raise ValueError("conditional_breakable_positions position must be x,y.")
+        x = int(parts[0])
+        y = int(parts[1])
+        if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+            raise ValueError(f"conditional_breakable_positions position out of range: {x},{y}")
+        return (
+            int(entry.attrib["level_no"]),
+            str(entry.attrib["group"]),
+            str(entry.attrib["sub"]),
+            (x, y),
+        )
+
+    def _apply_stage_conditional_breakable_positions_from_xml(self, root, target_level_no: int) -> list:
+        positions_elem = root.find("conditional_breakable_positions")
+        if positions_elem is None:
+            return []
+        changed = []
+        allowed_groups = set(self._conditional_breakable_groups_for_level(target_level_no))
+        for entry in positions_elem.findall("marker"):
+            level_no, group, sub, pos = self._parse_stage_conditional_breakable_entry(entry)
+            if int(level_no) != int(target_level_no):
+                continue
+            if group not in allowed_groups:
+                continue
+            before = self._conditional_breakable_positions(group) or {}
+            old_pos = before.get(sub)
+            if self._move_conditional_breakable_marker(group, sub, pos):
+                if old_pos != pos:
+                    changed.append(f"{group}:{sub}")
+        return changed
+
+    def _collect_stage_bomb_jack_positions(self, level_no: int) -> list:
+        positions = self._bomb_jack_positions(level_no)
+        if not positions:
+            return []
+        return [
+            {
+                "level_no": int(level_no),
+                "sub": "trigger",
+                "position": [int(positions["trigger"][0]), int(positions["trigger"][1])],
+            },
+            {
+                "level_no": int(level_no),
+                "sub": "spawn",
+                "position": [int(positions["spawn"][0]), int(positions["spawn"][1])],
+            },
+        ]
+
+    @staticmethod
+    def _parse_stage_bomb_jack_entry(entry):
+        pos = entry.attrib.get("position", "")
+        parts = pos.strip().split(",")
+        if len(parts) != 2:
+            raise ValueError("bomb_jack_positions position must be x,y.")
+        x = int(parts[0])
+        y = int(parts[1])
+        if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+            raise ValueError(f"bomb_jack_positions position out of range: {x},{y}")
+        return (
+            int(entry.attrib["level_no"]),
+            str(entry.attrib["sub"]),
+            (x, y),
+        )
+
+    def _apply_stage_bomb_jack_positions_from_xml(self, root, target_level_no: int) -> list:
+        positions_elem = root.find("bomb_jack_positions")
+        if positions_elem is None:
+            return []
+        changed = []
+        for entry in positions_elem.findall("marker"):
+            level_no, sub, pos = self._parse_stage_bomb_jack_entry(entry)
+            if int(level_no) != int(target_level_no):
+                continue
+            before = self._bomb_jack_positions(target_level_no) or {}
+            old_pos = before.get(sub)
+            if self._move_bomb_jack_marker(sub, pos, level_no=target_level_no):
+                if old_pos != pos:
+                    changed.append(f"bomb_jack:{sub}")
+        return changed
+
+    def _save_png_with_xml(self, img, level, path, level_no=None):
         """QImageをPNGで保存し、iTXtチャンクにレベルXMLを埋め込む"""
         import struct, zlib
         from ..core.xml_io import level_to_magatu_xml
@@ -2140,7 +2408,19 @@ class MainWindow(QMainWindow):
         buf.close()
 
         # XMLデータ
-        xml_str = level_to_magatu_xml(level)
+        meta_positions = []
+        conditional_positions = []
+        bomb_jack_positions = []
+        if level_no is not None:
+            meta_positions = self._collect_stage_level_meta_positions(level_no)
+            conditional_positions = self._collect_stage_conditional_breakable_positions(level_no)
+            bomb_jack_positions = self._collect_stage_bomb_jack_positions(level_no)
+        xml_str = level_to_magatu_xml(
+            level,
+            level_meta_positions=meta_positions,
+            conditional_breakable_positions=conditional_positions,
+            bomb_jack_positions=bomb_jack_positions,
+        )
         xml_bytes = xml_str.encode("utf-8")
 
         # iTXt チャンク構築
@@ -2188,7 +2468,7 @@ class MainWindow(QMainWindow):
             bonus_items=self._get_bonus_items(),
         )
         self._sync_enemy_codes_from_rom(self.current_level_no)
-        self._save_png_with_xml(img, level, path)
+        self._save_png_with_xml(img, level, path, level_no=self.current_level_no)
         self._remember_save_path(path)
         self.statusBar().showMessage(f"保存: {path} (XML埋込)", 5000)
 
@@ -2213,7 +2493,7 @@ class MainWindow(QMainWindow):
                 bonus_items=bonus,
             )
             self._sync_enemy_codes_from_rom(i)
-            self._save_png_with_xml(img, level, path)
+            self._save_png_with_xml(img, level, path, level_no=i)
             self.statusBar().showMessage(f"保存中: {i+1}/{len(self.levels)} (XML埋込)")
             QApplication.processEvents()
         self.statusBar().showMessage(
@@ -2299,6 +2579,9 @@ class MainWindow(QMainWindow):
             return False
         self._push_undo()
         self.levels[self.current_level_no] = lv
+        self._apply_stage_level_meta_positions_from_xml(root, self.current_level_no)
+        self._apply_stage_conditional_breakable_positions_from_xml(root, self.current_level_no)
+        self._apply_stage_bomb_jack_positions_from_xml(root, self.current_level_no)
         self._write_mirror_data_to_rom(self.current_level_no)
         self._sync_mirror_panel()
         self._refresh_view()
@@ -2354,6 +2637,9 @@ class MainWindow(QMainWindow):
                 lv = self._xml_element_to_level_compat(root)
                 if lv is not None:
                     self.levels[i] = lv
+                    self._apply_stage_level_meta_positions_from_xml(root, i)
+                    self._apply_stage_conditional_breakable_positions_from_xml(root, i)
+                    self._apply_stage_bomb_jack_positions_from_xml(root, i)
                     self._write_mirror_data_to_rom(i)
                     loaded_count += 1
             self._sync_mirror_panel()
@@ -2714,14 +3000,25 @@ class MainWindow(QMainWindow):
         if not self.rom:
             return None
         target_level_no = self.current_level_no if level_no is None else level_no
+        marks = {}
         try:
             from ..core import special_process as sp
             region = self.rom.base_region()
-            return sp.find_marks_for_level(
+            marks = sp.find_marks_for_level(
                 bytes(self.rom.data), region, target_level_no
             )
         except Exception:
-            return None
+            marks = {}
+        if self.config is not None:
+            for mi in getattr(self.config, "level_meta_items", []) or []:
+                if int(getattr(mi, "level_no", -1)) != int(target_level_no):
+                    continue
+                if int(getattr(mi, "no", -1)) not in (10, 11):
+                    continue
+                pos = tuple(getattr(mi, "position", ()))
+                if len(pos) == 2 and 0 <= pos[0] < c.LEVEL_W and 0 <= pos[1] < c.LEVEL_H:
+                    marks[pos] = "tecmo_bunny"
+        return marks or None
 
     def _build_editor_overlays(self, level, special_marks=None):
         overlays = {
@@ -3249,6 +3546,20 @@ class MainWindow(QMainWindow):
             self._refresh_view()
             return
 
+        bomb_jack_marker = self._bomb_jack_marker_at(tile)
+        if bomb_jack_marker is not None:
+            self._push_undo()
+            self._move_pending = {
+                "kind": "bomb_jack",
+                "sub": bomb_jack_marker,
+            }
+            label = "頭突き判定" if bomb_jack_marker == "trigger" else "出現先"
+            self.statusBar().showMessage(
+                f"Mighty Bomb Jack [{label}] を掴み中 → ドラッグで移動", 0
+            )
+            self._refresh_view()
+            return
+
         if lv.fixed_key_pos == tile and not lv.is_key_removed():
             self._move_pending = {"kind": "meta", "sub": "key"}
         elif lv.fixed_door_pos == tile and not lv.is_door_removed():
@@ -3364,6 +3675,8 @@ class MainWindow(QMainWindow):
             self._rebuild_bonus_items_from_positions()
         elif kind == "conditional_breakable":
             self._move_conditional_breakable_marker(mp["group"], mp["sub"], tile)
+        elif kind == "bomb_jack":
+            self._move_bomb_jack_marker(mp["sub"], tile)
         elif kind == "block":
             # 通り過ぎたタイルの「元の壁」を復元してから新位置にブロック配置
             cx, cy = mp["current_pos"]
@@ -3427,6 +3740,15 @@ class MainWindow(QMainWindow):
                     f"{group_label} 条件付き壊せる白ブロック[{label}]移動完了 → {pos}", 2000
                 )
                 self._refresh_thumbnails_after_conditional_marker_edit(group)
+            elif kind == "bomb_jack":
+                sub = self._move_pending.get("sub")
+                positions = self._bomb_jack_positions() or {}
+                pos = positions.get(sub)
+                label = "頭突き判定" if sub == "trigger" else "出現先"
+                self.statusBar().showMessage(
+                    f"Mighty Bomb Jack [{label}] 移動完了 → {pos}", 2000
+                )
+                self._refresh_thumbnails_after_edit()
             else:
                 self.statusBar().showMessage("移動完了", 2000)
                 self._refresh_thumbnails_after_edit()

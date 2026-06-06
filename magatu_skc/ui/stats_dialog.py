@@ -198,7 +198,7 @@ class StatsDialog(QDialog):
         info = QLabel(
             "「主要」列はWarp/星座パネル/Solomon's Seal/Pageを集計。「重要アイテム」列は"
             "Origami Swan/Demonhead Coin/"
-            "Sphinx/Egyptian Head/Magic Lamp/E-bottle/Page/Tecmo Bunny と、"
+            "Sphinx/Egyptian Head/Magic Lamp/E-bottle/Tecmo Bunny と、"
             "特殊扱いの Mighty Bomb Jack/Fairy/Fairy Princess を集計(コイン/宝石/"
             "Bell/Scroll/タイマー系などは除外)。「配置敵」=面に置かれた敵"
             "(実数 ×N)、「ミラー敵」=デーモンミラーから出る敵(種類のみ・"
@@ -237,6 +237,7 @@ class StatsDialog(QDialog):
         self.table.itemDoubleClicked.connect(self._on_double_click)
         self._populate()
         self.table.setSortingEnabled(True)
+        self.table.sortItems(self.LV_COL, Qt.AscendingOrder)
         layout.addWidget(self.table)
 
         # ボタン行

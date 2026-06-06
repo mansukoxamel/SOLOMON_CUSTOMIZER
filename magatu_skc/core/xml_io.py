@@ -192,12 +192,38 @@ def level_to_xml_string(level: Level) -> str:
 SOLOMON_CUSTOMIZER_FORMAT_VERSION = "1.0"
 
 
-def level_to_magatu_xml(level: Level) -> str:
+def level_to_magatu_xml(level: Level, level_meta_positions=None,
+                        conditional_breakable_positions=None,
+                        bomb_jack_positions=None) -> str:
     """PNG埋め込み用の独自形式XML"""
     root = ET.Element("solomon_customizer")
     root.set("format_version", SOLOMON_CUSTOMIZER_FORMAT_VERSION)
     root.set("app_version", __version__)
     root.append(level_to_xml_element(level))
+    if level_meta_positions:
+        positions_elem = ET.SubElement(root, "level_meta_positions")
+        for i, entry in enumerate(level_meta_positions):
+            e = ET.SubElement(positions_elem, "meta")
+            e.set("no", str(int(entry["no"])))
+            e.set("level_no", str(int(entry["level_no"])))
+            e.set("kind", str(entry.get("kind", "")))
+            e.set("description", str(entry.get("description", "")))
+            e.set("position", _pos_str(tuple(entry["position"])))
+    if conditional_breakable_positions:
+        positions_elem = ET.SubElement(root, "conditional_breakable_positions")
+        for entry in conditional_breakable_positions:
+            e = ET.SubElement(positions_elem, "marker")
+            e.set("level_no", str(int(entry["level_no"])))
+            e.set("group", str(entry["group"]))
+            e.set("sub", str(entry["sub"]))
+            e.set("position", _pos_str(tuple(entry["position"])))
+    if bomb_jack_positions:
+        positions_elem = ET.SubElement(root, "bomb_jack_positions")
+        for entry in bomb_jack_positions:
+            e = ET.SubElement(positions_elem, "marker")
+            e.set("level_no", str(int(entry["level_no"])))
+            e.set("sub", str(entry["sub"]))
+            e.set("position", _pos_str(tuple(entry["position"])))
 
     raw = ET.tostring(root, encoding="utf-8", xml_declaration=False)
     pretty = minidom.parseString(raw).toprettyxml(indent="\t", encoding="utf-8")

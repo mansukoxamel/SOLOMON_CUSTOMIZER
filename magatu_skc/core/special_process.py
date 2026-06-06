@@ -261,6 +261,7 @@ MARK_BREAKABLE = "breakable"  # 0x90 = 壊せるブロック動的配置 (無条
 MARK_BREAKABLE_CONDITIONAL = "breakable_conditional"  # トリガーが必要
 MARK_EMPTY_FORCED = "empty_forced"  # 0x10 = 空 (ブロック消去) 強制配置
 MARK_TRIGGER = "trigger"  # プレイヤーアクションを待つ位置
+MARK_BOMB_JACK_TRIGGER = "bomb_jack_trigger"  # マイティボンジャック頭突き判定位置
 MARK_HIDDEN_BOMB_JACK = "hidden_bomb_jack"  # マイティボンジャック出現位置 (隠し)
 
 
@@ -348,9 +349,8 @@ def find_marks(rom_bytes: bytes, full_rom: bytes = None) -> dict:
             #   X1 = 叩く場所の座標 (CMP #X1)
             #   X2 = 出現する場所の座標 (LDA #X2 → STA $88)
             #
-            # 実機検証では「MBJ は叩いた場所 (X1) に出現する」ように見える。
-            # X2 はゲーム内部状態用と思われる。
-            # よって X1 をマーカー位置として採用する。
+            # X1 が頭突き判定位置、X2 が出現位置。
+            # 条件付き壊せる白ブロックと同じく、X1 -> X2 のリンクとして表示する。
             #
             # X1 は CMP #imm でアイテムバッファ形式の位置バイト (y = (b>>4)-1)。
             if (b == 0xA9 and i + 6 < end
@@ -370,9 +370,14 @@ def find_marks(rom_bytes: bytes, full_rom: bytes = None) -> dict:
                             x1_byte = rom_bytes[back + 3]
                             break
                     if x1_byte is not None:
-                        pos = decode_pos_byte(x1_byte)
-                        if pos is not None:
-                            marks[pos] = MARK_HIDDEN_BOMB_JACK
+                        trigger_pos = decode_pos_byte(x1_byte)
+                        spawn_pos = decode_pos_byte(rom_bytes[i + 1])
+                        if trigger_pos is not None:
+                            marks[trigger_pos] = MARK_BOMB_JACK_TRIGGER
+                        if spawn_pos is not None:
+                            marks[spawn_pos] = MARK_HIDDEN_BOMB_JACK
+                        if trigger_pos is not None and spawn_pos is not None:
+                            links.append((trigger_pos, spawn_pos))
                     for k in range(1, 7):
                         visited.add(i + k)
                     break
