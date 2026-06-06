@@ -28,6 +28,30 @@ BLOCK_INVISIBLE_SOLID = "invisible_solid"
 BLOCK_PASSABLE_BROWN = "passable_brown"
 BLOCK_SOLID_BROWN = "solid_brown"
 
+DEFAULT_BLOCK_PICKER_ORDER = [
+    BLOCK_NONE,
+    BLOCK_BROWN,
+    BLOCK_WHITE,
+    BLOCK_BREAKABLE_WHITE,
+    BLOCK_INVISIBLE_BREAKABLE,
+    BLOCK_PASSABLE_WHITE,
+    BLOCK_INVISIBLE_SOLID,
+    BLOCK_PASSABLE_BROWN,
+    BLOCK_SOLID_BROWN,
+]
+
+BLOCK_PICKER_LABELS = {
+    BLOCK_NONE: "消去 (空白)",
+    BLOCK_BROWN: "茶色ブロック (壊せる)",
+    BLOCK_WHITE: "白ブロック (壊せない)",
+    BLOCK_BREAKABLE_WHITE: "Breakable white wall",
+    BLOCK_INVISIBLE_BREAKABLE: "Invisible breakable wall",
+    BLOCK_PASSABLE_WHITE: "Passable white wall",
+    BLOCK_INVISIBLE_SOLID: "Invisible solid wall",
+    BLOCK_PASSABLE_BROWN: "すり抜ける土色壁",
+    BLOCK_SOLID_BROWN: "壊せない土色壁",
+}
+
 
 # アイテムフラグ
 ITEM_FLAG_NORMAL = 0x00
@@ -258,9 +282,12 @@ class DraggablePickerList(QListWidget):
     どちらかが必ず動くようにする。
     """
 
+    ctrl_reorder_requested = pyqtSignal(int, int)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._press_pos = None
+        self._ctrl_press_row = None
         self._dragging = False
         self.setDragEnabled(True)
         self.setDragDropMode(QAbstractItemView.DragOnly)
@@ -302,12 +329,25 @@ class DraggablePickerList(QListWidget):
         self._begin_custom_drag(item)
 
     def mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton and (e.modifiers() & Qt.ControlModifier):
+            item = self.itemAt(e.pos())
+            if item is not None:
+                self._ctrl_press_row = self.row(item)
+                self.setCurrentItem(item)
+                e.accept()
+                return
         if e.button() == Qt.LeftButton:
             self._press_pos = e.pos()
         super().mousePressEvent(e)
 
     def mouseMoveEvent(self, e):
         """マウスイベント経路: フレームワークが startDrag を呼ばなくても発動させる"""
+        if self._ctrl_press_row is not None and (e.buttons() & Qt.LeftButton):
+            item = self.itemAt(e.pos())
+            if item is not None:
+                self.setCurrentItem(item)
+            e.accept()
+            return
         if (
             self._press_pos is not None
             and (e.buttons() & Qt.LeftButton)
@@ -322,6 +362,16 @@ class DraggablePickerList(QListWidget):
         super().mouseMoveEvent(e)
 
     def mouseReleaseEvent(self, e):
+        if self._ctrl_press_row is not None and e.button() == Qt.LeftButton:
+            src_row = self._ctrl_press_row
+            self._ctrl_press_row = None
+            target = self.itemAt(e.pos())
+            if target is not None:
+                dst_row = self.row(target)
+                if src_row != dst_row:
+                    self.ctrl_reorder_requested.emit(src_row, dst_row)
+                    e.accept()
+                    return
         self._press_pos = None
         super().mouseReleaseEvent(e)
 
@@ -824,6 +874,7 @@ class ElementPicker(QWidget):
     """要素選択 + 編集モード切替（キャラクター画像付き）"""
 
     selection_changed = pyqtSignal(str, object)  # mode, selected_value
+    block_order_changed = pyqtSignal(list)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -833,6 +884,7 @@ class ElementPicker(QWidget):
         self.config = None
         self.current_tileset_no = 0  # 現在レベルの実タイルセット番号（描画パレット決定用）
         self.current_item_flag = ITEM_FLAG_NORMAL  # アイテム配置時のフラグ
+        self._block_order = list(DEFAULT_BLOCK_PICKER_ORDER)
         self._build_ui()
 
     def dragEnterEvent(self, e):
@@ -950,6 +1002,8 @@ class ElementPicker(QWidget):
             lst.setGridSize(QSize(ICON_SIZE + GRID_PAD * 2, ICON_SIZE + GRID_PAD * 2))
             lst.setUniformItemSizes(True)
             lst.itemSelectionChanged.connect(self._on_item_selected)
+            if cat_idx == 0:
+                lst.ctrl_reorder_requested.connect(self._on_block_ctrl_reorder)
             lst.setDragEnabled(True)
             lst.setDragDropMode(QAbstractItemView.DragOnly)
             # 高さはコンテンツに合わせる（固定スクロールなし）
@@ -1179,17 +1233,8 @@ class ElementPicker(QWidget):
             lst.clear()
 
         # カテゴリ0: ブロック
-        for label, val in [
-            ("消去 (空白)", BLOCK_NONE),
-            ("茶色ブロック (壊せる)", BLOCK_BROWN),
-            ("白ブロック (壊せない)", BLOCK_WHITE),
-            ("Breakable white wall", BLOCK_BREAKABLE_WHITE),
-            ("Invisible breakable wall", BLOCK_INVISIBLE_BREAKABLE),
-            ("Passable white wall", BLOCK_PASSABLE_WHITE),
-            ("Invisible solid wall", BLOCK_INVISIBLE_SOLID),
-            ("すり抜ける土色壁", BLOCK_PASSABLE_BROWN),
-            ("壊せない土色壁", BLOCK_SOLID_BROWN),
-        ]:
+        for val in self._block_order:
+            label = BLOCK_PICKER_LABELS.get(val, str(val))
             self._add_picker_item(0, MODE_BLOCK, val, label, self._make_block_icon(val))
 
         # カテゴリ1: キャラ（プレイヤー / 鍵 / 扉 / ミラー）
@@ -1217,9 +1262,27 @@ class ElementPicker(QWidget):
             self._adjust_list_height(lst)
 
         # 茶色ブロック (index 1) を初期選択
-        self._picker_lists[0].setCurrentRow(1)
+        default_row = self._block_order.index(BLOCK_BROWN) if BLOCK_BROWN in self._block_order else 0
+        self._picker_lists[0].setCurrentRow(default_row)
         # お気に入りアイコンを最新パレットで再構築
         self._refresh_favorite_icons()
+
+    def set_block_order(self, order):
+        """ブロックピッカー順を復元する。未知値/欠落は既定順で補完する。"""
+        normalized = []
+        if isinstance(order, list):
+            for val in order:
+                if val in DEFAULT_BLOCK_PICKER_ORDER and val not in normalized:
+                    normalized.append(val)
+        for val in DEFAULT_BLOCK_PICKER_ORDER:
+            if val not in normalized:
+                normalized.append(val)
+        self._block_order = normalized
+        if self.tile_renderer is not None and self.config is not None:
+            self._populate_all()
+
+    def get_block_order(self) -> list:
+        return list(self._block_order)
 
     def _add_picker_item(self, category: int, mode: str, val, label: str, icon):
         """カテゴリ別リストにアイテムを追加"""
@@ -1240,6 +1303,39 @@ class ElementPicker(QWidget):
         rows = (count + cols - 1) // cols
         lst.setMinimumHeight(rows * grid_h + 4)
         lst.setMaximumHeight(rows * grid_h + 4)
+
+    def _on_block_ctrl_reorder(self, src_row: int, dst_row: int):
+        if src_row == dst_row:
+            return
+        block_list = self._picker_lists[0]
+        src_item = block_list.item(src_row)
+        dst_item = block_list.item(dst_row)
+        if src_item is None or dst_item is None:
+            return
+        src_data = src_item.data(Qt.UserRole)
+        dst_data = dst_item.data(Qt.UserRole)
+        if not (
+            isinstance(src_data, tuple) and src_data[0] == MODE_BLOCK and
+            isinstance(dst_data, tuple) and dst_data[0] == MODE_BLOCK
+        ):
+            return
+        source = src_data[1]
+        target = dst_data[1]
+        if source not in self._block_order or target not in self._block_order:
+            return
+        src_idx = self._block_order.index(source)
+        dst_idx = self._block_order.index(target)
+        self._block_order[src_idx], self._block_order[dst_idx] = (
+            self._block_order[dst_idx],
+            self._block_order[src_idx],
+        )
+        current = source if self.current_mode == MODE_BLOCK else None
+        self._populate_all()
+        if current in self._block_order:
+            self._picker_lists[0].setCurrentRow(self._block_order.index(current))
+        else:
+            self._picker_lists[0].setCurrentRow(dst_row)
+        self.block_order_changed.emit(self.get_block_order())
 
     def _refresh_favorite_icons(self):
         """タイルセット変更時など、お気に入りのアイコンを最新色で再描画"""

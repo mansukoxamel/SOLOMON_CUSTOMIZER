@@ -283,6 +283,7 @@ class MainWindow(QMainWindow):
         # 中右: 要素ピッカー
         self.picker = ElementPicker()
         self.picker.selection_changed.connect(self._on_picker_selection_changed)
+        self.picker.block_order_changed.connect(self._on_block_order_changed)
         # お気に入りの永続化
         self.picker.favorites.favorites_changed.connect(self._on_favorites_changed)
         # ボーナスパネルからのアイテム変更
@@ -1237,6 +1238,7 @@ class MainWindow(QMainWindow):
 
             # ピッカーにレンダラを渡してアイコン付きリストにする
             self.picker.set_tile_renderer(self.tile_renderer, config)
+            self.picker.set_block_order(self._app_config.get("picker_block_order", []))
 
             # ROM情報表示（読み込んだ元ファイルのCRC32 + 既知ROMの名前判定 + 自動拡張表示）
             # 通常JP ROMはこの直前でmapper66/wide-title形式へ自動変換されるため、
@@ -3539,6 +3541,11 @@ class MainWindow(QMainWindow):
             else:
                 norm.append(None)
         self._app_config["picker_favorites"] = norm
+        from ..core.config import save_config
+        save_config(self._app_config)
+
+    def _on_block_order_changed(self, order: list):
+        self._app_config["picker_block_order"] = list(order)
         from ..core.config import save_config
         save_config(self._app_config)
 

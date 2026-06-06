@@ -20,6 +20,17 @@ DEFAULT_CONFIG = {
     "emulator_path": "",
     # ピッカーのお気に入り（10スロット, [mode, value] or null）
     "picker_favorites": [None] * 10,
+    "picker_block_order": [
+        "none",
+        "brown",
+        "white",
+        "breakable_white",
+        "invisible_breakable",
+        "passable_white",
+        "invisible_solid",
+        "passable_brown",
+        "solid_brown",
+    ],
     # ウィンドウ状態
     "window_x": -1,           # -1 = 未保存（デフォルト位置）
     "window_y": -1,
