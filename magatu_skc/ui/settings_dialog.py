@@ -79,6 +79,17 @@ class SettingsDialog(QDialog):
         )
         df.addRow("黒テーマ明度:", self.spin_theme_gray)
 
+        self.cmb_marker_overlay_scale = QComboBox()
+        for value in (3, 4, 5):
+            self.cmb_marker_overlay_scale.addItem(f"{value}倍", value)
+        cur_scale = int(self.config.get("marker_overlay_scale", 3) or 3)
+        idx = self.cmb_marker_overlay_scale.findData(cur_scale)
+        self.cmb_marker_overlay_scale.setCurrentIndex(idx if idx >= 0 else 0)
+        self.cmb_marker_overlay_scale.setToolTip(
+            "キャンバス上の隠し要素枠や特殊処理マーカーなどの線幅倍率です。"
+        )
+        df.addRow("編集用マーカー線幅:", self.cmb_marker_overlay_scale)
+
         # アイコンパス
         icon_wrap = QWidget()
         icon_row = QHBoxLayout(icon_wrap)
@@ -171,6 +182,9 @@ class SettingsDialog(QDialog):
                 self.cmb_font_family.currentFont().family()
         self.config["font_bold"] = self.chk_font_bold.isChecked()
         self.config["theme_gray"] = self.spin_theme_gray.value()
+        self.config["marker_overlay_scale"] = int(
+            self.cmb_marker_overlay_scale.currentData()
+        )
         self.config["icon_path"] = self.edit_icon.text().strip()
 
     def _apply(self):

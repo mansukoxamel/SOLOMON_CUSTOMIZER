@@ -44,6 +44,7 @@ DEFAULT_CONFIG = {
     "font_size": 0,
     "font_bold": False,
     "theme_gray": 18,
+    "marker_overlay_scale": 3,
     "notification_sound_path": "",
     "notification_sound_volume": 1.0,
     "cloud_backup_path": "",

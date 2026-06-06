@@ -2,6 +2,7 @@
 from PyQt5.QtWidgets import (
     QGraphicsView, QGraphicsScene, QGraphicsPixmapItem,
     QGraphicsRectItem, QGraphicsSimpleTextItem, QGraphicsItem,
+    QGraphicsLineItem, QGraphicsEllipseItem,
 )
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QFont
 from PyQt5.QtCore import Qt, pyqtSignal, QPointF
@@ -37,7 +38,7 @@ class LevelView(QGraphicsView):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setScene(QGraphicsScene(self))
-        self.setRenderHint(QPainter.Antialiasing, False)
+        self.setRenderHint(QPainter.Antialiasing, True)
         self.setRenderHint(QPainter.SmoothPixmapTransform, False)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -65,6 +66,8 @@ class LevelView(QGraphicsView):
         self._select_start = None
         self._select_end = None
         self._label_items = []
+        self._overlay_items = []
+        self._marker_overlay_scale = 3
 
     def set_image(self, qimage):
         scene = self.scene()
@@ -73,7 +76,154 @@ class LevelView(QGraphicsView):
         self._pixmap_item = scene.addPixmap(pixmap)
         scene.setSceneRect(0, 0, pixmap.width(), pixmap.height())
         self._label_items = []
+        self._overlay_items = []
         self.fit_to_view()
+
+    def _tile_offsets(self):
+        x_offset = 0
+        y_offset = 0
+        if self._pixmap_item is not None:
+            img_w = self._pixmap_item.pixmap().width()
+            img_h = self._pixmap_item.pixmap().height()
+            extra_cols = (img_w // c.TILE_WIDTH) - c.LEVEL_W
+            extra_rows = (img_h // c.TILE_WIDTH) - c.LEVEL_H
+            if extra_cols > 0:
+                x_offset = extra_cols
+            if extra_rows >= 2:
+                y_offset = 1
+        return x_offset, y_offset
+
+    def clear_editor_overlays(self):
+        scene = self.scene()
+        for item in self._overlay_items:
+            scene.removeItem(item)
+        self._overlay_items = []
+
+    def _overlay_pen(self, color, width=2, style=Qt.SolidLine):
+        pen = QPen(color)
+        pen.setWidth(max(1, int(round(width * self._marker_overlay_scale))))
+        pen.setStyle(style)
+        pen.setJoinStyle(Qt.RoundJoin)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setCosmetic(True)
+        return pen
+
+    def set_marker_overlay_scale(self, scale: int):
+        try:
+            value = int(scale)
+        except Exception:
+            value = 3
+        self._marker_overlay_scale = max(3, min(5, value))
+
+    def set_editor_overlays(self, overlays, with_border: bool = True):
+        self.clear_editor_overlays()
+        if not overlays:
+            return
+        scene = self.scene()
+        tw = c.TILE_WIDTH
+        ox, oy = self._tile_offsets() if with_border else (0, 0)
+
+        def add(item):
+            item.setZValue(900)
+            scene.addItem(item)
+            self._overlay_items.append(item)
+            return item
+
+        def rect_for_tile(pos, inset=1):
+            x, y = pos
+            return (
+                (x + ox) * tw + inset,
+                (y + oy) * tw + inset,
+                tw - inset * 2,
+                tw - inset * 2,
+            )
+
+        def add_rect(pos, color, width=2, inset=1, style=Qt.SolidLine):
+            item = QGraphicsRectItem(*rect_for_tile(pos, inset))
+            item.setPen(self._overlay_pen(color, width, style))
+            item.setBrush(QBrush(Qt.NoBrush))
+            add(item)
+
+        def add_cross(pos, color, width=2, inset=3):
+            x, y, w, h = rect_for_tile(pos, inset)
+            add(QGraphicsLineItem(x, y, x + w, y + h)).setPen(
+                self._overlay_pen(color, width)
+            )
+            add(QGraphicsLineItem(x + w, y, x, y + h)).setPen(
+                self._overlay_pen(color, width)
+            )
+
+        def add_ellipse(pos, color, width=2, inset=4):
+            item = QGraphicsEllipseItem(*rect_for_tile(pos, inset))
+            item.setPen(self._overlay_pen(color, width))
+            item.setBrush(QBrush(Qt.NoBrush))
+            add(item)
+
+        for pos in overlays.get("breakable_white", ()):
+            add_rect(pos, QColor(80, 230, 90), width=3, inset=1)
+        for pos in overlays.get("invisible_breakable", ()):
+            add_rect(pos, QColor(255, 220, 40), width=3, inset=4)
+        for pos in overlays.get("passable_white", ()):
+            add_cross(pos, QColor(80, 190, 255), width=3, inset=3)
+        for pos in overlays.get("passable_brown", ()):
+            add_cross(pos, QColor(80, 190, 255), width=3, inset=3)
+        for pos in overlays.get("solid_brown", ()):
+            add_ellipse(pos, QColor(255, 120, 220), width=3, inset=4)
+        for pos in overlays.get("invisible_solid", ()):
+            add_ellipse(pos, QColor(255, 120, 220), width=3, inset=4)
+        for pos in overlays.get("hidden_item", ()):
+            add_rect(pos, QColor(255, 220, 0), width=2, inset=1)
+        for pos in overlays.get("hidden_meta", ()):
+            add_rect(pos, QColor(255, 220, 0), width=2, inset=1)
+
+        for mi, pos in overlays.get("mirrors", ()):
+            color = QColor(255, 60, 60) if mi == 0 else QColor(60, 120, 255)
+            add_rect(pos, color, width=2, inset=0)
+
+        for pos in overlays.get("bonus", ()):
+            add_rect(pos, QColor(255, 200, 0), width=2, inset=3)
+
+        special = overlays.get("special_marks") or {}
+        mark_colors = {
+            "breakable": QColor(80, 230, 90),
+            "breakable_conditional": QColor(80, 230, 90),
+            "empty_forced": QColor(180, 200, 255),
+            "trigger": QColor(255, 100, 200),
+            "hidden_bomb_jack": QColor(255, 220, 0),
+        }
+        for key, kind in special.items():
+            if key == "__links__":
+                continue
+            style = Qt.DashLine if kind == "breakable_conditional" else Qt.SolidLine
+            add_rect(key, mark_colors.get(kind, QColor(255, 0, 255)), width=3, inset=1, style=style)
+
+        for (tx, ty), (gx, gy) in special.get("__links__", []):
+            x1 = (tx + ox) * tw + tw // 2
+            y1 = (ty + oy) * tw + tw // 2
+            x2 = (gx + ox) * tw + tw // 2
+            y2 = (gy + oy) * tw + tw // 2
+            item = QGraphicsLineItem(x1, y1, x2, y2)
+            item.setPen(self._overlay_pen(QColor(255, 200, 100, 180), 1, Qt.DashLine))
+            add(item)
+
+        selection = overlays.get("selection_rect")
+        if selection and selection[0] and selection[1]:
+            (sx, sy), (ex, ey) = selection
+            x1, y1 = min(sx, ex), min(sy, ey)
+            x2, y2 = max(sx, ex), max(sy, ey)
+            item = QGraphicsRectItem(
+                (x1 + ox) * tw,
+                (y1 + oy) * tw,
+                (x2 - x1 + 1) * tw,
+                (y2 - y1 + 1) * tw,
+            )
+            item.setPen(self._overlay_pen(QColor(255, 230, 0), 2, Qt.DashLine))
+            item.setBrush(QBrush(QColor(255, 230, 0, 60)))
+            add(item)
+
+        hover = overlays.get("hover_tile")
+        if hover is not None:
+            add_rect(hover, QColor(255, 255, 255, 220), width=2, inset=0)
 
     def set_object_labels(self, labels, with_border: bool = True):
         """キャンバス注釈をビュー上の通常フォントで重ねる。
@@ -142,17 +292,7 @@ class LevelView(QGraphicsView):
         画像サイズが LEVEL_W*TILE_WIDTH / LEVEL_H*TILE_WIDTH より大きい場合、
         パディング分を差し引く（16列目非表示モード・装飾ボーダー対応）。
         """
-        x_offset = 0
-        y_offset = 0
-        if self._pixmap_item is not None:
-            img_w = self._pixmap_item.pixmap().width()
-            img_h = self._pixmap_item.pixmap().height()
-            extra_cols = (img_w // c.TILE_WIDTH) - c.LEVEL_W
-            extra_rows = (img_h // c.TILE_WIDTH) - c.LEVEL_H
-            if extra_cols > 0:
-                x_offset = extra_cols
-            if extra_rows >= 2:
-                y_offset = 1
+        x_offset, y_offset = self._tile_offsets()
         tx = int(scene_pos.x() // c.TILE_WIDTH) - x_offset
         ty = int(scene_pos.y() // c.TILE_WIDTH) - y_offset
         if 0 <= tx < c.LEVEL_W and 0 <= ty < c.LEVEL_H:

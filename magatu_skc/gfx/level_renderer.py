@@ -180,7 +180,8 @@ class LevelRenderer:
                special_marks: dict = None,
                show_border: bool = False,
                bonus_items: list = None,
-               show_secret_elements: bool = True) -> QImage:
+               show_secret_elements: bool = True,
+               draw_editor_markers: bool = True) -> QImage:
         """show_col15=False のとき、左に1列分の黒パディングを追加して
         左右対称な見た目にする (ホバー/クリック座標は LevelView 側で自動補正)
 
@@ -243,7 +244,7 @@ class LevelRenderer:
 
             # Editor-only marker: white-looking blocks that become normal breakable stone.
             bw_cells = getattr(level, "breakable_white_cells", set())
-            if show_secret_elements and bw_cells:
+            if draw_editor_markers and show_secret_elements and bw_cells:
                 def draw_bw_marks(mp):
                     pen = QPen(QColor(80, 230, 90, 255))
                     pen.setWidth(3)
@@ -255,7 +256,7 @@ class LevelRenderer:
                 self._draw_marker_layer(painter, img_w, img_h, draw_bw_marks)
 
             ib_cells = getattr(level, "invisible_breakable_cells", set())
-            if show_secret_elements and ib_cells:
+            if draw_editor_markers and show_secret_elements and ib_cells:
                 def draw_ib_marks(mp):
                     pen = QPen(QColor(255, 220, 40, 255))
                     pen.setWidth(3)
@@ -267,7 +268,7 @@ class LevelRenderer:
                 self._draw_marker_layer(painter, img_w, img_h, draw_ib_marks)
 
             pw_cells = getattr(level, "passable_white_cells", set())
-            if show_secret_elements and pw_cells:
+            if draw_editor_markers and show_secret_elements and pw_cells:
                 def draw_pw_marks(mp):
                     pen = QPen(QColor(80, 190, 255, 255))
                     pen.setWidth(3)
@@ -280,7 +281,7 @@ class LevelRenderer:
                 self._draw_marker_layer(painter, img_w, img_h, draw_pw_marks)
 
             pb_cells = getattr(level, "passable_brown_cells", set())
-            if show_secret_elements and pb_cells:
+            if draw_editor_markers and show_secret_elements and pb_cells:
                 def draw_pb_marks(mp):
                     pen = QPen(QColor(80, 190, 255, 255))
                     pen.setWidth(3)
@@ -293,7 +294,7 @@ class LevelRenderer:
                 self._draw_marker_layer(painter, img_w, img_h, draw_pb_marks)
 
             sb_cells = getattr(level, "solid_brown_cells", set())
-            if show_secret_elements and sb_cells:
+            if draw_editor_markers and show_secret_elements and sb_cells:
                 def draw_sb_marks(mp):
                     pen = QPen(QColor(255, 120, 220, 255))
                     pen.setWidth(3)
@@ -305,7 +306,7 @@ class LevelRenderer:
                 self._draw_marker_layer(painter, img_w, img_h, draw_sb_marks)
 
             is_cells = getattr(level, "invisible_solid_cells", set())
-            if show_secret_elements and is_cells:
+            if draw_editor_markers and show_secret_elements and is_cells:
                 def draw_is_marks(mp):
                     pen = QPen(QColor(255, 120, 220, 255))
                     pen.setWidth(3)
@@ -367,7 +368,7 @@ class LevelRenderer:
                     anim, ts_no, transparent=None, bg_main_color=wall_color)
                 painter.drawImage(mx * tw, my * tw, m_img)
                 # ミラー識別: 1=赤枠, 2=青枠
-                if show_secret_elements:
+                if draw_editor_markers and show_secret_elements:
                     def draw_mirror_border(mp, mx=mx, my=my, mi=mi):
                         border_color = QColor(255, 60, 60) if mi == 0 else QColor(60, 120, 255)
                         mp.setPen(QPen(border_color, 1))
@@ -402,7 +403,7 @@ class LevelRenderer:
                 else:
                     painter.drawImage(ix * tw, iy * tw, item_img)
 
-                if show_hidden_overlay and (item.is_hidden() or item.is_in_block()):
+                if draw_editor_markers and show_hidden_overlay and (item.is_hidden() or item.is_in_block()):
                     def draw_item_overlay(mp, ix=ix, iy=iy):
                         pen = QPen(QColor(255, 220, 0))
                         pen.setWidth(2)
@@ -411,7 +412,7 @@ class LevelRenderer:
                     self._draw_marker_layer(painter, img_w, img_h, draw_item_overlay)
 
             # 7.5 ボーナスステージ出現スポット（ステージ51専用、位置マーカーのみ）
-            if bonus_items:
+            if draw_editor_markers and bonus_items:
                 from PyQt5.QtCore import QPoint
                 for bpos, _bitem_no in bonus_items:
                     bx, by = bpos
@@ -479,7 +480,7 @@ class LevelRenderer:
                 else:
                     painter.drawImage(mx * tw, my * tw, meta_img)
 
-                if show_hidden_overlay and (in_block or mi.transparent):
+                if draw_editor_markers and show_hidden_overlay and (in_block or mi.transparent):
                     def draw_meta_overlay(mp, mx=mx, my=my):
                         pen = QPen(QColor(255, 220, 0))
                         pen.setWidth(2)
@@ -501,7 +502,7 @@ class LevelRenderer:
                 painter.fillRect(15 * tw, 0, tw, img_h, QColor(0, 0, 0))
 
             # 9.45 矩形範囲選択ハイライト（Shift+ドラッグ）
-            if selection_rect is not None and selection_rect[0] and selection_rect[1]:
+            if draw_editor_markers and selection_rect is not None and selection_rect[0] and selection_rect[1]:
                 (sx, sy), (ex, ey) = selection_rect
                 x1, y1 = min(sx, ex), min(sy, ey)
                 x2, y2 = max(sx, ex), max(sy, ey)
@@ -524,7 +525,7 @@ class LevelRenderer:
                 self._draw_marker_layer(painter, img_w, img_h, draw_selection_marker)
 
             # 9.5 ホバーハイライト（マウス位置のタイル枠）
-            if hover_tile is not None:
+            if draw_editor_markers and hover_tile is not None:
                 hx, hy = hover_tile
                 if 0 <= hx < c.LEVEL_W and 0 <= hy < c.LEVEL_H:
                     def draw_hover_marker(mp):
@@ -545,7 +546,7 @@ class LevelRenderer:
                     painter.drawLine(0, y * tw, img_w, y * tw)
 
             # 11. 特殊処理マーカー (Per-Room Special Process で動的配置されるマス)
-            if show_secret_elements and special_marks:
+            if draw_editor_markers and show_secret_elements and special_marks:
                 mark_colors = {
                     "breakable":             QColor(80, 230, 90, 255),    # 緑実線: 即壊せる
                     "breakable_conditional": QColor(80, 230, 90, 255),    # 緑点線: 条件付き

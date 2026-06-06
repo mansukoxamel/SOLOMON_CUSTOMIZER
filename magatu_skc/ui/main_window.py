@@ -299,6 +299,9 @@ class MainWindow(QMainWindow):
 
         # 中央: レベルビュー
         self.level_view = LevelView(self)
+        self.level_view.set_marker_overlay_scale(
+            self._app_config.get("marker_overlay_scale", 3)
+        )
         self.level_view.tile_clicked.connect(self._on_tile_clicked)
         self.level_view.tile_right_clicked.connect(self._on_tile_right_clicked)
         # Ctrl+左ドラッグでの要素移動
@@ -2243,15 +2246,20 @@ class MainWindow(QMainWindow):
             level,
             level_no=self.current_level_no,
             show_grid=self.show_grid,
-            show_hidden_overlay=self.chk_hidden.isChecked(),
-            hover_tile=self._hover_tile,
+            show_hidden_overlay=False,
+            hover_tile=None,
             show_col15=True,
-            selection_rect=self._selection_rect,
-            special_marks=sp_marks,
+            selection_rect=None,
+            special_marks=None,
             show_border=True,
             bonus_items=self._get_bonus_items(),
+            draw_editor_markers=False,
         )
         self.level_view.set_image(img)
+        self.level_view.set_editor_overlays(
+            self._build_editor_overlays(level, sp_marks),
+            with_border=True,
+        )
         self._update_enemy_count_indicator()
         self._sync_object_labels()
         self._update_info()
@@ -2283,6 +2291,54 @@ class MainWindow(QMainWindow):
             )
         except Exception:
             return None
+
+    def _build_editor_overlays(self, level, special_marks=None):
+        overlays = {
+            "breakable_white": list(getattr(level, "breakable_white_cells", set())),
+            "invisible_breakable": list(getattr(level, "invisible_breakable_cells", set())),
+            "passable_white": list(getattr(level, "passable_white_cells", set())),
+            "passable_brown": list(getattr(level, "passable_brown_cells", set())),
+            "solid_brown": list(getattr(level, "solid_brown_cells", set())),
+            "invisible_solid": list(getattr(level, "invisible_solid_cells", set())),
+            "hidden_item": [],
+            "hidden_meta": [],
+            "mirrors": [],
+            "bonus": [],
+            "special_marks": special_marks,
+            "selection_rect": self._selection_rect,
+            "hover_tile": self._hover_tile,
+        }
+
+        if self.chk_hidden.isChecked():
+            overlays["hidden_item"] = [
+                item.position for item in level.items
+                if item.is_hidden() or item.is_in_block()
+            ]
+            for mi in getattr(self.config, "level_meta_items", []):
+                if mi.level_no != self.current_level_no:
+                    continue
+                mx, my = mi.position
+                if not (0 <= mx < c.LEVEL_W and 0 <= my < c.LEVEL_H):
+                    continue
+                in_block = level.tiles[my][mx] == Wall.BROWN
+                if in_block or mi.transparent:
+                    overlays["hidden_meta"].append(mi.position)
+
+        item_positions = {item.position for item in level.items}
+        for mi, mirror in enumerate(level.demon_mirrors):
+            mx, my = mirror.position
+            if not (0 <= mx < c.LEVEL_W and 0 <= my < c.LEVEL_H):
+                continue
+            if level.tiles[my][mx] != Wall.NONE or (mx, my) in item_positions:
+                continue
+            overlays["mirrors"].append((mi, mirror.position))
+
+        if self.current_level_no == 50:
+            overlays["bonus"] = [
+                bpos for bpos, _bitem_no in self._get_bonus_items()
+            ]
+
+        return overlays
 
     def _on_picker_selection_changed(self, mode, value):
         """ピッカー選択変更時 → カーソル形状を選択中アイコンに"""
@@ -2329,15 +2385,21 @@ class MainWindow(QMainWindow):
                 level,
                 level_no=self.current_level_no,
                 show_grid=self.show_grid,
-                show_hidden_overlay=self.chk_hidden.isChecked(),
-                hover_tile=self._hover_tile,
+                show_hidden_overlay=False,
+                hover_tile=None,
                 show_col15=True,
-                selection_rect=self._selection_rect,
-                special_marks=self._get_special_marks(),
+                selection_rect=None,
+                special_marks=None,
                 show_border=True,
                 bonus_items=self._get_bonus_items(),
+                draw_editor_markers=False,
             )
             self.level_view.set_image(img)
+            sp_marks = self._get_special_marks()
+            self.level_view.set_editor_overlays(
+                self._build_editor_overlays(level, sp_marks),
+                with_border=True,
+            )
             self._sync_object_labels()
         # ステータスバーのホバー情報を更新
         self._update_hover_info(tile)
@@ -3492,6 +3554,10 @@ class MainWindow(QMainWindow):
         self._update_title()
         self._apply_theme()
         self._apply_font_size()
+        self.level_view.set_marker_overlay_scale(
+            self._app_config.get("marker_overlay_scale", 3)
+        )
+        self._refresh_view()
         self._apply_icon()
 
     def _apply_theme(self):
