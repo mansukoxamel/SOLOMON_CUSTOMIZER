@@ -218,6 +218,25 @@ def get_known_subroutines(region: str) -> dict:
     return {}
 
 
+FALLING_FAIRY_SUBROUTINE = {
+    "JP": 0xB4F4,
+    "US": 0xB924,
+}
+
+
+def has_falling_fairy_flag(rom_data: bytes, region: str, level_no: int) -> bool:
+    """Return True if the level enables first enemy falling-death -> Fairy."""
+    addr, proc = get_special_process_bytes(rom_data, region, level_no)
+    if addr is None or not proc:
+        return False
+    target = FALLING_FAIRY_SUBROUTINE.get(region)
+    if target is None:
+        return False
+    lo = target & 0xff
+    hi = (target >> 8) & 0xff
+    return bytes((0x20, lo, hi)) in proc or bytes((0x4c, lo, hi)) in proc
+
+
 def annotate_bytes(rom_bytes: bytes, region: str) -> str:
     """特殊処理バイト列を人間可読な擬似アセンブラに変換する。
 

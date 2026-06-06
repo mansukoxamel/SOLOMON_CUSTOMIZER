@@ -16,6 +16,7 @@ from ..core import constants as c
 from ..core.element import Wall
 from ..core import room_flags as _rf
 from ..core import stage_ext as _se
+from ..core import special_process as _sp
 
 
 # ★重要アイテムの「コード一覧」のみ(=どれを集計するか・順序)。
@@ -141,6 +142,7 @@ class StatsDialog(QDialog):
         ("鍵敵#", 54),      # stage_ext key enemy number
         ("暗闇", 52),       # BIT_DARK
         ("隠し扉", 60),     # BIT_HIDDEN_DOOR
+        ("妖精化", 64),     # special process: first enemy falling-death -> Fairy
         ("配置敵", 300),    # 配置された敵 スプライト
         ("ミラー敵", 240),  # ミラーから出る敵 スプライト
         ("主要", 180),      # Warp/星座パネル/Solomon/Page スプライト
@@ -161,11 +163,12 @@ class StatsDialog(QDialog):
     KEY_ENEMY_COL = _HDR.index("鍵敵#")
     DARK_COL = _HDR.index("暗闇")
     DOOR_COL = _HDR.index("隠し扉")
+    FAIRY_DROP_COL = _HDR.index("妖精化")
     PLACED_COL = _HDR.index("配置敵")
     MIRROR_COL = _HDR.index("ミラー敵")
     FEATURED_COL = _HDR.index("主要")
     ITEM_COL = _HDR.index("重要アイテム")
-    FLAG_COLS = (ASTONE_COL, BFIRE_COL, FIRE_RESET_COL, DARK_COL, DOOR_COL)
+    FLAG_COLS = (ASTONE_COL, BFIRE_COL, FIRE_RESET_COL, DARK_COL, DOOR_COL, FAIRY_DROP_COL)
     NUM_COLS = (TS_COL, TIME_COL, LIFE_COL)  # 中央寄せする数値メタ列
 
     def __init__(self, levels, item_desc=None, config=None,
@@ -203,6 +206,7 @@ class StatsDialog(QDialog):
             "Bell/Scroll/タイマー系などは除外)。「配置敵」=面に置かれた敵"
             "(実数 ×N)、「ミラー敵」=デーモンミラーから出る敵(種類のみ・"
             "無スケジュールのミラーは除外)。<br>"
+            "「妖精化」=特殊処理で敵リスト1体目の落下死→妖精出現が有効なステージ。<br>"
             "セルをダブルクリックでそのステージへジャンプ。"
         )
         info.setWordWrap(True)
@@ -586,6 +590,7 @@ class StatsDialog(QDialog):
             f_dark = "●" if rf & _rf.BIT_DARK else ""
             f_door = "●" if rf & _rf.BIT_HIDDEN_DOOR else ""
             f_fire_reset = "●" if _se.fire_reset_enabled(lv) else ""
+            f_fairy_drop = "●" if self._falling_fairy_enabled(row) else ""
 
             # 主要列文字列 + スプライト用 featured_ordered_buckets
             featured_ordered_buckets = self._ordered_featured_buckets(featured_buckets)
@@ -679,6 +684,7 @@ class StatsDialog(QDialog):
                 key_enemy_text,                   # 鍵敵#
                 f_dark,                           # 暗闇
                 f_door,                           # 隠し扉
+                f_fairy_drop,                     # 妖精化
                 "",                               # 配置敵(sprite)
                 "",                               # ミラー敵(sprite)
                 "",                               # 主要(sprite)
@@ -701,6 +707,7 @@ class StatsDialog(QDialog):
                 key_enemy_no,                     # 鍵敵#
                 1 if f_dark else 0,               # 暗闇
                 1 if f_door else 0,               # 隠し扉
+                1 if f_fairy_drop else 0,         # 妖精化
                 "",                              # 配置敵: ソート対象外
                 "",                              # ミラー敵: ソート対象外
                 "",                              # 主要: ソート対象外
@@ -799,6 +806,18 @@ class StatsDialog(QDialog):
         if base not in important_buckets:
             important_buckets[base] = {"normal": 0, "hidden": 0, "in_block": 0}
         important_buckets[base][state] += 1
+
+    def _falling_fairy_enabled(self, level_no: int) -> bool:
+        if self.rom is None:
+            return False
+        region = getattr(self.rom, "region", "")
+        if hasattr(self.rom, "base_region"):
+            region = self.rom.base_region()
+        return _sp.has_falling_fairy_flag(
+            bytes(getattr(self.rom, "data", b"")),
+            region,
+            level_no,
+        )
 
     def _on_double_click(self, item):
         row = item.row()
