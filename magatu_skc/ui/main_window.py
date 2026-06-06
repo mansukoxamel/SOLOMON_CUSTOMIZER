@@ -286,6 +286,7 @@ class MainWindow(QMainWindow):
             self._app_config.get("marker_overlay_scale", 3)
         )
         self.picker.set_marker_colors(self._marker_color_config())
+        self.picker.set_marker_shapes(self._marker_shape_config())
         self.picker.selection_changed.connect(self._on_picker_selection_changed)
         self.picker.block_order_changed.connect(self._on_block_order_changed)
         # お気に入りの永続化
@@ -308,6 +309,7 @@ class MainWindow(QMainWindow):
             self._app_config.get("marker_overlay_scale", 3)
         )
         self.level_view.set_marker_colors(self._marker_color_config())
+        self.level_view.set_marker_shapes(self._marker_shape_config())
         self.level_view.tile_clicked.connect(self._on_tile_clicked)
         self.level_view.tile_right_clicked.connect(self._on_tile_right_clicked)
         # Ctrl+左ドラッグでの要素移動
@@ -3566,6 +3568,13 @@ class MainWindow(QMainWindow):
             for key, default in DEFAULT_MARKER_COLORS.items()
         }
 
+    def _marker_shape_config(self):
+        from .level_view import DEFAULT_MARKER_SHAPES
+        return {
+            key: self._app_config.get(key, default)
+            for key, default in DEFAULT_MARKER_SHAPES.items()
+        }
+
     def _apply_settings(self, new_config: dict):
         """設定ダイアログから呼び出される。即時反映 + JSON保存"""
         self._app_config = dict(new_config)
@@ -3582,6 +3591,8 @@ class MainWindow(QMainWindow):
         )
         self.level_view.set_marker_colors(self._marker_color_config())
         self.picker.set_marker_colors(self._marker_color_config())
+        self.level_view.set_marker_shapes(self._marker_shape_config())
+        self.picker.set_marker_shapes(self._marker_shape_config())
         self._refresh_view()
         self._apply_icon()
 

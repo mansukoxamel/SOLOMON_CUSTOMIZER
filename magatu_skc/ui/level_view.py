@@ -2,7 +2,7 @@
 from PyQt5.QtWidgets import (
     QGraphicsView, QGraphicsScene, QGraphicsPixmapItem,
     QGraphicsRectItem, QGraphicsSimpleTextItem, QGraphicsItem,
-    QGraphicsLineItem, QGraphicsEllipseItem,
+    QGraphicsLineItem, QGraphicsEllipseItem, QGraphicsPolygonItem,
 )
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QFont, QPolygonF
 from PyQt5.QtCore import Qt, pyqtSignal, QPointF
@@ -27,19 +27,64 @@ DEFAULT_MARKER_COLORS = {
 
 DEFAULT_MARKER_OVERLAY_SCALE = 3
 
+MARKER_SHAPE_OPTIONS = [
+    ("rect_large", "四角 大"),
+    ("rect_small", "四角 小"),
+    ("cross_large", "× 大"),
+    ("cross_medium", "× 中"),
+    ("cross_small", "× 小"),
+    ("ellipse_large", "丸 大"),
+    ("ellipse_small", "丸 小"),
+    ("triangle_large", "三角 大"),
+    ("triangle_small", "三角 小"),
+    ("plus_large", "十字 大"),
+    ("plus_small", "十字 小"),
+]
+
+MARKER_SHAPE_SPECS = {
+    "rect_large": ("rect", 1),
+    "rect_small": ("rect", 4),
+    "cross_large": ("cross", 1),
+    "cross_medium": ("cross", 3),
+    "cross_small": ("cross", 4),
+    "ellipse_large": ("ellipse", 1),
+    "ellipse_small": ("ellipse", 4),
+    "triangle_large": ("triangle", 1),
+    "triangle_small": ("triangle", 4),
+    "plus_large": ("plus", 1),
+    "plus_small": ("plus", 4),
+}
+
+DEFAULT_MARKER_SHAPES = {
+    "breakable_white_marker_shape": "rect_large",
+    "invisible_breakable_marker_shape": "rect_small",
+    "passable_marker_shape": "cross_medium",
+    "solid_marker_shape": "ellipse_small",
+}
+
 BLOCK_MARKER_SPECS = {
-    "breakable_white": ("rect", "breakable_white_marker_color", 3, 1),
-    "invisible_breakable": ("rect", "invisible_breakable_marker_color", 3, 4),
-    "passable_white": ("cross", "passable_marker_color", 3, 3),
-    "passable_brown": ("cross", "passable_marker_color", 3, 3),
-    "solid_brown": ("ellipse", "solid_marker_color", 3, 4),
-    "invisible_solid": ("ellipse", "solid_marker_color", 3, 4),
+    "breakable_white": ("breakable_white_marker_shape", "breakable_white_marker_color", 3),
+    "invisible_breakable": ("invisible_breakable_marker_shape", "invisible_breakable_marker_color", 3),
+    "passable_white": ("passable_marker_shape", "passable_marker_color", 3),
+    "passable_brown": ("passable_marker_shape", "passable_marker_color", 3),
+    "solid_brown": ("solid_marker_shape", "solid_marker_color", 3),
+    "invisible_solid": ("solid_marker_shape", "solid_marker_color", 3),
 }
 
 
 def marker_color(colors: dict, key: str) -> QColor:
     color = QColor(str((colors or {}).get(key, DEFAULT_MARKER_COLORS[key])))
     return color if color.isValid() else QColor(DEFAULT_MARKER_COLORS[key])
+
+
+def marker_shape(shapes: dict, key: str) -> str:
+    default = DEFAULT_MARKER_SHAPES[key]
+    value = str((shapes or {}).get(key, default))
+    return value if value in MARKER_SHAPE_SPECS else default
+
+
+def marker_shape_spec(shape_key: str):
+    return MARKER_SHAPE_SPECS.get(shape_key, MARKER_SHAPE_SPECS["rect_large"])
 
 
 def marker_pen_width(width: int, overlay_scale: int, output_scale: float = 1.0) -> int:
@@ -89,6 +134,23 @@ def make_block_marker_graphics_items(
         item.setPen(pen)
         item.setBrush(QBrush(Qt.NoBrush))
         return [item]
+    if shape == "triangle":
+        polygon = QGraphicsPolygonItem(QPolygonF([
+            QPointF(x + w / 2, y),
+            QPointF(x + w, y + h),
+            QPointF(x, y + h),
+        ]))
+        polygon.setPen(pen)
+        polygon.setBrush(QBrush(Qt.NoBrush))
+        return [polygon]
+    if shape == "plus":
+        cx = x + w / 2
+        cy = y + h / 2
+        a = QGraphicsLineItem(cx, y, cx, y + h)
+        b = QGraphicsLineItem(x, cy, x + w, cy)
+        a.setPen(pen)
+        b.setPen(pen)
+        return [a, b]
     return []
 
 
@@ -167,6 +229,7 @@ class LevelView(QGraphicsView):
         self._marker_colors = {
             key: QColor(value) for key, value in DEFAULT_MARKER_COLORS.items()
         }
+        self._marker_shapes = dict(DEFAULT_MARKER_SHAPES)
 
     def set_image(self, qimage):
         scene = self.scene()
@@ -224,8 +287,16 @@ class LevelView(QGraphicsView):
             color = QColor(str(colors.get(key) or default))
             self._marker_colors[key] = color if color.isValid() else QColor(default)
 
+    def set_marker_shapes(self, shapes: dict):
+        for key, default in DEFAULT_MARKER_SHAPES.items():
+            value = str((shapes or {}).get(key, default))
+            self._marker_shapes[key] = value if value in MARKER_SHAPE_SPECS else default
+
     def _marker_color(self, key: str) -> QColor:
         return QColor(self._marker_colors.get(key, QColor(DEFAULT_MARKER_COLORS[key])))
+
+    def _marker_shape(self, key: str) -> str:
+        return marker_shape(self._marker_shapes, key)
 
     def set_editor_overlays(self, overlays, with_border: bool = True):
         self.clear_editor_overlays()
@@ -288,8 +359,9 @@ class LevelView(QGraphicsView):
             polygon.setZValue(900)
             self._overlay_items.append(polygon)
 
-        for marker_key, (shape, color_key, width, inset) in BLOCK_MARKER_SPECS.items():
+        for marker_key, (shape_key, color_key, width) in BLOCK_MARKER_SPECS.items():
             for pos in overlays.get(marker_key, ()):
+                shape, inset = marker_shape_spec(self._marker_shape(shape_key))
                 for item in make_block_marker_graphics_items(
                         pos,
                         shape,

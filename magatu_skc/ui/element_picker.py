@@ -43,12 +43,12 @@ BLOCK_PICKER_LABELS = {
     BLOCK_NONE: "消去 (空白)",
     BLOCK_BROWN: "茶色ブロック (壊せる)",
     BLOCK_WHITE: "白ブロック (壊せない)",
-    BLOCK_BREAKABLE_WHITE: "Breakable white wall",
-    BLOCK_INVISIBLE_BREAKABLE: "Invisible breakable wall",
-    BLOCK_PASSABLE_WHITE: "Passable white wall",
-    BLOCK_INVISIBLE_SOLID: "Invisible solid wall",
-    BLOCK_PASSABLE_BROWN: "すり抜ける土色壁",
-    BLOCK_SOLID_BROWN: "壊せない土色壁",
+    BLOCK_BREAKABLE_WHITE: "壊せる白ブロック",
+    BLOCK_INVISIBLE_BREAKABLE: "透明な茶色ブロック",
+    BLOCK_PASSABLE_WHITE: "すり抜ける白ブロック",
+    BLOCK_INVISIBLE_SOLID: "透明な白ブロック",
+    BLOCK_PASSABLE_BROWN: "すり抜ける茶色ブロック",
+    BLOCK_SOLID_BROWN: "壊せない茶色ブロック",
 }
 
 
@@ -892,6 +892,7 @@ class ElementPicker(QWidget):
         self.current_item_flag = ITEM_FLAG_NORMAL  # アイテム配置時のフラグ
         self._block_order = list(DEFAULT_BLOCK_PICKER_ORDER)
         self._marker_colors = {}
+        self._marker_shapes = {}
         self._marker_overlay_scale = 3
         self._marker_source_tile_size = ICON_SIZE
         self._build_ui()
@@ -1107,6 +1108,11 @@ class ElementPicker(QWidget):
         if self.tile_renderer is not None and self.config is not None:
             self._populate_all()
 
+    def set_marker_shapes(self, shapes: dict):
+        self._marker_shapes = dict(shapes or {})
+        if self.tile_renderer is not None and self.config is not None:
+            self._populate_all()
+
     def set_marker_overlay_scale(self, scale: int):
         try:
             value = int(scale)
@@ -1155,6 +1161,8 @@ class ElementPicker(QWidget):
         from .level_view import (
             make_block_marker_graphics_items,
             marker_color,
+            marker_shape,
+            marker_shape_spec,
         )
 
         # tile_renderer は palette index 0 のみ透明扱いするので、そのまま使う
@@ -1189,7 +1197,8 @@ class ElementPicker(QWidget):
                 y_end = top + min(scaled.height(), scaled.height() - delta)
                 painter.drawLine(x_start, y_start, x_end, y_end)
         if block_marker is not None:
-            shape, color_key, width, inset = block_marker
+            shape_key, color_key, width = block_marker
+            shape, inset = marker_shape_spec(marker_shape(self._marker_shapes, shape_key))
             source_size = int(round(self._marker_source_tile_size))
             source_size = max(ICON_SIZE, source_size)
             source_img = QImage(source_size, source_size, QImage.Format_ARGB32)

@@ -10,7 +10,11 @@ from .theme import (
     DEFAULT_THEME_GRAY, MIN_THEME_GRAY, MAX_THEME_GRAY, normalize_theme_gray,
 )
 from ..core.config import DEFAULT_ICON_PATH
-from .level_view import DEFAULT_MARKER_COLORS
+from .level_view import (
+    DEFAULT_MARKER_COLORS,
+    DEFAULT_MARKER_SHAPES,
+    MARKER_SHAPE_OPTIONS,
+)
 
 
 MARKER_COLOR_ROWS = [
@@ -29,6 +33,20 @@ MARKER_COLOR_ROWS = [
     ("hover_marker_color", "ホバー枠"),
 ]
 
+MARKER_SHAPE_ROWS = [
+    ("breakable_white_marker_shape", "壊せる白ブロック"),
+    ("invisible_breakable_marker_shape", "透明壊せるブロック"),
+    ("passable_marker_shape", "すり抜けブロック"),
+    ("solid_marker_shape", "壊せない特殊ブロック"),
+]
+
+MARKER_SHAPE_BY_COLOR = {
+    "breakable_white_marker_color": "breakable_white_marker_shape",
+    "invisible_breakable_marker_color": "invisible_breakable_marker_shape",
+    "passable_marker_color": "passable_marker_shape",
+    "solid_marker_color": "solid_marker_shape",
+}
+
 
 class SettingsDialog(QDialog):
     """アプリケーション設定ダイアログ"""
@@ -38,7 +56,7 @@ class SettingsDialog(QDialog):
         if parent is not None:
             self.setFont(parent.font())
         self.setWindowTitle("設定 (F9)")
-        self.resize(620, 720)
+        self.resize(700, 780)
         self.config = dict(config)  # 編集用コピー
 
         layout = QVBoxLayout(self)
@@ -110,6 +128,7 @@ class SettingsDialog(QDialog):
 
         self._color_edits = {}
         self._color_buttons = {}
+        self._shape_combos = {}
         for key, label in MARKER_COLOR_ROWS:
             df.addRow(f"{label}色:", self._make_color_row(key))
 
@@ -186,9 +205,24 @@ class SettingsDialog(QDialog):
         edit.textChanged.connect(lambda _=None, k=key: self._sync_color_button(k))
         button.clicked.connect(lambda _=None, k=key: self._choose_marker_color(k))
         row.addWidget(edit, 1)
+        shape_key = MARKER_SHAPE_BY_COLOR.get(key)
+        if shape_key is not None:
+            row.addWidget(self._make_shape_combo(shape_key))
         row.addWidget(button)
         self._sync_color_button(key)
         return wrap
+
+    def _make_shape_combo(self, key: str):
+        combo = QComboBox()
+        combo.setMinimumWidth(92)
+        for value, label in MARKER_SHAPE_OPTIONS:
+            combo.addItem(label, value)
+        default = DEFAULT_MARKER_SHAPES[key]
+        current = str(self.config.get(key, default))
+        idx = combo.findData(current)
+        combo.setCurrentIndex(idx if idx >= 0 else combo.findData(default))
+        self._shape_combos[key] = combo
+        return combo
 
     def _sync_color_button(self, key: str):
         edit = self._color_edits[key]
@@ -258,6 +292,8 @@ class SettingsDialog(QDialog):
                 self._color_edits[key].text().strip(),
                 DEFAULT_MARKER_COLORS[key],
             )
+        for key, _label in MARKER_SHAPE_ROWS:
+            self.config[key] = str(self._shape_combos[key].currentData())
         self.config["icon_path"] = self.edit_icon.text().strip()
 
     def _apply(self):
