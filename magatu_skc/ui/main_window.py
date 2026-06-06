@@ -1044,6 +1044,23 @@ class MainWindow(QMainWindow):
             self._bonus_positions = []
             self._bonus_items = []
 
+    def _normalize_original_jp_enemy_data(self, rom, levels, allow_mutation: bool = True):
+        """原本JP ROMの既知敵データを編集用に正規化する。"""
+        if not allow_mutation or rom is None or not getattr(rom, "is_known_jp_original", lambda: False)():
+            return 0
+        if not levels or len(levels) <= 28:
+            return 0
+        fixed = 0
+        for slot_idx, pos in ((1, (14, 4)), (2, (14, 6))):
+            enemies = getattr(levels[28], "enemies", [])
+            if slot_idx >= len(enemies):
+                continue
+            enemy = enemies[slot_idx]
+            if enemy.position == pos and enemy.element_no == 0x4D:
+                enemy.element_no = 0x4C
+                fixed += 1
+        return fixed
+
     def _get_bonus_items(self):
         """現在のレベルがボーナスステージ(index 50)ならボーナスアイテムを返す"""
         if self.current_level_no == 50 and getattr(self, "_bonus_items", None):
@@ -1185,6 +1202,14 @@ class MainWindow(QMainWindow):
 
             # ボーナスステージテーブル読み込み（拡張前のアドレスで読む必要がある）
             self._load_bonus_stage_table(rom, allow_mutation=False)
+            if not read_only_mode:
+                fixed_enemy_count = self._normalize_original_jp_enemy_data(
+                    rom, levels, allow_mutation=True
+                )
+                if fixed_enemy_count:
+                    self._log(
+                        "JP版敵データ補正: Stage 29 の #2 Ghost 2体を通常Ghostへ正規化"
+                    )
 
             # 通常ROM (mapper 3) なら自動的に拡張ROM (mapper 66) に変換
             # 容量制約 (敵726B/アイテム1402B) を回避するため
