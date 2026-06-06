@@ -945,6 +945,7 @@ class MainWindow(QMainWindow):
                 hover_tile=None,
                 show_col15=True,
                 selection_rect=None,
+                special_marks=self._get_special_marks(i),
                 show_border=True,
                 bonus_items=bonus,
             )
@@ -1448,6 +1449,7 @@ class MainWindow(QMainWindow):
             hover_tile=None,
             show_col15=True,
             selection_rect=None,
+            special_marks=self._get_special_marks(level_no),
             show_border=True,
             bonus_items=bonus,
         )
@@ -3349,6 +3351,11 @@ class MainWindow(QMainWindow):
             self._rebuild_bonus_items_from_positions()
         elif kind == "conditional_breakable":
             self._move_conditional_breakable_marker(mp["group"], mp["sub"], tile)
+            if mp["group"] == "stage52_53":
+                self._refresh_thumbnail(51)
+                self._refresh_thumbnail(52)
+            else:
+                self._refresh_thumbnail(self.current_level_no)
         elif kind == "block":
             # 通り過ぎたタイルの「元の壁」を復元してから新位置にブロック配置
             cx, cy = mp["current_pos"]
