@@ -1280,7 +1280,76 @@ class MainWindow(QMainWindow):
         self._set_dirty(True)
         return True
 
+    def _stage49_conditional_breakable_positions(self):
+        """Stage 49 の条件付き壊せる白ブロック2組の座標をROMから読む。"""
+        if self.rom is None or len(self.rom.data) <= 0x35D8:
+            return None
+        data = self.rom.data
+        if bytes(data[0x35A8:0x35AB]) != bytes.fromhex("a57ec9"):
+            return None
+        if bytes(data[0x35AC:0x35AE]) != bytes.fromhex("d0f7"):
+            return None
+        if bytes(data[0x35C4:0x35C7]) != bytes.fromhex("a9908d"):
+            return None
+        if data[0x35C8] != 0x03:
+            return None
+        if bytes(data[0x35CC:0x35CF]) != bytes.fromhex("a57ec9"):
+            return None
+        if bytes(data[0x35D0:0x35D2]) != bytes.fromhex("d0f7"):
+            return None
+        if bytes(data[0x35D2:0x35D5]) != bytes.fromhex("a9908d"):
+            return None
+        if data[0x35D6] != 0x03:
+            return None
+        from ..core.element import position_from_byte
+        positions = {
+            "trigger1": position_from_byte(data[0x35AB]),
+            "target1": position_from_byte((data[0x35C7] - 0x04) & 0xFF),
+            "trigger2": position_from_byte(data[0x35CF]),
+            "target2": position_from_byte((data[0x35D5] - 0x04) & 0xFF),
+        }
+        for pos in positions.values():
+            x, y = pos
+            if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+                return None
+        return positions
+
+    def _stage49_conditional_breakable_marker_at(self, tile):
+        if self.current_level_no != 48:
+            return None
+        if not getattr(self, "chk_special_marks", None) or not self.chk_special_marks.isChecked():
+            return None
+        positions = self._stage49_conditional_breakable_positions()
+        if not positions:
+            return None
+        for key, pos in positions.items():
+            if tile == pos:
+                return key
+        return None
+
+    def _move_stage49_conditional_breakable_marker(self, marker_kind: str, tile):
+        if self.rom is None:
+            return False
+        positions = self._stage49_conditional_breakable_positions()
+        if not positions or marker_kind not in ("trigger1", "target1", "trigger2", "target2"):
+            return False
+        from ..core.element import byte_from_position
+        pos_byte = byte_from_position(tile)
+        if marker_kind == "trigger1":
+            self.rom.data[0x35AB] = pos_byte
+        elif marker_kind == "target1":
+            self.rom.data[0x35C7] = (pos_byte + 0x04) & 0xFF
+        elif marker_kind == "trigger2":
+            self.rom.data[0x35CF] = pos_byte
+        else:
+            self.rom.data[0x35D5] = (pos_byte + 0x04) & 0xFF
+        self._set_dirty(True)
+        return True
+
     def _conditional_breakable_marker_at(self, tile):
+        stage49_marker = self._stage49_conditional_breakable_marker_at(tile)
+        if stage49_marker is not None:
+            return {"group": "stage49", "sub": stage49_marker}
         stage50_marker = self._stage50_conditional_breakable_marker_at(tile)
         if stage50_marker is not None:
             return {"group": "stage50", "sub": stage50_marker}
@@ -1290,6 +1359,8 @@ class MainWindow(QMainWindow):
         return None
 
     def _move_conditional_breakable_marker(self, group: str, marker_kind: str, tile):
+        if group == "stage49":
+            return self._move_stage49_conditional_breakable_marker(marker_kind, tile)
         if group == "stage50":
             return self._move_stage50_conditional_breakable_marker(marker_kind, tile)
         if group == "stage52_53":
@@ -1297,6 +1368,8 @@ class MainWindow(QMainWindow):
         return False
 
     def _conditional_breakable_positions(self, group: str):
+        if group == "stage49":
+            return self._stage49_conditional_breakable_positions()
         if group == "stage50":
             return self._stage50_conditional_breakable_positions()
         if group == "stage52_53":
@@ -1304,9 +1377,22 @@ class MainWindow(QMainWindow):
         return None
 
     def _conditional_breakable_group_label(self, group: str):
+        if group == "stage49":
+            return "Stage 49"
         if group == "stage52_53":
             return "Stage 52/53"
         return "Stage 50"
+
+    def _conditional_breakable_marker_label(self, marker_kind: str):
+        labels = {
+            "trigger": "トリガー",
+            "target": "出現先",
+            "trigger1": "1:トリガー",
+            "target1": "1:出現先",
+            "trigger2": "2:トリガー",
+            "target2": "2:出現先",
+        }
+        return labels.get(marker_kind, marker_kind)
 
     def _get_bonus_items(self):
         """現在のレベルがボーナスステージ(index 50)ならボーナスアイテムを返す"""
@@ -3141,7 +3227,7 @@ class MainWindow(QMainWindow):
                 "sub": special_marker["sub"],
             }
             group_label = self._conditional_breakable_group_label(special_marker["group"])
-            label = "トリガー" if special_marker["sub"] == "trigger" else "出現先"
+            label = self._conditional_breakable_marker_label(special_marker["sub"])
             self.statusBar().showMessage(
                 f"{group_label} 条件付き壊せる白ブロック[{label}]を掴み中 → ドラッグで移動", 0
             )
@@ -3318,7 +3404,7 @@ class MainWindow(QMainWindow):
                 positions = self._conditional_breakable_positions(group) or {}
                 pos = positions.get(sub)
                 group_label = self._conditional_breakable_group_label(group)
-                label = "トリガー" if sub == "trigger" else "出現先"
+                label = self._conditional_breakable_marker_label(sub)
                 self.statusBar().showMessage(
                     f"{group_label} 条件付き壊せる白ブロック[{label}]移動完了 → {pos}", 2000
                 )
