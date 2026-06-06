@@ -13,7 +13,7 @@ from PyQt5.QtCore import Qt, QSize, QEvent
 from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor, QPainter, QPen
 
 from .. import __version__
-from ..core.rom import Rom, KNOWN_CRC32
+from ..core.rom import Rom, KNOWN_CRC32, is_known_jp_original_data
 from ..core.level import Level, load_all_levels
 from ..core.element import Wall, ElementType, LevelElement
 from ..core import constants as c
@@ -1061,6 +1061,41 @@ class MainWindow(QMainWindow):
                 fixed += 1
         return fixed
 
+    def _import_original_jp_stage50_breakable_white(self, source_data: bytes, levels,
+                                                    allow_mutation: bool = True):
+        """Stage 50 の無条件特殊処理ブロックを編集用ステージデータへ取り込む。"""
+        if not allow_mutation or not is_known_jp_original_data(source_data):
+            return 0
+        if not levels or len(levels) <= 49:
+            return 0
+        level = levels[49]
+        imported = 0
+        for pos in ((7, 1), (3, 3), (12, 7)):
+            x, y = pos
+            if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+                continue
+            if level.tiles[y][x] != Wall.WHITE:
+                continue
+            if pos not in level.breakable_white_cells:
+                level.breakable_white_cells.add(pos)
+                imported += 1
+        return imported
+
+    def _patch_stage50_breakable_white_hardcode(self, source_data: bytes, rom) -> int:
+        """Stage 50 の無条件 $90 書き込み3箇所を止める。"""
+        if rom is None or not is_known_jp_original_data(source_data):
+            return 0
+        off = 0x3626
+        expected = bytes.fromhex("8d2b038d47038d9003")
+        disabled = bytes([0xEA] * len(expected))
+        current = bytes(rom.data[off:off + len(expected)])
+        if current == disabled:
+            return 0
+        if current != expected:
+            return 0
+        rom.data[off:off + len(expected)] = disabled
+        return 3
+
     def _get_bonus_items(self):
         """現在のレベルがボーナスステージ(index 50)ならボーナスアイテムを返す"""
         if self.current_level_no == 50 and getattr(self, "_bonus_items", None):
@@ -1202,7 +1237,15 @@ class MainWindow(QMainWindow):
 
             # ボーナスステージテーブル読み込み（拡張前のアドレスで読む必要がある）
             self._load_bonus_stage_table(rom, allow_mutation=False)
+            imported_stage50_breakable = 0
             if not read_only_mode:
+                imported_stage50_breakable = self._import_original_jp_stage50_breakable_white(
+                    loaded_rom_data, levels, allow_mutation=True
+                )
+                if imported_stage50_breakable:
+                    self._log(
+                        "JP版特殊処理補正: Stage 50 の無条件壊せる白ブロック3箇所をステージデータへ取り込み"
+                    )
                 fixed_enemy_count = self._normalize_original_jp_enemy_data(
                     rom, levels, allow_mutation=True
                 )
@@ -1219,6 +1262,14 @@ class MainWindow(QMainWindow):
                 from ..core import m66_expander
                 m66_expander.expand_rom(rom, levels)
                 auto_expanded = True
+                if imported_stage50_breakable:
+                    disabled_count = self._patch_stage50_breakable_white_hardcode(
+                        loaded_rom_data, rom
+                    )
+                    if disabled_count:
+                        self._log(
+                            "JP版特殊処理補正: Stage 50 の無条件壊せる白ブロック生成コードを無効化"
+                        )
 
             # JP ROM is normalized to the internal wide-title format after
             # mapper66 expansion. This must run after expand_rom(), because
@@ -2794,6 +2845,7 @@ class MainWindow(QMainWindow):
                     for y in range(y1, y2 + 1):
                         for x in range(x1, x2 + 1):
                             lv.tiles[y][x] = Wall.NONE
+                            self._pop_runtime_markers_at(lv, (x, y))
                     lv.items = [it for it in lv.items
                                 if not (x1 <= it.position[0] <= x2 and y1 <= it.position[1] <= y2)]
                     lv.enemies = [en for en in lv.enemies
@@ -2868,20 +2920,40 @@ class MainWindow(QMainWindow):
         # ブロックを掴む（最後の優先順位、他の要素が無い場合のみ）
         tx, ty = tile
         wall = lv.tiles[ty][tx]
-        if wall != Wall.NONE:
+        has_runtime_marker = any(
+            tile in getattr(lv, name, set())
+            for name in self._runtime_marker_names()
+        )
+        if wall != Wall.NONE or has_runtime_marker:
             self._push_undo()
+            runtime_markers = self._pop_runtime_markers_at(lv, tile)
             self._move_pending = {
                 "kind": "block",
                 "wall_type": wall,
+                "runtime_markers": runtime_markers,
                 "current_pos": tile,
                 # 現在位置に「元々あった壁」（drag_moveで復元するため）
                 # 元位置は今クリアしたので NONE
                 "prev_wall_at_current": Wall.NONE,
+                "prev_markers_at_current": set(),
             }
             # 元位置を空白に
             lv.tiles[ty][tx] = Wall.NONE
-            label = {Wall.BROWN: "茶ブロック", Wall.WHITE: "白ブロック",
-                     Wall.BROWN_WHITE: "壊せる白"}.get(wall, "ブロック")
+            if "invisible_breakable_cells" in runtime_markers:
+                label = "透明な壊せる壁"
+            elif "invisible_solid_cells" in runtime_markers:
+                label = "透明な白壁"
+            elif "breakable_white_cells" in runtime_markers:
+                label = "壊せる白壁"
+            elif "passable_white_cells" in runtime_markers:
+                label = "すり抜ける白壁"
+            elif "passable_brown_cells" in runtime_markers:
+                label = "すり抜ける茶色壁"
+            elif "solid_brown_cells" in runtime_markers:
+                label = "壊せない茶色壁"
+            else:
+                label = {Wall.BROWN: "茶ブロック", Wall.WHITE: "白ブロック",
+                         Wall.BROWN_WHITE: "壊せる白"}.get(wall, "ブロック")
             self.statusBar().showMessage(f"{label} を掴み中 → ドラッグで移動", 0)
             self._refresh_view()
 
@@ -2934,11 +3006,17 @@ class MainWindow(QMainWindow):
             cx, cy = mp["current_pos"]
             # 現在位置を元に戻す
             lv.tiles[cy][cx] = mp["prev_wall_at_current"]
+            self._pop_runtime_markers_at(lv, (cx, cy))
+            self._restore_runtime_markers_at(
+                lv, (cx, cy), mp.get("prev_markers_at_current", set())
+            )
             # 新位置の元の壁を保存
             tx, ty = tile
             mp["prev_wall_at_current"] = lv.tiles[ty][tx]
+            mp["prev_markers_at_current"] = self._pop_runtime_markers_at(lv, tile)
             # 新位置にブロック配置
             lv.tiles[ty][tx] = mp["wall_type"]
+            self._restore_runtime_markers_at(lv, tile, mp.get("runtime_markers", set()))
             mp["current_pos"] = tile
         elif kind == "selection":
             # ベース状態（削除後の状態）に復元してから新位置に貼り直す
@@ -3142,6 +3220,29 @@ class MainWindow(QMainWindow):
             if hits_locked_col15(en_data["rel_pos"]):
                 return True
         return False
+
+    def _runtime_marker_names(self):
+        return (
+            "breakable_white_cells",
+            "invisible_breakable_cells",
+            "passable_white_cells",
+            "invisible_solid_cells",
+            "passable_brown_cells",
+            "solid_brown_cells",
+        )
+
+    def _pop_runtime_markers_at(self, level, pos) -> set:
+        names = set()
+        for name in self._runtime_marker_names():
+            cells = getattr(level, name, set())
+            if pos in cells:
+                cells.discard(pos)
+                names.add(name)
+        return names
+
+    def _restore_runtime_markers_at(self, level, pos, names):
+        for name in names or ():
+            getattr(level, name, set()).add(pos)
 
     def _normalize_selection_endpoints(self, start, end):
         if start is None or end is None:
