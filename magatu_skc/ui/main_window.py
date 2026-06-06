@@ -1460,6 +1460,18 @@ class MainWindow(QMainWindow):
         if item is not None:
             item.setIcon(QIcon(pix))
 
+    def _refresh_thumbnails_after_edit(self, level_no: int = None):
+        if level_no is None:
+            level_no = self.current_level_no
+        self._refresh_thumbnail(level_no)
+
+    def _refresh_thumbnails_after_conditional_marker_edit(self, group: str):
+        if group == "stage52_53":
+            self._refresh_thumbnail(51)
+            self._refresh_thumbnail(52)
+        else:
+            self._refresh_thumbnail(self.current_level_no)
+
     def _read_wall_color_values(self):
         if self.rom is None:
             return None
@@ -3149,6 +3161,7 @@ class MainWindow(QMainWindow):
                 lv.demon_mirrors[1].position = tile
 
         self._refresh_view()
+        self._refresh_thumbnails_after_edit()
 
     # ====== Ctrl+左ドラッグでの要素移動 ======
 
@@ -3351,11 +3364,6 @@ class MainWindow(QMainWindow):
             self._rebuild_bonus_items_from_positions()
         elif kind == "conditional_breakable":
             self._move_conditional_breakable_marker(mp["group"], mp["sub"], tile)
-            if mp["group"] == "stage52_53":
-                self._refresh_thumbnail(51)
-                self._refresh_thumbnail(52)
-            else:
-                self._refresh_thumbnail(self.current_level_no)
         elif kind == "block":
             # 通り過ぎたタイルの「元の壁」を復元してから新位置にブロック配置
             cx, cy = mp["current_pos"]
@@ -3395,9 +3403,11 @@ class MainWindow(QMainWindow):
             if kind == "selection":
                 self.statusBar().showMessage("選択範囲の移動完了", 2000)
                 self._drag_base_level = None
+                self._refresh_thumbnails_after_edit()
             elif kind == "bonus":
                 self._write_bonus_positions_to_rom()
                 self.statusBar().showMessage("ボーナススポット移動完了", 2000)
+                self._refresh_thumbnails_after_edit()
             elif kind == "seal":
                 mi = self._move_pending["ref"]
                 if self.rom and mi.rom_offset >= 0 and mi.rom_offset < len(self.rom.data):
@@ -3405,6 +3415,7 @@ class MainWindow(QMainWindow):
                     self.rom.data[mi.rom_offset] = byte_from_position(mi.position)
                 self.statusBar().showMessage(
                     f"{mi.description} 移動完了 → {mi.position}", 2000)
+                self._refresh_thumbnails_after_edit()
             elif kind == "conditional_breakable":
                 group = self._move_pending.get("group")
                 sub = self._move_pending.get("sub")
@@ -3415,8 +3426,10 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(
                     f"{group_label} 条件付き壊せる白ブロック[{label}]移動完了 → {pos}", 2000
                 )
+                self._refresh_thumbnails_after_conditional_marker_edit(group)
             else:
                 self.statusBar().showMessage("移動完了", 2000)
+                self._refresh_thumbnails_after_edit()
         self._move_pending = None
 
     def _on_tile_right_clicked(self, tile: tuple):
@@ -3493,6 +3506,7 @@ class MainWindow(QMainWindow):
         if deleted:
             self.statusBar().showMessage(f"削除: {tile} ({', '.join(deleted)})", 2000)
         self._refresh_view()
+        self._refresh_thumbnails_after_edit()
 
     def _on_tile_painted(self, button: int, tile: tuple, modifiers: int):
         """ドラッグ塗り（左ボタン押しっぱなし）— undoは press 時の1回だけ"""
