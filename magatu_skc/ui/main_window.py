@@ -1,5 +1,6 @@
 """メインウィンドウ - PyQt5 GUI"""
 import copy
+import ctypes
 import os
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from PyQt5.QtWidgets import (
     QGroupBox, QComboBox, QCheckBox, QListWidget, QApplication,
     QToolBar, QAction, QRadioButton, QButtonGroup, QShortcut
 )
-from PyQt5.QtCore import Qt, QSize, QEvent
+from PyQt5.QtCore import Qt, QSize, QEvent, QTimer
 from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor, QPainter, QPen
 
 from .. import __version__
@@ -33,6 +34,42 @@ from .element_picker import (
 )
 
 APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
+
+
+class _XInputGamepad(ctypes.Structure):
+    _fields_ = [
+        ("wButtons", ctypes.c_ushort),
+        ("bLeftTrigger", ctypes.c_ubyte),
+        ("bRightTrigger", ctypes.c_ubyte),
+        ("sThumbLX", ctypes.c_short),
+        ("sThumbLY", ctypes.c_short),
+        ("sThumbRX", ctypes.c_short),
+        ("sThumbRY", ctypes.c_short),
+    ]
+
+
+class _XInputState(ctypes.Structure):
+    _fields_ = [
+        ("dwPacketNumber", ctypes.c_uint32),
+        ("Gamepad", _XInputGamepad),
+    ]
+
+
+_XINPUT_MAX_CONTROLLERS = 4
+_XINPUT_BUTTON_START = 0x0010
+
+
+def _load_xinput_get_state():
+    for dll_name in ("xinput1_4", "xinput1_3", "xinput9_1_0"):
+        try:
+            dll = ctypes.WinDLL(dll_name)
+            fn = dll.XInputGetState
+            fn.argtypes = [ctypes.c_uint32, ctypes.POINTER(_XInputState)]
+            fn.restype = ctypes.c_uint32
+            return fn
+        except (OSError, AttributeError):
+            continue
+    return None
 
 
 _ENEMY_HORIZONTAL_MIRROR_PAIRS = [
@@ -165,6 +202,7 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self._setup_shortcuts()
+        self._setup_gamepad_shortcut()
 
         # 起動時にフォントサイズを反映
         self._apply_font_size()
@@ -181,6 +219,39 @@ class MainWindow(QMainWindow):
         self.shortcut_test_play.setContext(Qt.WindowShortcut)
         self.shortcut_test_play.setAutoRepeat(False)
         self.shortcut_test_play.activated.connect(self._on_test_play)
+
+    def _setup_gamepad_shortcut(self):
+        self._xinput_get_state = _load_xinput_get_state()
+        self._xinput_last_buttons = [0] * _XINPUT_MAX_CONTROLLERS
+        self._xinput_timer = None
+        if self._xinput_get_state is None:
+            return
+        self._xinput_timer = QTimer(self)
+        self._xinput_timer.setInterval(80)
+        self._xinput_timer.timeout.connect(self._poll_gamepad_shortcut)
+        self._xinput_timer.start()
+
+    def _poll_gamepad_shortcut(self):
+        if self._xinput_get_state is None:
+            return
+        active = self.isActiveWindow()
+        for index in range(_XINPUT_MAX_CONTROLLERS):
+            state = _XInputState()
+            try:
+                connected = self._xinput_get_state(index, ctypes.byref(state)) == 0
+            except OSError:
+                return
+            buttons = state.Gamepad.wButtons if connected else 0
+            last = self._xinput_last_buttons[index]
+            if (
+                active
+                and (buttons & _XINPUT_BUTTON_START)
+                and not (last & _XINPUT_BUTTON_START)
+            ):
+                self._xinput_last_buttons[index] = buttons
+                self._on_test_play()
+                return
+            self._xinput_last_buttons[index] = buttons
 
     def _log(self, msg: str):
         """操作ログをメモリに追記（closeEventでファイルに書き出す）"""
@@ -5705,6 +5776,7 @@ class MainWindow(QMainWindow):
 F1: このヘルプ<br>
 F9: 設定画面<br>
 P: テストプレイ<br>
+ゲームパッド Start/Menu: テストプレイ<br>
 PageUp / PageDown: ステージ切替<br>
 G: グリッド表示切替<br>
 Ctrl+Z: Undo<br>
