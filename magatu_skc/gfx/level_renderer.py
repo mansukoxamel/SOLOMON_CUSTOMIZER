@@ -30,12 +30,36 @@ PANEL_VARIANT_VISUAL_SOURCE = {
     0x31: 0x24, 0x33: 0x25, 0x35: 0x26, 0x37: 0x27,
 }
 
+MARKER_RENDER_SCALE = 4
+
 
 class LevelRenderer:
 
     def __init__(self, tile_renderer: TileRenderer, config):
         self.tr = tile_renderer
         self.config = config
+
+    def _draw_marker_layer(self, painter: QPainter, width: int, height: int, draw_func):
+        marker = QImage(
+            width * MARKER_RENDER_SCALE,
+            height * MARKER_RENDER_SCALE,
+            QImage.Format_ARGB32_Premultiplied,
+        )
+        marker.fill(QColor(0, 0, 0, 0))
+        mp = QPainter(marker)
+        try:
+            mp.setRenderHint(QPainter.Antialiasing, True)
+            mp.scale(MARKER_RENDER_SCALE, MARKER_RENDER_SCALE)
+            draw_func(mp)
+        finally:
+            mp.end()
+        smoothed = marker.scaled(
+            width,
+            height,
+            Qt.IgnoreAspectRatio,
+            Qt.SmoothTransformation,
+        )
+        painter.drawImage(0, 0, smoothed)
         self.wall_color_values = None
 
     def set_wall_color_values(self, values):
@@ -220,65 +244,77 @@ class LevelRenderer:
             # Editor-only marker: white-looking blocks that become normal breakable stone.
             bw_cells = getattr(level, "breakable_white_cells", set())
             if show_secret_elements and bw_cells:
-                pen = QPen(QColor(80, 230, 90, 255))
-                pen.setWidth(3)
-                painter.setPen(pen)
-                painter.setBrush(Qt.NoBrush)
-                for x, y in bw_cells:
-                    if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
-                        painter.drawRect(x * tw + 1, y * tw + 1, tw - 3, tw - 3)
+                def draw_bw_marks(mp):
+                    pen = QPen(QColor(80, 230, 90, 255))
+                    pen.setWidth(3)
+                    mp.setPen(pen)
+                    mp.setBrush(Qt.NoBrush)
+                    for x, y in bw_cells:
+                        if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
+                            mp.drawRect(x * tw + 1, y * tw + 1, tw - 3, tw - 3)
+                self._draw_marker_layer(painter, img_w, img_h, draw_bw_marks)
 
             ib_cells = getattr(level, "invisible_breakable_cells", set())
             if show_secret_elements and ib_cells:
-                pen = QPen(QColor(255, 220, 40, 255))
-                pen.setWidth(3)
-                painter.setPen(pen)
-                painter.setBrush(Qt.NoBrush)
-                for x, y in ib_cells:
-                    if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
-                        painter.drawRect(x * tw + 4, y * tw + 4, tw - 9, tw - 9)
+                def draw_ib_marks(mp):
+                    pen = QPen(QColor(255, 220, 40, 255))
+                    pen.setWidth(3)
+                    mp.setPen(pen)
+                    mp.setBrush(Qt.NoBrush)
+                    for x, y in ib_cells:
+                        if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
+                            mp.drawRect(x * tw + 4, y * tw + 4, tw - 9, tw - 9)
+                self._draw_marker_layer(painter, img_w, img_h, draw_ib_marks)
 
             pw_cells = getattr(level, "passable_white_cells", set())
             if show_secret_elements and pw_cells:
-                pen = QPen(QColor(80, 190, 255, 255))
-                pen.setWidth(3)
-                painter.setPen(pen)
-                painter.setBrush(Qt.NoBrush)
-                for x, y in pw_cells:
-                    if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
-                        painter.drawLine(x * tw + 3, y * tw + 3, x * tw + tw - 4, y * tw + tw - 4)
-                        painter.drawLine(x * tw + tw - 4, y * tw + 3, x * tw + 3, y * tw + tw - 4)
+                def draw_pw_marks(mp):
+                    pen = QPen(QColor(80, 190, 255, 255))
+                    pen.setWidth(3)
+                    mp.setPen(pen)
+                    mp.setBrush(Qt.NoBrush)
+                    for x, y in pw_cells:
+                        if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
+                            mp.drawLine(x * tw + 3, y * tw + 3, x * tw + tw - 4, y * tw + tw - 4)
+                            mp.drawLine(x * tw + tw - 4, y * tw + 3, x * tw + 3, y * tw + tw - 4)
+                self._draw_marker_layer(painter, img_w, img_h, draw_pw_marks)
 
             pb_cells = getattr(level, "passable_brown_cells", set())
             if show_secret_elements and pb_cells:
-                pen = QPen(QColor(80, 190, 255, 255))
-                pen.setWidth(3)
-                painter.setPen(pen)
-                painter.setBrush(Qt.NoBrush)
-                for x, y in pb_cells:
-                    if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
-                        painter.drawLine(x * tw + 3, y * tw + 3, x * tw + tw - 4, y * tw + tw - 4)
-                        painter.drawLine(x * tw + tw - 4, y * tw + 3, x * tw + 3, y * tw + tw - 4)
+                def draw_pb_marks(mp):
+                    pen = QPen(QColor(80, 190, 255, 255))
+                    pen.setWidth(3)
+                    mp.setPen(pen)
+                    mp.setBrush(Qt.NoBrush)
+                    for x, y in pb_cells:
+                        if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
+                            mp.drawLine(x * tw + 3, y * tw + 3, x * tw + tw - 4, y * tw + tw - 4)
+                            mp.drawLine(x * tw + tw - 4, y * tw + 3, x * tw + 3, y * tw + tw - 4)
+                self._draw_marker_layer(painter, img_w, img_h, draw_pb_marks)
 
             sb_cells = getattr(level, "solid_brown_cells", set())
             if show_secret_elements and sb_cells:
-                pen = QPen(QColor(255, 120, 220, 255))
-                pen.setWidth(3)
-                painter.setPen(pen)
-                painter.setBrush(Qt.NoBrush)
-                for x, y in sb_cells:
-                    if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
-                        painter.drawEllipse(x * tw + 4, y * tw + 4, tw - 9, tw - 9)
+                def draw_sb_marks(mp):
+                    pen = QPen(QColor(255, 120, 220, 255))
+                    pen.setWidth(3)
+                    mp.setPen(pen)
+                    mp.setBrush(Qt.NoBrush)
+                    for x, y in sb_cells:
+                        if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
+                            mp.drawEllipse(x * tw + 4, y * tw + 4, tw - 9, tw - 9)
+                self._draw_marker_layer(painter, img_w, img_h, draw_sb_marks)
 
             is_cells = getattr(level, "invisible_solid_cells", set())
             if show_secret_elements and is_cells:
-                pen = QPen(QColor(255, 120, 220, 255))
-                pen.setWidth(3)
-                painter.setPen(pen)
-                painter.setBrush(Qt.NoBrush)
-                for x, y in is_cells:
-                    if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
-                        painter.drawEllipse(x * tw + 4, y * tw + 4, tw - 9, tw - 9)
+                def draw_is_marks(mp):
+                    pen = QPen(QColor(255, 120, 220, 255))
+                    pen.setWidth(3)
+                    mp.setPen(pen)
+                    mp.setBrush(Qt.NoBrush)
+                    for x, y in is_cells:
+                        if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
+                            mp.drawEllipse(x * tw + 4, y * tw + 4, tw - 9, tw - 9)
+                self._draw_marker_layer(painter, img_w, img_h, draw_is_marks)
 
             # 4. ドア（tile_defの transparent 属性を尊重 - Noneで自動判定）
             if not level.is_door_removed():
@@ -332,10 +368,12 @@ class LevelRenderer:
                 painter.drawImage(mx * tw, my * tw, m_img)
                 # ミラー識別: 1=赤枠, 2=青枠
                 if show_secret_elements:
-                    border_color = QColor(255, 60, 60) if mi == 0 else QColor(60, 120, 255)
-                    painter.setPen(QPen(border_color, 1))
-                    painter.setBrush(Qt.NoBrush)
-                    painter.drawRect(mx * tw, my * tw, tw - 1, tw - 1)
+                    def draw_mirror_border(mp, mx=mx, my=my, mi=mi):
+                        border_color = QColor(255, 60, 60) if mi == 0 else QColor(60, 120, 255)
+                        mp.setPen(QPen(border_color, 1))
+                        mp.setBrush(Qt.NoBrush)
+                        mp.drawRect(mx * tw, my * tw, tw - 1, tw - 1)
+                    self._draw_marker_layer(painter, img_w, img_h, draw_mirror_border)
 
             # 7. アイテム
             for item in level.items:
@@ -365,10 +403,12 @@ class LevelRenderer:
                     painter.drawImage(ix * tw, iy * tw, item_img)
 
                 if show_hidden_overlay and (item.is_hidden() or item.is_in_block()):
-                    pen = QPen(QColor(255, 220, 0))
-                    pen.setWidth(2)
-                    painter.setPen(pen)
-                    painter.drawRect(ix * tw + 1, iy * tw + 1, tw - 2, tw - 2)
+                    def draw_item_overlay(mp, ix=ix, iy=iy):
+                        pen = QPen(QColor(255, 220, 0))
+                        pen.setWidth(2)
+                        mp.setPen(pen)
+                        mp.drawRect(ix * tw + 1, iy * tw + 1, tw - 2, tw - 2)
+                    self._draw_marker_layer(painter, img_w, img_h, draw_item_overlay)
 
             # 7.5 ボーナスステージ出現スポット（ステージ51専用、位置マーカーのみ）
             if bonus_items:
@@ -386,10 +426,12 @@ class LevelRenderer:
                         QPoint(cx, cy + r),
                         QPoint(cx - r, cy),
                     ])
-                    painter.setPen(QPen(QColor(255, 200, 0), 2))
-                    painter.setBrush(QBrush(QColor(255, 200, 0, 80)))
-                    painter.drawPolygon(diamond)
-                    painter.setBrush(Qt.NoBrush)
+                    def draw_bonus_marker(mp, diamond=diamond):
+                        mp.setPen(QPen(QColor(255, 200, 0), 2))
+                        mp.setBrush(QBrush(QColor(255, 200, 0, 80)))
+                        mp.drawPolygon(diamond)
+                        mp.setBrush(Qt.NoBrush)
+                    self._draw_marker_layer(painter, img_w, img_h, draw_bonus_marker)
 
             # 8. 敵
             for enemy in level.enemies:
@@ -438,10 +480,12 @@ class LevelRenderer:
                     painter.drawImage(mx * tw, my * tw, meta_img)
 
                 if show_hidden_overlay and (in_block or mi.transparent):
-                    pen = QPen(QColor(255, 220, 0))
-                    pen.setWidth(2)
-                    painter.setPen(pen)
-                    painter.drawRect(mx * tw + 1, my * tw + 1, tw - 2, tw - 2)
+                    def draw_meta_overlay(mp, mx=mx, my=my):
+                        pen = QPen(QColor(255, 220, 0))
+                        pen.setWidth(2)
+                        mp.setPen(pen)
+                        mp.drawRect(mx * tw + 1, my * tw + 1, tw - 2, tw - 2)
+                    self._draw_marker_layer(painter, img_w, img_h, draw_meta_overlay)
 
             # 9. プレイヤースタート
             sx, sy = level.fixed_start_pos
@@ -468,23 +512,27 @@ class LevelRenderer:
                 y2 = max(0, min(c.LEVEL_H - 1, y2))
                 rx, ry = x1 * tw, y1 * tw
                 rw, rh = (x2 - x1 + 1) * tw, (y2 - y1 + 1) * tw
-                # 半透明の黄色で塗りつぶし
-                painter.fillRect(rx, ry, rw, rh, QColor(255, 230, 0, 60))
-                # 黄色の枠線
-                pen = QPen(QColor(255, 230, 0))
-                pen.setWidth(2)
-                pen.setStyle(Qt.DashLine)
-                painter.setPen(pen)
-                painter.drawRect(rx, ry, rw - 1, rh - 1)
+                def draw_selection_marker(mp):
+                    # 半透明の黄色で塗りつぶし
+                    mp.fillRect(rx, ry, rw, rh, QColor(255, 230, 0, 60))
+                    # 黄色の枠線
+                    pen = QPen(QColor(255, 230, 0))
+                    pen.setWidth(2)
+                    pen.setStyle(Qt.DashLine)
+                    mp.setPen(pen)
+                    mp.drawRect(rx, ry, rw - 1, rh - 1)
+                self._draw_marker_layer(painter, img_w, img_h, draw_selection_marker)
 
             # 9.5 ホバーハイライト（マウス位置のタイル枠）
             if hover_tile is not None:
                 hx, hy = hover_tile
                 if 0 <= hx < c.LEVEL_W and 0 <= hy < c.LEVEL_H:
-                    pen = QPen(QColor(255, 255, 255, 220))
-                    pen.setWidth(2)
-                    painter.setPen(pen)
-                    painter.drawRect(hx * tw, hy * tw, tw - 1, tw - 1)
+                    def draw_hover_marker(mp):
+                        pen = QPen(QColor(255, 255, 255, 220))
+                        pen.setWidth(2)
+                        mp.setPen(pen)
+                        mp.drawRect(hx * tw, hy * tw, tw - 1, tw - 1)
+                    self._draw_marker_layer(painter, img_w, img_h, draw_hover_marker)
 
             # 10. グリッド線
             if show_grid:
@@ -532,35 +580,39 @@ class LevelRenderer:
                             painter.drawImage(mx * tw, my * tw, bj_img)
                             painter.setOpacity(1.0)
 
-                for key, kind in special_marks.items():
-                    if key == "__links__":
-                        continue
-                    mx, my = key
-                    if not (0 <= mx < c.LEVEL_W and 0 <= my < c.LEVEL_H):
-                        continue
-                    color = mark_colors.get(kind, QColor(255, 0, 255))
-                    pen = QPen(color)
-                    pen.setWidth(3)
-                    if kind == "breakable_conditional":
-                        pen.setStyle(Qt.DashLine)
-                    else:
-                        pen.setStyle(Qt.SolidLine)
-                    painter.setPen(pen)
-                    painter.drawRect(mx * tw + 1, my * tw + 1, tw - 3, tw - 3)
+                def draw_special_marker_frames(mp):
+                    for key, kind in special_marks.items():
+                        if key == "__links__":
+                            continue
+                        mx, my = key
+                        if not (0 <= mx < c.LEVEL_W and 0 <= my < c.LEVEL_H):
+                            continue
+                        color = mark_colors.get(kind, QColor(255, 0, 255))
+                        pen = QPen(color)
+                        pen.setWidth(3)
+                        if kind == "breakable_conditional":
+                            pen.setStyle(Qt.DashLine)
+                        else:
+                            pen.setStyle(Qt.SolidLine)
+                        mp.setPen(pen)
+                        mp.drawRect(mx * tw + 1, my * tw + 1, tw - 3, tw - 3)
+                self._draw_marker_layer(painter, img_w, img_h, draw_special_marker_frames)
 
                 # トリガー→ターゲット間に矢印 (細い線) を引く
                 links = special_marks.get("__links__", [])
                 if links:
-                    pen = QPen(QColor(255, 200, 100, 180))
-                    pen.setWidth(1)
-                    pen.setStyle(Qt.DashLine)
-                    painter.setPen(pen)
-                    for (tx, ty), (gx, gy) in links:
-                        cx1 = tx * tw + tw // 2
-                        cy1 = ty * tw + tw // 2
-                        cx2 = gx * tw + tw // 2
-                        cy2 = gy * tw + tw // 2
-                        painter.drawLine(cx1, cy1, cx2, cy2)
+                    def draw_special_links(mp):
+                        pen = QPen(QColor(255, 200, 100, 180))
+                        pen.setWidth(1)
+                        pen.setStyle(Qt.DashLine)
+                        mp.setPen(pen)
+                        for (tx, ty), (gx, gy) in links:
+                            cx1 = tx * tw + tw // 2
+                            cy1 = ty * tw + tw // 2
+                            cx2 = gx * tw + tw // 2
+                            cy2 = gy * tw + tw // 2
+                            mp.drawLine(cx1, cy1, cx2, cy2)
+                    self._draw_marker_layer(painter, img_w, img_h, draw_special_links)
 
         finally:
             painter.end()
