@@ -1231,6 +1231,7 @@ class MainWindow(QMainWindow):
             self.config = config
             self.tile_renderer = TileRenderer(config, nes_tiles)
             self.level_renderer = LevelRenderer(self.tile_renderer, config)
+            self._apply_renderer_marker_settings()
             self._sync_wall_color_preview()
 
             # item_bitmasks are a raw-ROM storage shortcut. Convert them into
@@ -3575,6 +3576,15 @@ class MainWindow(QMainWindow):
             for key, default in DEFAULT_MARKER_SHAPES.items()
         }
 
+    def _apply_renderer_marker_settings(self):
+        if self.level_renderer is None:
+            return
+        self.level_renderer.set_marker_overlay_scale(
+            self._app_config.get("marker_overlay_scale", 3)
+        )
+        self.level_renderer.set_marker_colors(self._marker_color_config())
+        self.level_renderer.set_marker_shapes(self._marker_shape_config())
+
     def _apply_settings(self, new_config: dict):
         """設定ダイアログから呼び出される。即時反映 + JSON保存"""
         self._app_config = dict(new_config)
@@ -3593,7 +3603,10 @@ class MainWindow(QMainWindow):
         self.picker.set_marker_colors(self._marker_color_config())
         self.level_view.set_marker_shapes(self._marker_shape_config())
         self.picker.set_marker_shapes(self._marker_shape_config())
+        self._apply_renderer_marker_settings()
         self._refresh_view()
+        if self.levels and self.level_renderer is not None:
+            self._generate_all_thumbnails()
         self._apply_icon()
 
     def _apply_theme(self):
@@ -4335,6 +4348,7 @@ class MainWindow(QMainWindow):
         nes_tiles = load_chr_tiles(bytes(self.rom.data), gfx_offset, c.NES_TILE_COUNT)
         self.tile_renderer = TileRenderer(self.config, nes_tiles)
         self.level_renderer = LevelRenderer(self.tile_renderer, self.config)
+        self._apply_renderer_marker_settings()
         self._sync_wall_color_preview()
         if self.picker is not None:
             self.picker.set_tile_renderer(self.tile_renderer, self.config)
