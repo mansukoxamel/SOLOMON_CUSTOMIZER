@@ -266,11 +266,43 @@ def base_code_from_actual(code: int) -> tuple:
 
 ICON_SIZE = 36  # アイコン表示サイズ（メタタイル16x16の約2.25倍）
 GRID_PAD = 2    # IconModeグリッドの余白（小さくして詰める）
+PICKER_ICON_MIN = 24
+PICKER_ICON_MAX = 64
+PICKER_ICON_STEP = 4
 
 FAVORITES_COUNT = 10  # クイック選択スロット数（1～9, 0）
 
 # D&D用カスタムMIMEタイプ
 PICKER_MIME = "application/x-magatu-picker-item"
+
+
+def clamp_picker_icon_size(value) -> int:
+    try:
+        size = int(value)
+    except Exception:
+        size = ICON_SIZE
+    size = max(PICKER_ICON_MIN, min(PICKER_ICON_MAX, size))
+    return max(PICKER_ICON_MIN, (size // PICKER_ICON_STEP) * PICKER_ICON_STEP)
+
+
+def _picker_cell_size(icon_size: int) -> QSize:
+    return QSize(icon_size + GRID_PAD * 2, icon_size + GRID_PAD * 2)
+
+
+def _handle_picker_zoom_wheel(widget, event) -> bool:
+    if not (event.modifiers() & Qt.ControlModifier):
+        return False
+    owner = getattr(widget, "_icon_zoom_owner", None)
+    if owner is None:
+        return False
+    delta = event.angleDelta().y()
+    if delta == 0:
+        delta = event.pixelDelta().y()
+    if delta == 0:
+        return False
+    owner.change_picker_icon_size(1 if delta > 0 else -1)
+    event.accept()
+    return True
 
 
 class DraggablePickerList(QListWidget):
@@ -374,6 +406,11 @@ class DraggablePickerList(QListWidget):
         self._press_pos = None
         super().mouseReleaseEvent(e)
 
+    def wheelEvent(self, e):
+        if _handle_picker_zoom_wheel(self, e):
+            return
+        super().wheelEvent(e)
+
 
 class FullWidthRadioButton(QRadioButton):
     """Radio button whose whole widget rect is clickable."""
@@ -397,26 +434,43 @@ class _MirrorRow(QListWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
+        self._icon_size = ICON_SIZE
+        self.setIconSize(QSize(self._icon_size, self._icon_size))
         self.setViewMode(QListView.IconMode)
         self.setMovement(QListView.Static)
         self.setResizeMode(QListView.Adjust)
         self.setFlow(QListView.LeftToRight)
         self.setWrapping(False)
         self.setSpacing(0)
-        self.setGridSize(QSize(ICON_SIZE + GRID_PAD * 2, ICON_SIZE + GRID_PAD * 2))
+        self.setGridSize(_picker_cell_size(self._icon_size))
         self.setUniformItemSizes(True)
         self.setAcceptDrops(True)
         self.setDragDropMode(QAbstractItemView.DropOnly)
         self.setSelectionMode(QAbstractItemView.SingleSelection)
         self._codes = [0] * MIRROR_ENEMY_SET_MAX
-        item_size = QSize(ICON_SIZE + GRID_PAD * 2, ICON_SIZE + GRID_PAD * 2)
+        item_size = _picker_cell_size(self._icon_size)
         for i in range(MIRROR_ENEMY_SET_MAX):
             it = QListWidgetItem(QIcon(), "")
             it.setToolTip(f"スロット{i + 1}: 空")
             it.setSizeHint(item_size)
             self.addItem(it)
-        self.setFixedHeight(ICON_SIZE + GRID_PAD * 2 + 6)
+        self.setFixedHeight(self._icon_size + GRID_PAD * 2 + 6)
+
+    def set_icon_size_value(self, size: int):
+        self._icon_size = clamp_picker_icon_size(size)
+        self.setIconSize(QSize(self._icon_size, self._icon_size))
+        item_size = _picker_cell_size(self._icon_size)
+        self.setGridSize(item_size)
+        for i in range(self.count()):
+            it = self.item(i)
+            if it is not None:
+                it.setSizeHint(item_size)
+        self.setFixedHeight(self._icon_size + GRID_PAD * 2 + 6)
+
+    def wheelEvent(self, e):
+        if _handle_picker_zoom_wheel(self, e):
+            return
+        super().wheelEvent(e)
 
     def dragEnterEvent(self, e):
         if e.mimeData().hasFormat(PICKER_MIME):
@@ -542,6 +596,7 @@ class MirrorEnemyPanel(QWidget):
             row_lbl.setGraphicsEffect(label_effect)
             self._label_effects.append(label_effect)
             row = _MirrorRow()
+            row._icon_zoom_owner = getattr(self, "_icon_zoom_owner", None)
             row_effect = QGraphicsOpacityEffect(row)
             row.setGraphicsEffect(row_effect)
             self._row_effects.append(row_effect)
@@ -549,6 +604,15 @@ class MirrorEnemyPanel(QWidget):
             row_layout.addWidget(row, 1)
             self._rows.append(row)
             layout.addLayout(row_layout)
+
+    def set_icon_zoom_owner(self, owner):
+        self._icon_zoom_owner = owner
+        for row in self._rows:
+            row._icon_zoom_owner = owner
+
+    def set_icon_size_value(self, size: int):
+        for row in self._rows:
+            row.set_icon_size_value(size)
 
     def set_mirror_active(self, mirror_no: int, active: bool):
         if not (0 <= mirror_no < len(self._rows)):
@@ -587,12 +651,13 @@ class MirrorEnemyPanel(QWidget):
         anim = self._config.enemy_map.get(enemy_code, 0)
         try:
             sprite = self._tile_renderer.get_tile_image(anim, 0, transparent=True)
-            bg = QImage(ICON_SIZE, ICON_SIZE, QImage.Format_ARGB32)
+            icon_size = self._rows[0]._icon_size if self._rows else ICON_SIZE
+            bg = QImage(icon_size, icon_size, QImage.Format_ARGB32)
             bg.fill(_QC(20, 20, 20))
             painter = QPainter(bg)
-            scaled = sprite.scaled(ICON_SIZE, ICON_SIZE, Qt.KeepAspectRatio, Qt.FastTransformation)
-            ox = (ICON_SIZE - scaled.width()) // 2
-            oy = (ICON_SIZE - scaled.height()) // 2
+            scaled = sprite.scaled(icon_size, icon_size, Qt.KeepAspectRatio, Qt.FastTransformation)
+            ox = (icon_size - scaled.width()) // 2
+            oy = (icon_size - scaled.height()) // 2
             painter.drawImage(ox, oy, scaled)
             painter.end()
             return QIcon(QPixmap.fromImage(bg))
@@ -630,21 +695,22 @@ class FavoritesBar(QListWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
+        self._icon_size = ICON_SIZE
+        self.setIconSize(QSize(self._icon_size, self._icon_size))
         self.setViewMode(QListView.IconMode)
         self.setMovement(QListView.Static)
         self.setResizeMode(QListView.Adjust)
         self.setFlow(QListView.LeftToRight)
         self.setWrapping(True)
         self.setSpacing(0)
-        self.setGridSize(QSize(ICON_SIZE + GRID_PAD * 2, ICON_SIZE + GRID_PAD * 2))
+        self.setGridSize(_picker_cell_size(self._icon_size))
         self.setUniformItemSizes(True)
         self.setAcceptDrops(True)
         self.setDragDropMode(QAbstractItemView.DropOnly)
         self.setSelectionMode(QAbstractItemView.SingleSelection)
         # スロット内容: (mode, value) or None
         self._slots = [None] * FAVORITES_COUNT
-        item_size = QSize(ICON_SIZE + GRID_PAD * 2, ICON_SIZE + GRID_PAD * 2)
+        item_size = _picker_cell_size(self._icon_size)
         for i in range(FAVORITES_COUNT):
             it = QListWidgetItem(QIcon(), "")
             key = (i + 1) % FAVORITES_COUNT  # 1,2,3,4,5,6,7,8,9,0
@@ -652,8 +718,24 @@ class FavoritesBar(QListWidget):
             it.setSizeHint(item_size)
             self.addItem(it)
         # 高さは2行分 + マージン
-        self.setFixedHeight((ICON_SIZE + GRID_PAD * 2) * 2 + 12)
+        self.setFixedHeight((self._icon_size + GRID_PAD * 2) * 2 + 12)
         self.itemClicked.connect(self._on_clicked)
+
+    def set_icon_size_value(self, size: int):
+        self._icon_size = clamp_picker_icon_size(size)
+        self.setIconSize(QSize(self._icon_size, self._icon_size))
+        item_size = _picker_cell_size(self._icon_size)
+        self.setGridSize(item_size)
+        for i in range(self.count()):
+            it = self.item(i)
+            if it is not None:
+                it.setSizeHint(item_size)
+        self.setFixedHeight((self._icon_size + GRID_PAD * 2) * 2 + 12)
+
+    def wheelEvent(self, e):
+        if _handle_picker_zoom_wheel(self, e):
+            return
+        super().wheelEvent(e)
 
     def dragEnterEvent(self, e):
         if e.mimeData().hasFormat(PICKER_MIME):
@@ -767,28 +849,46 @@ class BonusItemPanel(QListWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
+        self._icon_size = ICON_SIZE
+        self.setIconSize(QSize(self._icon_size, self._icon_size))
         self.setViewMode(QListView.IconMode)
         self.setMovement(QListView.Static)
         self.setResizeMode(QListView.Adjust)
         self.setFlow(QListView.LeftToRight)
         self.setWrapping(True)
         self.setSpacing(0)
-        self.setGridSize(QSize(ICON_SIZE + GRID_PAD * 2, ICON_SIZE + GRID_PAD * 2))
+        self.setGridSize(_picker_cell_size(self._icon_size))
         self.setUniformItemSizes(True)
         self.setAcceptDrops(True)
         self.setDragDropMode(QAbstractItemView.DropOnly)
         self.setSelectionMode(QAbstractItemView.SingleSelection)
         self._item_codes = [0] * BONUS_ITEM_COUNT
-        item_size = QSize(ICON_SIZE + GRID_PAD * 2, ICON_SIZE + GRID_PAD * 2)
+        item_size = _picker_cell_size(self._icon_size)
         for i in range(BONUS_ITEM_COUNT):
             it = QListWidgetItem(QIcon(), "")
             it.setToolTip(f"スロット#{i}: 空")
             it.setSizeHint(item_size)
             self.addItem(it)
-        self.setFixedHeight((ICON_SIZE + GRID_PAD * 2) * 2 + 12)
+        self.setFixedHeight((self._icon_size + GRID_PAD * 2) * 2 + 12)
         self._icon_maker = None
         self._name_fn = None   # code -> 名前 (item_desc 単一ソース解決)
+
+    def set_icon_size_value(self, size: int):
+        self._icon_size = clamp_picker_icon_size(size)
+        self.setIconSize(QSize(self._icon_size, self._icon_size))
+        item_size = _picker_cell_size(self._icon_size)
+        self.setGridSize(item_size)
+        for i in range(self.count()):
+            it = self.item(i)
+            if it is not None:
+                it.setSizeHint(item_size)
+        self.setFixedHeight((self._icon_size + GRID_PAD * 2) * 2 + 12)
+        self._refresh_icons()
+
+    def wheelEvent(self, e):
+        if _handle_picker_zoom_wheel(self, e):
+            return
+        super().wheelEvent(e)
 
     def set_icon_maker(self, fn):
         self._icon_maker = fn
@@ -881,6 +981,7 @@ class ElementPicker(QWidget):
 
     selection_changed = pyqtSignal(str, object)  # mode, selected_value
     block_order_changed = pyqtSignal(list)
+    icon_size_changed = pyqtSignal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -894,6 +995,7 @@ class ElementPicker(QWidget):
         self._marker_colors = {}
         self._marker_shapes = {}
         self._marker_overlay_scale = 3
+        self._icon_size = ICON_SIZE
         self._marker_source_tile_size = ICON_SIZE
         self._build_ui()
 
@@ -1010,14 +1112,15 @@ class ElementPicker(QWidget):
             self._category_labels.append(lbl)
 
             lst = DraggablePickerList()
+            lst._icon_zoom_owner = self
             lst._enemy_speed_provider = self.get_enemy_speed
-            lst.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
+            lst.setIconSize(QSize(self._icon_size, self._icon_size))
             lst.setViewMode(QListView.IconMode)
             lst.setMovement(QListView.Static)
             lst.setResizeMode(QListView.Adjust)
             lst.setWrapping(True)
             lst.setSpacing(0)
-            lst.setGridSize(QSize(ICON_SIZE + GRID_PAD * 2, ICON_SIZE + GRID_PAD * 2))
+            lst.setGridSize(_picker_cell_size(self._icon_size))
             lst.setUniformItemSizes(True)
             lst.itemSelectionChanged.connect(self._on_item_selected)
             if cat_idx == 0:
@@ -1046,6 +1149,7 @@ class ElementPicker(QWidget):
 
         # ミラー出現敵パネル
         self.mirror_panel = MirrorEnemyPanel()
+        self.mirror_panel.set_icon_zoom_owner(self)
         layout.addWidget(self.mirror_panel)
 
         # 下部パネル: お気に入り / ボーナスアイテム をスタック切替
@@ -1059,6 +1163,7 @@ class ElementPicker(QWidget):
         fav_label.setToolTip("D&Dで登録 / 1〜0キーで選択 / Delで削除")
         fav_lay.addWidget(fav_label)
         self.favorites = FavoritesBar()
+        self.favorites._icon_zoom_owner = self
         self.favorites.favorite_chosen.connect(self._on_favorite_chosen)
         fav_lay.addWidget(self.favorites)
         self._bottom_stack.addWidget(fav_page)  # index 0
@@ -1070,6 +1175,7 @@ class ElementPicker(QWidget):
         bonus_label = QLabel("<small>ボーナスステージ アイテム16種 (ピッカーからD&Dで入替)</small>")
         bonus_lay.addWidget(bonus_label)
         self.bonus_panel = BonusItemPanel()
+        self.bonus_panel._icon_zoom_owner = self
         bonus_lay.addWidget(self.bonus_panel)
         self._bottom_stack.addWidget(bonus_page)  # index 1
 
@@ -1084,6 +1190,40 @@ class ElementPicker(QWidget):
 
         # 初期ポピュレート（tile_renderer 未設定なので空アイコンになる）
         self._populate_all()
+
+    def set_icon_size_value(self, size: int, emit_signal: bool = False):
+        new_size = clamp_picker_icon_size(size)
+        if getattr(self, "_icon_size", ICON_SIZE) == new_size:
+            return
+        self._icon_size = new_size
+        self._apply_icon_size_to_lists()
+        if self.tile_renderer is not None and self.config is not None:
+            self._populate_all()
+        if emit_signal:
+            self.icon_size_changed.emit(self._icon_size)
+
+    def change_picker_icon_size(self, direction: int):
+        self.set_icon_size_value(
+            self._icon_size + PICKER_ICON_STEP * int(direction),
+            emit_signal=True,
+        )
+
+    def _apply_icon_size_to_lists(self):
+        item_size = _picker_cell_size(self._icon_size)
+        for lst in getattr(self, "_picker_lists", []):
+            lst.setIconSize(QSize(self._icon_size, self._icon_size))
+            lst.setGridSize(item_size)
+            for i in range(lst.count()):
+                it = lst.item(i)
+                if it is not None:
+                    it.setSizeHint(item_size)
+            self._adjust_list_height(lst)
+        if hasattr(self, "favorites"):
+            self.favorites.set_icon_size_value(self._icon_size)
+        if hasattr(self, "bonus_panel"):
+            self.bonus_panel.set_icon_size_value(self._icon_size)
+        if hasattr(self, "mirror_panel"):
+            self.mirror_panel.set_icon_size_value(self._icon_size)
 
     def set_mirror_detail_button(self, button):
         self._mirror_detail_slot.addWidget(button)
@@ -1174,12 +1314,13 @@ class ElementPicker(QWidget):
         )
 
         # 黒背景に重ねて見やすくする
-        bg = QImage(ICON_SIZE, ICON_SIZE, QImage.Format_ARGB32)
+        icon_size = self._icon_size
+        bg = QImage(icon_size, icon_size, QImage.Format_ARGB32)
         bg.fill(QColor(20, 20, 20))
         painter = QPainter(bg)
-        scaled = sprite.scaled(ICON_SIZE, ICON_SIZE, Qt.KeepAspectRatio, Qt.FastTransformation)
-        ox = (ICON_SIZE - scaled.width()) // 2
-        oy = (ICON_SIZE - scaled.height()) // 2
+        scaled = sprite.scaled(icon_size, icon_size, Qt.KeepAspectRatio, Qt.FastTransformation)
+        ox = (icon_size - scaled.width()) // 2
+        oy = (icon_size - scaled.height()) // 2
         painter.drawImage(ox, oy, scaled)
         if overlay_color is None and apply_blue_filter:
             overlay_color = (80, 130, 255, 90)
@@ -1203,7 +1344,7 @@ class ElementPicker(QWidget):
             shape_key, color_key, width = block_marker
             shape, inset = marker_shape_spec(marker_shape(self._marker_shapes, shape_key))
             source_size = int(round(self._marker_source_tile_size))
-            source_size = max(ICON_SIZE, source_size)
+            source_size = max(icon_size, source_size)
             source_img = QImage(source_size, source_size, QImage.Format_ARGB32)
             source_img.fill(QColor(20, 20, 20))
             source_painter = QPainter(source_img)
@@ -1237,7 +1378,7 @@ class ElementPicker(QWidget):
             )
             render_painter.end()
             icon_img = rendered.scaled(
-                ICON_SIZE, ICON_SIZE, Qt.IgnoreAspectRatio, Qt.SmoothTransformation
+                icon_size, icon_size, Qt.IgnoreAspectRatio, Qt.SmoothTransformation
             )
             painter.end()
             return QIcon(QPixmap.fromImage(icon_img))
@@ -1406,6 +1547,7 @@ class ElementPicker(QWidget):
         it = QListWidgetItem(icon, "")
         it.setToolTip(f"[{mode}] {label}")
         it.setData(Qt.UserRole, (mode, val))
+        it.setSizeHint(_picker_cell_size(self._icon_size))
         self._picker_lists[category].addItem(it)
 
     def _adjust_list_height(self, lst):
@@ -1414,7 +1556,7 @@ class ElementPicker(QWidget):
         if count == 0:
             lst.setFixedHeight(0)
             return
-        grid_h = ICON_SIZE + GRID_PAD * 2
+        grid_h = self._icon_size + GRID_PAD * 2
         # 幅からおおよその列数を推定（初期値として8列想定）
         cols = max(1, 8)
         rows = (count + cols - 1) // cols

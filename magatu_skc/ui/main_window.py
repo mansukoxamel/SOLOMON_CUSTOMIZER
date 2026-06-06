@@ -407,6 +407,8 @@ class MainWindow(QMainWindow):
 
         # 中右: 要素ピッカー
         self.picker = ElementPicker()
+        self.picker.set_icon_size_value(self._app_config.get("picker_icon_size", 36))
+        self.picker.icon_size_changed.connect(self._on_picker_icon_size_changed)
         self.picker.set_marker_overlay_scale(
             self._app_config.get("marker_overlay_scale", 3)
         )
@@ -4557,6 +4559,10 @@ class MainWindow(QMainWindow):
     def _on_block_order_changed(self, order: list):
         self._app_config["picker_block_order"] = list(order)
         from ..core.config import save_config
+        save_config(self._app_config)
+
+    def _on_picker_icon_size_changed(self, size: int):
+        self._app_config["picker_icon_size"] = int(size)
         save_config(self._app_config)
 
     def _show_settings(self):

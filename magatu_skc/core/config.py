@@ -39,6 +39,7 @@ DEFAULT_CONFIG = {
     "window_maximized": False,
     "splitter_sizes": [280, 700, 250, 220],  # [LEFT, CENTER, PICKER, LEVEL_SELECT]
     "stage_thumbnail_width": 160,
+    "picker_icon_size": 36,
     # ゲーム挙動改造ダイアログ サイズ/位置 (-1 = 未保存=既定)
     "hack_dlg_x": -1,
     "hack_dlg_y": -1,
