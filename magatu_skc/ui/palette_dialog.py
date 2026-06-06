@@ -8,6 +8,7 @@ ROM offset 0xED4 から 32バイト = 8パレット (背景4 + スプライト4)
 """
 import json
 import os
+import random
 
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
@@ -186,6 +187,14 @@ class PaletteDialog(QDialog):
         btn_reset.setToolTip("このダイアログ起動時の値に戻す")
         btn_reset.clicked.connect(self._reset)
         btnbar.addWidget(btn_reset)
+        btn_random3 = QPushButton("ランダム3色")
+        btn_random3.setToolTip("選択中のパレット3色をランダムなNES色に変更")
+        btn_random3.clicked.connect(self._randomize_selected_palette)
+        btnbar.addWidget(btn_random3)
+        btn_shift3 = QPushButton("3色ずらし")
+        btn_shift3.setToolTip("選択中のパレット3色を同じ量だけずらす")
+        btn_shift3.clicked.connect(self._shift_selected_palette)
+        btnbar.addWidget(btn_shift3)
         layout.addLayout(btnbar)
 
         btnbox = QDialogButtonBox(
@@ -412,6 +421,44 @@ class PaletteDialog(QDialog):
             self._refresh_wall_swatch(i)
         self._changed = False
         self._refresh_sprite_icons()
+
+    def _selected_palette_no(self):
+        if self._sel_wall is not None:
+            QMessageBox.information(self, "対象外", "ステージ壁色は1色なので、この操作の対象外です。")
+            return None
+        if self._sel_palette is None:
+            QMessageBox.information(self, "対象未選択", "先に変更したいパレットの色ボタンを選択してください。")
+            return None
+        return self._sel_palette
+
+    def _refresh_palette_row(self, palette_no: int):
+        for slot in range(EDITABLE_COLORS):
+            self._refresh_swatch(palette_no, slot)
+        self._changed = True
+        self._refresh_sprite_icons()
+        if self._sel_slot is not None:
+            cur_idx = self._buf[palette_no][self._sel_slot] & 0x3F
+            self._update_color_grid_highlight(cur_idx)
+            label = PALETTE_LABELS[palette_no]
+            self._picker_info.setText(
+                f"<b>{label}</b> スロット{self._sel_slot + 1} を編集中 (現在: 0x{cur_idx:02X})"
+            )
+
+    def _randomize_selected_palette(self):
+        palette_no = self._selected_palette_no()
+        if palette_no is None:
+            return
+        for slot, nes_idx in enumerate(random.sample(range(0x40), EDITABLE_COLORS)):
+            self._buf[palette_no][slot] = nes_idx
+        self._refresh_palette_row(palette_no)
+
+    def _shift_selected_palette(self):
+        palette_no = self._selected_palette_no()
+        if palette_no is None:
+            return
+        for slot in range(EDITABLE_COLORS):
+            self._buf[palette_no][slot] = (self._buf[palette_no][slot] + 1) & 0x3F
+        self._refresh_palette_row(palette_no)
 
     def _save_preset(self):
         """パレット設定をJSONファイルに保存"""
