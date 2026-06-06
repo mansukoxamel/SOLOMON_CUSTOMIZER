@@ -1,8 +1,10 @@
 """メインウィンドウ - PyQt5 GUI"""
+import base64
 import copy
 import ctypes
 import json
 import os
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
@@ -18,6 +20,7 @@ from PyQt5.QtMultimedia import QSoundEffect
 from .. import __version__
 from ..core.rom import Rom, KNOWN_CRC32, is_known_jp_original_data
 from ..core.level import Level, load_all_levels
+from ..core.xml_io import level_to_xml_element, xml_element_to_level
 from ..core.element import Wall, ElementType, LevelElement
 from ..core import constants as c
 from ..core.config import resolve_project_path, save_config
@@ -192,10 +195,10 @@ class MainWindow(QMainWindow):
         # ROM読み込み履歴
         self.last_loaded_path: str = ""
         self._history: list = self._load_history()
-        # Undo/Redo: (level_no, deepcopy(Level)) のスタック、上限50件
+        # Undo/Redo: 編集前スナップショットのスタック、上限200件
         self._undo_stack: list = []
         self._redo_stack: list = []
-        self._undo_limit = 50
+        self._undo_limit = 200
 
         # 操作ログ（メモリ上に蓄積、closeEventで保存）
         from datetime import datetime
@@ -2020,6 +2023,9 @@ class MainWindow(QMainWindow):
 
     def _autosave_manifest_file(self) -> Path:
         return self._autosave_dir() / "latest.json"
+
+    def _autosave_undo_file_for_rom(self, rom_path: Path) -> Path:
+        return rom_path.with_suffix(".undo.json")
 
     def _load_autosave_manifest(self) -> dict:
         try:
@@ -4734,9 +4740,96 @@ class MainWindow(QMainWindow):
             QApplication.instance().setWindowIcon(icon)
             self.setWindowIcon(icon)
 
+    def _serialize_undo_entry(self, entry) -> dict:
+        levels = self._undo_entry_levels(entry)
+        level_nos = sorted(levels.keys())
+        focus_level_no = self._undo_entry_focus_level_no(entry, level_nos)
+        data = {
+            "focus_level_no": int(focus_level_no),
+            "levels": [],
+        }
+        for level_no in level_nos:
+            elem = level_to_xml_element(levels[level_no])
+            data["levels"].append({
+                "level_no": int(level_no),
+                "xml": ET.tostring(elem, encoding="unicode"),
+            })
+        if isinstance(entry, dict) and "rom_data" in entry:
+            data["rom_data_b64"] = base64.b64encode(bytes(entry["rom_data"])).decode("ascii")
+        return data
+
+    def _deserialize_undo_entry(self, data: dict) -> dict:
+        if not isinstance(data, dict):
+            raise ValueError("undo entry is not an object")
+        levels = {}
+        for item in data.get("levels", []):
+            level_no = int(item["level_no"])
+            if not (0 <= level_no < len(self.levels)):
+                continue
+            elem = ET.fromstring(str(item["xml"]))
+            levels[level_no] = xml_element_to_level(elem)
+        if not levels:
+            raise ValueError("undo entry has no levels")
+        focus_level_no = int(data.get("focus_level_no", sorted(levels.keys())[0]))
+        if focus_level_no not in levels:
+            focus_level_no = sorted(levels.keys())[0]
+        entry = {
+            "focus_level_no": focus_level_no,
+            "levels": levels,
+        }
+        rom_b64 = data.get("rom_data_b64")
+        if rom_b64:
+            entry["rom_data"] = base64.b64decode(str(rom_b64).encode("ascii"), validate=True)
+        return entry
+
+    def _write_autosave_undo_history(self, path: Path):
+        payload = {
+            "format": "solomon_customizer_autosave_undo",
+            "format_version": 1,
+            "app_version": __version__,
+            "undo_limit": int(self._undo_limit),
+            "undo": [self._serialize_undo_entry(e) for e in self._undo_stack[-self._undo_limit:]],
+            "redo": [self._serialize_undo_entry(e) for e in self._redo_stack[-self._undo_limit:]],
+        }
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+
+    def _restore_autosave_undo_history(self, path: Path) -> bool:
+        try:
+            if not path.exists():
+                self._clear_undo_history()
+                return False
+            with open(path, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+            if payload.get("format") != "solomon_customizer_autosave_undo":
+                raise ValueError("unknown undo history format")
+            undo = [
+                self._deserialize_undo_entry(e)
+                for e in payload.get("undo", [])[-self._undo_limit:]
+            ]
+            redo = [
+                self._deserialize_undo_entry(e)
+                for e in payload.get("redo", [])[-self._undo_limit:]
+            ]
+            self._undo_stack = undo
+            self._redo_stack = redo
+            self._log(
+                f"Undo/Redo履歴を復元: undo={len(undo)}, redo={len(redo)}"
+            )
+            return True
+        except Exception as e:
+            self._clear_undo_history()
+            self._log(
+                f"Undo/Redo履歴を復元できないため破棄: {type(e).__name__}: {e}"
+            )
+            return False
+
     def _write_autosave_manifest(self, autosave_path: Path, saved_at: str):
+        undo_path = self._autosave_undo_file_for_rom(autosave_path)
         manifest = {
             "latest": str(autosave_path),
+            "latest_undo": str(undo_path),
             "saved_at": saved_at,
             "source_path": self.last_loaded_path,
             "display_name": self.rom.display_name if self.rom else "",
@@ -4758,6 +4851,10 @@ class MainWindow(QMainWindow):
                 old.unlink()
             except Exception:
                 pass
+            try:
+                self._autosave_undo_file_for_rom(old).unlink()
+            except Exception:
+                pass
         self._prune_missing_autosave_history()
 
     def _autosave_workstate(self) -> str:
@@ -4771,6 +4868,7 @@ class MainWindow(QMainWindow):
         path = out_dir / f"workstate_{stamp}.nes"
         saved_data = saver.build_saved_rom_data(self.rom, self.levels)
         saver.write_rom_data(saved_data, str(path))
+        self._write_autosave_undo_history(self._autosave_undo_file_for_rom(path))
         self._write_autosave_manifest(path, saved_at)
         self._prune_autosaves()
         self._remember_previous_workstate_history(str(path))
@@ -4789,6 +4887,7 @@ class MainWindow(QMainWindow):
             )
             if str(Path(self.last_loaded_path)) != str(Path(path)):
                 return False
+            self._restore_autosave_undo_history(self._autosave_undo_file_for_rom(Path(path)))
             self._remember_previous_workstate_history(path)
             self.statusBar().showMessage("前回の作業状態を復元しました", 5000)
             self._log(f"前回の作業状態を復元: {path}")
