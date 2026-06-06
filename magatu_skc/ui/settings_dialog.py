@@ -2,14 +2,32 @@
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QGroupBox,
     QComboBox, QLabel, QDialogButtonBox, QPushButton, QLineEdit,
-    QSpinBox, QWidget, QFontComboBox, QCheckBox
+    QSpinBox, QWidget, QFontComboBox, QCheckBox, QColorDialog
 )
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QColor
 from PyQt5.QtCore import Qt
 from .theme import (
     DEFAULT_THEME_GRAY, MIN_THEME_GRAY, MAX_THEME_GRAY, normalize_theme_gray,
 )
 from ..core.config import DEFAULT_ICON_PATH
+from .level_view import DEFAULT_MARKER_COLORS
+
+
+MARKER_COLOR_ROWS = [
+    ("bonus_marker_color", "ボーナス菱形"),
+    ("hidden_marker_color", "隠し要素"),
+    ("breakable_white_marker_color", "壊せる白ブロック"),
+    ("invisible_breakable_marker_color", "透明壊せるブロック"),
+    ("passable_marker_color", "すり抜けブロック"),
+    ("solid_marker_color", "壊せない特殊ブロック"),
+    ("mirror1_marker_color", "ミラー1"),
+    ("mirror2_marker_color", "ミラー2"),
+    ("special_empty_marker_color", "特殊処理: 強制空"),
+    ("special_trigger_marker_color", "特殊処理: トリガー"),
+    ("special_link_marker_color", "特殊処理: リンク線"),
+    ("selection_marker_color", "選択範囲"),
+    ("hover_marker_color", "ホバー枠"),
+]
 
 
 class SettingsDialog(QDialog):
@@ -20,7 +38,7 @@ class SettingsDialog(QDialog):
         if parent is not None:
             self.setFont(parent.font())
         self.setWindowTitle("設定 (F9)")
-        self.resize(520, 480)
+        self.resize(620, 720)
         self.config = dict(config)  # 編集用コピー
 
         layout = QVBoxLayout(self)
@@ -90,6 +108,11 @@ class SettingsDialog(QDialog):
         )
         df.addRow("編集用マーカー線幅:", self.cmb_marker_overlay_scale)
 
+        self._color_edits = {}
+        self._color_buttons = {}
+        for key, label in MARKER_COLOR_ROWS:
+            df.addRow(f"{label}色:", self._make_color_row(key))
+
         # アイコンパス
         icon_wrap = QWidget()
         icon_row = QHBoxLayout(icon_wrap)
@@ -143,6 +166,51 @@ class SettingsDialog(QDialog):
         """フォントファミリーを既定（アプリ標準）に戻す"""
         self._font_family_default = True
 
+    @staticmethod
+    def _normalize_color(value, default="#FFC800"):
+        color = QColor(str(value or default))
+        if not color.isValid():
+            color = QColor(default)
+        return color.name().upper()
+
+    def _make_color_row(self, key: str):
+        wrap = QWidget()
+        row = QHBoxLayout(wrap)
+        row.setContentsMargins(0, 0, 0, 0)
+        default = DEFAULT_MARKER_COLORS[key]
+        edit = QLineEdit(self._normalize_color(self.config.get(key, default), default))
+        edit.setPlaceholderText(default)
+        button = QPushButton("色選択...")
+        self._color_edits[key] = edit
+        self._color_buttons[key] = button
+        edit.textChanged.connect(lambda _=None, k=key: self._sync_color_button(k))
+        button.clicked.connect(lambda _=None, k=key: self._choose_marker_color(k))
+        row.addWidget(edit, 1)
+        row.addWidget(button)
+        self._sync_color_button(key)
+        return wrap
+
+    def _sync_color_button(self, key: str):
+        edit = self._color_edits[key]
+        default = DEFAULT_MARKER_COLORS[key]
+        color = QColor(edit.text().strip())
+        if not color.isValid():
+            color = QColor(default)
+        text_color = "#000000" if color.lightness() > 140 else "#FFFFFF"
+        self._color_buttons[key].setStyleSheet(
+            f"background: {color.name()}; color: {text_color};"
+        )
+
+    def _choose_marker_color(self, key: str):
+        edit = self._color_edits[key]
+        default = DEFAULT_MARKER_COLORS[key]
+        current = QColor(edit.text().strip())
+        if not current.isValid():
+            current = QColor(default)
+        color = QColorDialog.getColor(current, self, "マーカー色")
+        if color.isValid():
+            edit.setText(color.name().upper())
+
     def _browse_icon(self):
         from .file_dialog_compat import get_file
         path = get_file(
@@ -185,6 +253,11 @@ class SettingsDialog(QDialog):
         self.config["marker_overlay_scale"] = int(
             self.cmb_marker_overlay_scale.currentData()
         )
+        for key, _label in MARKER_COLOR_ROWS:
+            self.config[key] = self._normalize_color(
+                self._color_edits[key].text().strip(),
+                DEFAULT_MARKER_COLORS[key],
+            )
         self.config["icon_path"] = self.edit_icon.text().strip()
 
     def _apply(self):

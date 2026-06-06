@@ -4,10 +4,26 @@ from PyQt5.QtWidgets import (
     QGraphicsRectItem, QGraphicsSimpleTextItem, QGraphicsItem,
     QGraphicsLineItem, QGraphicsEllipseItem,
 )
-from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QFont
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QFont, QPolygonF
 from PyQt5.QtCore import Qt, pyqtSignal, QPointF
 
 from ..core import constants as c
+
+DEFAULT_MARKER_COLORS = {
+    "bonus_marker_color": "#FFC800",
+    "hidden_marker_color": "#FFDC00",
+    "breakable_white_marker_color": "#50E65A",
+    "invisible_breakable_marker_color": "#FFDC28",
+    "passable_marker_color": "#50BEFF",
+    "solid_marker_color": "#FF78DC",
+    "mirror1_marker_color": "#FF3C3C",
+    "mirror2_marker_color": "#3C78FF",
+    "special_empty_marker_color": "#B4C8FF",
+    "special_trigger_marker_color": "#FF64C8",
+    "special_link_marker_color": "#FFC864",
+    "selection_marker_color": "#FFE600",
+    "hover_marker_color": "#FFFFFF",
+}
 
 
 class LevelView(QGraphicsView):
@@ -68,6 +84,9 @@ class LevelView(QGraphicsView):
         self._label_items = []
         self._overlay_items = []
         self._marker_overlay_scale = 3
+        self._marker_colors = {
+            key: QColor(value) for key, value in DEFAULT_MARKER_COLORS.items()
+        }
 
     def set_image(self, qimage):
         scene = self.scene()
@@ -115,6 +134,19 @@ class LevelView(QGraphicsView):
             value = 3
         self._marker_overlay_scale = max(3, min(5, value))
 
+    def set_bonus_marker_color(self, color_value):
+        self.set_marker_colors({"bonus_marker_color": color_value})
+
+    def set_marker_colors(self, colors: dict):
+        for key, default in DEFAULT_MARKER_COLORS.items():
+            if key not in colors:
+                continue
+            color = QColor(str(colors.get(key) or default))
+            self._marker_colors[key] = color if color.isValid() else QColor(default)
+
+    def _marker_color(self, key: str) -> QColor:
+        return QColor(self._marker_colors.get(key, QColor(DEFAULT_MARKER_COLORS[key])))
+
     def set_editor_overlays(self, overlays, with_border: bool = True):
         self.clear_editor_overlays()
         if not overlays:
@@ -159,37 +191,56 @@ class LevelView(QGraphicsView):
             item.setBrush(QBrush(Qt.NoBrush))
             add(item)
 
+        def add_diamond(pos, color, width=2, inset=2):
+            x, y, w, h = rect_for_tile(pos, inset)
+            cx = x + w / 2
+            cy = y + h / 2
+            polygon = self.scene().addPolygon(
+                QPolygonF([
+                    QPointF(cx, y),
+                    QPointF(x + w, cy),
+                    QPointF(cx, y + h),
+                    QPointF(x, cy),
+                ]),
+                self._overlay_pen(color, width),
+                QBrush(Qt.NoBrush),
+            )
+            polygon.setZValue(900)
+            self._overlay_items.append(polygon)
+
         for pos in overlays.get("breakable_white", ()):
-            add_rect(pos, QColor(80, 230, 90), width=3, inset=1)
+            add_rect(pos, self._marker_color("breakable_white_marker_color"), width=3, inset=1)
         for pos in overlays.get("invisible_breakable", ()):
-            add_rect(pos, QColor(255, 220, 40), width=3, inset=4)
+            add_rect(pos, self._marker_color("invisible_breakable_marker_color"), width=3, inset=4)
         for pos in overlays.get("passable_white", ()):
-            add_cross(pos, QColor(80, 190, 255), width=3, inset=3)
+            add_cross(pos, self._marker_color("passable_marker_color"), width=3, inset=3)
         for pos in overlays.get("passable_brown", ()):
-            add_cross(pos, QColor(80, 190, 255), width=3, inset=3)
+            add_cross(pos, self._marker_color("passable_marker_color"), width=3, inset=3)
         for pos in overlays.get("solid_brown", ()):
-            add_ellipse(pos, QColor(255, 120, 220), width=3, inset=4)
+            add_ellipse(pos, self._marker_color("solid_marker_color"), width=3, inset=4)
         for pos in overlays.get("invisible_solid", ()):
-            add_ellipse(pos, QColor(255, 120, 220), width=3, inset=4)
+            add_ellipse(pos, self._marker_color("solid_marker_color"), width=3, inset=4)
         for pos in overlays.get("hidden_item", ()):
-            add_rect(pos, QColor(255, 220, 0), width=2, inset=1)
+            add_rect(pos, self._marker_color("hidden_marker_color"), width=2, inset=1)
         for pos in overlays.get("hidden_meta", ()):
-            add_rect(pos, QColor(255, 220, 0), width=2, inset=1)
+            add_rect(pos, self._marker_color("hidden_marker_color"), width=2, inset=1)
 
         for mi, pos in overlays.get("mirrors", ()):
-            color = QColor(255, 60, 60) if mi == 0 else QColor(60, 120, 255)
+            color = self._marker_color(
+                "mirror1_marker_color" if mi == 0 else "mirror2_marker_color"
+            )
             add_rect(pos, color, width=2, inset=0)
 
         for pos in overlays.get("bonus", ()):
-            add_rect(pos, QColor(255, 200, 0), width=2, inset=3)
+            add_diamond(pos, self._marker_color("bonus_marker_color"), width=3, inset=2)
 
         special = overlays.get("special_marks") or {}
         mark_colors = {
-            "breakable": QColor(80, 230, 90),
-            "breakable_conditional": QColor(80, 230, 90),
-            "empty_forced": QColor(180, 200, 255),
-            "trigger": QColor(255, 100, 200),
-            "hidden_bomb_jack": QColor(255, 220, 0),
+            "breakable": self._marker_color("breakable_white_marker_color"),
+            "breakable_conditional": self._marker_color("breakable_white_marker_color"),
+            "empty_forced": self._marker_color("special_empty_marker_color"),
+            "trigger": self._marker_color("special_trigger_marker_color"),
+            "hidden_bomb_jack": self._marker_color("hidden_marker_color"),
         }
         for key, kind in special.items():
             if key == "__links__":
@@ -203,7 +254,9 @@ class LevelView(QGraphicsView):
             x2 = (gx + ox) * tw + tw // 2
             y2 = (gy + oy) * tw + tw // 2
             item = QGraphicsLineItem(x1, y1, x2, y2)
-            item.setPen(self._overlay_pen(QColor(255, 200, 100, 180), 1, Qt.DashLine))
+            link_color = self._marker_color("special_link_marker_color")
+            link_color.setAlpha(180)
+            item.setPen(self._overlay_pen(link_color, 1, Qt.DashLine))
             add(item)
 
         selection = overlays.get("selection_rect")
@@ -217,13 +270,18 @@ class LevelView(QGraphicsView):
                 (x2 - x1 + 1) * tw,
                 (y2 - y1 + 1) * tw,
             )
-            item.setPen(self._overlay_pen(QColor(255, 230, 0), 2, Qt.DashLine))
-            item.setBrush(QBrush(QColor(255, 230, 0, 60)))
+            selection_color = self._marker_color("selection_marker_color")
+            fill_color = QColor(selection_color)
+            fill_color.setAlpha(60)
+            item.setPen(self._overlay_pen(selection_color, 2, Qt.DashLine))
+            item.setBrush(QBrush(fill_color))
             add(item)
 
         hover = overlays.get("hover_tile")
         if hover is not None:
-            add_rect(hover, QColor(255, 255, 255, 220), width=2, inset=0)
+            hover_color = self._marker_color("hover_marker_color")
+            hover_color.setAlpha(220)
+            add_rect(hover, hover_color, width=2, inset=0)
 
     def set_object_labels(self, labels, with_border: bool = True):
         """キャンバス注釈をビュー上の通常フォントで重ねる。

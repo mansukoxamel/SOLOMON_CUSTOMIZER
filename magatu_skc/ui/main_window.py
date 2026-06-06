@@ -302,6 +302,7 @@ class MainWindow(QMainWindow):
         self.level_view.set_marker_overlay_scale(
             self._app_config.get("marker_overlay_scale", 3)
         )
+        self.level_view.set_marker_colors(self._marker_color_config())
         self.level_view.tile_clicked.connect(self._on_tile_clicked)
         self.level_view.tile_right_clicked.connect(self._on_tile_right_clicked)
         # Ctrl+左ドラッグでの要素移動
@@ -3546,6 +3547,13 @@ class MainWindow(QMainWindow):
         dlg = SettingsDialog(self._app_config, parent=self)
         dlg.exec_()
 
+    def _marker_color_config(self):
+        from .level_view import DEFAULT_MARKER_COLORS
+        return {
+            key: self._app_config.get(key, default)
+            for key, default in DEFAULT_MARKER_COLORS.items()
+        }
+
     def _apply_settings(self, new_config: dict):
         """設定ダイアログから呼び出される。即時反映 + JSON保存"""
         self._app_config = dict(new_config)
@@ -3557,6 +3565,7 @@ class MainWindow(QMainWindow):
         self.level_view.set_marker_overlay_scale(
             self._app_config.get("marker_overlay_scale", 3)
         )
+        self.level_view.set_marker_colors(self._marker_color_config())
         self._refresh_view()
         self._apply_icon()
 
