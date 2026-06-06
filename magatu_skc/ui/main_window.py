@@ -1081,6 +1081,31 @@ class MainWindow(QMainWindow):
                 imported += 1
         return imported
 
+    def _import_original_jp_stage49_breakable_white(self, source_data: bytes, levels,
+                                                    allow_mutation: bool = True):
+        """Stage 49 の無条件特殊処理ブロックを編集用ステージデータへ取り込む。"""
+        if not allow_mutation or not is_known_jp_original_data(source_data):
+            return 0
+        if not levels or len(levels) <= 48:
+            return 0
+        level = levels[48]
+        imported = 0
+        positions = (
+            (1, 3), (1, 4), (1, 5), (1, 6), (1, 7),
+            (6, 3), (8, 3),
+            (13, 3), (13, 4), (13, 5), (13, 6), (13, 7),
+        )
+        for pos in positions:
+            x, y = pos
+            if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+                continue
+            if level.tiles[y][x] != Wall.WHITE:
+                continue
+            if pos not in level.breakable_white_cells:
+                level.breakable_white_cells.add(pos)
+                imported += 1
+        return imported
+
     def _import_original_jp_stage52_53_breakable_white(self, source_data: bytes, levels,
                                                        allow_mutation: bool = True):
         """Stage 52/53 の無条件特殊処理ブロックを編集用ステージデータへ取り込む。"""
@@ -1117,6 +1142,21 @@ class MainWindow(QMainWindow):
             return 0
         rom.data[off:off + len(expected)] = disabled
         return 3
+
+    def _patch_stage49_breakable_white_hardcode(self, source_data: bytes, rom) -> int:
+        """Stage 49 の無条件 $90 テーブル書き込み12箇所を止める。"""
+        if rom is None or not is_known_jp_original_data(source_data):
+            return 0
+        off = 0x359F
+        expected = bytes.fromhex("990403")
+        disabled = bytes([0xEA] * len(expected))
+        current = bytes(rom.data[off:off + len(expected)])
+        if current == disabled:
+            return 0
+        if current != expected:
+            return 0
+        rom.data[off:off + len(expected)] = disabled
+        return 12
 
     def _patch_stage52_53_breakable_white_hardcode(self, source_data: bytes, rom) -> int:
         """Stage 52/53 の共有ルーチンにある無条件 $90 書き込み4箇所を止める。"""
@@ -1279,9 +1319,17 @@ class MainWindow(QMainWindow):
 
             # ボーナスステージテーブル読み込み（拡張前のアドレスで読む必要がある）
             self._load_bonus_stage_table(rom, allow_mutation=False)
+            imported_stage49_breakable = 0
             imported_stage50_breakable = 0
             imported_stage52_53_breakable = 0
             if not read_only_mode:
+                imported_stage49_breakable = self._import_original_jp_stage49_breakable_white(
+                    loaded_rom_data, levels, allow_mutation=True
+                )
+                if imported_stage49_breakable:
+                    self._log(
+                        "JP版特殊処理補正: Stage 49 の無条件壊せる白ブロック12箇所をステージデータへ取り込み"
+                    )
                 imported_stage50_breakable = self._import_original_jp_stage50_breakable_white(
                     loaded_rom_data, levels, allow_mutation=True
                 )
@@ -1312,6 +1360,14 @@ class MainWindow(QMainWindow):
                 from ..core import m66_expander
                 m66_expander.expand_rom(rom, levels)
                 auto_expanded = True
+                if imported_stage49_breakable:
+                    disabled_count = self._patch_stage49_breakable_white_hardcode(
+                        loaded_rom_data, rom
+                    )
+                    if disabled_count:
+                        self._log(
+                            "JP版特殊処理補正: Stage 49 の無条件壊せる白ブロック生成コードを無効化"
+                        )
                 if imported_stage50_breakable:
                     disabled_count = self._patch_stage50_breakable_white_hardcode(
                         loaded_rom_data, rom
