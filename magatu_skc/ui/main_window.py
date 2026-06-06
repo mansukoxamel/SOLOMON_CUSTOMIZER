@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QLabel,
     QPushButton, QSpinBox, QFileDialog, QMessageBox, QSplitter,
     QGroupBox, QComboBox, QCheckBox, QListWidget, QApplication,
-    QToolBar, QAction, QRadioButton, QButtonGroup
+    QToolBar, QAction, QRadioButton, QButtonGroup, QShortcut
 )
 from PyQt5.QtCore import Qt, QSize, QEvent
 from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor, QPainter, QPen
@@ -164,6 +164,7 @@ class MainWindow(QMainWindow):
         self._default_font_family = QApplication.font().family()
 
         self._build_ui()
+        self._setup_shortcuts()
 
         # 起動時にフォントサイズを反映
         self._apply_font_size()
@@ -174,6 +175,12 @@ class MainWindow(QMainWindow):
         # ウィンドウ位置・サイズを復元
         self._restore_window_state()
         self._log("セッション開始")
+
+    def _setup_shortcuts(self):
+        self.shortcut_test_play = QShortcut(QKeySequence(Qt.Key_P), self)
+        self.shortcut_test_play.setContext(Qt.WindowShortcut)
+        self.shortcut_test_play.setAutoRepeat(False)
+        self.shortcut_test_play.activated.connect(self._on_test_play)
 
     def _log(self, msg: str):
         """操作ログをメモリに追記（closeEventでファイルに書き出す）"""
@@ -4585,8 +4592,6 @@ class MainWindow(QMainWindow):
             # N → アイテムフラグを「通常」に
             self.picker.rb_flag_normal.setChecked(True)
             self.statusBar().showMessage("アイテムフラグ: 通常", 1500)
-        elif key == Qt.Key_P:
-            self._on_test_play()
         elif key == Qt.Key_F:
             # F → 選択範囲を左右反転（Shift+Fで上下反転）
             if mods & Qt.ShiftModifier:

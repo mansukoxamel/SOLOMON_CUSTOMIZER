@@ -1,5 +1,9 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.77 (2026-06-06) テストプレイショートカットを全体化
+- `P` キーのテストプレイ実行をメインウィンドウ全体のショートカットにし、ステージ一覧やサムネイルなどにフォーカスがある状態でも反応するようにした。
+- `P` キー長押しでテストプレイが連続起動しないようにした。
+
 ## v0.8.76 (2026-06-06) item bitmap特殊処理の再実行を抑止
 - 原作ROMから取り込んだ Stage 20 Bat Symbol / Stage 30 Blue Opal のbitmap配置特殊処理を、mapper66保存時に無効化するようにした。
 - Stage 30で旧bitmap領域末尾がRoom Flag loader code caveと重なり、テストプレイ時に最下段へ余計なOpalが出る問題を修正した。
