@@ -1,6 +1,7 @@
 """メインウィンドウ - PyQt5 GUI"""
 import copy
 import ctypes
+import json
 import os
 from pathlib import Path
 
@@ -35,6 +36,8 @@ from .element_picker import (
 )
 
 APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
+AUTOSAVE_HISTORY_LABEL = "前回の作業状態"
+AUTOSAVE_KEEP_COUNT = 3
 
 
 class _XInputGamepad(ctypes.Structure):
@@ -1749,7 +1752,7 @@ class MainWindow(QMainWindow):
             return
         self.load_rom(path)
 
-    def load_rom(self, path: str):
+    def load_rom(self, path: str, add_history: bool = True, status_message: str = ""):
         try:
             rom = Rom.load(path)
             loaded_rom_data = bytes(rom.data)
@@ -1988,11 +1991,13 @@ class MainWindow(QMainWindow):
             QApplication.processEvents()
             self._generate_all_thumbnails()
             status_suffix = " (編集不可)" if read_only_mode else ""
-            self.statusBar().showMessage(f"読み込み完了: {len(levels)}ステージ{status_suffix}")
+            final_status = status_message or f"読み込み完了: {len(levels)}ステージ{status_suffix}"
+            self.statusBar().showMessage(final_status)
             # 読込成功 → 再読込ボタンを有効化、履歴に追加、Undo履歴クリア、未保存マーククリア
             self.last_loaded_path = path
             self.btn_reload.setEnabled(True)
-            self._add_to_history(path)
+            if add_history:
+                self._add_to_history(path)
             self._clear_undo_history()
             self._set_dirty(False)
             log_suffix = ""
@@ -2010,8 +2015,47 @@ class MainWindow(QMainWindow):
         """履歴を保存するJSONファイルパス"""
         return Path(__file__).parent.parent.parent / "config" / "rom_history.json"
 
+    def _autosave_dir(self) -> Path:
+        return Path(__file__).parent.parent.parent / "autosave" / "workstate"
+
+    def _autosave_manifest_file(self) -> Path:
+        return self._autosave_dir() / "latest.json"
+
+    def _load_autosave_manifest(self) -> dict:
+        try:
+            with open(self._autosave_manifest_file(), "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+
+    def _latest_autosave_path(self) -> str:
+        path = self._load_autosave_manifest().get("latest", "")
+        if not path:
+            return ""
+        try:
+            p = Path(path)
+            return str(p) if p.exists() else ""
+        except Exception:
+            return ""
+
+    def _is_autosave_path(self, path: str) -> bool:
+        if not path:
+            return False
+        try:
+            p = Path(path).resolve()
+            return self._autosave_dir().resolve() in (p.parent, *p.parents)
+        except Exception:
+            return False
+
+    def _history_label_for_path(self, path: str) -> str:
+        latest = self._latest_autosave_path()
+        if latest and str(Path(path)) == str(Path(latest)):
+            return AUTOSAVE_HISTORY_LABEL
+        p = Path(path)
+        return f"{p.name}  ({p.parent.name})"
+
     def _load_history(self) -> list:
-        import json
         try:
             with open(self._history_file(), "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -2020,7 +2064,6 @@ class MainWindow(QMainWindow):
             return []
 
     def _save_history(self):
-        import json
         try:
             p = self._history_file()
             p.parent.mkdir(parents=True, exist_ok=True)
@@ -2039,6 +2082,22 @@ class MainWindow(QMainWindow):
         self._history = self._history[:15]
         self._save_history()
 
+    def _remember_previous_workstate_history(self, path: str):
+        if path:
+            self._add_to_history(path)
+
+    def _prune_missing_autosave_history(self):
+        kept = []
+        changed = False
+        for path in self._history:
+            if self._is_autosave_path(path) and not Path(path).exists():
+                changed = True
+                continue
+            kept.append(path)
+        if changed:
+            self._history = kept
+            self._save_history()
+
     def _on_reload_rom(self):
         if not self.last_loaded_path:
             return
@@ -2046,14 +2105,13 @@ class MainWindow(QMainWindow):
 
     def _on_show_history(self):
         from PyQt5.QtWidgets import QMenu
+        self._prune_missing_autosave_history()
         menu = QMenu(self)
         if not self._history:
             menu.addAction("(履歴なし)").setEnabled(False)
         else:
             for path in self._history:
-                # 表示はファイル名 + 親フォルダ
-                p = Path(path)
-                label = f"{p.name}  ({p.parent.name})"
+                label = self._history_label_for_path(path)
                 action = menu.addAction(label)
                 action.setToolTip(path)
                 action.triggered.connect(lambda checked, pp=path: self.load_rom(pp))
@@ -2065,9 +2123,12 @@ class MainWindow(QMainWindow):
         menu.exec_(btn.mapToGlobal(btn.rect().bottomLeft()))
 
     def _on_clear_history(self):
-        self._history = []
+        latest = self._latest_autosave_path()
+        self._history = [latest] if latest else []
         self._save_history()
-        self.statusBar().showMessage("履歴をクリアしました", 2000)
+        self.statusBar().showMessage(
+            "履歴をクリアしました（前回の作業状態は保持）", 2500
+        )
 
     def _show_save_failure(self, title: str, error: Exception, log_prefix: str,
                            extra_message: str = ""):
@@ -2091,6 +2152,8 @@ class MainWindow(QMainWindow):
             if not value:
                 continue
             try:
+                if self._is_autosave_path(value):
+                    continue
                 p = Path(value)
                 folder = p if p.is_dir() else p.parent
                 if folder.exists():
@@ -4671,21 +4734,111 @@ class MainWindow(QMainWindow):
             QApplication.instance().setWindowIcon(icon)
             self.setWindowIcon(icon)
 
-    def closeEvent(self, event):
-        """ウィンドウを閉じる時、未保存の変更があれば確認"""
-        if self._dirty:
-            ans = QMessageBox.question(
-                self, "未保存の変更",
-                "保存していない変更があります。\n本当に終了しますか？",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No
+    def _write_autosave_manifest(self, autosave_path: Path, saved_at: str):
+        manifest = {
+            "latest": str(autosave_path),
+            "saved_at": saved_at,
+            "source_path": self.last_loaded_path,
+            "display_name": self.rom.display_name if self.rom else "",
+            "app_version": __version__,
+        }
+        path = self._autosave_manifest_file()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, ensure_ascii=False, indent=2)
+
+    def _prune_autosaves(self):
+        autosaves = sorted(
+            self._autosave_dir().glob("workstate_*.nes"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        for old in autosaves[AUTOSAVE_KEEP_COUNT:]:
+            try:
+                old.unlink()
+            except Exception:
+                pass
+        self._prune_missing_autosave_history()
+
+    def _autosave_workstate(self) -> str:
+        if not self.rom or self._is_read_only():
+            return ""
+        from datetime import datetime
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        saved_at = datetime.now().isoformat(timespec="seconds")
+        out_dir = self._autosave_dir()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / f"workstate_{stamp}.nes"
+        saved_data = saver.build_saved_rom_data(self.rom, self.levels)
+        saver.write_rom_data(saved_data, str(path))
+        self._write_autosave_manifest(path, saved_at)
+        self._prune_autosaves()
+        self._remember_previous_workstate_history(str(path))
+        self._log(f"作業状態を自動保存: {path}")
+        return str(path)
+
+    def restore_previous_workstate_if_available(self) -> bool:
+        path = self._latest_autosave_path()
+        if not path:
+            return False
+        try:
+            self.load_rom(
+                path,
+                add_history=False,
+                status_message="前回の作業状態を復元しました",
             )
-            if ans != QMessageBox.Yes:
-                event.ignore()
-                return
+            if str(Path(self.last_loaded_path)) != str(Path(path)):
+                return False
+            self._remember_previous_workstate_history(path)
+            self.statusBar().showMessage("前回の作業状態を復元しました", 5000)
+            self._log(f"前回の作業状態を復元: {path}")
+            return True
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "前回の作業状態を復元できません",
+                f"{type(e).__name__}: {e}",
+            )
+            self._log(f"前回の作業状態を復元失敗: {type(e).__name__}: {e}")
+            return False
+
+    def closeEvent(self, event):
+        """ウィンドウを閉じる時、現在の作業状態を自動保存する"""
+        if self.rom and not self._is_read_only():
+            try:
+                path = self._autosave_workstate()
+                QMessageBox.information(
+                    self,
+                    "作業状態の自動保存",
+                    "作業状態を自動保存しました。\n安全に終了します。\n\n"
+                    "次回、ROMを指定せずに起動した場合は、この作業状態を自動的に復元します。\n\n"
+                    f"{path}",
+                )
+            except Exception as e:
+                if isinstance(e, saver.SavePreflightError):
+                    detail = e.dialog_message()
+                    log_msg = e.log_message()
+                else:
+                    detail = f"{type(e).__name__}: {e}"
+                    log_msg = detail
+                self._log(f"作業状態の自動保存失敗: {log_msg}")
+                ans = QMessageBox.warning(
+                    self,
+                    "作業状態の自動保存に失敗",
+                    "作業状態を自動保存できませんでした。\n"
+                    "このまま終了すると、今回の変更が失われる可能性があります。\n\n"
+                    f"{detail}\n\n"
+                    "自動保存せずに終了しますか？",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No,
+                )
+                if ans != QMessageBox.Yes:
+                    event.ignore()
+                    return
         # ウィンドウ状態を保存してから閉じる
         self._save_window_state()
         self._log("セッション終了")
+        self._save_session_log()
         event.accept()
 
     def _save_session_log(self):

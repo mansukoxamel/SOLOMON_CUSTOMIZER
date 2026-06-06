@@ -37,11 +37,14 @@ def main():
         win.setWindowIcon(QIcon(str(resolved_icon_path)))
     win.show()
 
-    # コマンドライン引数でROMが渡された場合は読み込む
+    # コマンドライン引数でROMが渡された場合は読み込む。
+    # 指定が無い通常起動では、前回終了時の自動保存ROMを復元する。
     if len(sys.argv) > 1:
         rom_path = sys.argv[1]
         if Path(rom_path).exists():
             win.load_rom(rom_path)
+    else:
+        win.restore_previous_workstate_if_available()
 
     sys.exit(app.exec_())
 
