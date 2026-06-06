@@ -10,8 +10,9 @@ from PyQt5.QtWidgets import (
     QGroupBox, QComboBox, QCheckBox, QListWidget, QApplication,
     QToolBar, QAction, QRadioButton, QButtonGroup, QShortcut
 )
-from PyQt5.QtCore import Qt, QSize, QEvent, QTimer
+from PyQt5.QtCore import Qt, QSize, QEvent, QTimer, QUrl
 from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor, QPainter, QPen
+from PyQt5.QtMultimedia import QSoundEffect
 
 from .. import __version__
 from ..core.rom import Rom, KNOWN_CRC32, is_known_jp_original_data
@@ -57,6 +58,8 @@ class _XInputState(ctypes.Structure):
 
 _XINPUT_MAX_CONTROLLERS = 4
 _XINPUT_BUTTON_START = 0x0010
+_XINPUT_BUTTON_LEFT_SHOULDER = 0x0100
+_XINPUT_BUTTON_RIGHT_SHOULDER = 0x0200
 
 
 def _load_xinput_get_state():
@@ -201,6 +204,7 @@ class MainWindow(QMainWindow):
         self._default_font_family = QApplication.font().family()
 
         self._build_ui()
+        self._setup_button_sound()
         self._setup_shortcuts()
         self._setup_gamepad_shortcut()
 
@@ -219,6 +223,33 @@ class MainWindow(QMainWindow):
         self.shortcut_test_play.setContext(Qt.WindowShortcut)
         self.shortcut_test_play.setAutoRepeat(False)
         self.shortcut_test_play.activated.connect(self._on_test_play)
+        self.shortcut_stage_prev = QShortcut(QKeySequence(Qt.Key_PageUp), self)
+        self.shortcut_stage_prev.setContext(Qt.WindowShortcut)
+        self.shortcut_stage_prev.activated.connect(lambda: self._change_stage_relative(-1))
+        self.shortcut_stage_next = QShortcut(QKeySequence(Qt.Key_PageDown), self)
+        self.shortcut_stage_next.setContext(Qt.WindowShortcut)
+        self.shortcut_stage_next.activated.connect(lambda: self._change_stage_relative(1))
+
+    def _setup_button_sound(self):
+        self._button_sounds = []
+        self._button_sound_index = 0
+        sound_path = Path(__file__).resolve().parent.parent / "button.wav"
+        if not sound_path.exists():
+            return
+        sound_url = QUrl.fromLocalFile(str(sound_path))
+        for _ in range(3):
+            effect = QSoundEffect(self)
+            effect.setSource(sound_url)
+            effect.setVolume(0.8)
+            self._button_sounds.append(effect)
+
+    def _play_button_sound(self):
+        sounds = getattr(self, "_button_sounds", [])
+        if not sounds:
+            return
+        effect = sounds[self._button_sound_index % len(sounds)]
+        self._button_sound_index += 1
+        effect.play()
 
     def _setup_gamepad_shortcut(self):
         self._xinput_get_state = _load_xinput_get_state()
@@ -250,6 +281,22 @@ class MainWindow(QMainWindow):
             ):
                 self._xinput_last_buttons[index] = buttons
                 self._on_test_play()
+                return
+            if (
+                active
+                and (buttons & _XINPUT_BUTTON_LEFT_SHOULDER)
+                and not (last & _XINPUT_BUTTON_LEFT_SHOULDER)
+            ):
+                self._xinput_last_buttons[index] = buttons
+                self._change_stage_relative(-1, play_sound=True)
+                return
+            if (
+                active
+                and (buttons & _XINPUT_BUTTON_RIGHT_SHOULDER)
+                and not (last & _XINPUT_BUTTON_RIGHT_SHOULDER)
+            ):
+                self._xinput_last_buttons[index] = buttons
+                self._change_stage_relative(1, play_sound=True)
                 return
             self._xinput_last_buttons[index] = buttons
 
@@ -2077,6 +2124,7 @@ class MainWindow(QMainWindow):
                 "F9 設定画面で『エミュレータ』のパスを指定してください"
             )
             return
+        self._play_button_sound()
 
         from ..core import hack_data
         import tempfile
@@ -2943,6 +2991,17 @@ class MainWindow(QMainWindow):
         )
 
     # ====== Level navigation ======
+
+    def _change_stage_relative(self, delta: int, play_sound: bool = False):
+        if not self.levels:
+            return
+        max_stage = min(c.LEVEL_COUNT, len(self.levels))
+        current = self.spin_level.value()
+        target = max(1, min(max_stage, current + int(delta)))
+        if target != current:
+            if play_sound:
+                self._play_button_sound()
+            self.spin_level.setValue(target)
 
     def _on_level_changed(self, value: int):
         new_no = value - 1
@@ -4635,10 +4694,6 @@ class MainWindow(QMainWindow):
             self._show_keymap()
         elif key == Qt.Key_F9:
             self._show_settings()
-        elif key == Qt.Key_PageDown:
-            self.spin_level.setValue(min(c.LEVEL_COUNT, self.spin_level.value() + 1))
-        elif key == Qt.Key_PageUp:
-            self.spin_level.setValue(max(1, self.spin_level.value() - 1))
         elif key == Qt.Key_G:
             self.chk_grid.toggle()
         elif key == Qt.Key_Escape:
@@ -5778,6 +5833,7 @@ F9: 設定画面<br>
 P: テストプレイ<br>
 ゲームパッド Start/Menu: テストプレイ<br>
 PageUp / PageDown: ステージ切替<br>
+ゲームパッド L/R: 前/次のステージへ移動<br>
 G: グリッド表示切替<br>
 Ctrl+Z: Undo<br>
 Ctrl+Y / Ctrl+Shift+Z: Redo<br>
