@@ -4760,17 +4760,14 @@ class MainWindow(QMainWindow):
             elif self._hover_tile is not None and self.levels:
                 self._on_tile_right_clicked(self._hover_tile)
         elif key == Qt.Key_H:
-            # H → アイテムフラグを「隠し」に
-            self.picker.rb_flag_hidden.setChecked(True)
-            self.statusBar().showMessage("アイテムフラグ: 隠し (0x40)", 1500)
+            # H → ホバー位置のアイテムフラグを「隠し」に
+            self._set_hover_item_flag(0x40, "隠し")
         elif key == Qt.Key_B:
-            # B → アイテムフラグを「ブロック内」に
-            self.picker.rb_flag_in_block.setChecked(True)
-            self.statusBar().showMessage("アイテムフラグ: ブロック内 (0x80)", 1500)
+            # B → ホバー位置のアイテムフラグを「ブロック内」に
+            self._set_hover_item_flag(0x80, "ブロック内")
         elif key == Qt.Key_N:
-            # N → アイテムフラグを「通常」に
-            self.picker.rb_flag_normal.setChecked(True)
-            self.statusBar().showMessage("アイテムフラグ: 通常", 1500)
+            # N → ホバー位置のアイテムフラグを「通常」に
+            self._set_hover_item_flag(0x00, "通常")
         elif key == Qt.Key_F:
             # F → 選択範囲を左右反転（Shift+Fで上下反転）
             if mods & Qt.ShiftModifier:
@@ -4790,6 +4787,77 @@ class MainWindow(QMainWindow):
                 )
         else:
             super().keyPressEvent(event)
+
+    def _set_hover_item_flag(self, flag: int, label: str):
+        """N/H/B shortcut: change the hovered item/key placement state."""
+        flag = int(flag) & 0xC0
+        if self._hover_tile is not None and self.levels:
+            lv = self.levels[self.current_level_no]
+            if not lv.is_key_removed() and lv.fixed_key_pos == self._hover_tile:
+                if self._reject_read_only_edit():
+                    return
+                from ..core import constants as cc
+                key_flag_map = {
+                    0x00: cc.KEY_STATUS_NORMAL,
+                    0x40: cc.KEY_STATUS_HIDDEN,
+                    0x80: cc.KEY_STATUS_IN_BLOCK,
+                }
+                new_status = key_flag_map.get(flag, cc.KEY_STATUS_NORMAL)
+                if new_status == lv.key_status:
+                    self.statusBar().showMessage(
+                        f"ホバー位置の鍵状態: {label}", 1500
+                    )
+                    return
+                self._push_undo()
+                lv.key_status = new_status
+                self._refresh_view()
+                self._refresh_thumbnails_after_edit()
+                self._set_dirty(True)
+                self._update_hover_info(self._hover_tile)
+                self.statusBar().showMessage(
+                    f"ホバー位置の鍵状態を{label}に変更", 1500
+                )
+                return
+
+            idx = lv.get_item_index(self._hover_tile)
+            if idx >= 0:
+                if self._reject_read_only_edit():
+                    return
+                item = lv.items[idx]
+                if item.element_no >= c.ITEM_COPY_INDICATOR_MIN:
+                    self.statusBar().showMessage(
+                        "このアイテム形式は状態変更できません", 1500
+                    )
+                    return
+                new_no = (int(item.element_no) & 0x3F) | flag
+                if new_no == item.element_no:
+                    self.statusBar().showMessage(
+                        f"ホバー位置のアイテム状態: {label}", 1500
+                    )
+                    return
+                tx, ty = self._hover_tile
+                old_was_in_block = bool(int(item.element_no) & 0x80)
+                clear_backing_block = (
+                    old_was_in_block
+                    and flag != 0x80
+                    and lv.tiles[ty][tx] in (Wall.BROWN, Wall.BROWN_WHITE)
+                )
+                self._push_undo()
+                item.element_no = new_no
+                if clear_backing_block:
+                    lv.set_block(Wall.NONE, self._hover_tile)
+                self._refresh_view()
+                self._refresh_thumbnails_after_edit()
+                self._set_dirty(True)
+                self._update_hover_info(self._hover_tile)
+                msg = f"ホバー位置のアイテム状態を{label}に変更"
+                if clear_backing_block:
+                    msg += "（元ブロックも削除）"
+                self.statusBar().showMessage(msg, 1500)
+                return
+        self.statusBar().showMessage(
+            "ホバー位置に状態変更できるアイテム/鍵がありません", 1500
+        )
 
     def _quick_place_at_hover(self, n: int):
         """数字キー 0-9 でホバー位置にクイック配置
@@ -5900,16 +5968,13 @@ Ctrl+左ドラッグ: 既存要素を移動<br>
 Shift+左ドラッグ: 範囲選択<br>
 Alt+左クリック: スポイト（そのマスの要素をピッカーに取り込む）<br>
 <br>
-<b>ホバー位置のクイック配置</b><br>
+<b>ホバー位置のクイック操作</b><br>
 Delete / Backspace: ホバー位置を削除<br>
-ブロックモード: 0=消去 / 1=茶 / 2=白 / 3=壊せる白 / 5=透明壊せる壁<br>
-アイテム/敵モード: 1-9=ピッカー先頭から配置 / 0=削除<br>
-メタモード: 1=スタート / 2=鍵 / 3=扉 / 4=ミラー1 / 5=ミラー2<br>
 <br>
 <b>アイテムフラグ</b><br>
-N: 通常<br>
-H: 隠し (0x40)<br>
-B: ブロック内 (0x80)<br>
+N: ホバー位置のアイテム/鍵を通常に変更<br>
+H: ホバー位置のアイテム/鍵を隠しに変更<br>
+B: ホバー位置のアイテム/鍵をブロック内に変更<br>
 <br>
 <b>範囲編集</b><br>
 Ctrl+C: コピー<br>
