@@ -4827,12 +4827,19 @@ class MainWindow(QMainWindow):
 
     def _write_autosave_manifest(self, autosave_path: Path, saved_at: str):
         undo_path = self._autosave_undo_file_for_rom(autosave_path)
+        last_level_no = self.current_level_no
+        if self._undo_stack:
+            levels = self._undo_entry_levels(self._undo_stack[-1])
+            last_level_no = self._undo_entry_focus_level_no(
+                self._undo_stack[-1], sorted(levels.keys())
+            )
         manifest = {
             "latest": str(autosave_path),
             "latest_undo": str(undo_path),
             "saved_at": saved_at,
             "source_path": self.last_loaded_path,
             "display_name": self.rom.display_name if self.rom else "",
+            "last_level_no": int(last_level_no),
             "app_version": __version__,
         }
         path = self._autosave_manifest_file()
@@ -4876,6 +4883,7 @@ class MainWindow(QMainWindow):
         return str(path)
 
     def restore_previous_workstate_if_available(self) -> bool:
+        manifest = self._load_autosave_manifest()
         path = self._latest_autosave_path()
         if not path:
             return False
@@ -4887,10 +4895,21 @@ class MainWindow(QMainWindow):
             )
             if str(Path(self.last_loaded_path)) != str(Path(path)):
                 return False
+            try:
+                level_no = int(manifest.get("last_level_no", 0))
+            except Exception:
+                level_no = 0
+            if self.levels and 0 <= level_no < len(self.levels):
+                self.spin_level.setValue(level_no + 1)
             self._restore_autosave_undo_history(self._autosave_undo_file_for_rom(Path(path)))
             self._remember_previous_workstate_history(path)
-            self.statusBar().showMessage("前回の作業状態を復元しました", 5000)
-            self._log(f"前回の作業状態を復元: {path}")
+            self.statusBar().showMessage(
+                f"前回の作業状態を復元しました: Stage {self.current_level_no + 1}",
+                5000,
+            )
+            self._log(
+                f"前回の作業状態を復元: {path} / Stage {self.current_level_no + 1}"
+            )
             return True
         except Exception as e:
             QMessageBox.warning(
