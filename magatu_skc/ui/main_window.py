@@ -1031,9 +1031,22 @@ class MainWindow(QMainWindow):
                         return
                 super().keyPressEvent(event)
 
+            def wheelEvent(self, event):
+                if event.modifiers() & Qt.ControlModifier:
+                    delta = event.angleDelta().y()
+                    if delta == 0:
+                        delta = event.pixelDelta().y()
+                    if delta:
+                        self._owner._change_thumbnail_display_size(1 if delta > 0 else -1)
+                        event.accept()
+                        return
+                super().wheelEvent(event)
+
         self.list_levels = _StageListWidget(self)
         # サムネイル表示用のサイズ設定（画像のみ・テキストなし）
-        self._thumb_size = QSize(160, 120)  # 16:12 比率
+        self._thumb_size = self._thumbnail_size_from_width(
+            self._app_config.get("stage_thumbnail_width", 160)
+        )
         self.list_levels.setIconSize(self._thumb_size)
         self.list_levels.setUniformItemSizes(True)
         self.list_levels.setViewMode(QListView.IconMode)
@@ -1044,7 +1057,7 @@ class MainWindow(QMainWindow):
         self.list_levels.setContextMenuPolicy(Qt.CustomContextMenu)
         self.list_levels.customContextMenuRequested.connect(self._on_level_context_menu)
         # アイテム自体のサイズも明示しないとIconModeで潰れる
-        item_size = QSize(self._thumb_size.width() + 8, self._thumb_size.height() + 8)
+        item_size = self._thumbnail_item_size()
         for i in range(c.LEVEL_COUNT):
             item = QListWidgetItem()
             item.setToolTip(f"Stage {i+1}")
@@ -1054,6 +1067,40 @@ class MainWindow(QMainWindow):
         v.addWidget(self.list_levels, 1)
 
         return w
+
+    def _thumbnail_size_from_width(self, width):
+        try:
+            value = int(width)
+        except Exception:
+            value = 160
+        value = max(96, min(256, value))
+        value = (value // 16) * 16
+        return QSize(value, value * 3 // 4)
+
+    def _thumbnail_item_size(self):
+        return QSize(self._thumb_size.width() + 8, self._thumb_size.height() + 8)
+
+    def _apply_thumbnail_display_size(self):
+        self.list_levels.setIconSize(self._thumb_size)
+        item_size = self._thumbnail_item_size()
+        for i in range(self.list_levels.count()):
+            item = self.list_levels.item(i)
+            if item is not None:
+                item.setSizeHint(item_size)
+
+    def _change_thumbnail_display_size(self, direction: int):
+        current_w = self._thumb_size.width()
+        step = 16
+        min_w = 96
+        max_w = 256
+        target_w = max(min_w, min(max_w, current_w + step * int(direction)))
+        if target_w == current_w:
+            return
+        self._thumb_size = QSize(target_w, target_w * 3 // 4)
+        self._app_config["stage_thumbnail_width"] = target_w
+        save_config(self._app_config)
+        self._apply_thumbnail_display_size()
+        self._generate_all_thumbnails()
 
     def _generate_all_thumbnails(self):
         """全レベルのサムネイルを生成（ROM読込時 / 手動再生成）"""
