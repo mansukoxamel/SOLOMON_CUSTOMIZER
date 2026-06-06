@@ -9,6 +9,8 @@ from PyQt5.QtGui import QColor, QImage, QPixmap, QPainter
 # 重要アイテム列のスプライト1個あたりのピクセルサイズ
 ITEM_THUMB = 28
 ITEM_GAP = 3
+SORT_ROLE = Qt.UserRole + 1
+CSV_ROLE = Qt.UserRole + 2
 
 from ..core import constants as c
 from ..core.element import Wall
@@ -24,8 +26,22 @@ IMPORTANT_ITEMS = [
     0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x21,
 ]
 
+FEATURED_ENTITY_ORDER = [
+    ("item", 0x22),          # Warp Item
+    ("item", 0x1c),          # Shrine #1
+    ("item", 0x1d),          # Shrine #2
+    ("item", 0x1e),          # Shrine #3
+    ("item", 0x1f),          # Shrine #4
+    ("item", 0x20),          # Solomon's Seal
+    ("item", 0x21),          # Page of Time / Space
+]
+FEATURED_ENTITY_SET = set(FEATURED_ENTITY_ORDER)
+
 IMPORTANT_ENTITY_ORDER = (
-    [("item", code) for code in IMPORTANT_ITEMS] +
+    [
+        ("item", code) for code in IMPORTANT_ITEMS
+        if ("item", code) not in FEATURED_ENTITY_SET
+    ] +
     [
         ("enemy", 0x18),  # Mighty Bomb Jack
         ("item", 0x39),   # Tecmo Bunny
@@ -91,6 +107,17 @@ def _enemy_important_key(enemy, config) -> tuple[str, int] | None:
     return None
 
 
+class StatsTableItem(QTableWidgetItem):
+    """ソート用データを優先して比較するテーブルセル。"""
+
+    def __lt__(self, other):
+        left = self.data(SORT_ROLE)
+        right = other.data(SORT_ROLE) if other is not None else None
+        if left is not None and right is not None:
+            return left < right
+        return super().__lt__(other)
+
+
 class StatsDialog(QDialog):
     """全ステージ統計表示ダイアログ"""
 
@@ -116,6 +143,7 @@ class StatsDialog(QDialog):
         ("隠し扉", 60),     # BIT_HIDDEN_DOOR
         ("配置敵", 300),    # 配置された敵 スプライト
         ("ミラー敵", 240),  # ミラーから出る敵 スプライト
+        ("主要", 180),      # Warp/星座パネル/Solomon/Page スプライト
         ("重要アイテム", 380),  # スプライト
     ]
     # ヘッダ名 → 列インデックス (ハードコード排除)
@@ -135,6 +163,7 @@ class StatsDialog(QDialog):
     DOOR_COL = _HDR.index("隠し扉")
     PLACED_COL = _HDR.index("配置敵")
     MIRROR_COL = _HDR.index("ミラー敵")
+    FEATURED_COL = _HDR.index("主要")
     ITEM_COL = _HDR.index("重要アイテム")
     FLAG_COLS = (ASTONE_COL, BFIRE_COL, FIRE_RESET_COL, DARK_COL, DOOR_COL)
     NUM_COLS = (TS_COL, TIME_COL, LIFE_COL)  # 中央寄せする数値メタ列
@@ -155,8 +184,10 @@ class StatsDialog(QDialog):
         self._sprite_cache = {}   # (item base_code, tileset_no) -> QPixmap
         self._enemy_cache = {}    # (enemy code, tileset_no) -> QPixmap
         self._item_col_w = 0      # 重要アイテム列の最大ピクセル幅
+        self._featured_col_w = 0  # 主要列の最大ピクセル幅
         self._placed_col_w = 0    # 配置敵列の最大ピクセル幅
         self._mirror_col_w = 0    # ミラー敵列の最大ピクセル幅
+        self._csv_featured_text = {} # row -> 主要内訳 (CSV用)
         self._csv_item_text = {}   # row -> 重要アイテム内訳 (CSV用)
         self._csv_placed_text = {} # row -> 配置敵内訳 (CSV用)
         self._csv_mirror_text = {} # row -> ミラー敵内訳 (CSV用)
@@ -165,7 +196,8 @@ class StatsDialog(QDialog):
 
         # 説明
         info = QLabel(
-            "「重要アイテム」列は紋章/Warp/Shrine/Origami Swan/Demonhead Coin/"
+            "「主要」列はWarp/星座パネル/Solomon's Seal/Pageを集計。「重要アイテム」列は"
+            "Origami Swan/Demonhead Coin/"
             "Sphinx/Egyptian Head/Magic Lamp/E-bottle/Page/Tecmo Bunny と、"
             "特殊扱いの Mighty Bomb Jack/Fairy/Fairy Princess を集計(コイン/宝石/"
             "Bell/Scroll/タイマー系などは除外)。「配置敵」=面に置かれた敵"
@@ -179,6 +211,11 @@ class StatsDialog(QDialog):
         # テーブル
         self.table = QTableWidget(len(levels), len(self.COLUMNS), self)
         self.table.setHorizontalHeaderLabels([h for h, _ in self.COLUMNS])
+        featured_header = self.table.horizontalHeaderItem(self.FEATURED_COL)
+        if featured_header is not None:
+            featured_header.setToolTip(
+                "Warp / 星座パネル / Solomon's Seal / Page を専用表示します。"
+            )
         item_header = self.table.horizontalHeaderItem(self.ITEM_COL)
         if item_header is not None:
             item_header.setToolTip(
@@ -194,9 +231,12 @@ class StatsDialog(QDialog):
         # 「…」省略をやめ全文表示。列幅はユーザーが調整可(保存対象)
         self.table.setTextElideMode(Qt.ElideNone)
         self.table.setWordWrap(False)
+        self.table.setSortingEnabled(False)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.table.horizontalHeader().setSortIndicatorShown(True)
         self.table.itemDoubleClicked.connect(self._on_double_click)
         self._populate()
+        self.table.setSortingEnabled(True)
         layout.addWidget(self.table)
 
         # ボタン行
@@ -322,6 +362,14 @@ class StatsDialog(QDialog):
             x += cell_w + ITEM_GAP
         p.end()
         return QPixmap.fromImage(strip)
+
+    def _ordered_featured_buckets(self, featured_buckets):
+        """主要列を Warp / 星座パネル / Solomon's Seal / Page の順に並べる。"""
+        ordered = []
+        for key in FEATURED_ENTITY_ORDER:
+            if key in featured_buckets:
+                ordered.append((key, self._important_label(key), featured_buckets[key]))
+        return ordered
 
     def _enemy_pixmap(self, code: int, tileset_no: int) -> QPixmap:
         """敵 element_no の ITEM_THUMB スプライト。
@@ -473,6 +521,7 @@ class StatsDialog(QDialog):
             normal_count = 0
             hidden_count = 0
             in_block_count = 0
+            featured_buckets = {}   # (source, code) -> {state: count}
             important_buckets = {}  # (source, code) -> {state: count}
             for it in lv.items:
                 flag = it.element_no & 0xC0
@@ -482,7 +531,9 @@ class StatsDialog(QDialog):
                     normal_count, hidden_count, in_block_count, state)
                 # 重要アイテム
                 key = _item_important_key(base)
-                if key in IMPORTANT_ENTITY_SET:
+                if key in FEATURED_ENTITY_SET:
+                    self._add_important_item(featured_buckets, key, state)
+                elif key in IMPORTANT_ENTITY_SET:
                     self._add_important_item(important_buckets, key, state)
 
             meta_items = getattr(self.config, "level_meta_items", []) if self.config else []
@@ -490,12 +541,15 @@ class StatsDialog(QDialog):
                 if getattr(mi, "level_no", -1) != row:
                     continue
                 key = _level_meta_important_key(mi)
-                if key not in IMPORTANT_ENTITY_SET:
+                if key not in FEATURED_ENTITY_SET and key not in IMPORTANT_ENTITY_SET:
                     continue
                 state = _level_meta_item_state(lv, mi)
                 normal_count, hidden_count, in_block_count = self._add_item_state_count(
                     normal_count, hidden_count, in_block_count, state)
-                self._add_important_item(important_buckets, key, state)
+                if key in FEATURED_ENTITY_SET:
+                    self._add_important_item(featured_buckets, key, state)
+                else:
+                    self._add_important_item(important_buckets, key, state)
 
             for en in lv.enemies:
                 key = _enemy_important_key(en, self.config)
@@ -531,6 +585,18 @@ class StatsDialog(QDialog):
             f_dark = "●" if rf & _rf.BIT_DARK else ""
             f_door = "●" if rf & _rf.BIT_HIDDEN_DOOR else ""
             f_fire_reset = "●" if _se.fire_reset_enabled(lv) else ""
+
+            # 主要列文字列 + スプライト用 featured_ordered_buckets
+            featured_ordered_buckets = self._ordered_featured_buckets(featured_buckets)
+            featured_strs = []
+            for key, label, b in featured_ordered_buckets:
+                parts = []
+                if b["normal"]: parts.append(f"通{b['normal']}")
+                if b["hidden"]: parts.append(f"隠{b['hidden']}")
+                if b["in_block"]: parts.append(f"内{b['in_block']}")
+                featured_strs.append(f"{label}[{','.join(parts)}]")
+            featured_text = " / ".join(featured_strs) if featured_strs else "-"
+            self._csv_featured_text[row] = featured_text
 
             # 重要アイテム文字列 + スプライト用 ordered_buckets
             important_strs = []
@@ -594,7 +660,7 @@ class StatsDialog(QDialog):
                 [(ec, 1) for ec in mbases.values()])
             self._csv_mirror_text[row] = mirror_text
 
-            # セル設定 (COLUMNS と同じ並び。スプライト3列はテキスト空)
+            # セル設定 (COLUMNS と同じ並び。スプライト4列はテキスト空)
             cells = [
                 str(row + 1),                     # Lv
                 str(normal_count),                # 通常
@@ -614,17 +680,61 @@ class StatsDialog(QDialog):
                 f_door,                           # 隠し扉
                 "",                               # 配置敵(sprite)
                 "",                               # ミラー敵(sprite)
+                "",                               # 主要(sprite)
                 "",                               # 重要アイテム(sprite)
             ]
+            sort_values = [
+                row + 1,                          # Lv
+                normal_count,                     # 通常
+                hidden_count,                     # 隠し
+                in_block_count,                   # in_blk
+                len(placed_enemies),              # 敵数
+                tileset_no,                       # タイル
+                int(getattr(lv, "time_decrease_rate", 0)),    # 時間減少
+                int(getattr(lv, "spawn_enemy_lifetime", 0)),  # 敵寿命
+                key_state,                        # 鍵
+                const_state,                      # 星座
+                1 if f_astone else 0,             # A禁止
+                1 if f_bfire else 0,              # B禁止
+                1 if f_fire_reset else 0,         # 火リセット
+                key_enemy_no,                     # 鍵敵#
+                1 if f_dark else 0,               # 暗闇
+                1 if f_door else 0,               # 隠し扉
+                "",                              # 配置敵: ソート対象外
+                "",                              # ミラー敵: ソート対象外
+                "",                              # 主要: ソート対象外
+                "",                              # 重要アイテム: ソート対象外
+            ]
+            csv_values = {
+                self.PLACED_COL: placed_text,
+                self.MIRROR_COL: mirror_text,
+                self.FEATURED_COL: featured_text,
+                self.ITEM_COL: important_text,
+            }
             for col, txt in enumerate(cells):
-                item = QTableWidgetItem(txt)
+                item = StatsTableItem(txt)
                 if col in self.FLAG_COLS or col in self.NUM_COLS or col == self.KEY_ENEMY_COL:
                     item.setTextAlignment(Qt.AlignCenter)
-                if col == self.LV_COL:
-                    item.setData(Qt.UserRole, row)  # レベル番号(0-indexed)
+                item.setData(Qt.UserRole, row)  # レベル番号(0-indexed)
+                item.setData(SORT_ROLE, sort_values[col])
+                if col in csv_values:
+                    item.setData(CSV_ROLE, csv_values[col])
                 self.table.setItem(row, col, item)
 
-            # 重要アイテム列(col 8): スプライト帯のみ表示(文字は出さない)。
+            # 主要列: スプライト帯のみ表示(文字は出さない)。
+            fstrip = self._compose_item_strip(featured_ordered_buckets, tileset_no)
+            if fstrip is not None and not fstrip.isNull():
+                flbl = QLabel()
+                flbl.setPixmap(fstrip)
+                flbl.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+                flbl.setContentsMargins(3, 0, 3, 0)
+                flbl.setToolTip(featured_text.replace(" / ", "\n"))
+                self.table.setCellWidget(row, self.FEATURED_COL, flbl)
+                fw = fstrip.width() + 8
+                if fw > self._featured_col_w:
+                    self._featured_col_w = fw
+
+            # 重要アイテム列: スプライト帯のみ表示(文字は出さない)。
             # 内訳テキストは hover ツールチップ + CSV出力(self._csv_item_text)。
             strip = self._compose_item_strip(ordered_buckets, tileset_no)
             if strip is not None and not strip.isNull():
@@ -670,6 +780,7 @@ class StatsDialog(QDialog):
         # スプライト帯の列はそれぞれの最大幅に合わせる
         self.table.setColumnWidth(self.PLACED_COL, max(260, self._placed_col_w))
         self.table.setColumnWidth(self.MIRROR_COL, max(200, self._mirror_col_w))
+        self.table.setColumnWidth(self.FEATURED_COL, max(180, self._featured_col_w))
         self.table.setColumnWidth(self.ITEM_COL, max(380, self._item_col_w))
 
     @staticmethod
@@ -690,11 +801,17 @@ class StatsDialog(QDialog):
 
     def _on_double_click(self, item):
         row = item.row()
+        lv_item = self.table.item(row, self.LV_COL)
+        level_no = lv_item.data(Qt.UserRole) if lv_item is not None else row
+        try:
+            level_no = int(level_no)
+        except Exception:
+            level_no = row
         # 親のレベル切替
         parent = self.parent()
         if parent and hasattr(parent, "spin_level"):
-            parent.spin_level.setValue(row + 1)
-            self.statusbar_message(f"L{row + 1} に移動")
+            parent.spin_level.setValue(level_no + 1)
+            self.statusbar_message(f"L{level_no + 1} に移動")
 
     def statusbar_message(self, msg):
         parent = self.parent()
@@ -715,15 +832,19 @@ class StatsDialog(QDialog):
                 for row in range(self.table.rowCount()):
                     cells = []
                     for col in range(self.table.columnCount()):
+                        item = self.table.item(row, col)
                         if col == self.ITEM_COL:
-                            text = self._csv_item_text.get(row, "")
+                            text = item.data(CSV_ROLE) if item else ""
+                        elif col == self.FEATURED_COL:
+                            text = item.data(CSV_ROLE) if item else ""
                         elif col == self.PLACED_COL:
-                            text = self._csv_placed_text.get(row, "")
+                            text = item.data(CSV_ROLE) if item else ""
                         elif col == self.MIRROR_COL:
-                            text = self._csv_mirror_text.get(row, "")
+                            text = item.data(CSV_ROLE) if item else ""
                         else:
-                            item = self.table.item(row, col)
                             text = item.text() if item else ""
+                        if text is None:
+                            text = ""
                         # CSV-safe: replace newlines, escape quotes
                         text = text.replace("\n", " / ").replace('"', '""')
                         if "," in text:
