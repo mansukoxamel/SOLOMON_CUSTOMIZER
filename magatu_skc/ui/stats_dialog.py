@@ -24,6 +24,72 @@ IMPORTANT_ITEMS = [
     0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x21,
 ]
 
+IMPORTANT_ENTITY_ORDER = (
+    [("item", code) for code in IMPORTANT_ITEMS] +
+    [
+        ("enemy", 0x18),  # Mighty Bomb Jack
+        ("item", 0x39),   # Tecmo Bunny
+        ("enemy", 0x1c),  # Fairy
+        ("enemy", 0x1d),  # Fairy Princess
+    ]
+)
+IMPORTANT_ENTITY_SET = set(IMPORTANT_ENTITY_ORDER)
+
+
+def _level_meta_important_key(meta_item) -> tuple[str, int] | None:
+    """level_meta_items のうち、重要アイテム列へ合算するものを返す。"""
+    desc = (getattr(meta_item, "description", "") or "").lower()
+    if "solomon" in desc and "seal" in desc:
+        return ("item", 0x20)
+    if "page of " in desc:
+        return ("item", 0x21)
+    if "bomb jack" in desc:
+        return ("enemy", 0x18)
+    if "tecmo bunny" in desc:
+        return ("item", 0x39)
+    return None
+
+
+def _level_meta_item_state(level, meta_item) -> str:
+    """キャンバス/PNG描画と同じ基準で meta item の状態を分類する。"""
+    if bool(getattr(meta_item, "transparent", False)):
+        return "hidden"
+    x, y = getattr(meta_item, "position", (0, 0))
+    if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
+        if level.tiles[y][x] == Wall.BROWN:
+            return "in_block"
+    return "normal"
+
+
+def _item_important_key(base_code: int) -> tuple[str, int] | None:
+    """通常アイテムを重要アイテム列の代表キーへ正規化する。"""
+    if base_code in IMPORTANT_ITEMS:
+        return ("item", base_code)
+    if base_code in (0x38, 0x39):
+        return ("item", 0x39)
+    return None
+
+
+def _enemy_important_key(enemy, config) -> tuple[str, int] | None:
+    """特別に重要アイテム列へ載せる敵を代表コードへ正規化する。"""
+    code = getattr(enemy, "element_no", 0)
+    desc = ""
+    if config is not None:
+        desc = (getattr(config, "enemy_desc", {}) or {}).get(code, "")
+    desc = desc.lower()
+    if "mighty bomb jack" in desc:
+        return ("enemy", 0x18)
+    base = desc.split("(", 1)[0].strip()
+    if "#" in base:
+        head, _, tail = base.rpartition("#")
+        if tail.strip().isdigit():
+            base = head.strip()
+    if base == "fairy":
+        return ("enemy", 0x1c)
+    if base == "fairy princess":
+        return ("enemy", 0x1d)
+    return None
+
 
 class StatsDialog(QDialog):
     """全ステージ統計表示ダイアログ"""
@@ -86,8 +152,8 @@ class StatsDialog(QDialog):
         self.tile_renderer = tile_renderer
         self.rom = rom                  # ミラー実データ読出用 (m66 layout)
         self._app_config = app_config   # サイズ/位置 復元用 (None=保存しない)
-        self._sprite_cache = {}   # item base_code -> QPixmap (ITEM_THUMB)
-        self._enemy_cache = {}    # enemy code -> QPixmap (ITEM_THUMB)
+        self._sprite_cache = {}   # (item base_code, tileset_no) -> QPixmap
+        self._enemy_cache = {}    # (enemy code, tileset_no) -> QPixmap
         self._item_col_w = 0      # 重要アイテム列の最大ピクセル幅
         self._placed_col_w = 0    # 配置敵列の最大ピクセル幅
         self._mirror_col_w = 0    # ミラー敵列の最大ピクセル幅
@@ -100,7 +166,8 @@ class StatsDialog(QDialog):
         # 説明
         info = QLabel(
             "「重要アイテム」列は紋章/Warp/Shrine/Origami Swan/Demonhead Coin/"
-            "Sphinx/Egyptian Head/Magic Lamp/E-bottle のみ集計(コイン/宝石/"
+            "Sphinx/Egyptian Head/Magic Lamp/E-bottle/Page/Tecmo Bunny と、"
+            "特殊扱いの Mighty Bomb Jack/Fairy/Fairy Princess を集計(コイン/宝石/"
             "Bell/Scroll/タイマー系などは除外)。「配置敵」=面に置かれた敵"
             "(実数 ×N)、「ミラー敵」=デーモンミラーから出る敵(種類のみ・"
             "無スケジュールのミラーは除外)。<br>"
@@ -112,6 +179,13 @@ class StatsDialog(QDialog):
         # テーブル
         self.table = QTableWidget(len(levels), len(self.COLUMNS), self)
         self.table.setHorizontalHeaderLabels([h for h, _ in self.COLUMNS])
+        item_header = self.table.horizontalHeaderItem(self.ITEM_COL)
+        if item_header is not None:
+            item_header.setToolTip(
+                "重要アイテム列の枠色:\n"
+                "黄 = 隠し / 緑 = ブロック内 / 灰 = 通常\n"
+                "右下の数字は同種アイテムの合計数です。"
+            )
         for i, (_, w) in enumerate(self.COLUMNS):
             self.table.setColumnWidth(i, w)
         self.table.verticalHeader().setVisible(False)
@@ -187,16 +261,17 @@ class StatsDialog(QDialog):
 
     # ---- スプライト描画 (element_picker と同一ルート: item_map→TileRenderer) ----
 
-    def _item_pixmap(self, base_code: int) -> QPixmap:
+    def _item_pixmap(self, base_code: int, tileset_no: int) -> QPixmap:
         """アイテム base_code (element_no & 0x3f) の ITEM_THUMB スプライト。
         element_picker._make_icon_from_tile と同じ描画ロジック。"""
-        if base_code in self._sprite_cache:
-            return self._sprite_cache[base_code]
+        cache_key = (base_code, tileset_no)
+        if cache_key in self._sprite_cache:
+            return self._sprite_cache[cache_key]
         if self.tile_renderer is None or self.config is None:
             return QPixmap()
         try:
             anim = self.config.item_map.get(base_code & 0x3f, 0)
-            sprite = self.tile_renderer.get_tile_image(anim, 0, transparent=True)
+            sprite = self.tile_renderer.get_tile_image(anim, tileset_no, transparent=True)
             bg = QImage(ITEM_THUMB, ITEM_THUMB, QImage.Format_ARGB32)
             bg.fill(QColor(20, 20, 20))
             p = QPainter(bg)
@@ -209,10 +284,10 @@ class StatsDialog(QDialog):
             pm = QPixmap.fromImage(bg)
         except Exception:
             pm = QPixmap()
-        self._sprite_cache[base_code] = pm
+        self._sprite_cache[cache_key] = pm
         return pm
 
-    def _compose_item_strip(self, ordered_buckets):
+    def _compose_item_strip(self, ordered_buckets, tileset_no: int):
         """ordered_buckets = [(code, label, {normal,hidden,in_block})] を
         横一列のスプライト帯 QPixmap に合成。状態は枠色、複数は ×N。"""
         n = len(ordered_buckets)
@@ -224,8 +299,8 @@ class StatsDialog(QDialog):
         strip.fill(QColor(0, 0, 0, 0))
         p = QPainter(strip)
         x = 0
-        for code, _label, b in ordered_buckets:
-            pm = self._item_pixmap(code)
+        for key, _label, b in ordered_buckets:
+            pm = self._important_pixmap(key, tileset_no)
             fx = x + 1
             if not pm.isNull():
                 p.drawPixmap(fx, 1, pm)
@@ -248,16 +323,17 @@ class StatsDialog(QDialog):
         p.end()
         return QPixmap.fromImage(strip)
 
-    def _enemy_pixmap(self, code: int) -> QPixmap:
+    def _enemy_pixmap(self, code: int, tileset_no: int) -> QPixmap:
         """敵 element_no の ITEM_THUMB スプライト。
         element_picker._make_enemy_icon と同じルート (enemy_map)。"""
-        if code in self._enemy_cache:
-            return self._enemy_cache[code]
+        cache_key = (code, tileset_no)
+        if cache_key in self._enemy_cache:
+            return self._enemy_cache[cache_key]
         if self.tile_renderer is None or self.config is None:
             return QPixmap()
         try:
             anim = self.config.enemy_map.get(code, 0)
-            sprite = self.tile_renderer.get_tile_image(anim, 0, transparent=True)
+            sprite = self.tile_renderer.get_tile_image(anim, tileset_no, transparent=True)
             bg = QImage(ITEM_THUMB, ITEM_THUMB, QImage.Format_ARGB32)
             bg.fill(QColor(20, 20, 20))
             p = QPainter(bg)
@@ -270,10 +346,24 @@ class StatsDialog(QDialog):
             pm = QPixmap.fromImage(bg)
         except Exception:
             pm = QPixmap()
-        self._enemy_cache[code] = pm
+        self._enemy_cache[cache_key] = pm
         return pm
 
-    def _compose_enemy_strip(self, ordered):
+    def _important_pixmap(self, key, tileset_no: int) -> QPixmap:
+        source, code = key
+        if source == "enemy":
+            return self._enemy_pixmap(code, tileset_no)
+        return self._item_pixmap(code, tileset_no)
+
+    def _important_label(self, key) -> str:
+        source, code = key
+        if source == "enemy":
+            desc = (getattr(self.config, "enemy_desc", {}) or {}) if self.config else {}
+            return desc.get(code, f"0x{code:02x}")
+        desc = (getattr(self.config, "item_desc", {}) or {}) if self.config else {}
+        return desc.get(code, f"0x{code:02x}")
+
+    def _compose_enemy_strip(self, ordered, tileset_no: int):
         """ordered = [(code, name, count)] を横一列のスプライト帯に合成。
         状態枠は無し(灰枠のみ)、複数は ×N。"""
         n = len(ordered)
@@ -286,7 +376,7 @@ class StatsDialog(QDialog):
         p = QPainter(strip)
         x = 0
         for code, _name, cnt in ordered:
-            pm = self._enemy_pixmap(code)
+            pm = self._enemy_pixmap(code, tileset_no)
             fx = x + 1
             if not pm.isNull():
                 p.drawPixmap(fx, 1, pm)
@@ -314,6 +404,22 @@ class StatsDialog(QDialog):
             if tail.strip().isdigit():
                 base = head.strip()
         return base or full
+
+    def _preferred_enemy_code(self, base: str, fallback_code: int) -> int:
+        """敵一覧用の代表スプライト。左向き定義があればそれを優先する。"""
+        if self.config is None:
+            return fallback_code
+        candidates = []
+        for code, desc in (getattr(self.config, "enemy_desc", {}) or {}).items():
+            if self._enemy_base(code) != base:
+                continue
+            desc_l = desc.lower()
+            priority = 0 if "(left" in desc_l else 1
+            candidates.append((priority, code))
+        if not candidates:
+            return fallback_code
+        candidates.sort()
+        return candidates[0][1]
 
     def _mirror_spawn_codes(self, level_no: int) -> list:
         """デーモンミラーから実際に出てくる敵コード一覧を返す。
@@ -362,26 +468,42 @@ class StatsDialog(QDialog):
 
     def _populate(self):
         for row, lv in enumerate(self.levels):
+            tileset_no = int(getattr(lv, "tileset_no", 0) or 0)
             # アイテム集計
             normal_count = 0
             hidden_count = 0
             in_block_count = 0
-            important_buckets = {}  # base_code -> {state: count}
+            important_buckets = {}  # (source, code) -> {state: count}
             for it in lv.items:
                 flag = it.element_no & 0xC0
                 base = it.element_no & 0x3F
                 state = "hidden" if flag == 0x40 else ("in_block" if flag == 0x80 else "normal")
-                if state == "normal":
-                    normal_count += 1
-                elif state == "hidden":
-                    hidden_count += 1
-                else:
-                    in_block_count += 1
+                normal_count, hidden_count, in_block_count = self._add_item_state_count(
+                    normal_count, hidden_count, in_block_count, state)
                 # 重要アイテム
-                if base in IMPORTANT_ITEMS:
-                    if base not in important_buckets:
-                        important_buckets[base] = {"normal": 0, "hidden": 0, "in_block": 0}
-                    important_buckets[base][state] += 1
+                key = _item_important_key(base)
+                if key in IMPORTANT_ENTITY_SET:
+                    self._add_important_item(important_buckets, key, state)
+
+            meta_items = getattr(self.config, "level_meta_items", []) if self.config else []
+            for mi in meta_items:
+                if getattr(mi, "level_no", -1) != row:
+                    continue
+                key = _level_meta_important_key(mi)
+                if key not in IMPORTANT_ENTITY_SET:
+                    continue
+                state = _level_meta_item_state(lv, mi)
+                normal_count, hidden_count, in_block_count = self._add_item_state_count(
+                    normal_count, hidden_count, in_block_count, state)
+                self._add_important_item(important_buckets, key, state)
+
+            for en in lv.enemies:
+                key = _enemy_important_key(en, self.config)
+                if key in IMPORTANT_ENTITY_SET:
+                    self._add_important_item(important_buckets, key, "normal")
+
+            key_enemy_no = _se.get_key_enemy_number(lv)
+            key_enemy_text = str(key_enemy_no) if key_enemy_no > 0 else ""
 
             # 鍵状態 (座標は表示しない)
             if lv.is_key_removed():
@@ -409,32 +531,30 @@ class StatsDialog(QDialog):
             f_dark = "●" if rf & _rf.BIT_DARK else ""
             f_door = "●" if rf & _rf.BIT_HIDDEN_DOOR else ""
             f_fire_reset = "●" if _se.fire_reset_enabled(lv) else ""
-            key_enemy_no = _se.get_key_enemy_number(lv)
-            key_enemy_text = str(key_enemy_no) if key_enemy_no > 0 else ""
 
             # 重要アイテム文字列 + スプライト用 ordered_buckets
             important_strs = []
             ordered_buckets = []
-            _idesc = (self.config.item_desc if self.config else {}) or {}
-            for code in IMPORTANT_ITEMS:
-                if code in important_buckets:
-                    label = _idesc.get(code, f"0x{code:02x}")  # 名前=item_desc単一ソース
-                    b = important_buckets[code]
+            for key in IMPORTANT_ENTITY_ORDER:
+                if key in important_buckets:
+                    label = self._important_label(key)
+                    b = important_buckets[key]
                     parts = []
                     if b["normal"]: parts.append(f"通{b['normal']}")
                     if b["hidden"]: parts.append(f"隠{b['hidden']}")
                     if b["in_block"]: parts.append(f"内{b['in_block']}")
                     important_strs.append(f"{label}[{','.join(parts)}]")
-                    ordered_buckets.append((code, label, b))
+                    ordered_buckets.append((key, label, b))
             important_text = " / ".join(important_strs) if important_strs else "-"
             self._csv_item_text[row] = important_text  # CSV出力用に保持
 
             # 敵集計 (★方向/速度違いは同一モンスターとして合算。
-            #  グループキー=enemy_desc の基底名 _enemy_base、代表=最小コード)
+            #  グループキー=enemy_desc の基底名 _enemy_base)
             #  ・「配置敵」= lv.enemies を実数 ×N。
             #  ・「ミラー敵」= デーモンミラーから出る敵。何匹出るか不明
             #    なので種類ごと 1 (presence)。スケジュール無チェックの
             #    ミラーは出ないので対象外 (_mirror_spawn_codes)。
+            #  ・代表スプライトは、左向き定義があれば左向きを優先。
             def _group(codes_counts):
                 grp = {}
                 for ec, n in codes_counts:
@@ -449,14 +569,19 @@ class StatsDialog(QDialog):
                 ordered, strs = [], []
                 for base in sorted(grp, key=lambda b: grp[b]["code"]):
                     g = grp[base]
-                    ordered.append((g["code"], base, g["count"]))
+                    code = self._preferred_enemy_code(base, g["code"])
+                    ordered.append((code, base, g["count"]))
                     strs.append(f"{base}×{g['count']}"
                                 if g["count"] > 1 else base)
                 return ordered, (" / ".join(strs) if strs else "-")
 
             # 配置敵
+            placed_enemies = [
+                en for en in lv.enemies
+                if _enemy_important_key(en, self.config) is None
+            ]
             placed_ordered, placed_text = _group(
-                [(en.element_no, 1) for en in lv.enemies])
+                [(en.element_no, 1) for en in placed_enemies])
             self._csv_placed_text[row] = placed_text
 
             # ミラー敵 (基底名で重複排除し各 1)
@@ -475,8 +600,8 @@ class StatsDialog(QDialog):
                 str(normal_count),                # 通常
                 str(hidden_count),                # 隠し
                 str(in_block_count),              # in_blk
-                str(len(lv.enemies)),             # 敵数
-                str(getattr(lv, "tileset_no", 0)),            # タイル
+                str(len(placed_enemies)),         # 敵数
+                str(tileset_no),                  # タイル
                 str(getattr(lv, "time_decrease_rate", 0)),    # 時間減少
                 str(getattr(lv, "spawn_enemy_lifetime", 0)),  # 敵寿命
                 key_state,                        # 鍵
@@ -491,32 +616,17 @@ class StatsDialog(QDialog):
                 "",                               # ミラー敵(sprite)
                 "",                               # 重要アイテム(sprite)
             ]
-            flag_bg = {
-                self.ASTONE_COL: (f_astone, QColor(255, 224, 224)),
-                self.BFIRE_COL:  (f_bfire,  QColor(255, 236, 210)),
-                self.FIRE_RESET_COL: (f_fire_reset, QColor(255, 245, 190)),
-                self.DARK_COL:   (f_dark,   QColor(214, 214, 230)),
-                self.DOOR_COL:   (f_door,   QColor(214, 236, 214)),
-            }
             for col, txt in enumerate(cells):
                 item = QTableWidgetItem(txt)
                 if col in self.FLAG_COLS or col in self.NUM_COLS or col == self.KEY_ENEMY_COL:
                     item.setTextAlignment(Qt.AlignCenter)
                 if col == self.LV_COL:
                     item.setData(Qt.UserRole, row)  # レベル番号(0-indexed)
-                if col == self.HIDDEN_COL and hidden_count > 0:
-                    item.setBackground(QColor(255, 250, 200))
-                if col == self.INBLK_COL and in_block_count > 0:
-                    item.setBackground(QColor(220, 240, 220))
-                if col == self.KEY_COL and key_state.startswith("hidden"):
-                    item.setBackground(QColor(255, 230, 230))
-                if col in flag_bg and flag_bg[col][0]:
-                    item.setBackground(flag_bg[col][1])
                 self.table.setItem(row, col, item)
 
             # 重要アイテム列(col 8): スプライト帯のみ表示(文字は出さない)。
             # 内訳テキストは hover ツールチップ + CSV出力(self._csv_item_text)。
-            strip = self._compose_item_strip(ordered_buckets)
+            strip = self._compose_item_strip(ordered_buckets, tileset_no)
             if strip is not None and not strip.isNull():
                 lbl = QLabel()
                 lbl.setPixmap(strip)
@@ -529,7 +639,7 @@ class StatsDialog(QDialog):
                     self._item_col_w = w
 
             # 配置敵列: スプライト帯。内訳は tooltip + CSV。
-            pstrip = self._compose_enemy_strip(placed_ordered)
+            pstrip = self._compose_enemy_strip(placed_ordered, tileset_no)
             if pstrip is not None and not pstrip.isNull():
                 plbl = QLabel()
                 plbl.setPixmap(pstrip)
@@ -542,7 +652,7 @@ class StatsDialog(QDialog):
                     self._placed_col_w = pw
 
             # ミラー敵列: スプライト帯。内訳は tooltip + CSV。
-            mstrip = self._compose_enemy_strip(mirror_ordered)
+            mstrip = self._compose_enemy_strip(mirror_ordered, tileset_no)
             if mstrip is not None and not mstrip.isNull():
                 mlbl = QLabel()
                 mlbl.setPixmap(mstrip)
@@ -561,6 +671,22 @@ class StatsDialog(QDialog):
         self.table.setColumnWidth(self.PLACED_COL, max(260, self._placed_col_w))
         self.table.setColumnWidth(self.MIRROR_COL, max(200, self._mirror_col_w))
         self.table.setColumnWidth(self.ITEM_COL, max(380, self._item_col_w))
+
+    @staticmethod
+    def _add_item_state_count(normal_count, hidden_count, in_block_count, state):
+        if state == "normal":
+            normal_count += 1
+        elif state == "hidden":
+            hidden_count += 1
+        else:
+            in_block_count += 1
+        return normal_count, hidden_count, in_block_count
+
+    @staticmethod
+    def _add_important_item(important_buckets, base, state):
+        if base not in important_buckets:
+            important_buckets[base] = {"normal": 0, "hidden": 0, "in_block": 0}
+        important_buckets[base][state] += 1
 
     def _on_double_click(self, item):
         row = item.row()

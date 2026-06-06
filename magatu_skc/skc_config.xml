@@ -622,7 +622,7 @@
       <!-- gargoyle -->
       <tile no="46" palette_no="6" nes_tiles="104,106,105,107" transparent="true" />
       <!-- flames (white/red) -->
-      <tile no="47" palette_no="6" nes_tiles="212,214,213,215" transparent="true" />
+      <tile no="47" palette_no="2" nes_tiles="212,214,213,215" transparent="true" />
       <tile no="48" palette_no="7" nes_tiles="212,214,213,215" transparent="true" />
       <!-- fairy princess -->
       <tile no="49" palette_no="7" nes_tiles="216,202,217,203" transparent="true" />
