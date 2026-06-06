@@ -65,7 +65,6 @@ class LevelRenderer:
             Qt.SmoothTransformation,
         )
         painter.drawImage(0, 0, smoothed)
-        self.wall_color_values = None
 
     def set_marker_overlay_scale(self, scale: int):
         from ..ui.level_view import DEFAULT_MARKER_OVERLAY_SCALE
