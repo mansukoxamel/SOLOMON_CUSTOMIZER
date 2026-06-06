@@ -4070,6 +4070,8 @@ class MainWindow(QMainWindow):
         else:
             lv.room_flags &= ~_rf.BIT_HIDDEN_DOOR
         self._set_dirty(True)
+        self._refresh_view()
+        self._refresh_thumbnail(self.current_level_no)
         self._update_info()
 
     def _on_meta_dark_toggled(self, checked):

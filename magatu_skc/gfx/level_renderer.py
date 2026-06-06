@@ -373,7 +373,11 @@ class LevelRenderer:
                         door_anim, ts_no, transparent=None, bg_main_color=wall_color)
                     dx, dy = level.fixed_door_pos
                     if 0 <= dx < c.LEVEL_W and 0 <= dy < c.LEVEL_H:
+                        if door_is_hidden and show_secret_elements:
+                            painter.setOpacity(0.5)
                         painter.drawImage(dx * tw, dy * tw, door_img)
+                        if door_is_hidden and show_secret_elements:
+                            painter.setOpacity(1.0)
 
             # 5. 鍵
             if not level.is_key_removed():
