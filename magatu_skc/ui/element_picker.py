@@ -376,6 +376,13 @@ class DraggablePickerList(QListWidget):
         super().mouseReleaseEvent(e)
 
 
+class FullWidthRadioButton(QRadioButton):
+    """Radio button whose whole widget rect is clickable."""
+
+    def hitButton(self, pos):
+        return self.rect().contains(pos)
+
+
 MIRROR_ENEMY_SET_MAX = 7
 MIRROR_ROW_LABEL_STYLES = (
     "color:#d42020; font-weight:bold;",
@@ -938,34 +945,42 @@ class ElementPicker(QWidget):
         # 配置フラグ（常時表示）
         self.flag_group = QGroupBox("アイテム状態")
         fl = QHBoxLayout(self.flag_group)
+        fl.setContentsMargins(0, 0, 0, 0)
+        fl.setSpacing(0)
         self.flag_btns = QButtonGroup(self)
-        self.rb_flag_normal = QRadioButton("通常")
-        self.rb_flag_hidden = QRadioButton("隠し")
-        self.rb_flag_in_block = QRadioButton("ブロック内")
+        self.rb_flag_normal = FullWidthRadioButton("通常")
+        self.rb_flag_hidden = FullWidthRadioButton("隠し")
+        self.rb_flag_in_block = FullWidthRadioButton("ブロック内")
         for rb, flag in [
             (self.rb_flag_normal, ITEM_FLAG_NORMAL),
             (self.rb_flag_hidden, ITEM_FLAG_HIDDEN),
             (self.rb_flag_in_block, ITEM_FLAG_IN_BLOCK),
         ]:
             self.flag_btns.addButton(rb)
-            fl.addWidget(rb)
+            rb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            rb.setMinimumHeight(40)
+            fl.addWidget(rb, 1)
             rb.toggled.connect(lambda checked, f=flag: self._on_flag_changed(f) if checked else None)
         self.rb_flag_normal.setChecked(True)
 
         # 敵スピード（常時表示、敵モード時のみ意味あり）
         self.speed_group = QGroupBox("敵スピード")
         sl = QHBoxLayout(self.speed_group)
+        sl.setContentsMargins(0, 0, 0, 0)
+        sl.setSpacing(0)
         self.speed_btns = QButtonGroup(self)
-        self.rb_sp1 = QRadioButton("SP1")
-        self.rb_sp2 = QRadioButton("SP2")
-        self.rb_sp3 = QRadioButton("SP3")
+        self.rb_sp1 = FullWidthRadioButton("SP1")
+        self.rb_sp2 = FullWidthRadioButton("SP2")
+        self.rb_sp3 = FullWidthRadioButton("SP3")
         for rb, sp in [
             (self.rb_sp1, 1),
             (self.rb_sp2, 2),
             (self.rb_sp3, 3),
         ]:
             self.speed_btns.addButton(rb)
-            sl.addWidget(rb)
+            rb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            rb.setMinimumHeight(40)
+            sl.addWidget(rb, 1)
             rb.toggled.connect(
                 lambda checked, s=sp: self._on_speed_changed(s) if checked else None
             )
