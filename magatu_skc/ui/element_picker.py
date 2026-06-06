@@ -3,11 +3,10 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QGroupBox, QButtonGroup, QRadioButton, QListWidget, QListWidgetItem,
     QListView, QAbstractItemView, QStackedWidget, QScrollArea, QSizePolicy,
-    QGraphicsOpacityEffect
+    QGraphicsOpacityEffect, QGraphicsScene
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QSize, QMimeData
+from PyQt5.QtCore import Qt, pyqtSignal, QSize, QMimeData, QRectF
 from PyQt5.QtGui import QPixmap, QIcon, QImage, QDrag
-
 
 # 選択モード
 MODE_BLOCK = "block"
@@ -892,6 +891,9 @@ class ElementPicker(QWidget):
         self.current_tileset_no = 0  # 現在レベルの実タイルセット番号（描画パレット決定用）
         self.current_item_flag = ITEM_FLAG_NORMAL  # アイテム配置時のフラグ
         self._block_order = list(DEFAULT_BLOCK_PICKER_ORDER)
+        self._marker_colors = {}
+        self._marker_overlay_scale = 3
+        self._marker_source_tile_size = ICON_SIZE
         self._build_ui()
 
     def dragEnterEvent(self, e):
@@ -1100,6 +1102,29 @@ class ElementPicker(QWidget):
         self._populate_all()
         self.mirror_panel.set_renderers(tile_renderer, config)
 
+    def set_marker_colors(self, colors: dict):
+        self._marker_colors = dict(colors or {})
+        if self.tile_renderer is not None and self.config is not None:
+            self._populate_all()
+
+    def set_marker_overlay_scale(self, scale: int):
+        try:
+            value = int(scale)
+        except Exception:
+            value = 3
+        self._marker_overlay_scale = max(3, min(5, value))
+        if self.tile_renderer is not None and self.config is not None:
+            self._populate_all()
+
+    def set_marker_source_tile_size(self, size):
+        try:
+            value = float(size)
+        except Exception:
+            value = ICON_SIZE
+        self._marker_source_tile_size = max(float(ICON_SIZE), value)
+        if self.tile_renderer is not None and self.config is not None:
+            self._populate_all()
+
     def set_current_tileset_no(self, tileset_no: int):
         """現在レベルのタイルセット番号を設定し、アイコンを再描画"""
         if tileset_no == self.current_tileset_no:
@@ -1111,7 +1136,8 @@ class ElementPicker(QWidget):
     # ========== Helper ==========
 
     def _make_icon_from_tile(self, tile_no: int, apply_blue_filter: bool = False,
-                             overlay_color=None, hatch_color=None) -> QIcon:
+                             overlay_color=None, hatch_color=None,
+                             block_marker=None) -> QIcon:
         """tile_definitions の tile_no から QIcon 生成
 
         skchain互換: 現在レベルのタイルセット番号を使って描画。これにより
@@ -1126,6 +1152,10 @@ class ElementPicker(QWidget):
             return QIcon()
 
         from PyQt5.QtGui import QPainter, QColor, QPen
+        from .level_view import (
+            make_block_marker_graphics_items,
+            marker_color,
+        )
 
         # tile_renderer は palette index 0 のみ透明扱いするので、そのまま使う
         sprite = self.tile_renderer.get_tile_image(
@@ -1158,6 +1188,47 @@ class ElementPicker(QWidget):
                 x_end = left + min(delta + scaled.height(), scaled.width())
                 y_end = top + min(scaled.height(), scaled.height() - delta)
                 painter.drawLine(x_start, y_start, x_end, y_end)
+        if block_marker is not None:
+            shape, color_key, width, inset = block_marker
+            source_size = int(round(self._marker_source_tile_size))
+            source_size = max(ICON_SIZE, source_size)
+            source_img = QImage(source_size, source_size, QImage.Format_ARGB32)
+            source_img.fill(QColor(20, 20, 20))
+            source_painter = QPainter(source_img)
+            source_sprite = sprite.scaled(
+                source_size, source_size, Qt.IgnoreAspectRatio, Qt.FastTransformation
+            )
+            source_painter.drawImage(0, 0, source_sprite)
+            source_painter.end()
+
+            scene = QGraphicsScene()
+            scene.setSceneRect(0, 0, source_size, source_size)
+            scene.addPixmap(QPixmap.fromImage(source_img))
+            for item in make_block_marker_graphics_items(
+                    (0, 0),
+                    shape,
+                    marker_color(self._marker_colors, color_key),
+                    width,
+                    inset,
+                    self._marker_overlay_scale,
+                    tile_size=source_size):
+                item.setZValue(900)
+                scene.addItem(item)
+            rendered = QImage(source_size, source_size, QImage.Format_ARGB32)
+            rendered.fill(QColor(20, 20, 20))
+            render_painter = QPainter(rendered)
+            render_painter.setRenderHint(QPainter.Antialiasing, True)
+            scene.render(
+                render_painter,
+                QRectF(0, 0, source_size, source_size),
+                scene.sceneRect(),
+            )
+            render_painter.end()
+            icon_img = rendered.scaled(
+                ICON_SIZE, ICON_SIZE, Qt.IgnoreAspectRatio, Qt.SmoothTransformation
+            )
+            painter.end()
+            return QIcon(QPixmap.fromImage(icon_img))
         painter.end()
         return QIcon(QPixmap.fromImage(bg))
 
@@ -1184,17 +1255,8 @@ class ElementPicker(QWidget):
         if meta_byte is None:
             return QIcon()
         anim = self.config.metadata_map.get(meta_byte, 0)
-        # 壊せる白ブロックは青フィルターをかける
-        overlay_color = {
-            BLOCK_BROWN_WHITE: (80, 130, 255, 90),
-            BLOCK_BREAKABLE_WHITE: (80, 130, 255, 90),
-            BLOCK_INVISIBLE_BREAKABLE: (120, 190, 255, 85),
-            BLOCK_PASSABLE_WHITE: (90, 210, 120, 95),
-            BLOCK_INVISIBLE_SOLID: (220, 60, 70, 100),
-            BLOCK_PASSABLE_BROWN: (80, 190, 255, 105),
-            BLOCK_SOLID_BROWN: (220, 60, 70, 105),
-        }.get(block_kind)
-        return self._make_icon_from_tile(anim, overlay_color=overlay_color)
+        from .level_view import block_marker_spec
+        return self._make_icon_from_tile(anim, block_marker=block_marker_spec(block_kind))
 
     def _make_item_icon(self, item_no: int) -> QIcon:
         """アイテムコード → アイコン"""

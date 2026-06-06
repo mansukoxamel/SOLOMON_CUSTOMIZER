@@ -25,6 +25,86 @@ DEFAULT_MARKER_COLORS = {
     "hover_marker_color": "#FFFFFF",
 }
 
+DEFAULT_MARKER_OVERLAY_SCALE = 3
+
+BLOCK_MARKER_SPECS = {
+    "breakable_white": ("rect", "breakable_white_marker_color", 3, 1),
+    "invisible_breakable": ("rect", "invisible_breakable_marker_color", 3, 4),
+    "passable_white": ("cross", "passable_marker_color", 3, 3),
+    "passable_brown": ("cross", "passable_marker_color", 3, 3),
+    "solid_brown": ("ellipse", "solid_marker_color", 3, 4),
+    "invisible_solid": ("ellipse", "solid_marker_color", 3, 4),
+}
+
+
+def marker_color(colors: dict, key: str) -> QColor:
+    color = QColor(str((colors or {}).get(key, DEFAULT_MARKER_COLORS[key])))
+    return color if color.isValid() else QColor(DEFAULT_MARKER_COLORS[key])
+
+
+def marker_pen_width(width: int, overlay_scale: int, output_scale: float = 1.0) -> int:
+    return max(1, int(round(width * overlay_scale * output_scale)))
+
+
+def block_marker_pen(color: QColor, width: int, overlay_scale: int,
+                     output_scale: float = 1.0) -> QPen:
+    pen = QPen(color)
+    pen.setWidth(marker_pen_width(width, overlay_scale, output_scale))
+    pen.setStyle(Qt.SolidLine)
+    pen.setJoinStyle(Qt.RoundJoin)
+    pen.setCapStyle(Qt.RoundCap)
+    pen.setCosmetic(True)
+    return pen
+
+
+def block_marker_rect(pos, tile_size: float, inset: int, offset=(0, 0)):
+    x, y = pos
+    ox, oy = offset
+    scale = tile_size / float(c.TILE_WIDTH)
+    px = (x + ox) * tile_size + inset * scale
+    py = (y + oy) * tile_size + inset * scale
+    size = max(1.0, tile_size - inset * 2 * scale)
+    return px, py, size, size
+
+
+def make_block_marker_graphics_items(
+        pos, shape: str, color: QColor, width: int, inset: int,
+        overlay_scale: int, tile_size: float = c.TILE_WIDTH, offset=(0, 0),
+        output_scale: float = 1.0):
+    x, y, w, h = block_marker_rect(pos, tile_size, inset, offset)
+    pen = block_marker_pen(color, width, overlay_scale, output_scale)
+    if shape == "rect":
+        item = QGraphicsRectItem(x, y, w, h)
+        item.setPen(pen)
+        item.setBrush(QBrush(Qt.NoBrush))
+        return [item]
+    if shape == "cross":
+        a = QGraphicsLineItem(x, y, x + w, y + h)
+        b = QGraphicsLineItem(x + w, y, x, y + h)
+        a.setPen(pen)
+        b.setPen(pen)
+        return [a, b]
+    if shape == "ellipse":
+        item = QGraphicsEllipseItem(x, y, w, h)
+        item.setPen(pen)
+        item.setBrush(QBrush(Qt.NoBrush))
+        return [item]
+    return []
+
+
+def block_marker_spec(block_kind: str):
+    aliases = {
+        "brown_white": "breakable_white",
+        "breakable_white": "breakable_white",
+        "invisible_breakable": "invisible_breakable",
+        "passable_white": "passable_white",
+        "passable_brown": "passable_brown",
+        "invisible_solid": "invisible_solid",
+        "solid_brown": "solid_brown",
+    }
+    marker_kind = aliases.get(block_kind)
+    return BLOCK_MARKER_SPECS.get(marker_kind)
+
 
 class LevelView(QGraphicsView):
     """レベル画像表示 + クリック検出 + D&D"""
@@ -120,7 +200,7 @@ class LevelView(QGraphicsView):
 
     def _overlay_pen(self, color, width=2, style=Qt.SolidLine):
         pen = QPen(color)
-        pen.setWidth(max(1, int(round(width * self._marker_overlay_scale))))
+        pen.setWidth(marker_pen_width(width, self._marker_overlay_scale))
         pen.setStyle(style)
         pen.setJoinStyle(Qt.RoundJoin)
         pen.setCapStyle(Qt.RoundCap)
@@ -131,7 +211,7 @@ class LevelView(QGraphicsView):
         try:
             value = int(scale)
         except Exception:
-            value = 3
+            value = DEFAULT_MARKER_OVERLAY_SCALE
         self._marker_overlay_scale = max(3, min(5, value))
 
     def set_bonus_marker_color(self, color_value):
@@ -208,18 +288,18 @@ class LevelView(QGraphicsView):
             polygon.setZValue(900)
             self._overlay_items.append(polygon)
 
-        for pos in overlays.get("breakable_white", ()):
-            add_rect(pos, self._marker_color("breakable_white_marker_color"), width=3, inset=1)
-        for pos in overlays.get("invisible_breakable", ()):
-            add_rect(pos, self._marker_color("invisible_breakable_marker_color"), width=3, inset=4)
-        for pos in overlays.get("passable_white", ()):
-            add_cross(pos, self._marker_color("passable_marker_color"), width=3, inset=3)
-        for pos in overlays.get("passable_brown", ()):
-            add_cross(pos, self._marker_color("passable_marker_color"), width=3, inset=3)
-        for pos in overlays.get("solid_brown", ()):
-            add_ellipse(pos, self._marker_color("solid_marker_color"), width=3, inset=4)
-        for pos in overlays.get("invisible_solid", ()):
-            add_ellipse(pos, self._marker_color("solid_marker_color"), width=3, inset=4)
+        for marker_key, (shape, color_key, width, inset) in BLOCK_MARKER_SPECS.items():
+            for pos in overlays.get(marker_key, ()):
+                for item in make_block_marker_graphics_items(
+                        pos,
+                        shape,
+                        self._marker_color(color_key),
+                        width,
+                        inset,
+                        self._marker_overlay_scale,
+                        tile_size=tw,
+                        offset=(ox, oy)):
+                    add(item)
         for pos in overlays.get("hidden_item", ()):
             add_rect(pos, self._marker_color("hidden_marker_color"), width=2, inset=1)
         for pos in overlays.get("hidden_meta", ()):
@@ -339,6 +419,9 @@ class LevelView(QGraphicsView):
         if self._pixmap_item is None:
             return
         self.fitInView(self._pixmap_item, Qt.KeepAspectRatio)
+
+    def display_tile_size(self) -> float:
+        return max(1.0, c.TILE_WIDTH * float(self.transform().m11()))
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

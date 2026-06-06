@@ -282,6 +282,10 @@ class MainWindow(QMainWindow):
 
         # 中右: 要素ピッカー
         self.picker = ElementPicker()
+        self.picker.set_marker_overlay_scale(
+            self._app_config.get("marker_overlay_scale", 3)
+        )
+        self.picker.set_marker_colors(self._marker_color_config())
         self.picker.selection_changed.connect(self._on_picker_selection_changed)
         self.picker.block_order_changed.connect(self._on_block_order_changed)
         # お気に入りの永続化
@@ -2259,6 +2263,7 @@ class MainWindow(QMainWindow):
             draw_editor_markers=False,
         )
         self.level_view.set_image(img)
+        self.picker.set_marker_source_tile_size(self.level_view.display_tile_size())
         self.level_view.set_editor_overlays(
             self._build_editor_overlays(level, sp_marks),
             with_border=True,
@@ -3572,7 +3577,11 @@ class MainWindow(QMainWindow):
         self.level_view.set_marker_overlay_scale(
             self._app_config.get("marker_overlay_scale", 3)
         )
+        self.picker.set_marker_overlay_scale(
+            self._app_config.get("marker_overlay_scale", 3)
+        )
         self.level_view.set_marker_colors(self._marker_color_config())
+        self.picker.set_marker_colors(self._marker_color_config())
         self._refresh_view()
         self._apply_icon()
 
