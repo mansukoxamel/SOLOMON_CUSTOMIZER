@@ -3930,7 +3930,7 @@ class MainWindow(QMainWindow):
             # - 壊せる白 → 強制 white-in-block (0xC0) に吸収
             # - ピッカーが白ブロック内 → item flag だけで表現
             # - タイルが空 → ピッカーで選択中のフラグを使用
-            if picker_flag == c.ITEM_FLAG_WHITE_IN_BLOCK:
+            if tile in getattr(lv, "breakable_white_cells", set()):
                 base = value & 0x3F
                 if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                     self.statusBar().showMessage(
@@ -3940,17 +3940,7 @@ class MainWindow(QMainWindow):
                     return
                 lv.set_block(Wall.NONE, tile)
                 flag = c.ITEM_FLAG_WHITE_IN_BLOCK
-            elif tile in getattr(lv, "breakable_white_cells", set()):
-                base = value & 0x3F
-                if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
-                    self.statusBar().showMessage(
-                        f"このアイテムは白い壊せるブロック内に入れられません: 0x{base:02X}", 3000
-                    )
-                    restore_rejected_click_edit()
-                    return
-                flag = c.ITEM_FLAG_WHITE_IN_BLOCK
-                lv.set_block(Wall.NONE, tile)
-                if picker_flag != c.ITEM_FLAG_IN_BLOCK:
+                if picker_flag != c.ITEM_FLAG_WHITE_IN_BLOCK:
                     self.statusBar().showMessage(
                         f"白い壊せるブロック内のため自動で白ブロック内フラグON {tile}", 2500
                     )
@@ -3961,6 +3951,16 @@ class MainWindow(QMainWindow):
                     self.statusBar().showMessage(
                         f"ブロック内のため自動で in_block フラグON {tile}", 2500
                     )
+            elif picker_flag == c.ITEM_FLAG_WHITE_IN_BLOCK:
+                base = value & 0x3F
+                if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
+                    self.statusBar().showMessage(
+                        f"このアイテムは白い壊せるブロック内に入れられません: 0x{base:02X}", 3000
+                    )
+                    restore_rejected_click_edit()
+                    return
+                lv.set_block(Wall.NONE, tile)
+                flag = c.ITEM_FLAG_WHITE_IN_BLOCK
             else:
                 flag = picker_flag
 
@@ -4001,6 +4001,9 @@ class MainWindow(QMainWindow):
                 )
             self._refresh_key_enemy_spin_range()
         elif mode == MODE_META:
+            tx, ty = tile
+            target_is_white_in_block = tile in getattr(lv, "breakable_white_cells", set())
+            target_is_brown_in_block = lv.tiles[ty][tx] in (Wall.BROWN, Wall.BROWN_WHITE)
             if value == "start":
                 lv.fixed_start_pos = tile
             elif value == "key":
@@ -4008,26 +4011,40 @@ class MainWindow(QMainWindow):
                 # 配置フラグを key_status に反映
                 from ..core import constants as cc
                 picker_flag = self.picker.get_item_flag()
-                flag_map = {
-                    0x00: cc.KEY_STATUS_NORMAL,
-                    0x40: cc.KEY_STATUS_HIDDEN,
-                    0x80: cc.KEY_STATUS_IN_BLOCK,
-                    0xC0: cc.KEY_STATUS_WHITE_IN_BLOCK,
-                }
-                lv.key_status = flag_map.get(picker_flag, cc.KEY_STATUS_NORMAL)
-                if lv.key_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
+                if target_is_white_in_block:
+                    lv.key_status = cc.KEY_STATUS_WHITE_IN_BLOCK
                     lv.set_block(Wall.NONE, tile)
+                elif target_is_brown_in_block:
+                    lv.key_status = cc.KEY_STATUS_IN_BLOCK
+                    lv.set_block(Wall.NONE, tile)
+                else:
+                    flag_map = {
+                        0x00: cc.KEY_STATUS_NORMAL,
+                        0x40: cc.KEY_STATUS_HIDDEN,
+                        0x80: cc.KEY_STATUS_IN_BLOCK,
+                        0xC0: cc.KEY_STATUS_WHITE_IN_BLOCK,
+                    }
+                    lv.key_status = flag_map.get(picker_flag, cc.KEY_STATUS_NORMAL)
+                    if lv.key_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
+                        lv.set_block(Wall.NONE, tile)
             elif value == "door":
                 lv.fixed_door_pos = tile
                 from ..core import room_flags as _rf
                 picker_flag = self.picker.get_item_flag()
-                door_state_map = {
-                    0x00: _rf.DOOR_STATE_NORMAL,
-                    0x40: _rf.DOOR_STATE_HIDDEN,
-                    0x80: _rf.DOOR_STATE_IN_BLOCK,
-                    0xC0: _rf.DOOR_STATE_WHITE_IN_BLOCK,
-                }
-                door_state = door_state_map.get(picker_flag, _rf.DOOR_STATE_NORMAL)
+                if target_is_white_in_block:
+                    door_state = _rf.DOOR_STATE_WHITE_IN_BLOCK
+                    lv.set_block(Wall.NONE, tile)
+                elif target_is_brown_in_block:
+                    door_state = _rf.DOOR_STATE_IN_BLOCK
+                    lv.set_block(Wall.NONE, tile)
+                else:
+                    door_state_map = {
+                        0x00: _rf.DOOR_STATE_NORMAL,
+                        0x40: _rf.DOOR_STATE_HIDDEN,
+                        0x80: _rf.DOOR_STATE_IN_BLOCK,
+                        0xC0: _rf.DOOR_STATE_WHITE_IN_BLOCK,
+                    }
+                    door_state = door_state_map.get(picker_flag, _rf.DOOR_STATE_NORMAL)
                 lv.room_flags = (lv.room_flags & ~_rf.DOOR_STATE_MASK) | door_state
             elif value == "mirror1":
                 lv.demon_mirrors[0].position = tile
