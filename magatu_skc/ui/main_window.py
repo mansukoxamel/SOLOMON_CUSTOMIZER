@@ -362,7 +362,7 @@ class MainWindow(QMainWindow):
                 self.lbl_stage_clipboard.setText(f"コピー元: L{source_no:02d}")
 
     def _restore_window_state(self):
-        """設定からウィンドウ位置・サイズ・最大化状態を復元"""
+        """設定からウィンドウ位置・サイズ・最大化/フルスクリーン状態を復元"""
         cfg = self._app_config
         w = cfg.get("window_w", 1400)
         h = cfg.get("window_h", 800)
@@ -381,15 +381,19 @@ class MainWindow(QMainWindow):
                     if g.contains(x + 50, y + 50):
                         self.move(x, y)
                         break
-        if cfg.get("window_maximized", False):
+        if cfg.get("window_fullscreen", False):
+            self.showFullScreen()
+        elif cfg.get("window_maximized", False):
             self.showMaximized()
 
     def _save_window_state(self):
         """現在のウィンドウ状態を設定に保存"""
         cfg = self._app_config
-        cfg["window_maximized"] = self.isMaximized()
-        if not self.isMaximized():
-            # 通常時のみ位置・サイズを記録（最大化状態のサイズは記録しない）
+        is_fullscreen = self.isFullScreen()
+        cfg["window_fullscreen"] = is_fullscreen
+        cfg["window_maximized"] = (not is_fullscreen) and self.isMaximized()
+        if not is_fullscreen and not self.isMaximized():
+            # 通常時のみ位置・サイズを記録（最大化/フルスクリーン状態のサイズは記録しない）
             # frameGeometry: タイトルバー・枠を含む外側座標（move() と対応）
             fgeo = self.frameGeometry()
             cfg["window_x"] = fgeo.x()

@@ -36,6 +36,7 @@ DEFAULT_CONFIG = {
     "window_y": -1,
     "window_w": 1400,
     "window_h": 800,
+    "window_fullscreen": False,
     "window_maximized": False,
     "splitter_sizes": [280, 700, 250, 220],  # [LEFT, CENTER, PICKER, LEVEL_SELECT]
     "stage_thumbnail_width": 160,
