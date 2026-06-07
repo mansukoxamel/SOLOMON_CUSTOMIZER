@@ -3956,7 +3956,7 @@ class MainWindow(QMainWindow):
                 lv.fixed_start_pos = tile
             elif value == "key":
                 lv.fixed_key_pos = tile
-                # 配置フラグを key_status に反映（通常/隠し/ブロック内）
+                # 配置フラグを key_status に反映
                 from ..core import constants as cc
                 picker_flag = self.picker.get_item_flag()
                 flag_map = {
@@ -3967,10 +3967,19 @@ class MainWindow(QMainWindow):
                 }
                 lv.key_status = flag_map.get(picker_flag, cc.KEY_STATUS_NORMAL)
                 if lv.key_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
-                    lv.set_block(Wall.WHITE, tile)
-                    lv.breakable_white_cells.add(tile)
+                    lv.set_block(Wall.NONE, tile)
             elif value == "door":
                 lv.fixed_door_pos = tile
+                from ..core import room_flags as _rf
+                picker_flag = self.picker.get_item_flag()
+                door_state_map = {
+                    0x00: _rf.DOOR_STATE_NORMAL,
+                    0x40: _rf.DOOR_STATE_HIDDEN,
+                    0x80: _rf.DOOR_STATE_IN_BLOCK,
+                    0xC0: _rf.DOOR_STATE_WHITE_IN_BLOCK,
+                }
+                door_state = door_state_map.get(picker_flag, _rf.DOOR_STATE_NORMAL)
+                lv.room_flags = (lv.room_flags & ~_rf.DOOR_STATE_MASK) | door_state
             elif value == "mirror1":
                 lv.demon_mirrors[0].position = tile
             elif value == "mirror2":
@@ -5380,8 +5389,7 @@ class MainWindow(QMainWindow):
                 self._push_undo()
                 lv.key_status = new_status
                 if new_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
-                    lv.set_block(Wall.WHITE, self._hover_tile)
-                    lv.breakable_white_cells.add(self._hover_tile)
+                    lv.set_block(Wall.NONE, self._hover_tile)
                 elif old_was_white:
                     lv.set_block(Wall.NONE, self._hover_tile)
                 self._refresh_view()

@@ -127,16 +127,13 @@ def parse_level(rom_data: bytes, level_no: int) -> Level:
             elif value == CELL_WHITE_IN_BLOCK_KEY:
                 result.fixed_key_pos = pos
                 result.key_status = c.KEY_STATUS_WHITE_IN_BLOCK
-                result.tiles[j][i] = Wall.WHITE
-                result.breakable_white_cells.add(pos)
             elif (c.ITEM_WHITE_IN_BLOCK_MIN <= value <= c.ITEM_WHITE_IN_BLOCK_MAX and
                   not (pos == result.fixed_key_pos and result.key_status == c.KEY_STATUS_WHITE_IN_BLOCK)):
                 result.tiles[j][i] = Wall.WHITE
                 result.breakable_white_cells.add(pos)
                 result.items.append(LevelElement(ElementType.ITEM, pos, value))
             elif pos == result.fixed_key_pos and result.key_status == c.KEY_STATUS_WHITE_IN_BLOCK:
-                result.tiles[j][i] = Wall.WHITE
-                result.breakable_white_cells.add(pos)
+                pass
             elif value == CELL_PASSABLE_WHITE:
                 result.tiles[j][i] = Wall.WHITE
                 result.passable_white_cells.add(pos)
