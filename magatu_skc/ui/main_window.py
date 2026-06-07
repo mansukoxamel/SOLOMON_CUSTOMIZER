@@ -3753,6 +3753,8 @@ class MainWindow(QMainWindow):
                     item = lv.items[idx]
                     base = item.element_no & 0x3F
                     item.element_no = base | c.ITEM_FLAG_IN_BLOCK
+                    lv.set_block(Wall.NONE, tile)
+                    skip_block_placement = True
                     self.statusBar().showMessage(
                         f"アイテムを in_block フラグ付きに自動変換 {tile}", 2500
                     )
@@ -3913,6 +3915,7 @@ class MainWindow(QMainWindow):
                     )
             elif lv.tiles[ty][tx] in (Wall.BROWN, Wall.BROWN_WHITE):
                 flag = c.ITEM_FLAG_IN_BLOCK
+                lv.set_block(Wall.NONE, tile)
                 if picker_flag != c.ITEM_FLAG_IN_BLOCK:
                     self.statusBar().showMessage(
                         f"ブロック内のため自動で in_block フラグON {tile}", 2500
@@ -5509,7 +5512,7 @@ class MainWindow(QMainWindow):
                 )
                 self._push_undo()
                 item.element_no = new_no
-                if (new_no & 0xC0) == c.ITEM_FLAG_WHITE_IN_BLOCK:
+                if (new_no & 0x80) != 0:
                     lv.set_block(Wall.NONE, self._hover_tile)
                 if clear_backing_block:
                     lv.set_block(Wall.NONE, self._hover_tile)
