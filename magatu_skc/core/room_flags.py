@@ -12,6 +12,7 @@ bank0 のコードケーブに注入し、部屋別の改造を実現する。
 
 フラグ bit 割当 (project_room_flag_extension.md):
   bit0 = 隠し扉            (ステップ2で cave 拡張、本モジュールは枠のみ)
+  bit1 = ブロック内扉      (扉セルにbit7を立て、開始前扉描画を抑止)
   bit2 = B火球(魔法)禁止   ← ステップ1で実装
   他bit は将来拡張
 
@@ -40,6 +41,8 @@ verbatim コピーするため file offset 不変):
   その扉マスに $40(隠し)を立て、$91CC 扉先行描画を抑止 (開始前画面の扉
   インジケータ消去)。石作成($46)/破壊($9BE3 AND#$3F→$06復元)は既存
   bit6 機構がそのまま動き、復元後は通常扉として開閉/クリアに乗る。
+ブロック内扉 (bit1): 扉マスに $80 を立てて $86(扉|ブロック内) にする。
+  原作の扉variantとして存在するため、石を壊すと通常扉へ復元される。
 """
 
 # ======================================================================
@@ -146,6 +149,7 @@ verbatim コピーするため file offset 不変):
 # ledgers in the same change. Overlapping reservations are release blockers.
 
 BIT_HIDDEN_DOOR = 0x01  # bit0: 隠し扉 (扉マスに$40、開始前画面の扉描画抑止)
+BIT_IN_BLOCK_DOOR = 0x02  # bit1: ブロック内扉 (扉マスに$80、開始前画面の扉描画抑止)
 BIT_NO_BFIRE    = 0x04  # bit2: B火球(魔法)禁止 (SE $08==$13 のみ却下)
 BIT_NO_ASTONE   = 0x80  # bit7: A換石(石作成)禁止 (SE $08==$11 のみ却下)
                         #   ※A禁止は階段が作れず進行不能になり得る独立option
@@ -245,20 +249,18 @@ HOOK_91CC_NEW = bytes.fromhex("20 50 bc")  # JSR $BC50 (DOORPREDRAW)
 #   BEQ +11              ;   立ってなければ何もしない
 #   LDA #$00 / STA $042E / STA $042F
 #   JSR $A1CC            ; HUD fire stock redraw. $042B(max/cursor)は触らない
-#   LDA $0778            ; ROOMFLAGS を再ロードして隠し扉判定へ
-#   AND #$01             ; bit0 = 隠し扉?
-#   BEQ +15 (->RTS)      ;   立ってなければ何もしない
-#   LDX $0428 / LDA $C180,X / TAX         ; DoorCellTable[room] = 扉マスindex
-#   LDA $0304,X / ORA #$40 / STA $0304,X  ; 扉マスに隠しフラグ$40
+#   LDA $0778 / AND #$03 ; bit0=隠し扉 / bit1=ブロック内扉?
+#   BEQ +14 (->RTS)      ;   立ってなければ何もしない
+#   ASL x6               ; bit0->$40 / bit1->$80
+#   PHA / LDX $077C / PLA
+#   ORA $0304,X / STA $0304,X             ; 扉マスに状態bitを立てる
 #   RTS
 #   ★R-fix: ROOMFLAGS $0460→$0778 (サウンドRAM衝突回避、上の DARK 注記)
 LOADER_CAVE = bytes.fromhex(
     "20 4b 97 ad 78 07 "
     "29 10 f0 0b a9 00 8d 2e 04 8d 2f 04 20 cc a1 "
-    "ad 78 07 "
-    "29 01 f0 0c "
-    "ad 7c 07 aa bd 04 03 09 40 9d 04 03 "
-    "a9 00 8d 7a 07 60"
+    "ad 78 07 29 03 f0 0e 0a 0a 0a 0a 0a 0a 48 "
+    "ae 7c 07 68 1d 04 03 9d 04 03 60"
 )
 
 # MAGICGATE cave @ $BC20 (34B): bit2=B火球禁止 / bit7=A換石禁止 (独立)
@@ -276,15 +278,28 @@ MAGIC_CAVE = bytes.fromhex(
     "a5 28 6a 60 68 68 38 60"
 )
 
-# DOORPREDRAW cave @ $BC40 (11B): 隠し扉部屋は開始前画面の扉描画を抑止
-#   LDA $0778 / AND #$01 / BNE skip       ; bit0 立ってたら扉を描かない
+# DOORPREDRAW cave @ $BC40 (11B): 隠し/ブロック内扉は開始前画面の扉描画を抑止
+#   LDA $0778 / AND #$03 / BNE skip       ; bit0/1 立ってたら扉を描かない
 #   JSR $9D53                              ; 通常=扉先行描画
 # skip: RTS                                ; ($91CF へ復帰)
 #   ★R-fix: ROOMFLAGS $0460→$0778 (サウンドRAM衝突回避)
-DOOR_CAVE = bytes.fromhex("ad 78 07 29 01 d0 03 20 53 9d 60")
+DOOR_CAVE = bytes.fromhex("ad 78 07 29 03 d0 03 20 53 9d 60")
 
 
 BIT_FIRE_RESET = 0x10  # stage load clears carried fire scroll stock.
+
+
+def normalize_flags(flags: int) -> int:
+    """Runtime room flags normalization.
+
+    Hidden-door and in-block-door both modify the same door cell. If both are
+    present (for example from hand-edited project data), prefer in-block-door so
+    the runtime never ORs both bits into the door cell.
+    """
+    flags = int(flags) & 0xFF
+    if flags & BIT_IN_BLOCK_DOOR:
+        flags &= ~BIT_HIDDEN_DOOR
+    return flags
 
 
 class RoomFlagError(ValueError):
@@ -379,7 +394,7 @@ def build_table(room_flags: list) -> bytearray:
     for i, fl in enumerate(room_flags):
         if i >= ROOM_COUNT:
             break
-        tbl[i] = fl & 0xFF
+        tbl[i] = normalize_flags(fl)
     return tbl
 
 

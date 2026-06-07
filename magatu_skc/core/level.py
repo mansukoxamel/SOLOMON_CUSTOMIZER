@@ -63,7 +63,7 @@ class Level:
         self.fixed_key_pos = (0, 0)
         self.fixed_door_pos = (0, 0)
         # Room Flag Table 拡張 (原作ROMに無い新規メタ。bank0 cave へ注入)
-        #   bit0=隠し扉 / bit2=B火球(魔法)禁止 / bit3=暗闇 /
+        #   bit0=隠し扉 / bit1=ブロック内扉 / bit2=B火球(魔法)禁止 / bit3=暗闇 /
         #   bit7=A換石禁止 — magatu_skc.core.room_flags 参照
         #   全0=原作無改変。XML プロジェクトに永続化、ROM保存時に表へ展開
         self.room_flags = 0

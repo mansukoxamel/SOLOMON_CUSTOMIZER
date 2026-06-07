@@ -265,7 +265,7 @@ def save_levels_to_rom(rom: Rom, levels: list):
         flags = getattr(lv, "room_flags", 0) & 0xFF
         if stage_ext.fire_reset_enabled(lv):
             flags |= room_flags.BIT_FIRE_RESET
-        runtime_room_flags.append(flags)
+        runtime_room_flags.append(room_flags.normalize_flags(flags))
     door_cells = [byte_from_position(lv.fixed_door_pos) for lv in levels]
     if rom.is_expanded():
         _run_save_step("StageExt table書き込み", stage_ext.patch_table, rom.data, levels, runtime_room_flags, door_cells)

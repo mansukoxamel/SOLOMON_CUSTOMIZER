@@ -141,7 +141,7 @@ class StatsDialog(QDialog):
         ("火リセット", 76),  # stage_ext FLAG_FIRE_RESET
         ("鍵敵#", 54),      # stage_ext key enemy number
         ("暗闇", 52),       # BIT_DARK
-        ("隠し扉", 60),     # BIT_HIDDEN_DOOR
+        ("特殊扉", 60),     # BIT_HIDDEN_DOOR / BIT_IN_BLOCK_DOOR
         ("妖精化", 64),     # special process: first enemy falling-death -> Fairy
         ("配置敵", 300),    # 配置された敵 スプライト
         ("ミラー敵", 240),  # ミラーから出る敵 スプライト
@@ -162,7 +162,7 @@ class StatsDialog(QDialog):
     FIRE_RESET_COL = _HDR.index("火リセット")
     KEY_ENEMY_COL = _HDR.index("鍵敵#")
     DARK_COL = _HDR.index("暗闇")
-    DOOR_COL = _HDR.index("隠し扉")
+    DOOR_COL = _HDR.index("特殊扉")
     FAIRY_DROP_COL = _HDR.index("妖精化")
     PLACED_COL = _HDR.index("配置敵")
     MIRROR_COL = _HDR.index("ミラー敵")
@@ -590,7 +590,7 @@ class StatsDialog(QDialog):
             f_astone = "●" if rf & _rf.BIT_NO_ASTONE else ""
             f_bfire = "●" if rf & _rf.BIT_NO_BFIRE else ""
             f_dark = "●" if rf & _rf.BIT_DARK else ""
-            f_door = "●" if rf & _rf.BIT_HIDDEN_DOOR else ""
+            f_door = "内" if rf & _rf.BIT_IN_BLOCK_DOOR else ("隠" if rf & _rf.BIT_HIDDEN_DOOR else "")
             f_fire_reset = "●" if _se.fire_reset_enabled(lv) else ""
             f_fairy_drop = "●" if self._falling_fairy_enabled(row) else ""
 
@@ -685,7 +685,7 @@ class StatsDialog(QDialog):
                 f_fire_reset,                     # 火リセット
                 key_enemy_text,                   # 鍵敵#
                 f_dark,                           # 暗闇
-                f_door,                           # 隠し扉
+                f_door,                           # 特殊扉
                 f_fairy_drop,                     # 妖精化
                 "",                               # 配置敵(sprite)
                 "",                               # ミラー敵(sprite)
@@ -708,7 +708,7 @@ class StatsDialog(QDialog):
                 1 if f_fire_reset else 0,         # 火リセット
                 key_enemy_no,                     # 鍵敵#
                 1 if f_dark else 0,               # 暗闇
-                1 if f_door else 0,               # 隠し扉
+                1 if f_door else 0,               # 特殊扉
                 1 if f_fairy_drop else 0,         # 妖精化
                 "",                              # 配置敵: ソート対象外
                 "",                              # ミラー敵: ソート対象外

@@ -115,10 +115,10 @@
     <tr><td class="num">$0740-$074F</td><td>PANEL_VARIANT_CACHE</td><td class="ok">Customizer予約済</td><td>Panel Monster stage variant の部屋別cache。<code>$0740=A speed</code> / <code>$0741=A interval</code> / <code>$0742=B speed</code> / <code>$0743=B interval</code> / <code>$0744=C speed</code> / <code>$0745=C interval</code>、残りは予約。</td></tr>
     <tr><td class="num">$0750-$075F</td><td>旧RUNTIME_BLOCK_OVERRIDE 残り</td><td class="warn">補助候補 16B</td><td>v0.7.72で特殊ブロックはm66セルID直書きへ移行。旧32B候補の前半はPanel Variantが使用するため、残りだけ候補。</td></tr>
     <tr><td class="num">$0760-$0777</td><td>entity終端後の沈黙帯</td><td class="warn">補助候補 24B</td><td>旧特殊ブロック16Bリスト跡を含む沈黙帯。$0778/$0779等の予約RAMに隣接するため、$0750-$075Fより優先度は下げる。</td></tr>
-    <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td class="ok">Customizer予約済</td><td>RoomFlagTableの現在部屋フラグcache。隠し扉/B禁止/A禁止/暗闇、bit4=ステージ開始時ファイヤー所持リセットなど。</td></tr>
+    <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td class="ok">Customizer予約済</td><td>RoomFlagTableの現在部屋フラグcache。隠し扉/ブロック内扉/B禁止/A禁止/暗闇、bit4=ステージ開始時ファイヤー所持リセットなど。</td></tr>
     <tr><td class="num">$0779</td><td>DARK_PHASE</td><td class="ok">Customizer予約済</td><td>暗闇モードの明滅フェーズカウンタ。</td></tr>
     <tr><td class="num">$077A-$077B</td><td>runtime block override work</td><td class="ok">Customizer予約済</td><td>BreakableWhite cave の一時フラグ/一時値。NMI中に使用。</td></tr>
-    <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td class="ok">Customizer予約済</td><td>mapper66 StageExt loader がPRG1からコピーする現在部屋の扉セル。隠し扉処理が参照。</td></tr>
+    <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td class="ok">Customizer予約済</td><td>mapper66 StageExt loader がPRG1からコピーする現在部屋の扉セル。隠し扉/ブロック内扉処理が参照。</td></tr>
     <tr><td class="num">$077D-$077F</td><td>小フラグ/小カウンタ候補</td><td class="warn">補助候補 3B</td><td>予約済みRAM直後の3B。小フラグ用。まとまったRAMが必要な場合は$0750-$075Fを優先する。</td></tr>
     <tr><td class="num">$0780-$07DF</td><td>probeで書込確認あり</td><td class="ng">使用禁止</td><td>空きに見えても使わない。</td></tr>
     <tr><td class="num">$07E0-$07EF</td><td>沈黙候補</td><td class="warn">非推奨</td><td>high score/GDV隣接。最後の手段。</td></tr>
@@ -134,7 +134,7 @@
     <tr><td class="num">$0740-$074F</td><td>PANEL_VARIANT_CACHE</td><td>Panel Monster stage variant</td><td>部屋中常駐</td><td>PRG1 <code>PanelVariantStageTable</code> から部屋ロード時に16Bコピー。speed+intervalのみ。リズムは廃止。</td></tr>
     <tr><td class="num">$0750-$075F</td><td>旧RUNTIME_BLOCK_OVERRIDE 残り</td><td>未割当</td><td>-</td><td>旧方式の部屋中常駐32Bリストの残り16B。v0.7.72以降の特殊ブロックruntimeは$0304を直接スキャンする。</td></tr>
     <tr><td class="num">$072C-$0739</td><td>WIDETITLE_TRAMP</td><td>wide title描画</td><td>タイトル描画中のみ</td><td>RAM実行でPRG bank0/1切替をまたぐ。旧<code>$03C0-$03CD</code>はblock gridと重なるため廃止。</td></tr>
-    <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td>隠し扉/StageExt loader</td><td>部屋中常駐</td><td>PRG1 StageExtTable byte7からコピー。PRG0 DoorCellTableを廃止して <code>$C180-$C1FF</code> を回収。</td></tr>
+    <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td>特殊扉/StageExt loader</td><td>部屋中常駐</td><td>PRG1 StageExtTable byte7からコピー。隠し扉/ブロック内扉が参照。PRG0 DoorCellTableを廃止して <code>$C180-$C1FF</code> を回収。</td></tr>
     <tr><td class="num">$077D-$077F</td><td>FREE_CANDIDATE</td><td>未割当</td><td>-</td><td>小フラグ用の補助候補。まとまったRAMは <code>$0750-$075F</code> を優先。使ったらこの表と <code>room_flags.py</code> 台帳へ追記。</td></tr>
   </table>
 

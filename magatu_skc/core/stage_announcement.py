@@ -194,7 +194,8 @@ def is_needed(levels: list, runtime_room_flags: list[int]) -> bool:
     for i, level in enumerate(levels):
         flags = runtime_room_flags[i] if i < len(runtime_room_flags) else 0
         if flags & (room_flags.BIT_DARK | room_flags.BIT_FIRE_RESET |
-                    room_flags.BIT_HIDDEN_DOOR | room_flags.BIT_NO_BFIRE |
+                    room_flags.BIT_HIDDEN_DOOR | room_flags.BIT_IN_BLOCK_DOOR |
+                    room_flags.BIT_NO_BFIRE |
                     room_flags.BIT_NO_ASTONE):
             return True
         if stage_ext.key_enemy_enabled(level):
