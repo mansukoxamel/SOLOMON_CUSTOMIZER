@@ -3412,7 +3412,11 @@ class MainWindow(QMainWindow):
             )
         # ピッカーのアイコンを現在レベルのタイルセットで再描画（skchain互換）
         ts_no = self.level_renderer.get_actual_tileset_no(self.current_level_no, level.tileset_no)
-        self.picker.set_current_tileset_no(ts_no)
+        self.picker.set_current_level_context(
+            self.current_level_no,
+            ts_no,
+            self.level_renderer.get_wall_color(self.current_level_no),
+        )
         # 特殊処理マーカーを抽出（表示ONかつ ROM対応リージョンの場合のみ）
         sp_marks = self._get_special_marks()
         if self._is_stage_compare_diff_view():
@@ -6501,6 +6505,14 @@ class MainWindow(QMainWindow):
         self._sync_wall_color_preview()
         # ピッカーのアイコンも作り直す（タイルセット番号変えずに再描画させる）
         if self.picker is not None and self.tile_renderer is not None:
+            wall_color = None
+            if self.level_renderer is not None:
+                wall_color = self.level_renderer.get_wall_color(self.current_level_no)
+            self.picker.set_current_level_context(
+                self.current_level_no,
+                self.picker.current_tileset_no,
+                wall_color,
+            )
             self.picker._populate_all()
         self._refresh_view()
         self._generate_all_thumbnails()

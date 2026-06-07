@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
     QGraphicsOpacityEffect, QGraphicsScene
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QMimeData, QRectF
-from PyQt5.QtGui import QPixmap, QIcon, QImage, QDrag
+from PyQt5.QtGui import QPixmap, QIcon, QImage, QDrag, QColor
 
 # 選択モード
 MODE_BLOCK = "block"
@@ -990,7 +990,9 @@ class ElementPicker(QWidget):
         self.current_value = BLOCK_BROWN
         self.tile_renderer = None
         self.config = None
+        self.current_level_no = 0
         self.current_tileset_no = 0  # 現在レベルの実タイルセット番号（描画パレット決定用）
+        self.current_wall_color = None
         self.current_item_flag = ITEM_FLAG_NORMAL  # アイテム配置時のフラグ
         self._block_order = list(DEFAULT_BLOCK_PICKER_ORDER)
         self._marker_colors = {}
@@ -1285,7 +1287,42 @@ class ElementPicker(QWidget):
         if self.tile_renderer is not None:
             self._populate_all()
 
+    def set_current_level_context(self, level_no: int, tileset_no: int, wall_color):
+        """現在ステージのタイルセット/背景色を設定し、アイコンを再描画"""
+        try:
+            level_no = int(level_no)
+            tileset_no = int(tileset_no)
+        except Exception:
+            return
+        wall_color = None if wall_color is None else (int(wall_color) & 0x3F)
+        if (
+            level_no == self.current_level_no and
+            tileset_no == self.current_tileset_no and
+            wall_color == self.current_wall_color
+        ):
+            return
+        self.current_level_no = level_no
+        self.current_tileset_no = tileset_no
+        self.current_wall_color = wall_color
+        if self.tile_renderer is not None:
+            self._populate_all()
+
     # ========== Helper ==========
+
+    def _make_icon_background(self, size: int) -> QImage:
+        bg = QImage(size, size, QImage.Format_ARGB32)
+        bg.fill(QColor(20, 20, 20))
+        if self.tile_renderer is None or self.config is None:
+            return bg
+        from ..gfx.level_renderer import MD_EMPTY
+        empty_anim = self.config.metadata_map.get(MD_EMPTY, 0)
+        empty_img = self.tile_renderer.get_tile_image(
+            empty_anim,
+            self.current_tileset_no,
+            transparent=False,
+            bg_main_color=self.current_wall_color,
+        )
+        return empty_img.scaled(size, size, Qt.IgnoreAspectRatio, Qt.FastTransformation)
 
     def _make_icon_from_tile(self, tile_no: int, apply_blue_filter: bool = False,
                              overlay_color=None, hatch_color=None,
@@ -1313,13 +1350,15 @@ class ElementPicker(QWidget):
 
         # tile_renderer は palette index 0 のみ透明扱いするので、そのまま使う
         sprite = self.tile_renderer.get_tile_image(
-            tile_no, self.current_tileset_no, transparent=True
+            tile_no,
+            self.current_tileset_no,
+            transparent=True,
+            bg_main_color=self.current_wall_color,
         )
 
-        # 黒背景に重ねて見やすくする
+        # 現在ステージの空背景に重ね、キャンバス上の色と揃える
         icon_size = self._icon_size
-        bg = QImage(icon_size, icon_size, QImage.Format_ARGB32)
-        bg.fill(QColor(20, 20, 20))
+        bg = self._make_icon_background(icon_size)
         painter = QPainter(bg)
         scaled = sprite.scaled(icon_size, icon_size, Qt.KeepAspectRatio, Qt.FastTransformation)
         ox = (icon_size - scaled.width()) // 2
@@ -1348,8 +1387,7 @@ class ElementPicker(QWidget):
             shape, inset = marker_shape_spec(marker_shape(self._marker_shapes, shape_key))
             source_size = int(round(self._marker_source_tile_size))
             source_size = max(icon_size, source_size)
-            source_img = QImage(source_size, source_size, QImage.Format_ARGB32)
-            source_img.fill(QColor(20, 20, 20))
+            source_img = self._make_icon_background(source_size)
             source_painter = QPainter(source_img)
             source_sprite = sprite.scaled(
                 source_size, source_size, Qt.IgnoreAspectRatio, Qt.FastTransformation
