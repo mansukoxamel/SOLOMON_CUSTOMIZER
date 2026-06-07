@@ -3746,6 +3746,7 @@ class MainWindow(QMainWindow):
                 return
 
             # ブロック（茶 or 壊せる白）+ アイテム → アイテムに in_block フラグを自動付与
+            skip_block_placement = False
             if value in (BLOCK_BROWN, BLOCK_BROWN_WHITE):
                 idx = lv.get_item_index(tile)
                 if idx >= 0:
@@ -3767,11 +3768,15 @@ class MainWindow(QMainWindow):
                         restore_rejected_click_edit()
                         return
                     item.element_no = base | c.ITEM_FLAG_WHITE_IN_BLOCK
+                    lv.set_block(Wall.NONE, tile)
+                    skip_block_placement = True
                     self.statusBar().showMessage(
                         f"アイテムを白い壊せるブロック内に自動変換 {tile}", 2500
                     )
 
-            if value == BLOCK_NONE:
+            if skip_block_placement:
+                pass
+            elif value == BLOCK_NONE:
                 lv.set_block(Wall.NONE, tile)
                 lv.invisible_breakable_cells.discard(tile)
                 lv.invisible_solid_cells.discard(tile)
@@ -3879,8 +3884,8 @@ class MainWindow(QMainWindow):
 
             # フラグ決定:
             # - タイルが茶 → 強制 in_block (0x80)
-            # - 壊せる白 → 強制 white-in-block (0xC0)
-            # - ピッカーが白ブロック内 → 下地を壊せる白へ自動変換
+            # - 壊せる白 → 強制 white-in-block (0xC0) に吸収
+            # - ピッカーが白ブロック内 → item flag だけで表現
             # - タイルが空 → ピッカーで選択中のフラグを使用
             if picker_flag == c.ITEM_FLAG_WHITE_IN_BLOCK:
                 base = value & 0x3F
@@ -3890,8 +3895,7 @@ class MainWindow(QMainWindow):
                     )
                     restore_rejected_click_edit()
                     return
-                lv.set_block(Wall.WHITE, tile)
-                lv.breakable_white_cells.add(tile)
+                lv.set_block(Wall.NONE, tile)
                 flag = c.ITEM_FLAG_WHITE_IN_BLOCK
             elif tile in getattr(lv, "breakable_white_cells", set()):
                 base = value & 0x3F
@@ -3902,9 +3906,10 @@ class MainWindow(QMainWindow):
                     restore_rejected_click_edit()
                     return
                 flag = c.ITEM_FLAG_WHITE_IN_BLOCK
+                lv.set_block(Wall.NONE, tile)
                 if picker_flag != c.ITEM_FLAG_IN_BLOCK:
                     self.statusBar().showMessage(
-                        f"白い壊せるブロック内のため自動で in_block フラグON {tile}", 2500
+                        f"白い壊せるブロック内のため自動で白ブロック内フラグON {tile}", 2500
                     )
             elif lv.tiles[ty][tx] in (Wall.BROWN, Wall.BROWN_WHITE):
                 flag = c.ITEM_FLAG_IN_BLOCK
@@ -5504,9 +5509,8 @@ class MainWindow(QMainWindow):
                 )
                 self._push_undo()
                 item.element_no = new_no
-                if flag == c.ITEM_FLAG_WHITE_IN_BLOCK:
-                    lv.set_block(Wall.WHITE, self._hover_tile)
-                    lv.breakable_white_cells.add(self._hover_tile)
+                if (new_no & 0xC0) == c.ITEM_FLAG_WHITE_IN_BLOCK:
+                    lv.set_block(Wall.NONE, self._hover_tile)
                 if clear_backing_block:
                     lv.set_block(Wall.NONE, self._hover_tile)
                 self._refresh_view()
