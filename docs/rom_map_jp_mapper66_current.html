@@ -123,6 +123,7 @@
       <tr><th>範囲</th><th>用途</th><th>説明</th></tr>
       <tr><td class="num">0x0010-0x3BED</td><td>元PRG</td><td>ゲーム本体コード/既存テーブル。</td></tr>
       <tr><td class="num">0x0BF2-0x0C03 / 0x0C04-0x0C0D</td><td>Initial magic / lives routines</td><td>`$8BE2` は開始時魔法、`$8BF4` は初期残数用。開始画面アナウンスから分離済み。</td></tr>
+      <tr><td class="num">0x17F5-0x1803</td><td>Mapper66 key cell value patch</td><td>原作の鍵セル初期配置を、通常 `$06` / 茶ブロック内 `$86` / 隠し `$46` / 白ブロック内 `$C6` に展開する。</td></tr>
       <tr><td class="num">0x2569-0x257D</td><td>Spark Ball property selector</td><td>現行Spark Ball property selector。borrowed Dragon/Golem Spark IDsはここで <code>$19</code> を返し、それ以外はPanel/stock selector <code>$DBDF</code> へ渡す。</td></tr>
       <tr><td class="num">0x33D0-0x33DC</td><td>Stage start announcement key gate</td><td>`KEY ENEMY` 用の `$072B` 判定。</td></tr>
       <tr><td class="num">0x3BEE-0x420F</td><td>bank0 cave</td><td>RoomFlag、gap_fix、強化敵系の主戦場。詳細は次節。</td></tr>
@@ -149,6 +150,7 @@
     <table>
       <tr><th>分類</th><th>モジュール</th><th>file offset</th><th>CPU</th><th>Size</th><th>原作状態</th><th>用途</th></tr>
       <tr><td>小routine</td><td><code>initial_magic.py</code> / <code>initial_lives.py</code></td><td class="num">0x0BF2-0x0C0D</td><td class="num">$8BE2-$8BFD</td><td class="num">28B</td><td>EA埋め</td><td>開始時魔法数、初期残数。Transparent Spark Ball Golem-ID wrapper は <code>$E80C</code> へ退避済み。</td></tr>
+      <tr><td>既存処理差し替え</td><td><code>m66.py</code></td><td class="num">0x17F5-0x1803</td><td class="num">$97E5-$97F3</td><td class="num">15B</td><td>原作コード</td><td>鍵状態から初期セル値を作る処理。白ブロック内鍵の <code>$C0</code> 状態を <code>$C6</code> に対応させる。</td></tr>
       <tr><td>既存処理差し替え</td><td><code>spark_ball_variant.py</code></td><td class="num">0x2569-0x257D</td><td class="num">$A559-$A56D</td><td class="num">21B</td><td>原作コード/データ</td><td>Spark Ball property selector。ID判定を圧縮済み。</td></tr>
       <tr><td>小routine</td><td><code>stage_announcement.py</code></td><td class="num">0x33D0-0x33DC</td><td class="num">$B3C0-$B3CC</td><td class="num">13B</td><td>EA埋め</td><td>開始画面アナウンスの KEY ENEMY gate。</td></tr>
       <tr><td>bank0 cave</td><td>複数モジュール</td><td class="num">0x3BEE-0x420F</td><td class="num">$BBDE-$C1FF</td><td class="num">1,570B</td><td>00/EA混在</td><td>RoomFlag、強化敵、gap_fix、Key enemy、runtime block override。詳細は bank0 cave 拡大図。</td></tr>

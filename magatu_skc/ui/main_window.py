@@ -3534,7 +3534,9 @@ class MainWindow(QMainWindow):
         if mode == MODE_META and value == "key" and self.levels:
             from ..core import constants as cc
             lv = self.levels[self.current_level_no]
-            if lv.key_status == cc.KEY_STATUS_HIDDEN:
+            if lv.key_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
+                self.picker.rb_flag_white_in_block.setChecked(True)
+            elif lv.key_status == cc.KEY_STATUS_HIDDEN:
                 self.picker.rb_flag_hidden.setChecked(True)
             elif lv.key_status == cc.KEY_STATUS_IN_BLOCK:
                 self.picker.rb_flag_in_block.setChecked(True)
@@ -3641,7 +3643,14 @@ class MainWindow(QMainWindow):
         if lv.fixed_start_pos == tile:
             parts.append("[スタート]")
         if not lv.is_key_removed() and lv.fixed_key_pos == tile:
-            parts.append("[鍵]")
+            key_tag = "[鍵]"
+            if lv.is_key_white_in_block():
+                key_tag = "[鍵:白ブロック内]"
+            elif lv.is_key_in_block():
+                key_tag = "[鍵:ブロック内]"
+            elif lv.is_key_hidden():
+                key_tag = "[鍵:隠し]"
+            parts.append(key_tag)
         if not lv.is_door_removed() and lv.fixed_door_pos == tile:
             parts.append("[扉]")
         for i, m in enumerate(lv.demon_mirrors):
@@ -3954,8 +3963,12 @@ class MainWindow(QMainWindow):
                     0x00: cc.KEY_STATUS_NORMAL,
                     0x40: cc.KEY_STATUS_HIDDEN,
                     0x80: cc.KEY_STATUS_IN_BLOCK,
+                    0xC0: cc.KEY_STATUS_WHITE_IN_BLOCK,
                 }
                 lv.key_status = flag_map.get(picker_flag, cc.KEY_STATUS_NORMAL)
+                if lv.key_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
+                    lv.set_block(Wall.WHITE, tile)
+                    lv.breakable_white_cells.add(tile)
             elif value == "door":
                 lv.fixed_door_pos = tile
             elif value == "mirror1":
@@ -5355,20 +5368,22 @@ class MainWindow(QMainWindow):
                     0x00: cc.KEY_STATUS_NORMAL,
                     0x40: cc.KEY_STATUS_HIDDEN,
                     0x80: cc.KEY_STATUS_IN_BLOCK,
+                    0xC0: cc.KEY_STATUS_WHITE_IN_BLOCK,
                 }
-                if flag not in key_flag_map:
-                    self.statusBar().showMessage(
-                        "鍵は白ブロック内状態に変更できません", 1500
-                    )
-                    return
                 new_status = key_flag_map[flag]
                 if new_status == lv.key_status:
                     self.statusBar().showMessage(
                         f"ホバー位置の鍵状態: {label}", 1500
                     )
                     return
+                old_was_white = lv.is_key_white_in_block()
                 self._push_undo()
                 lv.key_status = new_status
+                if new_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
+                    lv.set_block(Wall.WHITE, self._hover_tile)
+                    lv.breakable_white_cells.add(self._hover_tile)
+                elif old_was_white:
+                    lv.set_block(Wall.NONE, self._hover_tile)
                 self._refresh_view()
                 self._refresh_thumbnails_after_edit()
                 self._set_dirty(True)

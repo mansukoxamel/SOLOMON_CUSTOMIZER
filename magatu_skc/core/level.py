@@ -174,7 +174,9 @@ class Level:
 
     def set_key_status_and_time_dr(self, value: int):
         """キーステータスと時間減少率をまとめて設定"""
-        if value >= c.KEY_STATUS_HIDDEN:
+        if value >= c.KEY_STATUS_WHITE_IN_BLOCK:
+            self.key_status = c.KEY_STATUS_WHITE_IN_BLOCK
+        elif value >= c.KEY_STATUS_HIDDEN:
             self.key_status = c.KEY_STATUS_HIDDEN
         elif value >= c.KEY_STATUS_IN_BLOCK:
             self.key_status = c.KEY_STATUS_IN_BLOCK
@@ -212,6 +214,9 @@ class Level:
 
     def is_key_in_block(self) -> bool:
         return self.key_status == c.KEY_STATUS_IN_BLOCK
+
+    def is_key_white_in_block(self) -> bool:
+        return self.key_status == c.KEY_STATUS_WHITE_IN_BLOCK
 
     def is_key_removed(self) -> bool:
         return self.fixed_key_pos[1] < 0
@@ -286,7 +291,10 @@ class Level:
         result.append(self.demon_mirrors[1].monster_set_no)
 
         # メタデータ
-        result.append((self.key_status + self.time_decrease_rate) & 0xff)
+        key_status = self.key_status
+        if key_status == c.KEY_STATUS_WHITE_IN_BLOCK:
+            key_status = c.KEY_STATUS_HIDDEN
+        result.append((key_status + self.time_decrease_rate) & 0xff)
         result.append(byte_from_position(self.fixed_door_pos))
         result.append(byte_from_position(self.fixed_key_pos))
         result.append(byte_from_position(self.fixed_start_pos))

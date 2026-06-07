@@ -30,11 +30,15 @@ CELL_BREAKABLE_WHITE = 0xF9
 CELL_PASSABLE_WHITE = 0xFA
 CELL_PASSABLE_BROWN = 0xA3
 CELL_SOLID_BROWN = 0xA4
+CELL_WHITE_IN_BLOCK_KEY = c.ITEM_FLAG_WHITE_IN_BLOCK | 0x06
 OFFSET_M66_LOADER_A2 = 32784
 RUNTIME_BLOCK_LIST_RAM = 0x0740
 SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF = OFFSET_M66_LOADER_A2 + 31
 SPECIAL_HIGH_ID_PRESERVE_OLD = 0xF0  # BEQ: only $F8 survives the m66 loader.
-SPECIAL_HIGH_ID_PRESERVE_NEW = 0xB0  # BCS: $F8-$FF survive for special IDs.
+SPECIAL_HIGH_ID_PRESERVE_NEW = 0xB0  # BCS: threshold-$FF survive for special IDs.
+SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF = OFFSET_M66_LOADER_A2 + 30
+SPECIAL_HIGH_ID_THRESHOLD_OLD = 0xF8
+SPECIAL_HIGH_ID_THRESHOLD_NEW = 0xC0
 RUNTIME_BLOCK_LIST_COPY_PATCH_OFF = OFFSET_M66_LOADER_A2 + 146
 RUNTIME_BLOCK_LIST_COPY_PATCH_OLD = bytes.fromhex(
     "ad28040a0a0a0a18694f8500ad28044a4a4a4a1869f88501a010b100995f0788d0f8"
@@ -46,6 +50,9 @@ RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED = bytes([0xEA] * len(RUNTIME_BLOCK_LIST_C
 INITIAL_DRAW_WHITE_THRESHOLD_PATCH_OFF = 0x10 + (0x9617 - 0x8000)
 INITIAL_DRAW_WHITE_THRESHOLD_OLD = 0xF8
 INITIAL_DRAW_WHITE_THRESHOLD_NEW = 0xC0
+KEY_CELL_VALUE_PATCH_OFF = 0x17F5
+KEY_CELL_VALUE_PATCH_OLD = bytes.fromhex("a90624001002a9465002a9869d0403")
+KEY_CELL_VALUE_PATCH_NEW = bytes.fromhex("a5000a29809002094009069d0403ea")
 OFFSET_M66_BREAKABLE_WHITE_DATA = (
     OFFSET_M66_DROP_SCHED_DATA
     + COUNT_M66_LEVELS * 2 * 8
@@ -117,10 +124,19 @@ def parse_level(rom_data: bytes, level_no: int) -> Level:
             elif value == CELL_BREAKABLE_WHITE:
                 result.tiles[j][i] = Wall.WHITE
                 result.breakable_white_cells.add(pos)
-            elif c.ITEM_WHITE_IN_BLOCK_MIN <= value <= c.ITEM_WHITE_IN_BLOCK_MAX:
+            elif value == CELL_WHITE_IN_BLOCK_KEY:
+                result.fixed_key_pos = pos
+                result.key_status = c.KEY_STATUS_WHITE_IN_BLOCK
+                result.tiles[j][i] = Wall.WHITE
+                result.breakable_white_cells.add(pos)
+            elif (c.ITEM_WHITE_IN_BLOCK_MIN <= value <= c.ITEM_WHITE_IN_BLOCK_MAX and
+                  not (pos == result.fixed_key_pos and result.key_status == c.KEY_STATUS_WHITE_IN_BLOCK)):
                 result.tiles[j][i] = Wall.WHITE
                 result.breakable_white_cells.add(pos)
                 result.items.append(LevelElement(ElementType.ITEM, pos, value))
+            elif pos == result.fixed_key_pos and result.key_status == c.KEY_STATUS_WHITE_IN_BLOCK:
+                result.tiles[j][i] = Wall.WHITE
+                result.breakable_white_cells.add(pos)
             elif value == CELL_PASSABLE_WHITE:
                 result.tiles[j][i] = Wall.WHITE
                 result.passable_white_cells.add(pos)
@@ -274,13 +290,20 @@ def save_level_m66(rom_data: bytearray, level_no: int, level):
     for item in level.items:
         set_block(item.position, item.element_no)
 
+    if (getattr(level, "key_status", c.KEY_STATUS_NORMAL) == c.KEY_STATUS_WHITE_IN_BLOCK and
+            not level.is_key_removed()):
+        set_block(level.fixed_key_pos, CELL_WHITE_IN_BLOCK_KEY)
+
     # メタデータヘッダ
     rom_data[offset + OFFSET_M66_LOCAL_META + 0] = 0
     rom_data[offset + OFFSET_M66_LOCAL_META + 1] = 1
     rom_data[offset + OFFSET_M66_LOCAL_META + 2] = 0
     rom_data[offset + OFFSET_M66_LOCAL_META + 3] = 1
 
-    rom_data[offset + OFFSET_M66_KEY_STATUS] = (level.key_status + level.time_decrease_rate) & 0xff
+    key_status = level.key_status
+    if key_status == c.KEY_STATUS_WHITE_IN_BLOCK:
+        key_status = c.KEY_STATUS_WHITE_IN_BLOCK
+    rom_data[offset + OFFSET_M66_KEY_STATUS] = (key_status + level.time_decrease_rate) & 0xff
     rom_data[offset + OFFSET_M66_DOOR_POS] = byte_from_position(level.fixed_door_pos)
     rom_data[offset + OFFSET_M66_KEY_POS] = byte_from_position(level.fixed_key_pos)
     rom_data[offset + OFFSET_M66_PLAYER_START_POS] = byte_from_position(level.fixed_start_pos)
@@ -344,7 +367,8 @@ def patch_breakable_white_data(rom_data: bytearray, levels: list):
 def patch_runtime_block_loader(rom_data: bytearray):
     """Patch mapper66 l_a2 for direct special cell IDs.
 
-    - Preserve $F8-$FF in the room grid so $F9/$FA can survive to the runtime.
+    - Preserve $C0-$FF in the room grid so $C0-$F7 white in-block cells and
+      $F9/$FA can survive to the runtime.
     - $A3/$A4 use the existing in-block item path and survive without this
       high-ID preservation branch.
     - Disable the old 32B PRG1-to-$0740 copy; the runtime now scans $0304.
@@ -352,9 +376,18 @@ def patch_runtime_block_loader(rom_data: bytearray):
       $C0-$F7 act as white breakable blocks with an item inside, while the
       existing break test still keeps $F8-$FF solid.
     """
+    off = SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF
+    if len(rom_data) > off and rom_data[off] == SPECIAL_HIGH_ID_THRESHOLD_OLD:
+        rom_data[off] = SPECIAL_HIGH_ID_THRESHOLD_NEW
     off = INITIAL_DRAW_WHITE_THRESHOLD_PATCH_OFF
     if len(rom_data) > off and rom_data[off] == INITIAL_DRAW_WHITE_THRESHOLD_OLD:
         rom_data[off] = INITIAL_DRAW_WHITE_THRESHOLD_NEW
+    off = KEY_CELL_VALUE_PATCH_OFF
+    ln = len(KEY_CELL_VALUE_PATCH_NEW)
+    if len(rom_data) >= off + ln:
+        cur = bytes(rom_data[off:off + ln])
+        if cur == KEY_CELL_VALUE_PATCH_OLD:
+            rom_data[off:off + ln] = KEY_CELL_VALUE_PATCH_NEW
     off = SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF
     if len(rom_data) > off and rom_data[off] == SPECIAL_HIGH_ID_PRESERVE_OLD:
         rom_data[off] = SPECIAL_HIGH_ID_PRESERVE_NEW

@@ -225,6 +225,8 @@ class LevelRenderer:
                 key_label += "[隠]"
             elif level.is_key_in_block():
                 key_label += "[ブ]"
+            elif level.is_key_white_in_block():
+                key_label += "[白ブ]"
             add(level.fixed_key_pos, key_label)
 
         for i, mirror in enumerate(level.demon_mirrors, start=1):
@@ -385,13 +387,14 @@ class LevelRenderer:
                     key_anim, ts_no, transparent=None, bg_main_color=wall_color)
                 kx, ky = level.fixed_key_pos
                 if 0 <= kx < c.LEVEL_W and 0 <= ky < c.LEVEL_H:
-                    if level.is_key_in_block():
+                    if level.is_key_in_block() or level.is_key_white_in_block():
                         # ブロック内: アイテム → 半透明ブロックの順
-                        painter.drawImage(kx * tw, ky * tw, brown_img)
+                        block_img = white_img if level.is_key_white_in_block() else brown_img
+                        painter.drawImage(kx * tw, ky * tw, block_img)
                         if show_secret_elements:
                             painter.drawImage(kx * tw, ky * tw, key_img)
                             painter.setOpacity(0.5)
-                            painter.drawImage(kx * tw, ky * tw, brown_img)
+                            painter.drawImage(kx * tw, ky * tw, block_img)
                             painter.setOpacity(1.0)
                     elif level.is_key_hidden():
                         # 隠し: 半透明アイテム
