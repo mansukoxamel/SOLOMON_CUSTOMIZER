@@ -3710,6 +3710,7 @@ class MainWindow(QMainWindow):
 
         if mode == MODE_BLOCK:
             passable_block_values = (BLOCK_NONE, BLOCK_PASSABLE_WHITE, BLOCK_PASSABLE_BROWN)
+            in_block_absorb_values = (BLOCK_BROWN, BLOCK_BROWN_WHITE, BLOCK_BREAKABLE_WHITE)
             # 敵と同位置にブロックは置けない
             if value not in passable_block_values and lv.get_enemy_index(tile) >= 0:
                 self.statusBar().showMessage(
@@ -3726,8 +3727,10 @@ class MainWindow(QMainWindow):
                 restore_rejected_click_edit()
                 return
 
-            # 扉位置にブロックは置けない（出られない）
-            if value not in passable_block_values and not lv.is_door_removed() and lv.fixed_door_pos == tile:
+            # 扉位置に通常ブロックは置けない。茶/壊せる白は特殊扉状態へ吸収する。
+            if (value not in passable_block_values and
+                    value not in in_block_absorb_values and
+                    not lv.is_door_removed() and lv.fixed_door_pos == tile):
                 self.statusBar().showMessage(
                     f"扉位置にブロックは置けません {tile}", 2500
                 )
@@ -3745,36 +3748,74 @@ class MainWindow(QMainWindow):
                 restore_rejected_click_edit()
                 return
 
-            # ブロック（茶 or 壊せる白）+ アイテム → アイテムに in_block フラグを自動付与
+            # ブロック（茶 or 壊せる白）+ メタ/アイテム → 状態フラグへ吸収
             skip_block_placement = False
             if value in (BLOCK_BROWN, BLOCK_BROWN_WHITE):
-                idx = lv.get_item_index(tile)
-                if idx >= 0:
-                    item = lv.items[idx]
-                    base = item.element_no & 0x3F
-                    item.element_no = base | c.ITEM_FLAG_IN_BLOCK
+                if not lv.is_key_removed() and lv.fixed_key_pos == tile:
+                    from ..core import constants as cc
+                    lv.key_status = cc.KEY_STATUS_IN_BLOCK
                     lv.set_block(Wall.NONE, tile)
                     skip_block_placement = True
                     self.statusBar().showMessage(
-                        f"アイテムを in_block フラグ付きに自動変換 {tile}", 2500
+                        f"鍵をブロック内状態に自動変換 {tile}", 2500
                     )
-            elif value == BLOCK_BREAKABLE_WHITE:
-                idx = lv.get_item_index(tile)
-                if idx >= 0:
-                    item = lv.items[idx]
-                    base = item.element_no & 0x3F
-                    if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
+                elif not lv.is_door_removed() and lv.fixed_door_pos == tile:
+                    from ..core import room_flags as _rf
+                    lv.room_flags = (
+                        lv.room_flags & ~_rf.DOOR_STATE_MASK
+                    ) | _rf.DOOR_STATE_IN_BLOCK
+                    lv.set_block(Wall.NONE, tile)
+                    skip_block_placement = True
+                    self.statusBar().showMessage(
+                        f"扉をブロック内状態に自動変換 {tile}", 2500
+                    )
+                else:
+                    idx = lv.get_item_index(tile)
+                    if idx >= 0:
+                        item = lv.items[idx]
+                        base = item.element_no & 0x3F
+                        item.element_no = base | c.ITEM_FLAG_IN_BLOCK
+                        lv.set_block(Wall.NONE, tile)
+                        skip_block_placement = True
                         self.statusBar().showMessage(
-                            f"このアイテムは白い壊せるブロック内に入れられません: 0x{base:02X}", 3000
+                            f"アイテムを in_block フラグ付きに自動変換 {tile}", 2500
                         )
-                        restore_rejected_click_edit()
-                        return
-                    item.element_no = base | c.ITEM_FLAG_WHITE_IN_BLOCK
+            elif value == BLOCK_BREAKABLE_WHITE:
+                if not lv.is_key_removed() and lv.fixed_key_pos == tile:
+                    from ..core import constants as cc
+                    lv.key_status = cc.KEY_STATUS_WHITE_IN_BLOCK
                     lv.set_block(Wall.NONE, tile)
                     skip_block_placement = True
                     self.statusBar().showMessage(
-                        f"アイテムを白い壊せるブロック内に自動変換 {tile}", 2500
+                        f"鍵を白ブロック内状態に自動変換 {tile}", 2500
                     )
+                elif not lv.is_door_removed() and lv.fixed_door_pos == tile:
+                    from ..core import room_flags as _rf
+                    lv.room_flags = (
+                        lv.room_flags & ~_rf.DOOR_STATE_MASK
+                    ) | _rf.DOOR_STATE_WHITE_IN_BLOCK
+                    lv.set_block(Wall.NONE, tile)
+                    skip_block_placement = True
+                    self.statusBar().showMessage(
+                        f"扉を白ブロック内状態に自動変換 {tile}", 2500
+                    )
+                else:
+                    idx = lv.get_item_index(tile)
+                    if idx >= 0:
+                        item = lv.items[idx]
+                        base = item.element_no & 0x3F
+                        if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
+                            self.statusBar().showMessage(
+                                f"このアイテムは白い壊せるブロック内に入れられません: 0x{base:02X}", 3000
+                            )
+                            restore_rejected_click_edit()
+                            return
+                        item.element_no = base | c.ITEM_FLAG_WHITE_IN_BLOCK
+                        lv.set_block(Wall.NONE, tile)
+                        skip_block_placement = True
+                        self.statusBar().showMessage(
+                            f"アイテムを白い壊せるブロック内に自動変換 {tile}", 2500
+                        )
 
             if skip_block_placement:
                 pass
