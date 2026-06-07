@@ -861,33 +861,6 @@ class MainWindow(QMainWindow):
         self.chk_no_astone.toggled.connect(self._on_meta_no_astone_toggled)
         form.addRow("", self.chk_no_astone)
 
-        self.chk_hidden_door = QCheckBox("扉を隠す")
-        self.chk_hidden_door.setToolTip(
-            "エディタで設定した扉位置のマスを『隠し』化。開始前画面に扉が\n"
-            "出ず、ゲーム中も見えませんが、その上の石を壊すと扉が現れます\n"
-            "(原作の隠し鍵と同じ仕組み)。扉位置を動かせば追従します"
-        )
-        self.chk_hidden_door.toggled.connect(self._on_meta_hidden_door_toggled)
-        form.addRow("", self.chk_hidden_door)
-
-        self.chk_in_block_door = QCheckBox("扉をブロック内に隠す")
-        self.chk_in_block_door.setToolTip(
-            "エディタで設定した扉位置のマスをブロック内扉にします。\n"
-            "ゲーム中は茶ブロックに見え、壊すと扉が現れます。\n"
-            "隠し扉とは排他です"
-        )
-        self.chk_in_block_door.toggled.connect(self._on_meta_in_block_door_toggled)
-        form.addRow("", self.chk_in_block_door)
-
-        self.chk_white_in_block_door = QCheckBox("扉を白ブロック内に隠す")
-        self.chk_white_in_block_door.setToolTip(
-            "エディタで設定した扉位置のマスを白い壊せるブロック内扉にします。\n"
-            "ゲーム中は白い壊せるブロックに見え、壊すと扉が現れます。\n"
-            "隠し扉・茶ブロック内扉とは排他です"
-        )
-        self.chk_white_in_block_door.toggled.connect(self._on_meta_white_in_block_door_toggled)
-        form.addRow("", self.chk_white_in_block_door)
-
         self.chk_dark = QCheckBox("暗闇モード")
         self.chk_dark.setToolTip(
             "この面のプレイ中だけ背景(地形/HUD)を明滅で消し、敵とDana\n"
@@ -5444,15 +5417,6 @@ class MainWindow(QMainWindow):
                     return
                 self._push_undo()
                 lv.room_flags = (lv.room_flags & ~_rf.DOOR_STATE_MASK) | new_state
-                self._meta_loading = True
-                try:
-                    self.chk_hidden_door.setChecked(new_state == _rf.DOOR_STATE_HIDDEN)
-                    self.chk_in_block_door.setChecked(new_state == _rf.DOOR_STATE_IN_BLOCK)
-                    self.chk_white_in_block_door.setChecked(
-                        new_state == _rf.DOOR_STATE_WHITE_IN_BLOCK
-                    )
-                finally:
-                    self._meta_loading = False
                 self._refresh_view()
                 self._refresh_thumbnails_after_edit()
                 self._set_dirty(True)
@@ -5668,13 +5632,6 @@ class MainWindow(QMainWindow):
             self.chk_no_bfire.setChecked(bool(lv.room_flags & _rf.BIT_NO_BFIRE))
             self.chk_no_astone.setChecked(
                 bool(lv.room_flags & _rf.BIT_NO_ASTONE))
-            door_state = lv.room_flags & _rf.DOOR_STATE_MASK
-            self.chk_hidden_door.setChecked(
-                door_state == _rf.DOOR_STATE_HIDDEN)
-            self.chk_in_block_door.setChecked(
-                door_state == _rf.DOOR_STATE_IN_BLOCK)
-            self.chk_white_in_block_door.setChecked(
-                door_state == _rf.DOOR_STATE_WHITE_IN_BLOCK)
             self.chk_dark.setChecked(bool(lv.room_flags & _rf.BIT_DARK))
             from ..core import stage_ext as _se
             self.chk_fire_reset.setChecked(_se.fire_reset_enabled(lv))
@@ -5821,62 +5778,6 @@ class MainWindow(QMainWindow):
         else:
             lv.room_flags &= ~_rf.BIT_NO_ASTONE
         self._set_dirty(True)
-        self._update_info()
-
-    def _set_meta_door_state(self, state: int):
-        from ..core import room_flags as _rf
-        lv = self.levels[self.current_level_no]
-        state &= _rf.DOOR_STATE_MASK
-        lv.room_flags = (lv.room_flags & ~_rf.DOOR_STATE_MASK) | state
-        self._meta_loading = True
-        try:
-            self.chk_hidden_door.setChecked(state == _rf.DOOR_STATE_HIDDEN)
-            self.chk_in_block_door.setChecked(state == _rf.DOOR_STATE_IN_BLOCK)
-            self.chk_white_in_block_door.setChecked(
-                state == _rf.DOOR_STATE_WHITE_IN_BLOCK
-            )
-        finally:
-            self._meta_loading = False
-
-    def _on_meta_hidden_door_toggled(self, checked):
-        if self._meta_loading or not self.levels:
-            return
-        if self._reject_read_only_edit():
-            return
-        self._push_undo()
-        from ..core import room_flags as _rf
-        self._set_meta_door_state(_rf.DOOR_STATE_HIDDEN if checked else _rf.DOOR_STATE_NORMAL)
-        self._set_dirty(True)
-        self._refresh_view()
-        self._refresh_thumbnail(self.current_level_no)
-        self._update_info()
-
-    def _on_meta_in_block_door_toggled(self, checked):
-        if self._meta_loading or not self.levels:
-            return
-        if self._reject_read_only_edit():
-            return
-        self._push_undo()
-        from ..core import room_flags as _rf
-        self._set_meta_door_state(_rf.DOOR_STATE_IN_BLOCK if checked else _rf.DOOR_STATE_NORMAL)
-        self._set_dirty(True)
-        self._refresh_view()
-        self._refresh_thumbnail(self.current_level_no)
-        self._update_info()
-
-    def _on_meta_white_in_block_door_toggled(self, checked):
-        if self._meta_loading or not self.levels:
-            return
-        if self._reject_read_only_edit():
-            return
-        self._push_undo()
-        from ..core import room_flags as _rf
-        self._set_meta_door_state(
-            _rf.DOOR_STATE_WHITE_IN_BLOCK if checked else _rf.DOOR_STATE_NORMAL
-        )
-        self._set_dirty(True)
-        self._refresh_view()
-        self._refresh_thumbnail(self.current_level_no)
         self._update_info()
 
     def _on_meta_dark_toggled(self, checked):
