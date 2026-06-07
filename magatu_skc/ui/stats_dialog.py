@@ -141,7 +141,7 @@ class StatsDialog(QDialog):
         ("火リセット", 76),  # stage_ext FLAG_FIRE_RESET
         ("鍵敵#", 54),      # stage_ext key enemy number
         ("暗闇", 52),       # BIT_DARK
-        ("特殊扉", 60),     # BIT_HIDDEN_DOOR / BIT_IN_BLOCK_DOOR
+        ("特殊扉", 60),     # door state bits
         ("妖精化", 64),     # special process: first enemy falling-death -> Fairy
         ("配置敵", 300),    # 配置された敵 スプライト
         ("ミラー敵", 240),  # ミラーから出る敵 スプライト
@@ -590,7 +590,12 @@ class StatsDialog(QDialog):
             f_astone = "●" if rf & _rf.BIT_NO_ASTONE else ""
             f_bfire = "●" if rf & _rf.BIT_NO_BFIRE else ""
             f_dark = "●" if rf & _rf.BIT_DARK else ""
-            f_door = "内" if rf & _rf.BIT_IN_BLOCK_DOOR else ("隠" if rf & _rf.BIT_HIDDEN_DOOR else "")
+            door_state = rf & _rf.DOOR_STATE_MASK
+            f_door = {
+                _rf.DOOR_STATE_HIDDEN: "隠",
+                _rf.DOOR_STATE_IN_BLOCK: "内",
+                _rf.DOOR_STATE_WHITE_IN_BLOCK: "白内",
+            }.get(door_state, "")
             f_fire_reset = "●" if _se.fire_reset_enabled(lv) else ""
             f_fairy_drop = "●" if self._falling_fairy_enabled(row) else ""
 

@@ -366,19 +366,28 @@ class LevelRenderer:
             # 4. ドア（tile_defの transparent 属性を尊重 - Noneで自動判定）
             if not level.is_door_removed():
                 rf = getattr(level, "room_flags", 0)
-                door_is_hidden = bool(rf & room_flags.BIT_HIDDEN_DOOR)
-                door_is_in_block = bool(rf & room_flags.BIT_IN_BLOCK_DOOR)
+                door_state = rf & room_flags.DOOR_STATE_MASK
+                door_is_hidden = door_state == room_flags.DOOR_STATE_HIDDEN
+                door_is_in_block = door_state in (
+                    room_flags.DOOR_STATE_IN_BLOCK,
+                    room_flags.DOOR_STATE_WHITE_IN_BLOCK,
+                )
                 door_anim = self.get_metadata_animation(MD_DOOR)
                 door_img = self.tr.get_tile_image(
                     door_anim, ts_no, transparent=None, bg_main_color=wall_color)
                 dx, dy = level.fixed_door_pos
                 if 0 <= dx < c.LEVEL_W and 0 <= dy < c.LEVEL_H:
                     if door_is_in_block:
-                        painter.drawImage(dx * tw, dy * tw, brown_img)
+                        block_img = (
+                            white_img
+                            if door_state == room_flags.DOOR_STATE_WHITE_IN_BLOCK
+                            else brown_img
+                        )
+                        painter.drawImage(dx * tw, dy * tw, block_img)
                         if show_secret_elements:
                             painter.drawImage(dx * tw, dy * tw, door_img)
                             painter.setOpacity(0.5)
-                            painter.drawImage(dx * tw, dy * tw, brown_img)
+                            painter.drawImage(dx * tw, dy * tw, block_img)
                             painter.setOpacity(1.0)
                     elif show_secret_elements or not door_is_hidden:
                         if door_is_hidden and show_secret_elements:

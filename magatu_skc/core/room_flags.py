@@ -11,8 +11,9 @@ bank0 のコードケーブに注入し、部屋別の改造を実現する。
   - $8326 MAGICGATE フック (bit2 = B火球禁止、A換石は常に可)
 
 フラグ bit 割当 (project_room_flag_extension.md):
-  bit0 = 隠し扉            (ステップ2で cave 拡張、本モジュールは枠のみ)
+  bit0 = 隠し扉            (扉セルにbit6を立て、開始前扉描画を抑止)
   bit1 = ブロック内扉      (扉セルにbit7を立て、開始前扉描画を抑止)
+  bit0+bit1 = 白ブロック内扉 (扉セルにbit6+bit7を立てる)
   bit2 = B火球(魔法)禁止   ← ステップ1で実装
   他bit は将来拡張
 
@@ -43,6 +44,9 @@ verbatim コピーするため file offset 不変):
   bit6 機構がそのまま動き、復元後は通常扉として開閉/クリアに乗る。
 ブロック内扉 (bit1): 扉マスに $80 を立てて $86(扉|ブロック内) にする。
   原作の扉variantとして存在するため、石を壊すと通常扉へ復元される。
+白ブロック内扉 (bit0+bit1): 扉マスに $C0 を立てて $C6 にする。
+  本アプリの白ブロック内アイテム/鍵と同じ初期描画経路で、白い壊せる
+  ブロックとして見せ、壊すと通常扉へ復元される。
 """
 
 # ======================================================================
@@ -149,7 +153,12 @@ verbatim コピーするため file offset 不変):
 # ledgers in the same change. Overlapping reservations are release blockers.
 
 BIT_HIDDEN_DOOR = 0x01  # bit0: 隠し扉 (扉マスに$40、開始前画面の扉描画抑止)
-BIT_IN_BLOCK_DOOR = 0x02  # bit1: ブロック内扉 (扉マスに$80、開始前画面の扉描画抑止)
+BIT_IN_BLOCK_DOOR = 0x02  # bit1: 茶ブロック内扉 (扉マスに$80、開始前画面の扉描画抑止)
+DOOR_STATE_MASK = BIT_HIDDEN_DOOR | BIT_IN_BLOCK_DOOR
+DOOR_STATE_NORMAL = 0x00
+DOOR_STATE_HIDDEN = BIT_HIDDEN_DOOR
+DOOR_STATE_IN_BLOCK = BIT_IN_BLOCK_DOOR
+DOOR_STATE_WHITE_IN_BLOCK = DOOR_STATE_MASK  # 扉マスに$C0
 BIT_NO_BFIRE    = 0x04  # bit2: B火球(魔法)禁止 (SE $08==$13 のみ却下)
 BIT_NO_ASTONE   = 0x80  # bit7: A換石(石作成)禁止 (SE $08==$11 のみ却下)
                         #   ※A禁止は階段が作れず進行不能になり得る独立option
@@ -249,9 +258,9 @@ HOOK_91CC_NEW = bytes.fromhex("20 50 bc")  # JSR $BC50 (DOORPREDRAW)
 #   BEQ +11              ;   立ってなければ何もしない
 #   LDA #$00 / STA $042E / STA $042F
 #   JSR $A1CC            ; HUD fire stock redraw. $042B(max/cursor)は触らない
-#   LDA $0778 / AND #$03 ; bit0=隠し扉 / bit1=ブロック内扉?
+#   LDA $0778 / AND #$03 ; bit0=隠し / bit1=茶ブロック内 / 両方=白ブロック内
 #   BEQ +14 (->RTS)      ;   立ってなければ何もしない
-#   ASL x6               ; bit0->$40 / bit1->$80
+#   ASL x6               ; bit0->$40 / bit1->$80 / 両方->$C0
 #   PHA / LDX $077C / PLA
 #   ORA $0304,X / STA $0304,X             ; 扉マスに状態bitを立てる
 #   RTS
@@ -292,14 +301,10 @@ BIT_FIRE_RESET = 0x10  # stage load clears carried fire scroll stock.
 def normalize_flags(flags: int) -> int:
     """Runtime room flags normalization.
 
-    Hidden-door and in-block-door both modify the same door cell. If both are
-    present (for example from hand-edited project data), prefer in-block-door so
-    the runtime never ORs both bits into the door cell.
+    Door bits are a compact 2-bit state:
+    0=normal, bit0=hidden, bit1=brown in-block, bit0+bit1=white in-block.
     """
-    flags = int(flags) & 0xFF
-    if flags & BIT_IN_BLOCK_DOOR:
-        flags &= ~BIT_HIDDEN_DOOR
-    return flags
+    return int(flags) & 0xFF
 
 
 class RoomFlagError(ValueError):

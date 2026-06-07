@@ -254,12 +254,12 @@
     </table>
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
-      <tr><td>LOADER</td><td class="num">0x3BF0-0x3C1D</td><td class="num">$BBE0-$BC0D</td><td class="num">46B</td><td>Room flag loader. bit0/bit1 で扉セルへ隠し/ブロック内フラグを付与し、bit4 で持ち越しファイヤー `$042E/$042F` を消してHUDを再描画する。この範囲は原作JPの Level 30 Blue Opal bitmap <code>0x3BDA-0x3BF1</code> 末尾2Bと重なるため、mapper66保存時はStage 30のSP2 bitmap配置呼び出しを無効化済みであることが前提。</td></tr>
+      <tr><td>LOADER</td><td class="num">0x3BF0-0x3C1D</td><td class="num">$BBE0-$BC0D</td><td class="num">46B</td><td>Room flag loader. bit0/bit1 の2bit扉状態で扉セルへ $40/$80/$C0 を付与し、bit4 で持ち越しファイヤー `$042E/$042F` を消してHUDを再描画する。この範囲は原作JPの Level 30 Blue Opal bitmap <code>0x3BDA-0x3BF1</code> 末尾2Bと重なるため、mapper66保存時はStage 30のSP2 bitmap配置呼び出しを無効化済みであることが前提。</td></tr>
       <tr><td>Wide title idle-demo cleanup</td><td class="num">0x3C1E-0x3C26</td><td class="num">$BC0E-$BC16</td><td class="num">9B</td><td>Title timeout-only stub: `JSR $CC18`, then schedules the original action `$18`. Stops stale wide-title nametable from flashing during attract-demo startup without touching the shared action table.</td></tr>
       <tr><td>Key enemy item-tile recorder</td><td class="num">0x3C27-0x3C2D</td><td class="num">$BC17-$BC1D</td><td class="num">7B</td><td>Key enemy runtime helper used by the dropped-key path. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
       <tr><td>MAGICGATE</td><td class="num">0x3C30-0x3C51</td><td class="num">$BC20-$BC41</td><td class="num">34B</td><td>A/B magic gate restrictions.</td></tr>
       <tr><td>Key enemy status writer</td><td class="num">0x3C52-0x3C5D</td><td class="num">$BC42-$BC4D</td><td class="num">12B</td><td>Key enemy runtime helper for the selected key carrier status write. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
-      <tr><td>DOORPREDRAW</td><td class="num">0x3C60-0x3C6A</td><td class="num">$BC50-$BC5A</td><td class="num">11B</td><td>Hidden / in-block door redraw guard.</td></tr>
+      <tr><td>DOORPREDRAW</td><td class="num">0x3C60-0x3C6A</td><td class="num">$BC50-$BC5A</td><td class="num">11B</td><td>Hidden / brown in-block / white in-block door redraw guard.</td></tr>
       <tr><td>Panel Monster Saramandor-ID AI wrapper</td><td class="num">0x3C6B-0x3C8E</td><td class="num">$BC5B-$BC7E</td><td class="num">36B</td><td>Panel Monster borrowed-ID routing.</td></tr>
       <tr><td>DARK cave</td><td class="num">0x3C90-0x3CC7</td><td class="num">$BC80-$BCB7</td><td class="num">56B</td><td>Dark-room flashing logic.</td></tr>
       <tr><td>Key enemy fall-death handler</td><td class="num">0x3CC8-0x3CDF</td><td class="num">$BCB8-$BCCF</td><td class="num">24B</td><td>Key enemy runtime helper for fall-death key handling. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>

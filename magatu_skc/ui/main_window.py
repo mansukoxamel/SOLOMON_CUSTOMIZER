@@ -879,6 +879,15 @@ class MainWindow(QMainWindow):
         self.chk_in_block_door.toggled.connect(self._on_meta_in_block_door_toggled)
         form.addRow("", self.chk_in_block_door)
 
+        self.chk_white_in_block_door = QCheckBox("扉を白ブロック内に隠す")
+        self.chk_white_in_block_door.setToolTip(
+            "エディタで設定した扉位置のマスを白い壊せるブロック内扉にします。\n"
+            "ゲーム中は白い壊せるブロックに見え、壊すと扉が現れます。\n"
+            "隠し扉・茶ブロック内扉とは排他です"
+        )
+        self.chk_white_in_block_door.toggled.connect(self._on_meta_white_in_block_door_toggled)
+        form.addRow("", self.chk_white_in_block_door)
+
         self.chk_dark = QCheckBox("暗闇モード")
         self.chk_dark.setToolTip(
             "この面のプレイ中だけ背景(地形/HUD)を明滅で消し、敵とDana\n"
@@ -3662,9 +3671,12 @@ class MainWindow(QMainWindow):
             parts.append(key_tag)
         if not lv.is_door_removed() and lv.fixed_door_pos == tile:
             from ..core import room_flags as _rf
-            if lv.room_flags & _rf.BIT_IN_BLOCK_DOOR:
+            door_state = lv.room_flags & _rf.DOOR_STATE_MASK
+            if door_state == _rf.DOOR_STATE_WHITE_IN_BLOCK:
+                parts.append("[扉:白ブロック内]")
+            elif door_state == _rf.DOOR_STATE_IN_BLOCK:
                 parts.append("[扉:ブロック内]")
-            elif lv.room_flags & _rf.BIT_HIDDEN_DOOR:
+            elif door_state == _rf.DOOR_STATE_HIDDEN:
                 parts.append("[扉:隠し]")
             else:
                 parts.append("[扉]")
@@ -5411,39 +5423,34 @@ class MainWindow(QMainWindow):
             if not lv.is_door_removed() and lv.fixed_door_pos == self._hover_tile:
                 if self._reject_read_only_edit():
                     return
-                if flag == c.ITEM_FLAG_WHITE_IN_BLOCK:
-                    self.statusBar().showMessage(
-                        "扉は白ブロック内状態に変更できません", 1500
-                    )
-                    return
                 from ..core import room_flags as _rf
-                hidden = bool(lv.room_flags & _rf.BIT_HIDDEN_DOOR)
-                in_block = bool(lv.room_flags & _rf.BIT_IN_BLOCK_DOOR)
-                new_hidden = (flag == 0x40)
-                new_in_block = (flag == 0x80)
-                if hidden == new_hidden and in_block == new_in_block:
-                    state = "ブロック内" if in_block else ("隠し" if hidden else "通常")
+                old_state = lv.room_flags & _rf.DOOR_STATE_MASK
+                state_by_flag = {
+                    0x00: _rf.DOOR_STATE_NORMAL,
+                    0x40: _rf.DOOR_STATE_HIDDEN,
+                    0x80: _rf.DOOR_STATE_IN_BLOCK,
+                    c.ITEM_FLAG_WHITE_IN_BLOCK: _rf.DOOR_STATE_WHITE_IN_BLOCK,
+                }
+                new_state = state_by_flag.get(flag, _rf.DOOR_STATE_NORMAL)
+                if old_state == new_state:
+                    state = {
+                        _rf.DOOR_STATE_HIDDEN: "隠し",
+                        _rf.DOOR_STATE_IN_BLOCK: "ブロック内",
+                        _rf.DOOR_STATE_WHITE_IN_BLOCK: "白ブロック内",
+                    }.get(old_state, "通常")
                     self.statusBar().showMessage(
                         f"ホバー位置の扉状態: {state}", 1500
                     )
                     return
                 self._push_undo()
-                if new_hidden:
-                    lv.room_flags |= _rf.BIT_HIDDEN_DOOR
-                else:
-                    lv.room_flags &= ~_rf.BIT_HIDDEN_DOOR
-                if new_in_block:
-                    lv.room_flags |= _rf.BIT_IN_BLOCK_DOOR
-                else:
-                    lv.room_flags &= ~_rf.BIT_IN_BLOCK_DOOR
-                if new_hidden:
-                    lv.room_flags &= ~_rf.BIT_IN_BLOCK_DOOR
-                if new_in_block:
-                    lv.room_flags &= ~_rf.BIT_HIDDEN_DOOR
+                lv.room_flags = (lv.room_flags & ~_rf.DOOR_STATE_MASK) | new_state
                 self._meta_loading = True
                 try:
-                    self.chk_hidden_door.setChecked(bool(lv.room_flags & _rf.BIT_HIDDEN_DOOR))
-                    self.chk_in_block_door.setChecked(bool(lv.room_flags & _rf.BIT_IN_BLOCK_DOOR))
+                    self.chk_hidden_door.setChecked(new_state == _rf.DOOR_STATE_HIDDEN)
+                    self.chk_in_block_door.setChecked(new_state == _rf.DOOR_STATE_IN_BLOCK)
+                    self.chk_white_in_block_door.setChecked(
+                        new_state == _rf.DOOR_STATE_WHITE_IN_BLOCK
+                    )
                 finally:
                     self._meta_loading = False
                 self._refresh_view()
@@ -5661,10 +5668,13 @@ class MainWindow(QMainWindow):
             self.chk_no_bfire.setChecked(bool(lv.room_flags & _rf.BIT_NO_BFIRE))
             self.chk_no_astone.setChecked(
                 bool(lv.room_flags & _rf.BIT_NO_ASTONE))
+            door_state = lv.room_flags & _rf.DOOR_STATE_MASK
             self.chk_hidden_door.setChecked(
-                bool(lv.room_flags & _rf.BIT_HIDDEN_DOOR))
+                door_state == _rf.DOOR_STATE_HIDDEN)
             self.chk_in_block_door.setChecked(
-                bool(lv.room_flags & _rf.BIT_IN_BLOCK_DOOR))
+                door_state == _rf.DOOR_STATE_IN_BLOCK)
+            self.chk_white_in_block_door.setChecked(
+                door_state == _rf.DOOR_STATE_WHITE_IN_BLOCK)
             self.chk_dark.setChecked(bool(lv.room_flags & _rf.BIT_DARK))
             from ..core import stage_ext as _se
             self.chk_fire_reset.setChecked(_se.fire_reset_enabled(lv))
@@ -5813,6 +5823,21 @@ class MainWindow(QMainWindow):
         self._set_dirty(True)
         self._update_info()
 
+    def _set_meta_door_state(self, state: int):
+        from ..core import room_flags as _rf
+        lv = self.levels[self.current_level_no]
+        state &= _rf.DOOR_STATE_MASK
+        lv.room_flags = (lv.room_flags & ~_rf.DOOR_STATE_MASK) | state
+        self._meta_loading = True
+        try:
+            self.chk_hidden_door.setChecked(state == _rf.DOOR_STATE_HIDDEN)
+            self.chk_in_block_door.setChecked(state == _rf.DOOR_STATE_IN_BLOCK)
+            self.chk_white_in_block_door.setChecked(
+                state == _rf.DOOR_STATE_WHITE_IN_BLOCK
+            )
+        finally:
+            self._meta_loading = False
+
     def _on_meta_hidden_door_toggled(self, checked):
         if self._meta_loading or not self.levels:
             return
@@ -5820,17 +5845,7 @@ class MainWindow(QMainWindow):
             return
         self._push_undo()
         from ..core import room_flags as _rf
-        lv = self.levels[self.current_level_no]
-        if checked:
-            lv.room_flags |= _rf.BIT_HIDDEN_DOOR
-            lv.room_flags &= ~_rf.BIT_IN_BLOCK_DOOR
-            self._meta_loading = True
-            try:
-                self.chk_in_block_door.setChecked(False)
-            finally:
-                self._meta_loading = False
-        else:
-            lv.room_flags &= ~_rf.BIT_HIDDEN_DOOR
+        self._set_meta_door_state(_rf.DOOR_STATE_HIDDEN if checked else _rf.DOOR_STATE_NORMAL)
         self._set_dirty(True)
         self._refresh_view()
         self._refresh_thumbnail(self.current_level_no)
@@ -5843,17 +5858,22 @@ class MainWindow(QMainWindow):
             return
         self._push_undo()
         from ..core import room_flags as _rf
-        lv = self.levels[self.current_level_no]
-        if checked:
-            lv.room_flags |= _rf.BIT_IN_BLOCK_DOOR
-            lv.room_flags &= ~_rf.BIT_HIDDEN_DOOR
-            self._meta_loading = True
-            try:
-                self.chk_hidden_door.setChecked(False)
-            finally:
-                self._meta_loading = False
-        else:
-            lv.room_flags &= ~_rf.BIT_IN_BLOCK_DOOR
+        self._set_meta_door_state(_rf.DOOR_STATE_IN_BLOCK if checked else _rf.DOOR_STATE_NORMAL)
+        self._set_dirty(True)
+        self._refresh_view()
+        self._refresh_thumbnail(self.current_level_no)
+        self._update_info()
+
+    def _on_meta_white_in_block_door_toggled(self, checked):
+        if self._meta_loading or not self.levels:
+            return
+        if self._reject_read_only_edit():
+            return
+        self._push_undo()
+        from ..core import room_flags as _rf
+        self._set_meta_door_state(
+            _rf.DOOR_STATE_WHITE_IN_BLOCK if checked else _rf.DOOR_STATE_NORMAL
+        )
         self._set_dirty(True)
         self._refresh_view()
         self._refresh_thumbnail(self.current_level_no)
@@ -6699,7 +6719,7 @@ Delete / Backspace: ホバー位置を削除<br>
 N: ホバー位置のアイテム/鍵/扉を通常に変更<br>
 H: ホバー位置のアイテム/鍵/扉を隠しに変更（デーモンミラー上では隠しアイテム0x48を配置）<br>
 B: ホバー位置のアイテム/鍵/扉をブロック内に変更<br>
-W: ホバー位置のアイテムを白ブロック内に変更<br>
+W: ホバー位置のアイテム/鍵/扉を白ブロック内に変更<br>
 <br>
 <b>範囲編集</b><br>
 Ctrl+C: コピー<br>
