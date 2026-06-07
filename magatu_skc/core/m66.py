@@ -43,6 +43,9 @@ RUNTIME_BLOCK_LIST_COPY_PATCH_NEW = bytes.fromhex(
     "ad28040a0a0a0a0a18694f8500ad28044a4a4a1869f88501a020b100993f0788d0f8"
 )
 RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED = bytes([0xEA] * len(RUNTIME_BLOCK_LIST_COPY_PATCH_NEW))
+INITIAL_DRAW_WHITE_THRESHOLD_PATCH_OFF = 0x10 + (0x9617 - 0x8000)
+INITIAL_DRAW_WHITE_THRESHOLD_OLD = 0xF8
+INITIAL_DRAW_WHITE_THRESHOLD_NEW = 0xC0
 OFFSET_M66_BREAKABLE_WHITE_DATA = (
     OFFSET_M66_DROP_SCHED_DATA
     + COUNT_M66_LEVELS * 2 * 8
@@ -114,6 +117,10 @@ def parse_level(rom_data: bytes, level_no: int) -> Level:
             elif value == CELL_BREAKABLE_WHITE:
                 result.tiles[j][i] = Wall.WHITE
                 result.breakable_white_cells.add(pos)
+            elif c.ITEM_WHITE_IN_BLOCK_MIN <= value <= c.ITEM_WHITE_IN_BLOCK_MAX:
+                result.tiles[j][i] = Wall.WHITE
+                result.breakable_white_cells.add(pos)
+                result.items.append(LevelElement(ElementType.ITEM, pos, value))
             elif value == CELL_PASSABLE_WHITE:
                 result.tiles[j][i] = Wall.WHITE
                 result.passable_white_cells.add(pos)
@@ -341,7 +348,13 @@ def patch_runtime_block_loader(rom_data: bytearray):
     - $A3/$A4 use the existing in-block item path and survive without this
       high-ID preservation branch.
     - Disable the old 32B PRG1-to-$0740 copy; the runtime now scans $0304.
+    - Treat initial room cells $C0-$FF as the white-wall draw class. This lets
+      $C0-$F7 act as white breakable blocks with an item inside, while the
+      existing break test still keeps $F8-$FF solid.
     """
+    off = INITIAL_DRAW_WHITE_THRESHOLD_PATCH_OFF
+    if len(rom_data) > off and rom_data[off] == INITIAL_DRAW_WHITE_THRESHOLD_OLD:
+        rom_data[off] = INITIAL_DRAW_WHITE_THRESHOLD_NEW
     off = SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF
     if len(rom_data) > off and rom_data[off] == SPECIAL_HIGH_ID_PRESERVE_OLD:
         rom_data[off] = SPECIAL_HIGH_ID_PRESERVE_NEW

@@ -25,7 +25,8 @@ skchain v1.1 のXMLフォーマット:
 </skchain>
 
 ブロック値: 0=NONE, 1=BROWN(壊せる), 2=WHITE(壊せない), 3=BROWN_WHITE(壊せる白)
-配置フラグ bit: 0x40=hidden(隠し) / 0x80=in_block(ブロック内) / 0=通常
+配置フラグ bit: 0x40=hidden(隠し) / 0x80=in_block(ブロック内) /
+  0xC0=white in_block(壊せる白ブロック内) / 0=通常
   ※実証確定 (element.py is_hidden/is_in_block が正。R178/隠し扉
     TEST_HiddenDoor 実機・エディタ画面と一致)。旧コメントは
     $40/$80 を逆記載していた (2026-05-17 Codex指摘で訂正)

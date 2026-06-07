@@ -531,7 +531,7 @@ class StatsDialog(QDialog):
             for it in lv.items:
                 flag = it.element_no & 0xC0
                 base = it.element_no & 0x3F
-                state = "hidden" if flag == 0x40 else ("in_block" if flag == 0x80 else "normal")
+                state = "hidden" if flag == 0x40 else ("in_block" if flag in (0x80, 0xC0) else "normal")
                 normal_count, hidden_count, in_block_count = self._add_item_state_count(
                     normal_count, hidden_count, in_block_count, state)
                 # 重要アイテム

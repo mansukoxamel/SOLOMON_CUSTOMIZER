@@ -3623,7 +3623,7 @@ class MainWindow(QMainWindow):
             desc = self.config.item_desc.get(base, f"item 0x{base:02x}") if self.config else f"0x{base:02x}"
             tag = ""
             if flag == 0x40: tag = "[隠し]"
-            elif flag == 0x80: tag = "[in_block]"
+            elif flag in (0x80, 0xC0): tag = "[in_block]"
             # ★アイテム番号も表示 (base コード。flag付きは raw も併記)
             code = f"0x{base:02X}"
             if flag:
@@ -3727,7 +3727,7 @@ class MainWindow(QMainWindow):
 
             # 白ブロック（壊せない）にアイテムが既にあると、そのアイテムは取れなくなるので拒否
             if value in (
-                BLOCK_WHITE, BLOCK_BREAKABLE_WHITE, BLOCK_PASSABLE_WHITE,
+                BLOCK_WHITE, BLOCK_PASSABLE_WHITE,
                 BLOCK_PASSABLE_BROWN, BLOCK_SOLID_BROWN,
             ) and lv.get_item_index(tile) >= 0:
                 self.statusBar().showMessage(
@@ -3742,9 +3742,24 @@ class MainWindow(QMainWindow):
                 if idx >= 0:
                     item = lv.items[idx]
                     base = item.element_no & 0x3F
-                    item.element_no = base | 0x80
+                    item.element_no = base | c.ITEM_FLAG_IN_BLOCK
                     self.statusBar().showMessage(
                         f"アイテムを in_block フラグ付きに自動変換 {tile}", 2500
+                    )
+            elif value == BLOCK_BREAKABLE_WHITE:
+                idx = lv.get_item_index(tile)
+                if idx >= 0:
+                    item = lv.items[idx]
+                    base = item.element_no & 0x3F
+                    if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
+                        self.statusBar().showMessage(
+                            f"このアイテムは白い壊せるブロック内に入れられません: 0x{base:02X}", 3000
+                        )
+                        restore_rejected_click_edit()
+                        return
+                    item.element_no = base | c.ITEM_FLAG_WHITE_IN_BLOCK
+                    self.statusBar().showMessage(
+                        f"アイテムを白い壊せるブロック内に自動変換 {tile}", 2500
                     )
 
             if value == BLOCK_NONE:
@@ -3833,8 +3848,12 @@ class MainWindow(QMainWindow):
                 restore_rejected_click_edit()
                 return
 
-            # 白ブロック内アイテム禁止（取れなくなる）
-            if lv.tiles[ty][tx] == Wall.WHITE:
+            picker_flag = self.picker.get_item_flag()
+
+            # 壊せない白ブロック内アイテムは禁止（取れなくなる）
+            if (lv.tiles[ty][tx] == Wall.WHITE and
+                    tile not in getattr(lv, "breakable_white_cells", set()) and
+                    picker_flag != c.ITEM_FLAG_WHITE_IN_BLOCK):
                 self.statusBar().showMessage(
                     f"白ブロック内にはアイテムを配置できません {tile}", 3000
                 )
@@ -3850,12 +3869,37 @@ class MainWindow(QMainWindow):
                 )
 
             # フラグ決定:
-            # - タイルが茶 or 壊せる白 → 強制 in_block (0x80)
+            # - タイルが茶 → 強制 in_block (0x80)
+            # - 壊せる白 → 強制 white-in-block (0xC0)
+            # - ピッカーが白ブロック内 → 下地を壊せる白へ自動変換
             # - タイルが空 → ピッカーで選択中のフラグを使用
-            picker_flag = self.picker.get_item_flag()
-            if lv.tiles[ty][tx] in (Wall.BROWN, Wall.BROWN_WHITE):
-                flag = 0x80
-                if picker_flag != 0x80:
+            if picker_flag == c.ITEM_FLAG_WHITE_IN_BLOCK:
+                base = value & 0x3F
+                if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
+                    self.statusBar().showMessage(
+                        f"このアイテムは白い壊せるブロック内に入れられません: 0x{base:02X}", 3000
+                    )
+                    restore_rejected_click_edit()
+                    return
+                lv.set_block(Wall.WHITE, tile)
+                lv.breakable_white_cells.add(tile)
+                flag = c.ITEM_FLAG_WHITE_IN_BLOCK
+            elif tile in getattr(lv, "breakable_white_cells", set()):
+                base = value & 0x3F
+                if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
+                    self.statusBar().showMessage(
+                        f"このアイテムは白い壊せるブロック内に入れられません: 0x{base:02X}", 3000
+                    )
+                    restore_rejected_click_edit()
+                    return
+                flag = c.ITEM_FLAG_WHITE_IN_BLOCK
+                if picker_flag != c.ITEM_FLAG_IN_BLOCK:
+                    self.statusBar().showMessage(
+                        f"白い壊せるブロック内のため自動で in_block フラグON {tile}", 2500
+                    )
+            elif lv.tiles[ty][tx] in (Wall.BROWN, Wall.BROWN_WHITE):
+                flag = c.ITEM_FLAG_IN_BLOCK
+                if picker_flag != c.ITEM_FLAG_IN_BLOCK:
                     self.statusBar().showMessage(
                         f"ブロック内のため自動で in_block フラグON {tile}", 2500
                     )
@@ -4750,6 +4794,7 @@ class MainWindow(QMainWindow):
             BLOCK_INVISIBLE_BREAKABLE, BLOCK_PASSABLE_WHITE, BLOCK_INVISIBLE_SOLID,
             BLOCK_PASSABLE_BROWN, BLOCK_SOLID_BROWN,
             ITEM_FLAG_NORMAL, ITEM_FLAG_HIDDEN, ITEM_FLAG_IN_BLOCK,
+            ITEM_FLAG_WHITE_IN_BLOCK,
         )
         lv = self.levels[self.current_level_no]
         x, y = tile
@@ -4778,7 +4823,9 @@ class MainWindow(QMainWindow):
             # フラグも反映
             if flag == 0x40:
                 self.picker.rb_flag_hidden.setChecked(True)
-            elif flag == 0x80:
+            elif flag == ITEM_FLAG_WHITE_IN_BLOCK:
+                self.picker.rb_flag_white_in_block.setChecked(True)
+            elif flag in (0x80, 0xC0):
                 self.picker.rb_flag_in_block.setChecked(True)
             else:
                 self.picker.rb_flag_normal.setChecked(True)
@@ -5268,10 +5315,13 @@ class MainWindow(QMainWindow):
             self._set_hover_item_flag(0x40, "隠し")
         elif key == Qt.Key_B:
             # B → ホバー位置のアイテムフラグを「ブロック内」に
-            self._set_hover_item_flag(0x80, "ブロック内")
+            self._set_hover_item_flag(c.ITEM_FLAG_IN_BLOCK, "ブロック内")
+        elif key == Qt.Key_W:
+            # W → ホバー位置のアイテムフラグを「白ブロック内」に
+            self._set_hover_item_flag(c.ITEM_FLAG_WHITE_IN_BLOCK, "白ブロック内")
         elif key == Qt.Key_N:
             # N → ホバー位置のアイテムフラグを「通常」に
-            self._set_hover_item_flag(0x00, "通常")
+            self._set_hover_item_flag(c.ITEM_FLAG_NORMAL, "通常")
         elif key == Qt.Key_F:
             # F → 選択範囲を左右反転（Shift+Fで上下反転）
             if mods & Qt.ShiftModifier:
@@ -5306,7 +5356,12 @@ class MainWindow(QMainWindow):
                     0x40: cc.KEY_STATUS_HIDDEN,
                     0x80: cc.KEY_STATUS_IN_BLOCK,
                 }
-                new_status = key_flag_map.get(flag, cc.KEY_STATUS_NORMAL)
+                if flag not in key_flag_map:
+                    self.statusBar().showMessage(
+                        "鍵は白ブロック内状態に変更できません", 1500
+                    )
+                    return
+                new_status = key_flag_map[flag]
                 if new_status == lv.key_status:
                     self.statusBar().showMessage(
                         f"ホバー位置の鍵状態: {label}", 1500
@@ -5329,6 +5384,11 @@ class MainWindow(QMainWindow):
                 if flag == 0x80:
                     self.statusBar().showMessage(
                         "扉はブロック内状態に変更できません", 1500
+                    )
+                    return
+                if flag == c.ITEM_FLAG_WHITE_IN_BLOCK:
+                    self.statusBar().showMessage(
+                        "扉は白ブロック内状態に変更できません", 1500
                     )
                     return
                 from ..core import room_flags as _rf
@@ -5395,25 +5455,43 @@ class MainWindow(QMainWindow):
                     return
                 item = lv.items[idx]
                 if item.element_no >= c.ITEM_COPY_INDICATOR_MIN:
-                    self.statusBar().showMessage(
-                        "このアイテム形式は状態変更できません", 1500
-                    )
-                    return
-                new_no = (int(item.element_no) & 0x3F) | flag
+                    if not item.is_white_in_block():
+                        self.statusBar().showMessage(
+                            "このアイテム形式は状態変更できません", 1500
+                        )
+                        return
+                tx, ty = self._hover_tile
+                base = int(item.element_no) & 0x3F
+                if flag == c.ITEM_FLAG_WHITE_IN_BLOCK:
+                    if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
+                        self.statusBar().showMessage(
+                            f"このアイテムは白い壊せるブロック内に入れられません: 0x{base:02X}", 1500
+                        )
+                        return
+                    new_no = base | c.ITEM_FLAG_WHITE_IN_BLOCK
+                elif flag == c.ITEM_FLAG_IN_BLOCK and self._hover_tile in getattr(lv, "breakable_white_cells", set()):
+                    new_no = base | c.ITEM_FLAG_WHITE_IN_BLOCK
+                else:
+                    new_no = base | flag
                 if new_no == item.element_no:
                     self.statusBar().showMessage(
                         f"ホバー位置のアイテム状態: {label}", 1500
                     )
                     return
-                tx, ty = self._hover_tile
                 old_was_in_block = bool(int(item.element_no) & 0x80)
                 clear_backing_block = (
                     old_was_in_block
-                    and flag != 0x80
-                    and lv.tiles[ty][tx] in (Wall.BROWN, Wall.BROWN_WHITE)
+                    and flag not in (c.ITEM_FLAG_IN_BLOCK, c.ITEM_FLAG_WHITE_IN_BLOCK)
+                    and (
+                        lv.tiles[ty][tx] in (Wall.BROWN, Wall.BROWN_WHITE)
+                        or self._hover_tile in getattr(lv, "breakable_white_cells", set())
+                    )
                 )
                 self._push_undo()
                 item.element_no = new_no
+                if flag == c.ITEM_FLAG_WHITE_IN_BLOCK:
+                    lv.set_block(Wall.WHITE, self._hover_tile)
+                    lv.breakable_white_cells.add(self._hover_tile)
                 if clear_backing_block:
                     lv.set_block(Wall.NONE, self._hover_tile)
                 self._refresh_view()
@@ -6554,6 +6632,7 @@ Delete / Backspace: ホバー位置を削除<br>
 N: ホバー位置のアイテム/鍵/扉を通常に変更<br>
 H: ホバー位置のアイテム/鍵/扉を隠しに変更（デーモンミラー上では隠しアイテム0x48を配置）<br>
 B: ホバー位置のアイテム/鍵をブロック内に変更<br>
+W: ホバー位置のアイテムを白ブロック内に変更<br>
 <br>
 <b>範囲編集</b><br>
 Ctrl+C: コピー<br>

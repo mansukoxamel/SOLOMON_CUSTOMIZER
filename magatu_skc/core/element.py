@@ -25,15 +25,22 @@ class LevelElement:
 
     def get_item_no(self) -> int:
         """ベースアイテム番号取得（hidden/in_block ビットを除外）"""
+        if self.is_white_in_block():
+            return self.element_no & 0x3f
         if self.element_no >= c.ITEM_COPY_INDICATOR_MIN:
             return self.element_no
         return self.element_no & 0x3f
 
     def is_hidden(self) -> bool:
+        if self.is_white_in_block():
+            return False
         return bool(self.element_no & 0x40)
 
     def is_in_block(self) -> bool:
         return bool(self.element_no & 0x80)
+
+    def is_white_in_block(self) -> bool:
+        return c.ITEM_WHITE_IN_BLOCK_MIN <= self.element_no <= c.ITEM_WHITE_IN_BLOCK_MAX
 
     def set_hidden(self, value: bool):
         if value:
@@ -48,6 +55,15 @@ class LevelElement:
             self.element_no &= ~0x40 & 0xff  # hidden 解除
         else:
             self.element_no &= ~0x80 & 0xff
+
+    def set_white_in_block(self, value: bool):
+        base = self.element_no & 0x3f
+        if value:
+            if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
+                raise ValueError(f"Item 0x{base:02X} cannot be stored in a white breakable block")
+            self.element_no = base | c.ITEM_FLAG_WHITE_IN_BLOCK
+        else:
+            self.element_no = base
 
     def __repr__(self):
         return f"LevelElement(type={self.type.value}, pos={self.position}, no=0x{self.element_no:02x})"

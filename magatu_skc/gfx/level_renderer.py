@@ -231,14 +231,14 @@ class LevelRenderer:
             add(mirror.position, f"ミラー{i}")
 
         for item in level.items:
-            base = item.element_no & 0x3F
+            base = item.get_item_no()
             flag = item.element_no & 0xC0
             name = short(getattr(self.config, "item_desc", {}).get(
                 base, f"item {base:02X}"))
             prefix = ""
             if flag == 0x40:
                 prefix = "隠:"
-            elif flag == 0x80:
+            elif flag in (0x80, 0xC0):
                 prefix = "ブ:"
             add(item.position, prefix + name)
 
@@ -431,18 +431,19 @@ class LevelRenderer:
                 ix, iy = item.position
                 if not (0 <= ix < c.LEVEL_W and 0 <= iy < c.LEVEL_H):
                     continue
-                anim = self.get_item_animation(item.element_no)
+                anim = self.get_item_animation(item.get_item_no())
                 item_img = self.tr.get_tile_image(
                     anim, ts_no, transparent=None, bg_main_color=wall_color)
 
                 if item.is_in_block():
                     # ブロック内: アイテムを下に描画 → 半透明ブロックを上に重ねて
                     # 「ブロック越しにアイテムが透けて見える」表現
-                    painter.drawImage(ix * tw, iy * tw, brown_img)
+                    block_img = white_img if item.is_white_in_block() else brown_img
+                    painter.drawImage(ix * tw, iy * tw, block_img)
                     if show_secret_elements:
                         painter.drawImage(ix * tw, iy * tw, item_img)
                         painter.setOpacity(0.5)
-                        painter.drawImage(ix * tw, iy * tw, brown_img)
+                        painter.drawImage(ix * tw, iy * tw, block_img)
                         painter.setOpacity(1.0)
                 elif item.is_hidden():
                     # 隠し（ブロック無し）: アイテムを半透明で描画

@@ -56,6 +56,7 @@ BLOCK_PICKER_LABELS = {
 ITEM_FLAG_NORMAL = 0x00
 ITEM_FLAG_HIDDEN = 0x40
 ITEM_FLAG_IN_BLOCK = 0x80
+ITEM_FLAG_WHITE_IN_BLOCK = 0xC0
 
 
 # 配置レギュレーション: 必ず隠し で配置すべきアイテムコード（USA ROM 検証済）
@@ -1056,10 +1057,12 @@ class ElementPicker(QWidget):
         self.rb_flag_normal = FullWidthRadioButton("通常")
         self.rb_flag_hidden = FullWidthRadioButton("隠し")
         self.rb_flag_in_block = FullWidthRadioButton("ブロック内")
+        self.rb_flag_white_in_block = FullWidthRadioButton("白ブロック内")
         for rb, flag in [
             (self.rb_flag_normal, ITEM_FLAG_NORMAL),
             (self.rb_flag_hidden, ITEM_FLAG_HIDDEN),
             (self.rb_flag_in_block, ITEM_FLAG_IN_BLOCK),
+            (self.rb_flag_white_in_block, ITEM_FLAG_WHITE_IN_BLOCK),
         ]:
             self.flag_btns.addButton(rb)
             rb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -1703,7 +1706,7 @@ class ElementPicker(QWidget):
         return False
 
     def get_item_flag(self) -> int:
-        """アイテム配置時に付加するフラグ (0x00 / 0x40 / 0x80)"""
+        """アイテム配置時に付加するフラグ (0x00 / 0x40 / 0x80 / 0xC0)"""
         return self.current_item_flag
 
     def get_enemy_speed(self) -> int:
