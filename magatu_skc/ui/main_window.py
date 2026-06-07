@@ -4078,7 +4078,10 @@ class MainWindow(QMainWindow):
             if x1 <= tile[0] <= x2 and y1 <= tile[1] <= y2:
                 # 選択内容を取得 → 元位置を空にする
                 drag_clip = self._build_clipboard_from_selection()
-                if drag_clip is not None and (drag_clip["blocks"] or drag_clip["items"] or drag_clip["enemies"]):
+                if drag_clip is not None and (
+                    drag_clip["blocks"] or drag_clip["items"] or
+                    drag_clip["enemies"] or drag_clip.get("meta")
+                ):
                     self._push_undo()
                     # 元位置を空にする（self._delete_in_selection は undo を積むので直接実行）
                     for y in range(y1, y2 + 1):
@@ -4524,6 +4527,9 @@ class MainWindow(QMainWindow):
         for en_data in clip.get("enemies", []):
             if hits_locked_col15(en_data["rel_pos"]):
                 return True
+        for meta_data in clip.get("meta", []):
+            if hits_locked_col15(meta_data["rel_pos"]):
+                return True
         return False
 
     def _runtime_marker_names(self):
@@ -4589,6 +4595,7 @@ class MainWindow(QMainWindow):
             "runtime_markers": {},
             "items": [],
             "enemies": [],
+            "meta": [],
         }
         for y in range(y1, y2 + 1):
             for x in range(x1, x2 + 1):
@@ -4623,6 +4630,36 @@ class MainWindow(QMainWindow):
                     "rel_pos": (ex_ - x1, ey_ - y1),
                     "element_no": en.element_no,
                 })
+        def add_meta(kind, pos):
+            mx, my = pos
+            if x1 <= mx <= x2 and y1 <= my <= y2:
+                clip["meta"].append({
+                    "kind": kind,
+                    "rel_pos": (mx - x1, my - y1),
+                })
+
+        if not lv.is_key_removed():
+            add_meta("key", lv.fixed_key_pos)
+        if not lv.is_door_removed():
+            add_meta("door", lv.fixed_door_pos)
+        add_meta("start", lv.fixed_start_pos)
+        if lv.constellation is not None:
+            add_meta("constellation", lv.constellation.position)
+        for mi, mirror in enumerate(lv.demon_mirrors):
+            add_meta(f"mirror{mi + 1}", mirror.position)
+        if self.config is not None:
+            for idx, mi in enumerate(getattr(self.config, "level_meta_items", [])):
+                if mi.level_no != self.current_level_no:
+                    continue
+                if mi.rom_offset < 0:
+                    continue
+                mx, my = mi.position
+                if x1 <= mx <= x2 and y1 <= my <= y2:
+                    clip["meta"].append({
+                        "kind": "level_meta",
+                        "index": idx,
+                        "rel_pos": (mx - x1, my - y1),
+                    })
         return clip
 
     def _copy_selection(self):
@@ -4632,7 +4669,10 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("選択範囲がありません", 1500)
             return
         self._clipboard = clip
-        total = len(clip["blocks"]) + len(clip["items"]) + len(clip["enemies"])
+        total = (
+            len(clip["blocks"]) + len(clip["items"]) +
+            len(clip["enemies"]) + len(clip.get("meta", []))
+        )
         self.statusBar().showMessage(
             f"コピー: {clip['w']}×{clip['h']} 範囲 ({total}要素)", 3000
         )
@@ -4666,6 +4706,33 @@ class MainWindow(QMainWindow):
             tx, ty = ox + rx, oy + ry
             if self._can_edit_tile_pos(tx, ty):
                 lv.enemies.append(LevelElement(ElementType.ENEMY, (tx, ty), en_data["element_no"]))
+        for meta_data in clip.get("meta", []):
+            rx, ry = meta_data["rel_pos"]
+            tx, ty = ox + rx, oy + ry
+            if not self._can_edit_tile_pos(tx, ty):
+                continue
+            kind = meta_data["kind"]
+            if kind == "key":
+                lv.fixed_key_pos = (tx, ty)
+            elif kind == "door":
+                lv.fixed_door_pos = (tx, ty)
+            elif kind == "start":
+                lv.fixed_start_pos = (tx, ty)
+            elif kind == "constellation" and lv.constellation is not None:
+                lv.constellation.position = (tx, ty)
+            elif kind == "mirror1" and len(lv.demon_mirrors) >= 1:
+                lv.demon_mirrors[0].position = (tx, ty)
+            elif kind == "mirror2" and len(lv.demon_mirrors) >= 2:
+                lv.demon_mirrors[1].position = (tx, ty)
+            elif kind == "level_meta" and self.config is not None:
+                idx = meta_data.get("index", -1)
+                level_meta_items = getattr(self.config, "level_meta_items", [])
+                if 0 <= idx < len(level_meta_items):
+                    mi = level_meta_items[idx]
+                    mi.position = (tx, ty)
+                    if self.rom is not None and 0 <= mi.rom_offset < len(self.rom.data):
+                        from ..core.element import byte_from_position
+                        self.rom.data[mi.rom_offset] = byte_from_position(mi.position)
 
     def _paste_clipboard(self):
         """クリップボードを選択範囲の左上 or ホバー位置にペースト"""
