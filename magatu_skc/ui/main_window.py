@@ -1937,6 +1937,7 @@ class MainWindow(QMainWindow):
             self._auto_expanded = auto_expanded
             self.levels = levels
             self.config = config
+            self._sync_main_palette_to_config()
             self.tile_renderer = TileRenderer(config, nes_tiles)
             self.level_renderer = LevelRenderer(self.tile_renderer, config)
             self._apply_renderer_marker_settings()
@@ -6229,24 +6230,22 @@ class MainWindow(QMainWindow):
         end = start + BYTES_PER_PALETTE * PALETTE_COUNT
         return bytes(self.rom.data[start:end])
 
-    def _on_palette_changed(self):
-        """パレットダイアログの Apply からコールバック
+    def _sync_main_palette_to_config(self):
+        """ROM内メインパレットを描画用configへ反映する。
 
         ROM の 0xED4 にある 8パレット × 4バイト = 32バイトの値を読み出して、
-        config.palettes (XML由来の40パレット) に反映してエディタを再描画する。
+        config.palettes (XML由来の40パレット) に反映する。
 
         XMLの40パレット = 5グループ (red/cyan/purple/dgreen/gray) × 8パレット (BG4 + SPR4)
         - BGパレット (0-3): グループごとにslot 0(背景主色)が異なるが、slot 1/2 は共通
         - SPRパレット (4-7): 全グループで完全に同じ値
         """
-        if self._reject_read_only_edit():
-            return
-        self._set_dirty(True)
         if not self.config or not self.rom:
-            return
+            return False
 
         from .palette_dialog import PALETTE_OFFSET, BYTES_PER_PALETTE, PALETTE_COUNT
         group_offsets = [0, 8, 16, 24, 32]
+        changed = False
 
         # XML形式: 各パレット 3バイト [c1, c2, c3] (SubPalette が先頭に 0x0F を補完する)
         # ROM形式: [c1, c2, c3, separator] の4バイト
@@ -6265,15 +6264,26 @@ class MainWindow(QMainWindow):
                     #  ・slot 0 (背景主色) はグループごとに違うので red のみ反映
                     #  ・slot 1, 2 は全グループで共通として全部反映
                     if go == 0:
-                        self.config.palettes[target] = [c1, c2, c3]
+                        new_palette = [c1, c2, c3]
                     else:
                         # 既存のslot 0 (=グループ固有の主色) を保持し、c2/c3 だけ更新
                         old = self.config.palettes[target]
                         keep0 = old[0] if len(old) >= 1 else 0x0f
-                        self.config.palettes[target] = [keep0, c2, c3]
+                        new_palette = [keep0, c2, c3]
                 else:
                     # SPRパレット: 全グループで完全共通
-                    self.config.palettes[target] = [c1, c2, c3]
+                    new_palette = [c1, c2, c3]
+                if self.config.palettes[target] != new_palette:
+                    self.config.palettes[target] = new_palette
+                    changed = True
+        return changed
+
+    def _on_palette_changed(self):
+        """パレットダイアログの Apply からコールバック"""
+        if self._reject_read_only_edit():
+            return
+        self._set_dirty(True)
+        self._sync_main_palette_to_config()
 
         # tile_renderer のキャッシュをクリアして再描画
         if self.tile_renderer is not None:

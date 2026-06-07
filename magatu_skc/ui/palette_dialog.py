@@ -191,8 +191,8 @@ class PaletteDialog(QDialog):
         btn_random3.setToolTip("選択中のパレット3色をランダムなNES色に変更")
         btn_random3.clicked.connect(self._randomize_selected_palette)
         btnbar.addWidget(btn_random3)
-        btn_shift3 = QPushButton("3色ずらし")
-        btn_shift3.setToolTip("選択中のパレット3色を同じ量だけずらす")
+        btn_shift3 = QPushButton("色相ずらし")
+        btn_shift3.setToolTip("選択中パレットの色付き3色だけを同じ明度のまま色相方向へずらす")
         btn_shift3.clicked.connect(self._shift_selected_palette)
         btnbar.addWidget(btn_shift3)
         layout.addLayout(btnbar)
@@ -452,12 +452,21 @@ class PaletteDialog(QDialog):
             self._buf[palette_no][slot] = nes_idx
         self._refresh_palette_row(palette_no)
 
+    @staticmethod
+    def _shift_nes_hue(nes_idx: int) -> int:
+        value = nes_idx & 0x3F
+        brightness = value & 0x30
+        hue = value & 0x0F
+        if 1 <= hue <= 12:
+            return brightness | (1 + (hue % 12))
+        return value
+
     def _shift_selected_palette(self):
         palette_no = self._selected_palette_no()
         if palette_no is None:
             return
         for slot in range(EDITABLE_COLORS):
-            self._buf[palette_no][slot] = (self._buf[palette_no][slot] + 1) & 0x3F
+            self._buf[palette_no][slot] = self._shift_nes_hue(self._buf[palette_no][slot])
         self._refresh_palette_row(palette_no)
 
     def _save_preset(self):
