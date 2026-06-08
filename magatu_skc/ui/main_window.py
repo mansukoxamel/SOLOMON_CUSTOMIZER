@@ -3778,7 +3778,7 @@ class MainWindow(QMainWindow):
                 restore_rejected_click_edit()
                 return
 
-            # ブロック（茶 or 壊せる白）+ メタ/アイテム → 状態フラグへ吸収
+            # ブロック（茶 / 壊せる白 / 透明壊せる）+ メタ/アイテム → 状態フラグへ吸収
             skip_block_placement = False
             if value in (BLOCK_BROWN, BLOCK_BROWN_WHITE):
                 if not lv.is_key_removed() and lv.fixed_key_pos == tile:
@@ -3847,6 +3847,31 @@ class MainWindow(QMainWindow):
                         skip_block_placement = True
                         self.statusBar().showMessage(
                             f"アイテムを白い壊せるブロック内に自動変換 {tile}", 2500
+                        )
+            elif value == BLOCK_INVISIBLE_BREAKABLE:
+                if not lv.is_key_removed() and lv.fixed_key_pos == tile:
+                    self.statusBar().showMessage(
+                        f"鍵には透明ブロック内状態はありません {tile}", 2500
+                    )
+                    restore_rejected_click_edit()
+                    return
+                else:
+                    idx = lv.get_item_index(tile)
+                    if idx >= 0:
+                        item = lv.items[idx]
+                        base = item.element_no & 0x3F
+                        if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
+                            self.statusBar().showMessage(
+                                f"このアイテムは透明ブロック内に入れられません: 0x{base:02X}", 3000
+                            )
+                            restore_rejected_click_edit()
+                            return
+                        item.element_no = base
+                        lv.set_block(Wall.NONE, tile)
+                        lv.visible_in_block_item_cells.add(tile)
+                        skip_block_placement = True
+                        self.statusBar().showMessage(
+                            f"アイテムを透明ブロック内に自動変換 {tile}", 2500
                         )
 
             if skip_block_placement:
@@ -3921,10 +3946,9 @@ class MainWindow(QMainWindow):
         elif mode == MODE_ITEM:
             tx, ty = tile
 
-            if (tile in getattr(lv, "invisible_breakable_cells", set()) or
-                    tile in getattr(lv, "invisible_solid_cells", set())):
+            if tile in getattr(lv, "invisible_solid_cells", set()):
                 self.statusBar().showMessage(
-                    f"透明な壊せる壁にはアイテムを配置できません {tile}", 3000
+                    f"透明な白壁にはアイテムを配置できません {tile}", 3000
                 )
                 restore_rejected_click_edit()
                 return
@@ -3960,10 +3984,15 @@ class MainWindow(QMainWindow):
             # フラグ決定:
             # - タイルが茶 → 強制 in_block (0x80)
             # - 壊せる白 → 強制 white-in-block (0xC0) に吸収
+            # - 透明な壊せるブロック → 強制 透明ブロック内 に吸収
             # - ピッカーが白ブロック内 → item flag だけで表現
             # - ピッカーが透明ブロック内 → 通常アイテム + runtime変換マーカー
             # - タイルが空 → ピッカーで選択中のフラグを使用
-            visible_in_block_item = picker_flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK
+            target_is_transparent_in_block = tile in getattr(lv, "invisible_breakable_cells", set())
+            visible_in_block_item = (
+                picker_flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK or
+                target_is_transparent_in_block
+            )
             if visible_in_block_item:
                 base = value & 0x3F
                 if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
@@ -3974,6 +4003,10 @@ class MainWindow(QMainWindow):
                     return
                 lv.set_block(Wall.NONE, tile)
                 flag = c.ITEM_FLAG_NORMAL
+                if target_is_transparent_in_block and picker_flag != c.ITEM_FLAG_VISIBLE_IN_BLOCK:
+                    self.statusBar().showMessage(
+                        f"透明な壊せるブロック内のため自動で透BL ON {tile}", 2500
+                    )
             elif tile in getattr(lv, "breakable_white_cells", set()):
                 base = value & 0x3F
                 if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
