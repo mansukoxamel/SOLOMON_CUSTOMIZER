@@ -60,11 +60,6 @@ ITEM_FLAG_WHITE_IN_BLOCK = 0xC0
 ITEM_FLAG_VISIBLE_IN_BLOCK = 0x100
 
 
-# 配置レギュレーション: 必ず隠し で配置すべきアイテムコード（USA ROM 検証済）
-# 選択時に自動的に hidden ラジオに切り替える
-HIDDEN_ONLY_ITEMS = {0x22, 0x2e, 0x2f, 0x30, 0x31, 0x32}
-
-
 # アイテム一覧（コード, 表示名）
 # ★出典: skc_config.xml <item_definitions> を正本に自前抽出した
 #   「配置可能(normal/modifiable)」46件 (2026-05-17、PRG_SPRITE_USAGE
@@ -419,6 +414,10 @@ class FullWidthRadioButton(QRadioButton):
 
     def hitButton(self, pos):
         return self.rect().contains(pos)
+
+    def minimumSizeHint(self):
+        hint = super().minimumSizeHint()
+        return QSize(0, hint.height())
 
 
 MIRROR_ENEMY_SET_MAX = 7
@@ -1059,22 +1058,25 @@ class ElementPicker(QWidget):
         self.flag_btns = QButtonGroup(self)
         self.rb_flag_normal = FullWidthRadioButton("通常")
         self.rb_flag_hidden = FullWidthRadioButton("隠し")
-        self.rb_flag_in_block = FullWidthRadioButton("ブロック内")
-        self.rb_flag_white_in_block = FullWidthRadioButton("白ブロック内")
-        self.rb_flag_visible_in_block = FullWidthRadioButton("透明ブロック内")
-        for rb, flag in [
-            (self.rb_flag_normal, ITEM_FLAG_NORMAL),
-            (self.rb_flag_hidden, ITEM_FLAG_HIDDEN),
-            (self.rb_flag_in_block, ITEM_FLAG_IN_BLOCK),
-            (self.rb_flag_white_in_block, ITEM_FLAG_WHITE_IN_BLOCK),
-            (self.rb_flag_visible_in_block, ITEM_FLAG_VISIBLE_IN_BLOCK),
+        self.rb_flag_in_block = FullWidthRadioButton("BL内")
+        self.rb_flag_white_in_block = FullWidthRadioButton("白BL")
+        self.rb_flag_visible_in_block = FullWidthRadioButton("透BL")
+        for rb, flag, tooltip in [
+            (self.rb_flag_normal, ITEM_FLAG_NORMAL, "通常"),
+            (self.rb_flag_hidden, ITEM_FLAG_HIDDEN, "隠し"),
+            (self.rb_flag_in_block, ITEM_FLAG_IN_BLOCK, "ブロック内"),
+            (self.rb_flag_white_in_block, ITEM_FLAG_WHITE_IN_BLOCK, "白ブロック内"),
+            (self.rb_flag_visible_in_block, ITEM_FLAG_VISIBLE_IN_BLOCK, "透明ブロック内"),
         ]:
             self.flag_btns.addButton(rb)
+            rb.setToolTip(tooltip)
             rb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            rb.setMinimumWidth(0)
             rb.setMinimumHeight(40)
             fl.addWidget(rb, 1)
             rb.toggled.connect(lambda checked, f=flag: self._on_flag_changed(f) if checked else None)
         self.rb_flag_normal.setChecked(True)
+        self._update_flag_controls(MODE_BLOCK, BLOCK_BROWN)
 
         # 敵スピード（常時表示、敵モード時のみ意味あり）
         self.speed_group = QGroupBox("敵スピード")
@@ -1548,6 +1550,7 @@ class ElementPicker(QWidget):
                 self._picker_lists[0].setCurrentRow(default_row)
                 self.current_mode = MODE_BLOCK
                 self.current_value = BLOCK_BROWN
+                self._update_flag_controls(MODE_BLOCK, BLOCK_BROWN)
         finally:
             for lst, was_blocked in blocked_lists:
                 lst.blockSignals(was_blocked)
@@ -1566,6 +1569,7 @@ class ElementPicker(QWidget):
                     lst.setCurrentRow(i)
                     self.current_mode = target_mode
                     self.current_value = target_value
+                    self._update_flag_controls(target_mode, target_value)
                     return True
         return False
 
@@ -1683,10 +1687,7 @@ class ElementPicker(QWidget):
         mode, val = data
         self.current_mode = mode
         self.current_value = val
-        # 配置レギュレーション: 隠し専用アイテムを選んだら自動で hidden に切替
-        if mode == MODE_ITEM and isinstance(val, int):
-            if val in HIDDEN_ONLY_ITEMS:
-                self.rb_flag_hidden.setChecked(True)
+        self._update_flag_controls(mode, val)
         self._update_speed_controls(mode, val)
         self.selection_changed.emit(mode, val)
 
@@ -1695,6 +1696,40 @@ class ElementPicker(QWidget):
 
     def _on_speed_changed(self, speed: int):
         self.current_enemy_speed = speed
+
+    def _update_flag_controls(self, mode, value):
+        all_flags = (
+            ITEM_FLAG_NORMAL,
+            ITEM_FLAG_HIDDEN,
+            ITEM_FLAG_IN_BLOCK,
+            ITEM_FLAG_WHITE_IN_BLOCK,
+            ITEM_FLAG_VISIBLE_IN_BLOCK,
+        )
+        if mode == MODE_META and value in ("start", "mirror1", "mirror2"):
+            allowed = {ITEM_FLAG_NORMAL}
+        elif mode == MODE_META and value in ("key", "door"):
+            allowed = {
+                ITEM_FLAG_NORMAL,
+                ITEM_FLAG_HIDDEN,
+                ITEM_FLAG_IN_BLOCK,
+                ITEM_FLAG_WHITE_IN_BLOCK,
+            }
+        else:
+            allowed = set(all_flags)
+
+        buttons = (
+            (self.rb_flag_normal, ITEM_FLAG_NORMAL),
+            (self.rb_flag_hidden, ITEM_FLAG_HIDDEN),
+            (self.rb_flag_in_block, ITEM_FLAG_IN_BLOCK),
+            (self.rb_flag_white_in_block, ITEM_FLAG_WHITE_IN_BLOCK),
+            (self.rb_flag_visible_in_block, ITEM_FLAG_VISIBLE_IN_BLOCK),
+        )
+        for rb, flag in buttons:
+            rb.setEnabled(flag in allowed)
+
+        if self.current_item_flag not in allowed:
+            self.rb_flag_normal.setChecked(True)
+            self.current_item_flag = ITEM_FLAG_NORMAL
 
     def _update_speed_controls(self, mode, value):
         if mode != MODE_ENEMY or not isinstance(value, int):
