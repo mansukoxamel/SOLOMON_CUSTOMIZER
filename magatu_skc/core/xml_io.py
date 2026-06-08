@@ -65,7 +65,7 @@ def level_to_xml_element(level: Level) -> ET.Element:
     lv.set("constellation_no", str(level.get_constellation_no()))
     lv.set("constellation_position", _pos_str(level.get_constellation_pos()))
     lv.set("tileset", str(level.tileset_no))
-    lv.set("room_flags", str(level.room_flags))
+    lv.set("room_flags", str(int(level.room_flags) & ~0x20))
     lv.set("stage_ext_flags", str(getattr(level, "stage_ext_flags", 0)))
     lv.set("fire_reset_value", str(getattr(level, "fire_reset_value", 0)))
     lv.set("key_enemy_slot", str(getattr(level, "key_enemy_slot", 255)))
@@ -94,6 +94,14 @@ def level_to_xml_element(level: Level) -> ET.Element:
         e.set("no", str(i))
         e.set("element_no", str(it.element_no))
         e.set("position", _pos_str(it.position))
+
+    vib_cells = sorted(getattr(level, "visible_in_block_item_cells", set()))
+    if vib_cells:
+        vib = ET.SubElement(lv, "visible_in_block_items")
+        for i, pos in enumerate(vib_cells):
+            e = ET.SubElement(vib, "cell")
+            e.set("no", str(i))
+            e.set("position", _pos_str(pos))
 
     # breakable white wall markers. The actual block is still stored as Wall.WHITE.
     bw_cells = sorted(getattr(level, "breakable_white_cells", set()))
@@ -263,7 +271,7 @@ def xml_element_to_level(level_elem: ET.Element) -> Level:
     lv.spawn_enemy_lifetime = int(level_elem.attrib.get("spawn_enemy_lifetime", "0"))
     lv.time_decrease_rate = int(level_elem.attrib.get("time_decrease_rate", "0"))
     lv.tileset_no = int(level_elem.attrib.get("tileset", "0"))
-    lv.room_flags = int(level_elem.attrib.get("room_flags", "0"))
+    lv.room_flags = int(level_elem.attrib.get("room_flags", "0")) & ~0x20
     lv.stage_ext_flags = int(level_elem.attrib.get("stage_ext_flags", "0"))
     lv.fire_reset_value = int(level_elem.attrib.get("fire_reset_value", "0"))
     lv.key_enemy_slot = int(level_elem.attrib.get("key_enemy_slot", "255"))
@@ -304,6 +312,17 @@ def xml_element_to_level(level_elem: ET.Element) -> Level:
             element_no = int(it.attrib["element_no"])
             pos = _parse_pos(it.attrib["position"])
             lv.items.append(LevelElement(ElementType.ITEM, pos, element_no))
+
+    lv.visible_in_block_item_cells = set()
+    vib_elem = level_elem.find("visible_in_block_items")
+    if vib_elem is not None:
+        item_positions = {it.position for it in lv.items}
+        for cell in vib_elem.findall("cell"):
+            pos = _parse_pos(cell.attrib["position"])
+            x, y = pos
+            if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H and pos in item_positions:
+                lv.visible_in_block_item_cells.add(pos)
+                lv.tiles[y][x] = Wall.NONE
 
     lv.breakable_white_cells = set()
     bw_elem = level_elem.find("breakable_white")

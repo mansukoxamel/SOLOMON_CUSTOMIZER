@@ -19,6 +19,7 @@ OFFSET_M66_LVL_DATA = 49168
 OFFSET_M66_DROP_SCHED_DATA = OFFSET_M66_LVL_DATA + COUNT_M66_LEVELS * LENGTH_M66_LVL_DATA
 LENGTH_M66_MAP_DATA = LENGTH_M66_LVL_W * LENGTH_M66_LVL_H  # 192
 LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA = 32
+LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA = 16
 BREAKABLE_CELL_MODE_EMPTY = 0xFE
 BREAKABLE_CELL_MODE_SOLID = 0xFD
 CELL_EMPTY = 0x10
@@ -47,6 +48,10 @@ RUNTIME_BLOCK_LIST_COPY_PATCH_NEW = bytes.fromhex(
     "ad28040a0a0a0a0a18694f8500ad28044a4a4a1869f88501a020b100993f0788d0f8"
 )
 RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED = bytes([0xEA] * len(RUNTIME_BLOCK_LIST_COPY_PATCH_NEW))
+RUNTIME_VISIBLE_IN_BLOCK_ITEM_COPY_PATCH = bytes.fromhex(
+    "ad28040a0a0a0a18694f8500ad28044a4a4a4a1869f88501a010b100994f0788d0f8"
+)
+assert len(RUNTIME_VISIBLE_IN_BLOCK_ITEM_COPY_PATCH) == len(RUNTIME_BLOCK_LIST_COPY_PATCH_NEW)
 INITIAL_DRAW_WHITE_THRESHOLD_PATCH_OFF = 0x10 + (0x9617 - 0x8000)
 INITIAL_DRAW_WHITE_THRESHOLD_OLD = 0xF8
 INITIAL_DRAW_WHITE_THRESHOLD_NEW = 0xC0
@@ -188,11 +193,61 @@ def cleanup_mirror_items(level: Level):
     level.items = items
 
 
+def _visible_in_block_table_offset(level_no: int) -> int:
+    return (
+        OFFSET_M66_BREAKABLE_WHITE_DATA
+        + level_no * LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA
+    )
+
+
+def _read_visible_in_block_item_cells(rom_data: bytes, level_no: int) -> set:
+    cells = set()
+    base = _visible_in_block_table_offset(level_no)
+    end = base + LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA
+    if len(rom_data) < end:
+        return cells
+    for i in range(LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA):
+        v = rom_data[base + i]
+        if v in (0x00, 0xFF):
+            break
+        x = v & 0x0F
+        y = (v >> 4) - 1
+        if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
+            cells.add((x, y))
+    return cells
+
+
+def read_visible_in_block_item_data(rom_data: bytes, count: int = COUNT_M66_LEVELS) -> list:
+    return [
+        _read_visible_in_block_item_cells(rom_data, room_no)
+        for room_no in range(max(0, min(int(count), COUNT_M66_LEVELS)))
+    ]
+
+
 def load_all_levels_m66(rom) -> list:
     """拡張ROMから全レベル読込"""
     levels = []
     for i in range(COUNT_M66_LEVELS):
         levels.append(parse_level(bytes(rom.data), i))
+    rom_bytes = bytes(rom.data)
+    from . import room_flags
+    try:
+        from . import stage_ext
+        runtime_room_flags = stage_ext.read_runtime_room_flags(rom_bytes, len(levels))
+    except Exception:
+        runtime_room_flags = [0] * len(levels)
+    visible_cells = read_visible_in_block_item_data(rom_bytes, len(levels))
+    for i, cells in enumerate(visible_cells):
+        if not (
+            i < len(runtime_room_flags)
+            and (runtime_room_flags[i] & room_flags.BIT_VISIBLE_INBLOCK_ITEMS)
+        ):
+            continue
+        item_positions = {item.position for item in levels[i].items}
+        levels[i].visible_in_block_item_cells = {
+            pos for pos in cells
+            if pos in item_positions
+        }
     try:
         from . import room_flags
         flags = room_flags.read_table(bytes(rom.data), len(levels))
@@ -325,11 +380,46 @@ def save_level_m66(rom_data: bytearray, level_no: int, level):
 
 def save_all_levels_m66(rom, levels: list):
     """拡張ROM全レベルを書き戻し"""
+    validate_visible_in_block_items(levels)
     for i, level in enumerate(levels):
         save_level_m66(rom.data, i, level)
     from . import stage_ext
     stage_ext.patch_table(rom.data, levels)
     patch_breakable_white_data(rom.data, levels)
+
+
+def visible_in_block_items_needed(levels: list) -> bool:
+    return any(bool(getattr(level, "visible_in_block_item_cells", set()) or []) for level in levels or [])
+
+
+def validate_visible_in_block_items(levels: list) -> None:
+    for room_no, level in enumerate(levels or []):
+        cells = set(getattr(level, "visible_in_block_item_cells", set()) or [])
+        if not cells:
+            continue
+        if len(cells) > LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA:
+            raise ValueError(
+                f"Stage {room_no + 1}: visible in-block items exceed "
+                f"{LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA} cells"
+            )
+        item_by_pos = {item.position: item for item in getattr(level, "items", []) or []}
+        for pos in sorted(cells):
+            item = item_by_pos.get(pos)
+            if item is None:
+                raise ValueError(
+                    f"Stage {room_no + 1}: visible in-block marker at {pos} has no item"
+                )
+            base = int(item.element_no) & 0x3F
+            if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
+                raise ValueError(
+                    f"Stage {room_no + 1}: item 0x{base:02X} at {pos} cannot be "
+                    "stored as a white in-block item"
+                )
+            if int(item.element_no) & 0xC0:
+                raise ValueError(
+                    f"Stage {room_no + 1}: visible in-block item at {pos} must be "
+                    "stored as a normal item plus marker"
+                )
 
 
 def _breakable_white_runtime_cell(pos) -> int | None:
@@ -341,12 +431,26 @@ def _breakable_white_runtime_cell(pos) -> int | None:
 
 
 def build_breakable_white_data(levels: list) -> bytearray:
-    """旧PRG1 side-list領域を空にする。
+    """Build the reused PRG1 runtime side-list area.
 
     特殊ブロックは v0.7.72 から m66 ステージセル値へ直接保存するため、
-    部屋ごとの32B runtime listは使わない。
+    旧32B/room tableは通常使わない。前半16B/roomだけ、通常アイテム
+    として初期描画した後に白ブロック内アイテムへ差し替える座標リスト
+    として再利用する。
     """
-    data = bytearray([0xFF] * (COUNT_M66_LEVELS * LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA))
+    data = bytearray([0x00] * (COUNT_M66_LEVELS * LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA))
+    for room_no, level in enumerate((levels or [])[:COUNT_M66_LEVELS]):
+        cells = sorted(getattr(level, "visible_in_block_item_cells", set()) or [])
+        if len(cells) > LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA:
+            raise ValueError(
+                f"Stage {room_no + 1}: visible in-block items exceed "
+                f"{LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA} cells"
+            )
+        base = _visible_in_block_table_offset(room_no) - OFFSET_M66_BREAKABLE_WHITE_DATA
+        for i, pos in enumerate(cells):
+            runtime_cell = _breakable_white_runtime_cell(pos)
+            if runtime_cell is not None:
+                data[base + i] = runtime_cell
     return data
 
 
@@ -366,7 +470,8 @@ def patch_runtime_block_loader(rom_data: bytearray):
       $F9/$FA can survive to the runtime.
     - $A3/$A4 use the existing in-block item path and survive without this
       high-ID preservation branch.
-    - Disable the old 32B PRG1-to-$0740 copy; the runtime now scans $0304.
+    - Reuse the old PRG1 side-list copy to fill $0750-$075F with visible
+      in-block item cells for the current room.
     - Treat initial room cells $C0-$FF as the white-wall draw class. This lets
       $C0-$F7 act as white breakable blocks with an item inside, while the
       existing break test still keeps $F8-$FF solid.
@@ -387,14 +492,18 @@ def patch_runtime_block_loader(rom_data: bytearray):
     if len(rom_data) > off and rom_data[off] == SPECIAL_HIGH_ID_PRESERVE_OLD:
         rom_data[off] = SPECIAL_HIGH_ID_PRESERVE_NEW
     off = RUNTIME_BLOCK_LIST_COPY_PATCH_OFF
-    ln = len(RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED)
+    ln = len(RUNTIME_VISIBLE_IN_BLOCK_ITEM_COPY_PATCH)
     if len(rom_data) < off + ln:
         return
     cur = bytes(rom_data[off:off + ln])
-    if cur == RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED:
+    if cur == RUNTIME_VISIBLE_IN_BLOCK_ITEM_COPY_PATCH:
         return
-    if cur in (RUNTIME_BLOCK_LIST_COPY_PATCH_OLD, RUNTIME_BLOCK_LIST_COPY_PATCH_NEW):
-        rom_data[off:off + ln] = RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED
+    if cur in (
+        RUNTIME_BLOCK_LIST_COPY_PATCH_OLD,
+        RUNTIME_BLOCK_LIST_COPY_PATCH_NEW,
+        RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED,
+    ):
+        rom_data[off:off + ln] = RUNTIME_VISIBLE_IN_BLOCK_ITEM_COPY_PATCH
 
 
 def read_breakable_white_data(rom_data: bytes) -> list:

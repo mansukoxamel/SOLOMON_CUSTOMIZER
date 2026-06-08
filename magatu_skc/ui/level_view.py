@@ -12,6 +12,7 @@ from ..core import constants as c
 DEFAULT_MARKER_COLORS = {
     "bonus_marker_color": "#FFC800",
     "hidden_marker_color": "#FFDC00",
+    "visible_in_block_marker_color": "#00E5FF",
     "breakable_white_marker_color": "#50E65A",
     "invisible_breakable_marker_color": "#FFDC28",
     "passable_marker_color": "#50BEFF",
@@ -374,6 +375,8 @@ class LevelView(QGraphicsView):
                     add(item)
         for pos in overlays.get("hidden_item", ()):
             add_rect(pos, self._marker_color("hidden_marker_color"), width=2, inset=1)
+        for pos in overlays.get("visible_in_block_item", ()):
+            add_rect(pos, self._marker_color("visible_in_block_marker_color"), width=3, inset=0)
         for pos in overlays.get("hidden_meta", ()):
             add_rect(pos, self._marker_color("hidden_marker_color"), width=2, inset=1)
 

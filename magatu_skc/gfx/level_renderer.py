@@ -238,7 +238,9 @@ class LevelRenderer:
             name = short(getattr(self.config, "item_desc", {}).get(
                 base, f"item {base:02X}"))
             prefix = ""
-            if flag == 0x40:
+            if item.position in getattr(level, "visible_in_block_item_cells", set()):
+                prefix = "見:"
+            elif flag == 0x40:
                 prefix = "隠:"
             elif flag in (0x80, 0xC0):
                 prefix = "ブ:"
@@ -473,7 +475,13 @@ class LevelRenderer:
                 else:
                     painter.drawImage(ix * tw, iy * tw, item_img)
 
-                if draw_editor_markers and show_hidden_overlay and (item.is_hidden() or item.is_in_block()):
+                if (draw_editor_markers and show_hidden_overlay and
+                        item.position in getattr(level, "visible_in_block_item_cells", set())):
+                    def draw_visible_item_overlay(mp, ix=ix, iy=iy):
+                        mp.setPen(self._marker_pen("visible_in_block_marker_color", 3))
+                        mp.drawRect(ix * tw, iy * tw, tw - 1, tw - 1)
+                    self._draw_marker_layer(painter, img_w, img_h, draw_visible_item_overlay)
+                elif draw_editor_markers and show_hidden_overlay and (item.is_hidden() or item.is_in_block()):
                     def draw_item_overlay(mp, ix=ix, iy=iy):
                         mp.setPen(self._marker_pen("hidden_marker_color", 2))
                         mp.drawRect(ix * tw + 1, iy * tw + 1, tw - 2, tw - 2)

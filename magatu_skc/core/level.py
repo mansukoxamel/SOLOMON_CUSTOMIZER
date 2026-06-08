@@ -76,6 +76,8 @@ class Level:
         self.passable_white_cells = set()
         # Cells drawn as empty space but converted to solid white wall at runtime.
         self.invisible_solid_cells = set()
+        # Normal-looking item cells converted to cracked white in-block items at runtime.
+        self.visible_in_block_item_cells = set()
         # Cells drawn as brown wall but converted to empty space at runtime.
         self.passable_brown_cells = set()
         # Cells drawn as brown wall but converted to solid white wall at runtime.
@@ -197,6 +199,8 @@ class Level:
             if wall_type != Wall.BROWN:
                 self.passable_brown_cells.discard((x, y))
                 self.solid_brown_cells.discard((x, y))
+            if wall_type != Wall.NONE:
+                self.visible_in_block_item_cells.discard((x, y))
             self.invisible_breakable_cells.discard((x, y))
             self.invisible_solid_cells.discard((x, y))
 
@@ -236,6 +240,7 @@ class Level:
 
     def delete_item(self, index: int):
         if 0 <= index < len(self.items):
+            self.visible_in_block_item_cells.discard(self.items[index].position)
             del self.items[index]
 
     def delete_enemy(self, index: int):

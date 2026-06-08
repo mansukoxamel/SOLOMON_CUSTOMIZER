@@ -3486,6 +3486,7 @@ class MainWindow(QMainWindow):
             "passable_brown": list(getattr(level, "passable_brown_cells", set())),
             "solid_brown": list(getattr(level, "solid_brown_cells", set())),
             "invisible_solid": list(getattr(level, "invisible_solid_cells", set())),
+            "visible_in_block_item": list(getattr(level, "visible_in_block_item_cells", set())),
             "hidden_item": [],
             "hidden_meta": [],
             "mirrors": [],
@@ -3623,7 +3624,9 @@ class MainWindow(QMainWindow):
             flag = it.element_no & 0xC0
             desc = self.config.item_desc.get(base, f"item 0x{base:02x}") if self.config else f"0x{base:02x}"
             tag = ""
-            if flag == 0x40: tag = "[隠し]"
+            if tile in getattr(lv, "visible_in_block_item_cells", set()):
+                tag = "[見える白内]"
+            elif flag == 0x40: tag = "[隠し]"
             elif flag in (0x80, 0xC0): tag = "[in_block]"
             # ★アイテム番号も表示 (base コード。flag付きは raw も併記)
             code = f"0x{base:02X}"
@@ -3783,6 +3786,7 @@ class MainWindow(QMainWindow):
                         item = lv.items[idx]
                         base = item.element_no & 0x3F
                         item.element_no = base | c.ITEM_FLAG_IN_BLOCK
+                        lv.visible_in_block_item_cells.discard(tile)
                         lv.set_block(Wall.NONE, tile)
                         skip_block_placement = True
                         self.statusBar().showMessage(
@@ -3819,6 +3823,7 @@ class MainWindow(QMainWindow):
                             restore_rejected_click_edit()
                             return
                         item.element_no = base | c.ITEM_FLAG_WHITE_IN_BLOCK
+                        lv.visible_in_block_item_cells.discard(tile)
                         lv.set_block(Wall.NONE, tile)
                         skip_block_placement = True
                         self.statusBar().showMessage(
@@ -3918,7 +3923,7 @@ class MainWindow(QMainWindow):
             # 壊せない白ブロック内アイテムは禁止（取れなくなる）
             if (lv.tiles[ty][tx] == Wall.WHITE and
                     tile not in getattr(lv, "breakable_white_cells", set()) and
-                    picker_flag != c.ITEM_FLAG_WHITE_IN_BLOCK):
+                    picker_flag not in (c.ITEM_FLAG_WHITE_IN_BLOCK, c.ITEM_FLAG_VISIBLE_IN_BLOCK)):
                 self.statusBar().showMessage(
                     f"白ブロック内にはアイテムを配置できません {tile}", 3000
                 )
@@ -3937,8 +3942,20 @@ class MainWindow(QMainWindow):
             # - タイルが茶 → 強制 in_block (0x80)
             # - 壊せる白 → 強制 white-in-block (0xC0) に吸収
             # - ピッカーが白ブロック内 → item flag だけで表現
+            # - ピッカーが見える白内 → 通常アイテム + runtime変換マーカー
             # - タイルが空 → ピッカーで選択中のフラグを使用
-            if tile in getattr(lv, "breakable_white_cells", set()):
+            visible_in_block_item = picker_flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK
+            if visible_in_block_item:
+                base = value & 0x3F
+                if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
+                    self.statusBar().showMessage(
+                        f"このアイテムは見える白ブロック内に入れられません: 0x{base:02X}", 3000
+                    )
+                    restore_rejected_click_edit()
+                    return
+                lv.set_block(Wall.NONE, tile)
+                flag = c.ITEM_FLAG_NORMAL
+            elif tile in getattr(lv, "breakable_white_cells", set()):
                 base = value & 0x3F
                 if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                     self.statusBar().showMessage(
@@ -3973,6 +3990,10 @@ class MainWindow(QMainWindow):
                 flag = picker_flag
 
             lv.add_item(value | flag, tile)
+            if visible_in_block_item:
+                lv.visible_in_block_item_cells.add(tile)
+            else:
+                lv.visible_in_block_item_cells.discard(tile)
         elif mode == MODE_ENEMY:
             # 敵 + ブロック同位置は禁止（原作はほぼ皆無）
             tx, ty = tile
@@ -4117,7 +4138,12 @@ class MainWindow(QMainWindow):
         idx = lv.get_item_index(tile)
         if idx >= 0:
             self._push_undo()
-            self._move_pending = {"kind": "item", "ref": lv.items[idx]}
+            self._move_pending = {
+                "kind": "item",
+                "ref": lv.items[idx],
+                "visible_in_block": tile in getattr(lv, "visible_in_block_item_cells", set()),
+                "current_pos": tile,
+            }
             self.statusBar().showMessage(f"アイテムを掴み中 → ドラッグで移動", 0)
             return
 
@@ -4265,6 +4291,11 @@ class MainWindow(QMainWindow):
             return
 
         if kind in ("item", "enemy"):
+            if kind == "item" and mp.get("visible_in_block"):
+                cells = getattr(lv, "visible_in_block_item_cells", set())
+                cells.discard(mp.get("current_pos"))
+                cells.add(tile)
+                mp["current_pos"] = tile
             mp["ref"].position = tile
         elif kind == "meta":
             sub = mp["sub"]
@@ -4394,6 +4425,7 @@ class MainWindow(QMainWindow):
             "invisible_solid_cells",
             "passable_brown_cells",
             "solid_brown_cells",
+            "visible_in_block_item_cells",
         )
         has_runtime_marker = any(tile in getattr(lv, name, set()) for name in marker_names)
         if (
@@ -4548,6 +4580,7 @@ class MainWindow(QMainWindow):
             "invisible_solid_cells",
             "passable_brown_cells",
             "solid_brown_cells",
+            "visible_in_block_item_cells",
         )
 
     def _pop_runtime_markers_at(self, level, pos) -> set:
@@ -4617,6 +4650,7 @@ class MainWindow(QMainWindow):
             "invisible_solid_cells",
             "passable_brown_cells",
             "solid_brown_cells",
+            "visible_in_block_item_cells",
         ):
             rel = set()
             for mx, my in getattr(lv, name, set()):
@@ -4793,6 +4827,7 @@ class MainWindow(QMainWindow):
             "invisible_solid_cells",
             "passable_brown_cells",
             "solid_brown_cells",
+            "visible_in_block_item_cells",
         ):
             cells = getattr(lv, name, set())
             setattr(lv, name, {
@@ -4912,6 +4947,7 @@ class MainWindow(QMainWindow):
             flip_marker_set("invisible_solid_cells", flip_x)
             flip_marker_set("passable_brown_cells", flip_x)
             flip_marker_set("solid_brown_cells", flip_x)
+            flip_marker_set("visible_in_block_item_cells", flip_x)
             self.statusBar().showMessage("左右反転", 2000)
         else:
             flip_y = lambda cx, cy: (cx, y1 + y2 - cy)
@@ -4937,6 +4973,7 @@ class MainWindow(QMainWindow):
             flip_marker_set("invisible_solid_cells", flip_y)
             flip_marker_set("passable_brown_cells", flip_y)
             flip_marker_set("solid_brown_cells", flip_y)
+            flip_marker_set("visible_in_block_item_cells", flip_y)
             self.statusBar().showMessage("上下反転", 2000)
 
         self._refresh_view()
@@ -4957,7 +4994,7 @@ class MainWindow(QMainWindow):
             BLOCK_INVISIBLE_BREAKABLE, BLOCK_PASSABLE_WHITE, BLOCK_INVISIBLE_SOLID,
             BLOCK_PASSABLE_BROWN, BLOCK_SOLID_BROWN,
             ITEM_FLAG_NORMAL, ITEM_FLAG_HIDDEN, ITEM_FLAG_IN_BLOCK,
-            ITEM_FLAG_WHITE_IN_BLOCK,
+            ITEM_FLAG_WHITE_IN_BLOCK, ITEM_FLAG_VISIBLE_IN_BLOCK,
         )
         lv = self.levels[self.current_level_no]
         x, y = tile
@@ -4984,7 +5021,9 @@ class MainWindow(QMainWindow):
             flag = it.element_no & 0xC0
             self._set_picker_value(base, mode=MODE_ITEM)
             # フラグも反映
-            if flag == 0x40:
+            if tile in getattr(lv, "visible_in_block_item_cells", set()):
+                self.picker.rb_flag_visible_in_block.setChecked(True)
+            elif flag == 0x40:
                 self.picker.rb_flag_hidden.setChecked(True)
             elif flag == ITEM_FLAG_WHITE_IN_BLOCK:
                 self.picker.rb_flag_white_in_block.setChecked(True)
@@ -5482,6 +5521,8 @@ class MainWindow(QMainWindow):
         elif key == Qt.Key_W:
             # W → ホバー位置のアイテムフラグを「白ブロック内」に
             self._set_hover_item_flag(c.ITEM_FLAG_WHITE_IN_BLOCK, "白ブロック内")
+        elif key == Qt.Key_V:
+            self._set_hover_item_flag(c.ITEM_FLAG_VISIBLE_IN_BLOCK, "見える白内")
         elif key == Qt.Key_N:
             # N → ホバー位置のアイテムフラグを「通常」に
             self._set_hover_item_flag(c.ITEM_FLAG_NORMAL, "通常")
@@ -5507,10 +5548,13 @@ class MainWindow(QMainWindow):
 
     def _set_hover_item_flag(self, flag: int, label: str):
         """N/H/B shortcut: change the hovered item/key placement state."""
-        flag = int(flag) & 0xC0
+        flag = int(flag)
+        if flag != c.ITEM_FLAG_VISIBLE_IN_BLOCK:
+            flag &= 0xC0
         if self._hover_tile is not None and self.levels:
             lv = self.levels[self.current_level_no]
-            if not lv.is_key_removed() and lv.fixed_key_pos == self._hover_tile:
+            if (flag != c.ITEM_FLAG_VISIBLE_IN_BLOCK and
+                    not lv.is_key_removed() and lv.fixed_key_pos == self._hover_tile):
                 if self._reject_read_only_edit():
                     return
                 from ..core import constants as cc
@@ -5542,7 +5586,8 @@ class MainWindow(QMainWindow):
                 )
                 return
 
-            if not lv.is_door_removed() and lv.fixed_door_pos == self._hover_tile:
+            if (flag != c.ITEM_FLAG_VISIBLE_IN_BLOCK and
+                    not lv.is_door_removed() and lv.fixed_door_pos == self._hover_tile):
                 if self._reject_read_only_edit():
                     return
                 from ..core import room_flags as _rf
@@ -5618,7 +5663,14 @@ class MainWindow(QMainWindow):
                         return
                 tx, ty = self._hover_tile
                 base = int(item.element_no) & 0x3F
-                if flag == c.ITEM_FLAG_WHITE_IN_BLOCK:
+                if flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
+                    if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
+                        self.statusBar().showMessage(
+                            f"このアイテムは見える白ブロック内に入れられません: 0x{base:02X}", 1500
+                        )
+                        return
+                    new_no = base
+                elif flag == c.ITEM_FLAG_WHITE_IN_BLOCK:
                     if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                         self.statusBar().showMessage(
                             f"このアイテムは白い壊せるブロック内に入れられません: 0x{base:02X}", 1500
@@ -5629,7 +5681,9 @@ class MainWindow(QMainWindow):
                     new_no = base | c.ITEM_FLAG_WHITE_IN_BLOCK
                 else:
                     new_no = base | flag
-                if new_no == item.element_no:
+                old_visible = self._hover_tile in getattr(lv, "visible_in_block_item_cells", set())
+                new_visible = flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK
+                if new_no == item.element_no and old_visible == new_visible:
                     self.statusBar().showMessage(
                         f"ホバー位置のアイテム状態: {label}", 1500
                     )
@@ -5637,7 +5691,11 @@ class MainWindow(QMainWindow):
                 old_was_in_block = bool(int(item.element_no) & 0x80)
                 clear_backing_block = (
                     old_was_in_block
-                    and flag not in (c.ITEM_FLAG_IN_BLOCK, c.ITEM_FLAG_WHITE_IN_BLOCK)
+                    and flag not in (
+                        c.ITEM_FLAG_IN_BLOCK,
+                        c.ITEM_FLAG_WHITE_IN_BLOCK,
+                        c.ITEM_FLAG_VISIBLE_IN_BLOCK,
+                    )
                     and (
                         lv.tiles[ty][tx] in (Wall.BROWN, Wall.BROWN_WHITE)
                         or self._hover_tile in getattr(lv, "breakable_white_cells", set())
@@ -5645,6 +5703,12 @@ class MainWindow(QMainWindow):
                 )
                 self._push_undo()
                 item.element_no = new_no
+                visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+                if new_visible:
+                    visible_cells.add(self._hover_tile)
+                    lv.set_block(Wall.NONE, self._hover_tile)
+                else:
+                    visible_cells.discard(self._hover_tile)
                 if (new_no & 0x80) != 0:
                     lv.set_block(Wall.NONE, self._hover_tile)
                 if clear_backing_block:
@@ -6562,8 +6626,13 @@ class MainWindow(QMainWindow):
         if mode in ("all", "items"):
             if can_edit_col15:
                 lv.items = []
+                lv.visible_in_block_item_cells = set()
             else:
                 lv.items = [item for item in lv.items if item.position[0] == 15]
+                lv.visible_in_block_item_cells = {
+                    pos for pos in getattr(lv, "visible_in_block_item_cells", set())
+                    if pos[0] == 15
+                }
         if mode in ("all", "enemies"):
             if can_edit_col15:
                 lv.enemies = []
@@ -6777,6 +6846,7 @@ N: ホバー位置のアイテム/鍵/扉を通常に変更<br>
 H: ホバー位置のアイテム/鍵/扉を隠しに変更（デーモンミラー上では隠しアイテム0x48を配置）<br>
 B: ホバー位置のアイテム/鍵/扉をブロック内に変更<br>
 W: ホバー位置のアイテム/鍵/扉を白ブロック内に変更<br>
+V: ホバー位置のアイテムを見える白内に変更<br>
 <br>
 <b>範囲編集</b><br>
 Ctrl+C: コピー<br>

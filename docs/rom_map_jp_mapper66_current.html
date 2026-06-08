@@ -135,6 +135,7 @@
       <tr><td class="num">0x639C-0x63B4 / 0x61EC-0x61F7</td><td>Stage start announcement draw helper</td><td>`$9471` 互換の待機を行う開始画面アナウンス用PPU scriptポインタ共有ヘルパ。</td></tr>
       <tr><td class="num">0x60FC-0x6108 / 0x612C-0x6138 / 0x618C-0x619A / 0x61BC-0x61C8 / 0x657C-0x658A / 0x66FC-0x670B</td><td>Stage start announcement scripts</td><td>`DARK ROOM` / `FIRE LOSS` / `HIDDEN DOOR` / `KEY ENEMY` / `FIRE SEALED` / `SPELL SEALED`。</td></tr>
       <tr><td class="num">0x67B4-0x67F6</td><td>Panel Variant parent speed guard</td><td>`$866D` hook target。`$8AC0` 後にA/B/Cと借用Panel IDの親速度・サブピクセルを消す。</td></tr>
+      <tr><td class="num">0x675C-0x6772</td><td>Visible item in-block helper</td><td>`$E74C` NMI helper。`$0750-$075F` の0終端セルリストを見て、通常表示アイテムを白ブロック内アイテムへ差し替える。</td></tr>
       <tr><td class="num">0x681C-0x6832</td><td>Transparent Spark Ball Golem-ID AI wrapper</td><td>原作00埋め領域を利用。`$A35C/$A35E` から呼ばれる透明Spark Ball用Golem-ID wrapper。</td></tr>
       <tr><td class="num">0x6833-0x6885</td><td>Panel Variant Bullet speed extra-step helper</td><td>Applies the real 2x/3x conversion substeps and samples Bullet collision after each extra step.</td></tr>
       <tr><td class="num">0x68AC-0x68C0</td><td>Panel Variant dynamic speed marker helper</td><td>Panel Variant Bullet speed marker helper relocated from the post-Bullet-hook gap.</td></tr>
@@ -162,6 +163,7 @@
       <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x61EC-0x61F7</td><td class="num">$E1DC-$E1E7</td><td class="num">12B</td><td>00埋め</td><td>開始画面アナウンス pointer table。</td></tr>
       <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x639C-0x63B4 / 0x63CC-0x63E3</td><td class="num">$E38C-$E3A4 / $E3BC-$E3D3</td><td class="num">49B</td><td>00埋め</td><td>draw helper / main routine。</td></tr>
       <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x657C-0x658A / 0x66FC-0x670B</td><td class="num">$E56C-$E57A / $E6EC-$E6FB</td><td class="num">31B</td><td>00埋め</td><td>FIRE SEALED、SPELL SEALED scripts。</td></tr>
+      <tr><td>00埋め上書き</td><td><code>room_flags.py</code></td><td class="num">0x675C-0x6772</td><td class="num">$E74C-$E762</td><td class="num">23B</td><td>00埋め</td><td>Visible item in-block helper。<code>$0750-$075F</code> の0終端セルリストを最大16セル走査する。</td></tr>
       <tr><td>00埋め上書き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x681C-0x6832</td><td class="num">$E80C-$E822</td><td class="num">23B</td><td>00埋め</td><td>Transparent Spark Ball Golem-ID AI wrapper。旧配置 <code>$8BE2</code> は initial magic / lives と衝突するため使用しない。</td></tr>
       <tr><td>小routine</td><td><code>spark_ball_variant.py</code></td><td class="num">0x6FD4-0x7004</td><td class="num">$EFC4-$EFF4</td><td class="num">49B</td><td>EA埋め</td><td>Spark Ball pause hook。ID判定を圧縮済み。</td></tr>
     </table>
@@ -219,7 +221,7 @@
     </div>
     <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
     <div class="note">
-      <b>棚卸メモ:</b> 2026-05-30 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち使用中1,511B、未予約59B。内訳は原作00埋め2B、原作EA埋め57B、最大連続空き10B。Panel Variant final split runtime はproduction予約として含める。
+      <b>棚卸メモ:</b> 2026-06-08 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち使用中1,540B、未予約30B。内訳は原作00埋め2B、原作EA埋め28B、最大連続空き5B。Panel Variant final split runtime と Panel Monster / Variant animation hook はproduction予約として含める。
       実装側の許容スパン上は <code>0x4190-0x420D</code> が expanded table span と key enemy で重複するため、空き計算は重複を二重加算しない union で扱う。
     </div>
     <div class="note">
@@ -239,18 +241,11 @@
       <tr><td class="num">0x3D97</td><td class="num">$BD87</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x3E4D-0x3E4F</td><td class="num">$BE3D-$BE3F</td><td class="num">3B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x3E8E-0x3E8F</td><td class="num">$BE7E-$BE7F</td><td class="num">2B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num">0x3EBC-0x3EC5</td><td class="num">$BEAC-$BEB5</td><td class="num">10B</td><td>原作EA埋め。Panel Variant group RAM offset helper配置後の残り。直後はkey enemy chunk。</td></tr>
-      <tr><td class="num">0x3ED4-0x3ED6</td><td class="num">$BEC4-$BEC6</td><td class="num">3B</td><td>原作EA埋め。Panel Variant speed select helper配置後の断片。直後はSpark Ball OAM hide hook。</td></tr>
       <tr><td class="num">0x3EF9</td><td class="num">$BEE9</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num">0x3F5C-0x3F5F</td><td class="num">$BF4C-$BF4F</td><td class="num">4B</td><td>原作EA埋め。Panel Variant static fire marker helper配置後の断片。</td></tr>
-      <tr><td class="num">0x3FE5-0x3FE7</td><td class="num">$BFD5-$BFD7</td><td class="num">3B</td><td>Panel Variant type classifier main直後の断片。</td></tr>
       <tr><td class="num">0x3FF8-0x3FFC</td><td class="num">$BFE8-$BFEC</td><td class="num">5B</td><td>原作EA埋め。Spark Ball slow AI wrapperのID判定圧縮で回収。直後はkey enemy chunk。</td></tr>
       <tr><td class="num">0x400F</td><td class="num">$BFFF</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num">0x40CF-0x40D1</td><td class="num">$C0BF-$C0C1</td><td class="num">3B</td><td>原作EA埋め。Panel Variant Bullet speed apply + speed table配置後の断片。</td></tr>
-      <tr><td class="num">0x4152-0x4155</td><td class="num">$C142-$C145</td><td class="num">4B</td><td>原作EA埋め。Panel Variant stage dispatch helper配置後の断片。</td></tr>
       <tr><td class="num">0x418F</td><td class="num">$C17F</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num">0x420E-0x420F</td><td class="num">$C1FE-$C1FF</td><td class="num">2B</td><td>原作EA埋め。Key enemy runtime末尾後の断片。</td></tr>
-      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>59B</b></td><td>現行production予約を除いた合計。内訳は00埋め2B / EA埋め57B。最大連続は <code>$BEAC-$BEB5</code> の10B。</td></tr>
+      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>30B</b></td><td>現行production予約と旧Panel Variant tail互換予約を除いた合計。内訳は00埋め2B / EA埋め28B。最大連続は <code>$BD36-$BD3A</code> / <code>$BFE8-$BFEC</code> の5B。</td></tr>
     </table>
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
@@ -282,13 +277,13 @@
       <tr><td>Spark Ball slow AI wrapper</td><td class="num">0x3FE8-0x3FF7</td><td class="num">$BFD8-$BFE7</td><td class="num">16B</td><td>Dragon-ID <code>$6A/$6B</code> routing. ID判定を <code>AND #$FE</code> で圧縮済み。</td></tr>
       <tr><td>gap_fix cave</td><td class="num">0x4010-0x4097</td><td class="num">$C000-$C087</td><td class="num">136B</td><td class="ok">No overlap with Spark Ball variants or key enemies as of v0.6.158.</td></tr>
       <tr><td>Panel Variant Bullet speed apply + speed table</td><td class="num">0x4098-0x40CE</td><td class="num">$C088-$C0BE</td><td class="num">55B</td><td>Applies 1/4, 1/2, 2x, and 3x speed presets. Fast presets call the extra-step helper for collision-safe substeps.</td></tr>
-      <tr><td>Panel Monster animation selector</td><td class="num">0x40D2-0x40FF</td><td class="num">$C0C2-$C0EF</td><td class="num">46B</td><td>Panel Monster borrowed-ID animation selector. Spark Ball animation hook at <code>$CFDE</code> falls through here for non-Spark types.</td></tr>
-      <tr><td>runtime special-cell scanner</td><td class="num">0x4100-0x4142</td><td class="num">$C0F0-$C132</td><td class="num">67B</td><td>Scans visible `$0304` grid after draw and converts direct m66 special cell IDs: `$F9->$90`, `$FA->$10`, `$40->$F8`, `$50->$90`, `$A3->$10`, `$A4->$F8`. Current routine is 65B plus 2B EA padding for legacy cleanup.</td></tr>
+      <tr><td>Panel Monster / Variant animation hook</td><td class="num">0x40D2-0x40FF</td><td class="num">$C0C2-$C0EF</td><td class="num">46B</td><td>Panel Monster type-specific animation hook. Panel Variant final split may replace the body; do not use as free space.</td></tr>
+      <tr><td>runtime special-cell scanner</td><td class="num">0x4100-0x4142</td><td class="num">$C0F0-$C132</td><td class="num">67B</td><td>Scans visible `$0304` grid after draw and converts direct m66 special cell IDs: `$F9->$90`, `$FA->$10`, `$40->$F8`, `$50->$90`, `$A3->$10`, `$A4->$F8`. Current routine is 66B plus 1B EA padding and calls the `$E74C` visible item helper before setting the one-shot done flag.</td></tr>
       <tr><td>Panel Variant stage dispatch helper</td><td class="num">0x4143-0x4151</td><td class="num">$C133-$C141</td><td class="num">15B</td><td>Panel Variant ID帯ならstage entry、通常Panelならnormal entryへ分岐。</td></tr>
       <tr><td>Panel Monster Demonhead-ID AI wrapper</td><td class="num">0x4156-0x418E</td><td class="num">$C146-$C17E</td><td class="num">57B</td><td>Older Panel Monster borrowed-ID wrapper. When Panel Variant A/B/C runtime is active, `$A34C/$A34E/$A350` are redirected to the relocated `$E8B1` wrapper instead.</td></tr>
       <tr><td>Key enemy dropped-key handler</td><td class="num">0x4190-0x41E5</td><td class="num">$C180-$C1D5</td><td class="num">86B</td><td>Relocated from `$C0F0` in v0.6.157. PRG0 DoorCellTable/RoomFlagTable moved to PRG1 StageExt runtime bytes.</td></tr>
       <tr><td>Key enemy binder / defeat chunk</td><td class="num">0x41E6-0x420D</td><td class="num">$C1D6-$C1FD</td><td class="num">40B</td><td>Initial-slot binder plus one split key-dropper chunk. Reclaimed from the former PRG0 RoomFlag/Door tables.</td></tr>
-      <tr><td>Reclaimed PRG0 tail</td><td class="num">0x420E-0x420F</td><td class="num">$C1FE-$C1FF</td><td class="num">2B</td><td>Free after the v0.6.158 key/gap_fix relocation.</td></tr>
+      <tr><td>Expanded table tail padding</td><td class="num">0x420E-0x420F</td><td class="num">$C1FE-$C1FF</td><td class="num">2B</td><td>Kept under the expanded DoorCell/RoomFlag table allowance; not counted as free production space.</td></tr>
     </table>
   </div>
 
@@ -307,7 +302,8 @@
       <div class="seg free" style="width:3.49%">reserve<br><small>1,145B</small></div>
       <div class="seg data" style="width:41.41%">level data<br><small>13,568B</small></div>
       <div class="seg data" style="width:2.59%">drop schedule</div>
-      <div class="seg free" style="width:5.18%">freed block table<br><small>1,696B</small></div>
+      <div class="seg data" style="width:2.59%">visible item list<br><small>848B</small></div>
+      <div class="seg free" style="width:2.59%">freed block table<br><small>848B</small></div>
       <div class="seg meta" style="width:.20%">META</div>
       <div class="seg free" style="width:.59%">reserve</div>
       <div class="seg meta" style="width:.05%">vec</div>
@@ -315,8 +311,8 @@
     <div class="labels"><span>$8000</span><span>$80C0</span><span>$87F0</span><span>$BB86</span><span>$C000</span><span>$F500</span><span>$FEF0</span><span>$FFFF</span></div>
     <div class="note">
       <b>PRG1 reserve:</b>
-      general reserve 11,542B + bank1 reserve 1,145B + freed runtime block table 1,696B + tail reserve 192B =
-      <b>14,575B</b> が現在の候補。既存のwide title / StageExt / PanelVariant / level data / drop schedule / metadata / vectorsは踏まない。
+      general reserve 11,542B + bank1 reserve 1,145B + freed runtime block table reserve 848B + tail reserve 192B =
+      <b>13,727B</b> が現在の候補。既存のwide title / StageExt / PanelVariant / visible item list / level data / drop schedule / metadata / vectorsは踏まない。
     </div>
     <table>
       <tr><th>用途</th><th>file offset</th><th>bank1 CPU</th><th>Size</th><th>備考</th></tr>
@@ -331,7 +327,8 @@
       <tr><td>bank1 reserve</td><td class="num">0xBB97-0xC00F</td><td class="num">$BB87-$BFFF</td><td class="num">1,145B</td><td>Small bank1 reserve.</td></tr>
       <tr><td>expanded level data</td><td class="num">0xC010-0xF50F</td><td class="num">$C000-$F4FF</td><td class="num">13,568B</td><td>53 rooms x 256B.</td></tr>
       <tr><td>mirror/drop schedule</td><td class="num">0xF510-0xF85F</td><td class="num">$F500-$F84F</td><td class="num">848B</td><td>53 rooms x mirror/drop bytes.</td></tr>
-      <tr><td>freed runtime block override table</td><td class="num">0xF860-0xFEFF</td><td class="num">$F850-$FEEF</td><td class="num">1,696B</td><td>Old per-room 32B cell lists. v0.7.72 no longer reads this table; saves clear it to `$FF`. Candidate PRG1 reserve after retesting.</td></tr>
+      <tr><td>Visible item in-block runtime list</td><td class="num">0xF860-0xFBAF</td><td class="num">$F850-$FB9F</td><td class="num">848B</td><td>53 rooms x 16B. Mapper66 loader copies the current 0-terminated room list to RAM <code>$0750-$075F</code>; PRG0 helper <code>$E74C</code> converts those normal-looking item cells to <code>$C0+item</code> after initial draw.</td></tr>
+      <tr><td>freed runtime block override table reserve</td><td class="num">0xFBB0-0xFEFF</td><td class="num">$FBA0-$FEEF</td><td class="num">848B</td><td>Remaining half of the old per-room 32B cell-list area. Candidate PRG1 reserve after retesting.</td></tr>
       <tr><td>SOLOMON_CUSTOMIZER metadata stamp</td><td class="num">0xFF00-0xFF3F</td><td class="num">$FEF0-$FF2F</td><td class="num">64B</td><td><code>SOLOMON_CUSTOMIZER_META</code> + format + app version.</td></tr>
       <tr><td>bank1 tail reserve</td><td class="num">0xFF40-0xFFFF</td><td class="num">$FF30-$FFEF</td><td class="num">192B</td><td>Reserve before vectors.</td></tr>
       <tr><td>vectors copy</td><td class="num">0x10000-0x1000F</td><td class="num">$FFF0-$FFFF</td><td class="num">16B</td><td>Copied PRG vectors.</td></tr>
@@ -373,9 +370,9 @@
     <tr><td>fire marker table</td><td class="num">0x3D04-0x3D0E</td><td class="num">$BCF4-$BCFE</td><td class="num">11B / 11B</td><td>2way/3way固定マーカーとPanel Variant動的マーカーsentinelを持つtable。Gargoyle 2-shot gate直前の小断片へ退避。</td></tr>
     <tr><td>common fire loop</td><td class="num">0x3D98-0x3E09</td><td class="num">$BD88-$BDF9</td><td class="num">114B / 120B</td><td>既存common fire枠内。静的/動的マーカーhelperとtableを外出しして収める。マーカーなし弾は子sub+7を0クリアして、前回の速度マーカー残留を防ぐ。</td></tr>
     <tr><td>state0 interval helper</td><td class="num">0x3E72-0x3E83</td><td class="num">$BE62-$BE73</td><td class="num">18B / 18B</td><td>発射間隔比較。group RAM offset helperを共有。</td></tr>
-    <tr><td>group RAM offset helper</td><td class="num">0x3EAF-0x3EBB</td><td class="num">$BE9F-$BEAB</td><td class="num">13B / 23B</td><td>A/B/C-only group offset helperを呼び、<code>X=$FF</code>なら原作比較へ戻す薄いwrapper。</td></tr>
-    <tr><td>speed select helper</td><td class="num">0x3ECD-0x3ED3</td><td class="num">$BEBD-$BEC3</td><td class="num">7B / 10B</td><td>group offsetから速度presetを読む。</td></tr>
-    <tr><td>static fire marker helper</td><td class="num">0x3F50-0x3F5B</td><td class="num">$BF40-$BF4B</td><td class="num">12B / 16B</td><td>既存2way/3way用の固定マーカー書き込みhelper。</td></tr>
+    <tr><td>group RAM offset helper</td><td class="num">0x3EAF-0x3EC5</td><td class="num">$BE9F-$BEB5</td><td class="num">13B / 23B</td><td>A/B/C-only group offset helperを呼び、<code>X=$FF</code>なら原作比較へ戻す薄いwrapper。13B使用、残りは旧tail互換予約。</td></tr>
+    <tr><td>speed select helper</td><td class="num">0x3ECD-0x3ED6</td><td class="num">$BEBD-$BEC6</td><td class="num">7B / 10B</td><td>group offsetから速度presetを読む。7B使用、残りは旧tail互換予約。</td></tr>
+    <tr><td>static fire marker helper</td><td class="num">0x3F50-0x3F5F</td><td class="num">$BF40-$BF4F</td><td class="num">12B / 16B</td><td>既存2way/3way用の固定マーカー書き込みhelper。12B使用、残りは旧tail互換予約。</td></tr>
     <tr><td>AI dispatch Panel tail</td><td class="num">0x678C-0x6797</td><td class="num">$E77C-$E787</td><td class="num">12B / 23B</td><td>Odd Panel Variant IDs only. Preserves decoded direction in X, discards saved A/Y, calls the parent-field clear helper, then enters the relocated shared direction setter.</td></tr>
     <tr><td>parent field clear helper</td><td class="num">0x67A3-0x67B3</td><td class="num">$E793-$E7A3</td><td class="num">17B / 17B</td><td>Clears <code>main+5/main+6/main+8/main+9</code> for A/B/C and redirected older Panel Monster borrowed IDs before entering stock Panel AI.</td></tr>
     <tr><td>parent speed guard</td><td class="num">0x67B4-0x67F6</td><td class="num">$E7A4-$E7E6</td><td class="num">67B / 104B</td><td><code>$866D</code> hook target. Runs stock <code>$8AC0</code>, then clears <code>main+5/main+6/main+8/main+9</code> for accepted A/B/C Panel Variant parents and borrowed Panel IDs <code>$52/$53/$56/$57/$5A/$5B/$66/$67</code>. This prevents borrowed enemy speed from being reintroduced during later speed initialization.</td></tr>
@@ -384,11 +381,11 @@
     <tr><td>relocated Panel/Demonhead shared AI wrapper</td><td class="num">0x68C1-0x68FB</td><td class="num">$E8B1-$E8EB</td><td class="num">59B / 171B</td><td>When A/B/C runtime is active, `$52/$53/$56/$57/$5A/$5B` are routed here. Calls the parent-field clear helper before setting Panel direction bits and jumping to `$A54C`.</td></tr>
     <tr><td>A/B/C-only group offset helper</td><td class="num">0x693C-0x6959</td><td class="num">$E92C-$E949</td><td class="num">30B / 48B</td><td>Maps only odd A/B/C IDs to runtime setting offsets: A=0, B=2, C=4. Even IDs and older 2-way/3-way Panel Monster IDs return <code>X=$FF</code> and do not read <code>$0740-$0745</code>.</td></tr>
     <tr><td>AI dispatch entry</td><td class="num">0x696C-0x697E</td><td class="num">$E95C-$E96E</td><td class="num">19B / 24B</td><td>Preserves A/Y for non-Panel original enemies, then jumps to the Panel tail only for odd Panel Variant IDs.</td></tr>
-    <tr><td>Bullet speed apply + speed table</td><td class="num">0x4098-0x40CE</td><td class="num">$C088-$C0BE</td><td class="num">55B / 58B</td><td>既存 <code>$C088-$C0C1</code> 空きへ配置可能。速度適用47B + 速度表8B。</td></tr>
-    <tr><td>stage dispatch helper</td><td class="num">0x4143-0x4151</td><td class="num">$C133-$C141</td><td class="num">15B / 19B</td><td>Panel Variant ID帯ならstage entry、通常Panelならnormal entryへ分岐。Gargoyle 2-shot領域を避けるためreclaimed runtime tailへ配置。</td></tr>
+    <tr><td>Bullet speed apply + speed table</td><td class="num">0x4098-0x40D1</td><td class="num">$C088-$C0C1</td><td class="num">55B / 58B</td><td>速度適用47B + 速度表8B。55B使用、残りは旧tail互換予約。</td></tr>
+    <tr><td>stage dispatch helper</td><td class="num">0x4143-0x4155</td><td class="num">$C133-$C145</td><td class="num">15B / 19B</td><td>Panel Variant ID帯ならstage entry、通常Panelならnormal entryへ分岐。15B使用、残りは旧tail互換予約。</td></tr>
     <tr><td>Panel Monster legacy shared AI wrapper</td><td class="num">0x4156-0x418D</td><td class="num">$C146-$C17D</td><td class="num">56B / 57B</td><td>Older Panel Monster wrapper remains for non-A/B/C saves. A/B/C active saves redirect the relevant AI table entries to `$E8B1`.</td></tr>
     <tr><td>merged Panel Bullet hook</td><td class="num">0x3F79-0x3FC9</td><td class="num">$BF69-$BFB9</td><td class="num">81B</td><td>現行78B hookへ <code>JSR $E823</code> を追加。<code>$E823</code> 側で速度表適用と2x/3x追加サブステップを行う。</td></tr>
-    <tr><td>type classifier main</td><td class="num">0x3FCA-0x3FE4</td><td class="num">$BFBA-$BFD4</td><td class="num">27B / 30B</td><td>Panel visual/property判定の入口。詳細分類が必要なIDはtailへ送る。</td></tr>
+    <tr><td>type classifier main</td><td class="num">0x3FCA-0x3FE7</td><td class="num">$BFBA-$BFD7</td><td class="num">27B / 30B</td><td>Panel visual/property判定の入口。詳細分類が必要なIDはtailへ送る。27B使用、残りは旧tail互換予約。</td></tr>
     <tr><td>type classifier tail</td><td class="num">0x5AC9-0x5ADC</td><td class="num">$DAB9-$DACC</td><td class="num">20B / 20B</td><td>既存強化Panel MonsterとA/B/C Panel Variantを共通でPanel表示判定する。</td></tr>
   </table>
 
@@ -401,11 +398,9 @@
   </div>
   <table>
     <tr><th>file offset</th><th>CPU</th><th>Size</th><th>扱い</th></tr>
-    <tr><td class="num">0x6886-0x68AB</td><td class="num">$E876-$E89B</td><td class="num">38B</td><td>原作00埋め。Panel Variant parent speed guardを <code>$E7A4</code> へ移動した後の断片。</td></tr>
-    <tr><td class="num">0x68FC-0x693B / 0x695A-0x696B</td><td class="num">$E8EC-$E92B / $E94A-$E95B</td><td class="num">64B + 18B</td><td>原作00埋め。Panel Variant relocated shared AI wrapper / A/B/C-only group offset helper配置後、AI dispatch entry直前の残り。</td></tr>
     <tr><td class="num">0x697F-0x6983</td><td class="num">$E96F-$E973</td><td class="num">5B</td><td>原作00埋め。Panel Variant AI dispatch entry配置後の残り。</td></tr>
-    <tr><td class="num">0x6798-0x67A2 / 0x67F7-0x681B</td><td class="num">$E788-$E792 / $E7E7-$E80B</td><td class="num">11B + 37B</td><td>原作00埋め。Panel Variant AI dispatch Panel tail / parent field clear helper / parent speed guard配置後の断片。</td></tr>
-    <tr><td class="num">0x675C-0x6773</td><td class="num">$E74C-$E763</td><td class="num">24B</td><td>原作00埋め。小routine候補。</td></tr>
+    <tr><td class="num">0x6798-0x67A2</td><td class="num">$E788-$E792</td><td class="num">11B</td><td>原作00埋め。Panel Variant AI dispatch Panel tail / parent field clear helper / parent speed guard配置後の断片。</td></tr>
+    <tr><td class="num">0x6773</td><td class="num">$E763</td><td class="num">1B</td><td>Visible item in-block helper配置後の断片。</td></tr>
     <tr><td class="num">0x6465-0x6474</td><td class="num">$E455-$E464</td><td class="num">16B</td><td>原作00埋め。かなり短い補助routine候補。</td></tr>
   </table>
   <div class="note">
@@ -416,13 +411,12 @@
   <table>
     <tr><th>file offset</th><th>CPU</th><th>Size</th><th>扱い</th></tr>
     <tr><td class="num">0x3D32-0x3D35</td><td class="num">$BD22-$BD25</td><td class="num">4B</td><td>bank0 cave内。Gargoyle 2-shot gate拡張後の短い断片。</td></tr>
-    <tr><td class="num">0x3EBC-0x3EC5</td><td class="num">$BEAC-$BEB5</td><td class="num">10B</td><td>bank0 cave内。現行bank0 caveの最大連続EA空き。</td></tr>
+    <tr><td class="num">0x3D46-0x3D4A</td><td class="num">$BD36-$BD3A</td><td class="num">5B</td><td>bank0 cave内。Spark Ball fast AI wrapper直後の断片。</td></tr>
     <tr><td class="num">0x3FF8-0x3FFC</td><td class="num">$BFE8-$BFEC</td><td class="num">5B</td><td>bank0 cave内。Spark Ball slow AI wrapper直後の断片。</td></tr>
-    <tr><td class="num">0x40CF-0x40D1 / 0x4152-0x4155</td><td class="num">$C0BF-$C0C1 / $C142-$C145</td><td class="num">3B + 4B</td><td>bank0 cave内。Panel Variant final split配置後の短い末尾断片。</td></tr>
     <tr><td class="num">0x5005-0x500F</td><td class="num">$CFF5-$CFFF</td><td class="num">11B</td><td>Spark Ball animation hook圧縮後の末尾断片。</td></tr>
     <tr><td class="num">0x6A61-0x6A66</td><td class="num">$EA51-$EA56</td><td class="num">6B</td><td>原作EA埋め。短い補助候補だが周辺用途は再確認する。</td></tr>
     <tr><td class="num">0x7005-0x700F / 0x5C0B-0x5C0F</td><td class="num">$EFF5-$EFFF / $DBFB-$DBFF</td><td class="num">11B + 5B</td><td>Spark Ball pause hook圧縮後を含む既存hook帯末尾の断片。基本は埋め草用。</td></tr>
-    <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>59B</b></td><td>この表だけの候補抜粋合計。bank0 cave内26B、bank0 cave外33B。bank0 cave全体のEA未予約57Bとは別集計。</td></tr>
+    <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>47B</b></td><td>この表だけの候補抜粋合計。bank0 cave内14B、bank0 cave外33B。bank0 cave全体のEA未予約28Bとは別集計。</td></tr>
   </table>
 </main>
 </body>

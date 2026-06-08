@@ -24,6 +24,7 @@ DEFAULT_KEY_ENEMY_SLOT = 0xFF
 RUNTIME_ROOM_FLAGS_OFFSET = 6
 RUNTIME_DOOR_CELL_OFFSET = 7
 RAM_RUNTIME_DOOR_CELL = 0x077C
+RUNTIME_ROOM_FLAGS_USER_MASK = 0xDF
 
 OFF_M66_LOADER_TAIL = 0x80C4
 CPU_PRG1_STAGE_EXT_COPY = 0x8A00
@@ -85,7 +86,7 @@ def _entry_to_level(entry: bytes, level) -> None:
     level.key_enemy_mode = entry[3] & 0xFF
     level.announce_id = entry[4] & 0xFF
     level.announce_flags = entry[5] & 0xFF
-    level.room_flags = entry[RUNTIME_ROOM_FLAGS_OFFSET] & 0xFF
+    level.room_flags = entry[RUNTIME_ROOM_FLAGS_OFFSET] & RUNTIME_ROOM_FLAGS_USER_MASK
 
 
 def build_table(levels: list, runtime_room_flags: list = None, door_cells: list = None) -> bytes:

@@ -15,6 +15,7 @@ bank0 のコードケーブに注入し、部屋別の改造を実現する。
   bit1 = ブロック内扉      (扉セルにbit7を立て、開始前扉描画を抑止)
   bit0+bit1 = 白ブロック内扉 (扉セルにbit6+bit7を立てる)
   bit2 = B火球(魔法)禁止   ← ステップ1で実装
+  bit5 = 見える白内アイテムruntime listあり (保存時に自動付与)
   他bit は将来拡張
 
 CLAUDE.md 準拠:
@@ -76,10 +77,9 @@ verbatim コピーするため file offset 不変):
 #                                 $0740=A speed / $0741=A interval /
 #                                 $0742=B speed / $0743=B interval /
 #                                 $0744=C speed / $0745=C interval。
-#   $0750-$075F OLD_RUNTIME_BLOCK_LIST 旧特殊ブロックlist 残り候補16B
-#                               ・v0.7.72で特殊ブロックはm66セルID直書き化。
-#                               ・旧PRG1→$0740コピーは無効化済み。
-#                               ・Panel stage variant が $0740-$074F を予約。
+#   $0750-$075F VISIBLE_INBLOCK_ITEM_LIST 見える白内アイテムcell list 予約済(使用中)
+#                               ・mapper66 loader がPRG1 0xF860 tableからコピー。
+#                               ・$E74C helper が0終端listを参照。
 #   $0760-$0777 ENTITY_TAIL_CANDIDATE 補助候補24B         要probe
 #   $0778       ROOMFLAGS       room flag table cache         予約済(使用中)
 #   $0779       DARK_PHASE      暗闇 明滅フェーズカウンタ      予約済(使用中)
@@ -106,7 +106,7 @@ verbatim コピーするため file offset 不変):
 #     面$02/$04/$05/$08・妖精×4・死亡 で実機沈黙確認。
 #     → v0.7.72で旧特殊ブロック32Bリストを廃止し、v0.7.149時点で
 #        $0740-$074F はPanel Variant cacheとして予約済み。
-#        まとまったcustom RAMは$0750-$075Fを第一候補にする。
+#        $0750-$075F は見える白内アイテムruntime listとして予約済み。
 #        $073A-$073F / $0760-$0777 / $077D-$077F は補助候補だが、
 #        沈黙でも構造保証は弱いので正式使用前に用途別probe必須。
 #   ・$0780-$07DF = probe で書込検出 = ★使用禁止。
@@ -125,7 +125,7 @@ verbatim コピーするため file offset 不変):
 #   1. ★まず "増やさない" を検討。既存値から再計算できないか?
 #      例: room flag は $0428→$C1C0,X ROMテーブル再読込で RAM不要化可。
 #          暗闇周期も $043C/$043D(global frame counter)から導出余地。
-#   2. まとまったRAMが必要 → $0750-$075F を第一候補として予約。
+#   2. まとまったRAMが必要 → $0760-$0777 を候補にする。
 #      小フラグだけなら $077D-$077F も候補。
 #      用途名を決めて上の表に追記してからコードで使う。
 #   3. 長期保存 / 毎NMI書込 / 複数バイト連続使用 → ★再プローブ必須
@@ -140,7 +140,7 @@ verbatim コピーするため file offset 不変):
 #   $0723-$072B KEY_ENEMY_RUNTIME      key-carrying enemy runtime, reserved in use
 #   $073A-$073F ENTITY_TAIL_CANDIDATE  secondary 6-byte candidate, probe before use
 #   $0740-$074F PANEL_VARIANT_CACHE    Panel stage-variant runtime cache, reserved in use
-#   $0750-$075F OLD_RUNTIME_BLOCK_LIST remaining 16-byte freed candidate, probe before use
+#   $0750-$075F VISIBLE_INBLOCK_ITEM_LIST visible item in-block runtime list, reserved in use
 #   $0760-$0777 ENTITY_TAIL_CANDIDATE  secondary 24-byte candidate, probe before use
 #   $0778       ROOMFLAGS              room flag table cache, reserved in use
 #   $0779       DARK_PHASE             dark-room phase counter, reserved in use
@@ -164,6 +164,7 @@ BIT_NO_ASTONE   = 0x80  # bit7: A換石(石作成)禁止 (SE $08==$11 のみ却�
                         #   ※A禁止は階段が作れず進行不能になり得る独立option
 BIT_DARK        = 0x08  # bit3: 暗闇面 (この面プレイ中 BGを明滅で消す。
                         #   明/暗フレーム数は全体共通テンポ。必ず明から)
+BIT_VISIBLE_INBLOCK_ITEMS = 0x20  # bit5: runtime-only visible item -> white in-block list present
 
 ROOM_COUNT = 64  # RoomFlagTable サイズ ($0428 = $00..$34 / 53面+特殊)
 
@@ -192,6 +193,8 @@ OFF_DOORTAB     = 0x4190   # $C180  DoorCellTable (64B; mapper66ではStageExt�
 OFF_TABLE       = 0x41D0   # $C1C0  RoomFlagTable (64B; mapper66ではStageExtへ移設)
 OFF_DARK_CAVE   = 0x3C90   # $BC80  DARK (56B、明滅BG制御)
 OFF_TEMPO       = 0x3CE0   # $BCD0  全体共通テンポ 2B [LIGHT, PERIOD]
+OFF_VISIBLE_INBLOCK_HELPER = 0x675C  # $E74C  visible item -> white in-block helper
+VISIBLE_INBLOCK_HELPER_CAPACITY = 0x18
 OFF_BW_CAVE     = 0x4100   # $C0F0  breakable-white one-shot NMI routine
 OFF_CAVE_FREE0  = 0x3BEE   # $BBDE  (cave 空き判定の起点)
 OFF_CAVE_FREE1  = 0x4210   # $C200  (cave 空き判定の終点)
@@ -235,14 +238,19 @@ assert len(DARK_CAVE) == 56
 #   $A3 -> $10  passable brown
 #   $A4 -> $F8  solid brown
 BW_CAVE = bytes.fromhex(
-    "ad7f05c9c0902aad7a07d025a2c0bd1303c940f01dc9a4f019"
-    "c950f019c9f9f015c9faf015c9a3f011cad0e2a9018d7a0760"
-    "a9f8d006a990d002a9109d1303d0e8"
+    "ad7f05c9c0902bad7a07d026a2c0bd1303c940f01ec9a4f01a"
+    "c950f01ac9f9f016c9faf016c9a3f012cad0e2204ce78d7a0760"
+    "a9f8d006a990d002a9109d1303d0e7"
 )
-assert len(BW_CAVE) == 65
 BW_CAVE_RESERVED_SIZE = 67
+assert len(BW_CAVE) <= BW_CAVE_RESERVED_SIZE
 BW_CAVE_BLOB = BW_CAVE + bytes([0xEA] * (BW_CAVE_RESERVED_SIZE - len(BW_CAVE)))
 assert len(BW_CAVE_BLOB) == BW_CAVE_RESERVED_SIZE
+
+VISIBLE_INBLOCK_HELPER = bytes.fromhex(
+    "a200bc5007f00db9040309c0990403e8e010d0eea90160"
+)
+assert len(VISIBLE_INBLOCK_HELPER) <= VISIBLE_INBLOCK_HELPER_CAPACITY
 # 全体共通テンポ既定: 明45フレ / 暗100フレ → PERIOD=145
 TEMPO_DEFAULT = bytes([45, 145])  # [LIGHT, PERIOD(=LIGHT+DARK)]
 
@@ -365,6 +373,17 @@ def _verify(rom_data) -> None:
         (OFF_DOORTAB, ROOM_COUNT),
         (OFF_TABLE, ROOM_COUNT),
     )
+    pmsv_capacity_spans = (
+        (_pmsv.OFF_FINAL_PANEL_TYPE_CLASSIFIER, 0x1E),
+        (_pmsv.OFF_FINAL_STAGE_DISPATCH_HELPER, 0x13),
+        (_pmsv.OFF_FINAL_GROUP_RAM_OFFSET_HELPER, 0x17),
+        (_pmsv.OFF_FINAL_SPEED_SELECT_HELPER, 0x0A),
+        (_pmsv.OFF_FINAL_STATIC_MARKER_HELPER, 0x10),
+        (
+            _pmsv.OFF_FINAL_BULLET_SPEED_APPLY,
+            len(_pmsv.FINAL_BULLET_SPEED_APPLY) + len(_pmsv.FINAL_BULLET_SPEED_TABLE) + 0x03,
+        ),
+    )
     _spans = (
         (OFF_LOADER_CAVE, len(LOADER_CAVE)),
         (OFF_MAGIC_CAVE, len(MAGIC_CAVE)),
@@ -379,6 +398,7 @@ def _verify(rom_data) -> None:
         *_gv.RESERVED_SPANS,                 # Gargoyle #2 two-Bullet variant
         *_pmv.RESERVED_SPANS,                # Panel Monster borrowed-ID variants
         *_pmsv.RESERVED_SPANS,               # Panel Variant A/B/C split runtime
+        *pmsv_capacity_spans,                # Panel Variant legacy tail compatibility
         *_sbv.RESERVED_SPANS,                # Spark Ball Dragon-ID variants
         *_ker.RESERVED_SPANS,                # Key-carrying initial enemy runtime
     )
@@ -390,6 +410,19 @@ def _verify(rom_data) -> None:
         raise RoomFlagError(
             f"bank0 cave (file 0x{i:X}) が空きでありません。"
             "別改造と競合の可能性があるため Room Flag 改造を中止します。"
+        )
+    helper_cur = bytes(
+        rom_data[
+            OFF_VISIBLE_INBLOCK_HELPER:
+            OFF_VISIBLE_INBLOCK_HELPER + len(VISIBLE_INBLOCK_HELPER)
+        ]
+    )
+    if helper_cur != VISIBLE_INBLOCK_HELPER and any(
+        b not in (0xEA, 0x00) for b in helper_cur
+    ):
+        raise RoomFlagError(
+            f"VisibleInBlock helper (file 0x{OFF_VISIBLE_INBLOCK_HELPER:X}) "
+            "が空きでありません。別改造と競合の可能性があるため中止します。"
         )
 
 
@@ -417,7 +450,7 @@ def read_table(rom_data, count: int = 53) -> list:
             from . import stage_ext
             flags = stage_ext.read_runtime_room_flags(bytes(rom_data), count)
             if any(flags):
-                return flags
+                return [f & ~BIT_VISIBLE_INBLOCK_ITEMS for f in flags]
         except Exception:
             pass
     hooks = (
@@ -429,7 +462,10 @@ def read_table(rom_data, count: int = 53) -> list:
     active = any(bytes(rom_data[o:o + 3]) == sig for o, sig in hooks)
     if not active:
         return [0] * count
-    return [rom_data[OFF_TABLE + i] & 0xFF for i in range(count)]
+    return [
+        (rom_data[OFF_TABLE + i] & 0xFF) & ~BIT_VISIBLE_INBLOCK_ITEMS
+        for i in range(count)
+    ]
 
 
 def build_door_table(door_cells: list) -> bytearray:
@@ -551,6 +587,9 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
     # 暗闇: dark ビットが1部屋でもあれば DARK cave + テンポ + $8055 フック。
     # 無ければ $8055 は原作のまま(暗闇未使用時は NMI 非フック=完全無影響)。
     if _dark_needed(room_flags) or bw_needed:
+        if bytes(rom_data[OFF_VISIBLE_INBLOCK_HELPER:OFF_VISIBLE_INBLOCK_HELPER + len(VISIBLE_INBLOCK_HELPER)]) != VISIBLE_INBLOCK_HELPER:
+            rom_data[OFF_VISIBLE_INBLOCK_HELPER:OFF_VISIBLE_INBLOCK_HELPER + len(VISIBLE_INBLOCK_HELPER)] = VISIBLE_INBLOCK_HELPER
+            changed.append("VisibleInBlock helper 注入 ($E74C)")
         if bytes(rom_data[OFF_BW_CAVE:OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE]) != BW_CAVE_BLOB:
             rom_data[OFF_BW_CAVE:OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE] = BW_CAVE_BLOB
             changed.append("BreakableWhite cave 注入 ($C0F0)")
