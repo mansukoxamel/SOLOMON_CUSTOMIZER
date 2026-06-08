@@ -19,7 +19,8 @@ OFFSET_M66_LVL_DATA = 49168
 OFFSET_M66_DROP_SCHED_DATA = OFFSET_M66_LVL_DATA + COUNT_M66_LEVELS * LENGTH_M66_LVL_DATA
 LENGTH_M66_MAP_DATA = LENGTH_M66_LVL_W * LENGTH_M66_LVL_H  # 192
 LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA = 32
-LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA = 16
+LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA = LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA
+LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_MASK_BYTES = 24
 BREAKABLE_CELL_MODE_EMPTY = 0xFE
 BREAKABLE_CELL_MODE_SOLID = 0xFD
 CELL_EMPTY = 0x10
@@ -48,10 +49,31 @@ RUNTIME_BLOCK_LIST_COPY_PATCH_NEW = bytes.fromhex(
     "ad28040a0a0a0a0a18694f8500ad28044a4a4a1869f88501a020b100993f0788d0f8"
 )
 RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED = bytes([0xEA] * len(RUNTIME_BLOCK_LIST_COPY_PATCH_NEW))
-RUNTIME_VISIBLE_IN_BLOCK_ITEM_COPY_PATCH = bytes.fromhex(
-    "ad28040a0a0a0a18694f8500ad28044a4a4a4a1869f88501a010b100994f0788d0f8"
+RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_OLD = bytes.fromhex(
+    "ad28040a0a0a0a0a18694f8500ad28044a4a4a1869f88501a018b100994f0788d0f8"
 )
-assert len(RUNTIME_VISIBLE_IN_BLOCK_ITEM_COPY_PATCH) == len(RUNTIME_BLOCK_LIST_COPY_PATCH_NEW)
+VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF = 0x8E80
+VISIBLE_IN_BLOCK_MASK_COPY_HELPER_CPU = 0x8E70
+VISIBLE_IN_BLOCK_MASK_COPY_HELPER = bytes.fromhex(
+    "ad28040a0a0a0a0a18694f8500a90069008501ad28044a4a4a18650169f88501"
+    "a018b100994f0788d0f860"
+)
+RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH = (
+    bytes((
+        0x20,
+        VISIBLE_IN_BLOCK_MASK_COPY_HELPER_CPU & 0xFF,
+        VISIBLE_IN_BLOCK_MASK_COPY_HELPER_CPU >> 8,
+    ))
+    + bytes([0xEA] * (len(RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_OLD) - 3))
+)
+RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_LEN = len(RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH)
+M66_LOADER_TAIL_OFF = 0x80C4
+M66_LOADER_TAIL_HOOK = bytes.fromhex("4c008a")
+M66_LOADER_TAIL_GUARD_OFF = 0x80C7
+M66_LOADER_TAIL_GUARD = bytes([0x00] * 9)
+VISIBLE_IN_BLOCK_RESERVED_SPANS = ((VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF, len(VISIBLE_IN_BLOCK_MASK_COPY_HELPER)),)
+assert RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_LEN == 34
+assert len(VISIBLE_IN_BLOCK_MASK_COPY_HELPER) == 43
 INITIAL_DRAW_WHITE_THRESHOLD_PATCH_OFF = 0x10 + (0x9617 - 0x8000)
 INITIAL_DRAW_WHITE_THRESHOLD_OLD = 0xF8
 INITIAL_DRAW_WHITE_THRESHOLD_NEW = 0xC0
@@ -200,26 +222,28 @@ def _visible_in_block_table_offset(level_no: int) -> int:
     )
 
 
-def _read_visible_in_block_item_cells(rom_data: bytes, level_no: int) -> set:
+def _visible_in_block_cell_index(pos) -> int | None:
+    x, y = pos
+    if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+        return None
+    return y * c.LEVEL_W + x
+
+
+def _read_visible_in_block_item_mask_cells(rom_data: bytes, level_no: int) -> set:
     cells = set()
     base = _visible_in_block_table_offset(level_no)
-    end = base + LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA
+    end = base + LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_MASK_BYTES
     if len(rom_data) < end:
         return cells
-    for i in range(LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA):
-        v = rom_data[base + i]
-        if v in (0x00, 0xFF):
-            break
-        x = v & 0x0F
-        y = (v >> 4) - 1
-        if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
-            cells.add((x, y))
+    for idx in range(LENGTH_M66_MAP_DATA):
+        if rom_data[base + (idx >> 3)] & (1 << (idx & 0x07)):
+            cells.add((idx % c.LEVEL_W, idx // c.LEVEL_W))
     return cells
 
 
 def read_visible_in_block_item_data(rom_data: bytes, count: int = COUNT_M66_LEVELS) -> list:
     return [
-        _read_visible_in_block_item_cells(rom_data, room_no)
+        _read_visible_in_block_item_mask_cells(rom_data, room_no)
         for room_no in range(max(0, min(int(count), COUNT_M66_LEVELS)))
     ]
 
@@ -397,60 +421,46 @@ def validate_visible_in_block_items(levels: list) -> None:
         cells = set(getattr(level, "visible_in_block_item_cells", set()) or [])
         if not cells:
             continue
-        if len(cells) > LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA:
-            raise ValueError(
-                f"Stage {room_no + 1}: visible in-block items exceed "
-                f"{LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA} cells"
-            )
         item_by_pos = {item.position: item for item in getattr(level, "items", []) or []}
         for pos in sorted(cells):
+            if _visible_in_block_cell_index(pos) is None:
+                raise ValueError(
+                    f"Stage {room_no + 1}: 透明ブロック内マーカー {pos} が範囲外です"
+                )
             item = item_by_pos.get(pos)
             if item is None:
                 raise ValueError(
-                    f"Stage {room_no + 1}: visible in-block marker at {pos} has no item"
+                    f"Stage {room_no + 1}: 透明ブロック内マーカー {pos} にアイテムがありません"
                 )
             base = int(item.element_no) & 0x3F
             if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                 raise ValueError(
                     f"Stage {room_no + 1}: item 0x{base:02X} at {pos} cannot be "
-                    "stored as a white in-block item"
+                    "透明ブロック内アイテムとして保存できません"
                 )
             if int(item.element_no) & 0xC0:
                 raise ValueError(
-                    f"Stage {room_no + 1}: visible in-block item at {pos} must be "
-                    "stored as a normal item plus marker"
+                    f"Stage {room_no + 1}: 透明ブロック内アイテム {pos} は "
+                    "通常アイテムとマーカーの組み合わせで保存してください"
                 )
-
-
-def _breakable_white_runtime_cell(pos) -> int | None:
-    x, y = pos
-    if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
-        return None
-    runtime_y = min(15, y + 1)
-    return ((runtime_y << 4) | x) & 0xFF
 
 
 def build_breakable_white_data(levels: list) -> bytearray:
     """Build the reused PRG1 runtime side-list area.
 
     特殊ブロックは v0.7.72 から m66 ステージセル値へ直接保存するため、
-    旧32B/room tableは通常使わない。前半16B/roomだけ、通常アイテム
-    として初期描画した後に白ブロック内アイテムへ差し替える座標リスト
-    として再利用する。
+    旧32B/room tableは通常使わない。各room slotの先頭24Bだけ、
+    通常アイテムとして初期描画した後に白ブロック内アイテムへ差し替える
+    192セルbitmaskとして再利用する。
     """
     data = bytearray([0x00] * (COUNT_M66_LEVELS * LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA))
     for room_no, level in enumerate((levels or [])[:COUNT_M66_LEVELS]):
         cells = sorted(getattr(level, "visible_in_block_item_cells", set()) or [])
-        if len(cells) > LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA:
-            raise ValueError(
-                f"Stage {room_no + 1}: visible in-block items exceed "
-                f"{LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA} cells"
-            )
         base = _visible_in_block_table_offset(room_no) - OFFSET_M66_BREAKABLE_WHITE_DATA
-        for i, pos in enumerate(cells):
-            runtime_cell = _breakable_white_runtime_cell(pos)
-            if runtime_cell is not None:
-                data[base + i] = runtime_cell
+        for pos in cells:
+            idx = _visible_in_block_cell_index(pos)
+            if idx is not None:
+                data[base + (idx >> 3)] |= 1 << (idx & 0x07)
     return data
 
 
@@ -470,8 +480,8 @@ def patch_runtime_block_loader(rom_data: bytearray):
       $F9/$FA can survive to the runtime.
     - $A3/$A4 use the existing in-block item path and survive without this
       high-ID preservation branch.
-    - Reuse the old PRG1 side-list copy to fill $0750-$075F with visible
-      in-block item cells for the current room.
+    - Reuse the old PRG1 side-list copy to fill $0750-$0767 with the visible
+      in-block item bitmask for the current room.
     - Treat initial room cells $C0-$FF as the white-wall draw class. This lets
       $C0-$F7 act as white breakable blocks with an item inside, while the
       existing break test still keeps $F8-$FF solid.
@@ -492,18 +502,31 @@ def patch_runtime_block_loader(rom_data: bytearray):
     if len(rom_data) > off and rom_data[off] == SPECIAL_HIGH_ID_PRESERVE_OLD:
         rom_data[off] = SPECIAL_HIGH_ID_PRESERVE_NEW
     off = RUNTIME_BLOCK_LIST_COPY_PATCH_OFF
-    ln = len(RUNTIME_VISIBLE_IN_BLOCK_ITEM_COPY_PATCH)
+    ln = RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_LEN
     if len(rom_data) < off + ln:
         return
     cur = bytes(rom_data[off:off + ln])
-    if cur == RUNTIME_VISIBLE_IN_BLOCK_ITEM_COPY_PATCH:
-        return
-    if cur in (
+    old_variants = (
         RUNTIME_BLOCK_LIST_COPY_PATCH_OLD,
         RUNTIME_BLOCK_LIST_COPY_PATCH_NEW,
         RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED,
-    ):
-        rom_data[off:off + ln] = RUNTIME_VISIBLE_IN_BLOCK_ITEM_COPY_PATCH
+        RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_OLD,
+    )
+    if cur in old_variants:
+        rom_data[off:off + ln] = RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH
+    elif cur != RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH:
+        return
+    helper_end = VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF + len(VISIBLE_IN_BLOCK_MASK_COPY_HELPER)
+    if len(rom_data) >= helper_end:
+        cur_helper = bytes(rom_data[VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF:helper_end])
+        if cur_helper != VISIBLE_IN_BLOCK_MASK_COPY_HELPER:
+            rom_data[VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF:helper_end] = VISIBLE_IN_BLOCK_MASK_COPY_HELPER
+    tail_end = M66_LOADER_TAIL_OFF + len(M66_LOADER_TAIL_HOOK)
+    if len(rom_data) >= tail_end:
+        rom_data[M66_LOADER_TAIL_OFF:tail_end] = M66_LOADER_TAIL_HOOK
+    guard_end = M66_LOADER_TAIL_GUARD_OFF + len(M66_LOADER_TAIL_GUARD)
+    if len(rom_data) >= guard_end:
+        rom_data[M66_LOADER_TAIL_GUARD_OFF:guard_end] = M66_LOADER_TAIL_GUARD
 
 
 def read_breakable_white_data(rom_data: bytes) -> list:

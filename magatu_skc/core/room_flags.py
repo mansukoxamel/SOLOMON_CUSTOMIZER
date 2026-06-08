@@ -15,7 +15,7 @@ bank0 のコードケーブに注入し、部屋別の改造を実現する。
   bit1 = ブロック内扉      (扉セルにbit7を立て、開始前扉描画を抑止)
   bit0+bit1 = 白ブロック内扉 (扉セルにbit6+bit7を立てる)
   bit2 = B火球(魔法)禁止   ← ステップ1で実装
-  bit5 = 見える白内アイテムruntime listあり (保存時に自動付与)
+  bit5 = 透明ブロック内アイテムruntime maskあり (保存時に自動付与)
   他bit は将来拡張
 
 CLAUDE.md 準拠:
@@ -77,16 +77,16 @@ verbatim コピーするため file offset 不変):
 #                                 $0740=A speed / $0741=A interval /
 #                                 $0742=B speed / $0743=B interval /
 #                                 $0744=C speed / $0745=C interval。
-#   $0750-$075F VISIBLE_INBLOCK_ITEM_LIST 見える白内アイテムcell list 予約済(使用中)
-#                               ・mapper66 loader がPRG1 0xF860 tableからコピー。
-#                               ・$E74C helper が0終端listを参照。
-#   $0760-$0777 ENTITY_TAIL_CANDIDATE 補助候補24B         要probe
+#   $0750-$0767 VISIBLE_INBLOCK_ITEM_MASK 透明ブロック内アイテムbitmask 予約済(使用中)
+#                               ・mapper66 loader がPRG1 0xF860 tableから24Bコピー。
+#                               ・$E74C helper がNMI中に破壊的shiftで参照。
+#   $0768-$0777 ENTITY_TAIL_CANDIDATE 補助候補16B         要probe
 #   $0778       ROOMFLAGS       room flag table cache         予約済(使用中)
 #   $0779       DARK_PHASE      暗闇 明滅フェーズカウンタ      予約済(使用中)
 #   $077A-$077B BLOCK_OVERRIDE_WORK 一時フラグ/値             予約済(使用中)
 #   $077C       RUNTIME_DOOR_CELL 現在部屋の扉セル            予約済(使用中)
 #   $077D-$077F FREE_CANDIDATE  (未割当・小フラグ/カウンタ用)  補助候補3B
-#                               まとまったRAMは$0750-$075Fを優先。
+#                               まとまったRAMは$0750-$0767を優先。
 #                               使用前に必ず再probe・用途名を決めて追記。
 #
 # ▼ ★bank1 (mapper66 拡張2本目PRG) 予約
@@ -94,7 +94,8 @@ verbatim コピーするため file offset 不変):
 #   ・file 0x8800-0x8A0F : StageExtTable
 #   ・file 0x8A10-0x8A6F : Panel Variant combined runtime loader
 #   ・file 0x8A70-0x8E7F : PanelVariantStageTable
-#   ・file 0x8E80-0xBB95 : PRG1 general reserve
+#   ・file 0x8E80-0x8EAA : visible item mask copy helper
+#   ・file 0x8EAB-0xBB95 : PRG1 general reserve
 #     (bank1 を使う改造を足すときは必ず上記予約を避ける)。
 #   ・file 0xBB96   : SW byte = $FF 固定 (bank-switch bus-conflict
 #     用。CPU $BB86。title_screen._WT_SW_B1_OFF)。データで踏まない。
@@ -106,8 +107,8 @@ verbatim コピーするため file offset 不変):
 #     面$02/$04/$05/$08・妖精×4・死亡 で実機沈黙確認。
 #     → v0.7.72で旧特殊ブロック32Bリストを廃止し、v0.7.149時点で
 #        $0740-$074F はPanel Variant cacheとして予約済み。
-#        $0750-$075F は見える白内アイテムruntime listとして予約済み。
-#        $073A-$073F / $0760-$0777 / $077D-$077F は補助候補だが、
+#        $0750-$0767 は透明ブロック内アイテムruntime maskとして予約済み。
+#        $073A-$073F / $0768-$0777 / $077D-$077F は補助候補だが、
 #        沈黙でも構造保証は弱いので正式使用前に用途別probe必須。
 #   ・$0780-$07DF = probe で書込検出 = ★使用禁止。
 #
@@ -125,7 +126,7 @@ verbatim コピーするため file offset 不変):
 #   1. ★まず "増やさない" を検討。既存値から再計算できないか?
 #      例: room flag は $0428→$C1C0,X ROMテーブル再読込で RAM不要化可。
 #          暗闇周期も $043C/$043D(global frame counter)から導出余地。
-#   2. まとまったRAMが必要 → $0760-$0777 を候補にする。
+#   2. まとまったRAMが必要 → $0768-$0777 を候補にする。
 #      小フラグだけなら $077D-$077F も候補。
 #      用途名を決めて上の表に追記してからコードで使う。
 #   3. 長期保存 / 毎NMI書込 / 複数バイト連続使用 → ★再プローブ必須
@@ -140,8 +141,8 @@ verbatim コピーするため file offset 不変):
 #   $0723-$072B KEY_ENEMY_RUNTIME      key-carrying enemy runtime, reserved in use
 #   $073A-$073F ENTITY_TAIL_CANDIDATE  secondary 6-byte candidate, probe before use
 #   $0740-$074F PANEL_VARIANT_CACHE    Panel stage-variant runtime cache, reserved in use
-#   $0750-$075F VISIBLE_INBLOCK_ITEM_LIST visible item in-block runtime list, reserved in use
-#   $0760-$0777 ENTITY_TAIL_CANDIDATE  secondary 24-byte candidate, probe before use
+#   $0750-$0767 VISIBLE_INBLOCK_ITEM_MASK visible item in-block runtime mask, reserved in use
+#   $0768-$0777 ENTITY_TAIL_CANDIDATE  secondary 16-byte candidate, probe before use
 #   $0778       ROOMFLAGS              room flag table cache, reserved in use
 #   $0779       DARK_PHASE             dark-room phase counter, reserved in use
 #   $077A-$077B BLOCK_OVERRIDE_WORK    temporary NMI work bytes, reserved in use
@@ -164,7 +165,7 @@ BIT_NO_ASTONE   = 0x80  # bit7: A換石(石作成)禁止 (SE $08==$11 のみ却�
                         #   ※A禁止は階段が作れず進行不能になり得る独立option
 BIT_DARK        = 0x08  # bit3: 暗闇面 (この面プレイ中 BGを明滅で消す。
                         #   明/暗フレーム数は全体共通テンポ。必ず明から)
-BIT_VISIBLE_INBLOCK_ITEMS = 0x20  # bit5: runtime-only visible item -> white in-block list present
+BIT_VISIBLE_INBLOCK_ITEMS = 0x20  # bit5: runtime-only visible item -> white in-block mask present
 
 ROOM_COUNT = 64  # RoomFlagTable サイズ ($0428 = $00..$34 / 53面+特殊)
 
@@ -193,7 +194,7 @@ OFF_DOORTAB     = 0x4190   # $C180  DoorCellTable (64B; mapper66ではStageExt�
 OFF_TABLE       = 0x41D0   # $C1C0  RoomFlagTable (64B; mapper66ではStageExtへ移設)
 OFF_DARK_CAVE   = 0x3C90   # $BC80  DARK (56B、明滅BG制御)
 OFF_TEMPO       = 0x3CE0   # $BCD0  全体共通テンポ 2B [LIGHT, PERIOD]
-OFF_VISIBLE_INBLOCK_HELPER = 0x675C  # $E74C  visible item -> white in-block helper
+OFF_VISIBLE_INBLOCK_HELPER = 0x675C  # $E74C  visible item bitmask -> white in-block helper
 VISIBLE_INBLOCK_HELPER_CAPACITY = 0x18
 OFF_BW_CAVE     = 0x4100   # $C0F0  breakable-white one-shot NMI routine
 OFF_CAVE_FREE0  = 0x3BEE   # $BBDE  (cave 空き判定の起点)
@@ -237,10 +238,13 @@ assert len(DARK_CAVE) == 56
 #   $50 -> $90  invisible breakable
 #   $A3 -> $10  passable brown
 #   $A4 -> $F8  solid brown
+# For visible in-block items, each scanned cell calls $E74C. The helper consumes
+# the 24B mask at $0750-$0767 destructively and ORs $C0 into marked normal item
+# cells before the special-cell comparisons below.
 BW_CAVE = bytes.fromhex(
-    "ad7f05c9c0902bad7a07d026a2c0bd1303c940f01ec9a4f01a"
-    "c950f01ac9f9f016c9faf016c9a3f012cad0e2204ce78d7a0760"
-    "a9f8d006a990d002a9109d1303d0e7"
+    "ad7f05c9c0902aad7a07d025a018a2c0204ce7c940f01bc9a4"
+    "f017c950f017c9f9f013c9faf013c9a3f00fcad0e2ee7a0760"
+    "a9f8d006a990d002a9109d1303d0ea"
 )
 BW_CAVE_RESERVED_SIZE = 67
 assert len(BW_CAVE) <= BW_CAVE_RESERVED_SIZE
@@ -248,7 +252,7 @@ BW_CAVE_BLOB = BW_CAVE + bytes([0xEA] * (BW_CAVE_RESERVED_SIZE - len(BW_CAVE)))
 assert len(BW_CAVE_BLOB) == BW_CAVE_RESERVED_SIZE
 
 VISIBLE_INBLOCK_HELPER = bytes.fromhex(
-    "a200bc5007f00db9040309c0990403e8e010d0eea90160"
+    "8a2907d00188b950070a995007bd1303900509c09d130360"
 )
 assert len(VISIBLE_INBLOCK_HELPER) <= VISIBLE_INBLOCK_HELPER_CAPACITY
 # 全体共通テンポ既定: 明45フレ / 暗100フレ → PERIOD=145

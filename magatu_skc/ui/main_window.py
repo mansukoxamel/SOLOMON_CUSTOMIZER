@@ -245,6 +245,19 @@ class MainWindow(QMainWindow):
         self.shortcut_stage_compare_toggle.setContext(Qt.WindowShortcut)
         self.shortcut_stage_compare_toggle.activated.connect(self._toggle_stage_compare_view)
         self.shortcut_stage_compare_toggle.setEnabled(False)
+        self.shortcut_item_flags = []
+        for key, flag, label in (
+            (Qt.Key_H, 0x40, "隠し"),
+            (Qt.Key_B, c.ITEM_FLAG_IN_BLOCK, "ブロック内"),
+            (Qt.Key_W, c.ITEM_FLAG_WHITE_IN_BLOCK, "白ブロック内"),
+            (Qt.Key_V, c.ITEM_FLAG_VISIBLE_IN_BLOCK, "透明ブロック内"),
+            (Qt.Key_N, c.ITEM_FLAG_NORMAL, "通常"),
+        ):
+            sc = QShortcut(QKeySequence(key), self)
+            sc.setContext(Qt.WindowShortcut)
+            sc.setAutoRepeat(False)
+            sc.activated.connect(lambda f=flag, l=label: self._set_hover_item_flag(f, l))
+            self.shortcut_item_flags.append(sc)
 
     def _setup_button_sound(self):
         self._button_sounds = []
@@ -2355,7 +2368,13 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(
                 f"テストプレイ起動: Stage {stage_no} / {tmp_rom}", 5000
             )
-            self._log(f"テストプレイ起動: Stage {stage_no} → {tmp_rom}")
+            visible_cells = sorted(
+                getattr(self.levels[self.current_level_no], "visible_in_block_item_cells", set()) or []
+            )
+            self._log(
+                f"テストプレイ起動: Stage {stage_no} → {tmp_rom} "
+                f"(透明ブロック内={len(visible_cells)} {visible_cells})"
+            )
         except Exception as e:
             QMessageBox.critical(self, "エミュ起動失敗", f"{type(e).__name__}: {e}")
             self._log(f"テストプレイ失敗: {type(e).__name__}: {e}")
@@ -3625,7 +3644,7 @@ class MainWindow(QMainWindow):
             desc = self.config.item_desc.get(base, f"item 0x{base:02x}") if self.config else f"0x{base:02x}"
             tag = ""
             if tile in getattr(lv, "visible_in_block_item_cells", set()):
-                tag = "[見える白内]"
+                tag = "[透明ブロック内]"
             elif flag == 0x40: tag = "[隠し]"
             elif flag in (0x80, 0xC0): tag = "[in_block]"
             # ★アイテム番号も表示 (base コード。flag付きは raw も併記)
@@ -3942,14 +3961,14 @@ class MainWindow(QMainWindow):
             # - タイルが茶 → 強制 in_block (0x80)
             # - 壊せる白 → 強制 white-in-block (0xC0) に吸収
             # - ピッカーが白ブロック内 → item flag だけで表現
-            # - ピッカーが見える白内 → 通常アイテム + runtime変換マーカー
+            # - ピッカーが透明ブロック内 → 通常アイテム + runtime変換マーカー
             # - タイルが空 → ピッカーで選択中のフラグを使用
             visible_in_block_item = picker_flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK
             if visible_in_block_item:
                 base = value & 0x3F
                 if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                     self.statusBar().showMessage(
-                        f"このアイテムは見える白ブロック内に入れられません: 0x{base:02X}", 3000
+                        f"このアイテムは透明ブロック内に入れられません: 0x{base:02X}", 3000
                     )
                     restore_rejected_click_edit()
                     return
@@ -3992,6 +4011,10 @@ class MainWindow(QMainWindow):
             lv.add_item(value | flag, tile)
             if visible_in_block_item:
                 lv.visible_in_block_item_cells.add(tile)
+                self._log(
+                    f"透明ブロック内アイテム配置: L{self.current_level_no + 1} "
+                    f"{tile} item=0x{base:02X}"
+                )
             else:
                 lv.visible_in_block_item_cells.discard(tile)
         elif mode == MODE_ENEMY:
@@ -5522,7 +5545,7 @@ class MainWindow(QMainWindow):
             # W → ホバー位置のアイテムフラグを「白ブロック内」に
             self._set_hover_item_flag(c.ITEM_FLAG_WHITE_IN_BLOCK, "白ブロック内")
         elif key == Qt.Key_V:
-            self._set_hover_item_flag(c.ITEM_FLAG_VISIBLE_IN_BLOCK, "見える白内")
+            self._set_hover_item_flag(c.ITEM_FLAG_VISIBLE_IN_BLOCK, "透明ブロック内")
         elif key == Qt.Key_N:
             # N → ホバー位置のアイテムフラグを「通常」に
             self._set_hover_item_flag(c.ITEM_FLAG_NORMAL, "通常")
@@ -5666,7 +5689,7 @@ class MainWindow(QMainWindow):
                 if flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
                     if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                         self.statusBar().showMessage(
-                            f"このアイテムは見える白ブロック内に入れられません: 0x{base:02X}", 1500
+                            f"このアイテムは透明ブロック内に入れられません: 0x{base:02X}", 1500
                         )
                         return
                     new_no = base
@@ -5702,6 +5725,7 @@ class MainWindow(QMainWindow):
                     )
                 )
                 self._push_undo()
+                old_no = int(item.element_no) & 0xFF
                 item.element_no = new_no
                 visible_cells = getattr(lv, "visible_in_block_item_cells", set())
                 if new_visible:
@@ -5717,6 +5741,10 @@ class MainWindow(QMainWindow):
                 self._refresh_thumbnails_after_edit()
                 self._set_dirty(True)
                 self._update_hover_info(self._hover_tile)
+                self._log(
+                    f"アイテム状態変更: L{self.current_level_no + 1} "
+                    f"{self._hover_tile} 0x{old_no:02X}->0x{new_no:02X} {label}"
+                )
                 msg = f"ホバー位置のアイテム状態を{label}に変更"
                 if clear_backing_block:
                     msg += "（元ブロックも削除）"
@@ -6846,7 +6874,7 @@ N: ホバー位置のアイテム/鍵/扉を通常に変更<br>
 H: ホバー位置のアイテム/鍵/扉を隠しに変更（デーモンミラー上では隠しアイテム0x48を配置）<br>
 B: ホバー位置のアイテム/鍵/扉をブロック内に変更<br>
 W: ホバー位置のアイテム/鍵/扉を白ブロック内に変更<br>
-V: ホバー位置のアイテムを見える白内に変更<br>
+V: ホバー位置のアイテムを透明ブロック内に変更<br>
 <br>
 <b>範囲編集</b><br>
 Ctrl+C: コピー<br>

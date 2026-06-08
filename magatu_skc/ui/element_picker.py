@@ -1061,7 +1061,7 @@ class ElementPicker(QWidget):
         self.rb_flag_hidden = FullWidthRadioButton("隠し")
         self.rb_flag_in_block = FullWidthRadioButton("ブロック内")
         self.rb_flag_white_in_block = FullWidthRadioButton("白ブロック内")
-        self.rb_flag_visible_in_block = FullWidthRadioButton("見える白内")
+        self.rb_flag_visible_in_block = FullWidthRadioButton("透明ブロック内")
         for rb, flag in [
             (self.rb_flag_normal, ITEM_FLAG_NORMAL),
             (self.rb_flag_hidden, ITEM_FLAG_HIDDEN),

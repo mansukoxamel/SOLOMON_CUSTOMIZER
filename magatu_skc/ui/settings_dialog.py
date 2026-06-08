@@ -20,7 +20,7 @@ from .level_view import (
 MARKER_COLOR_ROWS = [
     ("bonus_marker_color", "ボーナス菱形"),
     ("hidden_marker_color", "隠し要素"),
-    ("visible_in_block_marker_color", "見える白内アイテム"),
+    ("visible_in_block_marker_color", "透明ブロック内アイテム"),
     ("breakable_white_marker_color", "壊せる白ブロック"),
     ("invisible_breakable_marker_color", "透明壊せるブロック"),
     ("passable_marker_color", "すり抜けブロック"),

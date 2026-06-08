@@ -217,12 +217,12 @@ def save_levels_to_rom(rom: Rom, levels: list):
     if rom.is_expanded():
         # 拡張ROM (US66): 1レベル=256バイト固定の構造で書き戻し
         from . import m66
-        _run_save_step("見える白ブロック内アイテム整合性チェック", m66.validate_visible_in_block_items, levels)
+        _run_save_step("透明ブロック内アイテム整合性チェック", m66.validate_visible_in_block_items, levels)
         _run_save_step("mapper66ステージデータ書き込み", m66.save_all_levels_m66, rom, levels)
     else:
         from . import m66
         if m66.visible_in_block_items_needed(levels):
-            raise SaveError("見える白ブロック内アイテムはmapper66拡張ROM保存専用です。")
+            raise SaveError("透明ブロック内アイテムはmapper66拡張ROM保存専用です。")
         # 標準ROM
         _run_save_step("通常ROMステージデータ書き込み", _write_standard_level_data, rom, levels)
 
