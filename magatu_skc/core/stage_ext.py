@@ -138,7 +138,7 @@ def _build_runtime_loader() -> bytes:
     # Keep ASL carry when computing the high byte; rooms 32+ live on $89xx.
     return bytes.fromhex(
         "a9 ff 8d 2a 07 8d 2b 07"
-        "a9 00 8d 23 07 8d 24 07 8d 29 07"
+        "a9 00 8d 23 07 8d 24 07 8d 29 07 8d 7a 07"
         "ad 28 04 0a 0a 0a 85 00"
         "a9 88 69 00 85 01"
         "a0 02 b1 00 8d 2b 07"

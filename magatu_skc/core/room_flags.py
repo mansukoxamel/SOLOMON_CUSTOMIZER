@@ -83,7 +83,10 @@ verbatim コピーするため file offset 不変):
 #   $0768-$0777 ENTITY_TAIL_CANDIDATE 補助候補16B         要probe
 #   $0778       ROOMFLAGS       room flag table cache         予約済(使用中)
 #   $0779       DARK_PHASE      暗闇 明滅フェーズカウンタ      予約済(使用中)
-#   $077A-$077B BLOCK_OVERRIDE_WORK 一時フラグ/値             予約済(使用中)
+#   $077A       BLOCK_OVERRIDE_DONE 特殊セル変換済みフラグ     予約済(使用中)
+#                               ・mapper66部屋ロードruntimeでクリアし、死亡後
+#                                 リスポーンでも特殊セルを再変換する。
+#   $077B       BLOCK_OVERRIDE_WORK 一時値                    予約済(使用中)
 #   $077C       RUNTIME_DOOR_CELL 現在部屋の扉セル            予約済(使用中)
 #   $077D-$077F FREE_CANDIDATE  (未割当・小フラグ/カウンタ用)  補助候補3B
 #                               まとまったRAMは$0750-$0767を優先。
@@ -145,7 +148,8 @@ verbatim コピーするため file offset 不変):
 #   $0768-$0777 ENTITY_TAIL_CANDIDATE  secondary 16-byte candidate, probe before use
 #   $0778       ROOMFLAGS              room flag table cache, reserved in use
 #   $0779       DARK_PHASE             dark-room phase counter, reserved in use
-#   $077A-$077B BLOCK_OVERRIDE_WORK    temporary NMI work bytes, reserved in use
+#   $077A       BLOCK_OVERRIDE_DONE    special-cell scanner done flag, reset by mapper66 room-load runtime
+#   $077B       BLOCK_OVERRIDE_WORK    temporary NMI work byte, reserved in use
 #   $077C       RUNTIME_DOOR_CELL      current room door cell, reserved in use
 #   $077D-$077F FREE_CANDIDATE         secondary 3-byte tail candidate
 #
@@ -196,7 +200,7 @@ OFF_DARK_CAVE   = 0x3C90   # $BC80  DARK (56B、明滅BG制御)
 OFF_TEMPO       = 0x3CE0   # $BCD0  全体共通テンポ 2B [LIGHT, PERIOD]
 OFF_VISIBLE_INBLOCK_HELPER = 0x675C  # $E74C  visible item bitmask -> white in-block helper
 VISIBLE_INBLOCK_HELPER_CAPACITY = 0x18
-OFF_BW_CAVE     = 0x4100   # $C0F0  breakable-white one-shot NMI routine
+OFF_BW_CAVE     = 0x4100   # $C0F0  runtime special-cell scanner
 OFF_CAVE_FREE0  = 0x3BEE   # $BBDE  (cave 空き判定の起点)
 OFF_CAVE_FREE1  = 0x4210   # $C200  (cave 空き判定の終点)
 OFF_TITLE_IDLE_DEMO_CLEAR = 0x3C1E  # $BC0E  wide-title idle demo cleanup (9B)
@@ -228,7 +232,9 @@ DARK_CAVE = bytes.fromhex(
 assert len(DARK_CAVE) == 56
 
 # Runtime block override NMI routine @ $C0F0.
-# Runs once after Dana is active. It intentionally clobbers A/X; DARK_CAVE
+# Runs once after Dana is active for each start/restart. The mapper66 room-load
+# runtime clears the done flag, so a death respawn re-applies the conversions
+# after the level grid is loaded again. It intentionally clobbers A/X; DARK_CAVE
 # already clobbers them before returning to the original NMI path. It scans the
 # visible $0304 room grid after the nametable has already been drawn, then
 # converts direct m66 special cell IDs:

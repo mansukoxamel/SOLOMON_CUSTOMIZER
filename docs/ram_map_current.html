@@ -117,7 +117,7 @@
     <tr><td class="num">$0768-$0777</td><td>entity終端後の沈黙帯</td><td class="warn">補助候補 16B</td><td>旧特殊ブロック32Bリスト跡の残り。$0778/$0779等の予約RAMに隣接するため、$0750-$0767より優先度は下げる。</td></tr>
     <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td class="ok">Customizer予約済</td><td>RoomFlagTableの現在部屋フラグcache。特殊扉(隠し/茶ブロック内/白ブロック内)/B禁止/A禁止/暗闇、bit4=ステージ開始時ファイヤー所持リセットなど。</td></tr>
     <tr><td class="num">$0779</td><td>DARK_PHASE</td><td class="ok">Customizer予約済</td><td>暗闇モードの明滅フェーズカウンタ。</td></tr>
-    <tr><td class="num">$077A-$077B</td><td>runtime block override work</td><td class="ok">Customizer予約済</td><td>BreakableWhite cave の一時フラグ/一時値。NMI中に使用。</td></tr>
+    <tr><td class="num">$077A-$077B</td><td>runtime block override work</td><td class="ok">Customizer予約済</td><td><code>$077A</code> は特殊セル変換済みフラグ。mapper66部屋ロードruntimeで解除し、死亡後リスポーンでも再変換する。<code>$077B</code> は一時値。</td></tr>
     <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td class="ok">Customizer予約済</td><td>mapper66 StageExt loader がPRG1からコピーする現在部屋の扉セル。特殊扉(隠し/茶ブロック内/白ブロック内)処理が参照。</td></tr>
     <tr><td class="num">$077D-$077F</td><td>小フラグ/小カウンタ候補</td><td class="warn">補助候補 3B</td><td>予約済みRAM直後の3B。小フラグ用。まとまったRAMが必要な場合は$0750-$0767を優先する。</td></tr>
     <tr><td class="num">$0780-$07DF</td><td>probeで書込確認あり</td><td class="ng">使用禁止</td><td>空きに見えても使わない。</td></tr>
