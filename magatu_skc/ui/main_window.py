@@ -250,7 +250,7 @@ class MainWindow(QMainWindow):
             (Qt.Key_H, 0x40, "隠し"),
             (Qt.Key_B, c.ITEM_FLAG_IN_BLOCK, "ブロック内"),
             (Qt.Key_W, c.ITEM_FLAG_WHITE_IN_BLOCK, "白ブロック内"),
-            (Qt.Key_V, c.ITEM_FLAG_VISIBLE_IN_BLOCK, "透明ブロック内"),
+            (Qt.Key_T, c.ITEM_FLAG_VISIBLE_IN_BLOCK, "透明ブロック内"),
             (Qt.Key_N, c.ITEM_FLAG_NORMAL, "通常"),
         ):
             sc = QShortcut(QKeySequence(key), self)
@@ -5577,7 +5577,7 @@ class MainWindow(QMainWindow):
         elif key == Qt.Key_W:
             # W → ホバー位置のアイテムフラグを「白ブロック内」に
             self._set_hover_item_flag(c.ITEM_FLAG_WHITE_IN_BLOCK, "白ブロック内")
-        elif key == Qt.Key_V:
+        elif key == Qt.Key_T:
             self._set_hover_item_flag(c.ITEM_FLAG_VISIBLE_IN_BLOCK, "透明ブロック内")
         elif key == Qt.Key_N:
             # N → ホバー位置のアイテムフラグを「通常」に
@@ -6907,7 +6907,7 @@ N: ホバー位置のアイテム/鍵/扉を通常に変更<br>
 H: ホバー位置のアイテム/鍵/扉を隠しに変更（デーモンミラー上では隠しアイテム0x48を配置）<br>
 B: ホバー位置のアイテム/鍵/扉をブロック内に変更<br>
 W: ホバー位置のアイテム/鍵/扉を白ブロック内に変更<br>
-V: ホバー位置のアイテムを透明ブロック内に変更<br>
+T: ホバー位置のアイテムを透明ブロック内に変更<br>
 <br>
 <b>範囲編集</b><br>
 Ctrl+C: コピー<br>
