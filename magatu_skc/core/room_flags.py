@@ -277,7 +277,7 @@ HOOK_91CC_NEW = bytes.fromhex("20 50 bc")  # JSR $BC50 (DOORPREDRAW)
 #   LDA #$00 / STA $042E / STA $042F
 #   JSR $A1CC            ; HUD fire stock redraw. $042B(max/cursor)は触らない
 #   LDA $0778 / AND #$03 ; bit0=隠し / bit1=茶ブロック内 / 両方=白ブロック内
-#   BEQ +14 (->RTS)      ;   立ってなければ何もしない
+#   BEQ +17 (->RTS)      ;   立ってなければ何もしない
 #   ASL x6               ; bit0->$40 / bit1->$80 / 両方->$C0
 #   PHA / LDX $077C / PLA
 #   ORA $0304,X / STA $0304,X             ; 扉マスに状態bitを立てる
@@ -286,9 +286,13 @@ HOOK_91CC_NEW = bytes.fromhex("20 50 bc")  # JSR $BC50 (DOORPREDRAW)
 LOADER_CAVE = bytes.fromhex(
     "20 4b 97 ad 78 07 "
     "29 10 f0 0b a9 00 8d 2e 04 8d 2f 04 20 cc a1 "
-    "ad 78 07 29 03 f0 0e 0a 0a 0a 0a 0a 0a 48 "
+    "ad 78 07 29 03 f0 11 0a 0a 0a 0a 0a 0a 48 "
     "ae 7c 07 68 1d 04 03 9d 04 03 60"
 )
+assert len(LOADER_CAVE) == 46
+assert 10 + LOADER_CAVE[9] == 21  # fire-reset skip lands on the door-state load.
+assert 28 + LOADER_CAVE[27] == len(LOADER_CAVE) - 1  # no-door skip lands on RTS.
+assert LOADER_CAVE[-1] == 0x60
 
 # MAGICGATE cave @ $BC20 (34B): bit2=B火球禁止 / bit7=A換石禁止 (独立)
 #   SE id $08: $13=B火球 / $11=A換石。該当 bit & 該当 SE のみ却下
