@@ -40,7 +40,7 @@ from .element_picker import (
 
 APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
 AUTOSAVE_HISTORY_LABEL = "前回の作業状態"
-AUTOSAVE_KEEP_COUNT = 3
+AUTOSAVE_KEEP_COUNT = 10
 
 
 class _XInputGamepad(ctypes.Structure):
