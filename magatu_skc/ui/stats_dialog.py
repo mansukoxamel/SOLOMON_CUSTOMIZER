@@ -17,6 +17,7 @@ from ..core.element import Wall
 from ..core import room_flags as _rf
 from ..core import stage_ext as _se
 from ..core import special_process as _sp
+from .element_picker import ITEMS_LIST
 
 
 # ★重要アイテムの「コード一覧」のみ(=どれを集計するか・順序)。
@@ -87,6 +88,14 @@ def _item_important_key(base_code: int) -> tuple[str, int] | None:
     return None
 
 
+def _level_meta_all_item_code(meta_item) -> int | None:
+    """level_meta_items のうち、全アイテム列へ合算する item code を返す。"""
+    key = _level_meta_important_key(meta_item)
+    if key is not None and key[0] == "item":
+        return key[1]
+    return None
+
+
 def _enemy_important_key(enemy, config) -> tuple[str, int] | None:
     """特別に重要アイテム列へ載せる敵を代表コードへ正規化する。"""
     code = getattr(enemy, "element_no", 0)
@@ -147,6 +156,7 @@ class StatsDialog(QDialog):
         ("ミラー敵", 240),  # ミラーから出る敵 スプライト
         ("主要", 180),      # Warp/星座パネル/Solomon/Page スプライト
         ("重要アイテム", 380),  # スプライト
+        ("全アイテム", 520),    # ピッカー順の全アイテム集計 スプライト
     ]
     # ヘッダ名 → 列インデックス (ハードコード排除)
     _HDR = [h for h, _ in COLUMNS]
@@ -168,6 +178,7 @@ class StatsDialog(QDialog):
     MIRROR_COL = _HDR.index("ミラー敵")
     FEATURED_COL = _HDR.index("主要")
     ITEM_COL = _HDR.index("重要アイテム")
+    ALL_ITEM_COL = _HDR.index("全アイテム")
     FLAG_COLS = (ASTONE_COL, BFIRE_COL, FIRE_RESET_COL, DARK_COL, DOOR_COL, FAIRY_DROP_COL)
     NUM_COLS = (TS_COL, TIME_COL, LIFE_COL)  # 中央寄せする数値メタ列
 
@@ -177,7 +188,7 @@ class StatsDialog(QDialog):
         if parent is not None:
             self.setFont(parent.font())
         self.setWindowTitle(f"全ステージ統計 ({len(levels)}ステージ)")
-        self.resize(1100, 720)
+        self.resize(1280, 720)
         self.levels = levels
         self.item_desc = item_desc or {}
         self.config = config
@@ -187,11 +198,13 @@ class StatsDialog(QDialog):
         self._sprite_cache = {}   # (item base_code, tileset_no) -> QPixmap
         self._enemy_cache = {}    # (enemy code, tileset_no) -> QPixmap
         self._item_col_w = 0      # 重要アイテム列の最大ピクセル幅
+        self._all_item_col_w = 0  # 全アイテム列の最大ピクセル幅
         self._featured_col_w = 0  # 主要列の最大ピクセル幅
         self._placed_col_w = 0    # 配置敵列の最大ピクセル幅
         self._mirror_col_w = 0    # ミラー敵列の最大ピクセル幅
         self._csv_featured_text = {} # row -> 主要内訳 (CSV用)
         self._csv_item_text = {}   # row -> 重要アイテム内訳 (CSV用)
+        self._csv_all_item_text = {} # row -> 全アイテム内訳 (CSV用)
         self._csv_placed_text = {} # row -> 配置敵内訳 (CSV用)
         self._csv_mirror_text = {} # row -> ミラー敵内訳 (CSV用)
 
@@ -203,7 +216,9 @@ class StatsDialog(QDialog):
             "Origami Swan/Demonhead Coin/"
             "Sphinx/Egyptian Head/Magic Lamp/E-bottle/Tecmo Bunny と、"
             "特殊扱いの Mighty Bomb Jack/Fairy/Fairy Princess を集計(コイン/宝石/"
-            "Bell/Scroll/タイマー系などは除外)。「配置敵」=面に置かれた敵"
+            "Bell/Scroll/タイマー系などは除外)。「全アイテム」列は"
+            "ピッカー順で、通常/隠し/ブロック内を区別せず全配置アイテムを"
+            "ベースアイテム別に集計。「配置敵」=面に置かれた敵"
             "(実数 ×N)、「ミラー敵」=デーモンミラーから出る敵(種類のみ・"
             "無スケジュールのミラーは除外)。<br>"
             "「妖精化」=特殊処理で敵リスト1体目の落下死→妖精出現が有効なステージ。<br>"
@@ -226,6 +241,13 @@ class StatsDialog(QDialog):
                 "重要アイテム列の枠色:\n"
                 "黄 = 隠し / 緑 = ブロック内 / 灰 = 通常\n"
                 "右下の数字は同種アイテムの合計数です。"
+            )
+        all_item_header = self.table.horizontalHeaderItem(self.ALL_ITEM_COL)
+        if all_item_header is not None:
+            all_item_header.setToolTip(
+                "全アイテム列は通常/隠し/ブロック内を区別せず、"
+                "ベースアイテム別に合算します。\n"
+                "表示順はピッカー順です。右下の数字は同種アイテムの合計数です。"
             )
         for i, (_, w) in enumerate(self.COLUMNS):
             self.table.setColumnWidth(i, w)
@@ -374,6 +396,27 @@ class StatsDialog(QDialog):
         for key in FEATURED_ENTITY_ORDER:
             if key in featured_buckets:
                 ordered.append((key, self._important_label(key), featured_buckets[key]))
+        return ordered
+
+    def _ordered_all_item_buckets(self, item_counts):
+        """全アイテム列をピッカー順優先で並べる。状態は区別せず合算済み。"""
+        ordered = []
+        seen = set()
+        for code in ITEMS_LIST:
+            if item_counts.get(code, 0) <= 0:
+                continue
+            seen.add(code)
+            ordered.append((
+                ("item", code),
+                self._important_label(("item", code)),
+                {"normal": item_counts[code], "hidden": 0, "in_block": 0},
+            ))
+        for code in sorted(k for k in item_counts if k not in seen):
+            ordered.append((
+                ("item", code),
+                self._important_label(("item", code)),
+                {"normal": item_counts[code], "hidden": 0, "in_block": 0},
+            ))
         return ordered
 
     def _enemy_pixmap(self, code: int, tileset_no: int) -> QPixmap:
@@ -528,9 +571,11 @@ class StatsDialog(QDialog):
             in_block_count = 0
             featured_buckets = {}   # (source, code) -> {state: count}
             important_buckets = {}  # (source, code) -> {state: count}
+            all_item_counts = {}     # base item code -> count, state ignored
             for it in lv.items:
                 flag = it.element_no & 0xC0
                 base = it.element_no & 0x3F
+                all_item_counts[base] = all_item_counts.get(base, 0) + 1
                 if it.position in getattr(lv, "visible_in_block_item_cells", set()):
                     state = "in_block"
                 else:
@@ -554,6 +599,9 @@ class StatsDialog(QDialog):
                 state = _level_meta_item_state(lv, mi)
                 normal_count, hidden_count, in_block_count = self._add_item_state_count(
                     normal_count, hidden_count, in_block_count, state)
+                all_code = _level_meta_all_item_code(mi)
+                if all_code is not None:
+                    all_item_counts[all_code] = all_item_counts.get(all_code, 0) + 1
                 if key in FEATURED_ENTITY_SET:
                     self._add_important_item(featured_buckets, key, state)
                 else:
@@ -630,6 +678,14 @@ class StatsDialog(QDialog):
             important_text = " / ".join(important_strs) if important_strs else "-"
             self._csv_item_text[row] = important_text  # CSV出力用に保持
 
+            all_item_ordered_buckets = self._ordered_all_item_buckets(all_item_counts)
+            all_item_strs = []
+            for key, label, b in all_item_ordered_buckets:
+                total = b["normal"] + b["hidden"] + b["in_block"]
+                all_item_strs.append(f"{label}×{total}" if total > 1 else label)
+            all_item_text = " / ".join(all_item_strs) if all_item_strs else "-"
+            self._csv_all_item_text[row] = all_item_text
+
             # 敵集計 (★方向/速度違いは同一モンスターとして合算。
             #  グループキー=enemy_desc の基底名 _enemy_base)
             #  ・「配置敵」= lv.enemies を実数 ×N。
@@ -676,7 +732,7 @@ class StatsDialog(QDialog):
                 [(ec, 1) for ec in mbases.values()])
             self._csv_mirror_text[row] = mirror_text
 
-            # セル設定 (COLUMNS と同じ並び。スプライト4列はテキスト空)
+            # セル設定 (COLUMNS と同じ並び。スプライト列はテキスト空)
             cells = [
                 str(row + 1),                     # Lv
                 str(normal_count),                # 通常
@@ -699,6 +755,7 @@ class StatsDialog(QDialog):
                 "",                               # ミラー敵(sprite)
                 "",                               # 主要(sprite)
                 "",                               # 重要アイテム(sprite)
+                "",                               # 全アイテム(sprite)
             ]
             sort_values = [
                 row + 1,                          # Lv
@@ -722,12 +779,14 @@ class StatsDialog(QDialog):
                 "",                              # ミラー敵: ソート対象外
                 "",                              # 主要: ソート対象外
                 "",                              # 重要アイテム: ソート対象外
+                sum(all_item_counts.values()),   # 全アイテム
             ]
             csv_values = {
                 self.PLACED_COL: placed_text,
                 self.MIRROR_COL: mirror_text,
                 self.FEATURED_COL: featured_text,
                 self.ITEM_COL: important_text,
+                self.ALL_ITEM_COL: all_item_text,
             }
             for col, txt in enumerate(cells):
                 item = StatsTableItem(txt)
@@ -766,6 +825,19 @@ class StatsDialog(QDialog):
                 if w > self._item_col_w:
                     self._item_col_w = w
 
+            # 全アイテム列: 状態を無視したベースアイテム別スプライト帯。
+            all_strip = self._compose_item_strip(all_item_ordered_buckets, tileset_no)
+            if all_strip is not None and not all_strip.isNull():
+                albl = QLabel()
+                albl.setPixmap(all_strip)
+                albl.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+                albl.setContentsMargins(3, 0, 3, 0)
+                albl.setToolTip(all_item_text.replace(" / ", "\n"))
+                self.table.setCellWidget(row, self.ALL_ITEM_COL, albl)
+                aw = all_strip.width() + 8
+                if aw > self._all_item_col_w:
+                    self._all_item_col_w = aw
+
             # 配置敵列: スプライト帯。内訳は tooltip + CSV。
             pstrip = self._compose_enemy_strip(placed_ordered, tileset_no)
             if pstrip is not None and not pstrip.isNull():
@@ -800,6 +872,7 @@ class StatsDialog(QDialog):
         self.table.setColumnWidth(self.MIRROR_COL, max(200, self._mirror_col_w))
         self.table.setColumnWidth(self.FEATURED_COL, max(180, self._featured_col_w))
         self.table.setColumnWidth(self.ITEM_COL, max(380, self._item_col_w))
+        self.table.setColumnWidth(self.ALL_ITEM_COL, max(420, self._all_item_col_w))
 
     @staticmethod
     def _add_item_state_count(normal_count, hidden_count, in_block_count, state):
@@ -863,13 +936,10 @@ class StatsDialog(QDialog):
                     cells = []
                     for col in range(self.table.columnCount()):
                         item = self.table.item(row, col)
-                        if col == self.ITEM_COL:
-                            text = item.data(CSV_ROLE) if item else ""
-                        elif col == self.FEATURED_COL:
-                            text = item.data(CSV_ROLE) if item else ""
-                        elif col == self.PLACED_COL:
-                            text = item.data(CSV_ROLE) if item else ""
-                        elif col == self.MIRROR_COL:
+                        if col in (
+                            self.ITEM_COL, self.ALL_ITEM_COL, self.FEATURED_COL,
+                            self.PLACED_COL, self.MIRROR_COL,
+                        ):
                             text = item.data(CSV_ROLE) if item else ""
                         else:
                             text = item.text() if item else ""
