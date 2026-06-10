@@ -6,8 +6,8 @@ ROM offset 0xED4 から 32バイト = 8パレット (背景4 + スプライト4)
 各パレット = 4バイト [c1, c2, c3, separator(0x0F or 0x00)]
 編集対象は c1, c2, c3 の3色のみ。separator は維持。
 """
-import json
 import os
+import json
 import random
 
 from PyQt5.QtWidgets import (
@@ -15,8 +15,9 @@ from PyQt5.QtWidgets import (
     QDialogButtonBox, QFrame, QGroupBox, QMessageBox
 )
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QColor, QPixmap, QImage
+from PyQt5.QtGui import QColor, QPixmap, QImage, QPainter, QPen
 
+from .. import __version__
 from ..nes.palette import NES_COLORS
 from ..core import wall_color_hack
 
@@ -55,6 +56,9 @@ SPRITE_PREVIEW_TILES = {
 
 # 全パレットのプレビュータイル（BGとSPRを統合）
 ALL_PREVIEW_TILES = {**BG_PREVIEW_TILES, **SPRITE_PREVIEW_TILES}
+
+PALETTE_DATA_FORMAT = "magatu_skc_palette"
+PALETTE_PNG_METADATA_KEY = "SOLOMON_CUSTOMIZER_PALETTE"
 
 
 def nes_to_qcolor(nes_idx: int) -> QColor:
@@ -175,16 +179,16 @@ class PaletteDialog(QDialog):
 
         # 操作ボタン
         btnbar = QHBoxLayout()
-        btn_save = QPushButton("プリセット保存...")
-        btn_save.setToolTip("現在のパレット設定をJSONファイルに保存")
-        btn_save.clicked.connect(self._save_preset)
+        btn_save = QPushButton("設定を画像保存...")
+        btn_save.setToolTip("現在のパレット設定をPNG画像とメタデータとして保存")
+        btn_save.clicked.connect(self._save_palette_png)
         btnbar.addWidget(btn_save)
-        btn_load = QPushButton("プリセット読込...")
-        btn_load.setToolTip("JSONファイルからパレット設定を読み込み")
-        btn_load.clicked.connect(self._load_preset)
+        btn_load = QPushButton("画像から読込...")
+        btn_load.setToolTip("PNG画像のメタデータからパレット設定を読み込み")
+        btn_load.clicked.connect(self._load_palette_file)
         btnbar.addWidget(btn_load)
-        btn_reset = QPushButton("リセット")
-        btn_reset.setToolTip("このダイアログ起動時の値に戻す")
+        btn_reset = QPushButton("編集開始時に戻す")
+        btn_reset.setToolTip("このパレット編集を開いた時点の値に戻す")
         btn_reset.clicked.connect(self._reset)
         btnbar.addWidget(btn_reset)
         btn_random3 = QPushButton("ランダム3色")
@@ -421,6 +425,20 @@ class PaletteDialog(QDialog):
             self._refresh_wall_swatch(i)
         self._changed = False
         self._refresh_sprite_icons()
+        if self._sel_wall is not None:
+            cur_idx = self._wall_buf[self._sel_wall] & 0x3F
+            self._picker_info.setText(
+                f"<b>ステージ壁色 {wall_color_hack.stage_range_label(self._sel_wall)}面</b> を編集中 "
+                f"(現在: 0x{cur_idx:02X})"
+            )
+            self._update_color_grid_highlight(cur_idx)
+        elif self._sel_palette is not None and self._sel_slot is not None:
+            cur_idx = self._buf[self._sel_palette][self._sel_slot] & 0x3F
+            label = PALETTE_LABELS[self._sel_palette]
+            self._picker_info.setText(
+                f"<b>{label}</b> スロット{self._sel_slot + 1} を編集中 (現在: 0x{cur_idx:02X})"
+            )
+            self._update_color_grid_highlight(cur_idx)
 
     def _selected_palette_no(self):
         if self._sel_wall is not None:
@@ -469,62 +487,173 @@ class PaletteDialog(QDialog):
             self._buf[palette_no][slot] = self._shift_nes_hue(self._buf[palette_no][slot])
         self._refresh_palette_row(palette_no)
 
-    def _save_preset(self):
-        """パレット設定をJSONファイルに保存"""
-        from .file_dialog_compat import get_path
-        path = get_path(parent=self, title="パレットプリセット保存", filter="*.json", mode="save")
-        if not path:
-            return
-        if not path.endswith(".json"):
-            path += ".json"
+    def _palette_data(self) -> dict:
         data = {
-            "format": "magatu_skc_palette",
-            "version": 1,
-            "palettes": []
+            "format": PALETTE_DATA_FORMAT,
+            "version": 2,
+            "app_version": __version__,
+            "palettes": [],
+            "wall_colors": [],
         }
         for p in range(PALETTE_COUNT):
             colors = [self._buf[p][s] & 0x3F for s in range(EDITABLE_COLORS)]
             data["palettes"].append({
                 "label": PALETTE_LABELS[p],
-                "colors": colors
+                "colors": colors,
             })
+        if self._wall_ok:
+            for i, value in enumerate(self._wall_buf):
+                data["wall_colors"].append({
+                    "label": f"{wall_color_hack.stage_range_label(i)}面",
+                    "color": value & 0x3F,
+                })
+        return data
+
+    def _build_palette_png(self, data: dict) -> QImage:
+        wall_colors = data.get("wall_colors", [])
+        wall_rows = 2 if wall_colors else 0
+        width = 760
+        height = 58 + PALETTE_COUNT * 42 + 36 + wall_rows * 44 + 22
+        img = QImage(width, height, QImage.Format_ARGB32)
+        img.fill(QColor("#101820"))
+
+        painter = QPainter(img)
         try:
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-            QMessageBox.information(self, "保存完了", f"パレットプリセットを保存しました:\n{path}")
+            painter.setRenderHint(QPainter.Antialiasing, False)
+            painter.setPen(QColor("#E8F1F2"))
+            painter.drawText(18, 28, "SOLOMON_CUSTOMIZER palette settings")
+            painter.setPen(QColor("#9FB3C8"))
+            painter.drawText(18, 48, f"App v{__version__} / NES color indexes are embedded in PNG metadata")
+
+            y = 76
+            painter.setPen(QColor("#E8F1F2"))
+            painter.drawText(18, y - 12, "Main palettes")
+            for p, entry in enumerate(data.get("palettes", [])):
+                label = entry.get("label", PALETTE_LABELS[p] if p < PALETTE_COUNT else f"Palette {p}")
+                colors = entry.get("colors", [])
+                painter.setPen(QColor("#D7E3EA"))
+                painter.drawText(18, y + 22, str(label))
+                for s, value in enumerate(colors[:EDITABLE_COLORS]):
+                    nes_idx = int(value) & 0x3F
+                    x = 220 + s * 118
+                    painter.fillRect(x, y, 40, 28, nes_to_qcolor(nes_idx))
+                    painter.setPen(QPen(QColor("#EEF6F7"), 1))
+                    painter.drawRect(x, y, 40, 28)
+                    painter.setPen(QColor("#D7E3EA"))
+                    painter.drawText(x + 48, y + 20, f"0x{nes_idx:02X}")
+                y += 42
+
+            if wall_colors:
+                y += 16
+                painter.setPen(QColor("#E8F1F2"))
+                painter.drawText(18, y - 8, "Stage wall colors")
+                for i, entry in enumerate(wall_colors):
+                    nes_idx = int(entry.get("color", 0)) & 0x3F
+                    col = i % 6
+                    row = i // 6
+                    x = 18 + col * 122
+                    yy = y + row * 44
+                    painter.fillRect(x, yy, 36, 24, nes_to_qcolor(nes_idx))
+                    painter.setPen(QPen(QColor("#EEF6F7"), 1))
+                    painter.drawRect(x, yy, 36, 24)
+                    painter.setPen(QColor("#D7E3EA"))
+                    painter.drawText(x + 42, yy + 17, f"{entry.get('label', '')} 0x{nes_idx:02X}")
+        finally:
+            painter.end()
+
+        meta = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+        img.setText(PALETTE_PNG_METADATA_KEY, meta)
+        img.setText("Software", f"SOLOMON_CUSTOMIZER {__version__}")
+        img.setText("Description", "SOLOMON_CUSTOMIZER palette settings with embedded NES color indexes")
+        return img
+
+    def _save_palette_png(self):
+        """パレット設定をPNG画像とメタデータに保存"""
+        from .file_dialog_compat import get_path
+        path = get_path(
+            parent=self,
+            title="パレット設定を画像保存",
+            filter="PNG Images (*.png);;All files (*)",
+            mode="save",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".png"):
+            path += ".png"
+        try:
+            img = self._build_palette_png(self._palette_data())
+            if not img.save(path, "PNG"):
+                raise OSError("PNG保存に失敗しました。")
+            QMessageBox.information(self, "保存完了", f"パレット設定画像を保存しました:\n{path}")
         except Exception as e:
             QMessageBox.critical(self, "保存失敗", f"{type(e).__name__}: {e}")
 
-    def _load_preset(self):
-        """JSONファイルからパレット設定を読み込み"""
-        from .file_dialog_compat import get_file
-        path = get_file(self, title="パレットプリセット読込", filter="*.json")
-        if not path:
-            return
-        try:
+    def _read_palette_file(self, path: str) -> dict:
+        if path.lower().endswith(".json"):
             with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception as e:
-            QMessageBox.critical(self, "読込失敗", f"{type(e).__name__}: {e}")
-            return
-        if data.get("format") != "magatu_skc_palette":
-            QMessageBox.warning(self, "形式エラー", "このファイルはパレットプリセットではありません。")
-            return
+                return json.load(f)
+        img = QImage(path)
+        if img.isNull():
+            raise ValueError("画像として読み込めません。")
+        meta = img.text(PALETTE_PNG_METADATA_KEY)
+        if not meta:
+            raise ValueError("このPNGにはパレット設定メタデータがありません。")
+        return json.loads(meta)
+
+    def _apply_palette_data(self, data: dict) -> bool:
+        if data.get("format") != PALETTE_DATA_FORMAT:
+            QMessageBox.warning(self, "形式エラー", "このファイルはパレット設定ではありません。")
+            return False
         palettes = data.get("palettes", [])
         if len(palettes) != PALETTE_COUNT:
             QMessageBox.warning(self, "形式エラー", f"パレット数が不正です（{len(palettes)}、期待値: {PALETTE_COUNT}）。")
-            return
+            return False
         for p in range(PALETTE_COUNT):
             colors = palettes[p].get("colors", [])
             if len(colors) != EDITABLE_COLORS:
                 QMessageBox.warning(self, "形式エラー", f"パレット {p} の色数が不正です。")
-                return
+                return False
             for s in range(EDITABLE_COLORS):
-                self._buf[p][s] = colors[s] & 0x3F
+                self._buf[p][s] = int(colors[s]) & 0x3F
                 self._refresh_swatch(p, s)
+
+        wall_colors = data.get("wall_colors")
+        if wall_colors is not None and self._wall_ok:
+            if len(wall_colors) != wall_color_hack.EDIT_COUNT:
+                QMessageBox.warning(
+                    self, "形式エラー",
+                    f"壁色数が不正です（{len(wall_colors)}、期待値: {wall_color_hack.EDIT_COUNT}）。"
+                )
+                return False
+            for i, entry in enumerate(wall_colors):
+                value = entry.get("color") if isinstance(entry, dict) else entry
+                self._wall_buf[i] = int(value) & 0x3F
+                self._refresh_wall_swatch(i)
         self._changed = True
         self._refresh_sprite_icons()
-        QMessageBox.information(self, "読込完了", f"パレットプリセットを読み込みました:\n{os.path.basename(path)}")
+        if self._sel_wall is not None:
+            self._update_color_grid_highlight(self._wall_buf[self._sel_wall] & 0x3F)
+        elif self._sel_palette is not None and self._sel_slot is not None:
+            self._update_color_grid_highlight(self._buf[self._sel_palette][self._sel_slot] & 0x3F)
+        return True
+
+    def _load_palette_file(self):
+        """PNGメタデータまたは旧JSONからパレット設定を読み込み"""
+        from .file_dialog_compat import get_file
+        path = get_file(
+            self,
+            title="パレット設定を読み込み",
+            filter="Palette PNG (*.png);;Legacy JSON (*.json);;All files (*)",
+        )
+        if not path:
+            return
+        try:
+            data = self._read_palette_file(path)
+        except Exception as e:
+            QMessageBox.critical(self, "読込失敗", f"{type(e).__name__}: {e}")
+            return
+        if self._apply_palette_data(data):
+            QMessageBox.information(self, "読込完了", f"パレット設定を読み込みました:\n{os.path.basename(path)}")
 
     def _apply(self) -> bool:
         """編集内容を ROM data に書き戻す。実際に変更があった場合 True。"""
