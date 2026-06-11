@@ -1,2 +1,2 @@
 """SOLOMON_CUSTOMIZER - skchain Python移植版"""
-__version__ = "0.8.127"
+__version__ = "0.8.129"

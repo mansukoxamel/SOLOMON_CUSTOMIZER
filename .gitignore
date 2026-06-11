@@ -37,6 +37,8 @@ fceux_probes/
 mesen_probes/
 config/
 tools/
+!tools/
+!tools/start_stage_patch.py
 __pycache__/
 **/__pycache__/
 *.py[cod]
