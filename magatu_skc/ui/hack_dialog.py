@@ -40,6 +40,7 @@ from ..core import initial_magic
 from ..core import initial_lives
 from ..core import time_decrease_hack
 from ..core import wall_color_hack
+from ..core import stage_frame
 from ..nes import palette as nes_palette
 
 
@@ -802,6 +803,44 @@ class HackDialog(QDialog):
         csf.addRow(cshint)
         layout.addWidget(cs_group)
 
+        # ステージ外枠
+        frame_group = QGroupBox("ステージ外枠")
+        frame_group.setProperty("settings_category", "画面・演出")
+        frame_f = QVBoxLayout(frame_group)
+        self.chk_stage_frame_white = QCheckBox(
+            "ゲーム画面の外枠を白ブロック柄にする")
+        self.chk_stage_frame_white.setToolTip(
+            "ステージ土台描画で使う固定Nametable外枠タイルだけを、"
+            "カスタマイザーのキャンバス枠と同じ白ブロック柄へ差し替えます。\n"
+            "境界セル$F8や衝突判定、ステージデータ形式は変更しません。")
+        self._stage_frame_ok = False
+        base_region = (
+            self.rom.base_region()
+            if hasattr(self.rom, "base_region")
+            else getattr(self.rom, "region", "")
+        )
+        state = stage_frame.current_state(self.rom.data)
+        if (
+                stage_frame.is_supported_region(base_region)
+                and state in ("stock", "customizer_white")):
+            self.chk_stage_frame_white.setChecked(state == "customizer_white")
+            self._stage_frame_ok = True
+        else:
+            self.chk_stage_frame_white.setEnabled(False)
+        frame_f.addWidget(self.chk_stage_frame_white)
+        frame_hint = QLabel(
+            "ONにすると保存ROM/テストプレイROMの左右・下外枠が白ブロック柄になります。"
+            "OFFに戻して適用すると原作の外枠柄へ戻します。")
+        if state == "unknown":
+            frame_hint.setText(
+                "外枠固定タイル列が既知値と一致しないため、このROMでは変更を無効化しています。")
+        elif not stage_frame.is_supported_region(base_region):
+            frame_hint.setText("日本版ベースROM専用です。")
+        frame_hint.setWordWrap(True)
+        frame_hint.setStyleSheet("color:#888; font-size:11px;")
+        frame_f.addWidget(frame_hint)
+        layout.addWidget(frame_group)
+
         # 原作バグ回避: 落下中の横穴侵入を安定化 (グローバル)
         gf_group = QGroupBox("原作バグ回避")
         gf_group.setProperty("settings_category", "保守・特殊")
@@ -1334,6 +1373,7 @@ class HackDialog(QDialog):
             "spark_ball_transparency_period": self._combo_data(self.combo_spark_transparency),
             "demonhead_snappy": self.chk_demonhead_snappy.isChecked(),
             "clear_screen_preset": self._combo_data(self.combo_clearscreen),
+            "stage_frame_white_enabled": self.chk_stage_frame_white.isChecked(),
             "gap_fix_enabled": self.chk_gapfix.isChecked(),
             "dark_light_frames": self.spin_dark_light.value(),
             "dark_dark_frames": self.spin_dark_dark.value(),
@@ -1359,6 +1399,7 @@ class HackDialog(QDialog):
             "spark_ball_variant": bool(getattr(self, "_spark_ball_variant_ok", False)),
             "demonhead": bool(getattr(self, "_demonhead_ok", False)),
             "clear_screen": bool(getattr(self, "_cs_ok", False)),
+            "stage_frame": bool(getattr(self, "_stage_frame_ok", False)),
             "gap_fix": bool(getattr(self, "_gapfix_ok", False)),
             "dark_tempo": bool(getattr(self, "_dark_tempo_ok", False)),
         }
@@ -1553,6 +1594,7 @@ class HackDialog(QDialog):
             self._set_combo_data(self.combo_clearscreen, str(settings["clear_screen_preset"]))
             if self.combo_clearscreen.currentIndex() != old:
                 changed.append("クリア画面キャラ")
+        set_check("stage_frame_white_enabled", self.chk_stage_frame_white, "ステージ外枠")
         set_check("gap_fix_enabled", self.chk_gapfix, "横穴侵入安定化")
         set_spin("dark_light_frames", self.spin_dark_light, "暗闇 明フレーム")
         set_spin("dark_dark_frames", self.spin_dark_dark, "暗闇 暗フレーム")
@@ -1917,6 +1959,16 @@ class HackDialog(QDialog):
                 except clearscreen_hack.ClearScreenHackError as e:
                     QMessageBox.warning(self, "クリア画面改造失敗", str(e))
 
+        # ステージ外枠
+        if getattr(self, "_stage_frame_ok", False):
+            want = self.chk_stage_frame_white.isChecked()
+            try:
+                sfch = stage_frame.apply(d, want, self.rom.base_region())
+                if sfch:
+                    applied.append("ステージ外枠: " + " / ".join(sfch))
+            except stage_frame.StageFrameError as e:
+                QMessageBox.warning(self, "ステージ外枠 設定失敗", str(e))
+
         # 原作バグ回避: 横穴侵入安定化
         if getattr(self, "_gapfix_ok", False):
             want = self.chk_gapfix.isChecked()
@@ -2038,6 +2090,8 @@ class HackDialog(QDialog):
             self.chk_demonhead_snappy.setChecked(False)
         if getattr(self, "_cs_ok", False):
             self._set_combo_data(self.combo_clearscreen, "fairy_original")
+        if getattr(self, "_stage_frame_ok", False):
+            self.chk_stage_frame_white.setChecked(False)
         if getattr(self, "_gapfix_ok", False):
             self.chk_gapfix.setChecked(False)
         if getattr(self, "_dark_tempo_ok", False):
