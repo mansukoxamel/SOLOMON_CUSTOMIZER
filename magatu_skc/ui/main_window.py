@@ -23,7 +23,17 @@ from ..core.level import Level, load_all_levels
 from ..core.xml_io import level_to_xml_element, xml_element_to_level
 from ..core.element import Wall, ElementType, LevelElement
 from ..core import constants as c
-from ..core.config import resolve_project_path, save_config
+from ..core.config import (
+    DEFAULT_AUTOSAVE_KEEP_COUNT,
+    DEFAULT_UNDO_LIMIT,
+    MAX_AUTOSAVE_KEEP_COUNT,
+    MAX_UNDO_LIMIT,
+    MIN_AUTOSAVE_KEEP_COUNT,
+    MIN_UNDO_LIMIT,
+    normalize_int_setting,
+    resolve_project_path,
+    save_config,
+)
 from ..core import saver, ips, wall_color_hack
 from ..gfx.tile_renderer import TileRenderer
 from ..gfx.level_renderer import LevelRenderer
@@ -40,7 +50,6 @@ from .element_picker import (
 
 APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
 AUTOSAVE_HISTORY_LABEL = "前回の作業状態"
-AUTOSAVE_KEEP_COUNT = 10
 
 
 class _XInputGamepad(ctypes.Structure):
@@ -201,10 +210,10 @@ class MainWindow(QMainWindow):
         # ROM読み込み履歴
         self.last_loaded_path: str = ""
         self._history: list = self._load_history()
-        # Undo/Redo: 編集前スナップショットのスタック、上限200件
+        # Undo/Redo: 編集前スナップショットのスタック、上限は設定で変更可能
         self._undo_stack: list = []
         self._redo_stack: list = []
-        self._undo_limit = 200
+        self._undo_limit = DEFAULT_UNDO_LIMIT
 
         # 操作ログ（メモリ上に蓄積、closeEventで保存）
         from datetime import datetime
@@ -431,6 +440,7 @@ class MainWindow(QMainWindow):
         # アプリ設定
         from ..core.config import load_config
         self._app_config = load_config()
+        self._apply_history_limit_settings()
 
         # 左サイド
         left_widget = self._build_left_panel()
@@ -5199,6 +5209,7 @@ class MainWindow(QMainWindow):
     def _apply_settings(self, new_config: dict):
         """設定ダイアログから呼び出される。即時反映 + JSON保存"""
         self._app_config = dict(new_config)
+        self._apply_history_limit_settings()
         from ..core.config import save_config
         save_config(self._app_config)
         self._update_title()
@@ -5219,6 +5230,28 @@ class MainWindow(QMainWindow):
         if self.levels and self.level_renderer is not None:
             self._generate_all_thumbnails()
         self._apply_icon()
+
+    def _autosave_keep_count(self) -> int:
+        return normalize_int_setting(
+            self._app_config.get("autosave_keep_count"),
+            DEFAULT_AUTOSAVE_KEEP_COUNT,
+            MIN_AUTOSAVE_KEEP_COUNT,
+            MAX_AUTOSAVE_KEEP_COUNT,
+        )
+
+    def _apply_history_limit_settings(self):
+        self._app_config["autosave_keep_count"] = self._autosave_keep_count()
+        self._undo_limit = normalize_int_setting(
+            self._app_config.get("undo_limit"),
+            DEFAULT_UNDO_LIMIT,
+            MIN_UNDO_LIMIT,
+            MAX_UNDO_LIMIT,
+        )
+        self._app_config["undo_limit"] = self._undo_limit
+        if len(self._undo_stack) > self._undo_limit:
+            del self._undo_stack[:-self._undo_limit]
+        if len(self._redo_stack) > self._undo_limit:
+            del self._redo_stack[:-self._undo_limit]
 
     def _apply_theme(self):
         """configの画面グレー設定をアプリ全体に反映"""
@@ -5387,7 +5420,7 @@ class MainWindow(QMainWindow):
             key=lambda p: p.stat().st_mtime,
             reverse=True,
         )
-        for old in autosaves[AUTOSAVE_KEEP_COUNT:]:
+        for old in autosaves[self._autosave_keep_count():]:
             try:
                 old.unlink()
             except Exception:
@@ -6781,6 +6814,8 @@ class MainWindow(QMainWindow):
         entry = self._undo_stack.pop()
         # 現在状態を redo に push
         self._redo_stack.append(self._snapshot_current_for_undo_entry(entry))
+        if len(self._redo_stack) > self._undo_limit:
+            self._redo_stack.pop(0)
         focus_level_no, label = self._restore_undo_entry(entry)
         # 該当レベルへ移動して再描画
         if focus_level_no != self.current_level_no:
@@ -6797,6 +6832,8 @@ class MainWindow(QMainWindow):
             return
         entry = self._redo_stack.pop()
         self._undo_stack.append(self._snapshot_current_for_undo_entry(entry))
+        if len(self._undo_stack) > self._undo_limit:
+            self._undo_stack.pop(0)
         focus_level_no, label = self._restore_undo_entry(entry)
         if focus_level_no != self.current_level_no:
             self.spin_level.setValue(focus_level_no + 1)

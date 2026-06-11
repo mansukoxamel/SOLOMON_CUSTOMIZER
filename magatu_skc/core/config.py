@@ -11,6 +11,20 @@ SOURCE_ROOT = Path(__file__).resolve().parent.parent.parent
 APP_ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else SOURCE_ROOT
 DATA_ROOT = Path(getattr(sys, "_MEIPASS", APP_ROOT)).resolve()
 DEFAULT_ICON_PATH = "docs/images/dana.png"
+DEFAULT_AUTOSAVE_KEEP_COUNT = 10
+MIN_AUTOSAVE_KEEP_COUNT = 1
+MAX_AUTOSAVE_KEEP_COUNT = 999
+DEFAULT_UNDO_LIMIT = 200
+MIN_UNDO_LIMIT = 1
+MAX_UNDO_LIMIT = 999
+
+
+def normalize_int_setting(value, default: int, minimum: int, maximum: int) -> int:
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        n = int(default)
+    return max(int(minimum), min(int(maximum), n))
 
 
 DEFAULT_CONFIG = {
@@ -79,6 +93,8 @@ DEFAULT_CONFIG = {
     "notification_sound_path": "",
     "notification_sound_volume": 1.0,
     "cloud_backup_path": "",
+    "autosave_keep_count": DEFAULT_AUTOSAVE_KEEP_COUNT,
+    "undo_limit": DEFAULT_UNDO_LIMIT,
 }
 
 
@@ -109,6 +125,18 @@ def load_config() -> dict:
             cfg.update(data)
             if not cfg.get("icon_path"):
                 cfg["icon_path"] = DEFAULT_ICON_PATH
+            cfg["autosave_keep_count"] = normalize_int_setting(
+                cfg.get("autosave_keep_count"),
+                DEFAULT_AUTOSAVE_KEEP_COUNT,
+                MIN_AUTOSAVE_KEEP_COUNT,
+                MAX_AUTOSAVE_KEEP_COUNT,
+            )
+            cfg["undo_limit"] = normalize_int_setting(
+                cfg.get("undo_limit"),
+                DEFAULT_UNDO_LIMIT,
+                MIN_UNDO_LIMIT,
+                MAX_UNDO_LIMIT,
+            )
             return cfg
         except Exception:
             pass

@@ -9,7 +9,16 @@ from PyQt5.QtCore import Qt
 from .theme import (
     DEFAULT_THEME_GRAY, MIN_THEME_GRAY, MAX_THEME_GRAY, normalize_theme_gray,
 )
-from ..core.config import DEFAULT_ICON_PATH
+from ..core.config import (
+    DEFAULT_AUTOSAVE_KEEP_COUNT,
+    DEFAULT_ICON_PATH,
+    DEFAULT_UNDO_LIMIT,
+    MAX_AUTOSAVE_KEEP_COUNT,
+    MAX_UNDO_LIMIT,
+    MIN_AUTOSAVE_KEEP_COUNT,
+    MIN_UNDO_LIMIT,
+    normalize_int_setting,
+)
 from .level_view import (
     DEFAULT_MARKER_COLORS,
     DEFAULT_MARKER_SHAPES,
@@ -162,6 +171,43 @@ class SettingsDialog(QDialog):
         lf.addRow("エミュレータ:", emu_wrap)
         layout.addWidget(link_group)
 
+        # ====== 履歴・自動保存 ======
+        history_group = QGroupBox("履歴・自動保存")
+        hf = QFormLayout(history_group)
+
+        self.spin_autosave_keep_count = QSpinBox()
+        self.spin_autosave_keep_count.setRange(
+            MIN_AUTOSAVE_KEEP_COUNT,
+            MAX_AUTOSAVE_KEEP_COUNT,
+        )
+        self.spin_autosave_keep_count.setSuffix(" 世代")
+        self.spin_autosave_keep_count.setValue(normalize_int_setting(
+            self.config.get("autosave_keep_count"),
+            DEFAULT_AUTOSAVE_KEEP_COUNT,
+            MIN_AUTOSAVE_KEEP_COUNT,
+            MAX_AUTOSAVE_KEEP_COUNT,
+        ))
+        self.spin_autosave_keep_count.setToolTip(
+            "終了時に保存する作業状態の保持数です。既定は10世代です。"
+        )
+        hf.addRow("作業状態自動保存:", self.spin_autosave_keep_count)
+
+        self.spin_undo_limit = QSpinBox()
+        self.spin_undo_limit.setRange(MIN_UNDO_LIMIT, MAX_UNDO_LIMIT)
+        self.spin_undo_limit.setSuffix(" 件")
+        self.spin_undo_limit.setValue(normalize_int_setting(
+            self.config.get("undo_limit"),
+            DEFAULT_UNDO_LIMIT,
+            MIN_UNDO_LIMIT,
+            MAX_UNDO_LIMIT,
+        ))
+        self.spin_undo_limit.setToolTip(
+            "ステージ編集のUndo/Redo履歴上限です。既定は200件、最大999件です。"
+        )
+        hf.addRow("Undo履歴上限:", self.spin_undo_limit)
+
+        layout.addWidget(history_group)
+
         # ====== TODO（今後実装） ======
         todo_group = QGroupBox("今後追加予定の項目")
         tl = QVBoxLayout(todo_group)
@@ -270,7 +316,12 @@ class SettingsDialog(QDialog):
 
     def _gather(self):
         """UIから config dict を更新"""
-        for spin in (self.spin_font_size, self.spin_theme_gray):
+        for spin in (
+            self.spin_font_size,
+            self.spin_theme_gray,
+            self.spin_autosave_keep_count,
+            self.spin_undo_limit,
+        ):
             spin.interpretText()
         mark = self.cmb_dirty_mark.currentText().strip()
         if not mark:
@@ -288,6 +339,8 @@ class SettingsDialog(QDialog):
         self.config["marker_overlay_scale"] = int(
             self.cmb_marker_overlay_scale.currentData()
         )
+        self.config["autosave_keep_count"] = self.spin_autosave_keep_count.value()
+        self.config["undo_limit"] = self.spin_undo_limit.value()
         for key, _label in MARKER_COLOR_ROWS:
             self.config[key] = self._normalize_color(
                 self._color_edits[key].text().strip(),
