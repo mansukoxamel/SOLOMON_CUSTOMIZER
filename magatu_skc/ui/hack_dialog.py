@@ -810,8 +810,8 @@ class HackDialog(QDialog):
         self.chk_stage_frame_white = QCheckBox(
             "ゲーム画面の外枠を白ブロック柄にする")
         self.chk_stage_frame_white.setToolTip(
-            "ステージ土台描画で使う固定Nametable外枠タイルだけを、"
-            "カスタマイザーのキャンバス枠と同じ白ブロック柄へ差し替えます。\n"
+            "ステージ外枠テーブルを外枠用白ブロック反復へ変更し、"
+            "4つのCHRバンクすべてで対応CHRを白ブロック柄へ差し替えます。\n"
             "境界セル$F8や衝突判定、ステージデータ形式は変更しません。")
         self._stage_frame_ok = False
         base_region = (
@@ -830,10 +830,10 @@ class HackDialog(QDialog):
         frame_f.addWidget(self.chk_stage_frame_white)
         frame_hint = QLabel(
             "ONにすると保存ROM/テストプレイROMの左右・下外枠が白ブロック柄になります。"
-            "OFFに戻して適用すると原作の外枠柄へ戻します。")
+            "OFFに戻して適用すると外枠テーブルとハードコード済み原作CHRを復元します。")
         if state == "unknown":
             frame_hint.setText(
-                "外枠固定タイル列が既知値と一致しないため、このROMでは変更を無効化しています。")
+                "外枠タイル列またはCHRが既知値と一致しないため、このROMでは変更を無効化しています。")
         elif not stage_frame.is_supported_region(base_region):
             frame_hint.setText("日本版ベースROM専用です。")
         frame_hint.setWordWrap(True)
