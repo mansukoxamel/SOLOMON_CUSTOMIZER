@@ -523,6 +523,15 @@ class MainWindow(QMainWindow):
         self.level_view.stage_png_dropped.connect(self._on_stage_png_dropped)
         self.enemy_count_indicator = _EnemyCountIndicator(self.level_view.viewport())
         self.enemy_count_indicator.hide()
+        self.stage_number_label = QLabel("", self.level_view.viewport())
+        self.stage_number_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.stage_number_label.setStyleSheet(
+            "QLabel { color: #54ff4d; background: transparent; "
+            "font-size: 34px; font-weight: 900; }"
+        )
+        self.stage_number_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.stage_number_label.setFixedHeight(54)
+        self.stage_number_label.hide()
         self.level_view.viewport().installEventFilter(self)
 
         # スプリッター
@@ -564,7 +573,37 @@ class MainWindow(QMainWindow):
                 obj is self.level_view.viewport() and
                 event.type() in (QEvent.Resize, QEvent.Show)):
             self._position_enemy_count_indicator()
+            self._position_stage_number_label()
         return super().eventFilter(obj, event)
+
+    def _position_stage_number_label(self):
+        if not hasattr(self, "stage_number_label"):
+            return
+        label = self.stage_number_label
+        viewport = self.level_view.viewport()
+        h = label.height()
+        x = 12
+        y = 8
+
+        pixmap_item = getattr(self.level_view, "_pixmap_item", None)
+        if pixmap_item is not None:
+            scene_rect = pixmap_item.mapRectToScene(pixmap_item.boundingRect())
+            top_left = self.level_view.mapFromScene(scene_rect.topLeft())
+            bottom_right = self.level_view.mapFromScene(scene_rect.bottomRight())
+            top_margin = max(0, top_left.y())
+            x = max(8, top_left.x() + 16)
+            if top_margin >= h + 8:
+                y = max(4, (top_margin - h) // 2)
+            else:
+                y = max(4, top_left.y() + 8)
+
+        right_limit = viewport.width() - 8
+        if hasattr(self, "enemy_count_indicator") and self.enemy_count_indicator.isVisible():
+            right_limit = min(right_limit, self.enemy_count_indicator.x() - 8)
+        label_w = max(150, min(260, right_limit - x))
+        label.resize(label_w, h)
+        label.move(x, y)
+        label.raise_()
 
     def _position_enemy_count_indicator(self):
         if not hasattr(self, "enemy_count_indicator"):
@@ -593,6 +632,18 @@ class MainWindow(QMainWindow):
 
         indicator.move(x, y)
         indicator.raise_()
+
+    def _update_stage_number_label(self):
+        if not hasattr(self, "stage_number_label"):
+            return
+        if not self.levels or not (0 <= self.current_level_no < len(self.levels)):
+            self.stage_number_label.hide()
+            return
+        stage_no = self.current_level_no + 1
+        self.stage_number_label.setText(f"STAGE {stage_no:02d}")
+        self.stage_number_label.setToolTip(f"現在のステージ: {stage_no}")
+        self.stage_number_label.show()
+        self._position_stage_number_label()
 
     def _update_enemy_count_indicator(self):
         if not hasattr(self, "enemy_count_indicator"):
@@ -3440,9 +3491,11 @@ class MainWindow(QMainWindow):
     def _refresh_view(self):
         if not self.levels or self.level_renderer is None:
             self._update_enemy_count_indicator()
+            self._update_stage_number_label()
             return
         if not (0 <= self.current_level_no < len(self.levels)):
             self._update_enemy_count_indicator()
+            self._update_stage_number_label()
             return
         level = self.levels[self.current_level_no]
         if (
@@ -3488,6 +3541,7 @@ class MainWindow(QMainWindow):
                 with_border=True,
             )
         self._update_enemy_count_indicator()
+        self._update_stage_number_label()
         self._sync_object_labels()
         self._update_info()
         self._load_meta_to_ui()
