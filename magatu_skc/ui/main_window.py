@@ -3742,6 +3742,37 @@ class MainWindow(QMainWindow):
             return "0x03", "壊せる白ブロック"
         return None, None
 
+    def _item_state_label(self, lv, item, tile):
+        if tile in getattr(lv, "visible_in_block_item_cells", set()):
+            return "透明ブロック内"
+        if item.is_white_in_block():
+            return "白ブロック内"
+        if item.is_hidden():
+            return "隠し"
+        if item.is_in_block():
+            return "ブロック内"
+        return ""
+
+    def _key_state_label(self, lv):
+        if lv.is_key_white_in_block():
+            return "白ブロック内"
+        if lv.is_key_in_block():
+            return "ブロック内"
+        if lv.is_key_hidden():
+            return "隠し"
+        return ""
+
+    def _door_state_label(self, lv):
+        from ..core import room_flags as _rf
+        door_state = lv.room_flags & _rf.DOOR_STATE_MASK
+        if door_state == _rf.DOOR_STATE_WHITE_IN_BLOCK:
+            return "白ブロック内"
+        if door_state == _rf.DOOR_STATE_IN_BLOCK:
+            return "ブロック内"
+        if door_state == _rf.DOOR_STATE_HIDDEN:
+            return "隠し"
+        return ""
+
     def _enemy_speed_info(self, code: int):
         base_code, speed = base_code_from_actual(code)
         table = ENEMY_SPEED_TABLE.get(base_code)
@@ -3791,9 +3822,14 @@ class MainWindow(QMainWindow):
                 self.config.item_desc.get(base, f"0x{base:02X}")
                 if self.config else f"0x{base:02X}"
             )
+            state = self._item_state_label(lv, item, tile)
+            state_suffix = (
+                f' <span style="color:#BFE8FF;">[{escape(state)}]</span>'
+                if state else ""
+            )
             lines.append(
                 '<div style="color:#7DD3FC; font-weight:700;">'
-                f"Item ID 0x{base:02X}: {escape(desc)}"
+                f"Item ID 0x{base:02X}: {escape(desc)}{state_suffix}"
                 "</div>"
             )
 
@@ -3807,14 +3843,16 @@ class MainWindow(QMainWindow):
 
         meta = []
         if lv.fixed_start_pos == tile:
-            meta.append("start")
+            meta.append("スタート")
         if not lv.is_key_removed() and lv.fixed_key_pos == tile:
-            meta.append("key")
+            key_state = self._key_state_label(lv)
+            meta.append(f"鍵 [{key_state}]" if key_state else "鍵")
         if not lv.is_door_removed() and lv.fixed_door_pos == tile:
-            meta.append("door")
+            door_state = self._door_state_label(lv)
+            meta.append(f"扉 [{door_state}]" if door_state else "扉")
         for i, mirror in enumerate(lv.demon_mirrors, start=1):
             if mirror.position == tile:
-                meta.append(f"mirror{i}")
+                meta.append(f"ミラー{i}")
         if meta:
             lines.append(
                 '<div style="color:#C4B5FD;">'
