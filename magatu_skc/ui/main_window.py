@@ -4433,13 +4433,17 @@ class MainWindow(QMainWindow):
         idx = lv.get_item_index(tile)
         if idx >= 0:
             self._push_undo()
+            item = lv.items[idx]
+            if item.is_in_block():
+                lv.set_block(Wall.NONE, tile)
             self._move_pending = {
                 "kind": "item",
-                "ref": lv.items[idx],
+                "ref": item,
                 "visible_in_block": tile in getattr(lv, "visible_in_block_item_cells", set()),
                 "current_pos": tile,
             }
             self.statusBar().showMessage(f"アイテムを掴み中 → ドラッグで移動", 0)
+            self._refresh_view()
             return
 
         idx = lv.get_enemy_index(tile)
@@ -4591,6 +4595,8 @@ class MainWindow(QMainWindow):
                 cells.discard(mp.get("current_pos"))
                 cells.add(tile)
                 mp["current_pos"] = tile
+            elif kind == "item":
+                mp["current_pos"] = tile
             mp["ref"].position = tile
         elif kind == "meta":
             sub = mp["sub"]
@@ -4686,6 +4692,13 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(
                     f"Mighty Bomb Jack [{label}] 移動完了 → {pos}", 2000
                 )
+                self._refresh_thumbnails_after_edit()
+            elif kind == "item":
+                lv = self.levels[self.current_level_no]
+                item = self._move_pending.get("ref")
+                if item is not None and item.is_in_block():
+                    lv.set_block(Wall.NONE, item.position)
+                self.statusBar().showMessage("アイテム移動完了", 2000)
                 self._refresh_thumbnails_after_edit()
             else:
                 self.statusBar().showMessage("移動完了", 2000)
