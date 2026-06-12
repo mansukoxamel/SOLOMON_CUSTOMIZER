@@ -11,6 +11,7 @@ ITEM_THUMB = 28
 ITEM_GAP = 3
 SORT_ROLE = Qt.UserRole + 1
 CSV_ROLE = Qt.UserRole + 2
+TOTAL_ROW_ROLE = Qt.UserRole + 3
 
 from ..core import constants as c
 from ..core.element import Wall
@@ -27,6 +28,32 @@ IMPORTANT_ITEMS = [
     0x20, 0x22, 0x1c, 0x1d, 0x1e, 0x1f,
     0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x21,
 ]
+
+# Item pickup scores confirmed against the original JP ROM score routines:
+# $C803/$C80A/$C7B5 direct calls and $C571-$C595 high-score item ladder.
+# Non-score/effect-only items are intentionally omitted and default to 0.
+ITEM_SCORE_TABLE = {
+    0x08: 500,
+    0x0A: 2000,
+    0x0C: 2000,
+    0x1B: 200,
+    0x25: 100,
+    0x26: 200,
+    0x27: 500,
+    0x28: 1000,
+    0x29: 2000,
+    0x2A: 5000,
+    0x2B: 10000,
+    0x2C: 20000,
+    0x2D: 50000,
+    0x2E: 100000,
+    0x2F: 200000,
+    0x30: 500000,
+    0x31: 1000000,
+    0x32: 500000,
+    0x38: 500000,
+    0x39: 500000,
+}
 
 FEATURED_ENTITY_ORDER = [
     ("item", 0x22),          # Warp Item
@@ -120,11 +147,25 @@ def _enemy_important_key(enemy, config) -> tuple[str, int] | None:
 class StatsTableItem(QTableWidgetItem):
     """ソート用データを優先して比較するテーブルセル。"""
 
+    @staticmethod
+    def _sort_key(value):
+        if value is None:
+            return (2, "")
+        if isinstance(value, bool):
+            return (0, int(value))
+        if isinstance(value, (int, float)):
+            return (0, value)
+        return (1, str(value))
+
     def __lt__(self, other):
+        left_total = bool(self.data(TOTAL_ROW_ROLE))
+        right_total = bool(other.data(TOTAL_ROW_ROLE)) if other is not None else False
+        if left_total != right_total:
+            return (not left_total) and right_total
         left = self.data(SORT_ROLE)
         right = other.data(SORT_ROLE) if other is not None else None
         if left is not None and right is not None:
-            return left < right
+            return self._sort_key(left) < self._sort_key(right)
         return super().__lt__(other)
 
 
@@ -157,6 +198,7 @@ class StatsDialog(QDialog):
         ("主要", 180),      # Warp/星座パネル/Solomon/Page スプライト
         ("重要アイテム", 380),  # スプライト
         ("全アイテム", 520),    # ピッカー順の全アイテム集計 スプライト
+        ("理論得点", 100),      # 配置アイテムを全取得した場合の取得時得点
     ]
     # ヘッダ名 → 列インデックス (ハードコード排除)
     _HDR = [h for h, _ in COLUMNS]
@@ -179,8 +221,9 @@ class StatsDialog(QDialog):
     FEATURED_COL = _HDR.index("主要")
     ITEM_COL = _HDR.index("重要アイテム")
     ALL_ITEM_COL = _HDR.index("全アイテム")
+    SCORE_COL = _HDR.index("理論得点")
     FLAG_COLS = (ASTONE_COL, BFIRE_COL, FIRE_RESET_COL, DARK_COL, DOOR_COL, FAIRY_DROP_COL)
-    NUM_COLS = (TS_COL, TIME_COL, LIFE_COL)  # 中央寄せする数値メタ列
+    NUM_COLS = (TS_COL, TIME_COL, LIFE_COL, SCORE_COL)  # 中央寄せする数値メタ列
 
     def __init__(self, levels, item_desc=None, config=None,
                  tile_renderer=None, app_config=None, rom=None, parent=None):
@@ -217,18 +260,20 @@ class StatsDialog(QDialog):
             "Sphinx/Egyptian Head/Magic Lamp/E-bottle/Tecmo Bunny と、"
             "特殊扱いの Mighty Bomb Jack/Fairy/Fairy Princess を集計(コイン/宝石/"
             "Bell/Scroll/タイマー系などは除外)。「全アイテム」列は"
-            "ピッカー順で、通常/隠し/ブロック内を区別せず全配置アイテムを"
-            "ベースアイテム別に集計。「配置敵」=面に置かれた敵"
+            "主要/重要アイテム列に出したものを除き、通常/隠し/ブロック内を"
+            "区別せずベースアイテム別に集計。「配置敵」=面に置かれた敵"
             "(実数 ×N)、「ミラー敵」=デーモンミラーから出る敵(種類のみ・"
             "無スケジュールのミラーは除外)。<br>"
             "「妖精化」=特殊処理で敵リスト1体目の落下死→妖精出現が有効なステージ。<br>"
+            "「理論得点」=配置されているアイテムをすべて取得した場合の取得時得点"
+            "(到達可否、残りTIME換算、スコア倍率の副作用は除外)。<br>"
             "セルをダブルクリックでそのステージへジャンプ。"
         )
         info.setWordWrap(True)
         layout.addWidget(info)
 
         # テーブル
-        self.table = QTableWidget(len(levels), len(self.COLUMNS), self)
+        self.table = QTableWidget(len(levels) + 1, len(self.COLUMNS), self)
         self.table.setHorizontalHeaderLabels([h for h, _ in self.COLUMNS])
         featured_header = self.table.horizontalHeaderItem(self.FEATURED_COL)
         if featured_header is not None:
@@ -246,8 +291,14 @@ class StatsDialog(QDialog):
         if all_item_header is not None:
             all_item_header.setToolTip(
                 "全アイテム列は通常/隠し/ブロック内を区別せず、"
-                "ベースアイテム別に合算します。\n"
+                "主要/重要アイテム列に出したものを除いてベースアイテム別に合算します。\n"
                 "表示順はピッカー順です。右下の数字は同種アイテムの合計数です。"
+            )
+        score_header = self.table.horizontalHeaderItem(self.SCORE_COL)
+        if score_header is not None:
+            score_header.setToolTip(
+                "配置されているアイテムをすべて取った場合の取得時得点です。\n"
+                "到達可否、残りTIMEのクリア時換算、スコア倍率の副作用は含めません。"
             )
         for i, (_, w) in enumerate(self.COLUMNS):
             self.table.setColumnWidth(i, w)
@@ -563,19 +614,21 @@ class StatsDialog(QDialog):
         return out
 
     def _populate(self):
+        grand_score = 0
         for row, lv in enumerate(self.levels):
             tileset_no = int(getattr(lv, "tileset_no", 0) or 0)
             # アイテム集計
             normal_count = 0
             hidden_count = 0
             in_block_count = 0
+            level_score = 0
             featured_buckets = {}   # (source, code) -> {state: count}
             important_buckets = {}  # (source, code) -> {state: count}
             all_item_counts = {}     # base item code -> count, state ignored
             for it in lv.items:
                 flag = it.element_no & 0xC0
                 base = it.element_no & 0x3F
-                all_item_counts[base] = all_item_counts.get(base, 0) + 1
+                level_score += self._item_score(base)
                 if it.position in getattr(lv, "visible_in_block_item_cells", set()):
                     state = "in_block"
                 else:
@@ -588,6 +641,8 @@ class StatsDialog(QDialog):
                     self._add_important_item(featured_buckets, key, state)
                 elif key in IMPORTANT_ENTITY_SET:
                     self._add_important_item(important_buckets, key, state)
+                else:
+                    all_item_counts[base] = all_item_counts.get(base, 0) + 1
 
             meta_items = getattr(self.config, "level_meta_items", []) if self.config else []
             for mi in meta_items:
@@ -601,7 +656,10 @@ class StatsDialog(QDialog):
                     normal_count, hidden_count, in_block_count, state)
                 all_code = _level_meta_all_item_code(mi)
                 if all_code is not None:
-                    all_item_counts[all_code] = all_item_counts.get(all_code, 0) + 1
+                    level_score += self._item_score(all_code)
+                    all_key = _item_important_key(all_code)
+                    if all_key not in FEATURED_ENTITY_SET and all_key not in IMPORTANT_ENTITY_SET:
+                        all_item_counts[all_code] = all_item_counts.get(all_code, 0) + 1
                 if key in FEATURED_ENTITY_SET:
                     self._add_important_item(featured_buckets, key, state)
                 else:
@@ -731,6 +789,7 @@ class StatsDialog(QDialog):
             mirror_ordered, mirror_text = _group(
                 [(ec, 1) for ec in mbases.values()])
             self._csv_mirror_text[row] = mirror_text
+            grand_score += level_score
 
             # セル設定 (COLUMNS と同じ並び。スプライト列はテキスト空)
             cells = [
@@ -756,6 +815,7 @@ class StatsDialog(QDialog):
                 "",                               # 主要(sprite)
                 "",                               # 重要アイテム(sprite)
                 "",                               # 全アイテム(sprite)
+                self._score_text(level_score),    # 理論得点
             ]
             sort_values = [
                 row + 1,                          # Lv
@@ -780,6 +840,7 @@ class StatsDialog(QDialog):
                 "",                              # 主要: ソート対象外
                 "",                              # 重要アイテム: ソート対象外
                 sum(all_item_counts.values()),   # 全アイテム
+                level_score,                     # 理論得点
             ]
             csv_values = {
                 self.PLACED_COL: placed_text,
@@ -794,6 +855,7 @@ class StatsDialog(QDialog):
                     item.setTextAlignment(Qt.AlignCenter)
                 item.setData(Qt.UserRole, row)  # レベル番号(0-indexed)
                 item.setData(SORT_ROLE, sort_values[col])
+                item.setData(TOTAL_ROW_ROLE, False)
                 if col in csv_values:
                     item.setData(CSV_ROLE, csv_values[col])
                 self.table.setItem(row, col, item)
@@ -866,6 +928,7 @@ class StatsDialog(QDialog):
 
             self.table.setRowHeight(row, max(36, ITEM_THUMB + 8))
 
+        self._populate_total_row(len(self.levels), grand_score)
         self.table.resizeColumnsToContents()
         # スプライト帯の列はそれぞれの最大幅に合わせる
         self.table.setColumnWidth(self.PLACED_COL, max(260, self._placed_col_w))
@@ -873,6 +936,38 @@ class StatsDialog(QDialog):
         self.table.setColumnWidth(self.FEATURED_COL, max(180, self._featured_col_w))
         self.table.setColumnWidth(self.ITEM_COL, max(380, self._item_col_w))
         self.table.setColumnWidth(self.ALL_ITEM_COL, max(420, self._all_item_col_w))
+        self.table.setColumnWidth(self.SCORE_COL, max(100, self.table.columnWidth(self.SCORE_COL)))
+
+    @staticmethod
+    def _item_score(base_code: int) -> int:
+        return ITEM_SCORE_TABLE.get(base_code & 0x3F, 0)
+
+    @staticmethod
+    def _score_text(score: int) -> str:
+        return f"{int(score):,}"
+
+    def _populate_total_row(self, row: int, grand_score: int):
+        for col in range(self.table.columnCount()):
+            if col == self.LV_COL:
+                text = "合計"
+                sort_value = 9999
+            elif col == self.SCORE_COL:
+                text = self._score_text(grand_score)
+                sort_value = grand_score
+            else:
+                text = ""
+                sort_value = ""
+            item = StatsTableItem(text)
+            item.setData(Qt.UserRole, -1)
+            item.setData(SORT_ROLE, sort_value)
+            item.setData(TOTAL_ROW_ROLE, True)
+            item.setData(CSV_ROLE, text)
+            item.setBackground(QColor(18, 52, 24))
+            item.setForeground(QColor(120, 255, 90))
+            if col in self.NUM_COLS:
+                item.setTextAlignment(Qt.AlignCenter)
+            self.table.setItem(row, col, item)
+        self.table.setRowHeight(row, 32)
 
     @staticmethod
     def _add_item_state_count(normal_count, hidden_count, in_block_count, state):
@@ -910,6 +1005,8 @@ class StatsDialog(QDialog):
             level_no = int(level_no)
         except Exception:
             level_no = row
+        if level_no < 0:
+            return
         # 親のレベル切替
         parent = self.parent()
         if parent and hasattr(parent, "spin_level"):
