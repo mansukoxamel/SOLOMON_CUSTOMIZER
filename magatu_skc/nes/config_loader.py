@@ -77,6 +77,7 @@ class SkcConfig:
         self.metadata_desc = {}      # byte -> description
         self.item_desc = {}          # byte -> description
         self.enemy_desc = {}         # byte -> description
+        self.enemy_direction_bundles = []  # list[tuple[int, ...]]
         self.level_meta_items = []   # list[MetaItemDef] (region で絞り込み済み)
         # item_bitmasks: 16x12 bitmap で同種アイテムを一括配置する仕組み
         # (Level 20 の Bat Symbol、Level 30 の Opal 等)
@@ -147,6 +148,19 @@ class SkcConfig:
                 target_map[no] = first_anim
                 desc = elem.attrib.get("description", "")
                 desc_map[no] = desc
+
+        enemy_editor = root.find("enemy_editor")
+        if enemy_editor is not None:
+            directions_node = enemy_editor.find("enemy_directions")
+            if directions_node is not None:
+                for bundle in directions_node.findall("bundle"):
+                    enemies = [
+                        parse_int(part.strip())
+                        for part in bundle.attrib.get("enemies", "").split(",")
+                        if part.strip()
+                    ]
+                    if enemies:
+                        cfg.enemy_direction_bundles.append(tuple(enemies))
 
         # level_meta_items（ソロモンの紋章 等）
         # rom_metadata > level_meta_items > level_meta_item

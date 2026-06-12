@@ -22,6 +22,7 @@ from ..core.rom import Rom, KNOWN_CRC32, is_known_jp_original_data
 from ..core.level import Level, load_all_levels
 from ..core.xml_io import level_to_xml_element, xml_element_to_level
 from ..core.element import Wall, ElementType, LevelElement
+from ..core.enemy_direction import DIRECTION_LABELS, enemy_direction_variant
 from ..core import constants as c
 from ..core.config import (
     DEFAULT_AUTOSAVE_KEEP_COUNT,
@@ -488,6 +489,7 @@ class MainWindow(QMainWindow):
         self.level_view.drag_end.connect(self._on_drag_end)
         # ホバーハイライト
         self.level_view.tile_hovered.connect(self._on_tile_hovered)
+        self.level_view.direction_key_pressed.connect(self._set_hover_enemy_direction)
         self._hover_tile = None
         # 左/右 ドラッグ塗り・消し
         self.level_view.tile_painted.connect(self._on_tile_painted)
@@ -5615,6 +5617,16 @@ class MainWindow(QMainWindow):
         elif key == Qt.Key_N:
             # N → ホバー位置のアイテムフラグを「通常」に
             self._set_hover_item_flag(c.ITEM_FLAG_NORMAL, "通常")
+        elif not mods and key in (Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down):
+            direction_by_key = {
+                Qt.Key_Left: "left",
+                Qt.Key_Right: "right",
+                Qt.Key_Up: "up",
+                Qt.Key_Down: "down",
+            }
+            if self._set_hover_enemy_direction(direction_by_key[key]):
+                return
+            super().keyPressEvent(event)
         elif key == Qt.Key_F:
             # F → 選択範囲を左右反転（Shift+Fで上下反転）
             if mods & Qt.ShiftModifier:
@@ -5819,6 +5831,55 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(
             "ホバー位置に状態変更できるアイテム/鍵/扉がありません", 1500
         )
+
+    def _set_hover_enemy_direction(self, direction: str) -> bool:
+        """Arrow shortcut: change the hovered enemy to the same enemy facing another direction."""
+        if self._hover_tile is None or not self.levels:
+            return False
+        lv = self.levels[self.current_level_no]
+        idx = lv.get_enemy_index(self._hover_tile)
+        if idx < 0:
+            return False
+        if self._reject_read_only_edit():
+            return True
+
+        enemy = lv.enemies[idx]
+        old_no = int(enemy.element_no) & 0xFF
+        new_no = enemy_direction_variant(self.config, old_no, direction)
+        direction_label = DIRECTION_LABELS.get(direction, direction)
+        if new_no is None:
+            self.statusBar().showMessage(
+                f"この敵は{direction_label}向きに変更できません", 1500
+            )
+            return True
+        if new_no == old_no:
+            self.statusBar().showMessage(
+                f"この敵はすでに{direction_label}向きです", 1500
+            )
+            return True
+
+        self._push_undo()
+        enemy.element_no = new_no
+        self._refresh_view()
+        self._refresh_thumbnails_after_edit()
+        self._set_dirty(True)
+        self._update_hover_info(self._hover_tile)
+        old_desc = (
+            self.config.enemy_desc.get(old_no, f"0x{old_no:02X}")
+            if self.config else f"0x{old_no:02X}"
+        )
+        new_desc = (
+            self.config.enemy_desc.get(new_no, f"0x{new_no:02X}")
+            if self.config else f"0x{new_no:02X}"
+        )
+        self._log(
+            f"敵向き変更: L{self.current_level_no + 1} {self._hover_tile} "
+            f"0x{old_no:02X}->0x{new_no:02X} {old_desc}->{new_desc}"
+        )
+        self.statusBar().showMessage(
+            f"ホバー位置の敵を{direction_label}向きに変更: {new_desc}", 1500
+        )
+        return True
 
     def _quick_place_at_hover(self, n: int):
         """数字キー 0-9 でホバー位置にクイック配置
@@ -6938,6 +6999,7 @@ Alt+左クリック: スポイト（そのマスの要素をピッカーに取�
 <br>
 <b>ホバー位置のクイック操作</b><br>
 Delete / Backspace: ホバー位置を削除<br>
+矢印キー: ホバー位置の敵を対応する向きに変更<br>
 <br>
 <b>アイテムフラグ</b><br>
 N: ホバー位置のアイテム/鍵/扉を通常に変更<br>

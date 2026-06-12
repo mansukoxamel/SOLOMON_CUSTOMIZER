@@ -185,6 +185,8 @@ class LevelView(QGraphicsView):
     drag_end = pyqtSignal()          # 解放
     # ホバー: マウスカーソルの真下のタイル（None で領域外）
     tile_hovered = pyqtSignal(object)
+    # キャンバス上で押された方向キー
+    direction_key_pressed = pyqtSignal(str)
     # ドラッグ塗り（左ボタン押しっぱなし移動）/ ドラッグ消し（右ボタン押しっぱなし移動）
     tile_painted = pyqtSignal(int, tuple, int)  # tile_clicked と同じシグネチャ
     tile_erased = pyqtSignal(tuple)              # tile_right_clicked と同じシグネチャ
@@ -205,6 +207,7 @@ class LevelView(QGraphicsView):
         self.setResizeAnchor(QGraphicsView.AnchorViewCenter)
         self.setBackgroundBrush(Qt.black)
         self.setAcceptDrops(True)
+        self.setFocusPolicy(Qt.StrongFocus)
         # QGraphicsScene の drag-drop も無効化（こちらで処理）
         self.scene().setBackgroundBrush(Qt.black)
 
@@ -643,8 +646,25 @@ class LevelView(QGraphicsView):
         if tile != self._last_hover_tile:
             self._last_hover_tile = tile
             self.tile_hovered.emit(tile)
+        if tile is not None and not self.hasFocus():
+            self.setFocus(Qt.MouseFocusReason)
 
         super().mouseMoveEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.modifiers() == Qt.NoModifier:
+            direction_by_key = {
+                Qt.Key_Left: "left",
+                Qt.Key_Right: "right",
+                Qt.Key_Up: "up",
+                Qt.Key_Down: "down",
+            }
+            direction = direction_by_key.get(event.key())
+            if direction is not None:
+                self.direction_key_pressed.emit(direction)
+                event.accept()
+                return
+        super().keyPressEvent(event)
 
     def leaveEvent(self, event):
         if self._last_hover_tile is not None:
