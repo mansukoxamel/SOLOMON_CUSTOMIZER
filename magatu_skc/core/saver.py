@@ -266,12 +266,15 @@ def save_levels_to_rom(rom: Rom, levels: list):
             "visible_in_block_items": set(getattr(lv, "visible_in_block_item_cells", set()) or []),
         })
     runtime_room_flags = []
-    for lv in levels:
+    for idx, lv in enumerate(levels):
         flags = getattr(lv, "room_flags", 0) & 0xFF
         if stage_ext.fire_reset_enabled(lv):
             flags |= room_flags.BIT_FIRE_RESET
         if getattr(lv, "visible_in_block_item_cells", set()):
             flags |= room_flags.BIT_VISIBLE_INBLOCK_ITEMS
+        cells = breakable_runtime_cells[idx] if idx < len(breakable_runtime_cells) else {}
+        if any(cells.get(kind) for kind in ("breakable", "empty", "solid")):
+            flags |= room_flags.BIT_RUNTIME_SPECIAL_CELLS
         runtime_room_flags.append(room_flags.normalize_flags(flags))
     door_cells = [byte_from_position(lv.fixed_door_pos) for lv in levels]
     if rom.is_expanded():

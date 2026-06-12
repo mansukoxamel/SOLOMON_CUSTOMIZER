@@ -16,6 +16,7 @@ bank0 のコードケーブに注入し、部屋別の改造を実現する。
   bit0+bit1 = 白ブロック内扉 (扉セルにbit6+bit7を立てる)
   bit2 = B火球(魔法)禁止   ← ステップ1で実装
   bit5 = 透明ブロック内アイテムruntime maskあり (保存時に自動付与)
+  bit6 = 特殊セルruntime変換あり (保存時に自動付与)
   他bit は将来拡張
 
 CLAUDE.md 準拠:
@@ -170,6 +171,9 @@ BIT_NO_ASTONE   = 0x80  # bit7: A換石(石作成)禁止 (SE $08==$11 のみ却�
 BIT_DARK        = 0x08  # bit3: 暗闇面 (この面プレイ中 BGを明滅で消す。
                         #   明/暗フレーム数は全体共通テンポ。必ず明から)
 BIT_VISIBLE_INBLOCK_ITEMS = 0x20  # bit5: runtime-only visible item -> white in-block mask present
+BIT_RUNTIME_SPECIAL_CELLS = 0x40  # bit6: runtime-only direct special cells present
+RUNTIME_ONLY_FLAGS = BIT_VISIBLE_INBLOCK_ITEMS | BIT_RUNTIME_SPECIAL_CELLS
+PRG0_EFFECT_FLAGS = 0xFF & ~RUNTIME_ONLY_FLAGS
 
 ROOM_COUNT = 64  # RoomFlagTable サイズ ($0428 = $00..$34 / 53面+特殊)
 
@@ -188,6 +192,9 @@ OFF_HOOK_91CC   = 0x11DC   # JSR $9D53 (3B) = 扉の先行描画 (R179: $91CC=�
 OFF_SIG_91C1    = 0x11D1   # 署名: 改造対象を含まない $91C1〜 (11B)
 SIG_91C1        = bytes.fromhex("a2 02 c8 b1 30 d0 02 a2 35 86 03")
 ORIG_91CC       = bytes.fromhex("20 53 9d")  # JSR $9D53 (扉先行描画)
+OFF_HOOK_909A   = 0x10AA   # JSR $95E4 (grid -> nametable)
+ORIG_909A       = bytes.fromhex("20 e4 95")
+HOOK_909A_NEW   = bytes.fromhex("20 f0 c0")  # JSR $C0F0 (draw then convert)
 
 # ---- cave / table レイアウト (clean JP = 拡張ROM 共通) ----------------
 # 空き領域 $BBDE-$C1FF (file 0x3BEE-0x4210, 1570B, 全 EA/00 実機裏取り)
@@ -196,7 +203,7 @@ OFF_MAGIC_CAVE  = 0x3C30   # $BC20  MAGICGATE (34B)
 OFF_DOOR_CAVE   = 0x3C60   # $BC50  DOORPREDRAW (11B)
 OFF_DOORTAB     = 0x4190   # $C180  DoorCellTable (64B; mapper66ではStageExtへ移設)
 OFF_TABLE       = 0x41D0   # $C1C0  RoomFlagTable (64B; mapper66ではStageExtへ移設)
-OFF_DARK_CAVE   = 0x3C90   # $BC80  DARK (56B、明滅BG制御)
+OFF_DARK_CAVE   = 0x3C90   # $BC80  DARK / runtime dispatch
 OFF_TEMPO       = 0x3CE0   # $BCD0  全体共通テンポ 2B [LIGHT, PERIOD]
 OFF_VISIBLE_INBLOCK_HELPER = 0x675C  # $E74C  visible item bitmask -> white in-block helper
 VISIBLE_INBLOCK_HELPER_CAPACITY = 0x18
@@ -213,7 +220,7 @@ SIG_804B        = bytes.fromhex("bd ef 80 9d ef 80 a9 80 85 7d")
 ORIG_8055       = bytes.fromhex("ad 01 03")  # LDA $0301
 HOOK_8055_NEW   = bytes.fromhex("20 80 bc")  # JSR $BC80 (DARK cave)
 
-# DARK cave @ $BC80 (56B): ROOMFLAGS bit3 & Dana実プレイ($057F>=$C0)
+# DARK cave @ $BC80: ROOMFLAGS bit3 & Dana実プレイ($057F>=$C0)
 #   の時だけ フェーズカウンタ $0779 を進め、$BCD0(LIGHT)未満=明
 #   (原 $0301)/ 以上=暗(bit3クリアでBG-off) / $BCD1(PERIOD)で0復帰。
 #   非該当時は $0779=0 リセット → 暗闇面は必ず「明」から開始。
@@ -225,19 +232,20 @@ HOOK_8055_NEW   = bytes.fromhex("20 80 bc")  # JSR $BC80 (DARK cave)
 #     書込を確認)。$0778/$0779 = entity 21slot 終端$0722 の後ろ +
 #     ramfree3_probe 285秒 沈黙確認の二重安全域。
 DARK_CAVE = bytes.fromhex(
-    "20f0c0"
     "ad78072908f025ae7f05e0c0901eee7907ad7907cdd1bc9005a9008d7907"
     "ad7907cdd0bc900bad010329f760a9008d7907ad010360"
 )
-assert len(DARK_CAVE) == 56
+assert len(DARK_CAVE) == 53
+DARK_CAVE_RESERVED_SIZE = OFF_TEMPO - OFF_DARK_CAVE
+DARK_CAVE_BLOB = DARK_CAVE + bytes([0xEA] * (DARK_CAVE_RESERVED_SIZE - len(DARK_CAVE)))
+assert len(DARK_CAVE_BLOB) == DARK_CAVE_RESERVED_SIZE
 
-# Runtime block override NMI routine @ $C0F0.
-# Runs once after Dana is active for each start/restart. The mapper66 room-load
-# runtime clears the done flag, so a death respawn re-applies the conversions
-# after the level grid is loaded again. It intentionally clobbers A/X; DARK_CAVE
-# already clobbers them before returning to the original NMI path. It scans the
-# visible $0304 room grid after the nametable has already been drawn, then
-# converts direct m66 special cell IDs:
+# Runtime block override routine @ $C0F0.
+# Replaces the stage-start $909A JSR $95E4 call. It first calls the original
+# grid -> nametable renderer, then converts the grid values before the screen is
+# shown. This preserves the special IDs for visual rendering while still giving
+# the live grid the normal collision/break values.
+# It converts direct m66 special cell IDs:
 #   $F9 -> $90  breakable white
 #   $FA -> $10  passable white
 #   $40 -> $F8  invisible solid
@@ -248,7 +256,7 @@ assert len(DARK_CAVE) == 56
 # the 24B mask at $0750-$0767 destructively and ORs $C0 into marked normal item
 # cells before the special-cell comparisons below.
 BW_CAVE = bytes.fromhex(
-    "ad7f05c9c0902aad7a07d025a018a2c0204ce7c940f01bc9a4"
+    "20e495ad78072960f025a018a2c0204ce7c940f01bc9a4"
     "f017c950f017c9f9f013c9faf013c9a3f00fcad0e2ee7a0760"
     "a9f8d006a990d002a9109d1303d0ea"
 )
@@ -364,6 +372,7 @@ def _verify(rom_data) -> None:
         (OFF_HOOK_8326, ORIG_8326, HOOK_8326_NEW, "$8326"),
         (OFF_HOOK_91CC, ORIG_91CC, HOOK_91CC_NEW, "$91CC"),
         (OFF_HOOK_8055, ORIG_8055, HOOK_8055_NEW, "$8055 (暗闇)"),
+        (OFF_HOOK_909A, ORIG_909A, HOOK_909A_NEW, "$909A (特殊セル変換)"),
     ):
         cur = bytes(rom_data[off:off + 3])
         if cur not in (orig, new):
@@ -405,7 +414,7 @@ def _verify(rom_data) -> None:
         (OFF_TITLE_IDLE_DEMO_CLEAR, TITLE_IDLE_DEMO_CLEAR_SIZE),
         *table_spans,
         (_gf.OFF_CAVE, len(_gf.CAVE)),       # gap_fix 共存
-        (OFF_DARK_CAVE, len(DARK_CAVE)),     # 暗闇 cave
+        (OFF_DARK_CAVE, DARK_CAVE_RESERVED_SIZE),  # 暗闇 cave
         (OFF_TEMPO, 2),                      # 暗闇テンポ
         (OFF_BW_CAVE, BW_CAVE_RESERVED_SIZE),
         *_sv.RESERVED_SPANS,                 # Saramandor #2 bullet variant
@@ -464,7 +473,7 @@ def read_table(rom_data, count: int = 53) -> list:
             from . import stage_ext
             flags = stage_ext.read_runtime_room_flags(bytes(rom_data), count)
             if any(flags):
-                return [f & ~BIT_VISIBLE_INBLOCK_ITEMS for f in flags]
+                return [f & ~RUNTIME_ONLY_FLAGS for f in flags]
         except Exception:
             pass
     hooks = (
@@ -477,7 +486,7 @@ def read_table(rom_data, count: int = 53) -> list:
     if not active:
         return [0] * count
     return [
-        (rom_data[OFF_TABLE + i] & 0xFF) & ~BIT_VISIBLE_INBLOCK_ITEMS
+        (rom_data[OFF_TABLE + i] & 0xFF) & ~RUNTIME_ONLY_FLAGS
         for i in range(count)
     ]
 
@@ -494,7 +503,7 @@ def build_door_table(door_cells: list) -> bytearray:
 
 def is_needed(room_flags: list) -> bool:
     """1部屋でもフラグが立っていれば注入が必要"""
-    return any((f & 0xFF) for f in room_flags)
+    return any((f & PRG0_EFFECT_FLAGS) for f in room_flags)
 
 
 def _breakable_white_needed(bw_cells_by_room: list = None) -> bool:
@@ -558,9 +567,10 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
     changed = []
     tbl = build_table(room_flags)
     dtab = build_door_table(door_cells)
-    bw_needed = _breakable_white_needed(breakable_white_cells)
+    prg0_needed = is_needed(room_flags)
+    runtime_needed = any((f & RUNTIME_ONLY_FLAGS) for f in room_flags or [])
 
-    if not is_needed(room_flags) and not bw_needed:
+    if not prg0_needed and not runtime_needed:
         # 原作復元: フック3点のみ原作へ戻す。cave/表は死にコード化で
         # 触らない (フックを戻せば二度と到達しない=挙動は原作と完全同一。
         # cave 空きは元 00/EA 混在で per-byte 原型不明、一律埋めは逆効果)
@@ -571,44 +581,63 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
         if bytes(rom_data[OFF_HOOK_8055:OFF_HOOK_8055 + 3]) != ORIG_8055:
             rom_data[OFF_HOOK_8055:OFF_HOOK_8055 + 3] = ORIG_8055
             changed.append("$8055 (暗闇) フック→原作復元")
+        if bytes(rom_data[OFF_HOOK_909A:OFF_HOOK_909A + 3]) != ORIG_909A:
+            rom_data[OFF_HOOK_909A:OFF_HOOK_909A + 3] = ORIG_909A
+            changed.append("$909A (特殊セル変換) フック→原作復元")
         return changed
 
-    # cave コード注入
-    for off, blob, name in (
-        (OFF_LOADER_CAVE, LOADER_CAVE, "LOADER ($BBE0)"),
-        (OFF_MAGIC_CAVE, MAGIC_CAVE, "MAGICGATE ($BC20)"),
-        (OFF_DOOR_CAVE, DOOR_CAVE, "DOORPREDRAW ($BC40)"),
-    ):
-        if bytes(rom_data[off:off + len(blob)]) != blob:
-            rom_data[off:off + len(blob)] = blob
-            changed.append(f"{name} cave 注入")
+    if prg0_needed:
+        # cave コード注入
+        for off, blob, name in (
+            (OFF_LOADER_CAVE, LOADER_CAVE, "LOADER ($BBE0)"),
+            (OFF_MAGIC_CAVE, MAGIC_CAVE, "MAGICGATE ($BC20)"),
+            (OFF_DOOR_CAVE, DOOR_CAVE, "DOORPREDRAW ($BC40)"),
+        ):
+            if bytes(rom_data[off:off + len(blob)]) != blob:
+                rom_data[off:off + len(blob)] = blob
+                changed.append(f"{name} cave 注入")
     expanded = len(rom_data) == 0x18010
     # DoorCellTable / RoomFlagTable 書込。mapper66では同じ情報をPRG1
     # StageExtTableへ移し、PRG0 $C180-$C1FF はコード用に空ける。
-    if not expanded and bytes(rom_data[OFF_DOORTAB:OFF_DOORTAB + ROOM_COUNT]) != bytes(dtab):
+    if prg0_needed and not expanded and bytes(rom_data[OFF_DOORTAB:OFF_DOORTAB + ROOM_COUNT]) != bytes(dtab):
         rom_data[OFF_DOORTAB:OFF_DOORTAB + ROOM_COUNT] = bytes(dtab)
         changed.append("DoorCellTable 書込")
-    if not expanded and bytes(rom_data[OFF_TABLE:OFF_TABLE + ROOM_COUNT]) != bytes(tbl):
+    if prg0_needed and not expanded and bytes(rom_data[OFF_TABLE:OFF_TABLE + ROOM_COUNT]) != bytes(tbl):
         rom_data[OFF_TABLE:OFF_TABLE + ROOM_COUNT] = bytes(tbl)
         n = sum(1 for b in tbl if b)
         changed.append(f"RoomFlagTable 書込 ({n}部屋にフラグ)")
     # フック有効化
-    for off, _orig, new, name in _HOOKS:
-        if bytes(rom_data[off:off + 3]) != new:
-            rom_data[off:off + 3] = new
-            changed.append(f"{name} フック有効化")
+    if prg0_needed:
+        for off, _orig, new, name in _HOOKS:
+            if bytes(rom_data[off:off + 3]) != new:
+                rom_data[off:off + 3] = new
+                changed.append(f"{name} フック有効化")
+    else:
+        for off, orig, _new, name in _HOOKS:
+            if bytes(rom_data[off:off + 3]) != orig:
+                rom_data[off:off + 3] = orig
+                changed.append(f"{name} フック→原作復元")
 
-    # 暗闇: dark ビットが1部屋でもあれば DARK cave + テンポ + $8055 フック。
-    # 無ければ $8055 は原作のまま(暗闇未使用時は NMI 非フック=完全無影響)。
-    if _dark_needed(room_flags) or bw_needed:
+    if runtime_needed:
         if bytes(rom_data[OFF_VISIBLE_INBLOCK_HELPER:OFF_VISIBLE_INBLOCK_HELPER + len(VISIBLE_INBLOCK_HELPER)]) != VISIBLE_INBLOCK_HELPER:
             rom_data[OFF_VISIBLE_INBLOCK_HELPER:OFF_VISIBLE_INBLOCK_HELPER + len(VISIBLE_INBLOCK_HELPER)] = VISIBLE_INBLOCK_HELPER
             changed.append("VisibleInBlock helper 注入 ($E74C)")
         if bytes(rom_data[OFF_BW_CAVE:OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE]) != BW_CAVE_BLOB:
             rom_data[OFF_BW_CAVE:OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE] = BW_CAVE_BLOB
             changed.append("BreakableWhite cave 注入 ($C0F0)")
-        if bytes(rom_data[OFF_DARK_CAVE:OFF_DARK_CAVE + len(DARK_CAVE)]) != DARK_CAVE:
-            rom_data[OFF_DARK_CAVE:OFF_DARK_CAVE + len(DARK_CAVE)] = DARK_CAVE
+        if bytes(rom_data[OFF_HOOK_909A:OFF_HOOK_909A + 3]) != HOOK_909A_NEW:
+            rom_data[OFF_HOOK_909A:OFF_HOOK_909A + 3] = HOOK_909A_NEW
+            changed.append("$909A (特殊セル変換) フック有効化")
+    else:
+        if bytes(rom_data[OFF_HOOK_909A:OFF_HOOK_909A + 3]) != ORIG_909A:
+            rom_data[OFF_HOOK_909A:OFF_HOOK_909A + 3] = ORIG_909A
+            changed.append("$909A (特殊セル変換) フック→原作復元")
+
+    # 暗闇: dark ビットが1部屋でもあれば DARK cave + テンポ + $8055 フック。
+    # 無ければ $8055 は原作のまま(暗闇未使用時は NMI 非フック=完全無影響)。
+    if _dark_needed(room_flags):
+        if bytes(rom_data[OFF_DARK_CAVE:OFF_DARK_CAVE + DARK_CAVE_RESERVED_SIZE]) != DARK_CAVE_BLOB:
+            rom_data[OFF_DARK_CAVE:OFF_DARK_CAVE + DARK_CAVE_RESERVED_SIZE] = DARK_CAVE_BLOB
             changed.append("DARK cave 注入 ($BC80)")
         # テンポ: 空き(未設定)なら既定。設定済みなら保持(ユーザー値尊重)
         tseg = bytes(rom_data[OFF_TEMPO:OFF_TEMPO + 2])
