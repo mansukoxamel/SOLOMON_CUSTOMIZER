@@ -6741,7 +6741,7 @@ class MainWindow(QMainWindow):
             return
         from .pixel_editor_dialog import PixelEditorDialog
         before = bytes(self.rom.data)
-        dlg = PixelEditorDialog(self.rom, parent=self)
+        dlg = PixelEditorDialog(self.rom, parent=self, app_config=self._app_config)
         dlg.exec_()
         if bytes(self.rom.data) != before:
             self._reload_chr_renderers()
@@ -6773,7 +6773,8 @@ class MainWindow(QMainWindow):
         before = bytes(self.rom.data)
         self._sprite_viewer_rom_changed_seen = False
         dlg = SpriteViewer(self.rom, tile_renderer=self.tile_renderer,
-                           config=self.config, parent=self)
+                           config=self.config, app_config=self._app_config,
+                           parent=self)
         dlg.rom_changed.connect(self._on_sprite_viewer_rom_changed)
         dlg.exec_()
         if bytes(self.rom.data) != before and not self._sprite_viewer_rom_changed_seen:

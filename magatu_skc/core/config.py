@@ -69,6 +69,16 @@ DEFAULT_CONFIG = {
     "stats_dlg_w": -1,
     "stats_dlg_h": -1,
     "stats_dlg_col_w": [],   # 全レベル統計 列幅 ([] = 未保存=自動)
+    # スプライト/キャラクタービューア サイズ/位置 (-1 = 未保存=既定)
+    "sprite_viewer_x": -1,
+    "sprite_viewer_y": -1,
+    "sprite_viewer_w": -1,
+    "sprite_viewer_h": -1,
+    # 16x16ピクセル編集 サイズ/位置 (-1 = 未保存=既定)
+    "pixel_editor_x": -1,
+    "pixel_editor_y": -1,
+    "pixel_editor_w": -1,
+    "pixel_editor_h": -1,
     # SOLOMON_CUSTOMIZER標準（今後実装予定）
     "icon_path": DEFAULT_ICON_PATH,
     "font_family": "",

@@ -278,6 +278,7 @@ class PixelEditorDialog(QDialog):
         parent=None,
         initial_key: tuple[int, int, int] | None = None,
         initial_bank: int | None = None,
+        app_config=None,
     ):
         super().__init__(parent)
         if parent is not None:
@@ -285,6 +286,7 @@ class PixelEditorDialog(QDialog):
         self.setWindowTitle("16x16ピクセル編集")
         self.resize(760, 620)
         self.rom = rom
+        self._app_config = app_config
         self._all_entries = self._romframe_items()
         self._entry_ref_counts = self._build_entry_ref_counts(self._all_entries)
         self._entries = self._dedupe_entries(self._all_entries)
@@ -313,6 +315,38 @@ class PixelEditorDialog(QDialog):
         if initial_key is not None:
             self._select_entry_by_key(initial_key)
         self._load_current_frame()
+        self._restore_geometry()
+
+    def _restore_geometry(self):
+        cfg = self._app_config
+        if not cfg:
+            return
+        w = int(cfg.get("pixel_editor_w", -1))
+        h = int(cfg.get("pixel_editor_h", -1))
+        x = int(cfg.get("pixel_editor_x", -1))
+        y = int(cfg.get("pixel_editor_y", -1))
+        if w > 100 and h > 100:
+            self.resize(w, h)
+        if x >= 0 and y >= 0:
+            self.move(x, y)
+
+    def _save_geometry(self):
+        cfg = self._app_config
+        if cfg is None:
+            return
+        try:
+            from ..core.config import save_config
+            cfg["pixel_editor_x"] = max(0, self.x())
+            cfg["pixel_editor_y"] = max(0, self.y())
+            cfg["pixel_editor_w"] = self.width()
+            cfg["pixel_editor_h"] = self.height()
+            save_config(cfg)
+        except Exception:
+            pass
+
+    def done(self, r):
+        self._save_geometry()
+        super().done(r)
 
     @staticmethod
     def _copy_pixels(pixels: list[list[int]]) -> list[list[int]]:

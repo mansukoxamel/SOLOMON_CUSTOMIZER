@@ -71,7 +71,7 @@ class SpriteViewer(QDialog):
 
     rom_changed = pyqtSignal()
 
-    def __init__(self, rom, tile_renderer=None, config=None, parent=None):
+    def __init__(self, rom, tile_renderer=None, config=None, app_config=None, parent=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
@@ -80,6 +80,7 @@ class SpriteViewer(QDialog):
         self.rom = rom
         self.tile_renderer = tile_renderer
         self.config = config
+        self._app_config = app_config
         self._editor_dialogs = {}
 
         data = rom.data
@@ -128,6 +129,38 @@ class SpriteViewer(QDialog):
         layout.addWidget(bb)
 
         self._rebuild_controls()
+        self._restore_geometry()
+
+    def _restore_geometry(self):
+        cfg = self._app_config
+        if not cfg:
+            return
+        w = int(cfg.get("sprite_viewer_w", -1))
+        h = int(cfg.get("sprite_viewer_h", -1))
+        x = int(cfg.get("sprite_viewer_x", -1))
+        y = int(cfg.get("sprite_viewer_y", -1))
+        if w > 100 and h > 100:
+            self.resize(w, h)
+        if x >= 0 and y >= 0:
+            self.move(x, y)
+
+    def _save_geometry(self):
+        cfg = self._app_config
+        if cfg is None:
+            return
+        try:
+            from ..core.config import save_config
+            cfg["sprite_viewer_x"] = max(0, self.x())
+            cfg["sprite_viewer_y"] = max(0, self.y())
+            cfg["sprite_viewer_w"] = self.width()
+            cfg["sprite_viewer_h"] = self.height()
+            save_config(cfg)
+        except Exception:
+            pass
+
+    def done(self, r):
+        self._save_geometry()
+        super().done(r)
 
     # ---- コントロール構築 (モード依存) ----
     def _rebuild_controls(self):
@@ -624,6 +657,7 @@ class SpriteViewer(QDialog):
             parent=self,
             initial_key=(t1, t2, attr),
             initial_bank=bank,
+            app_config=self._app_config,
         )
         dlg.setAttribute(Qt.WA_DeleteOnClose, True)
         dlg.rom_changed.connect(self._on_editor_rom_changed)
