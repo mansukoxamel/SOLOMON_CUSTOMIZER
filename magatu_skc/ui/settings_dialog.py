@@ -11,10 +11,13 @@ from .theme import (
 )
 from ..core.config import (
     DEFAULT_AUTOSAVE_KEEP_COUNT,
+    DEFAULT_HOVER_INFO_POPUP_FONT_SIZE,
     DEFAULT_ICON_PATH,
     DEFAULT_UNDO_LIMIT,
+    MAX_HOVER_INFO_POPUP_FONT_SIZE,
     MAX_AUTOSAVE_KEEP_COUNT,
     MAX_UNDO_LIMIT,
+    MIN_HOVER_INFO_POPUP_FONT_SIZE,
     MIN_AUTOSAVE_KEEP_COUNT,
     MIN_UNDO_LIMIT,
     normalize_int_setting,
@@ -110,6 +113,25 @@ class SettingsDialog(QDialog):
         self.spin_font_size.setSuffix(" pt")
         self.spin_font_size.setValue(self.config.get("font_size", 0))
         df.addRow("フォントサイズ:", self.spin_font_size)
+
+        self.spin_hover_popup_font_size = QSpinBox()
+        self.spin_hover_popup_font_size.setRange(
+            MIN_HOVER_INFO_POPUP_FONT_SIZE,
+            MAX_HOVER_INFO_POPUP_FONT_SIZE,
+        )
+        self.spin_hover_popup_font_size.setSuffix(" px")
+        self.spin_hover_popup_font_size.setValue(
+            normalize_int_setting(
+                self.config.get("hover_info_popup_font_size"),
+                DEFAULT_HOVER_INFO_POPUP_FONT_SIZE,
+                MIN_HOVER_INFO_POPUP_FONT_SIZE,
+                MAX_HOVER_INFO_POPUP_FONT_SIZE,
+            )
+        )
+        self.spin_hover_popup_font_size.setToolTip(
+            "Iキーで表示するホバー情報ポップアップだけの文字サイズです。"
+        )
+        df.addRow("ホバー情報文字サイズ:", self.spin_hover_popup_font_size)
 
         self.chk_font_bold = QCheckBox("太字")
         self.chk_font_bold.setChecked(bool(self.config.get("font_bold", False)))
@@ -318,6 +340,7 @@ class SettingsDialog(QDialog):
         """UIから config dict を更新"""
         for spin in (
             self.spin_font_size,
+            self.spin_hover_popup_font_size,
             self.spin_theme_gray,
             self.spin_autosave_keep_count,
             self.spin_undo_limit,
@@ -329,6 +352,9 @@ class SettingsDialog(QDialog):
         self.config["dirty_mark"] = mark
         self.config["emulator_path"] = self.edit_emu.text().strip()
         self.config["font_size"] = self.spin_font_size.value()
+        self.config["hover_info_popup_font_size"] = (
+            self.spin_hover_popup_font_size.value()
+        )
         if self._font_family_default:
             self.config["font_family"] = ""
         else:

@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QGraphicsLineItem, QGraphicsEllipseItem, QGraphicsPolygonItem,
 )
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QFont, QPolygonF
-from PyQt5.QtCore import Qt, pyqtSignal, QPointF
+from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QRect
 
 from ..core import constants as c
 
@@ -187,6 +187,8 @@ class LevelView(QGraphicsView):
     tile_hovered = pyqtSignal(object)
     # キャンバス上で押された方向キー
     direction_key_pressed = pyqtSignal(str)
+    # キャンバス上で押されたホバー操作キー
+    hover_action_key_pressed = pyqtSignal(str)
     # ドラッグ塗り（左ボタン押しっぱなし移動）/ ドラッグ消し（右ボタン押しっぱなし移動）
     tile_painted = pyqtSignal(int, tuple, int)  # tile_clicked と同じシグネチャ
     tile_erased = pyqtSignal(tuple)              # tile_right_clicked と同じシグネチャ
@@ -502,6 +504,18 @@ class LevelView(QGraphicsView):
     def display_tile_size(self) -> float:
         return max(1.0, c.TILE_WIDTH * float(self.transform().m11()))
 
+    def tile_view_rect(self, tile):
+        if tile is None:
+            return None
+        x, y = tile
+        ox, oy = self._tile_offsets()
+        tw = c.TILE_WIDTH
+        scene_x = (x + ox) * tw
+        scene_y = (y + oy) * tw
+        top_left = self.mapFromScene(QPointF(scene_x, scene_y))
+        bottom_right = self.mapFromScene(QPointF(scene_x + tw, scene_y + tw))
+        return QRect(top_left, bottom_right).normalized()
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.fit_to_view()
@@ -662,6 +676,15 @@ class LevelView(QGraphicsView):
             direction = direction_by_key.get(event.key())
             if direction is not None:
                 self.direction_key_pressed.emit(direction)
+                event.accept()
+                return
+            action_by_key = {
+                Qt.Key_S: "speed",
+                Qt.Key_I: "info",
+            }
+            action = action_by_key.get(event.key())
+            if action is not None:
+                self.hover_action_key_pressed.emit(action)
                 event.accept()
                 return
         super().keyPressEvent(event)

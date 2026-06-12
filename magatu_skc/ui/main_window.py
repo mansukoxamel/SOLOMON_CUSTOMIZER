@@ -5,6 +5,7 @@ import ctypes
 import json
 import os
 import xml.etree.ElementTree as ET
+from html import escape
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
@@ -13,7 +14,7 @@ from PyQt5.QtWidgets import (
     QGroupBox, QComboBox, QCheckBox, QListWidget, QApplication,
     QToolBar, QAction, QRadioButton, QButtonGroup, QShortcut
 )
-from PyQt5.QtCore import Qt, QSize, QEvent, QTimer, QUrl
+from PyQt5.QtCore import Qt, QSize, QEvent, QTimer, QUrl, QPoint
 from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor, QPainter, QPen, QImage
 from PyQt5.QtMultimedia import QSoundEffect
 
@@ -26,9 +27,12 @@ from ..core.enemy_direction import DIRECTION_LABELS, enemy_direction_variant
 from ..core import constants as c
 from ..core.config import (
     DEFAULT_AUTOSAVE_KEEP_COUNT,
+    DEFAULT_HOVER_INFO_POPUP_FONT_SIZE,
     DEFAULT_UNDO_LIMIT,
+    MAX_HOVER_INFO_POPUP_FONT_SIZE,
     MAX_AUTOSAVE_KEEP_COUNT,
     MAX_UNDO_LIMIT,
+    MIN_HOVER_INFO_POPUP_FONT_SIZE,
     MIN_AUTOSAVE_KEEP_COUNT,
     MIN_UNDO_LIMIT,
     normalize_int_setting,
@@ -47,6 +51,7 @@ from .element_picker import (
     BLOCK_BREAKABLE_WHITE, BLOCK_INVISIBLE_BREAKABLE,
     BLOCK_PASSABLE_WHITE, BLOCK_INVISIBLE_SOLID,
     BLOCK_PASSABLE_BROWN, BLOCK_SOLID_BROWN,
+    ENEMY_SPEED_TABLE, apply_enemy_speed, base_code_from_actual,
 )
 
 APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
@@ -490,7 +495,14 @@ class MainWindow(QMainWindow):
         # ホバーハイライト
         self.level_view.tile_hovered.connect(self._on_tile_hovered)
         self.level_view.direction_key_pressed.connect(self._set_hover_enemy_direction)
+        self.level_view.hover_action_key_pressed.connect(self._on_level_view_hover_action)
         self._hover_tile = None
+        self._hover_info_popup_label = QLabel(self.level_view.viewport())
+        self._hover_info_popup_label.setTextFormat(Qt.RichText)
+        self._hover_info_popup_label.setWordWrap(False)
+        self._hover_info_popup_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self._apply_hover_info_popup_style()
+        self._hover_info_popup_label.hide()
         # 左/右 ドラッグ塗り・消し
         self.level_view.tile_painted.connect(self._on_tile_painted)
         self.level_view.tile_erased.connect(self._on_tile_erased)
@@ -3623,6 +3635,7 @@ class MainWindow(QMainWindow):
             self._sync_object_labels()
         # ステータスバーのホバー情報を更新
         self._update_hover_info(tile)
+        self._update_hover_info_popup(tile)
 
     def _update_hover_info(self, tile):
         """マウス下部のタイル中身をステータスバーに表示"""
@@ -3634,17 +3647,9 @@ class MainWindow(QMainWindow):
         parts = [f"({x:2d},{y:2d})"]
 
         # ブロック
-        wall = lv.tiles[y][x]
-        if wall == Wall.BROWN and tile in getattr(lv, "passable_brown_cells", set()):
-            parts.append("すり抜け土色壁")
-        elif wall == Wall.BROWN and tile in getattr(lv, "solid_brown_cells", set()):
-            parts.append("壊せない土色壁")
-        elif wall == Wall.BROWN:
-            parts.append("茶ブロック")
-        elif wall == Wall.WHITE and tile in getattr(lv, "breakable_white_cells", set()):
-            parts.append("壊せる白壁")
-        elif wall == Wall.WHITE:
-            parts.append("白ブロック")
+        block_id, block_label = self._block_info_for_tile(lv, tile)
+        if block_id:
+            parts.append(f"Block ID {block_id}: {block_label}")
         # BROWN_WHITE は v0.1.99 で廃止 (読込時に WHITE へ正規化)
 
         # アイテム
@@ -3707,6 +3712,190 @@ class MainWindow(QMainWindow):
             parts.append(f"[星座:{name}]")
 
         self.lbl_hover_info.setText(" / ".join(parts))
+
+    def _hover_enemy_hits(self, tile):
+        if tile is None or not self.levels:
+            return []
+        lv = self.levels[self.current_level_no]
+        return [(i, e) for i, e in enumerate(lv.enemies, start=1) if e.position == tile]
+
+    def _block_info_for_tile(self, lv, tile):
+        x, y = tile
+        wall = lv.tiles[y][x]
+        if wall == Wall.BROWN and tile in getattr(lv, "passable_brown_cells", set()):
+            return "0x01", "すり抜ける茶色ブロック"
+        if wall == Wall.BROWN and tile in getattr(lv, "solid_brown_cells", set()):
+            return "0x01", "壊せない茶色ブロック"
+        if wall == Wall.BROWN:
+            return "0x01", "茶色ブロック"
+        if wall == Wall.WHITE and tile in getattr(lv, "breakable_white_cells", set()):
+            return "0x02", "壊せる白ブロック"
+        if wall == Wall.WHITE and tile in getattr(lv, "passable_white_cells", set()):
+            return "0x02", "すり抜ける白ブロック"
+        if wall == Wall.WHITE:
+            return "0x02", "白ブロック"
+        if wall == Wall.NONE and tile in getattr(lv, "invisible_breakable_cells", set()):
+            return "0x00", "壊せる透明ブロック"
+        if wall == Wall.NONE and tile in getattr(lv, "invisible_solid_cells", set()):
+            return "0x00", "壊せない透明ブロック"
+        if wall == Wall.BROWN_WHITE:
+            return "0x03", "壊せる白ブロック"
+        return None, None
+
+    def _enemy_speed_info(self, code: int):
+        base_code, speed = base_code_from_actual(code)
+        table = ENEMY_SPEED_TABLE.get(base_code)
+        if not table:
+            return base_code, speed, []
+        available = [
+            (i + 1, int(enemy_code) & 0xFF)
+            for i, enemy_code in enumerate(table)
+            if enemy_code is not None
+        ]
+        return base_code, speed, available
+
+    def _build_hover_info_popup_text(self, tile):
+        if tile is None or not self.levels:
+            return ""
+        x, y = tile
+        lv = self.levels[self.current_level_no]
+        lines = [
+            f'<div style="color:#9AE6FF; font-weight:700;">({x}, {y})</div>'
+        ]
+
+        enemy_hits = self._hover_enemy_hits(tile)
+        if enemy_hits:
+            for enemy_no, en in enemy_hits:
+                code = int(en.element_no) & 0xFF
+                desc = (
+                    self.config.enemy_desc.get(code, f"0x{code:02X}")
+                    if self.config else f"0x{code:02X}"
+                )
+                _base_code, speed, available = self._enemy_speed_info(code)
+                speed_text = f"SP{speed}" if available else ""
+                suffix = (
+                    f' <span style="color:#FFE6A3;">{speed_text}</span>'
+                    if speed_text else ""
+                )
+                lines.append(
+                    '<div style="color:#FFD166; font-weight:700;">'
+                    f'敵#{enemy_no} ID 0x{code:02X}: {escape(desc)}{suffix}'
+                    "</div>"
+                )
+
+        item_idx = lv.get_item_index(tile)
+        if item_idx >= 0:
+            item = lv.items[item_idx]
+            base = int(item.element_no) & 0x3F
+            desc = (
+                self.config.item_desc.get(base, f"0x{base:02X}")
+                if self.config else f"0x{base:02X}"
+            )
+            lines.append(
+                '<div style="color:#7DD3FC; font-weight:700;">'
+                f"Item ID 0x{base:02X}: {escape(desc)}"
+                "</div>"
+            )
+
+        block_id, block_label = self._block_info_for_tile(lv, tile)
+        if block_id:
+            lines.append(
+                '<div style="color:#A7F3D0;">'
+                f"Block ID {escape(block_id)}: {escape(block_label)}"
+                "</div>"
+            )
+
+        meta = []
+        if lv.fixed_start_pos == tile:
+            meta.append("start")
+        if not lv.is_key_removed() and lv.fixed_key_pos == tile:
+            meta.append("key")
+        if not lv.is_door_removed() and lv.fixed_door_pos == tile:
+            meta.append("door")
+        for i, mirror in enumerate(lv.demon_mirrors, start=1):
+            if mirror.position == tile:
+                meta.append(f"mirror{i}")
+        if meta:
+            lines.append(
+                '<div style="color:#C4B5FD;">'
+                f"Meta {escape(', '.join(meta))}"
+                "</div>"
+            )
+        return "<qt>" + "".join(lines) + "</qt>"
+
+    def _hide_hover_info_popup(self):
+        label = getattr(self, "_hover_info_popup_label", None)
+        if label is not None:
+            label.hide()
+
+    def _hover_info_popup_font_size(self) -> int:
+        return normalize_int_setting(
+            self._app_config.get("hover_info_popup_font_size"),
+            DEFAULT_HOVER_INFO_POPUP_FONT_SIZE,
+            MIN_HOVER_INFO_POPUP_FONT_SIZE,
+            MAX_HOVER_INFO_POPUP_FONT_SIZE,
+        )
+
+    def _apply_hover_info_popup_style(self):
+        label = getattr(self, "_hover_info_popup_label", None)
+        if label is None:
+            return
+        font_size = self._hover_info_popup_font_size()
+        self._app_config["hover_info_popup_font_size"] = font_size
+        label.setStyleSheet(
+            "QLabel {"
+            "background: #061006;"
+            "border: 1px solid #4FB85A;"
+            "padding: 6px 9px;"
+            "font-family: Consolas, 'MS Gothic', monospace;"
+            f"font-size: {font_size}px;"
+            "}"
+        )
+
+    def _hover_info_popup_pos_for_tile(self, tile, label):
+        rect = self.level_view.tile_view_rect(tile)
+        viewport = self.level_view.viewport()
+        gap = 8
+        margin = 4
+        max_x = max(margin, viewport.width() - label.width() - margin)
+        max_y = max(margin, viewport.height() - label.height() - margin)
+        if rect is None:
+            return QPoint(margin, margin)
+
+        center_y = rect.center().y() - label.height() // 2
+        right_x = rect.right() + gap
+        left_x = rect.left() - label.width() - gap
+        if right_x <= max_x:
+            x = right_x
+            y = center_y
+        elif left_x >= margin:
+            x = left_x
+            y = center_y
+        else:
+            center_x = rect.center().x() - label.width() // 2
+            below_y = rect.bottom() + gap
+            above_y = rect.top() - label.height() - gap
+            x = center_x
+            y = below_y if below_y <= max_y else above_y
+        x = max(margin, min(x, max_x))
+        y = max(margin, min(y, max_y))
+        return QPoint(x, y)
+
+    def _update_hover_info_popup(self, tile=None):
+        if tile is None:
+            tile = self._hover_tile
+        if not self._app_config.get("hover_info_popup_enabled", False):
+            self._hide_hover_info_popup()
+            return
+        text = self._build_hover_info_popup_text(tile)
+        if not text:
+            return
+        label = self._hover_info_popup_label
+        label.setText(text)
+        label.adjustSize()
+        label.move(self._hover_info_popup_pos_for_tile(tile, label))
+        label.raise_()
+        label.show()
 
     def _update_info(self):
         if not self.levels:
@@ -5217,6 +5406,8 @@ class MainWindow(QMainWindow):
         self._update_title()
         self._apply_theme()
         self._apply_font_size()
+        self._apply_hover_info_popup_style()
+        self._update_hover_info_popup(self._hover_tile)
         self.level_view.set_marker_overlay_scale(
             self._app_config.get("marker_overlay_scale", 3)
         )
@@ -5617,6 +5808,13 @@ class MainWindow(QMainWindow):
         elif key == Qt.Key_N:
             # N → ホバー位置のアイテムフラグを「通常」に
             self._set_hover_item_flag(c.ITEM_FLAG_NORMAL, "通常")
+        elif not mods and key == Qt.Key_S:
+            if self._cycle_hover_enemy_speed():
+                return
+            super().keyPressEvent(event)
+        elif not mods and key == Qt.Key_I:
+            self._toggle_hover_info_popup()
+            return
         elif not mods and key in (Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down):
             direction_by_key = {
                 Qt.Key_Left: "left",
@@ -5832,6 +6030,74 @@ class MainWindow(QMainWindow):
             "ホバー位置に状態変更できるアイテム/鍵/扉がありません", 1500
         )
 
+    def _on_level_view_hover_action(self, action: str):
+        if action == "speed":
+            self._cycle_hover_enemy_speed()
+        elif action == "info":
+            self._toggle_hover_info_popup()
+
+    def _toggle_hover_info_popup(self):
+        enabled = not bool(self._app_config.get("hover_info_popup_enabled", False))
+        self._app_config["hover_info_popup_enabled"] = enabled
+        save_config(self._app_config)
+        if enabled:
+            self._update_hover_info_popup(self._hover_tile)
+            self.statusBar().showMessage("ホバー情報ポップアップ: ON", 1500)
+        else:
+            self._hide_hover_info_popup()
+            self.statusBar().showMessage("ホバー情報ポップアップ: OFF", 1500)
+
+    def _cycle_hover_enemy_speed(self) -> bool:
+        if self._hover_tile is None or not self.levels:
+            return False
+        lv = self.levels[self.current_level_no]
+        idx = lv.get_enemy_index(self._hover_tile)
+        if idx < 0:
+            return False
+        if self._reject_read_only_edit():
+            return True
+
+        enemy = lv.enemies[idx]
+        old_no = int(enemy.element_no) & 0xFF
+        base_code, speed, available = self._enemy_speed_info(old_no)
+        if len(available) <= 1:
+            self.statusBar().showMessage("この敵はスピード変更に対応していません", 1500)
+            return True
+        speeds = [sp for sp, _code in available]
+        try:
+            current_idx = speeds.index(speed)
+        except ValueError:
+            current_idx = 0
+        next_speed = speeds[(current_idx + 1) % len(speeds)]
+        new_no = apply_enemy_speed(base_code, next_speed)
+        if new_no == old_no:
+            self.statusBar().showMessage(f"この敵はSP{speed}です", 1500)
+            return True
+
+        self._push_undo()
+        enemy.element_no = new_no
+        self._refresh_view()
+        self._refresh_thumbnails_after_edit()
+        self._set_dirty(True)
+        self._update_hover_info(self._hover_tile)
+        self._update_hover_info_popup(self._hover_tile)
+        old_desc = (
+            self.config.enemy_desc.get(old_no, f"0x{old_no:02X}")
+            if self.config else f"0x{old_no:02X}"
+        )
+        new_desc = (
+            self.config.enemy_desc.get(new_no, f"0x{new_no:02X}")
+            if self.config else f"0x{new_no:02X}"
+        )
+        self._log(
+            f"敵スピード変更: L{self.current_level_no + 1} {self._hover_tile} "
+            f"0x{old_no:02X}->0x{new_no:02X} {old_desc}->{new_desc}"
+        )
+        self.statusBar().showMessage(
+            f"ホバー位置の敵スピードをSP{next_speed}へ変更: {new_desc}", 1500
+        )
+        return True
+
     def _set_hover_enemy_direction(self, direction: str) -> bool:
         """Arrow shortcut: change the hovered enemy to the same enemy facing another direction."""
         if self._hover_tile is None or not self.levels:
@@ -5864,6 +6130,7 @@ class MainWindow(QMainWindow):
         self._refresh_thumbnails_after_edit()
         self._set_dirty(True)
         self._update_hover_info(self._hover_tile)
+        self._update_hover_info_popup(self._hover_tile)
         old_desc = (
             self.config.enemy_desc.get(old_no, f"0x{old_no:02X}")
             if self.config else f"0x{old_no:02X}"
@@ -7000,6 +7267,8 @@ Alt+左クリック: スポイト（そのマスの要素をピッカーに取�
 <b>ホバー位置のクイック操作</b><br>
 Delete / Backspace: ホバー位置を削除<br>
 矢印キー: ホバー位置の敵を対応する向きに変更<br>
+S: ホバー位置の敵スピードを循環変更<br>
+I: ホバー情報ポップアップの表示/非表示<br>
 <br>
 <b>アイテムフラグ</b><br>
 N: ホバー位置のアイテム/鍵/扉を通常に変更<br>

@@ -17,6 +17,9 @@ MAX_AUTOSAVE_KEEP_COUNT = 999
 DEFAULT_UNDO_LIMIT = 200
 MIN_UNDO_LIMIT = 1
 MAX_UNDO_LIMIT = 999
+DEFAULT_HOVER_INFO_POPUP_FONT_SIZE = 16
+MIN_HOVER_INFO_POPUP_FONT_SIZE = 10
+MAX_HOVER_INFO_POPUP_FONT_SIZE = 40
 
 
 def normalize_int_setting(value, default: int, minimum: int, maximum: int) -> int:
@@ -95,6 +98,8 @@ DEFAULT_CONFIG = {
     "cloud_backup_path": "",
     "autosave_keep_count": DEFAULT_AUTOSAVE_KEEP_COUNT,
     "undo_limit": DEFAULT_UNDO_LIMIT,
+    "hover_info_popup_enabled": False,
+    "hover_info_popup_font_size": DEFAULT_HOVER_INFO_POPUP_FONT_SIZE,
 }
 
 
@@ -136,6 +141,12 @@ def load_config() -> dict:
                 DEFAULT_UNDO_LIMIT,
                 MIN_UNDO_LIMIT,
                 MAX_UNDO_LIMIT,
+            )
+            cfg["hover_info_popup_font_size"] = normalize_int_setting(
+                cfg.get("hover_info_popup_font_size"),
+                DEFAULT_HOVER_INFO_POPUP_FONT_SIZE,
+                MIN_HOVER_INFO_POPUP_FONT_SIZE,
+                MAX_HOVER_INFO_POPUP_FONT_SIZE,
             )
             return cfg
         except Exception:
