@@ -1912,7 +1912,9 @@ def _build_runtime_loader() -> bytes:
     # PanelVariant pointer starts at entry byte0: bank1 CPU $8A70 + room*16.
     # The Solomon Seal block-state table is a separate PRG1 table at CPU $8E9B;
     # keep the current room number in X and copy its byte to $077D.
-    return bytes.fromhex(
+    from . import solomon_seal_block
+    return (
+        bytes.fromhex(
         "a9 ff 8d 2a 07 8d 2b 07"
         "a9 00 8d 23 07 8d 24 07 8d 29 07 8d 7a 07"
         "ad 28 04 aa bd 9b 8e 8d 7d 07"
@@ -1923,24 +1925,29 @@ def _build_runtime_loader() -> bytes:
         "a0 02 b1 00 8d 2b 07"
         "8a 0a 0a 0a 0a 18 69 70 85 00 08"
         "8a 4a 4a 4a 4a 28 69 8a 85 01"
-        "a0 0f b1 00 99 40 07 88 10 f8"
-        "60"
+        )
+        + bytes((
+            0x4C,
+            solomon_seal_block.CPU_PRG1_TRANSPARENT_SEAL_PANEL_TAIL_HELPER & 0xFF,
+            solomon_seal_block.CPU_PRG1_TRANSPARENT_SEAL_PANEL_TAIL_HELPER >> 8,
+        ))
     )
 
 
 RUNTIME_LOADER = _build_runtime_loader()
 assert len(RUNTIME_LOADER) <= 0x60
+RUNTIME_LOADER_SLOT = RUNTIME_LOADER + _fill(0x00, 0x60 - len(RUNTIME_LOADER))
 
 
 def apply_runtime_loader(rom_data: bytearray) -> list[str]:
-    if len(rom_data) < OFF_PRG1_RUNTIME_LOADER + len(RUNTIME_LOADER):
+    if len(rom_data) < OFF_PRG1_RUNTIME_LOADER + len(RUNTIME_LOADER_SLOT):
         return []
     cur = bytes(rom_data[OFF_M66_LOADER_TAIL:OFF_M66_LOADER_TAIL + len(ORIG_M66_LOADER_TAIL)])
     if cur not in (ORIG_M66_LOADER_TAIL, HOOK_M66_LOADER_TAIL):
         return []
     changed: list[str] = []
-    if bytes(rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(RUNTIME_LOADER)]) != RUNTIME_LOADER:
-        rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(RUNTIME_LOADER)] = RUNTIME_LOADER
+    if bytes(rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(RUNTIME_LOADER_SLOT)]) != RUNTIME_LOADER_SLOT:
+        rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(RUNTIME_LOADER_SLOT)] = RUNTIME_LOADER_SLOT
         changed.append("Panel stage-variant combined PRG1 runtime loader")
     if cur != HOOK_M66_LOADER_TAIL:
         rom_data[OFF_M66_LOADER_TAIL:OFF_M66_LOADER_TAIL + len(HOOK_M66_LOADER_TAIL)] = HOOK_M66_LOADER_TAIL

@@ -139,7 +139,9 @@ def _build_runtime_loader() -> bytes:
     # Keep ASL carry when computing the high byte; rooms 32+ live on $89xx.
     # The Solomon Seal block-state table is a separate 64B PRG1 table at
     # CPU $8E9B.  It is copied to $077D for the PRG0 seal placement helper.
-    return bytes.fromhex(
+    from . import solomon_seal_block
+    return (
+        bytes.fromhex(
         "a9 ff 8d 2a 07 8d 2b 07"
         "a9 00 8d 23 07 8d 24 07 8d 29 07 8d 7a 07 8d 7d 07"
         "ad 28 04 aa bd 9b 8e 8d 7d 07"
@@ -148,7 +150,12 @@ def _build_runtime_loader() -> bytes:
         "a0 02 b1 00 8d 2b 07"
         "a0 06 b1 00 8d 78 07"
         "a0 07 b1 00 8d 7c 07"
-        "60"
+        )
+        + bytes((
+            0x4C,
+            solomon_seal_block.CPU_PRG1_TRANSPARENT_SEAL_SUPPRESS_HELPER & 0xFF,
+            solomon_seal_block.CPU_PRG1_TRANSPARENT_SEAL_SUPPRESS_HELPER >> 8,
+        ))
     )
 
 
