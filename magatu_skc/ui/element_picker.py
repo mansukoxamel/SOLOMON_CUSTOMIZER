@@ -333,6 +333,13 @@ class DraggablePickerList(QListWidget):
             mime = QMimeData()
             mode, val = data
             payload = f"{mode}|{val}"
+            if mode == MODE_ITEM:
+                provider = getattr(self, "_item_flag_provider", None)
+                if callable(provider):
+                    try:
+                        payload = f"{payload}|{int(provider())}"
+                    except Exception:
+                        pass
             mime.setData(PICKER_MIME, payload.encode("utf-8"))
             mime.setText(payload)
             drag.setMimeData(mime)
@@ -1124,6 +1131,7 @@ class ElementPicker(QWidget):
             lst = DraggablePickerList()
             lst._icon_zoom_owner = self
             lst._enemy_speed_provider = self.get_enemy_speed
+            lst._item_flag_provider = self.get_item_flag
             lst.setIconSize(QSize(self._icon_size, self._icon_size))
             lst.setViewMode(QListView.IconMode)
             lst.setMovement(QListView.Static)
