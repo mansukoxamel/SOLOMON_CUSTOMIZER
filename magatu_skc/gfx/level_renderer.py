@@ -365,7 +365,31 @@ class LevelRenderer:
             if draw_editor_markers and show_secret_elements and is_cells:
                 self._draw_block_marker_cells(painter, img_w, img_h, "invisible_solid", is_cells)
 
-            # 4. ドア（tile_defの transparent 属性を尊重 - Noneで自動判定）
+            # 4. Demon mirrors are functional even when another meta object
+            # shares the cell. Draw them before door/key so the editor matches
+            # the in-game priority: key > door > mirror.
+            item_positions = {item.position for item in level.items}
+            for mi, mirror in enumerate(level.demon_mirrors):
+                mx, my = mirror.position
+                if not (0 <= mx < c.LEVEL_W and 0 <= my < c.LEVEL_H):
+                    continue
+                if level.tiles[my][mx] != Wall.NONE or (mx, my) in item_positions:
+                    continue
+                anim = self.get_metadata_animation(MD_SPAWN01 if mi == 0 else MD_SPAWN02)
+                m_img = self.tr.get_tile_image(
+                    anim, ts_no, transparent=None, bg_main_color=wall_color)
+                painter.drawImage(mx * tw, my * tw, m_img)
+                if draw_editor_markers and show_secret_elements:
+                    def draw_mirror_border(mp, mx=mx, my=my, mi=mi):
+                        mp.setPen(self._marker_pen(
+                            "mirror1_marker_color" if mi == 0 else "mirror2_marker_color",
+                            2,
+                        ))
+                        mp.setBrush(Qt.NoBrush)
+                        mp.drawRect(mx * tw, my * tw, tw - 1, tw - 1)
+                    self._draw_marker_layer(painter, img_w, img_h, draw_mirror_border)
+
+            # 5. ドア（tile_defの transparent 属性を尊重 - Noneで自動判定）
             if not level.is_door_removed():
                 rf = getattr(level, "room_flags", 0)
                 door_state = rf & room_flags.DOOR_STATE_MASK
@@ -398,7 +422,7 @@ class LevelRenderer:
                         if door_is_hidden and show_secret_elements:
                             painter.setOpacity(1.0)
 
-            # 5. 鍵
+            # 6. 鍵
             if not level.is_key_removed():
                 key_anim = self.get_metadata_animation(MD_KEY)
                 key_img = self.tr.get_tile_image(
@@ -422,30 +446,6 @@ class LevelRenderer:
                             painter.setOpacity(1.0)
                     else:
                         painter.drawImage(kx * tw, ky * tw, key_img)
-
-            # 6. ミラー（色枠で識別: 1=赤, 2=青）
-            # ブロックやアイテムで隠されたミラーは描画しない
-            item_positions = {item.position for item in level.items}
-            for mi, mirror in enumerate(level.demon_mirrors):
-                mx, my = mirror.position
-                if not (0 <= mx < c.LEVEL_W and 0 <= my < c.LEVEL_H):
-                    continue
-                if level.tiles[my][mx] != Wall.NONE or (mx, my) in item_positions:
-                    continue
-                anim = self.get_metadata_animation(MD_SPAWN01 if mi == 0 else MD_SPAWN02)
-                m_img = self.tr.get_tile_image(
-                    anim, ts_no, transparent=None, bg_main_color=wall_color)
-                painter.drawImage(mx * tw, my * tw, m_img)
-                # ミラー識別: 1=赤枠, 2=青枠
-                if draw_editor_markers and show_secret_elements:
-                    def draw_mirror_border(mp, mx=mx, my=my, mi=mi):
-                        mp.setPen(self._marker_pen(
-                            "mirror1_marker_color" if mi == 0 else "mirror2_marker_color",
-                            2,
-                        ))
-                        mp.setBrush(Qt.NoBrush)
-                        mp.drawRect(mx * tw, my * tw, tw - 1, tw - 1)
-                    self._draw_marker_layer(painter, img_w, img_h, draw_mirror_border)
 
             # 7. アイテム
             for item in level.items:

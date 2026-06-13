@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>SOLOMON_CUSTOMIZER オブジェクト重なり仕様</title>
+<style>
+  :root{
+    --bg:#050807; --panel:#07130a; --panel2:#0b1f10; --ink:#1eff27;
+    --muted:#71b879; --line:#1e5b29; --head:#103a18; --accent:#00ff27;
+    --ok:#2dff4a; --warn:#ffb000; --note:#10260f; --shadow:#001e05;
+  }
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.65 "MS Gothic","Yu Gothic UI",Meiryo,sans-serif;
+    text-shadow:0 0 4px rgba(0,255,38,.35);
+  }
+  main{max-width:1120px;margin:0 auto;padding:24px 28px 48px;}
+  h1{font-size:28px;margin:0 0 8px;color:var(--accent);letter-spacing:.03em;}
+  h2{
+    font-size:19px;margin:30px 0 10px;border-left:6px solid var(--accent);
+    padding-left:10px;color:var(--accent);
+  }
+  h3{font-size:15px;margin:20px 0 8px;color:var(--accent);}
+  table{
+    width:100%;border-collapse:collapse;background:var(--panel);
+    border:1px solid var(--line);border-radius:4px;overflow:hidden;margin:10px 0 18px;
+    box-shadow:0 0 0 1px var(--shadow), 0 0 18px rgba(0,255,38,.08);
+  }
+  th,td{border-bottom:1px solid var(--line);padding:8px 10px;vertical-align:top;}
+  th{background:var(--head);text-align:left;font-size:12px;color:var(--accent);white-space:nowrap;}
+  tr:last-child td{border-bottom:0;}
+  tr:nth-child(even) td{background:#08190c;}
+  code{
+    background:#021006;border:1px solid var(--line);border-radius:3px;
+    padding:1px 5px;font-family:Consolas,monospace;color:#8dff8d;
+  }
+  .lead{color:var(--muted);margin:0 0 18px;}
+  .card{
+    background:var(--panel2);border:1px solid var(--line);border-radius:4px;
+    padding:14px 16px;margin:12px 0;box-shadow:0 0 18px rgba(0,255,38,.08);
+  }
+  .note{
+    background:var(--note);border:1px solid #4c7c25;border-radius:4px;
+    padding:10px 12px;margin:12px 0;color:#b7ff9a;
+  }
+  .ok{color:var(--ok);font-weight:700}.warn{color:var(--warn);font-weight:700}.muted{color:var(--muted)}
+  .priority{font-size:18px;font-weight:700;letter-spacing:.02em}
+  .todo{color:#7edb84}
+  .matrix th:first-child{width:150px}
+  .center{text-align:center}
+  .mark{font-size:18px;font-weight:900;text-align:center}
+  .yes{color:#2dff4a}.limited{color:#ffb000}.same{color:#71b879}
+  .verified{display:inline-block;border:1px solid var(--line);background:#031107;color:#8dff8d;border-radius:3px;padding:1px 6px;font-size:12px}
+</style>
+</head>
+<body>
+<main>
+<h1>SOLOMON_CUSTOMIZER オブジェクト重なり仕様</h1>
+<p class="lead">
+  キャンバス上で同じマスに複数のオブジェクトを置けるか、
+  置ける場合はゲーム開始時に何として見えるかを整理する。
+</p>
+
+<div class="note">
+  現時点の主対象は、主人公スタート、鍵、扉、デーモンミラー1/2の重なり。
+  ここでは見た目を中心に書く。見えない要素も内部データとしては残る。
+</div>
+
+<h2>重なり可否マトリックス</h2>
+<p>
+  行と列の要素を同じマスに置けるかを示す。
+</p>
+<table class="matrix">
+  <tr>
+    <th>行＼列</th>
+    <th>主人公</th>
+    <th>鍵</th>
+    <th>扉</th>
+    <th>ミラー1</th>
+    <th>ミラー2</th>
+  </tr>
+  <tr>
+    <th>主人公</th>
+    <td class="mark same">-</td>
+    <td class="mark yes">○</td>
+    <td class="mark yes">○</td>
+    <td class="mark yes">○</td>
+    <td class="mark yes">○</td>
+  </tr>
+  <tr>
+    <th>鍵</th>
+    <td class="mark yes">○</td>
+    <td class="mark same">-</td>
+    <td class="mark yes">○</td>
+    <td class="mark yes">○</td>
+    <td class="mark yes">○</td>
+  </tr>
+  <tr>
+    <th>扉</th>
+    <td class="mark yes">○</td>
+    <td class="mark yes">○</td>
+    <td class="mark same">-</td>
+    <td class="mark yes">○</td>
+    <td class="mark yes">○</td>
+  </tr>
+  <tr>
+    <th>ミラー1</th>
+    <td class="mark yes">○</td>
+    <td class="mark yes">○</td>
+    <td class="mark yes">○</td>
+    <td class="mark same">-</td>
+    <td class="mark yes">○</td>
+  </tr>
+  <tr>
+    <th>ミラー2</th>
+    <td class="mark yes">○</td>
+    <td class="mark yes">○</td>
+    <td class="mark yes">○</td>
+    <td class="mark yes">○</td>
+    <td class="mark same">-</td>
+  </tr>
+</table>
+<table>
+  <tr><th>記号</th><th>意味</th></tr>
+  <tr><td class="mark yes">○</td><td>同じマスに配置可能。</td></tr>
+  <tr><td class="mark same">-</td><td>同一種別同士。通常は1つの位置設定だけを持つ。</td></tr>
+  <tr><td class="mark limited">△</td><td>条件付き、または挙動確認が必要。今後の追記用。</td></tr>
+  <tr><td class="mark">×</td><td>同じマスに配置不可、または保存形式上成立しない。今後の追記用。</td></tr>
+</table>
+
+<h2>ゲーム開始時の見え方</h2>
+<p>
+  主人公以外の <code>鍵</code>、<code>扉</code>、<code>ミラー1</code>、<code>ミラー2</code> は
+  背景側の要素なので、同じマスにあっても絵は1つだけ見える。
+</p>
+
+<div class="card">
+  <div class="priority">表示優先順位: 鍵 &gt; 扉 &gt; ミラー</div>
+  <p>
+    鍵と扉とミラーが同じマスにある場合、ゲーム開始時に見えるのは鍵。
+    鍵が無い組み合わせでは扉が見え、扉も無い場合だけミラーが見える。
+  </p>
+</div>
+
+<table class="matrix">
+  <tr>
+    <th>組み合わせ</th>
+    <th>同じマスに配置</th>
+    <th>ゲーム開始時に見えるもの</th>
+  </tr>
+  <tr>
+    <td>鍵 + 扉</td>
+    <td class="center ok">可能</td>
+    <td>鍵</td>
+  </tr>
+  <tr>
+    <td>鍵 + ミラー</td>
+    <td class="center ok">可能</td>
+    <td>鍵</td>
+  </tr>
+  <tr>
+    <td>扉 + ミラー</td>
+    <td class="center ok">可能</td>
+    <td>扉</td>
+  </tr>
+  <tr>
+    <td>鍵 + 扉 + ミラー</td>
+    <td class="center ok">可能</td>
+    <td>鍵</td>
+  </tr>
+  <tr>
+    <td>ミラー1 + ミラー2</td>
+    <td class="center ok">可能</td>
+    <td>ミラー画像</td>
+  </tr>
+</table>
+
+<h2>主人公スタートの扱い</h2>
+<p>
+  主人公スタートは別格。ゲーム中の主人公は動き回るキャラクターなので、
+  鍵、扉、ミラーの上に乗って表示される。
+</p>
+
+<table>
+  <tr><th>項目</th><th>仕様</th></tr>
+  <tr>
+    <td>同じマスへの配置</td>
+    <td>主人公スタートは、鍵、扉、ミラーと同じマスに配置できる。</td>
+  </tr>
+  <tr>
+    <td>グラフィック</td>
+    <td>
+      主人公は鍵/扉/ミラーの上に重なって表示される。
+    </td>
+  </tr>
+  <tr>
+    <td>鍵との関係</td>
+    <td>
+      主人公スタートと鍵が同じマスにある場合、ゲーム開始直後に鍵へ触れている状態になる。
+      鍵は取得対象なので、触れた時点で鍵を取る挙動になる。
+    </td>
+  </tr>
+  <tr>
+    <td>キャンバス操作</td>
+    <td>
+      同じマスに主人公、鍵、扉、ミラーがある場合、Ctrl+左ドラッグで掴む優先順位は
+      <code>主人公 &gt; 鍵 &gt; 扉 &gt; ミラー</code> とする。
+    </td>
+  </tr>
+</table>
+
+<h2>モンスター同士の重なり</h2>
+<p>
+  <span class="verified">検証済み</span>
+  同じマスに複数のモンスターを配置できる。
+  ゲーム画面でもキャンバス上でも、モンスターリストの下にあるもの、つまりリスト順が遅いものほど手前に表示される。
+</p>
+
+<table class="matrix">
+  <tr>
+    <th>組み合わせ</th>
+    <th>同じマスに配置</th>
+    <th>ゲーム開始時に見えるもの</th>
+    <th>キャンバス操作</th>
+  </tr>
+  <tr>
+    <td>モンスター + モンスター</td>
+    <td class="center ok">可能</td>
+    <td>モンスターリストで後ろにあるモンスターが手前に見える。</td>
+    <td>同じマスから掴む場合も、見えている手前側のモンスターを優先する。</td>
+  </tr>
+</table>
+
+<h2>主人公とアイテムの重なり</h2>
+<p>
+  <span class="verified">検証済み</span>
+  主人公スタートとアイテムは同じマスに配置できる。
+  見た目はゲーム画面でもキャンバス上でも主人公が手前に表示され、ゲーム開始直後にそのアイテムを取得する。
+</p>
+
+<table class="matrix">
+  <tr>
+    <th>組み合わせ</th>
+    <th>同じマスに配置</th>
+    <th>ゲーム開始時に見えるもの</th>
+    <th>ゲーム開始直後の挙動</th>
+  </tr>
+  <tr>
+    <td>主人公 + アイテム</td>
+    <td class="center ok">可能</td>
+    <td>主人公が手前に見える。</td>
+    <td>主人公がアイテムに触れているため、すぐ取得する。</td>
+  </tr>
+</table>
+
+<h2>主人公とモンスターの重なり</h2>
+<p>
+  <span class="verified">検証済み</span>
+  主人公スタートとモンスターは同じマスに配置でき、見た目はゲーム画面でもキャンバス上でも主人公が手前に表示される。
+  ただし、ゲーム開始直後に主人公が死亡するため、SOLOMON_CUSTOMIZER上では危険配置として禁止する。
+</p>
+
+<table class="matrix">
+  <tr>
+    <th>組み合わせ</th>
+    <th>実ゲーム上の重なり</th>
+    <th>ゲーム開始時に見えるもの</th>
+    <th>SOLOMON_CUSTOMIZERでの扱い</th>
+  </tr>
+  <tr>
+    <td>主人公 + モンスター</td>
+    <td class="center ok">可能</td>
+    <td>主人公が手前に見える。</td>
+    <td class="warn">配置禁止。開始直後に死亡するため。</td>
+  </tr>
+</table>
+
+<h2>アイテム同士の重なり</h2>
+<p>
+  <span class="verified">検証済み</span>
+  アイテム同士は同じマスに複数配置しない。
+  同じマスに別アイテムを置く操作は、複数重ねるのではなく、そのマスのアイテムを置き換える扱いにする。
+</p>
+
+<table class="matrix">
+  <tr>
+    <th>組み合わせ</th>
+    <th>同じマスに配置</th>
+    <th>ゲーム開始時に見えるもの</th>
+    <th>SOLOMON_CUSTOMIZERでの扱い</th>
+  </tr>
+  <tr>
+    <td>アイテム + アイテム</td>
+    <td class="center warn">不可</td>
+    <td>1つのアイテムだけ。</td>
+    <td>同じマスに置いた場合は既存アイテムを置き換える。</td>
+  </tr>
+</table>
+
+<h2>メタ要素とアイテムの重なり</h2>
+<p>
+  <span class="verified">検証済み</span>
+  メタ要素のうち、鍵・扉とアイテムは同じマスに配置しない。
+  ミラーとアイテムは同じマスに配置でき、表示上はアイテムが見える。
+</p>
+
+<table class="matrix">
+  <tr>
+    <th>組み合わせ</th>
+    <th>同じマスに配置</th>
+    <th>ゲーム開始時に見えるもの</th>
+    <th>SOLOMON_CUSTOMIZERでの扱い</th>
+  </tr>
+  <tr>
+    <td>鍵 + アイテム</td>
+    <td class="center warn">不可</td>
+    <td>鍵が優先され、アイテムは成立しない。</td>
+    <td>配置禁止。</td>
+  </tr>
+  <tr>
+    <td>扉 + アイテム</td>
+    <td class="center warn">不可</td>
+    <td>扉が優先され、アイテムは成立しない。</td>
+    <td>配置禁止。</td>
+  </tr>
+  <tr>
+    <td>ミラー + アイテム</td>
+    <td class="center ok">可能</td>
+    <td>アイテムが見える。</td>
+    <td>配置可能。</td>
+  </tr>
+</table>
+
+<h2>メタ要素とモンスターの重なり</h2>
+<p>
+  <span class="verified">検証済み</span>
+  メタ要素とモンスターは同じマスに配置できる。
+  表示はゲーム画面でもキャンバス上でも、常にモンスターが手前に見える。
+</p>
+
+<table class="matrix">
+  <tr>
+    <th>組み合わせ</th>
+    <th>同じマスに配置</th>
+    <th>ゲーム開始時に見えるもの</th>
+    <th>SOLOMON_CUSTOMIZERでの扱い</th>
+  </tr>
+  <tr>
+    <td>鍵 + モンスター</td>
+    <td class="center ok">可能</td>
+    <td>モンスターが手前に見える。</td>
+    <td>配置可能。</td>
+  </tr>
+  <tr>
+    <td>扉 + モンスター</td>
+    <td class="center ok">可能</td>
+    <td>モンスターが手前に見える。</td>
+    <td>配置可能。</td>
+  </tr>
+  <tr>
+    <td>ミラー + モンスター</td>
+    <td class="center ok">可能</td>
+    <td>モンスターが手前に見える。</td>
+    <td>配置可能。</td>
+  </tr>
+</table>
+
+<h2>アイテムとモンスターの重なり</h2>
+<p>
+  <span class="verified">検証済み</span>
+  アイテムとモンスターは同じマスに配置できる。
+  表示はゲーム画面でもキャンバス上でも、常にモンスターが手前に見える。
+</p>
+
+<table class="matrix">
+  <tr>
+    <th>組み合わせ</th>
+    <th>同じマスに配置</th>
+    <th>ゲーム開始時に見えるもの</th>
+    <th>SOLOMON_CUSTOMIZERでの扱い</th>
+  </tr>
+  <tr>
+    <td>アイテム + モンスター</td>
+    <td class="center ok">可能</td>
+    <td>モンスターが手前に見える。</td>
+    <td>配置可能。</td>
+  </tr>
+</table>
+
+<h2>ブロック同士の重なり</h2>
+<p>
+  <span class="verified">検証済み</span>
+  ブロック同士は同じマスに複数配置しない。
+  1マスの地形値は1つだけなので、同じマスに別ブロックを置く操作は、そのマスのブロックを置き換える扱いにする。
+</p>
+
+<table class="matrix">
+  <tr>
+    <th>組み合わせ</th>
+    <th>同じマスに配置</th>
+    <th>ゲーム開始時に見えるもの</th>
+    <th>SOLOMON_CUSTOMIZERでの扱い</th>
+  </tr>
+  <tr>
+    <td>ブロック + ブロック</td>
+    <td class="center warn">不可</td>
+    <td>1つのブロックだけ。</td>
+    <td>同じマスに置いた場合はそのマスのブロックを置き換える。</td>
+  </tr>
+</table>
+
+<h2>ブロックと他要素の関係</h2>
+<p>
+  <span class="verified">検証済み</span>
+  ブロック絡みは単純な重なりではなく、禁止または状態吸収として扱う。
+  ミラーだけは例外で、見た目はブロックになり、ミラーの機能だけが残る。
+</p>
+
+<table class="matrix">
+  <tr>
+    <th>組み合わせ</th>
+    <th>同じマスに配置</th>
+    <th>ゲーム開始時に見えるもの</th>
+    <th>SOLOMON_CUSTOMIZERでの扱い</th>
+  </tr>
+  <tr>
+    <td>主人公 + ブロック</td>
+    <td class="center warn">不可</td>
+    <td>成立させない。</td>
+    <td>配置禁止。主人公がブロックに埋まるため。</td>
+  </tr>
+  <tr>
+    <td>モンスター + ブロック</td>
+    <td class="center warn">不可</td>
+    <td>成立させない。</td>
+    <td>配置禁止。</td>
+  </tr>
+  <tr>
+    <td>アイテム + ブロック</td>
+    <td class="center ok">状態吸収</td>
+    <td>ブロックが見える。</td>
+    <td>ブロック内アイテム状態として扱う。</td>
+  </tr>
+  <tr>
+    <td>鍵 + ブロック</td>
+    <td class="center ok">状態吸収</td>
+    <td>ブロックが見える。</td>
+    <td>ブロック内鍵状態として扱う。</td>
+  </tr>
+  <tr>
+    <td>扉 + ブロック</td>
+    <td class="center ok">状態吸収</td>
+    <td>ブロックが見える。</td>
+    <td>ブロック内扉状態として扱う。</td>
+  </tr>
+  <tr>
+    <td>ミラー + ブロック</td>
+    <td class="center ok">可能</td>
+    <td>ブロックが見える。</td>
+    <td>ミラーの見た目は出ないが、機能は残る。ブロックの裏からモンスターが出る。</td>
+  </tr>
+</table>
+
+<div class="note">
+  補足: ここで見えない要素も、内部的には消えていない。
+  ただし、この表では「何が見えるか」を優先して整理している。
+</div>
+
+</main>
+</body>
+</html>
