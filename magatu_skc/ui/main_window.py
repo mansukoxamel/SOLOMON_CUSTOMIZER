@@ -4886,6 +4886,12 @@ class MainWindow(QMainWindow):
 
     # ====== 選択範囲操作（コピー / ペースト / 反転 / 削除） ======
 
+    def _select_all_editable_area(self):
+        """Select the normal editable playfield: columns 0-14, rows 0-11."""
+        end_x = min(14, c.LEVEL_W - 1)
+        end_y = c.LEVEL_H - 1
+        self._on_selection_updated((0, 0), (end_x, end_y))
+
     def _is_col15_locked(self) -> bool:
         return hasattr(self, "chk_edit_col15") and not self.chk_edit_col15.isChecked()
 
@@ -5873,6 +5879,9 @@ class MainWindow(QMainWindow):
                 return
             if key == Qt.Key_Y:
                 self._on_redo()
+                return
+            if key == Qt.Key_A:
+                self._select_all_editable_area()
                 return
             if key == Qt.Key_C:
                 self._copy_selection()
@@ -7384,6 +7393,7 @@ W: ホバー位置のアイテム/鍵/扉を白ブロック内に変更<br>
 T: ホバー位置のアイテムを透明ブロック内に変更<br>
 <br>
 <b>範囲編集</b><br>
+Ctrl+A: 編集エリア全体を選択（0,0）-（14,11）<br>
 Ctrl+C: コピー<br>
 Ctrl+V: ペースト（選択範囲またはホバー位置を起点）<br>
 Ctrl+X: 切り取り<br>
