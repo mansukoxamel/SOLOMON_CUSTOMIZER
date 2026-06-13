@@ -676,6 +676,8 @@ class StatsDialog(QDialog):
             # 鍵状態 (座標は表示しない)
             if lv.is_key_removed():
                 key_state = "削除"
+            elif lv.fixed_key_pos in getattr(lv, "visible_in_block_item_cells", set()):
+                key_state = "visible_in_block"
             elif lv.is_key_white_in_block():
                 key_state = "white_in_block"
             elif lv.is_key_in_block():
