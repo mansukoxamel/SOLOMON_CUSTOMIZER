@@ -3896,7 +3896,9 @@ class MainWindow(QMainWindow):
         if mode == MODE_META and value == "key" and self.levels:
             from ..core import constants as cc
             lv = self.levels[self.current_level_no]
-            if lv.key_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
+            if lv.fixed_key_pos in getattr(lv, "visible_in_block_item_cells", set()):
+                self.picker.rb_flag_visible_in_block.setChecked(True)
+            elif lv.key_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
                 self.picker.rb_flag_white_in_block.setChecked(True)
             elif lv.key_status == cc.KEY_STATUS_HIDDEN:
                 self.picker.rb_flag_hidden.setChecked(True)
@@ -4001,7 +4003,9 @@ class MainWindow(QMainWindow):
             parts.append("[スタート]")
         if not lv.is_key_removed() and lv.fixed_key_pos == tile:
             key_tag = "[鍵]"
-            if lv.is_key_white_in_block():
+            if tile in getattr(lv, "visible_in_block_item_cells", set()):
+                key_tag = "[鍵:透明ブロック内]"
+            elif lv.is_key_white_in_block():
                 key_tag = "[鍵:白ブロック内]"
             elif lv.is_key_in_block():
                 key_tag = "[鍵:ブロック内]"
@@ -4076,6 +4080,8 @@ class MainWindow(QMainWindow):
         return ""
 
     def _key_state_label(self, lv):
+        if lv.fixed_key_pos in getattr(lv, "visible_in_block_item_cells", set()):
+            return "透明ブロック内"
         if lv.is_key_white_in_block():
             return "白ブロック内"
         if lv.is_key_in_block():
@@ -4365,6 +4371,7 @@ class MainWindow(QMainWindow):
                 if not lv.is_key_removed() and lv.fixed_key_pos == tile:
                     from ..core import constants as cc
                     lv.key_status = cc.KEY_STATUS_IN_BLOCK
+                    lv.visible_in_block_item_cells.discard(tile)
                     lv.set_block(Wall.NONE, tile)
                     skip_block_placement = True
                     self.statusBar().showMessage(
@@ -4396,6 +4403,7 @@ class MainWindow(QMainWindow):
                 if not lv.is_key_removed() and lv.fixed_key_pos == tile:
                     from ..core import constants as cc
                     lv.key_status = cc.KEY_STATUS_WHITE_IN_BLOCK
+                    lv.visible_in_block_item_cells.discard(tile)
                     lv.set_block(Wall.NONE, tile)
                     skip_block_placement = True
                     self.statusBar().showMessage(
@@ -4431,11 +4439,14 @@ class MainWindow(QMainWindow):
                         )
             elif value == BLOCK_INVISIBLE_BREAKABLE:
                 if not lv.is_key_removed() and lv.fixed_key_pos == tile:
+                    from ..core import constants as cc
+                    lv.key_status = cc.KEY_STATUS_NORMAL
+                    lv.set_block(Wall.NONE, tile)
+                    lv.visible_in_block_item_cells.add(tile)
+                    skip_block_placement = True
                     self.statusBar().showMessage(
-                        f"鍵には透明ブロック内状態はありません {tile}", 2500
+                        f"鍵を透明ブロック内状態に自動変換 {tile}", 2500
                     )
-                    restore_rejected_click_edit()
-                    return
                 else:
                     idx = lv.get_item_index(tile)
                     if idx >= 0:
@@ -4711,9 +4722,11 @@ class MainWindow(QMainWindow):
                 if target_is_white_in_block:
                     lv.key_status = cc.KEY_STATUS_WHITE_IN_BLOCK
                     lv.set_block(Wall.NONE, tile)
+                    lv.visible_in_block_item_cells.discard(tile)
                 elif target_is_brown_in_block:
                     lv.key_status = cc.KEY_STATUS_IN_BLOCK
                     lv.set_block(Wall.NONE, tile)
+                    lv.visible_in_block_item_cells.discard(tile)
                 else:
                     flag_map = {
                         0x00: cc.KEY_STATUS_NORMAL,
@@ -4721,7 +4734,12 @@ class MainWindow(QMainWindow):
                         0x80: cc.KEY_STATUS_IN_BLOCK,
                         0xC0: cc.KEY_STATUS_WHITE_IN_BLOCK,
                     }
-                    lv.key_status = flag_map.get(picker_flag, cc.KEY_STATUS_NORMAL)
+                    if picker_flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
+                        lv.key_status = cc.KEY_STATUS_NORMAL
+                        lv.visible_in_block_item_cells.add(tile)
+                    else:
+                        lv.key_status = flag_map.get(picker_flag, cc.KEY_STATUS_NORMAL)
+                        lv.visible_in_block_item_cells.discard(tile)
                     if lv.key_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
                         lv.set_block(Wall.NONE, tile)
             elif value == "door":
@@ -4893,7 +4911,12 @@ class MainWindow(QMainWindow):
         if lv.fixed_start_pos == tile:
             self._move_pending = {"kind": "meta", "sub": "start"}
         elif lv.fixed_key_pos == tile and not lv.is_key_removed():
-            self._move_pending = {"kind": "meta", "sub": "key"}
+            self._move_pending = {
+                "kind": "meta",
+                "sub": "key",
+                "visible_in_block": tile in getattr(lv, "visible_in_block_item_cells", set()),
+                "current_pos": tile,
+            }
         elif lv.fixed_door_pos == tile and not lv.is_door_removed():
             self._move_pending = {"kind": "meta", "sub": "door"}
         elif lv.demon_mirrors[0].position == tile:
@@ -5017,6 +5040,11 @@ class MainWindow(QMainWindow):
                 if lv.get_item_index(tile) >= 0:
                     self._show_key_door_item_overlap_message(tile)
                     return
+                if mp.get("visible_in_block"):
+                    cells = getattr(lv, "visible_in_block_item_cells", set())
+                    cells.discard(mp.get("current_pos"))
+                    cells.add(tile)
+                    mp["current_pos"] = tile
                 lv.fixed_key_pos = tile
             elif sub == "door":
                 if lv.get_item_index(tile) >= 0:
@@ -6459,19 +6487,20 @@ class MainWindow(QMainWindow):
             flag &= 0xC0
         if self._hover_tile is not None and self.levels:
             lv = self.levels[self.current_level_no]
-            if (flag != c.ITEM_FLAG_VISIBLE_IN_BLOCK and
-                    not lv.is_key_removed() and lv.fixed_key_pos == self._hover_tile):
+            if not lv.is_key_removed() and lv.fixed_key_pos == self._hover_tile:
                 if self._reject_read_only_edit():
                     return
                 from ..core import constants as cc
+                old_visible = self._hover_tile in getattr(lv, "visible_in_block_item_cells", set())
                 key_flag_map = {
                     0x00: cc.KEY_STATUS_NORMAL,
                     0x40: cc.KEY_STATUS_HIDDEN,
                     0x80: cc.KEY_STATUS_IN_BLOCK,
                     0xC0: cc.KEY_STATUS_WHITE_IN_BLOCK,
                 }
-                new_status = key_flag_map[flag]
-                if new_status == lv.key_status:
+                new_visible = flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK
+                new_status = cc.KEY_STATUS_NORMAL if new_visible else key_flag_map[flag]
+                if new_status == lv.key_status and new_visible == old_visible:
                     self.statusBar().showMessage(
                         f"ホバー位置の鍵状態: {label}", 1500
                     )
@@ -6479,6 +6508,11 @@ class MainWindow(QMainWindow):
                 old_was_white = lv.is_key_white_in_block()
                 self._push_undo()
                 lv.key_status = new_status
+                visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+                if new_visible:
+                    visible_cells.add(self._hover_tile)
+                else:
+                    visible_cells.discard(self._hover_tile)
                 if new_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
                     lv.set_block(Wall.NONE, self._hover_tile)
                 elif old_was_white:
@@ -8056,7 +8090,7 @@ Alt+左クリック: スポイト（そのマスの要素をピッカーに取�
 {sc("hover_item_hidden")}: ホバー位置のアイテム/鍵/扉を隠しに変更（デーモンミラー上では隠しアイテム0x48を配置）<br>
 {sc("hover_item_in_block")}: ホバー位置のアイテム/鍵/扉をブロック内に変更<br>
 {sc("hover_item_white_in_block")}: ホバー位置のアイテム/鍵/扉を白ブロック内に変更<br>
-{sc("hover_item_visible_in_block")}: ホバー位置のアイテムを透明ブロック内に変更<br>
+{sc("hover_item_visible_in_block")}: ホバー位置のアイテム/鍵を透明ブロック内に変更<br>
 <br>
 <b>範囲編集</b><br>
 {sc("select_all")}: 編集エリア全体を選択（0,0）-（14,11）<br>

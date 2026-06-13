@@ -432,6 +432,11 @@ def validate_visible_in_block_items(levels: list) -> None:
                 )
             item = item_by_pos.get(pos)
             if item is None:
+                if (
+                    not level.is_key_removed()
+                    and tuple(getattr(level, "fixed_key_pos", (-1, -1))) == tuple(pos)
+                ):
+                    continue
                 raise ValueError(
                     f"Stage {room_no + 1}: 透明ブロック内マーカー {pos} にアイテムがありません"
                 )
