@@ -89,7 +89,11 @@ verbatim コピーするため file offset 不変):
 #                                 リスポーンでも特殊セルを再変換する。
 #   $077B       BLOCK_OVERRIDE_WORK 一時値                    予約済(使用中)
 #   $077C       RUNTIME_DOOR_CELL 現在部屋の扉セル            予約済(使用中)
-#   $077D-$077F FREE_CANDIDATE  (未割当・小フラグ/カウンタ用)  補助候補3B
+#   $077D       SEAL_BLOCK_VALUE Solomon's Seal block-state value 予約済(使用中)
+#                               ・mapper66 StageExt loader がPRG1の部屋別表から
+#                                 コピー。$00=原作$60 / $A0=茶ブロック内 /
+#                                 $E0=白ブロック内。
+#   $077E-$077F FREE_CANDIDATE  (未割当・小フラグ/カウンタ用)  補助候補2B
 #                               まとまったRAMは$0750-$0767を優先。
 #                               使用前に必ず再probe・用途名を決めて追記。
 #
@@ -99,7 +103,9 @@ verbatim コピーするため file offset 不変):
 #   ・file 0x8A10-0x8A6F : Panel Variant combined runtime loader
 #   ・file 0x8A70-0x8E7F : PanelVariantStageTable
 #   ・file 0x8E80-0x8EAA : visible item mask copy helper
-#   ・file 0x8EAB-0xBB95 : PRG1 general reserve
+#   ・file 0x8EAB-0x8EEA : Solomon Seal block-state table
+#     (64B, 1 byte/room。StageExt loader が $077D へコピー)
+#   ・file 0x8EEB-0xBB95 : PRG1 general reserve
 #     (bank1 を使う改造を足すときは必ず上記予約を避ける)。
 #   ・file 0xBB96   : SW byte = $FF 固定 (bank-switch bus-conflict
 #     用。CPU $BB86。title_screen._WT_SW_B1_OFF)。データで踏まない。
@@ -112,7 +118,7 @@ verbatim コピーするため file offset 不変):
 #     → v0.7.72で旧特殊ブロック32Bリストを廃止し、v0.7.149時点で
 #        $0740-$074F はPanel Variant cacheとして予約済み。
 #        $0750-$0767 は透明ブロック内アイテムruntime maskとして予約済み。
-#        $073A-$073F / $0768-$0777 / $077D-$077F は補助候補だが、
+#        $073A-$073F / $0768-$0777 / $077E-$077F は補助候補だが、
 #        沈黙でも構造保証は弱いので正式使用前に用途別probe必須。
 #   ・$0780-$07DF = probe で書込検出 = ★使用禁止。
 #
@@ -131,7 +137,7 @@ verbatim コピーするため file offset 不変):
 #      例: room flag は $0428→$C1C0,X ROMテーブル再読込で RAM不要化可。
 #          暗闇周期も $043C/$043D(global frame counter)から導出余地。
 #   2. まとまったRAMが必要 → $0768-$0777 を候補にする。
-#      小フラグだけなら $077D-$077F も候補。
+#      小フラグだけなら $077E-$077F も候補。
 #      用途名を決めて上の表に追記してからコードで使う。
 #   3. 長期保存 / 毎NMI書込 / 複数バイト連続使用 → ★再プローブ必須
 #      (ramfree3_probe 流儀: 無音蓄積+低頻度要約、バグ再現シナリオ込み、
@@ -152,7 +158,8 @@ verbatim コピーするため file offset 不変):
 #   $077A       BLOCK_OVERRIDE_DONE    special-cell scanner done flag, reset by mapper66 room-load runtime
 #   $077B       BLOCK_OVERRIDE_WORK    temporary NMI work byte, reserved in use
 #   $077C       RUNTIME_DOOR_CELL      current room door cell, reserved in use
-#   $077D-$077F FREE_CANDIDATE         secondary 3-byte tail candidate
+#   $077D       SEAL_BLOCK_VALUE       Solomon's Seal block-state value from PRG1 table
+#   $077E-$077F FREE_CANDIDATE         secondary 2-byte tail candidate
 #
 # Current ROM cave ledger lives in docs/rom_map_jp_mapper66_current.html.
 # Do not add or move a hard-coded ROM/RAM address without updating the HTML

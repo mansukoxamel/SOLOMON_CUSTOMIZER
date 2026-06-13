@@ -82,7 +82,8 @@
       <div class="seg free" style="width:.7%">$0768-$0777<br><small>16B candidate</small></div>
       <div class="seg mod" style="width:.25%">$0778-$0779</div>
       <div class="seg mod" style="width:.1%">$077C</div>
-      <div class="seg free" style="width:.2%">$077D-$077F</div>
+        <div class="seg mod" style="width:.07%">$077D<br><small>seal</small></div>
+        <div class="seg free" style="width:.13%">$077E-$077F</div>
       <div class="seg warnseg" style="width:4.7%">$0780-$07DF<br><small>NG</small></div>
       <div class="seg free" style="width:.8%">$07E0-$07EF</div>
       <div class="seg game" style="width:.8%">$07F0-$07FF</div>
@@ -119,7 +120,8 @@
     <tr><td class="num">$0779</td><td>DARK_PHASE</td><td class="ok">Customizer予約済</td><td>暗闇モードの明滅フェーズカウンタ。</td></tr>
     <tr><td class="num">$077A-$077B</td><td>runtime block override work</td><td class="ok">Customizer予約済</td><td><code>$077A</code> は特殊セル変換済みフラグ。mapper66部屋ロードruntimeで解除し、死亡後リスポーンでも再変換する。<code>$077B</code> は一時値。</td></tr>
     <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td class="ok">Customizer予約済</td><td>mapper66 StageExt loader がPRG1からコピーする現在部屋の扉セル。特殊扉(隠し/茶ブロック内/白ブロック内)処理が参照。</td></tr>
-    <tr><td class="num">$077D-$077F</td><td>小フラグ/小カウンタ候補</td><td class="warn">補助候補 3B</td><td>予約済みRAM直後の3B。小フラグ用。まとまったRAMが必要な場合は$0750-$0767を優先する。</td></tr>
+    <tr><td class="num">$077D</td><td>SEAL_BLOCK_VALUE</td><td class="ok">Customizer予約済</td><td>mapper66 StageExt loader がPRG1のソロモンの紋章ブロック状態表からコピーする現在部屋の上書き値。<code>$00</code>=原作、<code>$A0</code>=茶ブロック内、<code>$E0</code>=白ブロック内。</td></tr>
+    <tr><td class="num">$077E-$077F</td><td>小フラグ/小カウンタ候補</td><td class="warn">補助候補 2B</td><td>予約済みRAM直後の2B。小フラグ用。まとまったRAMが必要な場合は$0750-$0767を優先する。</td></tr>
     <tr><td class="num">$0780-$07DF</td><td>probeで書込確認あり</td><td class="ng">使用禁止</td><td>空きに見えても使わない。</td></tr>
     <tr><td class="num">$07E0-$07EF</td><td>沈黙候補</td><td class="warn">非推奨</td><td>high score/GDV隣接。最後の手段。</td></tr>
     <tr><td class="num">$07F0-$07FF</td><td>high score / GDV周辺</td><td class="ng">使用禁止</td><td>タイトルやスコア保存系と絡む可能性が高い。</td></tr>
@@ -135,7 +137,8 @@
     <tr><td class="num">$0750-$0767</td><td>VISIBLE_INBLOCK_ITEM_MASK</td><td>透明ブロック内アイテム</td><td>部屋中常駐</td><td>mapper66 loader がPRG1 <code>0xF860-0xFEFF</code> から現在部屋の24B bitmaskをコピー。<code>$E74C</code> helper が参照し、処理中にmaskを破壊的にshiftする。</td></tr>
     <tr><td class="num">$072C-$0739</td><td>WIDETITLE_TRAMP</td><td>wide title描画</td><td>タイトル描画中のみ</td><td>RAM実行でPRG bank0/1切替をまたぐ。旧<code>$03C0-$03CD</code>はblock gridと重なるため廃止。</td></tr>
     <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td>特殊扉/StageExt loader</td><td>部屋中常駐</td><td>PRG1 StageExtTable byte7からコピー。特殊扉(隠し/茶ブロック内/白ブロック内)が参照。PRG0 DoorCellTableを廃止して <code>$C180-$C1FF</code> を回収。</td></tr>
-    <tr><td class="num">$077D-$077F</td><td>FREE_CANDIDATE</td><td>未割当</td><td>-</td><td>小フラグ用の補助候補。まとまったRAMは <code>$0750-$0767</code> を優先。使ったらこの表と <code>room_flags.py</code> 台帳へ追記。</td></tr>
+    <tr><td class="num">$077D</td><td>SEAL_BLOCK_VALUE</td><td>ソロモンの紋章ブロック状態</td><td>部屋中常駐</td><td>PRG1の部屋別表からコピー。紋章配置後に茶/白ブロック内状態へ上書きするための1バイト。</td></tr>
+    <tr><td class="num">$077E-$077F</td><td>FREE_CANDIDATE</td><td>未割当</td><td>-</td><td>小フラグ用の補助候補。まとまったRAMは <code>$0750-$0767</code> を優先。使ったらこの表と <code>room_flags.py</code> 台帳へ追記。</td></tr>
   </table>
 
   <h2>4. 絶対に繰り返さない事故</h2>
@@ -148,7 +151,7 @@
   <div class="note">
     <b>新規RAMが必要な時の優先順位:</b>
     まずRAMを増やさずROMテーブル再読込や既存カウンタ派生で済ませる。まとまったRAMが必要なら旧特殊ブロックリスト跡の
-    <code>$0750-$0767</code> は透明ブロック内アイテム用に予約済み。まとまったRAMは <code>$0768-$0777</code> を候補にする。小フラグだけなら <code>$077D-$077F</code> も候補。
+    <code>$0750-$0767</code> は透明ブロック内アイテム用に予約済み。まとまったRAMは <code>$0768-$0777</code> を候補にする。小フラグだけなら <code>$077E-$077F</code> も候補。
     長期保存・毎NMI書込・複数バイト連続使用は、先に専用probeで実機確認してから予約する。予約後は <code>room_flags.py</code> のASCII mirrorも同期する。
   </div>
 
@@ -157,7 +160,7 @@
     <tr><th>分類</th><th>意味</th><th>例</th></tr>
     <tr><td class="ok">予約済/確定</td><td>コード・実機probe・現在実装のいずれかで用途が確定している。</td><td><code>$0723-$072B</code>, <code>$072C-$0739</code>, <code>$0778</code>, <code>$0779</code>, <code>$077C</code></td></tr>
     <tr><td>本編使用</td><td>用途は概ね分かるが、内部構造の詳細は必要時に追加解析。</td><td><code>$0426-$0455</code>, <code>$04F7-$057E</code></td></tr>
-    <tr><td class="warn">候補/非推奨</td><td>probe上は沈黙したが、構造保証が弱い、または重要領域に隣接。</td><td><code>$073A-$073F</code>, <code>$0768-$0777</code>, <code>$077D-$077F</code>, <code>$07E0-$07EF</code></td></tr>
+    <tr><td class="warn">候補/非推奨</td><td>probe上は沈黙したが、構造保証が弱い、または重要領域に隣接。</td><td><code>$073A-$073F</code>, <code>$0768-$0777</code>, <code>$077E-$077F</code>, <code>$07E0-$07EF</code></td></tr>
     <tr><td class="ng">禁止</td><td>既知の本編領域。改造RAMにしない。</td><td><code>$0200-$02FF</code>, <code>$0304-$03E3</code>, <code>$0456-$04D5</code>, <code>$057F-$0722</code></td></tr>
   </table>
 </main>

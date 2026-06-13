@@ -216,7 +216,8 @@ def save_levels_to_rom(rom: Rom, levels: list):
 
     if rom.is_expanded():
         # 拡張ROM (US66): 1レベル=256バイト固定の構造で書き戻し
-        from . import m66
+        from . import m66, solomon_seal_block
+        levels = solomon_seal_block.levels_for_save(rom.data, levels)
         _run_save_step("透明ブロック内アイテム整合性チェック", m66.validate_visible_in_block_items, levels)
         _run_save_step("mapper66ステージデータ書き込み", m66.save_all_levels_m66, rom, levels)
     else:
@@ -234,7 +235,7 @@ def save_levels_to_rom(rom: Rom, levels: list):
         room_flags, saramandor_variant, panel_monster_variant,
         panel_monster_stage_variant, spark_ball_variant, gargoyle_variant,
         stage_ext, key_enemy_runtime, stage_announcement, title_screen,
-        drop_pickup_guard, special_process,
+        drop_pickup_guard, special_process, solomon_seal_block,
     )
     from .element import byte_from_position
     # IMPORTANT: this apply order is part of the ROM layout contract.
@@ -248,6 +249,8 @@ def save_levels_to_rom(rom: Rom, levels: list):
     _run_save_step("drop pickup guard検証/適用", drop_pickup_guard.apply, rom.data)
     if _uses_gargoyle_two_shot(levels):
         _run_save_step("Gargoyle 2-shot runtime検証/適用", gargoyle_variant.apply, rom.data)
+    if rom.is_expanded():
+        _run_save_step("Solomon Seal block-state検証/適用", solomon_seal_block.apply, rom.data, levels)
     _run_save_step("wide-title trampoline RAM移行", title_screen.migrate_wide_title_trampoline_ram, rom.data)
     _run_save_step("wide-title idle demo cleanup検証/適用", title_screen.apply_wide_title_idle_demo_cleanup, rom.data)
     _run_save_step("タイトル初期テキスト確認/適用", ensure_default_title_text, rom)

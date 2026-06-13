@@ -24,6 +24,7 @@ DEFAULT_KEY_ENEMY_SLOT = 0xFF
 RUNTIME_ROOM_FLAGS_OFFSET = 6
 RUNTIME_DOOR_CELL_OFFSET = 7
 RAM_RUNTIME_DOOR_CELL = 0x077C
+RAM_SEAL_BLOCK_VALUE = 0x077D
 RUNTIME_ROOM_FLAGS_USER_MASK = 0x9F
 
 OFF_M66_LOADER_TAIL = 0x80C4
@@ -136,9 +137,12 @@ def read_runtime_room_flags(rom_data: bytes, count: int = 53) -> list:
 def _build_runtime_loader() -> bytes:
     # Pointer starts at StageExtTable entry byte0: bank1 CPU $8800 + room*8.
     # Keep ASL carry when computing the high byte; rooms 32+ live on $89xx.
+    # The Solomon Seal block-state table is a separate 64B PRG1 table at
+    # CPU $8E9B.  It is copied to $077D for the PRG0 seal placement helper.
     return bytes.fromhex(
         "a9 ff 8d 2a 07 8d 2b 07"
-        "a9 00 8d 23 07 8d 24 07 8d 29 07 8d 7a 07"
+        "a9 00 8d 23 07 8d 24 07 8d 29 07 8d 7a 07 8d 7d 07"
+        "ad 28 04 aa bd 9b 8e 8d 7d 07"
         "ad 28 04 0a 0a 0a 85 00"
         "a9 88 69 00 85 01"
         "a0 02 b1 00 8d 2b 07"
