@@ -5886,6 +5886,10 @@ class MainWindow(QMainWindow):
             if key == Qt.Key_C:
                 self._copy_selection()
                 return
+            if key == Qt.Key_D:
+                if self._selection_rect is not None:
+                    self._on_selection_cleared()
+                return
             if key == Qt.Key_V:
                 self._paste_clipboard()
                 return
@@ -7395,6 +7399,7 @@ T: ホバー位置のアイテムを透明ブロック内に変更<br>
 <b>範囲編集</b><br>
 Ctrl+A: 編集エリア全体を選択（0,0）-（14,11）<br>
 Ctrl+C: コピー<br>
+Ctrl+D: 選択解除<br>
 Ctrl+V: ペースト（選択範囲またはホバー位置を起点）<br>
 Ctrl+X: 切り取り<br>
 Delete / Backspace: 範囲内を削除<br>
