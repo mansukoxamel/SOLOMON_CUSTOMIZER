@@ -539,15 +539,30 @@ class LevelRenderer:
                     mi.animation, ts_no, transparent=None, bg_main_color=wall_color)
 
                 wall_at = level.tiles[my][mx]
-                in_block = wall_at == Wall.BROWN
+                in_breakable_white = (
+                    wall_at == Wall.WHITE
+                    and (mx, my) in getattr(level, "breakable_white_cells", set())
+                )
+                in_invisible_breakable = (
+                    wall_at == Wall.NONE
+                    and (mx, my) in getattr(level, "invisible_breakable_cells", set())
+                )
+                block_img = None
+                if wall_at == Wall.BROWN:
+                    block_img = brown_img
+                elif in_breakable_white:
+                    block_img = white_img
+                in_block = block_img is not None or in_invisible_breakable
 
-                if in_block:
-                    painter.drawImage(mx * tw, my * tw, brown_img)
+                if block_img is not None:
+                    painter.drawImage(mx * tw, my * tw, block_img)
                     if show_secret_elements:
                         painter.drawImage(mx * tw, my * tw, meta_img)
                         painter.setOpacity(0.5)
-                        painter.drawImage(mx * tw, my * tw, brown_img)
+                        painter.drawImage(mx * tw, my * tw, block_img)
                         painter.setOpacity(1.0)
+                elif in_invisible_breakable:
+                    painter.drawImage(mx * tw, my * tw, meta_img)
                 elif mi.transparent:
                     if show_secret_elements:
                         painter.setOpacity(0.4)
@@ -556,7 +571,12 @@ class LevelRenderer:
                 else:
                     painter.drawImage(mx * tw, my * tw, meta_img)
 
-                if draw_editor_markers and show_hidden_overlay and (in_block or mi.transparent):
+                if draw_editor_markers and show_hidden_overlay and in_invisible_breakable:
+                    def draw_meta_visible_in_block_overlay(mp, mx=mx, my=my):
+                        mp.setPen(self._marker_pen("visible_in_block_marker_color", 3))
+                        mp.drawRect(mx * tw, my * tw, tw - 1, tw - 1)
+                    self._draw_marker_layer(painter, img_w, img_h, draw_meta_visible_in_block_overlay)
+                elif draw_editor_markers and show_hidden_overlay and (in_block or mi.transparent):
                     def draw_meta_overlay(mp, mx=mx, my=my):
                         mp.setPen(self._marker_pen("hidden_marker_color", 2))
                         mp.drawRect(mx * tw + 1, my * tw + 1, tw - 2, tw - 2)

@@ -2794,6 +2794,43 @@ class MainWindow(QMainWindow):
             return "page_time"
         return "unknown"
 
+    def _solomon_seal_meta_at(self, level_no: int, tile: tuple):
+        if self.config is None:
+            return None
+        for mi in getattr(self.config, "level_meta_items", []) or []:
+            if int(getattr(mi, "level_no", -1)) != int(level_no):
+                continue
+            no = int(getattr(mi, "no", -1))
+            if self._stage_level_meta_kind(no) != "solomon_seal":
+                continue
+            if tuple(getattr(mi, "position", (-1, -1))) == tuple(tile):
+                return mi
+        return None
+
+    def _solomon_seal_block_combo_at(self, level, level_no: int, tile: tuple):
+        mi = self._solomon_seal_meta_at(level_no, tile)
+        if mi is None:
+            return None
+        x, y = tile
+        if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+            return None
+        wall = level.tiles[y][x]
+        if wall == Wall.BROWN:
+            return {"meta": mi, "wall_type": wall, "runtime_markers": set()}
+        if wall == Wall.WHITE and tile in getattr(level, "breakable_white_cells", set()):
+            return {
+                "meta": mi,
+                "wall_type": wall,
+                "runtime_markers": {"breakable_white_cells"},
+            }
+        if wall == Wall.NONE and tile in getattr(level, "invisible_breakable_cells", set()):
+            return {
+                "meta": mi,
+                "wall_type": wall,
+                "runtime_markers": {"invisible_breakable_cells"},
+            }
+        return None
+
     def _collect_stage_level_meta_positions(self, level_no: int) -> list:
         if self.config is None:
             return []
@@ -3781,14 +3818,28 @@ class MainWindow(QMainWindow):
         return marks or None
 
     def _build_editor_overlays(self, level, special_marks=None):
+        invisible_breakable_cells = set(getattr(level, "invisible_breakable_cells", set()))
+        visible_in_block_cells = set(getattr(level, "visible_in_block_item_cells", set()))
+        seal_visible_in_block_cells = set()
+        if self.config is not None:
+            for mi in getattr(self.config, "level_meta_items", []) or []:
+                if int(getattr(mi, "level_no", -1)) != self.current_level_no:
+                    continue
+                if self._stage_level_meta_kind(int(getattr(mi, "no", -1))) != "solomon_seal":
+                    continue
+                pos = tuple(getattr(mi, "position", (-1, -1)))
+                if pos in invisible_breakable_cells:
+                    seal_visible_in_block_cells.add(pos)
+        invisible_breakable_cells.difference_update(seal_visible_in_block_cells)
+        visible_in_block_cells.update(seal_visible_in_block_cells)
         overlays = {
             "breakable_white": list(getattr(level, "breakable_white_cells", set())),
-            "invisible_breakable": list(getattr(level, "invisible_breakable_cells", set())),
+            "invisible_breakable": list(invisible_breakable_cells),
             "passable_white": list(getattr(level, "passable_white_cells", set())),
             "passable_brown": list(getattr(level, "passable_brown_cells", set())),
             "solid_brown": list(getattr(level, "solid_brown_cells", set())),
             "invisible_solid": list(getattr(level, "invisible_solid_cells", set())),
-            "visible_in_block_item": list(getattr(level, "visible_in_block_item_cells", set())),
+            "visible_in_block_item": list(visible_in_block_cells),
             "hidden_item": [],
             "hidden_meta": [],
             "mirrors": [],
@@ -3806,12 +3857,21 @@ class MainWindow(QMainWindow):
             for mi in getattr(self.config, "level_meta_items", []):
                 if mi.level_no != self.current_level_no:
                     continue
-                mx, my = mi.position
+                pos = tuple(mi.position)
+                mx, my = pos
                 if not (0 <= mx < c.LEVEL_W and 0 <= my < c.LEVEL_H):
                     continue
-                in_block = level.tiles[my][mx] == Wall.BROWN
-                if in_block or mi.transparent:
-                    overlays["hidden_meta"].append(mi.position)
+                in_block = (
+                    level.tiles[my][mx] == Wall.BROWN
+                    or (
+                        level.tiles[my][mx] == Wall.WHITE
+                        and pos in getattr(level, "breakable_white_cells", set())
+                    )
+                    or pos in seal_visible_in_block_cells
+                    or pos in invisible_breakable_cells
+                )
+                if (in_block or mi.transparent) and pos not in seal_visible_in_block_cells:
+                    overlays["hidden_meta"].append(pos)
 
         item_positions = {item.position for item in level.items}
         for mi, mirror in enumerate(level.demon_mirrors):
@@ -3969,6 +4029,9 @@ class MainWindow(QMainWindow):
             cn = lv.get_constellation_no()
             name, _ = CONSTELLATION_NAMES.get(cn, (f"0x{cn:02x}", 0))
             parts.append(f"[星座:{name}]")
+        seal_meta = self._solomon_seal_meta_at(self.current_level_no, tile)
+        if seal_meta is not None:
+            parts.append("[ソロモンの紋章]")
 
         self.lbl_hover_info.setText(" / ".join(parts))
 
@@ -4118,6 +4181,13 @@ class MainWindow(QMainWindow):
                 f"Meta {escape(', '.join(meta))}"
                 "</div>"
             )
+        seal_meta = self._solomon_seal_meta_at(self.current_level_no, tile)
+        if seal_meta is not None:
+            lines.append(
+                '<div style="color:#FACC15; font-weight:700;">'
+                "Solomon's Seal"
+                "</div>"
+            )
         return "<qt>" + "".join(lines) + "</qt>"
 
     def _hide_hover_info_popup(self):
@@ -4239,6 +4309,19 @@ class MainWindow(QMainWindow):
         if mode == MODE_BLOCK:
             passable_block_values = (BLOCK_NONE, BLOCK_PASSABLE_WHITE, BLOCK_PASSABLE_BROWN)
             in_block_absorb_values = (BLOCK_BROWN, BLOCK_BROWN_WHITE, BLOCK_BREAKABLE_WHITE)
+            seal_meta = self._solomon_seal_meta_at(self.current_level_no, tile)
+            if seal_meta is not None and value not in (
+                BLOCK_NONE,
+                BLOCK_BROWN,
+                BLOCK_BREAKABLE_WHITE,
+                BLOCK_INVISIBLE_BREAKABLE,
+            ):
+                self.statusBar().showMessage(
+                    f"ソロモンの紋章位置に置けるブロックは茶色/壊せる白/透明壊せるのみです {tile}",
+                    3000,
+                )
+                restore_rejected_click_edit()
+                return
             # 敵と同位置にブロックは置けない
             if value not in passable_block_values and lv.get_enemy_index(tile) >= 0:
                 self.statusBar().showMessage(
@@ -4464,6 +4547,12 @@ class MainWindow(QMainWindow):
             if self._tile_has_visible_key_or_door(lv, tile):
                 self.statusBar().showMessage(
                     f"鍵・扉の位置にはアイテムを置けません {tile}", 3000
+                )
+                restore_rejected_click_edit()
+                return
+            if self._solomon_seal_meta_at(self.current_level_no, tile) is not None:
+                self.statusBar().showMessage(
+                    f"ソロモンの紋章位置には通常アイテムを置けません {tile}", 3000
                 )
                 restore_rejected_click_edit()
                 return
@@ -4719,6 +4808,24 @@ class MainWindow(QMainWindow):
                     self._refresh_view()
                     return
 
+        seal_block_combo = self._solomon_seal_block_combo_at(lv, self.current_level_no, tile)
+        if seal_block_combo is not None:
+            self._push_undo()
+            self._move_pending = {
+                "kind": "seal_block",
+                "ref": seal_block_combo["meta"],
+                "wall_type": seal_block_combo["wall_type"],
+                "runtime_markers": set(seal_block_combo["runtime_markers"]),
+                "item_refs": [it for it in lv.items if it.position == tile],
+                "current_pos": tile,
+                "prev_wall_at_current": Wall.NONE,
+                "prev_markers_at_current": set(),
+            }
+            self.statusBar().showMessage(
+                f"{seal_block_combo['meta'].description} + ブロックを掴み中 → ドラッグで移動", 0)
+            self._refresh_view()
+            return
+
         # 優先順位: item > enemy > meta（start/key/door/mirror1/mirror2）
         idx = lv.get_item_index(tile)
         if idx >= 0:
@@ -4890,6 +4997,9 @@ class MainWindow(QMainWindow):
             if kind == "item" and self._tile_has_visible_key_or_door(lv, tile):
                 self._show_key_door_item_overlap_message(tile)
                 return
+            if kind == "item" and self._solomon_seal_meta_at(self.current_level_no, tile) is not None:
+                self._show_key_door_item_overlap_message(tile)
+                return
             if kind == "enemy" and lv.fixed_start_pos == tile:
                 self._show_start_enemy_overlap_message(tile)
                 return
@@ -4924,6 +5034,26 @@ class MainWindow(QMainWindow):
                 lv.demon_mirrors[1].position = tile
         elif kind == "seal":
             mp["ref"].position = tile
+        elif kind == "seal_block":
+            item_refs = list(mp.get("item_refs") or [])
+            if any(it.position == tile and it not in item_refs for it in getattr(lv, "items", []) or []):
+                self._show_key_door_item_overlap_message(tile)
+                return
+            cx, cy = mp["current_pos"]
+            lv.tiles[cy][cx] = mp["prev_wall_at_current"]
+            self._pop_runtime_markers_at(lv, (cx, cy))
+            self._restore_runtime_markers_at(
+                lv, (cx, cy), mp.get("prev_markers_at_current", set())
+            )
+            tx, ty = tile
+            mp["prev_wall_at_current"] = lv.tiles[ty][tx]
+            mp["prev_markers_at_current"] = self._pop_runtime_markers_at(lv, tile)
+            lv.tiles[ty][tx] = mp["wall_type"]
+            self._restore_runtime_markers_at(lv, tile, mp.get("runtime_markers", set()))
+            mp["ref"].position = tile
+            for item in item_refs:
+                item.position = tile
+            mp["current_pos"] = tile
         elif kind == "bonus":
             bi = mp["index"]
             self._bonus_positions[bi] = tile
@@ -4984,6 +5114,14 @@ class MainWindow(QMainWindow):
                     self.rom.data[mi.rom_offset] = byte_from_position(mi.position)
                 self.statusBar().showMessage(
                     f"{mi.description} 移動完了 → {mi.position}", 2000)
+                self._refresh_thumbnails_after_edit()
+            elif kind == "seal_block":
+                mi = self._move_pending["ref"]
+                if self.rom and mi.rom_offset >= 0 and mi.rom_offset < len(self.rom.data):
+                    from ..core.element import byte_from_position
+                    self.rom.data[mi.rom_offset] = byte_from_position(mi.position)
+                self.statusBar().showMessage(
+                    f"{mi.description} + ブロック移動完了 → {mi.position}", 2000)
                 self._refresh_thumbnails_after_edit()
             elif kind == "conditional_breakable":
                 group = self._move_pending.get("group")
@@ -5200,9 +5338,15 @@ class MainWindow(QMainWindow):
             return False
         key_pos = None if lv.is_key_removed() else lv.fixed_key_pos
         door_pos = None if lv.is_door_removed() else lv.fixed_door_pos
+        seal_positions = {
+            tuple(getattr(mi, "position", (-1, -1)))
+            for mi in getattr(self.config, "level_meta_items", []) or []
+            if int(getattr(mi, "level_no", -1)) == self.current_level_no
+            and self._stage_level_meta_kind(int(getattr(mi, "no", -1))) == "solomon_seal"
+        }
         for meta_data in clip.get("meta", []):
             kind = meta_data.get("kind")
-            if kind not in ("key", "door"):
+            if kind not in ("key", "door", "level_meta"):
                 continue
             rx, ry = meta_data["rel_pos"]
             tx, ty = ox + rx, oy + ry
@@ -5212,13 +5356,25 @@ class MainWindow(QMainWindow):
                 key_pos = (tx, ty)
             elif kind == "door":
                 door_pos = (tx, ty)
+            elif kind == "level_meta" and self.config is not None:
+                idx = meta_data.get("index", -1)
+                level_meta_items = getattr(self.config, "level_meta_items", [])
+                if 0 <= idx < len(level_meta_items):
+                    mi = level_meta_items[idx]
+                    if self._stage_level_meta_kind(int(getattr(mi, "no", -1))) == "solomon_seal":
+                        seal_positions.discard(tuple(getattr(mi, "position", (-1, -1))))
+                        seal_positions.add((tx, ty))
         item_positions = {item.position for item in lv.items}
         for it_data in clip.get("items", []):
             rx, ry = it_data["rel_pos"]
             tx, ty = ox + rx, oy + ry
             if self._can_edit_tile_pos(tx, ty):
                 item_positions.add((tx, ty))
-        return key_pos in item_positions or door_pos in item_positions
+        return (
+            key_pos in item_positions
+            or door_pos in item_positions
+            or any(pos in item_positions for pos in seal_positions)
+        )
 
     def _show_start_enemy_overlap_message(self, tile):
         self.statusBar().showMessage(
@@ -5227,7 +5383,7 @@ class MainWindow(QMainWindow):
 
     def _show_key_door_item_overlap_message(self, tile):
         self.statusBar().showMessage(
-            f"鍵・扉とアイテムは同じ位置にできません {tile}", 3000
+            f"鍵・扉・ソロモンの紋章とアイテムは同じ位置にできません {tile}", 3000
         )
 
     def _clip_targets_locked_col15(self, clip, ox: int, oy: int) -> bool:
@@ -5425,6 +5581,8 @@ class MainWindow(QMainWindow):
             rx, ry = it_data["rel_pos"]
             tx, ty = ox + rx, oy + ry
             if self._can_edit_tile_pos(tx, ty):
+                if self._solomon_seal_meta_at(self.current_level_no, (tx, ty)) is not None:
+                    continue
                 idx = lv.get_item_index((tx, ty))
                 if idx >= 0:
                     lv.delete_item(idx)

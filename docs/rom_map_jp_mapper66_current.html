@@ -141,6 +141,7 @@
       <tr><td class="num">0x6833-0x6885</td><td>Panel Variant Bullet speed extra-step helper</td><td>Applies the real 2x/3x conversion substeps and samples Bullet collision after each extra step.</td></tr>
       <tr><td class="num">0x68AC-0x68C0</td><td>Panel Variant dynamic speed marker helper</td><td>Panel Variant Bullet speed marker helper relocated from the post-Bullet-hook gap.</td></tr>
       <tr><td class="num">0x6FD4-0x7004</td><td>Spark Ball pause hook</td><td>PRG0後半のEA埋め領域を利用。49B。</td></tr>
+      <tr><td class="num">0x7005-0x700F</td><td>Solomon Seal block helper</td><td>`$BB90` の紋章セル書き込みから呼ぶ11Bヘルパ。StageExt loader がコピーした `$077D` を見て、原作 `$60` / 茶ブロック内 `$A0` / 白ブロック内 `$E0` を書く。</td></tr>
     </table>
     <h3>PRG0 モジュール別上書き棚卸し</h3>
     <div class="note">
@@ -152,6 +153,7 @@
     <table>
       <tr><th>分類</th><th>モジュール</th><th>file offset</th><th>CPU</th><th>Size</th><th>原作状態</th><th>用途</th></tr>
       <tr><td>小routine</td><td><code>initial_magic.py</code> / <code>initial_lives.py</code></td><td class="num">0x0BF2-0x0C0D</td><td class="num">$8BE2-$8BFD</td><td class="num">28B</td><td>EA埋め</td><td>開始時魔法数、初期残数。Transparent Spark Ball Golem-ID wrapper は <code>$E80C</code> へ退避済み。</td></tr>
+      <tr><td>小routine</td><td><code>solomon_seal_block.py</code></td><td class="num">0x7005-0x700F</td><td class="num">$EFF5-$EFFF</td><td class="num">11B</td><td>EA埋め</td><td>ソロモンの紋章セル書き込みヘルパ。<code>$077D</code> の部屋別上書き値が0なら原作通り <code>$60</code>、非0ならその値を <code>$0304,Y</code> へ書く。</td></tr>
       <tr><td>既存処理差し替え</td><td><code>m66.py</code></td><td class="num">0x17F5-0x1803</td><td class="num">$97E5-$97F3</td><td class="num">15B</td><td>原作コード</td><td>鍵状態から初期セル値を作る処理。白ブロック内鍵の <code>$C0</code> 状態を <code>$C6</code> に対応させる。</td></tr>
       <tr><td>既存処理差し替え</td><td><code>spark_ball_variant.py</code></td><td class="num">0x2569-0x257D</td><td class="num">$A559-$A56D</td><td class="num">21B</td><td>原作コード/データ</td><td>Spark Ball property selector。ID判定を圧縮済み。</td></tr>
       <tr><td>小routine</td><td><code>stage_announcement.py</code></td><td class="num">0x33D0-0x33DC</td><td class="num">$B3C0-$B3CC</td><td class="num">13B</td><td>EA埋め</td><td>開始画面アナウンスの KEY ENEMY gate。</td></tr>
@@ -299,7 +301,8 @@
       <div class="seg hook" style="width:.29%">PV loader<br><small>96B</small></div>
       <div class="seg data" style="width:3.17%">PanelVariant<br><small>1,040B</small></div>
       <div class="seg hook" style="width:.13%"><span class="tiny">mask helper</span></div>
-      <div class="seg free" style="width:35.10%">PRG1 general reserve<br><small>11,499B</small></div>
+      <div class="seg data" style="width:.20%">seal<br><small>64B</small></div>
+      <div class="seg free" style="width:34.90%">PRG1 general reserve<br><small>11,435B</small></div>
       <div class="seg meta" style="width:.01%"><span class="tiny">SW</span></div>
       <div class="seg free" style="width:3.49%">reserve<br><small>1,145B</small></div>
       <div class="seg data" style="width:41.41%">level data<br><small>13,568B</small></div>
@@ -312,8 +315,8 @@
     <div class="labels"><span>$8000</span><span>$80C0</span><span>$87F0</span><span>$BB86</span><span>$C000</span><span>$F500</span><span>$FEF0</span><span>$FFFF</span></div>
     <div class="note">
       <b>PRG1 reserve:</b>
-      general reserve 11,499B + bank1 reserve 1,145B + tail reserve 192B =
-      <b>12,836B</b> が現在の候補。既存のwide title / StageExt / PanelVariant / visible item mask / level data / drop schedule / metadata / vectorsは踏まない。
+      general reserve 11,435B + bank1 reserve 1,145B + tail reserve 192B =
+      <b>12,772B</b> が現在の候補。既存のwide title / StageExt / PanelVariant / visible item mask / level data / drop schedule / metadata / vectorsは踏まない。
     </div>
     <table>
       <tr><th>用途</th><th>file offset</th><th>bank1 CPU</th><th>Size</th><th>備考</th></tr>
@@ -322,10 +325,11 @@
       <tr><td>loader guard</td><td class="num">0x80C7-0x80CF</td><td class="num">$80B7-$80BF</td><td class="num">9B</td><td>Guard bytes.</td></tr>
       <tr><td>wide title decoder/data</td><td class="num">0x80D0-0x87FF</td><td class="num">$80C0-$87EF</td><td class="num">1,840B</td><td>Wide title decoder + blockA/blockB streams. Confirmed imported title uses 589B.</td></tr>
       <tr><td>StageExtTable</td><td class="num">0x8800-0x8A0F</td><td class="num">$87F0-$89FF</td><td class="num">528B</td><td>Per-stage extension settings: 16B header + 64 rooms x 8B. Also carries mapper66 runtime room flags and door-cell bytes copied to `$0778/$077C`; the room-load runtime clears `$077A` for compatibility with special-cell conversion.</td></tr>
-      <tr><td>Panel Variant combined runtime loader</td><td class="num">0x8A10-0x8A6F</td><td class="num">$8A00-$8A5F</td><td class="num">96B</td><td>Mapper66 room-load helper. Preserves StageExt runtime copies, clears `$077A`, and also copies 16B from PanelVariantStageTable to `$0740-$074F`.</td></tr>
+      <tr><td>Panel Variant combined runtime loader</td><td class="num">0x8A10-0x8A6F</td><td class="num">$8A00-$8A5F</td><td class="num">96B</td><td>Mapper66 room-load helper. Preserves StageExt runtime copies, clears `$077A`, copies the Solomon Seal block-state byte to `$077D`, and also copies 16B from PanelVariantStageTable to `$0740-$074F`.</td></tr>
       <tr><td>PanelVariantStageTable</td><td class="num">0x8A70-0x8E7F</td><td class="num">$8A60-$8E6F</td><td class="num">1,040B</td><td>16B header + 64 rooms x 16B. Current layout uses byte0..5 as A/B/C speed+interval cache values; rhythm was removed from the design.</td></tr>
       <tr><td>Transparent-block item mask copy helper</td><td class="num">0x8E80-0x8EAA</td><td class="num">$8E70-$8E9A</td><td class="num">43B</td><td>Copies the current room's 24B transparent-block item bitmask from the PRG1 table to RAM <code>$0750-$0767</code> with page-crossing carry preserved.</td></tr>
-      <tr><td>PRG1 general reserve</td><td class="num">0x8EAB-0xBB95</td><td class="num">$8E9B-$BB85</td><td class="num">11,499B</td><td>Recovered from the old oversized wide-title reservation. Candidate area for stage-load-time tables and non-gameplay-screen code/data.</td></tr>
+        <tr><td>Solomon Seal block-state table</td><td class="num">0x8EAB-0x8EEA</td><td class="num">$8E9B-$8EDA</td><td class="num">64B</td><td>1 byte per room. <code>$00</code>=original hidden seal, <code>$A0</code>=brown in-block seal, <code>$E0</code>=white in-block seal. Copied to RAM <code>$077D</code> by StageExt loader.</td></tr>
+        <tr><td>PRG1 general reserve</td><td class="num">0x8EEB-0xBB95</td><td class="num">$8EDB-$BB85</td><td class="num">11,435B</td><td>Recovered from the old oversized wide-title reservation. Candidate area for stage-load-time tables and non-gameplay-screen code/data.</td></tr>
       <tr><td>bank switch byte</td><td class="num">0xBB96</td><td class="num">$BB86</td><td class="num">1B</td><td>Reserved bus-conflict-safe byte.</td></tr>
       <tr><td>bank1 reserve</td><td class="num">0xBB97-0xC00F</td><td class="num">$BB87-$BFFF</td><td class="num">1,145B</td><td>Small bank1 reserve.</td></tr>
       <tr><td>expanded level data</td><td class="num">0xC010-0xF50F</td><td class="num">$C000-$F4FF</td><td class="num">13,568B</td><td>53 rooms x 256B.</td></tr>
@@ -417,8 +421,8 @@
     <tr><td class="num">0x3FF8-0x3FFC</td><td class="num">$BFE8-$BFEC</td><td class="num">5B</td><td>bank0 cave内。Spark Ball slow AI wrapper直後の断片。</td></tr>
     <tr><td class="num">0x5005-0x500F</td><td class="num">$CFF5-$CFFF</td><td class="num">11B</td><td>Spark Ball animation hook圧縮後の末尾断片。</td></tr>
     <tr><td class="num">0x6A61-0x6A66</td><td class="num">$EA51-$EA56</td><td class="num">6B</td><td>原作EA埋め。短い補助候補だが周辺用途は再確認する。</td></tr>
-    <tr><td class="num">0x7005-0x700F / 0x5C0B-0x5C0F</td><td class="num">$EFF5-$EFFF / $DBFB-$DBFF</td><td class="num">11B + 5B</td><td>Spark Ball pause hook圧縮後を含む既存hook帯末尾の断片。基本は埋め草用。</td></tr>
-    <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>47B</b></td><td>この表だけの候補抜粋合計。bank0 cave内14B、bank0 cave外33B。bank0 cave全体のEA未予約28Bとは別集計。</td></tr>
+    <tr><td class="num">0x5C0B-0x5C0F</td><td class="num">$DBFB-$DBFF</td><td class="num">5B</td><td>Spark Ball / Panel property selector 周辺の断片。基本は埋め草用。</td></tr>
+    <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>36B</b></td><td>この表だけの候補抜粋合計。bank0 cave内14B、bank0 cave外22B。bank0 cave全体のEA未予約28Bとは別集計。</td></tr>
   </table>
 </main>
 </body>
