@@ -41,6 +41,7 @@ from ..core import initial_lives
 from ..core import time_decrease_hack
 from ..core import wall_color_hack
 from ..core import stage_frame
+from ..core import solomon_seal_stage
 from ..nes import palette as nes_palette
 
 
@@ -189,6 +190,44 @@ class HackDialog(QDialog):
         wftr_hint.setStyleSheet("color:#888; font-size:11px;")
         wftr.addRow(wftr_hint)
         layout.addWidget(wftr_group)
+
+        # ====== ソロモンの封印 出現面 ======
+        seal_group = QGroupBox("ソロモンの封印 出現面")
+        seal_group.setProperty("settings_category", "基本")
+        seal_f = QFormLayout(seal_group)
+        self._seal_stage_ok = solomon_seal_stage.supported(rom.region)
+        self._seal_stage_loading = False
+        self.combo_seal_stages = []
+        try:
+            current_seal_stages = solomon_seal_stage.current_stages(rom.data, rom.region)
+        except solomon_seal_stage.SolomonSealStageError:
+            current_seal_stages = solomon_seal_stage.defaults()
+            self._seal_stage_ok = False
+        for spec in solomon_seal_stage.SLOTS:
+            combo = QComboBox()
+            for stage_no in solomon_seal_stage.candidates(spec.slot, rom.data, rom.region):
+                combo.addItem(f"{stage_no}面", stage_no)
+            wanted = current_seal_stages[spec.slot]
+            idx = combo.findData(wanted)
+            combo.setCurrentIndex(idx if idx >= 0 else 0)
+            combo.setEnabled(self._seal_stage_ok)
+            combo.currentIndexChanged.connect(self._refresh_solomon_seal_stage_choices)
+            self.combo_seal_stages.append(combo)
+            seal_f.addRow(f"封印{spec.slot + 1}:", combo)
+        self._refresh_solomon_seal_stage_choices()
+        seal_hint = QLabel(
+            "1面につき封印1個まで。20面までに4個以上、44面までに6個以上、"
+            "48面までに8個配置される必要があります。ROM保存できる候補だけ表示します。"
+        )
+        seal_hint.setWordWrap(True)
+        seal_hint.setStyleSheet("color:#888; font-size:11px;")
+        seal_f.addRow(seal_hint)
+        if not self._seal_stage_ok:
+            note = QLabel("⚠ JP ROM以外、または特殊処理テーブル検証失敗のため無効です。")
+            note.setWordWrap(True)
+            note.setStyleSheet("color:#c33;")
+            seal_f.addRow(note)
+        layout.addWidget(seal_group)
 
         # ====== 初期魔法 (共通) ======
         im_group = QGroupBox("初期魔法（共通）")
@@ -1204,6 +1243,25 @@ class HackDialog(QDialog):
         if callable(applied):
             applied()
 
+    def _sync_parent_solomon_seal_stages(self, stages: list):
+        cfg = self._level_meta_config()
+        if cfg is not None:
+            for mi in getattr(cfg, "level_meta_items", []) or []:
+                no = int(getattr(mi, "no", -1))
+                desc = str(getattr(mi, "description", "")).lower()
+                if 0 <= no < len(stages) and "solomon" in desc and "seal" in desc:
+                    mi.level_no = int(stages[no]) - 1
+        parent = self.parent()
+        if parent is None:
+            return
+        refresh = getattr(parent, "_refresh_view", None)
+        if callable(refresh):
+            refresh()
+        refresh_thumb = getattr(parent, "_refresh_thumbnail", None)
+        current_level_no = getattr(parent, "current_level_no", None)
+        if callable(refresh_thumb) and current_level_no is not None:
+            refresh_thumb(current_level_no)
+
     def _collect_wall_color_values(self) -> list:
         try:
             wall_color_hack.special_values(self.rom.data)
@@ -1310,6 +1368,48 @@ class HackDialog(QDialog):
             changed.append(str(getattr(mi, "description", "") or f"meta {no}"))
         return changed
 
+    def _selected_solomon_seal_stages(self) -> list:
+        combos = getattr(self, "combo_seal_stages", []) or []
+        if len(combos) != len(solomon_seal_stage.SLOTS):
+            return solomon_seal_stage.defaults()
+        return [int(combo.currentData()) for combo in combos]
+
+    def _refresh_solomon_seal_stage_choices(self, *_args):
+        if getattr(self, "_seal_stage_loading", False):
+            return
+        combos = getattr(self, "combo_seal_stages", []) or []
+        if len(combos) != len(solomon_seal_stage.SLOTS):
+            return
+        current = self._selected_solomon_seal_stages()
+        self._seal_stage_loading = True
+        try:
+            for slot, combo in enumerate(combos):
+                old_value = current[slot]
+                valid_choices = []
+                for stage_no in solomon_seal_stage.candidates(slot, self.rom.data, self.rom.region):
+                    if stage_no != old_value and stage_no in (
+                        current[:slot] + current[slot + 1:]
+                    ):
+                        continue
+                    trial = list(current)
+                    trial[slot] = stage_no
+                    try:
+                        solomon_seal_stage.validate_stages(trial)
+                    except solomon_seal_stage.SolomonSealStageError:
+                        continue
+                    valid_choices.append(stage_no)
+                if old_value not in valid_choices:
+                    valid_choices.insert(0, old_value)
+                combo.blockSignals(True)
+                combo.clear()
+                for stage_no in valid_choices:
+                    combo.addItem(f"{stage_no}面", stage_no)
+                idx = combo.findData(old_value)
+                combo.setCurrentIndex(idx if idx >= 0 else 0)
+                combo.blockSignals(False)
+        finally:
+            self._seal_stage_loading = False
+
     def _collect_global_settings(self) -> dict:
         """現在の画面値をROM非依存のJSON設定として集める。"""
         settings = {
@@ -1377,6 +1477,7 @@ class HackDialog(QDialog):
             "gap_fix_enabled": self.chk_gapfix.isChecked(),
             "dark_light_frames": self.spin_dark_light.value(),
             "dark_dark_frames": self.spin_dark_dark.value(),
+            "solomon_seal_stages": self._selected_solomon_seal_stages(),
             "level_meta_positions": self._collect_level_meta_positions(),
         }
         supported = {
@@ -1402,6 +1503,7 @@ class HackDialog(QDialog):
             "stage_frame": bool(getattr(self, "_stage_frame_ok", False)),
             "gap_fix": bool(getattr(self, "_gapfix_ok", False)),
             "dark_tempo": bool(getattr(self, "_dark_tempo_ok", False)),
+            "solomon_seal_stages": bool(getattr(self, "_seal_stage_ok", False)),
         }
         return {
             "format": "solomon_customizer_global_settings",
@@ -1474,6 +1576,16 @@ class HackDialog(QDialog):
         set_spin("time_rate_fast", self.spin_time_fast, "ステージ制限時間 速い")
         set_spin("time_rate_normal", self.spin_time_normal, "ステージ制限時間 普通")
         set_spin("time_rate_slow", self.spin_time_slow, "ステージ制限時間 遅い")
+        if has("solomon_seal_stages") and getattr(self, "_seal_stage_ok", False):
+            values = solomon_seal_stage.validate_stages(settings["solomon_seal_stages"])
+            old = self._selected_solomon_seal_stages()
+            for combo, stage_no in zip(self.combo_seal_stages, values):
+                idx = combo.findData(int(stage_no))
+                if idx >= 0:
+                    combo.setCurrentIndex(idx)
+            if self._selected_solomon_seal_stages() != old:
+                changed.append("ソロモンの封印 出現面")
+                self._sync_parent_solomon_seal_stages(values)
         if has("wall_colors_1_48"):
             values = settings["wall_colors_1_48"]
             if values == []:
@@ -1751,6 +1863,18 @@ class HackDialog(QDialog):
                     warp_feather.apply(d, self.spin_warp_feather.value()))
             except warp_feather.WarpFeatherError as e:
                 QMessageBox.warning(self, "ワープ羽 設定失敗", str(e))
+
+        # ソロモンの封印 出現面
+        if getattr(self, "_seal_stage_ok", False):
+            try:
+                stages = self._selected_solomon_seal_stages()
+                seal_changes = solomon_seal_stage.apply(d, self.rom.region, stages)
+                if seal_changes:
+                    applied.append("ソロモンの封印 出現面: " + " / ".join(seal_changes))
+                    self._sync_parent_solomon_seal_stages(stages)
+            except solomon_seal_stage.SolomonSealStageError as e:
+                QMessageBox.warning(self, "ソロモンの封印 出現面 設定失敗", str(e))
+                return False
 
         # 初期魔法 (共通)
         if getattr(self, "_initial_magic_ok", False):

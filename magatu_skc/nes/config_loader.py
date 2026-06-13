@@ -169,6 +169,7 @@ class SkcConfig:
             lmi_node = rom_meta.find("level_meta_items")
             if lmi_node is not None:
                 cfg._load_meta_items(lmi_node, rom_data, region)
+                cfg._sync_solomon_seal_stages(rom_data, region)
 
             # item_bitmasks (Level 20/30 のアイテム一括配置 bitmap)
             ib_node = rom_meta.find("item_bitmasks")
@@ -244,6 +245,25 @@ class SkcConfig:
                 MetaItemDef(no, level_no, anim, transparent, position, description,
                             rom_offset=rom_off)
             )
+
+    def _sync_solomon_seal_stages(self, rom_data: bytes, region: str):
+        if rom_data is None:
+            return
+        try:
+            from ..core import solomon_seal_stage
+            stages = solomon_seal_stage.current_stages(rom_data, region)
+        except Exception:
+            return
+        by_no = {
+            int(getattr(mi, "no", -1)): mi
+            for mi in self.level_meta_items
+            if "solomon" in str(getattr(mi, "description", "")).lower()
+            and "seal" in str(getattr(mi, "description", "")).lower()
+        }
+        for idx, stage_no in enumerate(stages):
+            mi = by_no.get(idx)
+            if mi is not None:
+                mi.level_no = int(stage_no) - 1
 
     def get_palette(self, palette_no: int) -> "pal.SubPalette":
         """サブパレット取得"""
