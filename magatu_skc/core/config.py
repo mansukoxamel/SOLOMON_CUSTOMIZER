@@ -21,6 +21,77 @@ DEFAULT_HOVER_INFO_POPUP_FONT_SIZE = 16
 MIN_HOVER_INFO_POPUP_FONT_SIZE = 10
 MAX_HOVER_INFO_POPUP_FONT_SIZE = 40
 
+SHORTCUT_DEFINITIONS = [
+    ("help", "ショートカットヘルプ", "F1"),
+    ("test_play", "テストプレイ", "P"),
+    ("stage_prev", "前のステージ", "PgUp"),
+    ("stage_next", "次のステージ", "PgDown"),
+    ("stage_compare", "PNG比較表示切替", "Tab"),
+    ("settings", "設定", "F9"),
+    ("grid", "グリッド表示切替", "G"),
+    ("undo", "Undo", "Ctrl+Z"),
+    ("redo", "Redo", "Ctrl+Y"),
+    ("redo_alt", "Redo代替", "Ctrl+Shift+Z"),
+    ("select_all", "編集エリア全体を選択", "Ctrl+A"),
+    ("clear_selection", "選択解除", "Ctrl+D"),
+    ("copy_selection", "コピー", "Ctrl+C"),
+    ("paste_selection", "ペースト", "Ctrl+V"),
+    ("cut_selection", "切り取り", "Ctrl+X"),
+    ("delete_hover_or_selection", "ホバー/選択範囲を削除", "Delete"),
+    ("delete_hover_or_selection_alt", "ホバー/選択範囲を削除 代替", "Backspace"),
+    ("clear_selection_escape", "選択解除(Esc)", "Esc"),
+    ("flip_horizontal", "選択範囲を左右反転", "F"),
+    ("flip_vertical", "選択範囲を上下反転", "Shift+F"),
+    ("favorite_1", "お気に入りスロット1", "1"),
+    ("favorite_2", "お気に入りスロット2", "2"),
+    ("favorite_3", "お気に入りスロット3", "3"),
+    ("favorite_4", "お気に入りスロット4", "4"),
+    ("favorite_5", "お気に入りスロット5", "5"),
+    ("favorite_6", "お気に入りスロット6", "6"),
+    ("favorite_7", "お気に入りスロット7", "7"),
+    ("favorite_8", "お気に入りスロット8", "8"),
+    ("favorite_9", "お気に入りスロット9", "9"),
+    ("favorite_0", "お気に入りスロット0", "0"),
+    ("hover_enemy_left", "ホバー敵を左向きに変更", "Left"),
+    ("hover_enemy_right", "ホバー敵を右向きに変更", "Right"),
+    ("hover_enemy_up", "ホバー敵を上向きに変更", "Up"),
+    ("hover_enemy_down", "ホバー敵を下向きに変更", "Down"),
+    ("hover_enemy_speed", "ホバー敵スピード循環", "S"),
+    ("hover_info", "ホバー情報表示切替", "I"),
+    ("hover_item_normal", "ホバー位置を通常に変更", "N"),
+    ("hover_item_hidden", "ホバー位置を隠しに変更", "H"),
+    ("hover_item_in_block", "ホバー位置をブロック内に変更", "B"),
+    ("hover_item_white_in_block", "ホバー位置を白ブロック内に変更", "W"),
+    ("hover_item_visible_in_block", "ホバー位置を透明ブロック内に変更", "T"),
+]
+DEFAULT_SHORTCUTS = {key: default for key, _label, default in SHORTCUT_DEFINITIONS}
+
+GAMEPAD_BUTTON_OPTIONS = [
+    ("", "未割当"),
+    ("A", "A"),
+    ("B", "B"),
+    ("X", "X"),
+    ("Y", "Y"),
+    ("Back", "Back/View"),
+    ("Start", "Start/Menu"),
+    ("LB", "LB"),
+    ("RB", "RB"),
+    ("LStick", "左スティック押し込み"),
+    ("RStick", "右スティック押し込み"),
+    ("DPadUp", "十字 上"),
+    ("DPadDown", "十字 下"),
+    ("DPadLeft", "十字 左"),
+    ("DPadRight", "十字 右"),
+]
+DEFAULT_GAMEPAD_SHORTCUTS = {
+    key: "" for key, _label, _default in SHORTCUT_DEFINITIONS
+}
+DEFAULT_GAMEPAD_SHORTCUTS.update({
+    "test_play": "Start",
+    "stage_prev": "LB",
+    "stage_next": "RB",
+})
+
 
 def normalize_int_setting(value, default: int, minimum: int, maximum: int) -> int:
     try:
@@ -28,6 +99,26 @@ def normalize_int_setting(value, default: int, minimum: int, maximum: int) -> in
     except (TypeError, ValueError):
         n = int(default)
     return max(int(minimum), min(int(maximum), n))
+
+
+def normalize_shortcuts(value) -> dict:
+    shortcuts = dict(DEFAULT_SHORTCUTS)
+    if isinstance(value, dict):
+        for key, _label, default in SHORTCUT_DEFINITIONS:
+            raw = value.get(key, default)
+            text = str(raw or default).strip()
+            shortcuts[key] = text or default
+    return shortcuts
+
+
+def normalize_gamepad_shortcuts(value) -> dict:
+    valid = {button for button, _label in GAMEPAD_BUTTON_OPTIONS}
+    shortcuts = dict(DEFAULT_GAMEPAD_SHORTCUTS)
+    if isinstance(value, dict):
+        for key, _label, _default in SHORTCUT_DEFINITIONS:
+            raw = str(value.get(key, shortcuts.get(key, "")) or "").strip()
+            shortcuts[key] = raw if raw in valid else shortcuts.get(key, "")
+    return shortcuts
 
 
 DEFAULT_CONFIG = {
@@ -55,6 +146,11 @@ DEFAULT_CONFIG = {
     "window_h": 800,
     "window_fullscreen": False,
     "window_maximized": False,
+    "settings_dialog_x": -1,
+    "settings_dialog_y": -1,
+    "settings_dialog_w": 700,
+    "settings_dialog_h": 780,
+    "settings_dialog_tab": 0,
     "splitter_sizes": [280, 700, 250, 220],  # [LEFT, CENTER, PICKER, LEVEL_SELECT]
     "stage_thumbnail_width": 160,
     "picker_icon_size": 36,
@@ -110,6 +206,8 @@ DEFAULT_CONFIG = {
     "undo_limit": DEFAULT_UNDO_LIMIT,
     "hover_info_popup_enabled": False,
     "hover_info_popup_font_size": DEFAULT_HOVER_INFO_POPUP_FONT_SIZE,
+    "shortcuts": DEFAULT_SHORTCUTS,
+    "gamepad_shortcuts": DEFAULT_GAMEPAD_SHORTCUTS,
 }
 
 
@@ -158,10 +256,19 @@ def load_config() -> dict:
                 MIN_HOVER_INFO_POPUP_FONT_SIZE,
                 MAX_HOVER_INFO_POPUP_FONT_SIZE,
             )
+            cfg["shortcuts"] = normalize_shortcuts(cfg.get("shortcuts"))
+            cfg["gamepad_shortcuts"] = normalize_gamepad_shortcuts(
+                cfg.get("gamepad_shortcuts")
+            )
             return cfg
         except Exception:
             pass
-    return dict(DEFAULT_CONFIG)
+    cfg = dict(DEFAULT_CONFIG)
+    cfg["shortcuts"] = normalize_shortcuts(cfg.get("shortcuts"))
+    cfg["gamepad_shortcuts"] = normalize_gamepad_shortcuts(
+        cfg.get("gamepad_shortcuts")
+    )
+    return cfg
 
 
 def save_config(cfg: dict):

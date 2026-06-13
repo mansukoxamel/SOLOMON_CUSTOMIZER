@@ -35,7 +35,12 @@ from ..core.config import (
     MIN_HOVER_INFO_POPUP_FONT_SIZE,
     MIN_AUTOSAVE_KEEP_COUNT,
     MIN_UNDO_LIMIT,
+    DEFAULT_GAMEPAD_SHORTCUTS,
+    GAMEPAD_BUTTON_OPTIONS,
+    DEFAULT_SHORTCUTS,
     normalize_int_setting,
+    normalize_gamepad_shortcuts,
+    normalize_shortcuts,
     resolve_project_path,
     save_config,
 )
@@ -78,9 +83,36 @@ class _XInputState(ctypes.Structure):
 
 
 _XINPUT_MAX_CONTROLLERS = 4
+_XINPUT_BUTTON_DPAD_UP = 0x0001
+_XINPUT_BUTTON_DPAD_DOWN = 0x0002
+_XINPUT_BUTTON_DPAD_LEFT = 0x0004
+_XINPUT_BUTTON_DPAD_RIGHT = 0x0008
 _XINPUT_BUTTON_START = 0x0010
+_XINPUT_BUTTON_BACK = 0x0020
+_XINPUT_BUTTON_LEFT_THUMB = 0x0040
+_XINPUT_BUTTON_RIGHT_THUMB = 0x0080
 _XINPUT_BUTTON_LEFT_SHOULDER = 0x0100
 _XINPUT_BUTTON_RIGHT_SHOULDER = 0x0200
+_XINPUT_BUTTON_A = 0x1000
+_XINPUT_BUTTON_B = 0x2000
+_XINPUT_BUTTON_X = 0x4000
+_XINPUT_BUTTON_Y = 0x8000
+_XINPUT_BUTTON_BY_NAME = {
+    "A": _XINPUT_BUTTON_A,
+    "B": _XINPUT_BUTTON_B,
+    "X": _XINPUT_BUTTON_X,
+    "Y": _XINPUT_BUTTON_Y,
+    "Back": _XINPUT_BUTTON_BACK,
+    "Start": _XINPUT_BUTTON_START,
+    "LB": _XINPUT_BUTTON_LEFT_SHOULDER,
+    "RB": _XINPUT_BUTTON_RIGHT_SHOULDER,
+    "LStick": _XINPUT_BUTTON_LEFT_THUMB,
+    "RStick": _XINPUT_BUTTON_RIGHT_THUMB,
+    "DPadUp": _XINPUT_BUTTON_DPAD_UP,
+    "DPadDown": _XINPUT_BUTTON_DPAD_DOWN,
+    "DPadLeft": _XINPUT_BUTTON_DPAD_LEFT,
+    "DPadRight": _XINPUT_BUTTON_DPAD_RIGHT,
+}
 
 
 def _load_xinput_get_state():
@@ -246,33 +278,200 @@ class MainWindow(QMainWindow):
         self._log("セッション開始")
 
     def _setup_shortcuts(self):
-        self.shortcut_test_play = QShortcut(QKeySequence(Qt.Key_P), self)
+        self._app_config["shortcuts"] = normalize_shortcuts(
+            self._app_config.get("shortcuts")
+        )
+        self._app_config["gamepad_shortcuts"] = normalize_gamepad_shortcuts(
+            self._app_config.get("gamepad_shortcuts")
+        )
+        self.shortcut_test_play = QShortcut(self._shortcut_sequence("test_play"), self)
         self.shortcut_test_play.setContext(Qt.WindowShortcut)
         self.shortcut_test_play.setAutoRepeat(False)
         self.shortcut_test_play.activated.connect(self._on_test_play)
-        self.shortcut_stage_prev = QShortcut(QKeySequence(Qt.Key_PageUp), self)
+        self.shortcut_stage_prev = QShortcut(self._shortcut_sequence("stage_prev"), self)
         self.shortcut_stage_prev.setContext(Qt.WindowShortcut)
         self.shortcut_stage_prev.activated.connect(lambda: self._change_stage_relative(-1))
-        self.shortcut_stage_next = QShortcut(QKeySequence(Qt.Key_PageDown), self)
+        self.shortcut_stage_next = QShortcut(self._shortcut_sequence("stage_next"), self)
         self.shortcut_stage_next.setContext(Qt.WindowShortcut)
         self.shortcut_stage_next.activated.connect(lambda: self._change_stage_relative(1))
-        self.shortcut_stage_compare_toggle = QShortcut(QKeySequence(Qt.Key_Tab), self)
+        self.shortcut_stage_compare_toggle = QShortcut(self._shortcut_sequence("stage_compare"), self)
         self.shortcut_stage_compare_toggle.setContext(Qt.WindowShortcut)
         self.shortcut_stage_compare_toggle.activated.connect(self._toggle_stage_compare_view)
         self.shortcut_stage_compare_toggle.setEnabled(False)
-        self.shortcut_item_flags = []
-        for key, flag, label in (
-            (Qt.Key_H, 0x40, "隠し"),
-            (Qt.Key_B, c.ITEM_FLAG_IN_BLOCK, "ブロック内"),
-            (Qt.Key_W, c.ITEM_FLAG_WHITE_IN_BLOCK, "白ブロック内"),
-            (Qt.Key_T, c.ITEM_FLAG_VISIBLE_IN_BLOCK, "透明ブロック内"),
-            (Qt.Key_N, c.ITEM_FLAG_NORMAL, "通常"),
+        self.shortcut_hover_actions = []
+        for action in (
+            "hover_enemy_left",
+            "hover_enemy_right",
+            "hover_enemy_up",
+            "hover_enemy_down",
+            "hover_enemy_speed",
+            "hover_info",
+            "hover_item_normal",
+            "hover_item_hidden",
+            "hover_item_in_block",
+            "hover_item_white_in_block",
+            "hover_item_visible_in_block",
         ):
-            sc = QShortcut(QKeySequence(key), self)
+            sc = QShortcut(self._shortcut_sequence(action), self)
             sc.setContext(Qt.WindowShortcut)
             sc.setAutoRepeat(False)
-            sc.activated.connect(lambda f=flag, l=label: self._set_hover_item_flag(f, l))
-            self.shortcut_item_flags.append(sc)
+            sc.activated.connect(lambda a=action: self._trigger_shortcut_action(a))
+            self.shortcut_hover_actions.append((action, sc))
+
+    def _shortcut_text(self, action: str) -> str:
+        shortcuts = normalize_shortcuts(self._app_config.get("shortcuts"))
+        return shortcuts.get(action, DEFAULT_SHORTCUTS.get(action, ""))
+
+    def _shortcut_sequence(self, action: str) -> QKeySequence:
+        return QKeySequence(self._shortcut_text(action))
+
+    def _event_shortcut_sequence(self, event) -> QKeySequence:
+        mods = int(event.modifiers() & (
+            Qt.ControlModifier | Qt.ShiftModifier | Qt.AltModifier | Qt.MetaModifier
+        ))
+        return QKeySequence(mods | int(event.key()))
+
+    def _event_matches_shortcut(self, event, action: str) -> bool:
+        target = self._shortcut_sequence(action)
+        if target.isEmpty():
+            return False
+        return self._event_shortcut_sequence(event).matches(target) == QKeySequence.ExactMatch
+
+    def _apply_shortcut_settings(self):
+        self._app_config["shortcuts"] = normalize_shortcuts(
+            self._app_config.get("shortcuts")
+        )
+        self._app_config["gamepad_shortcuts"] = normalize_gamepad_shortcuts(
+            self._app_config.get("gamepad_shortcuts")
+        )
+        mapping = {
+            "test_play": "shortcut_test_play",
+            "stage_prev": "shortcut_stage_prev",
+            "stage_next": "shortcut_stage_next",
+            "stage_compare": "shortcut_stage_compare_toggle",
+        }
+        for action, attr in mapping.items():
+            shortcut = getattr(self, attr, None)
+            if shortcut is not None:
+                shortcut.setKey(self._shortcut_sequence(action))
+        for action, shortcut in getattr(self, "shortcut_hover_actions", []):
+            shortcut.setKey(self._shortcut_sequence(action))
+
+    def _trigger_shortcut_action(self, action: str) -> bool:
+        if action == "help":
+            self._show_keymap()
+            return True
+        if action == "test_play":
+            self._on_test_play()
+            return True
+        if action == "stage_prev":
+            self._change_stage_relative(-1, play_sound=True)
+            return True
+        if action == "stage_next":
+            self._change_stage_relative(1, play_sound=True)
+            return True
+        if action == "stage_compare" and self._stage_compare_png_image is not None:
+            self._toggle_stage_compare_view()
+            return True
+        if action == "settings":
+            self._show_settings()
+            return True
+        if action == "grid":
+            self.chk_grid.toggle()
+            return True
+        if action == "undo":
+            self._on_undo()
+            return True
+        if action in ("redo", "redo_alt"):
+            self._on_redo()
+            return True
+        if action == "select_all":
+            self._select_all_editable_area()
+            return True
+        if action == "clear_selection":
+            if self._selection_rect is not None:
+                self._on_selection_cleared()
+            return True
+        if action == "copy_selection":
+            self._copy_selection()
+            return True
+        if action == "paste_selection":
+            self._paste_clipboard()
+            return True
+        if action == "cut_selection":
+            self._cut_selection()
+            return True
+        if action in ("delete_hover_or_selection", "delete_hover_or_selection_alt"):
+            self._delete_hover_or_selection()
+            return True
+        if action == "clear_selection_escape":
+            if self._selection_rect is not None:
+                self._on_selection_cleared()
+            return True
+        if action == "flip_horizontal":
+            self._flip_selection_horizontal()
+            return True
+        if action == "flip_vertical":
+            self._flip_selection_vertical()
+            return True
+        if action.startswith("favorite_"):
+            try:
+                slot = int(action.rsplit("_", 1)[1])
+            except ValueError:
+                return False
+            return self._trigger_favorite_slot(slot)
+        direction_by_action = {
+            "hover_enemy_left": "left",
+            "hover_enemy_right": "right",
+            "hover_enemy_up": "up",
+            "hover_enemy_down": "down",
+        }
+        direction = direction_by_action.get(action)
+        if direction is not None:
+            return self._set_hover_enemy_direction(direction)
+        if action == "hover_enemy_speed":
+            return self._cycle_hover_enemy_speed()
+        if action == "hover_info":
+            self._toggle_hover_info_popup()
+            return True
+        item_flag_by_action = {
+            "hover_item_normal": (c.ITEM_FLAG_NORMAL, "通常"),
+            "hover_item_hidden": (0x40, "隠し"),
+            "hover_item_in_block": (c.ITEM_FLAG_IN_BLOCK, "ブロック内"),
+            "hover_item_white_in_block": (
+                c.ITEM_FLAG_WHITE_IN_BLOCK,
+                "白ブロック内",
+            ),
+            "hover_item_visible_in_block": (
+                c.ITEM_FLAG_VISIBLE_IN_BLOCK,
+                "透明ブロック内",
+            ),
+        }
+        item_flag = item_flag_by_action.get(action)
+        if item_flag is not None:
+            flag, label = item_flag
+            self._set_hover_item_flag(flag, label)
+            return True
+        return False
+
+    def _delete_hover_or_selection(self):
+        if self._selection_rect is not None:
+            self._delete_in_selection()
+        elif self._hover_tile is not None and self.levels:
+            self._on_tile_right_clicked(self._hover_tile)
+
+    def _trigger_favorite_slot(self, slot: int) -> bool:
+        if not 0 <= int(slot) <= 9:
+            return False
+        if not self.picker.trigger_favorite_key(int(slot)):
+            self.statusBar().showMessage(
+                f"お気に入りスロット {int(slot)} は空です", 1500
+            )
+        else:
+            self.statusBar().showMessage(
+                f"お気に入りスロット {int(slot)} を選択", 1500
+            )
+        return True
 
     def _setup_button_sound(self):
         self._button_sounds = []
@@ -310,6 +509,9 @@ class MainWindow(QMainWindow):
         if self._xinput_get_state is None:
             return
         active = self.isActiveWindow()
+        gamepad_shortcuts = normalize_gamepad_shortcuts(
+            self._app_config.get("gamepad_shortcuts")
+        )
         for index in range(_XINPUT_MAX_CONTROLLERS):
             state = _XInputState()
             try:
@@ -318,30 +520,14 @@ class MainWindow(QMainWindow):
                 return
             buttons = state.Gamepad.wButtons if connected else 0
             last = self._xinput_last_buttons[index]
-            if (
-                active
-                and (buttons & _XINPUT_BUTTON_START)
-                and not (last & _XINPUT_BUTTON_START)
-            ):
-                self._xinput_last_buttons[index] = buttons
-                self._on_test_play()
-                return
-            if (
-                active
-                and (buttons & _XINPUT_BUTTON_LEFT_SHOULDER)
-                and not (last & _XINPUT_BUTTON_LEFT_SHOULDER)
-            ):
-                self._xinput_last_buttons[index] = buttons
-                self._change_stage_relative(-1, play_sound=True)
-                return
-            if (
-                active
-                and (buttons & _XINPUT_BUTTON_RIGHT_SHOULDER)
-                and not (last & _XINPUT_BUTTON_RIGHT_SHOULDER)
-            ):
-                self._xinput_last_buttons[index] = buttons
-                self._change_stage_relative(1, play_sound=True)
-                return
+            pressed = buttons & ~last
+            if active and pressed:
+                for action, button_name in gamepad_shortcuts.items():
+                    mask = _XINPUT_BUTTON_BY_NAME.get(button_name)
+                    if mask and (pressed & mask):
+                        self._xinput_last_buttons[index] = buttons
+                        if self._trigger_shortcut_action(action):
+                            return
             self._xinput_last_buttons[index] = buttons
 
     def _log(self, msg: str):
@@ -5485,6 +5671,22 @@ class MainWindow(QMainWindow):
         dlg = SettingsDialog(self._app_config, parent=self)
         dlg.exec_()
 
+    def _save_settings_dialog_state(self, dialog_config: dict):
+        keys = (
+            "settings_dialog_x",
+            "settings_dialog_y",
+            "settings_dialog_w",
+            "settings_dialog_h",
+            "settings_dialog_tab",
+        )
+        changed = False
+        for key in keys:
+            if key in dialog_config and self._app_config.get(key) != dialog_config[key]:
+                self._app_config[key] = dialog_config[key]
+                changed = True
+        if changed:
+            save_config(self._app_config)
+
     def _marker_color_config(self):
         from .level_view import DEFAULT_MARKER_COLORS
         return {
@@ -5511,6 +5713,7 @@ class MainWindow(QMainWindow):
     def _apply_settings(self, new_config: dict):
         """設定ダイアログから呼び出される。即時反映 + JSON保存"""
         self._app_config = dict(new_config)
+        self._apply_shortcut_settings()
         self._apply_history_limit_settings()
         from ..core.config import save_config
         save_config(self._app_config)
@@ -5864,102 +6067,89 @@ class MainWindow(QMainWindow):
 
     def keyPressEvent(self, event):
         key = event.key()
-        mods = event.modifiers()
-        if key == Qt.Key_Tab and self._stage_compare_png_image is not None:
+        if self._event_matches_shortcut(event, "stage_compare") and self._stage_compare_png_image is not None:
             self._toggle_stage_compare_view()
             event.accept()
             return
         # Undo / Redo / 選択範囲操作
-        if mods & Qt.ControlModifier:
-            if key == Qt.Key_Z and (mods & Qt.ShiftModifier):
-                self._on_redo()
-                return
-            if key == Qt.Key_Z:
-                self._on_undo()
-                return
-            if key == Qt.Key_Y:
-                self._on_redo()
-                return
-            if key == Qt.Key_A:
-                self._select_all_editable_area()
-                return
-            if key == Qt.Key_C:
-                self._copy_selection()
-                return
-            if key == Qt.Key_D:
-                if self._selection_rect is not None:
-                    self._on_selection_cleared()
-                return
-            if key == Qt.Key_V:
-                self._paste_clipboard()
-                return
-            if key == Qt.Key_X:
-                self._cut_selection()
-                return
-        if key == Qt.Key_F1:
-            self._show_keymap()
-        elif key == Qt.Key_F9:
-            self._show_settings()
-        elif key == Qt.Key_G:
-            self.chk_grid.toggle()
-        elif key == Qt.Key_Escape:
-            # Esc → 選択範囲解除
+        if self._event_matches_shortcut(event, "redo_alt"):
+            self._on_redo()
+            return
+        if self._event_matches_shortcut(event, "undo"):
+            self._on_undo()
+            return
+        if self._event_matches_shortcut(event, "redo"):
+            self._on_redo()
+            return
+        if self._event_matches_shortcut(event, "select_all"):
+            self._select_all_editable_area()
+            return
+        if self._event_matches_shortcut(event, "clear_selection"):
             if self._selection_rect is not None:
                 self._on_selection_cleared()
-        elif key in (Qt.Key_Delete, Qt.Key_Backspace):
-            # Delete/Backspace → 選択範囲があればその範囲、なければホバー位置を削除
-            if self._selection_rect is not None:
-                self._delete_in_selection()
-            elif self._hover_tile is not None and self.levels:
-                self._on_tile_right_clicked(self._hover_tile)
-        elif key == Qt.Key_H:
-            # H → ホバー位置のアイテムフラグを「隠し」に
-            self._set_hover_item_flag(0x40, "隠し")
-        elif key == Qt.Key_B:
-            # B → ホバー位置のアイテムフラグを「ブロック内」に
-            self._set_hover_item_flag(c.ITEM_FLAG_IN_BLOCK, "ブロック内")
-        elif key == Qt.Key_W:
-            # W → ホバー位置のアイテムフラグを「白ブロック内」に
-            self._set_hover_item_flag(c.ITEM_FLAG_WHITE_IN_BLOCK, "白ブロック内")
-        elif key == Qt.Key_T:
-            self._set_hover_item_flag(c.ITEM_FLAG_VISIBLE_IN_BLOCK, "透明ブロック内")
-        elif key == Qt.Key_N:
-            # N → ホバー位置のアイテムフラグを「通常」に
-            self._set_hover_item_flag(c.ITEM_FLAG_NORMAL, "通常")
-        elif not mods and key == Qt.Key_S:
-            if self._cycle_hover_enemy_speed():
-                return
-            super().keyPressEvent(event)
-        elif not mods and key == Qt.Key_I:
-            self._toggle_hover_info_popup()
             return
-        elif not mods and key in (Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down):
-            direction_by_key = {
-                Qt.Key_Left: "left",
-                Qt.Key_Right: "right",
-                Qt.Key_Up: "up",
-                Qt.Key_Down: "down",
-            }
-            if self._set_hover_enemy_direction(direction_by_key[key]):
+        if self._event_matches_shortcut(event, "copy_selection"):
+            self._copy_selection()
+            return
+        if self._event_matches_shortcut(event, "paste_selection"):
+            self._paste_clipboard()
+            return
+        if self._event_matches_shortcut(event, "cut_selection"):
+            self._cut_selection()
+            return
+        if self._event_matches_shortcut(event, "delete_hover_or_selection"):
+            self._delete_hover_or_selection()
+            return
+        if self._event_matches_shortcut(event, "delete_hover_or_selection_alt"):
+            self._delete_hover_or_selection()
+            return
+        if self._event_matches_shortcut(event, "clear_selection_escape"):
+            if self._selection_rect is not None:
+                self._on_selection_cleared()
+            return
+        for slot_action in (
+            "favorite_1",
+            "favorite_2",
+            "favorite_3",
+            "favorite_4",
+            "favorite_5",
+            "favorite_6",
+            "favorite_7",
+            "favorite_8",
+            "favorite_9",
+            "favorite_0",
+        ):
+            if self._event_matches_shortcut(event, slot_action):
+                self._trigger_shortcut_action(slot_action)
                 return
-            super().keyPressEvent(event)
-        elif key == Qt.Key_F:
-            # F → 選択範囲を左右反転（Shift+Fで上下反転）
-            if mods & Qt.ShiftModifier:
-                self._flip_selection_vertical()
-            else:
-                self._flip_selection_horizontal()
-        elif Qt.Key_0 <= key <= Qt.Key_9:
-            # 数字キー 1〜9, 0 → ピッカーのお気に入りスロット選択
-            n = key - Qt.Key_0
-            if not self.picker.trigger_favorite_key(n):
-                self.statusBar().showMessage(
-                    f"お気に入りスロット {n} は空です", 1500
-                )
-            else:
-                self.statusBar().showMessage(
-                    f"お気に入りスロット {n} を選択", 1500
-                )
+        for action in (
+            "hover_enemy_left",
+            "hover_enemy_right",
+            "hover_enemy_up",
+            "hover_enemy_down",
+            "hover_enemy_speed",
+            "hover_info",
+            "hover_item_normal",
+            "hover_item_hidden",
+            "hover_item_in_block",
+            "hover_item_white_in_block",
+            "hover_item_visible_in_block",
+        ):
+            if self._event_matches_shortcut(event, action):
+                if self._trigger_shortcut_action(action):
+                    return
+                super().keyPressEvent(event)
+                return
+        if self._event_matches_shortcut(event, "help"):
+            self._show_keymap()
+        elif self._event_matches_shortcut(event, "settings"):
+            self._show_settings()
+        elif self._event_matches_shortcut(event, "grid"):
+            self.chk_grid.toggle()
+        elif self._event_matches_shortcut(event, "flip_vertical"):
+            self._flip_selection_vertical()
+        elif self._event_matches_shortcut(event, "flip_horizontal"):
+            self._flip_selection_horizontal()
         else:
             super().keyPressEvent(event)
 
@@ -7363,16 +7553,26 @@ class MainWindow(QMainWindow):
         return focus_level_no, self._undo_entry_label(level_nos)
 
     def _show_keymap(self):
-        msg = """<b>基本</b><br>
-F1: このヘルプ<br>
-F9: 設定画面<br>
-P: テストプレイ<br>
-ゲームパッド Start/Menu: テストプレイ<br>
-PageUp / PageDown: ステージ切替<br>
-ゲームパッド L/R: 前/次のステージへ移動<br>
-G: グリッド表示切替<br>
-Ctrl+Z: Undo<br>
-Ctrl+Y / Ctrl+Shift+Z: Redo<br>
+        def sc(action: str) -> str:
+            return escape(self._shortcut_text(action))
+
+        gamepad_labels = dict(GAMEPAD_BUTTON_OPTIONS)
+
+        def pad(action: str) -> str:
+            shortcuts = normalize_gamepad_shortcuts(
+                self._app_config.get("gamepad_shortcuts")
+            )
+            button = shortcuts.get(action, DEFAULT_GAMEPAD_SHORTCUTS.get(action, ""))
+            return escape(gamepad_labels.get(button, "未割当"))
+
+        msg = f"""<b>基本</b><br>
+{sc("help")}: このヘルプ<br>
+{sc("settings")}: 設定画面<br>
+{sc("test_play")} / パッド {pad("test_play")}: テストプレイ<br>
+{sc("stage_prev")} / {sc("stage_next")} / パッド {pad("stage_prev")} / {pad("stage_next")}: ステージ切替<br>
+{sc("grid")}: グリッド表示切替<br>
+{sc("undo")}: Undo<br>
+{sc("redo")} / {sc("redo_alt")}: Redo<br>
 <br>
 <b>マウス操作</b><br>
 左クリック: 選択中の要素を配置<br>
@@ -7384,28 +7584,29 @@ Shift+左ドラッグ: 範囲選択<br>
 Alt+左クリック: スポイト（そのマスの要素をピッカーに取り込む）<br>
 <br>
 <b>ホバー位置のクイック操作</b><br>
-Delete / Backspace: ホバー位置を削除<br>
-矢印キー: ホバー位置の敵を対応する向きに変更<br>
-S: ホバー位置の敵スピードを循環変更<br>
-I: ホバー情報ポップアップの表示/非表示<br>
+{sc("delete_hover_or_selection")} / {sc("delete_hover_or_selection_alt")}: ホバー位置を削除<br>
+{sc("hover_enemy_left")} / {sc("hover_enemy_right")} / {sc("hover_enemy_up")} / {sc("hover_enemy_down")}: ホバー位置の敵を対応する向きに変更<br>
+{sc("hover_enemy_speed")}: ホバー位置の敵スピードを循環変更<br>
+{sc("hover_info")}: ホバー情報ポップアップの表示/非表示<br>
 <br>
 <b>アイテムフラグ</b><br>
-N: ホバー位置のアイテム/鍵/扉を通常に変更<br>
-H: ホバー位置のアイテム/鍵/扉を隠しに変更（デーモンミラー上では隠しアイテム0x48を配置）<br>
-B: ホバー位置のアイテム/鍵/扉をブロック内に変更<br>
-W: ホバー位置のアイテム/鍵/扉を白ブロック内に変更<br>
-T: ホバー位置のアイテムを透明ブロック内に変更<br>
+{sc("hover_item_normal")}: ホバー位置のアイテム/鍵/扉を通常に変更<br>
+{sc("hover_item_hidden")}: ホバー位置のアイテム/鍵/扉を隠しに変更（デーモンミラー上では隠しアイテム0x48を配置）<br>
+{sc("hover_item_in_block")}: ホバー位置のアイテム/鍵/扉をブロック内に変更<br>
+{sc("hover_item_white_in_block")}: ホバー位置のアイテム/鍵/扉を白ブロック内に変更<br>
+{sc("hover_item_visible_in_block")}: ホバー位置のアイテムを透明ブロック内に変更<br>
 <br>
 <b>範囲編集</b><br>
-Ctrl+A: 編集エリア全体を選択（0,0）-（14,11）<br>
-Ctrl+C: コピー<br>
-Ctrl+D: 選択解除<br>
-Ctrl+V: ペースト（選択範囲またはホバー位置を起点）<br>
-Ctrl+X: 切り取り<br>
-Delete / Backspace: 範囲内を削除<br>
-F: 左右反転<br>
-Shift+F: 上下反転<br>
-Esc: 選択解除<br>
+{sc("select_all")}: 編集エリア全体を選択（0,0）-（14,11）<br>
+{sc("copy_selection")}: コピー<br>
+{sc("clear_selection")}: 選択解除<br>
+{sc("paste_selection")}: ペースト（選択範囲またはホバー位置を起点）<br>
+{sc("cut_selection")}: 切り取り<br>
+{sc("delete_hover_or_selection")} / {sc("delete_hover_or_selection_alt")}: 範囲内を削除<br>
+{sc("flip_horizontal")}: 左右反転<br>
+{sc("flip_vertical")}: 上下反転<br>
+{sc("clear_selection_escape")}: 選択解除<br>
+{sc("favorite_1")}〜{sc("favorite_9")} / {sc("favorite_0")}: お気に入りスロット選択<br>
 <br>
 左右反転は、地形・アイテム・敵・敵の左右向き・スタート・鍵・扉・星座パネル・ミラー・六芒星などのメタ項目も反転します。<br>
 <br>

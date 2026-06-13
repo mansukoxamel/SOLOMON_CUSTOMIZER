@@ -666,27 +666,6 @@ class LevelView(QGraphicsView):
         super().mouseMoveEvent(event)
 
     def keyPressEvent(self, event):
-        if event.modifiers() == Qt.NoModifier:
-            direction_by_key = {
-                Qt.Key_Left: "left",
-                Qt.Key_Right: "right",
-                Qt.Key_Up: "up",
-                Qt.Key_Down: "down",
-            }
-            direction = direction_by_key.get(event.key())
-            if direction is not None:
-                self.direction_key_pressed.emit(direction)
-                event.accept()
-                return
-            action_by_key = {
-                Qt.Key_S: "speed",
-                Qt.Key_I: "info",
-            }
-            action = action_by_key.get(event.key())
-            if action is not None:
-                self.hover_action_key_pressed.emit(action)
-                event.accept()
-                return
         super().keyPressEvent(event)
 
     def leaveEvent(self, event):
