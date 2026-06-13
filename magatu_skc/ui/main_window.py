@@ -4461,6 +4461,13 @@ class MainWindow(QMainWindow):
 
             picker_flag = self.picker.get_item_flag()
 
+            if self._tile_has_visible_key_or_door(lv, tile):
+                self.statusBar().showMessage(
+                    f"鍵・扉の位置にはアイテムを置けません {tile}", 3000
+                )
+                restore_rejected_click_edit()
+                return
+
             # 壊せない白ブロック内アイテムは禁止（取れなくなる）
             if (lv.tiles[ty][tx] == Wall.WHITE and
                     tile not in getattr(lv, "breakable_white_cells", set()) and
@@ -4567,6 +4574,12 @@ class MainWindow(QMainWindow):
                 return
             # 敵 × 敵 の同位置重複は許可（原作USA ROM全53レベルで8件あり、
             # 同マスから複数体生成する意図的な配置）。上書きせず追加のみ。
+            if lv.fixed_start_pos == tile:
+                self.statusBar().showMessage(
+                    f"スタート位置には敵を置けません（開始直後に死亡します） {tile}", 3000
+                )
+                restore_rejected_click_edit()
+                return
             # スピードフラグ (1/2/3) を適用して実コードに変換
             from .element_picker import apply_enemy_speed
             actual_code = apply_enemy_speed(value, self.picker.get_enemy_speed())
@@ -4588,8 +4601,20 @@ class MainWindow(QMainWindow):
             target_is_white_in_block = tile in getattr(lv, "breakable_white_cells", set())
             target_is_brown_in_block = lv.tiles[ty][tx] in (Wall.BROWN, Wall.BROWN_WHITE)
             if value == "start":
+                if lv.get_enemy_index(tile) >= 0:
+                    self.statusBar().showMessage(
+                        f"敵がいる位置にはスタートを置けません（開始直後に死亡します） {tile}", 3000
+                    )
+                    restore_rejected_click_edit()
+                    return
                 lv.fixed_start_pos = tile
             elif value == "key":
+                if lv.get_item_index(tile) >= 0:
+                    self.statusBar().showMessage(
+                        f"アイテムがある位置には鍵を置けません {tile}", 3000
+                    )
+                    restore_rejected_click_edit()
+                    return
                 lv.fixed_key_pos = tile
                 # 配置フラグを key_status に反映
                 from ..core import constants as cc
@@ -4611,6 +4636,12 @@ class MainWindow(QMainWindow):
                     if lv.key_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
                         lv.set_block(Wall.NONE, tile)
             elif value == "door":
+                if lv.get_item_index(tile) >= 0:
+                    self.statusBar().showMessage(
+                        f"アイテムがある位置には扉を置けません {tile}", 3000
+                    )
+                    restore_rejected_click_edit()
+                    return
                 lv.fixed_door_pos = tile
                 from ..core import room_flags as _rf
                 picker_flag = self.picker.get_item_flag()
@@ -4688,7 +4719,7 @@ class MainWindow(QMainWindow):
                     self._refresh_view()
                     return
 
-        # 優先順位: item > enemy > meta（key/door/start/mirror1/mirror2）
+        # 優先順位: item > enemy > meta（start/key/door/mirror1/mirror2）
         idx = lv.get_item_index(tile)
         if idx >= 0:
             self._push_undo()
@@ -4752,12 +4783,12 @@ class MainWindow(QMainWindow):
             self._refresh_view()
             return
 
-        if lv.fixed_key_pos == tile and not lv.is_key_removed():
+        if lv.fixed_start_pos == tile:
+            self._move_pending = {"kind": "meta", "sub": "start"}
+        elif lv.fixed_key_pos == tile and not lv.is_key_removed():
             self._move_pending = {"kind": "meta", "sub": "key"}
         elif lv.fixed_door_pos == tile and not lv.is_door_removed():
             self._move_pending = {"kind": "meta", "sub": "door"}
-        elif lv.fixed_start_pos == tile:
-            self._move_pending = {"kind": "meta", "sub": "start"}
         elif lv.demon_mirrors[0].position == tile:
             self._move_pending = {"kind": "meta", "sub": "mirror1"}
         elif lv.demon_mirrors[1].position == tile:
@@ -4843,12 +4874,25 @@ class MainWindow(QMainWindow):
             if self._clip_targets_locked_col15(clip, ox, oy):
                 self._show_col15_locked_message("16列目へは移動できません（「16列目を編集」をONにしてください）")
                 return
+            base_lv = self._drag_base_level or lv
+            if self._clip_has_start_enemy_overlap(base_lv, clip, ox, oy):
+                self._show_start_enemy_overlap_message((ox, oy))
+                return
+            if self._clip_has_key_door_item_overlap(base_lv, clip, ox, oy):
+                self._show_key_door_item_overlap_message((ox, oy))
+                return
             selection_target = (clip, ox, oy)
         elif self._is_locked_col15_tile(tile):
             self._show_col15_locked_message("16列目へは移動できません（「16列目を編集」をONにしてください）")
             return
 
         if kind in ("item", "enemy"):
+            if kind == "item" and self._tile_has_visible_key_or_door(lv, tile):
+                self._show_key_door_item_overlap_message(tile)
+                return
+            if kind == "enemy" and lv.fixed_start_pos == tile:
+                self._show_start_enemy_overlap_message(tile)
+                return
             if kind == "item" and mp.get("visible_in_block"):
                 cells = getattr(lv, "visible_in_block_item_cells", set())
                 cells.discard(mp.get("current_pos"))
@@ -4860,10 +4904,19 @@ class MainWindow(QMainWindow):
         elif kind == "meta":
             sub = mp["sub"]
             if sub == "key":
+                if lv.get_item_index(tile) >= 0:
+                    self._show_key_door_item_overlap_message(tile)
+                    return
                 lv.fixed_key_pos = tile
             elif sub == "door":
+                if lv.get_item_index(tile) >= 0:
+                    self._show_key_door_item_overlap_message(tile)
+                    return
                 lv.fixed_door_pos = tile
             elif sub == "start":
+                if lv.get_enemy_index(tile) >= 0:
+                    self._show_start_enemy_overlap_message(tile)
+                    return
                 lv.fixed_start_pos = tile
             elif sub == "mirror1":
                 lv.demon_mirrors[0].position = tile
@@ -5117,6 +5170,66 @@ class MainWindow(QMainWindow):
     def _can_edit_tile_pos(self, x: int, y: int) -> bool:
         return 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H and not (x == 15 and self._is_col15_locked())
 
+    def _tile_has_visible_key_or_door(self, lv, tile) -> bool:
+        has_key = not lv.is_key_removed() and lv.fixed_key_pos == tile
+        has_door = not lv.is_door_removed() and lv.fixed_door_pos == tile
+        return has_key or has_door
+
+    def _clip_has_start_enemy_overlap(self, lv, clip, ox: int, oy: int) -> bool:
+        if clip is None:
+            return False
+        start_pos = lv.fixed_start_pos
+        for meta_data in clip.get("meta", []):
+            if meta_data.get("kind") != "start":
+                continue
+            rx, ry = meta_data["rel_pos"]
+            tx, ty = ox + rx, oy + ry
+            if self._can_edit_tile_pos(tx, ty):
+                start_pos = (tx, ty)
+            break
+        enemy_positions = {enemy.position for enemy in lv.enemies}
+        for en_data in clip.get("enemies", []):
+            rx, ry = en_data["rel_pos"]
+            tx, ty = ox + rx, oy + ry
+            if self._can_edit_tile_pos(tx, ty):
+                enemy_positions.add((tx, ty))
+        return start_pos in enemy_positions
+
+    def _clip_has_key_door_item_overlap(self, lv, clip, ox: int, oy: int) -> bool:
+        if clip is None:
+            return False
+        key_pos = None if lv.is_key_removed() else lv.fixed_key_pos
+        door_pos = None if lv.is_door_removed() else lv.fixed_door_pos
+        for meta_data in clip.get("meta", []):
+            kind = meta_data.get("kind")
+            if kind not in ("key", "door"):
+                continue
+            rx, ry = meta_data["rel_pos"]
+            tx, ty = ox + rx, oy + ry
+            if not self._can_edit_tile_pos(tx, ty):
+                continue
+            if kind == "key":
+                key_pos = (tx, ty)
+            elif kind == "door":
+                door_pos = (tx, ty)
+        item_positions = {item.position for item in lv.items}
+        for it_data in clip.get("items", []):
+            rx, ry = it_data["rel_pos"]
+            tx, ty = ox + rx, oy + ry
+            if self._can_edit_tile_pos(tx, ty):
+                item_positions.add((tx, ty))
+        return key_pos in item_positions or door_pos in item_positions
+
+    def _show_start_enemy_overlap_message(self, tile):
+        self.statusBar().showMessage(
+            f"主人公と敵は同じ位置にできません（開始直後に死亡します） {tile}", 3000
+        )
+
+    def _show_key_door_item_overlap_message(self, tile):
+        self.statusBar().showMessage(
+            f"鍵・扉とアイテムは同じ位置にできません {tile}", 3000
+        )
+
     def _clip_targets_locked_col15(self, clip, ox: int, oy: int) -> bool:
         """Return True if moving clip content would edit locked column 15."""
         if clip is None or not self._is_col15_locked():
@@ -5365,6 +5478,12 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("ペースト先が不明（選択 or ホバーが必要）", 2000)
             return
 
+        if self._clip_has_start_enemy_overlap(self.levels[self.current_level_no], self._clipboard, ox, oy):
+            self._show_start_enemy_overlap_message((ox, oy))
+            return
+        if self._clip_has_key_door_item_overlap(self.levels[self.current_level_no], self._clipboard, ox, oy):
+            self._show_key_door_item_overlap_message((ox, oy))
+            return
         self._push_undo()
         self._paste_clipboard_at(self._clipboard, ox, oy)
         self._refresh_key_enemy_spin_range()

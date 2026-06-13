@@ -254,7 +254,8 @@ class Level:
         return -1
 
     def get_enemy_index(self, pos: tuple) -> int:
-        for i, enemy in enumerate(self.enemies):
+        for i in range(len(self.enemies) - 1, -1, -1):
+            enemy = self.enemies[i]
             if enemy.position == pos:
                 return i
         return -1
