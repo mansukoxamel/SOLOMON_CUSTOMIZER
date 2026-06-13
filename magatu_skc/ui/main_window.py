@@ -7096,7 +7096,7 @@ class MainWindow(QMainWindow):
         lv = self.levels[self.current_level_no]
         _se.set_key_enemy_number(lv, enemy_number)
         self._set_dirty(True)
-        self._update_info()
+        self._refresh_view()
 
     def _on_meta_constellation_changed(self, idx):
         if self._meta_loading or not self.levels:

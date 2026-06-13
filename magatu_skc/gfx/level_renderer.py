@@ -1,10 +1,12 @@
 """レベル全体の描画 - QImageでレベル1個分をレンダリング"""
+import base64
+
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QImage, QPainter, QPen, QColor, QBrush, QPolygon
 from PyQt5.QtWidgets import QGraphicsScene
 
 from ..core import constants as c
-from ..core import room_flags
+from ..core import room_flags, stage_ext
 from ..core.element import Wall, ElementType
 from ..core.level import Level
 from .tile_renderer import TileRenderer
@@ -32,6 +34,14 @@ PANEL_VARIANT_VISUAL_SOURCE = {
 }
 
 MARKER_RENDER_SCALE = 4
+KEY_ENEMY_OVERLAY_PNG_B64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAA70lEQVR42u3aQQ6CMBAFUC7"
+    "ixkN5MteeTjdeArcGkg5NC5T2TTJLIvMWP0zrNCmlhq7H7dhu7fcBAADQF8D785xTDQAAg"
+    "L4ANgy8bAAAAFy4cgcOQxAAgMEBWl9mSkPu+7rP/716HgAAAFdbZpIhF73vEgQAAABtLz"
+    "OrF84MueqHogAAdAZQexkp7WjgqEqfBwBgNIAdlpFkZ19cVA5tAAAAlAFEAy5DKOoI4PQ/"
+    "SAAAACAJkDswAAAA2gIoXX72DsHTCwCAzgH2PsSMBs4NwdohCQAAgLIPidJD0NyMAgAAQ"
+    "FsAtS8fj76cBQBgcIAfAxxSUpWPhjkAAAAASUVORK5CYII="
+)
 
 
 class LevelRenderer:
@@ -42,6 +52,8 @@ class LevelRenderer:
         self._marker_overlay_scale = 3
         self._marker_colors = {}
         self._marker_shapes = {}
+        self._key_enemy_overlay_cache = {}
+        self._darkened_sprite_cache = {}
         self.wall_color_values = None
 
     def _draw_marker_layer(self, painter: QPainter, width: int, height: int, draw_func):
@@ -65,6 +77,40 @@ class LevelRenderer:
             Qt.SmoothTransformation,
         )
         painter.drawImage(0, 0, smoothed)
+
+    def _key_enemy_overlay_image(self, target_size: int) -> QImage:
+        cache_key = ("key_enemy_overlay", int(target_size))
+        cached = self._key_enemy_overlay_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        out = QImage()
+        out.loadFromData(base64.b64decode(KEY_ENEMY_OVERLAY_PNG_B64), "PNG")
+        if out.width() != target_size or out.height() != target_size:
+            out = out.scaled(
+                target_size,
+                target_size,
+                Qt.IgnoreAspectRatio,
+                Qt.FastTransformation,
+            )
+        self._key_enemy_overlay_cache[cache_key] = out
+        return out
+
+    def _darkened_sprite_image(self, source: QImage) -> QImage:
+        cache_key = ("darkened_sprite", int(source.cacheKey()))
+        cached = self._darkened_sprite_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        darkened = QImage(source.size(), QImage.Format_ARGB32_Premultiplied)
+        darkened.fill(QColor(0, 0, 0, 0))
+        painter = QPainter(darkened)
+        try:
+            painter.drawImage(0, 0, source)
+            painter.setCompositionMode(QPainter.CompositionMode_SourceAtop)
+            painter.fillRect(darkened.rect(), QColor(0, 0, 0, 88))
+        finally:
+            painter.end()
+        self._darkened_sprite_cache[cache_key] = darkened
+        return darkened
 
     def set_marker_overlay_scale(self, scale: int):
         from ..ui.level_view import DEFAULT_MARKER_OVERLAY_SCALE
@@ -511,14 +557,22 @@ class LevelRenderer:
                     self._draw_marker_layer(painter, img_w, img_h, draw_bonus_marker)
 
             # 8. 敵
-            for enemy in level.enemies:
+            key_enemy_number = stage_ext.get_key_enemy_number(level)
+            key_enemy_img = None
+            if key_enemy_number > 0:
+                key_enemy_img = self._key_enemy_overlay_image(tw)
+            for enemy_index, enemy in enumerate(level.enemies, start=1):
                 ex, ey = enemy.position
                 if not (0 <= ex < c.LEVEL_W and 0 <= ey < c.LEVEL_H):
                     continue
                 anim = self.get_enemy_animation(enemy.element_no)
                 en_img = self.tr.get_tile_image(
                     anim, ts_no, transparent=None, bg_main_color=wall_color)
+                if key_enemy_img is not None and enemy_index == key_enemy_number:
+                    en_img = self._darkened_sprite_image(en_img)
                 painter.drawImage(ex * tw, ey * tw, en_img)
+                if key_enemy_img is not None and enemy_index == key_enemy_number:
+                    painter.drawImage(ex * tw, ey * tw, key_enemy_img)
                 if enemy.element_no in PANEL_VARIANT_VISUAL_SOURCE:
                     painter.fillRect(
                         ex * tw, ey * tw, tw, tw,
