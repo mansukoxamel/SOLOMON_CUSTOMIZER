@@ -57,6 +57,7 @@ from .element_picker import (
     BLOCK_PASSABLE_WHITE, BLOCK_INVISIBLE_SOLID,
     BLOCK_PASSABLE_BROWN, BLOCK_SOLID_BROWN,
     ENEMY_SPEED_TABLE, apply_enemy_speed, base_code_from_actual,
+    ITEMS_LIST, item_name,
 )
 
 APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
@@ -298,6 +299,10 @@ class MainWindow(QMainWindow):
         self.shortcut_stage_compare_toggle.setContext(Qt.WindowShortcut)
         self.shortcut_stage_compare_toggle.activated.connect(self._toggle_stage_compare_view)
         self.shortcut_stage_compare_toggle.setEnabled(False)
+        self.shortcut_item_replace = QShortcut(self._shortcut_sequence("item_replace"), self)
+        self.shortcut_item_replace.setContext(Qt.WindowShortcut)
+        self.shortcut_item_replace.setAutoRepeat(False)
+        self.shortcut_item_replace.activated.connect(self._on_show_item_replace)
         self.shortcut_hover_actions = []
         for action in (
             "hover_enemy_left",
@@ -349,6 +354,7 @@ class MainWindow(QMainWindow):
             "stage_prev": "shortcut_stage_prev",
             "stage_next": "shortcut_stage_next",
             "stage_compare": "shortcut_stage_compare_toggle",
+            "item_replace": "shortcut_item_replace",
         }
         for action, attr in mapping.items():
             shortcut = getattr(self, attr, None)
@@ -387,6 +393,9 @@ class MainWindow(QMainWindow):
             return True
         if action == "select_all":
             self._select_all_editable_area()
+            return True
+        if action == "item_replace":
+            self._on_show_item_replace()
             return True
         if action == "clear_selection":
             if self._selection_rect is not None:
@@ -1081,6 +1090,15 @@ class MainWindow(QMainWindow):
         self.btn_sound_viewer.clicked.connect(self._on_show_sound_viewer)
         self.btn_sound_viewer.setEnabled(False)
         el.addWidget(self.btn_sound_viewer, 4, 0, 1, 2)
+
+        self.btn_item_replace = QPushButton("アイテム一括置換")
+        self.btn_item_replace.setToolTip(
+            "指定したアイテムを別アイテムへ一括置換。"
+            "選択範囲、現在ステージ、全ステージを対象にできます。"
+        )
+        self.btn_item_replace.clicked.connect(self._on_show_item_replace)
+        self.btn_item_replace.setEnabled(False)
+        el.addWidget(self.btn_item_replace, 5, 0, 1, 2)
 
         left_layout.addWidget(edit_group)
 
@@ -2293,6 +2311,7 @@ class MainWindow(QMainWindow):
             self.btn_sprite_viewer.setEnabled(edit_enabled)
             self.btn_pixel_editor.setEnabled(edit_enabled)
             self.btn_sound_viewer.setEnabled(True)
+            self.btn_item_replace.setEnabled(edit_enabled)
             self.btn_test_play.setEnabled(edit_enabled)
             self.btn_test_play_right.setEnabled(edit_enabled)
             self.meta_group.setEnabled(edit_enabled)
@@ -6097,6 +6116,9 @@ class MainWindow(QMainWindow):
         if self._event_matches_shortcut(event, "cut_selection"):
             self._cut_selection()
             return
+        if self._event_matches_shortcut(event, "item_replace"):
+            self._on_show_item_replace()
+            return
         if self._event_matches_shortcut(event, "delete_hover_or_selection"):
             self._delete_hover_or_selection()
             return
@@ -6805,6 +6827,169 @@ class MainWindow(QMainWindow):
             self._refresh_view()
 
     # ====== 全レベル統計 ======
+
+    @staticmethod
+    def _item_replace_state(lv, item):
+        if item.position in getattr(lv, "visible_in_block_item_cells", set()):
+            return c.ITEM_FLAG_VISIBLE_IN_BLOCK
+        if item.is_white_in_block():
+            return c.ITEM_FLAG_WHITE_IN_BLOCK
+        if item.is_hidden():
+            return c.ITEM_FLAG_HIDDEN
+        if item.is_in_block():
+            return c.ITEM_FLAG_IN_BLOCK
+        return c.ITEM_FLAG_NORMAL
+
+    @staticmethod
+    def _item_replace_element_no(base_item: int, state: int) -> int:
+        base = int(base_item) & 0x3F
+        if state == c.ITEM_FLAG_HIDDEN:
+            return base | c.ITEM_FLAG_HIDDEN
+        if state == c.ITEM_FLAG_IN_BLOCK:
+            return base | c.ITEM_FLAG_IN_BLOCK
+        if state == c.ITEM_FLAG_WHITE_IN_BLOCK:
+            return base | c.ITEM_FLAG_WHITE_IN_BLOCK
+        return base
+
+    def _item_replace_level_nos(self, scope):
+        if scope == "all":
+            return list(range(len(self.levels)))
+        return [self.current_level_no]
+
+    def _item_replace_tile_in_scope(self, pos, scope):
+        if scope != "selection":
+            return True
+        bounds = self._get_selection_bounds()
+        if bounds is None:
+            return False
+        x1, y1, x2, y2 = bounds
+        x, y = pos
+        return x1 <= x <= x2 and y1 <= y <= y2
+
+    def _item_replace_matches(self, lv, item, opts):
+        if not self._item_replace_tile_in_scope(item.position, opts["scope"]):
+            return False
+        if item.get_item_no() != opts["from_item"]:
+            return False
+        if opts["match_state"]:
+            return self._item_replace_state(lv, item) == opts["from_state"]
+        return True
+
+    def _count_item_replacements(self, opts):
+        total = 0
+        changed_levels = []
+        for level_no in self._item_replace_level_nos(opts["scope"]):
+            lv = self.levels[level_no]
+            count = sum(
+                1 for item in lv.items
+                if self._item_replace_matches(lv, item, opts)
+            )
+            if count:
+                total += count
+                changed_levels.append(level_no)
+        return total, changed_levels
+
+    def _apply_item_replacements(self, opts, changed_levels):
+        self._push_undo_levels(changed_levels, focus_level_no=self.current_level_no)
+        to_state = int(opts["to_state"])
+        to_item = int(opts["to_item"])
+        for level_no in changed_levels:
+            lv = self.levels[level_no]
+            if not hasattr(lv, "visible_in_block_item_cells"):
+                lv.visible_in_block_item_cells = set()
+            visible_cells = lv.visible_in_block_item_cells
+            for item in lv.items:
+                if not self._item_replace_matches(lv, item, opts):
+                    continue
+                if to_state == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
+                    item.element_no = self._item_replace_element_no(to_item, c.ITEM_FLAG_NORMAL)
+                    visible_cells.add(item.position)
+                else:
+                    item.element_no = self._item_replace_element_no(to_item, to_state)
+                    visible_cells.discard(item.position)
+        self._refresh_changed_stages(changed_levels)
+
+    def _on_show_item_replace(self):
+        if not self.levels:
+            return
+        if self._reject_read_only_edit():
+            return
+        from .item_replace_dialog import ItemReplaceDialog
+
+        def current_picker_item_spec(show_warning=True, fallback=False):
+            mode, value = self.picker.get_current()
+            if mode != MODE_ITEM:
+                if fallback and ITEMS_LIST:
+                    return int(ITEMS_LIST[0]), c.ITEM_FLAG_NORMAL
+                if show_warning:
+                    self.statusBar().showMessage(
+                        "ピッカーでアイテムを選択してから指定してください", 2500
+                    )
+                return None
+            return int(value), int(self.picker.get_item_flag())
+
+        dlg = getattr(self, "_item_replace_dialog", None)
+        is_new_dialog = dlg is None or not dlg.isVisible()
+        if is_new_dialog:
+            dlg = ItemReplaceDialog(
+                item_name_resolver=lambda code: item_name(code, self.config),
+                icon_provider=lambda code: self.picker._make_item_icon(code),
+                selection_available=self._get_selection_bounds() is not None,
+                parent=self,
+            )
+            dlg.replace_requested.connect(self._perform_item_replace_from_dialog)
+            self._item_replace_dialog = dlg
+        else:
+            dlg.set_selection_available(self._get_selection_bounds() is not None)
+        if is_new_dialog:
+            spec = current_picker_item_spec(show_warning=False, fallback=True)
+            if spec is not None:
+                dlg.set_initial_from_spec(spec)
+                dlg.set_initial_to_spec(spec)
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
+
+    def _perform_item_replace_from_dialog(self, opts):
+        if not self.levels:
+            return
+        if (
+            opts["to_state"] == c.ITEM_FLAG_WHITE_IN_BLOCK and
+            opts["to_item"] > c.ITEM_WHITE_IN_BLOCK_MAX_BASE
+        ):
+            QMessageBox.warning(
+                self,
+                "アイテム一括置換",
+                "このアイテムは白ブロック内アイテムとして保存できません。",
+            )
+            return
+        count, changed_levels = self._count_item_replacements(opts)
+        if count <= 0:
+            QMessageBox.information(self, "アイテム一括置換", "置換対象はありませんでした。")
+            return
+        scope_label = {
+            "selection": "選択範囲",
+            "current": "現在ステージ",
+            "all": "全ステージ",
+        }.get(opts["scope"], "対象範囲")
+        reply = QMessageBox.question(
+            self,
+            "アイテム一括置換",
+            f"{scope_label}で {count} 件のアイテムを置換します。\n\n"
+            "実行後も Undo で戻せます。続行しますか？",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+        self._apply_item_replacements(opts, changed_levels)
+        self.statusBar().showMessage(
+            f"アイテム一括置換: {count} 件 / {len(changed_levels)} ステージ", 4000
+        )
+        self._log(
+            f"アイテム一括置換: {count}件 / scope={opts['scope']} / "
+            f"from=0x{opts['from_item']:02X} to=0x{opts['to_item']:02X}"
+        )
 
     def _on_show_stats(self):
         if not self.levels:
@@ -7602,6 +7787,7 @@ Alt+左クリック: スポイト（そのマスの要素をピッカーに取�
 {sc("clear_selection")}: 選択解除<br>
 {sc("paste_selection")}: ペースト（選択範囲またはホバー位置を起点）<br>
 {sc("cut_selection")}: 切り取り<br>
+{sc("item_replace")}: アイテム一括置換<br>
 {sc("delete_hover_or_selection")} / {sc("delete_hover_or_selection_alt")}: 範囲内を削除<br>
 {sc("flip_horizontal")}: 左右反転<br>
 {sc("flip_vertical")}: 上下反転<br>
