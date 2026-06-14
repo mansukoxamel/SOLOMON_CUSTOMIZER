@@ -234,6 +234,7 @@ class StatsDialog(QDialog):
         if parent is not None:
             self.setFont(parent.font())
         self.setWindowTitle(f"全ステージ統計 ({len(levels)}ステージ)")
+        self.setModal(False)
         self.resize(1280, 720)
         self.levels = levels
         self.item_desc = item_desc or {}

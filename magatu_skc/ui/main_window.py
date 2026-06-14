@@ -45,7 +45,7 @@ from ..core.config import (
     get_config_path,
     save_config,
 )
-from ..core import saver, ips, wall_color_hack, stage_ext
+from ..core import saver, ips, wall_color_hack, stage_ext, save_validation
 from ..gfx.tile_renderer import TileRenderer
 from ..gfx.level_renderer import LevelRenderer
 from ..nes.config_loader import SkcConfig
@@ -61,6 +61,7 @@ from .element_picker import (
     ENEMY_SPEED_TABLE, apply_enemy_speed, base_code_from_actual,
     ENEMIES_LIST, ITEMS_LIST, item_name,
 )
+from .rom_validation_dialog import RomValidationDialog
 
 APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
 WINDOW_STATE_DEBUG_ENV = "SOLOMON_WINDOW_STATE_DEBUG"
@@ -340,6 +341,10 @@ class MainWindow(QMainWindow):
         self._stage_compare_level_no = None
         self._stage_compare_path = ""
         self._stage_compare_show_diff = False
+        self._rom_validation_warnings = []
+        self._rom_validation_rom = None
+        self._rom_validation_dialog = None
+        self._stats_dialog = None
         self.show_grid = False
         self.show_object_labels = False
         # Ctrl+クリックでの要素移動: 1回目で掴む、2回目で移動先
@@ -1199,7 +1204,14 @@ class MainWindow(QMainWindow):
 
         self.lbl_rom = QLabel("(未読込)")
         self.lbl_rom.setWordWrap(True)
-        fl.addWidget(self.lbl_rom)
+        rom_info_row = QHBoxLayout()
+        rom_info_row.addWidget(self.lbl_rom, 1)
+        self.btn_rom_validation = QPushButton("不整合")
+        self.btn_rom_validation.setToolTip("読み込んだROMの不整合らしき配置を一覧表示")
+        self.btn_rom_validation.setVisible(False)
+        self.btn_rom_validation.clicked.connect(self._on_show_rom_validation)
+        rom_info_row.addWidget(self.btn_rom_validation, 0, Qt.AlignTop)
+        fl.addLayout(rom_info_row)
 
         # 保存系は横2列に (改造ROM保存 / IPSパッチ出力)
         self.btn_save_rom = QPushButton("別名でROM保存")
@@ -2430,6 +2442,16 @@ class MainWindow(QMainWindow):
         workstate_saved_at_override: str = "",
     ):
         try:
+            self._rom_validation_warnings = []
+            self._rom_validation_rom = None
+            if getattr(self, "_rom_validation_dialog", None) is not None:
+                self._rom_validation_dialog.close()
+                self._rom_validation_dialog = None
+            if getattr(self, "_stats_dialog", None) is not None:
+                self._stats_dialog.close()
+                self._stats_dialog = None
+            if hasattr(self, "btn_rom_validation"):
+                self.btn_rom_validation.setVisible(False)
             rom = Rom.load(path)
             if display_name_override:
                 rom.display_name = str(display_name_override)
@@ -2470,6 +2492,23 @@ class MainWindow(QMainWindow):
                 self._log(f"ROM読込拒否: {path} ({rom.region}, CRC32={crc_hex})")
                 return
             levels = load_all_levels(rom)
+            validation_rom = Rom(loaded_rom_data, path)
+            validation_rom.display_name = rom.display_name
+            validation_levels = load_all_levels(validation_rom)
+            validation_meta_items = None
+            try:
+                validation_meta_items = SkcConfig.load(
+                    str(Path(__file__).parent.parent / "skc_config.xml"),
+                    rom_data=bytes(validation_rom.data),
+                    region=validation_rom.region,
+                ).level_meta_items
+            except Exception:
+                validation_meta_items = None
+            validation_warnings = save_validation.collect_save_warnings(
+                validation_rom,
+                validation_levels,
+                level_meta_items=validation_meta_items,
+            )
 
             # ボーナスステージテーブル読み込み（拡張前のアドレスで読む必要がある）
             self._load_bonus_stage_table(rom, allow_mutation=False)
@@ -2639,6 +2678,9 @@ class MainWindow(QMainWindow):
                 info_html += f"<br><span style='color:#aaa'>{known}</span>"
             self.lbl_rom.setText(info_html)
             self.lbl_rom.setTextFormat(Qt.RichText)
+            self._rom_validation_rom = validation_rom
+            self._rom_validation_warnings = validation_warnings
+            self._update_rom_validation_button()
             self.statusBar().showMessage(f"読み込み完了: {len(levels)}ステージ")
             # ROM読込でアイコンが揃ったので、お気に入りを復元
             saved_favs = self._app_config.get("picker_favorites", [])
@@ -2703,6 +2745,68 @@ class MainWindow(QMainWindow):
             self._log(f"ROM読込: {path}{log_suffix}")
         except Exception as e:
             QMessageBox.critical(self, "ロード失敗", f"{type(e).__name__}: {e}")
+
+    def _update_rom_validation_button(self):
+        count = len(getattr(self, "_rom_validation_warnings", []) or [])
+        if count <= 0:
+            self.btn_rom_validation.setVisible(False)
+            return
+        self.btn_rom_validation.setText(f"不整合 {count}")
+        self.btn_rom_validation.setVisible(True)
+
+    def _on_show_rom_validation(self):
+        warnings = list(getattr(self, "_rom_validation_warnings", []) or [])
+        rom = getattr(self, "_rom_validation_rom", None) or self.rom
+        if not rom:
+            return
+        if (
+            getattr(self, "_rom_validation_dialog", None) is not None
+            and self._rom_validation_dialog.isVisible()
+        ):
+            self._rom_validation_dialog.raise_()
+            self._rom_validation_dialog.activateWindow()
+            return
+        dlg = RomValidationDialog(
+            rom,
+            warnings,
+            parent=self,
+            jump_callback=self._jump_to_rom_validation_issue,
+        )
+        self._rom_validation_dialog = dlg
+        dlg.finished.connect(lambda _result: setattr(self, "_rom_validation_dialog", None))
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
+
+    def _jump_to_rom_validation_issue(self, stage_no: int, pos=None):
+        if not self.levels:
+            return
+        max_stage = min(len(self.levels), c.LEVEL_COUNT)
+        stage_no = max(1, min(max_stage, int(stage_no)))
+        if self.spin_level.value() != stage_no:
+            self.spin_level.setValue(stage_no)
+        if pos is None:
+            self.statusBar().showMessage(f"不整合: Stage {stage_no}へ移動", 3000)
+            return
+        try:
+            x, y = int(pos[0]), int(pos[1])
+        except Exception:
+            self.statusBar().showMessage(f"不整合: Stage {stage_no}へ移動", 3000)
+            return
+        if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+            self.statusBar().showMessage(
+                f"不整合: Stage {stage_no}へ移動（座標は範囲外: {pos}）",
+                3000,
+            )
+            return
+        if hasattr(self, "level_view"):
+            self.level_view._select_start = (x, y)
+            self.level_view._select_end = (x, y)
+        self._on_selection_updated((x, y), (x, y))
+        self.statusBar().showMessage(
+            f"不整合: Stage {stage_no} ({x}, {y})を選択",
+            3000,
+        )
 
     # ====== 再読込・履歴 ======
 
@@ -2973,6 +3077,8 @@ class MainWindow(QMainWindow):
             return
         if self._reject_read_only_edit():
             return
+        if not self._confirm_save_validation_warnings():
+            return
         # デフォルト名: 元ROM名のステム + _YYYYMMDD_HHMMSS.nes
         from datetime import datetime
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -3134,6 +3240,8 @@ class MainWindow(QMainWindow):
             return
         if self._reject_read_only_edit():
             return
+        if not self._confirm_save_validation_warnings():
+            return
 
         # 1. 原本ROM（市販吸出し）を選択
         from .file_dialog_compat import get_file
@@ -3178,6 +3286,34 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "IPS生成失敗", f"{type(e).__name__}: {e}")
             self._log(f"IPS保存失敗: {type(e).__name__}: {e}")
+
+    def _confirm_save_validation_warnings(self) -> bool:
+        level_meta_items = getattr(self.config, "level_meta_items", []) if self.config else []
+        warnings = save_validation.collect_save_warnings(
+            self.rom,
+            self.levels,
+            level_meta_items=level_meta_items,
+        )
+        if not warnings:
+            return True
+        shown_limit = 24
+        shown = warnings[:shown_limit]
+        more = len(warnings) - len(shown)
+        body = "\n".join(f"- {msg}" for msg in shown)
+        if more > 0:
+            body += f"\n- ...ほか {more} 件"
+        self._log("保存前不整合: " + " / ".join(warnings))
+        reply = QMessageBox.warning(
+            self,
+            "保存前チェック",
+            "保存前チェックで不整合らしき項目が見つかりました。\n"
+            "エラーではありませんが、見落としの可能性があります。\n\n"
+            f"{body}\n\n"
+            "このまま保存を続行しますか？",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        return reply == QMessageBox.Yes
 
     def _save_rom_project_bundle(self, rom_path: str, saved_data: bytes) -> Path:
         """Save the reproducible project data beside a saved ROM."""
@@ -8227,6 +8363,10 @@ class MainWindow(QMainWindow):
     def _on_show_stats(self):
         if not self.levels:
             return
+        if getattr(self, "_stats_dialog", None) is not None and self._stats_dialog.isVisible():
+            self._stats_dialog.raise_()
+            self._stats_dialog.activateWindow()
+            return
         from .stats_dialog import StatsDialog
         item_desc = self.config.item_desc if self.config else {}
         dlg = StatsDialog(self.levels, item_desc=item_desc,
@@ -8234,7 +8374,11 @@ class MainWindow(QMainWindow):
                           tile_renderer=self.tile_renderer,
                           app_config=self._app_config,
                           rom=self.rom, parent=self)
-        dlg.exec_()
+        self._stats_dialog = dlg
+        dlg.finished.connect(lambda _result: setattr(self, "_stats_dialog", None))
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
 
     def _on_show_rom_diff(self):
         from .rom_diff_dialog import RomDiffDialog
@@ -8556,20 +8700,27 @@ class MainWindow(QMainWindow):
         changed = False
         for mirror_no in range(2):
             sched_off = m66.OFFSET_M66_DROP_SCHED_DATA + (ln * 2 + mirror_no) * 8
-            for i in range(8):
-                if self.rom.data[sched_off + i] != 0:
+            if any(self.rom.data[sched_off + i] != 0 for i in range(8)):
+                changed = True
+            if mirror_no < len(lv.demon_mirrors):
+                sched = getattr(lv.demon_mirrors[mirror_no], "schedule_data", []) or []
+                if any(int(v) != 0 for v in list(sched)[:8]):
                     changed = True
+        if not changed:
+            self.statusBar().showMessage("ミラー1/2はすでに全OFFです", 3000)
+            return
+        self._push_undo()
+        for mirror_no in range(2):
+            sched_off = m66.OFFSET_M66_DROP_SCHED_DATA + (ln * 2 + mirror_no) * 8
+            for i in range(8):
                 self.rom.data[sched_off + i] = 0
             if mirror_no < len(lv.demon_mirrors):
                 lv.demon_mirrors[mirror_no].schedule_data = [0] * 8
         self._sync_mirror_panel()
         self._refresh_view()
-        if changed:
-            self._set_dirty(True)
-            self._log(f"ミラー出現OFF: L{ln + 1} のミラー1/2を全OFF")
-            self.statusBar().showMessage("ミラー1/2の出現タイミングを全OFFにしました", 3000)
-        else:
-            self.statusBar().showMessage("ミラー1/2はすでに全OFFです", 3000)
+        self._set_dirty(True)
+        self._log(f"ミラー出現OFF: L{ln + 1} のミラー1/2を全OFF")
+        self.statusBar().showMessage("ミラー1/2の出現タイミングを全OFFにしました", 3000)
 
     def _on_mirror_changed(self):
         """ミラーダイアログの Apply からコールバック"""
