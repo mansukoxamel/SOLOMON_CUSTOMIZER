@@ -165,6 +165,11 @@ class RomDiffDialog(QDialog):
             target.setText(path)
             self._compare_if_ready()
 
+    def set_compare_paths(self, left: str, right: str):
+        self.left_path.setText(left)
+        self.right_path.setText(right)
+        self._compare_if_ready()
+
     def dragEnterEvent(self, event):
         if self._event_paths(event):
             event.acceptProposedAction()

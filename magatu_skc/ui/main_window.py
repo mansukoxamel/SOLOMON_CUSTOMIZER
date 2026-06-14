@@ -8517,6 +8517,12 @@ class MainWindow(QMainWindow):
         dlg = RomDiffDialog(parent=self, app_config=self._app_config)
         dlg.exec_()
 
+    def _on_show_rom_diff_for_paths(self, left_path: str, right_path: str):
+        from .rom_diff_dialog import RomDiffDialog
+        dlg = RomDiffDialog(parent=self, app_config=self._app_config)
+        dlg.set_compare_paths(left_path, right_path)
+        dlg.exec_()
+
     # ====== ゲーム挙動改造 ======
 
     def _on_show_hack(self):
@@ -9444,7 +9450,7 @@ Alt+左クリック: スポイト（そのマスの要素をピッカーに取�
             event.ignore()
 
     def dropEvent(self, event):
-        """ドロップ時 - 最初の .nes / .zip ファイルを読み込み（内部D&Dは子で処理）"""
+        """ドロップ時 - 2ROMなら差分比較、1ROMなら読み込み（内部D&Dは子で処理）"""
         from .element_picker import PICKER_MIME
         if event.mimeData().hasFormat(PICKER_MIME):
             # 子ウィジェットで処理されなかった内部D&Dは無視
@@ -9454,14 +9460,22 @@ Alt+左クリック: スポイト（そのマスの要素をピッカーに取�
             event.ignore()
             return
 
+        paths = []
         for url in event.mimeData().urls():
             if not url.isLocalFile():
                 continue
             path = url.toLocalFile()
             lower = path.lower()
             if lower.endswith('.nes') or lower.endswith('.zip'):
-                event.acceptProposedAction()
-                self.load_rom(path)
-                return
+                paths.append(path)
+
+        if len(paths) >= 2:
+            event.acceptProposedAction()
+            self._on_show_rom_diff_for_paths(paths[0], paths[1])
+            return
+        if len(paths) == 1:
+            event.acceptProposedAction()
+            self.load_rom(paths[0])
+            return
 
         event.ignore()
