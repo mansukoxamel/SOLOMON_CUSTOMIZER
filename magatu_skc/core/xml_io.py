@@ -113,6 +113,14 @@ def level_to_xml_element(level: Level) -> ET.Element:
             e.set("no", str(i))
             e.set("position", _pos_str(pos))
 
+    cb_cells = sorted(getattr(level, "cracked_block_cells", set()))
+    if cb_cells:
+        cb = ET.SubElement(lv, "cracked_block")
+        for i, pos in enumerate(cb_cells):
+            e = ET.SubElement(cb, "cell")
+            e.set("no", str(i))
+            e.set("position", _pos_str(pos))
+
     ib_cells = sorted(getattr(level, "invisible_breakable_cells", set()))
     if ib_cells:
         ib = ET.SubElement(lv, "invisible_breakable")
@@ -335,6 +343,16 @@ def xml_element_to_level(level_elem: ET.Element) -> Level:
             if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
                 lv.breakable_white_cells.add(pos)
                 lv.tiles[y][x] = Wall.WHITE
+
+    lv.cracked_block_cells = set()
+    cb_elem = level_elem.find("cracked_block")
+    if cb_elem is not None:
+        for cell in cb_elem.findall("cell"):
+            pos = _parse_pos(cell.attrib["position"])
+            x, y = pos
+            if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
+                lv.cracked_block_cells.add(pos)
+                lv.tiles[y][x] = Wall.BROWN
 
     lv.invisible_breakable_cells = set()
     ib_elem = level_elem.find("invisible_breakable")

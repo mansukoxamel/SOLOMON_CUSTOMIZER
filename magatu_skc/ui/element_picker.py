@@ -20,6 +20,7 @@ BLOCK_NONE = "none"
 BLOCK_BROWN = "brown"
 BLOCK_WHITE = "white"
 BLOCK_BROWN_WHITE = "brown_white"  # 見た目=白、実体=壊せる（茶＋白の両ビット）
+BLOCK_CRACKED = "cracked"
 BLOCK_BREAKABLE_WHITE = "breakable_white"
 BLOCK_INVISIBLE_BREAKABLE = "invisible_breakable"
 BLOCK_PASSABLE_WHITE = "passable_white"
@@ -30,6 +31,7 @@ BLOCK_SOLID_BROWN = "solid_brown"
 DEFAULT_BLOCK_PICKER_ORDER = [
     BLOCK_NONE,
     BLOCK_BROWN,
+    BLOCK_CRACKED,
     BLOCK_WHITE,
     BLOCK_BREAKABLE_WHITE,
     BLOCK_INVISIBLE_BREAKABLE,
@@ -42,6 +44,7 @@ DEFAULT_BLOCK_PICKER_ORDER = [
 BLOCK_PICKER_LABELS = {
     BLOCK_NONE: "消去 (空白)",
     BLOCK_BROWN: "茶色ブロック (壊せる)",
+    BLOCK_CRACKED: "ひび割れブロック",
     BLOCK_WHITE: "白ブロック (壊せない)",
     BLOCK_BREAKABLE_WHITE: "壊せる白ブロック",
     BLOCK_INVISIBLE_BREAKABLE: "透明な茶色ブロック",
@@ -1462,6 +1465,10 @@ class ElementPicker(QWidget):
         """ブロック種別からアイコン取得"""
         if self.tile_renderer is None or self.config is None:
             return QIcon()
+
+        if block_kind == BLOCK_CRACKED:
+            anim = self.config.item_map.get(0x01, 0)
+            return self._make_icon_from_tile(anim)
 
         from ..gfx.level_renderer import (
             MD_EMPTY, MD_BLOCK_BROWN, MD_BLOCK_WHITE

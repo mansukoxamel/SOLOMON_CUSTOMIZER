@@ -389,6 +389,15 @@ class LevelRenderer:
                         # 既存データ互換のため一応 WHITE と同等に描画。
                         painter.drawImage(x * tw, y * tw, white_img)
 
+            cracked_cells = getattr(level, "cracked_block_cells", set())
+            if cracked_cells:
+                cracked_anim = self.get_item_animation(0x01)
+                cracked_img = self.tr.get_tile_image(
+                    cracked_anim, ts_no, transparent=None, bg_main_color=wall_color)
+                for x, y in cracked_cells:
+                    if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
+                        painter.drawImage(x * tw, y * tw, cracked_img)
+
             # Editor-only marker: white-looking blocks that become normal breakable stone.
             bw_cells = getattr(level, "breakable_white_cells", set())
             if draw_editor_markers and show_secret_elements and bw_cells:

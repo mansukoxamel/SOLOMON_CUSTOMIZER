@@ -144,6 +144,7 @@ def _seal_can_overlap_tile(level, pos) -> bool:
         return (
             pos not in getattr(level, "passable_brown_cells", set())
             and pos not in getattr(level, "solid_brown_cells", set())
+            and pos not in getattr(level, "cracked_block_cells", set())
         )
     if wall == Wall.WHITE:
         return pos in getattr(level, "breakable_white_cells", set())
@@ -179,6 +180,7 @@ def _collect_special_block_warnings(level, stage_index: int) -> list[str]:
     label = _stage_label(stage_index)
     expectations = [
         ("壊せる白ブロック", "breakable_white_cells", Wall.WHITE),
+        ("ひび割れブロック", "cracked_block_cells", Wall.BROWN),
         ("すり抜ける白ブロック", "passable_white_cells", Wall.WHITE),
         ("すり抜ける茶色ブロック", "passable_brown_cells", Wall.BROWN),
         ("壊せない茶色ブロック", "solid_brown_cells", Wall.BROWN),
