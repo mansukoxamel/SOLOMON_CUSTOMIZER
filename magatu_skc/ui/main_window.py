@@ -7073,6 +7073,11 @@ class MainWindow(QMainWindow):
 
     # ====== レベル設定（メタ編集） ======
 
+    def _cancel_canvas_mouse_button_state(self):
+        view = getattr(self, "level_view", None)
+        if view is not None and hasattr(view, "cancel_mouse_button_state"):
+            view.cancel_mouse_button_state()
+
     def _set_tileset_radio(self, val: int):
         buttons = (self.rb_tileset0, self.rb_tileset1, self.rb_tileset2)
         idx = max(0, min(2, int(val)))
@@ -7088,9 +7093,12 @@ class MainWindow(QMainWindow):
         lv = self.levels[self.current_level_no]
         max_enemy = min(len(lv.enemies), c.ENEMY_COUNT_MAX)
         from ..core import stage_ext as _se
+        from ..core import enemy_slot_rules as _esr
         current = _se.get_key_enemy_number(lv)
+        fairy_current = _se.get_fairy_enemy_number(lv)
         display_current = current
-        if current > max_enemy:
+        invalid = current > max_enemy or not _esr.can_key_enemy_number(lv, current, fairy_current)
+        if invalid:
             if self._is_read_only():
                 display_current = 0
             else:
@@ -7098,17 +7106,19 @@ class MainWindow(QMainWindow):
                 display_current = 0
                 self._set_dirty(True)
             if warn and not self._is_read_only():
+                self._cancel_canvas_mouse_button_state()
                 QMessageBox.warning(
                     self,
                     "鍵持ち敵設定を解除",
                     "鍵持ち敵に指定していた番号が、このステージの敵数を超えたため解除しました。"
                 )
+                self._cancel_canvas_mouse_button_state()
         old_block = self.spin_key_enemy.blockSignals(True)
         self.spin_key_enemy.setRange(0, max_enemy)
         self.spin_key_enemy.setValue(display_current)
         self.spin_key_enemy.blockSignals(old_block)
         self.spin_key_enemy.setToolTip(
-            f"0=なし。1から{max_enemy}は初期配置敵の順番です。このステージの敵数: {len(lv.enemies)}"
+            f"0=なし。1から{max_enemy}は初期配置敵の順番です。Flame系と妖精化敵と同じ番号は指定できません。"
         )
 
     def _refresh_fairy_enemy_spin_range(self, warn: bool = False):
@@ -7117,10 +7127,11 @@ class MainWindow(QMainWindow):
         lv = self.levels[self.current_level_no]
         max_enemy = min(len(lv.enemies), c.ENEMY_COUNT_MAX)
         from ..core import stage_ext as _se
+        from ..core import enemy_slot_rules as _esr
         current = _se.get_fairy_enemy_number(lv)
         key_current = _se.get_key_enemy_number(lv)
         display_current = current
-        invalid = current > max_enemy or (current > 0 and current == key_current)
+        invalid = current > max_enemy or not _esr.can_fairy_enemy_number(lv, current, key_current)
         if invalid:
             if self._is_read_only():
                 display_current = 0
@@ -7129,17 +7140,19 @@ class MainWindow(QMainWindow):
                 display_current = 0
                 self._set_dirty(True)
             if warn and not self._is_read_only():
+                self._cancel_canvas_mouse_button_state()
                 QMessageBox.warning(
                     self,
                     "妖精化敵設定を解除",
                     "妖精化敵に指定していた番号が、このステージで使えないため解除しました。"
                 )
+                self._cancel_canvas_mouse_button_state()
         old_block = self.spin_fairy_enemy.blockSignals(True)
         self.spin_fairy_enemy.setRange(0, max_enemy)
         self.spin_fairy_enemy.setValue(display_current)
         self.spin_fairy_enemy.blockSignals(old_block)
         self.spin_fairy_enemy.setToolTip(
-            f"0=なし。1から{max_enemy}は初期配置敵の順番です。鍵持ち敵と同じ番号は指定できません。"
+            f"0=なし。Dragon/Golem/Gargoyle系のみ。Flame系と鍵持ち敵と同じ番号は指定できません。"
         )
 
     def _load_meta_to_ui(self):
@@ -7343,7 +7356,19 @@ class MainWindow(QMainWindow):
             return
         self._push_undo()
         from ..core import stage_ext as _se
+        from ..core import enemy_slot_rules as _esr
         lv = self.levels[self.current_level_no]
+        current = _se.get_key_enemy_number(lv)
+        fairy_enemy_number = _se.get_fairy_enemy_number(lv)
+        enemy_number = _esr.coerce_enemy_number(
+            lv,
+            enemy_number,
+            current,
+            lambda n: _esr.can_key_enemy_number(lv, n, fairy_enemy_number),
+        )
+        if enemy_number is None:
+            self._refresh_key_enemy_spin_range()
+            return
         _se.set_key_enemy_number(lv, enemy_number)
         self._set_dirty(True)
         self._refresh_fairy_enemy_spin_range()
@@ -7360,17 +7385,19 @@ class MainWindow(QMainWindow):
             return
         self._push_undo()
         from ..core import stage_ext as _se
+        from ..core import enemy_slot_rules as _esr
         lv = self.levels[self.current_level_no]
+        current = _se.get_fairy_enemy_number(lv)
         key_enemy_number = _se.get_key_enemy_number(lv)
-        if enemy_number > 0 and enemy_number == key_enemy_number:
-            current = _se.get_fairy_enemy_number(lv)
-            if enemy_number > current and enemy_number < max_enemy:
-                enemy_number += 1
-            elif enemy_number < current and enemy_number > 1:
-                enemy_number -= 1
-            else:
-                self._refresh_fairy_enemy_spin_range()
-                return
+        enemy_number = _esr.coerce_enemy_number(
+            lv,
+            enemy_number,
+            current,
+            lambda n: _esr.can_fairy_enemy_number(lv, n, key_enemy_number),
+        )
+        if enemy_number is None:
+            self._refresh_fairy_enemy_spin_range()
+            return
         _se.set_fairy_enemy_number(lv, enemy_number)
         self._set_dirty(True)
         self._refresh_fairy_enemy_spin_range()
