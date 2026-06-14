@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (
     QToolBar, QAction, QRadioButton, QButtonGroup, QShortcut
 )
 from PyQt5.QtCore import Qt, QSize, QEvent, QTimer, QUrl, QPoint
-from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor, QPainter, QPen, QImage
+from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor, QPainter, QPen, QImage, QFont
 from PyQt5.QtMultimedia import QSoundEffect
 
 from .. import __version__
@@ -45,7 +45,7 @@ from ..core.config import (
     get_config_path,
     save_config,
 )
-from ..core import saver, ips, wall_color_hack
+from ..core import saver, ips, wall_color_hack, stage_ext
 from ..gfx.tile_renderer import TileRenderer
 from ..gfx.level_renderer import LevelRenderer
 from ..nes.config_loader import SkcConfig
@@ -168,6 +168,8 @@ class _EnemyCountIndicator(QWidget):
         super().__init__(parent)
         self._count = 0
         self._maximum = c.ENEMY_COUNT_MAX
+        self._key_enemy_number = 0
+        self._fairy_enemy_number = 0
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setFixedHeight(28)
@@ -177,7 +179,13 @@ class _EnemyCountIndicator(QWidget):
     def set_count(self, count: int, maximum: int = c.ENEMY_COUNT_MAX):
         self._count = max(0, int(count))
         self._maximum = max(1, int(maximum))
-        self.setToolTip(f"敵配置数 {self._count}/{self._maximum}")
+        self._update_tooltip()
+        self.update()
+
+    def set_special_slots(self, key_enemy_number: int = 0, fairy_enemy_number: int = 0):
+        self._key_enemy_number = self._normalize_slot_number(key_enemy_number)
+        self._fairy_enemy_number = self._normalize_slot_number(fairy_enemy_number)
+        self._update_tooltip()
         self.update()
 
     def _slot_color(self, index: int) -> QColor:
@@ -186,6 +194,23 @@ class _EnemyCountIndicator(QWidget):
         if index >= 9:
             return QColor(self._WARN_COLOR)
         return QColor(self._SAFE_COLOR)
+
+    def _normalize_slot_number(self, value: int) -> int:
+        try:
+            number = int(value)
+        except Exception:
+            return 0
+        if 1 <= number <= self._maximum:
+            return number
+        return 0
+
+    def _update_tooltip(self):
+        parts = [f"敵配置数 {self._count}/{self._maximum}"]
+        if self._key_enemy_number:
+            parts.append(f"鍵持ち敵: #{self._key_enemy_number}")
+        if self._fairy_enemy_number:
+            parts.append(f"落下死で妖精化: #{self._fairy_enemy_number}")
+        self.setToolTip(" / ".join(parts))
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -209,6 +234,39 @@ class _EnemyCountIndicator(QWidget):
             painter.setPen(QPen(border, 1))
             painter.setBrush(fill)
             painter.drawRect(x, y, slot_w, slot_h)
+            marks = []
+            if index == self._key_enemy_number:
+                marks.append(("K", QColor("#facc15")))
+            if index == self._fairy_enemy_number:
+                marks.append(("F", QColor("#7dd3fc")))
+            if marks:
+                mark_w = min(14, max(8, slot_w - 2))
+                mark_h = 9
+                mark_gap = 1
+                total_h = len(marks) * mark_h + (len(marks) - 1) * mark_gap
+                mark_y = y + max(0, (slot_h - total_h) // 2)
+                old_font = painter.font()
+                font = QFont(old_font)
+                font.setPixelSize(8)
+                font.setBold(True)
+                painter.setFont(font)
+                for text, mark_color in marks:
+                    mark_x = x + max(0, (slot_w - mark_w) // 2)
+                    bg = QColor(0, 0, 0, 185)
+                    painter.setPen(QPen(mark_color, 1))
+                    painter.setBrush(bg)
+                    painter.drawRect(mark_x, mark_y, mark_w, mark_h)
+                    painter.setPen(mark_color)
+                    painter.drawText(
+                        mark_x,
+                        mark_y,
+                        mark_w + 1,
+                        mark_h,
+                        Qt.AlignCenter,
+                        text,
+                    )
+                    mark_y += mark_h + mark_gap
+                painter.setFont(old_font)
             x += slot_w + gap
 
         if label_w:
@@ -997,6 +1055,10 @@ class MainWindow(QMainWindow):
         level = self.levels[self.current_level_no]
         count = len(getattr(level, "enemies", []) or [])
         self.enemy_count_indicator.set_count(count, c.ENEMY_COUNT_MAX)
+        self.enemy_count_indicator.set_special_slots(
+            stage_ext.get_key_enemy_number(level),
+            stage_ext.get_fairy_enemy_number(level),
+        )
         self.enemy_count_indicator.show()
         self._position_enemy_count_indicator()
 
