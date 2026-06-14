@@ -1212,6 +1212,13 @@ class MainWindow(QMainWindow):
         self.lbl_stage_compare_mode = QLabel("")
         stage_compare_row.addWidget(self.lbl_stage_compare_mode)
         fl.addLayout(stage_compare_row)
+
+        self.btn_rom_diff = QPushButton("改造ROM差分比較")
+        self.btn_rom_diff.setToolTip(
+            "2つのROM/ZIPを読み込み、ステージデータの差分を面ごとに比較します。"
+        )
+        self.btn_rom_diff.clicked.connect(self._on_show_rom_diff)
+        fl.addWidget(self.btn_rom_diff)
         self._set_stage_compare_controls_visible(False)
         left_layout.addWidget(file_group)
 
@@ -1345,7 +1352,15 @@ class MainWindow(QMainWindow):
         )
         self.btn_sound_viewer.clicked.connect(self._on_show_sound_viewer)
         self.btn_sound_viewer.setEnabled(False)
-        el.addWidget(self.btn_sound_viewer, 4, 0, 1, 2)
+        el.addWidget(self.btn_sound_viewer, 4, 0)
+
+        self.btn_special_process = QPushButton("特殊処理ビューア")
+        self.btn_special_process.setToolTip(
+            "各ステージにハードコードされた特殊処理を表示します（読取専用）。"
+        )
+        self.btn_special_process.clicked.connect(self._on_show_special_process)
+        self.btn_special_process.setEnabled(False)
+        el.addWidget(self.btn_special_process, 4, 1)
 
         self.btn_item_replace = QPushButton("アイテム/モンスター一括置換")
         self.btn_item_replace.setToolTip(
@@ -1355,13 +1370,6 @@ class MainWindow(QMainWindow):
         self.btn_item_replace.clicked.connect(self._on_show_item_replace)
         self.btn_item_replace.setEnabled(False)
         el.addWidget(self.btn_item_replace, 5, 0, 1, 2)
-
-        self.btn_rom_diff = QPushButton("改造ROM差分比較")
-        self.btn_rom_diff.setToolTip(
-            "2つのROM/ZIPを読み込み、ステージデータの差分を面ごとに比較します。"
-        )
-        self.btn_rom_diff.clicked.connect(self._on_show_rom_diff)
-        el.addWidget(self.btn_rom_diff, 6, 0, 1, 2)
 
         left_layout.addWidget(edit_group)
 
@@ -2581,9 +2589,11 @@ class MainWindow(QMainWindow):
             self.btn_sprite_viewer.setEnabled(edit_enabled)
             self.btn_pixel_editor.setEnabled(edit_enabled)
             self.btn_sound_viewer.setEnabled(True)
+            self.btn_special_process.setEnabled(True)
             self.btn_item_replace.setEnabled(edit_enabled)
-            self.btn_test_play.setEnabled(edit_enabled)
-            self.btn_test_play_right.setEnabled(edit_enabled)
+            test_play_enabled = edit_enabled or self._can_readonly_test_play()
+            self.btn_test_play.setEnabled(test_play_enabled)
+            self.btn_test_play_right.setEnabled(test_play_enabled)
             self.meta_group.setEnabled(edit_enabled)
             self.picker.setEnabled(edit_enabled)
             self.chk_edit_col15.setEnabled(edit_enabled)
@@ -2833,7 +2843,8 @@ class MainWindow(QMainWindow):
         """現在の編集状態 + ステージ選択(現在レベル) で一時ROMを生成しエミュ起動"""
         if not self.rom or not self.levels:
             return
-        if self._reject_read_only_edit():
+        if self._is_read_only() and not self._can_readonly_test_play():
+            self._reject_read_only_edit()
             return
         emu_path = self._app_config.get("emulator_path", "")
         if not emu_path or not os.path.exists(emu_path):
@@ -2844,7 +2855,6 @@ class MainWindow(QMainWindow):
             return
         self._play_button_sound()
 
-        from ..core import hack_data
         import tempfile
         import subprocess
 
@@ -2855,51 +2865,19 @@ class MainWindow(QMainWindow):
 
         try:
             try:
-                # レベルを反映
-                saver.save_levels_to_rom(self.rom, self.levels)
+                if not self._is_read_only():
+                    # レベルを反映
+                    saver.save_levels_to_rom(self.rom, self.levels)
                 # ステージ選択: 現在レベルから開始
-                if stage_no == 1:
-                    self.rom.data[0x1145] = 0x00
-                    self.rom.data[0x1149] = 0x8D
-                    self.rom.data[0x114B] = 0x04
-                else:
-                    stage_byte = (stage_no - 1) & 0xff
-                    self.rom.data[0x1145] = stage_byte
-                    self.rom.data[0x1149] = 0xAD
-                    self.rom.data[0x114B] = 0x93
-
-                # F9 testplay-only fast start. These bytes match the accepted
-                # raw-JP test ROM:
-                # TEST_OrigJP_MinTitleSkip_CBB3_SkipStartWaits_9066_9082_9315.
-                def patch_testplay_bytes(cpu_addr, original, patched, label):
-                    off = 0x10 + (cpu_addr - 0x8000)
-                    cur = bytes(self.rom.data[off:off + len(original)])
-                    if cur not in (original, patched):
-                        raise RuntimeError(
-                            f"{label} signature mismatch at ${cpu_addr:04X}: "
-                            f"got {cur.hex(' ')}"
-                        )
-                    self.rom.data[off:off + len(patched)] = patched
-
-                patch_testplay_bytes(
-                    0xCB6E,
-                    bytes.fromhex("A2 01 20"),
-                    bytes.fromhex("4C B3 CB"),
-                    "title skip",
-                )
-                for wait_cpu in (0x9066, 0x9082, 0x9315):
-                    patch_testplay_bytes(
-                        wait_cpu,
-                        bytes.fromhex("20 D5 9B"),
-                        bytes.fromhex("EA EA EA"),
-                        "start-screen wait skip",
-                    )
+                self._patch_testplay_start_stage(stage_no)
+                if not self._is_read_only():
+                    self._patch_testplay_fast_start()
 
                 # 一時ファイルへ書き出し
                 tmpdir = Path(tempfile.gettempdir()) / "magatu_skc_testplay"
                 tmpdir.mkdir(parents=True, exist_ok=True)
                 tmp_rom = tmpdir / f"testplay_stage{stage_no:02d}.nes"
-                saver.write_rom_file(self.rom, str(tmp_rom))
+                saver.write_rom_data(bytes(self.rom.data), str(tmp_rom))
             finally:
                 # rom.data を編集前に戻す（テストプレイ用の改変を残さない）
                 self.rom.data = original_data
@@ -2928,6 +2906,53 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "エミュ起動失敗", f"{type(e).__name__}: {e}")
             self._log(f"テストプレイ失敗: {type(e).__name__}: {e}")
+
+    def _can_readonly_test_play(self) -> bool:
+        return bool(
+            self.rom
+            and self._is_read_only()
+            and self.rom.base_region() == "US"
+            and self.rom.is_expanded()
+            and self.rom.is_skchain_us66()
+        )
+
+    def _patch_testplay_start_stage(self, stage_no: int):
+        if stage_no == 1:
+            self.rom.data[0x1145] = 0x00
+            self.rom.data[0x1149] = 0x8D
+            self.rom.data[0x114B] = 0x04
+        else:
+            stage_byte = (stage_no - 1) & 0xff
+            self.rom.data[0x1145] = stage_byte
+            self.rom.data[0x1149] = 0xAD
+            self.rom.data[0x114B] = 0x93
+
+    def _patch_testplay_fast_start(self):
+        # F9 testplay-only fast start. These bytes match the accepted raw-JP
+        # test ROM: TEST_OrigJP_MinTitleSkip_CBB3_SkipStartWaits_9066_9082_9315.
+        def patch_testplay_bytes(cpu_addr, original, patched, label):
+            off = 0x10 + (cpu_addr - 0x8000)
+            cur = bytes(self.rom.data[off:off + len(original)])
+            if cur not in (original, patched):
+                raise RuntimeError(
+                    f"{label} signature mismatch at ${cpu_addr:04X}: "
+                    f"got {cur.hex(' ')}"
+                )
+            self.rom.data[off:off + len(patched)] = patched
+
+        patch_testplay_bytes(
+            0xCB6E,
+            bytes.fromhex("A2 01 20"),
+            bytes.fromhex("4C B3 CB"),
+            "title skip",
+        )
+        for wait_cpu in (0x9066, 0x9082, 0x9315):
+            patch_testplay_bytes(
+                wait_cpu,
+                bytes.fromhex("20 D5 9B"),
+                bytes.fromhex("EA EA EA"),
+                "start-screen wait skip",
+            )
 
     def _on_save_ips(self):
         if not self.rom:
@@ -6627,10 +6652,13 @@ class MainWindow(QMainWindow):
         return str(path)
 
     def restore_previous_workstate_if_available(self) -> bool:
+        if self._app_config.get("last_session_restore_kind") == "readonly":
+            if self._restore_previous_readonly_rom_if_available():
+                return True
         manifest = self._load_autosave_manifest()
         path = self._latest_autosave_path()
         if not path:
-            return False
+            return self._restore_previous_readonly_rom_if_available()
         try:
             self.load_rom(
                 path,
@@ -6664,11 +6692,51 @@ class MainWindow(QMainWindow):
             self._log(f"前回の作業状態を復元失敗: {type(e).__name__}: {e}")
             return False
 
+    def _restore_previous_readonly_rom_if_available(self) -> bool:
+        path = str(self._app_config.get("last_readonly_rom_path", "") or "")
+        if not path:
+            return False
+        try:
+            if not Path(path).exists():
+                return False
+            self.load_rom(
+                path,
+                add_history=False,
+                status_message="前回の閲覧専用ROMを復元しました",
+            )
+            if not self._is_read_only():
+                return False
+            try:
+                level_no = int(self._app_config.get("last_readonly_rom_level_no", 0))
+            except Exception:
+                level_no = 0
+            if self.levels and 0 <= level_no < len(self.levels):
+                self.spin_level.setValue(level_no + 1)
+            self._remember_previous_workstate_history(path)
+            self.statusBar().showMessage(
+                f"前回の閲覧専用ROMを復元しました: Stage {self.current_level_no + 1}",
+                5000,
+            )
+            self._log(
+                f"前回の閲覧専用ROMを復元: {path} / Stage {self.current_level_no + 1}"
+            )
+            return True
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "前回の閲覧専用ROMを復元できません",
+                f"{type(e).__name__}: {e}",
+            )
+            self._log(f"前回の閲覧専用ROMを復元失敗: {type(e).__name__}: {e}")
+            return False
+
     def closeEvent(self, event):
         """ウィンドウを閉じる時、現在の作業状態を自動保存する"""
         if self.rom and not self._is_read_only():
             try:
                 path = self._autosave_workstate()
+                self._app_config["last_session_restore_kind"] = "autosave"
+                save_config(self._app_config)
                 QMessageBox.information(
                     self,
                     "作業状態の自動保存",
@@ -6697,11 +6765,27 @@ class MainWindow(QMainWindow):
                 if ans != QMessageBox.Yes:
                     event.ignore()
                     return
+        elif self.rom and self._is_read_only():
+            self._remember_readonly_rom_state()
         # ウィンドウ状態を保存してから閉じる
         self._save_window_state()
         self._log("セッション終了")
         self._save_session_log()
         event.accept()
+
+    def _remember_readonly_rom_state(self):
+        if not self.last_loaded_path:
+            return
+        try:
+            self._app_config["last_session_restore_kind"] = "readonly"
+            self._app_config["last_readonly_rom_path"] = str(self.last_loaded_path)
+            self._app_config["last_readonly_rom_level_no"] = int(self.current_level_no)
+            save_config(self._app_config)
+            self._log(
+                f"閲覧専用ROM状態を記録: {self.last_loaded_path} / Stage {self.current_level_no + 1}"
+            )
+        except Exception:
+            pass
 
     def _save_session_log(self):
         """メモリに溜めた操作ログをファイルへ書き出す。
