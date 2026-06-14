@@ -244,7 +244,8 @@ DARK_CAVE = bytes.fromhex(
     "ad7907cdd0bc900bad010329f760a9008d7907ad010360"
 )
 assert len(DARK_CAVE) == 53
-DARK_CAVE_RESERVED_SIZE = OFF_TEMPO - OFF_DARK_CAVE
+# 0x3CC8-0x3CDF is reserved by key_enemy_runtime's fall-death handler.
+DARK_CAVE_RESERVED_SIZE = 0x38
 DARK_CAVE_BLOB = DARK_CAVE + bytes([0xEA] * (DARK_CAVE_RESERVED_SIZE - len(DARK_CAVE)))
 assert len(DARK_CAVE_BLOB) == DARK_CAVE_RESERVED_SIZE
 
