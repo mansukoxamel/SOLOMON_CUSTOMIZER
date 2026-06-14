@@ -57,6 +57,7 @@ from .element_picker import (
     BLOCK_BREAKABLE_WHITE, BLOCK_INVISIBLE_BREAKABLE,
     BLOCK_PASSABLE_WHITE, BLOCK_INVISIBLE_SOLID,
     BLOCK_PASSABLE_BROWN, BLOCK_SOLID_BROWN,
+    BLOCK_PICKER_LABELS, DEFAULT_BLOCK_PICKER_ORDER,
     ENEMY_SPEED_TABLE, apply_enemy_speed, base_code_from_actual,
     ENEMIES_LIST, ITEMS_LIST, item_name,
 )
@@ -347,6 +348,7 @@ class MainWindow(QMainWindow):
         self._move_pending = None
         # ROM読み込み履歴
         self.last_loaded_path: str = ""
+        self._loaded_source_path: str = ""
         self._history: list = self._load_history()
         # Undo/Redo: 編集前スナップショットのスタック、上限は設定で変更可能
         self._undo_stack: list = []
@@ -1423,9 +1425,9 @@ class MainWindow(QMainWindow):
         self.btn_special_process.setEnabled(False)
         el.addWidget(self.btn_special_process, 4, 1)
 
-        self.btn_item_replace = QPushButton("アイテム/モンスター一括置換")
+        self.btn_item_replace = QPushButton("オブジェクト一括置換")
         self.btn_item_replace.setToolTip(
-            "指定したアイテムまたはモンスターを同じ種別内で一括置換。"
+            "指定したブロック、アイテム、モンスターを同じ種別内で一括置換。"
             "選択範囲、現在ステージ、全ステージを対象にできます。"
         )
         self.btn_item_replace.clicked.connect(self._on_show_item_replace)
@@ -2416,9 +2418,18 @@ class MainWindow(QMainWindow):
             return
         self.load_rom(path)
 
-    def load_rom(self, path: str, add_history: bool = True, status_message: str = ""):
+    def load_rom(
+        self,
+        path: str,
+        add_history: bool = True,
+        status_message: str = "",
+        source_path_override: str = "",
+        display_name_override: str = "",
+    ):
         try:
             rom = Rom.load(path)
+            if display_name_override:
+                rom.display_name = str(display_name_override)
             loaded_rom_data = bytes(rom.data)
             editor_input = rom.is_supported_editor_input()
             read_only_reason = "" if editor_input else rom.readonly_input_reason()
@@ -2665,6 +2676,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(final_status)
             # 読込成功 → 再読込ボタンを有効化、履歴に追加、Undo履歴クリア、未保存マーククリア
             self.last_loaded_path = path
+            self._loaded_source_path = source_path_override or path
             self.btn_reload.setEnabled(True)
             if add_history:
                 self._add_to_history(path)
@@ -6663,7 +6675,7 @@ class MainWindow(QMainWindow):
             "latest": str(autosave_path),
             "latest_undo": str(undo_path),
             "saved_at": saved_at,
-            "source_path": self.last_loaded_path,
+            "source_path": self._loaded_source_path or self.last_loaded_path,
             "display_name": self.rom.display_name if self.rom else "",
             "last_level_no": int(last_level_no),
             "app_version": __version__,
@@ -6717,10 +6729,16 @@ class MainWindow(QMainWindow):
         if not path:
             return self._restore_previous_readonly_rom_if_available()
         try:
+            source_path = str(manifest.get("source_path", "") or "")
+            display_name = str(manifest.get("display_name", "") or "")
+            if not display_name and source_path:
+                display_name = Path(source_path).name
             self.load_rom(
                 path,
                 add_history=False,
                 status_message="前回の作業状態を復元しました",
+                source_path_override=source_path,
+                display_name_override=display_name,
             )
             if str(Path(self.last_loaded_path)) != str(Path(path)):
                 return False
@@ -7752,6 +7770,126 @@ class MainWindow(QMainWindow):
         x, y = pos
         return x1 <= x <= x2 and y1 <= y <= y2
 
+    def _block_replace_kind_at(self, lv, tile):
+        x, y = tile
+        wall = lv.tiles[y][x]
+        if wall == Wall.BROWN and tile in getattr(lv, "passable_brown_cells", set()):
+            return BLOCK_PASSABLE_BROWN
+        if wall == Wall.BROWN and tile in getattr(lv, "solid_brown_cells", set()):
+            return BLOCK_SOLID_BROWN
+        if wall == Wall.BROWN:
+            return BLOCK_BROWN
+        if wall == Wall.WHITE and tile in getattr(lv, "breakable_white_cells", set()):
+            return BLOCK_BREAKABLE_WHITE
+        if wall == Wall.WHITE and tile in getattr(lv, "passable_white_cells", set()):
+            return BLOCK_PASSABLE_WHITE
+        if wall == Wall.WHITE:
+            return BLOCK_WHITE
+        if wall == Wall.NONE and tile in getattr(lv, "invisible_breakable_cells", set()):
+            return BLOCK_INVISIBLE_BREAKABLE
+        if wall == Wall.NONE and tile in getattr(lv, "invisible_solid_cells", set()):
+            return BLOCK_INVISIBLE_SOLID
+        if wall == Wall.NONE:
+            return BLOCK_NONE
+        return None
+
+    def _set_block_replace_kind(self, lv, tile, block_kind: str):
+        if block_kind == BLOCK_NONE:
+            lv.set_block(Wall.NONE, tile)
+            lv.invisible_breakable_cells.discard(tile)
+            lv.invisible_solid_cells.discard(tile)
+            lv.passable_brown_cells.discard(tile)
+            lv.solid_brown_cells.discard(tile)
+        elif block_kind == BLOCK_BROWN:
+            lv.set_block(Wall.BROWN, tile)
+            lv.passable_brown_cells.discard(tile)
+            lv.solid_brown_cells.discard(tile)
+        elif block_kind == BLOCK_WHITE:
+            lv.set_block(Wall.WHITE, tile)
+            lv.breakable_white_cells.discard(tile)
+            lv.passable_white_cells.discard(tile)
+            lv.passable_brown_cells.discard(tile)
+            lv.solid_brown_cells.discard(tile)
+        elif block_kind == BLOCK_BREAKABLE_WHITE:
+            lv.set_block(Wall.WHITE, tile)
+            lv.invisible_breakable_cells.discard(tile)
+            lv.passable_white_cells.discard(tile)
+            lv.passable_brown_cells.discard(tile)
+            lv.solid_brown_cells.discard(tile)
+            lv.breakable_white_cells.add(tile)
+        elif block_kind == BLOCK_INVISIBLE_BREAKABLE:
+            lv.set_block(Wall.NONE, tile)
+            lv.breakable_white_cells.discard(tile)
+            lv.invisible_solid_cells.discard(tile)
+            lv.passable_white_cells.discard(tile)
+            lv.passable_brown_cells.discard(tile)
+            lv.solid_brown_cells.discard(tile)
+            lv.invisible_breakable_cells.add(tile)
+        elif block_kind == BLOCK_PASSABLE_WHITE:
+            lv.set_block(Wall.WHITE, tile)
+            lv.breakable_white_cells.discard(tile)
+            lv.invisible_breakable_cells.discard(tile)
+            lv.invisible_solid_cells.discard(tile)
+            lv.passable_brown_cells.discard(tile)
+            lv.solid_brown_cells.discard(tile)
+            lv.passable_white_cells.add(tile)
+        elif block_kind == BLOCK_INVISIBLE_SOLID:
+            lv.set_block(Wall.NONE, tile)
+            lv.breakable_white_cells.discard(tile)
+            lv.invisible_breakable_cells.discard(tile)
+            lv.passable_white_cells.discard(tile)
+            lv.passable_brown_cells.discard(tile)
+            lv.solid_brown_cells.discard(tile)
+            lv.invisible_solid_cells.add(tile)
+        elif block_kind == BLOCK_PASSABLE_BROWN:
+            lv.set_block(Wall.BROWN, tile)
+            lv.breakable_white_cells.discard(tile)
+            lv.passable_white_cells.discard(tile)
+            lv.invisible_breakable_cells.discard(tile)
+            lv.invisible_solid_cells.discard(tile)
+            lv.solid_brown_cells.discard(tile)
+            lv.passable_brown_cells.add(tile)
+        elif block_kind == BLOCK_SOLID_BROWN:
+            lv.set_block(Wall.BROWN, tile)
+            lv.breakable_white_cells.discard(tile)
+            lv.passable_white_cells.discard(tile)
+            lv.invisible_breakable_cells.discard(tile)
+            lv.invisible_solid_cells.discard(tile)
+            lv.passable_brown_cells.discard(tile)
+            lv.solid_brown_cells.add(tile)
+
+    def _block_replace_matches(self, lv, tile, opts):
+        if not self._item_replace_tile_in_scope(tile, opts["scope"]):
+            return False
+        return self._block_replace_kind_at(lv, tile) == opts["from_block"]
+
+    def _count_block_replacements(self, opts):
+        total = 0
+        changed_levels = []
+        for level_no in self._item_replace_level_nos(opts["scope"]):
+            lv = self.levels[level_no]
+            count = 0
+            for y in range(c.LEVEL_H):
+                for x in range(c.LEVEL_W):
+                    if self._block_replace_matches(lv, (x, y), opts):
+                        count += 1
+            if count:
+                total += count
+                changed_levels.append(level_no)
+        return total, changed_levels
+
+    def _apply_block_replacements(self, opts, changed_levels):
+        self._push_undo_levels(changed_levels, focus_level_no=self.current_level_no)
+        to_block = str(opts["to_block"])
+        for level_no in changed_levels:
+            lv = self.levels[level_no]
+            for y in range(c.LEVEL_H):
+                for x in range(c.LEVEL_W):
+                    tile = (x, y)
+                    if self._block_replace_matches(lv, tile, opts):
+                        self._set_block_replace_kind(lv, tile, to_block)
+        self._refresh_changed_stages(changed_levels)
+
     def _item_replace_matches(self, lv, item, opts):
         if not self._item_replace_tile_in_scope(item.position, opts["scope"]):
             return False
@@ -7833,6 +7971,8 @@ class MainWindow(QMainWindow):
 
         def current_picker_replace_spec(show_warning=True, fallback=False):
             mode, value = self.picker.get_current()
+            if mode == MODE_BLOCK and value in DEFAULT_BLOCK_PICKER_ORDER:
+                return MODE_BLOCK, str(value), c.ITEM_FLAG_NORMAL
             if mode == MODE_ITEM:
                 return MODE_ITEM, int(value), int(self.picker.get_item_flag())
             if mode == MODE_ENEMY:
@@ -7843,11 +7983,13 @@ class MainWindow(QMainWindow):
                 return MODE_ENEMY, int(enemy_no), c.ITEM_FLAG_NORMAL
             if fallback and ITEMS_LIST:
                 return MODE_ITEM, int(ITEMS_LIST[0]), c.ITEM_FLAG_NORMAL
+            if fallback and DEFAULT_BLOCK_PICKER_ORDER:
+                return MODE_BLOCK, str(DEFAULT_BLOCK_PICKER_ORDER[0]), c.ITEM_FLAG_NORMAL
             if fallback and ENEMIES_LIST:
                 return MODE_ENEMY, int(ENEMIES_LIST[0][0]), c.ITEM_FLAG_NORMAL
             if show_warning:
                 self.statusBar().showMessage(
-                    "ピッカーでアイテムまたはモンスターを選択してから指定してください", 2500
+                    "ピッカーでブロック、アイテム、モンスターを選択してから指定してください", 2500
                 )
             return None
 
@@ -7855,6 +7997,9 @@ class MainWindow(QMainWindow):
             if self.config is not None:
                 return self.config.enemy_desc.get(int(code), f"0x{int(code):02X}")
             return f"0x{int(code):02X}"
+
+        def block_name(kind):
+            return BLOCK_PICKER_LABELS.get(str(kind), str(kind))
 
         dlg = getattr(self, "_item_replace_dialog", None)
         is_new_dialog = dlg is None or not dlg.isVisible()
@@ -7864,6 +8009,8 @@ class MainWindow(QMainWindow):
                 item_icon_provider=lambda code: self.picker._make_item_icon(code),
                 enemy_name_resolver=enemy_name,
                 enemy_icon_provider=lambda code: self.picker._make_enemy_icon(code),
+                block_name_resolver=block_name,
+                block_icon_provider=lambda kind: self.picker._make_block_icon(kind),
                 selection_available=self._get_selection_bounds() is not None,
                 parent=self,
                 app_config=self._app_config,
@@ -7883,6 +8030,35 @@ class MainWindow(QMainWindow):
 
     def _perform_item_replace_from_dialog(self, opts):
         if not self.levels:
+            return
+        if opts.get("mode") == MODE_BLOCK:
+            count, changed_levels = self._count_block_replacements(opts)
+            if count <= 0:
+                QMessageBox.information(self, "ブロック一括置換", "置換対象はありませんでした。")
+                return
+            scope_label = {
+                "selection": "選択範囲",
+                "current": "現在ステージ",
+                "all": "全ステージ",
+            }.get(opts["scope"], "対象範囲")
+            reply = QMessageBox.question(
+                self,
+                "ブロック一括置換",
+                f"{scope_label}で {count} 件のブロックを置換します。\n\n"
+                "実行後も Undo で戻せます。続行しますか？",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if reply != QMessageBox.Yes:
+                return
+            self._apply_block_replacements(opts, changed_levels)
+            self.statusBar().showMessage(
+                f"ブロック一括置換: {count} 件 / {len(changed_levels)} ステージ", 4000
+            )
+            self._log(
+                f"ブロック一括置換: {count}件 / scope={opts['scope']} / "
+                f"from={opts['from_block']} to={opts['to_block']}"
+            )
             return
         if opts.get("mode") == MODE_ENEMY:
             count, changed_levels = self._count_enemy_replacements(opts)
@@ -8824,7 +9000,7 @@ Alt+左クリック: スポイト（そのマスの要素をピッカーに取�
 {sc("clear_selection")}: 選択解除<br>
 {sc("paste_selection")}: ペースト（選択範囲またはホバー位置を起点）<br>
 {sc("cut_selection")}: 切り取り<br>
-{sc("item_replace")}: アイテム/モンスター一括置換<br>
+{sc("item_replace")}: オブジェクト一括置換<br>
 {sc("delete_hover_or_selection")} / {sc("delete_hover_or_selection_alt")}: 範囲内を削除<br>
 {sc("flip_horizontal")}: 左右反転<br>
 {sc("flip_vertical")}: 上下反転<br>

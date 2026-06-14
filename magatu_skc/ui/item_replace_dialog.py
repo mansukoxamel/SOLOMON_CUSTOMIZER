@@ -12,7 +12,12 @@ from PyQt5.QtWidgets import (
 )
 
 from ..core import constants as c
-from .element_picker import MODE_ENEMY, MODE_ITEM, PICKER_MIME
+from .element_picker import (
+    MODE_BLOCK,
+    MODE_ENEMY,
+    MODE_ITEM,
+    PICKER_MIME,
+)
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
@@ -36,6 +41,8 @@ class _ItemSpecDrop(QWidget):
         item_icon_provider,
         enemy_name_resolver,
         enemy_icon_provider,
+        block_name_resolver,
+        block_icon_provider,
         parent=None,
     ):
         super().__init__(parent)
@@ -43,6 +50,8 @@ class _ItemSpecDrop(QWidget):
         self._item_icon_provider = item_icon_provider
         self._enemy_name = enemy_name_resolver
         self._enemy_icon_provider = enemy_icon_provider
+        self._block_name = block_name_resolver
+        self._block_icon_provider = block_icon_provider
         self._mode = None
         self._value = None
         self._state = c.ITEM_FLAG_NORMAL
@@ -77,10 +86,13 @@ class _ItemSpecDrop(QWidget):
         layout.addWidget(hint)
 
     def set_spec(self, mode, value, state=c.ITEM_FLAG_NORMAL):
-        if mode not in (MODE_ITEM, MODE_ENEMY):
+        if mode not in (MODE_BLOCK, MODE_ITEM, MODE_ENEMY):
             return
         self._mode = mode
-        self._value = int(value) & (0x3F if mode == MODE_ITEM else 0xFF)
+        if mode == MODE_BLOCK:
+            self._value = str(value)
+        else:
+            self._value = int(value) & (0x3F if mode == MODE_ITEM else 0xFF)
         self._state = int(state)
         self._refresh_label()
         self.changed.emit()
@@ -110,10 +122,14 @@ class _ItemSpecDrop(QWidget):
             name = self._item_name(self._value)
             text = f"{name} (0x{self._value:02X})"
             icon = self._item_icon_provider(self._value)
-        else:
+        elif self._mode == MODE_ENEMY:
             name = self._enemy_name(self._value)
             text = f"{name} (0x{self._value:02X})"
             icon = self._enemy_icon_provider(self._value)
+        else:
+            name = self._block_name(self._value)
+            text = name
+            icon = self._block_icon_provider(self._value)
         if self._mode == MODE_ITEM and self._show_state:
             state = STATE_LABELS.get(self._state, f"0x{self._state:X}")
             text = f"{text} / {state}"
@@ -149,10 +165,10 @@ class _ItemSpecDrop(QWidget):
         try:
             payload = bytes(mime.data(PICKER_MIME)).decode("utf-8")
             parts = payload.split("|")
-            if len(parts) < 2 or parts[0] not in (MODE_ITEM, MODE_ENEMY):
+            if len(parts) < 2 or parts[0] not in (MODE_BLOCK, MODE_ITEM, MODE_ENEMY):
                 return None
             mode = parts[0]
-            value = int(parts[1])
+            value = parts[1] if mode == MODE_BLOCK else int(parts[1])
             state = int(parts[2]) if len(parts) >= 3 else c.ITEM_FLAG_NORMAL
         except Exception:
             return None
@@ -170,6 +186,8 @@ class ItemReplaceDialog(QDialog):
         item_icon_provider,
         enemy_name_resolver,
         enemy_icon_provider,
+        block_name_resolver,
+        block_icon_provider,
         selection_available=False,
         parent=None,
         app_config=None,
@@ -177,14 +195,14 @@ class ItemReplaceDialog(QDialog):
         super().__init__(parent)
         self._mode = MODE_ITEM
         self._app_config = app_config
-        self.setWindowTitle("アイテム/モンスター一括置換")
+        self.setWindowTitle("オブジェクト一括置換")
         self.setMinimumWidth(520)
 
         layout = QVBoxLayout(self)
         note = QLabel(
             "検索元と置換先は、開いた時点のピッカー状態で初期化されます。"
             "変更する場合はピッカーからドラッグしてください。"
-            "アイテムとモンスターは同じ種別内でのみ置換できます。"
+            "ブロック、アイテム、モンスターは同じ種別内でのみ置換できます。"
         )
         note.setWordWrap(True)
         layout.addWidget(note)
@@ -195,6 +213,8 @@ class ItemReplaceDialog(QDialog):
             item_icon_provider,
             enemy_name_resolver,
             enemy_icon_provider,
+            block_name_resolver,
+            block_icon_provider,
             self,
         )
         self.to_spec = _ItemSpecDrop(
@@ -203,6 +223,8 @@ class ItemReplaceDialog(QDialog):
             item_icon_provider,
             enemy_name_resolver,
             enemy_icon_provider,
+            block_name_resolver,
+            block_icon_provider,
             self,
         )
         layout.addWidget(self.from_spec)
@@ -275,6 +297,13 @@ class ItemReplaceDialog(QDialog):
         to_mode, to_value, to_state = to_spec
         if from_mode != to_mode:
             return None
+        if from_mode == MODE_BLOCK:
+            return {
+                "mode": MODE_BLOCK,
+                "from_block": str(from_value),
+                "to_block": str(to_value),
+                "scope": self.cmb_scope.currentData(),
+            }
         if from_mode == MODE_ENEMY:
             return {
                 "mode": MODE_ENEMY,
