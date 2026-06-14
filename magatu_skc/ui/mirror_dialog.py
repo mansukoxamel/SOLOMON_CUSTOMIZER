@@ -17,6 +17,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 
 from ..core import m66
+from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
 SCHEDULE_BITS = 64
@@ -67,11 +68,12 @@ def _read_mirror_enemy_codes(rom_data, level_no: int, mirror_no: int) -> list:
 class MirrorDialog(QDialog):
     """現在ステージの 2ミラー(spawn0=demon_mirrors[0], spawn1=demon_mirrors[1]) を編集"""
 
-    def __init__(self, rom, level, level_no, parent=None):
+    def __init__(self, rom, level, level_no, parent=None, app_config=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
         self.setWindowTitle(f"ミラー詳細設定 - Stage {level_no + 1}")
+        self._app_config = app_config
         self.rom = rom
         self.level = level
         self.level_no = level_no
@@ -85,6 +87,7 @@ class MirrorDialog(QDialog):
             self._sched_bits[m] = self._read_schedule(m)
 
         self._build_ui()
+        restore_dialog_geometry(self, self._app_config, "mirror_dlg")
 
     # ===== ROM 読み書きヘルパ =====
 
@@ -286,9 +289,14 @@ class MirrorDialog(QDialog):
         if not levels:
             return
         dlg = MirrorScheduleOverviewDialog(
-            self.rom, levels, config=config, parent=self
+            self.rom, levels, config=config, parent=self,
+            app_config=self._app_config
         )
         dlg.exec_()
+
+    def done(self, r):
+        save_dialog_geometry(self, self._app_config, "mirror_dlg")
+        super().done(r)
 
 
 class MirrorScheduleOverviewDialog(QDialog):
@@ -309,12 +317,13 @@ class MirrorScheduleOverviewDialog(QDialog):
         ("M2 Phase2", 245),
     )
 
-    def __init__(self, rom, levels, config=None, parent=None):
+    def __init__(self, rom, levels, config=None, parent=None, app_config=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
         self.setWindowTitle("ミラー出現パターン一覧")
         self.resize(1280, 720)
+        self._app_config = app_config
         self.rom = rom
         self.levels = levels
         self.config = config
@@ -346,6 +355,7 @@ class MirrorScheduleOverviewDialog(QDialog):
         btn_close.clicked.connect(self.accept)
         btn_row.addWidget(btn_close)
         layout.addLayout(btn_row)
+        restore_dialog_geometry(self, self._app_config, "mirror_overview_dlg")
 
     def _enemy_name(self, code: int) -> str:
         if self.config is not None:
@@ -388,3 +398,7 @@ class MirrorScheduleOverviewDialog(QDialog):
                 p2_item = self._set_item(row, base_col + 4, p2)
                 p1_item.setToolTip("Phase 1 tick 0-31")
                 p2_item.setToolTip("Phase 2 tick 32-63")
+
+    def done(self, r):
+        save_dialog_geometry(self, self._app_config, "mirror_overview_dlg")
+        super().done(r)

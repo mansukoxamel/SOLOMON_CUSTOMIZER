@@ -13,6 +13,7 @@ from PyQt5.QtCore import Qt
 
 from ..core import constants as c
 from ..core.element import position_from_byte, byte_from_position
+from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
 BONUS_POS_COUNT = 32
@@ -21,11 +22,12 @@ BONUS_ITEM_COUNT = 16
 
 class BonusStageDialog(QDialog):
 
-    def __init__(self, rom, parent=None):
+    def __init__(self, rom, parent=None, app_config=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
         self.setWindowTitle("ボーナスステージ (Stage 51) 出現位置編集")
+        self._app_config = app_config
         self.rom = rom
 
         region = rom.base_region()
@@ -35,6 +37,7 @@ class BonusStageDialog(QDialog):
         self._pos_bytes = list(rom.data[self._pos_addr:self._pos_addr + BONUS_POS_COUNT])
 
         self._build_ui()
+        restore_dialog_geometry(self, self._app_config, "bonus_stage_dlg")
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -100,3 +103,7 @@ class BonusStageDialog(QDialog):
     def _apply_and_close(self):
         self._apply()
         self.accept()
+
+    def done(self, r):
+        save_dialog_geometry(self, self._app_config, "bonus_stage_dlg")
+        super().done(r)

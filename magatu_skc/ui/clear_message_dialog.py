@@ -12,15 +12,17 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import QRegExp
 from PyQt5.QtGui import QRegExpValidator
 from ..core import clear_message as CM
+from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
 class ClearMessageDialog(QDialog):
-    def __init__(self, rom_data: bytearray, parent=None):
+    def __init__(self, rom_data: bytearray, parent=None, app_config=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
         self.setWindowTitle("クリア画面メッセージ編集 (同字数・JP)")
         self._rom = rom_data
+        self._app_config = app_config
         self.resize(560, 320)
 
         rows = CM.read_messages(rom_data)   # [(name, cur, count, orig)] ×3
@@ -76,6 +78,7 @@ class ClearMessageDialog(QDialog):
         bb.rejected.connect(self.reject)
         bb.button(QDialogButtonBox.Apply).clicked.connect(self._apply)
         root.addWidget(bb)
+        restore_dialog_geometry(self, self._app_config, "clear_message_dlg")
 
     def _on_text(self, le, count, cnt_lbl):
         """大文字化 + 入力字数をリアルタイム表示 (現在 / 最大)。"""
@@ -109,3 +112,7 @@ class ClearMessageDialog(QDialog):
     def _apply_and_close(self):
         if self._apply():
             self.accept()
+
+    def done(self, r):
+        save_dialog_geometry(self, self._app_config, "clear_message_dlg")
+        super().done(r)

@@ -11,15 +11,17 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from ..core import demo_input as DI
+from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
 class DemoInputDialog(QDialog):
-    def __init__(self, rom_data: bytearray, parent=None):
+    def __init__(self, rom_data: bytearray, parent=None, app_config=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
         self.setWindowTitle("デモ操作編集 (34ステップ固定)")
         self._rom = rom_data
+        self._app_config = app_config
         self.resize(560, 720)
 
         steps = DI.read_steps(rom_data)   # [(joy, frames)] ×34
@@ -78,6 +80,7 @@ class DemoInputDialog(QDialog):
         bb.rejected.connect(self.reject)
         bb.button(QDialogButtonBox.Apply).clicked.connect(self._apply)
         root.addWidget(bb)
+        restore_dialog_geometry(self, self._app_config, "demo_input_dlg")
 
     def _collect(self) -> list:
         out = []
@@ -108,3 +111,7 @@ class DemoInputDialog(QDialog):
     def _apply_and_close(self):
         if self._apply():
             self.accept()
+
+    def done(self, r):
+        save_dialog_geometry(self, self._app_config, "demo_input_dlg")
+        super().done(r)

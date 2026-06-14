@@ -18,6 +18,7 @@ from ..core import enemy_drop as ED
 from .element_picker import (
     ENEMIES_LIST, ENHANCED_ENEMY_CODES, PANEL_VARIANT_VISUAL_SOURCE,
 )
+from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
 ENEMY_THUMB = 28
@@ -26,7 +27,7 @@ ENEMY_GAP = 4
 
 class EnemyDropDialog(QDialog):
     def __init__(self, rom_data: bytearray, parent=None,
-                 tile_renderer=None, config=None):
+                 tile_renderer=None, config=None, app_config=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
@@ -34,6 +35,7 @@ class EnemyDropDialog(QDialog):
         self._rom = rom_data
         self.tile_renderer = tile_renderer
         self.config = config
+        self._app_config = app_config
         self._enemy_cache = {}
 
         # 作業バッファ (OK/Apply で rom_data へ反映)
@@ -105,6 +107,7 @@ class EnemyDropDialog(QDialog):
         bb.button(QDialogButtonBox.Apply).clicked.connect(self._apply)
         root.addWidget(bb)
         self.resize(840, 680)
+        restore_dialog_geometry(self, self._app_config, "enemy_drop_dlg")
 
     @staticmethod
     def _drop_row_for_enemy_code(code: int):
@@ -224,3 +227,7 @@ class EnemyDropDialog(QDialog):
     def _apply_and_close(self):
         if self._apply():
             self.accept()
+
+    def done(self, r):
+        save_dialog_geometry(self, self._app_config, "enemy_drop_dlg")
+        super().done(r)

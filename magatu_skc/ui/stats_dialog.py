@@ -198,12 +198,16 @@ class StatsDialog(QDialog):
         ("重要アイテム", 380),  # スプライト
         ("全アイテム", 520),    # ピッカー順の全アイテム集計 スプライト
         ("理論得点", 100),      # 配置アイテムを全取得した場合の取得時得点
+        ("ブロック", 360),
     ]
     # ヘッダ名 → 列インデックス (ハードコード排除)
     _HDR = [h for h, _ in COLUMNS]
     LV_COL = 0
+    NORMAL_COL = _HDR.index("通常")
     HIDDEN_COL = _HDR.index("隠し")
     INBLK_COL = _HDR.index("in_blk")
+    ENEMY_COUNT_COL = _HDR.index("敵数")
+    BLOCK_COL = _HDR.index("ブロック")
     TS_COL = _HDR.index("タイル")
     TIME_COL = _HDR.index("時間減少")
     LIFE_COL = _HDR.index("敵寿命\n約0.5秒x値")
@@ -239,16 +243,19 @@ class StatsDialog(QDialog):
         self._app_config = app_config   # サイズ/位置 復元用 (None=保存しない)
         self._sprite_cache = {}   # (item base_code, tileset_no) -> QPixmap
         self._enemy_cache = {}    # (enemy code, tileset_no) -> QPixmap
+        self._block_cache = {}    # (block key, tileset_no) -> QPixmap
         self._item_col_w = 0      # 重要アイテム列の最大ピクセル幅
         self._all_item_col_w = 0  # 全アイテム列の最大ピクセル幅
         self._featured_col_w = 0  # 主要列の最大ピクセル幅
         self._placed_col_w = 0    # 配置敵列の最大ピクセル幅
         self._mirror_col_w = 0    # ミラー敵列の最大ピクセル幅
+        self._block_col_w = 0     # ブロック列の最大ピクセル幅
         self._csv_featured_text = {} # row -> 主要内訳 (CSV用)
         self._csv_item_text = {}   # row -> 重要アイテム内訳 (CSV用)
         self._csv_all_item_text = {} # row -> 全アイテム内訳 (CSV用)
         self._csv_placed_text = {} # row -> 配置敵内訳 (CSV用)
         self._csv_mirror_text = {} # row -> ミラー敵内訳 (CSV用)
+        self._csv_block_text = {} # row -> ブロック内訳 (CSV用)
 
         layout = QVBoxLayout(self)
 
@@ -262,7 +269,8 @@ class StatsDialog(QDialog):
             "主要/重要アイテム列に出したものを除き、通常/隠し/ブロック内を"
             "区別せずベースアイテム別に集計。「配置敵」=面に置かれた敵"
             "(実数 ×N)、「ミラー敵」=デーモンミラーから出る敵(種類のみ・"
-            "無スケジュールのミラーは除外)。<br>"
+            "無スケジュールのミラーは除外)。「ブロック」=空気以外の通常/特殊"
+            "ブロック内訳。<br>"
             "「妖精化」=落下死で妖精化する敵が設定されているステージ。<br>"
             "「理論得点」=配置されているアイテムをすべて取得した場合の取得時得点"
             "(到達可否、残りTIME換算、スコア倍率の副作用は除外)。<br>"
@@ -292,6 +300,12 @@ class StatsDialog(QDialog):
                 "全アイテム列は通常/隠し/ブロック内を区別せず、"
                 "主要/重要アイテム列に出したものを除いてベースアイテム別に合算します。\n"
                 "表示順はピッカー順です。右下の数字は同種アイテムの合計数です。"
+            )
+        block_header = self.table.horizontalHeaderItem(self.BLOCK_COL)
+        if block_header is not None:
+            block_header.setToolTip(
+                "空気以外の通常/特殊ブロック内訳です。\n"
+                "茶/白/壊白/透壊/通白/通茶/透固/固茶 などを集計します。"
             )
         score_header = self.table.horizontalHeaderItem(self.SCORE_COL)
         if score_header is not None:
@@ -537,6 +551,93 @@ class StatsDialog(QDialog):
         p.end()
         return QPixmap.fromImage(strip)
 
+    def _block_pixmap(self, key: str, tileset_no: int) -> QPixmap:
+        cache_key = (key, tileset_no)
+        if cache_key in self._block_cache:
+            return self._block_cache[cache_key]
+        if self.tile_renderer is None or self.config is None:
+            return QPixmap()
+        from ..gfx.level_renderer import MD_EMPTY, MD_BLOCK_BROWN, MD_BLOCK_WHITE
+        meta = {
+            "茶": MD_BLOCK_BROWN,
+            "白": MD_BLOCK_WHITE,
+            "茶白": MD_BLOCK_WHITE,
+            "壊白": MD_BLOCK_WHITE,
+            "透壊": MD_EMPTY,
+            "通白": MD_BLOCK_WHITE,
+            "通茶": MD_BLOCK_BROWN,
+            "透固": MD_EMPTY,
+            "固茶": MD_BLOCK_BROWN,
+        }.get(key, MD_EMPTY)
+        colors = {
+            "茶": QColor(120, 80, 40),
+            "白": QColor(150, 150, 150),
+            "茶白": QColor(80, 150, 255),
+            "壊白": QColor(80, 230, 90),
+            "透壊": QColor(255, 220, 40),
+            "通白": QColor(80, 190, 255),
+            "通茶": QColor(80, 190, 255),
+            "透固": QColor(255, 120, 220),
+            "固茶": QColor(255, 120, 220),
+        }
+        try:
+            anim = self.config.metadata_map.get(meta, 0)
+            sprite = self.tile_renderer.get_tile_image(anim, tileset_no, transparent=False)
+            bg = QImage(ITEM_THUMB, ITEM_THUMB, QImage.Format_ARGB32)
+            bg.fill(QColor(20, 20, 20))
+            p = QPainter(bg)
+            scaled = sprite.scaled(ITEM_THUMB, ITEM_THUMB,
+                                   Qt.KeepAspectRatio, Qt.FastTransformation)
+            ox = (ITEM_THUMB - scaled.width()) // 2
+            oy = (ITEM_THUMB - scaled.height()) // 2
+            p.drawImage(ox, oy, scaled)
+            pen = colors.get(key, QColor(90, 90, 90))
+            p.setPen(pen)
+            p.drawRect(1, 1, ITEM_THUMB - 3, ITEM_THUMB - 3)
+            p.end()
+            pm = QPixmap.fromImage(bg)
+        except Exception:
+            pm = QPixmap()
+        self._block_cache[cache_key] = pm
+        return pm
+
+    def _compose_block_strip(self, counts: dict, tileset_no: int,
+                             wrap_width: int = 0, show_text: bool = False) -> QPixmap:
+        order = ["茶", "白", "茶白", "壊白", "透壊", "通白", "通茶", "透固", "固茶"]
+        entries = [(key, counts[key]) for key in order if counts.get(key, 0) > 0]
+        entries.extend((key, counts[key]) for key in sorted(counts) if key not in order and counts.get(key, 0) > 0)
+        if not entries:
+            return None
+        label_w = 34 if show_text else 0
+        cell_w = ITEM_THUMB + 2 + label_w
+        cell_h = ITEM_THUMB + 2
+        max_cells = len(entries)
+        if wrap_width > 0:
+            max_cells = max(1, wrap_width // (cell_w + ITEM_GAP))
+        rows = (len(entries) + max_cells - 1) // max_cells
+        cols = min(max_cells, len(entries))
+        strip_w = cols * cell_w + max(0, cols - 1) * ITEM_GAP
+        strip_h = rows * cell_h + max(0, rows - 1) * ITEM_GAP
+        strip = QImage(strip_w, strip_h, QImage.Format_ARGB32)
+        strip.fill(QColor(0, 0, 0, 0))
+        p = QPainter(strip)
+        p.setRenderHint(QPainter.Antialiasing, False)
+        for idx, (key, count) in enumerate(entries):
+            row = idx // max_cells
+            col = idx % max_cells
+            x = col * (cell_w + ITEM_GAP)
+            y = row * (cell_h + ITEM_GAP)
+            pm = self._block_pixmap(key, tileset_no)
+            p.drawPixmap(x + 1, y + 1, pm)
+            p.setPen(QColor(255, 255, 255))
+            p.fillRect(x + ITEM_THUMB - 11, y + ITEM_THUMB - 10, 13, 11,
+                       QColor(0, 0, 0, 170))
+            p.drawText(x + ITEM_THUMB - 10, y + ITEM_THUMB - 1, str(count))
+            if show_text:
+                p.drawText(x + ITEM_THUMB + 5, y + 18, key)
+        p.end()
+        return QPixmap.fromImage(strip)
+
     # ---- 敵 基底名 / デーモンミラー spawn 読出 ----
 
     def _enemy_base(self, code: int) -> str:
@@ -612,8 +713,68 @@ class StatsDialog(QDialog):
                 out.extend(codes)
         return out
 
+    @staticmethod
+    def _add_count(target: dict, key: str, amount: int = 1):
+        target[key] = target.get(key, 0) + int(amount)
+
+    @staticmethod
+    def _merge_counts(target: dict, source: dict):
+        for key, value in source.items():
+            target[key] = target.get(key, 0) + int(value)
+
+    def _block_counts(self, lv) -> dict:
+        counts = {}
+        breakable_white = set(getattr(lv, "breakable_white_cells", set()) or [])
+        invisible_breakable = set(getattr(lv, "invisible_breakable_cells", set()) or [])
+        passable_white = set(getattr(lv, "passable_white_cells", set()) or [])
+        invisible_solid = set(getattr(lv, "invisible_solid_cells", set()) or [])
+        passable_brown = set(getattr(lv, "passable_brown_cells", set()) or [])
+        solid_brown = set(getattr(lv, "solid_brown_cells", set()) or [])
+        for y, row in enumerate(getattr(lv, "tiles", []) or []):
+            for x, wall in enumerate(row):
+                pos = (x, y)
+                if pos in breakable_white:
+                    key = "壊白"
+                elif pos in invisible_breakable:
+                    key = "透壊"
+                elif pos in passable_white:
+                    key = "通白"
+                elif pos in invisible_solid:
+                    key = "透固"
+                elif pos in passable_brown:
+                    key = "通茶"
+                elif pos in solid_brown:
+                    key = "固茶"
+                elif wall == Wall.BROWN:
+                    key = "茶"
+                elif wall == Wall.WHITE:
+                    key = "白"
+                elif wall == Wall.BROWN_WHITE:
+                    key = "茶白"
+                else:
+                    continue
+                self._add_count(counts, key)
+        return counts
+
+    @staticmethod
+    def _counts_text(counts: dict, order: list = None) -> str:
+        if not counts:
+            return "-"
+        keys = []
+        if order:
+            keys.extend([key for key in order if counts.get(key, 0) > 0])
+        keys.extend(sorted(key for key in counts if key not in keys and counts.get(key, 0) > 0))
+        return " / ".join(f"{key}×{counts[key]}" for key in keys) if keys else "-"
+
     def _populate(self):
         grand_score = 0
+        grand_normal = 0
+        grand_hidden = 0
+        grand_in_block = 0
+        grand_enemy_count = 0
+        grand_all_item_counts = {}
+        grand_placed_enemy_counts = {}
+        grand_block_counts = {}
         for row, lv in enumerate(self.levels):
             tileset_no = int(getattr(lv, "tileset_no", 0) or 0)
             # アイテム集計
@@ -744,6 +905,15 @@ class StatsDialog(QDialog):
                 all_item_strs.append(f"{label}×{total}" if total > 1 else label)
             all_item_text = " / ".join(all_item_strs) if all_item_strs else "-"
             self._csv_all_item_text[row] = all_item_text
+            self._merge_counts(grand_all_item_counts, all_item_counts)
+
+            block_counts = self._block_counts(lv)
+            block_text = self._counts_text(
+                block_counts,
+                ["茶", "白", "茶白", "壊白", "透壊", "通白", "通茶", "透固", "固茶"],
+            )
+            self._csv_block_text[row] = block_text
+            self._merge_counts(grand_block_counts, block_counts)
 
             # 敵集計 (★方向/速度違いは同一モンスターとして合算。
             #  グループキー=enemy_desc の基底名 _enemy_base)
@@ -780,6 +950,8 @@ class StatsDialog(QDialog):
             placed_ordered, placed_text = _group(
                 [(en.element_no, 1) for en in placed_enemies])
             self._csv_placed_text[row] = placed_text
+            for en in placed_enemies:
+                self._add_count(grand_placed_enemy_counts, self._enemy_base(en.element_no))
 
             # ミラー敵 (基底名で重複排除し各 1)
             mbases = {}
@@ -791,6 +963,10 @@ class StatsDialog(QDialog):
                 [(ec, 1) for ec in mbases.values()])
             self._csv_mirror_text[row] = mirror_text
             grand_score += level_score
+            grand_normal += normal_count
+            grand_hidden += hidden_count
+            grand_in_block += in_block_count
+            grand_enemy_count += len(placed_enemies)
 
             # セル設定 (COLUMNS と同じ並び。スプライト列はテキスト空)
             cells = [
@@ -817,6 +993,7 @@ class StatsDialog(QDialog):
                 "",                               # 重要アイテム(sprite)
                 "",                               # 全アイテム(sprite)
                 self._score_text(level_score),    # 理論得点
+                block_text,                       # ブロック
             ]
             sort_values = [
                 row + 1,                          # Lv
@@ -842,8 +1019,10 @@ class StatsDialog(QDialog):
                 "",                              # 重要アイテム: ソート対象外
                 sum(all_item_counts.values()),   # 全アイテム
                 level_score,                     # 理論得点
+                sum(block_counts.values()),       # ブロック
             ]
             csv_values = {
+                self.BLOCK_COL: block_text,
                 self.PLACED_COL: placed_text,
                 self.MIRROR_COL: mirror_text,
                 self.FEATURED_COL: featured_text,
@@ -927,9 +1106,57 @@ class StatsDialog(QDialog):
                 if mw > self._mirror_col_w:
                     self._mirror_col_w = mw
 
+            bstrip = self._compose_block_strip(block_counts, tileset_no)
+            if bstrip is not None and not bstrip.isNull():
+                blbl = QLabel()
+                blbl.setPixmap(bstrip)
+                blbl.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+                blbl.setContentsMargins(3, 0, 3, 0)
+                blbl.setToolTip(block_text.replace(" / ", "\n"))
+                self.table.setCellWidget(row, self.BLOCK_COL, blbl)
+                bw = bstrip.width() + 8
+                if bw > self._block_col_w:
+                    self._block_col_w = bw
+
             self.table.setRowHeight(row, max(36, ITEM_THUMB + 8))
 
-        self._populate_total_row(len(self.levels), grand_score)
+        grand_all_item_strs = []
+        seen_items = set()
+        for code in ITEMS_LIST:
+            if grand_all_item_counts.get(code, 0) > 0:
+                grand_all_item_strs.append(
+                    f"{self._important_label(('item', code))}×{grand_all_item_counts[code]}"
+                )
+                seen_items.add(code)
+        for code in sorted(k for k in grand_all_item_counts if k not in seen_items):
+            grand_all_item_strs.append(
+                f"{self._important_label(('item', code))}×{grand_all_item_counts[code]}"
+            )
+        grand_all_item_text = " / ".join(grand_all_item_strs) if grand_all_item_strs else "-"
+        grand_placed_text = self._counts_text(grand_placed_enemy_counts)
+        grand_block_text = self._counts_text(
+            grand_block_counts,
+            ["茶", "白", "茶白", "壊白", "透壊", "通白", "通茶", "透固", "固茶"],
+        )
+        self._populate_total_row(
+            len(self.levels),
+            grand_score,
+            {
+                self.NORMAL_COL: grand_normal,
+                self.HIDDEN_COL: grand_hidden,
+                self.INBLK_COL: grand_in_block,
+                self.ENEMY_COUNT_COL: grand_enemy_count,
+                self.BLOCK_COL: grand_block_text,
+                self.PLACED_COL: grand_placed_text,
+                self.ALL_ITEM_COL: grand_all_item_text,
+            },
+        )
+        self._populate_total_widgets(
+            len(self.levels),
+            grand_placed_text,
+            grand_all_item_text,
+            grand_block_counts,
+        )
         self.table.resizeColumnsToContents()
         # スプライト帯の列はそれぞれの最大幅に合わせる
         self.table.setColumnWidth(self.PLACED_COL, max(260, self._placed_col_w))
@@ -937,6 +1164,7 @@ class StatsDialog(QDialog):
         self.table.setColumnWidth(self.FEATURED_COL, max(180, self._featured_col_w))
         self.table.setColumnWidth(self.ITEM_COL, max(380, self._item_col_w))
         self.table.setColumnWidth(self.ALL_ITEM_COL, max(420, self._all_item_col_w))
+        self.table.setColumnWidth(self.BLOCK_COL, max(360, self._block_col_w))
         self.table.setColumnWidth(self.SCORE_COL, max(100, self.table.columnWidth(self.SCORE_COL)))
 
     @staticmethod
@@ -947,7 +1175,8 @@ class StatsDialog(QDialog):
     def _score_text(score: int) -> str:
         return f"{int(score):,}"
 
-    def _populate_total_row(self, row: int, grand_score: int):
+    def _populate_total_row(self, row: int, grand_score: int, totals: dict = None):
+        totals = totals or {}
         for col in range(self.table.columnCount()):
             if col == self.LV_COL:
                 text = "合計"
@@ -955,6 +1184,10 @@ class StatsDialog(QDialog):
             elif col == self.SCORE_COL:
                 text = self._score_text(grand_score)
                 sort_value = grand_score
+            elif col in totals:
+                value = totals[col]
+                text = str(value)
+                sort_value = value if isinstance(value, int) else text
             else:
                 text = ""
                 sort_value = ""
@@ -965,10 +1198,48 @@ class StatsDialog(QDialog):
             item.setData(CSV_ROLE, text)
             item.setBackground(QColor(18, 52, 24))
             item.setForeground(QColor(120, 255, 90))
-            if col in self.NUM_COLS:
+            if col in self.NUM_COLS or col in (
+                self.NORMAL_COL, self.HIDDEN_COL, self.INBLK_COL, self.ENEMY_COUNT_COL
+            ):
                 item.setTextAlignment(Qt.AlignCenter)
             self.table.setItem(row, col, item)
         self.table.setRowHeight(row, 32)
+
+    def _populate_total_widgets(self, row: int, placed_text: str,
+                                all_item_text: str, block_counts: dict):
+        for col, text in (
+            (self.PLACED_COL, placed_text),
+            (self.ALL_ITEM_COL, all_item_text),
+        ):
+            if not text or text == "-":
+                continue
+            lbl = QLabel(text.replace(" / ", "\n"))
+            lbl.setWordWrap(True)
+            lbl.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+            lbl.setContentsMargins(3, 3, 3, 3)
+            lbl.setToolTip(text.replace(" / ", "\n"))
+            self.table.setCellWidget(row, col, lbl)
+
+        bstrip = self._compose_block_strip(
+            block_counts,
+            0,
+            wrap_width=max(360, self._block_col_w),
+            show_text=True,
+        )
+        if bstrip is not None and not bstrip.isNull():
+            lbl = QLabel()
+            lbl.setPixmap(bstrip)
+            lbl.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+            lbl.setContentsMargins(3, 3, 3, 3)
+            lbl.setToolTip(self._counts_text(
+                block_counts,
+                ["茶", "白", "茶白", "壊白", "透壊", "通白", "通茶", "透固", "固茶"],
+            ).replace(" / ", "\n"))
+            self.table.setCellWidget(row, self.BLOCK_COL, lbl)
+            self._block_col_w = max(self._block_col_w, bstrip.width() + 8)
+            self.table.setRowHeight(row, max(72, bstrip.height() + 10))
+        else:
+            self.table.setRowHeight(row, 72)
 
     @staticmethod
     def _add_item_state_count(normal_count, hidden_count, in_block_count, state):

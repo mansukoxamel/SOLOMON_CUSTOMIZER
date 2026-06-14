@@ -10,17 +10,20 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor
 
 from ..core import special_process as sp
+from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
 class SpecialProcessDialog(QDialog):
     """特殊処理ビューア（読込専用）"""
 
-    def __init__(self, rom, initial_level_no: int = 0, parent=None):
+    def __init__(self, rom, initial_level_no: int = 0, parent=None,
+                 app_config=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
         self.setWindowTitle("特殊処理ビューア (Phase 1 - 読込専用)")
         self.resize(1000, 600)
+        self._app_config = app_config
         self.rom = rom
         self.region = rom.base_region()
         self.rom_data = bytes(rom.data)
@@ -31,6 +34,7 @@ class SpecialProcessDialog(QDialog):
         # 初期ステージを選択
         if 0 <= initial_level_no < sp.NUM_LEVELS:
             self.list_levels.setCurrentRow(initial_level_no)
+        restore_dialog_geometry(self, self._app_config, "special_process_dlg")
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -148,3 +152,7 @@ class SpecialProcessDialog(QDialog):
         # 擬似アセンブラ表示
         asm_text = sp.annotate_bytes(data, self.region)
         self.txt_asm.setPlainText(asm_text)
+
+    def done(self, r):
+        save_dialog_geometry(self, self._app_config, "special_process_dlg")
+        super().done(r)

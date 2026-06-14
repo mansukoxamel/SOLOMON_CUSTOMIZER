@@ -1346,7 +1346,7 @@ class ElementPicker(QWidget):
 
     def _make_icon_from_tile(self, tile_no: int, apply_blue_filter: bool = False,
                              overlay_color=None, hatch_color=None,
-                             block_marker=None) -> QIcon:
+                             block_marker=None, meta_marker_color_key=None) -> QIcon:
         """tile_definitions の tile_no から QIcon 生成
 
         skchain互換: 現在レベルのタイルセット番号を使って描画。これにより
@@ -1364,6 +1364,7 @@ class ElementPicker(QWidget):
         from .level_view import (
             make_block_marker_graphics_items,
             marker_color,
+            marker_pen_width,
             marker_shape,
             marker_shape_spec,
         )
@@ -1402,6 +1403,17 @@ class ElementPicker(QWidget):
                 x_end = left + min(delta + scaled.height(), scaled.width())
                 y_end = top + min(scaled.height(), scaled.height() - delta)
                 painter.drawLine(x_start, y_start, x_end, y_end)
+        if meta_marker_color_key is not None:
+            source_size = max(icon_size, int(round(self._marker_source_tile_size)))
+            output_scale = icon_size / float(source_size)
+            pen = QPen(marker_color(self._marker_colors, meta_marker_color_key))
+            pen.setWidth(marker_pen_width(2, self._marker_overlay_scale, output_scale))
+            pen.setJoinStyle(Qt.RoundJoin)
+            pen.setCapStyle(Qt.RoundCap)
+            painter.setPen(pen)
+            painter.setBrush(Qt.NoBrush)
+            inset = max(0, pen.width() // 2)
+            painter.drawRect(inset, inset, icon_size - inset * 2 - 1, icon_size - inset * 2 - 1)
         if block_marker is not None:
             shape_key, color_key, width = block_marker
             shape, inset = marker_shape_spec(marker_shape(self._marker_shapes, shape_key))
@@ -1510,7 +1522,11 @@ class ElementPicker(QWidget):
         if meta_byte is None:
             return QIcon()
         anim = self.config.metadata_map.get(meta_byte, 0)
-        return self._make_icon_from_tile(anim)
+        marker_key = {
+            "mirror1": "mirror1_marker_color",
+            "mirror2": "mirror2_marker_color",
+        }.get(meta_kind)
+        return self._make_icon_from_tile(anim, meta_marker_color_key=marker_key)
 
     # ========== Populate ==========
 

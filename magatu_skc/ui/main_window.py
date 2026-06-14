@@ -45,7 +45,7 @@ from ..core.config import (
     get_config_path,
     save_config,
 )
-from ..core import saver, ips, wall_color_hack
+from ..core import saver, ips, wall_color_hack, stage_ext
 from ..gfx.tile_renderer import TileRenderer
 from ..gfx.level_renderer import LevelRenderer
 from ..nes.config_loader import SkcConfig
@@ -168,17 +168,56 @@ class _EnemyCountIndicator(QWidget):
         super().__init__(parent)
         self._count = 0
         self._maximum = c.ENEMY_COUNT_MAX
+        self._key_enemy_number = 0
+        self._fairy_enemy_number = 0
+        self._slot_size = 18
+        self._key_enemy_marker = QImage()
+        self._fairy_enemy_marker = QImage()
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
-        self.setFixedHeight(28)
-        self.setMinimumWidth(92)
+        self._apply_size_hints()
         self.setToolTip("敵配置数 0/15")
+
+    def sizeHint(self):
+        return QSize(self.minimumWidth(), self.height())
+
+    def set_slot_size(self, size: int):
+        try:
+            value = int(size)
+        except Exception:
+            value = 18
+        self._slot_size = max(10, min(32, value))
+        self._apply_size_hints()
+        self.update()
+
+    def _apply_size_hints(self):
+        gap = self._slot_gap()
+        label_w = 52
+        total_w = 8 + self._maximum * self._slot_size + gap * (self._maximum - 1) + label_w
+        total_h = self._slot_size * 3 + 10
+        self.setFixedHeight(total_h)
+        self.setMinimumWidth(max(120, total_w))
 
     def set_count(self, count: int, maximum: int = c.ENEMY_COUNT_MAX):
         self._count = max(0, int(count))
         self._maximum = max(1, int(maximum))
-        self.setToolTip(f"敵配置数 {self._count}/{self._maximum}")
+        self._apply_size_hints()
+        self._update_tooltip()
         self.update()
+
+    def set_special_slots(self, key_enemy_number: int = 0, fairy_enemy_number: int = 0):
+        self._key_enemy_number = self._normalize_slot_number(key_enemy_number)
+        self._fairy_enemy_number = self._normalize_slot_number(fairy_enemy_number)
+        self._update_tooltip()
+        self.update()
+
+    def set_marker_images(self, key_image=None, fairy_image=None):
+        self._key_enemy_marker = key_image if isinstance(key_image, QImage) else QImage()
+        self._fairy_enemy_marker = fairy_image if isinstance(fairy_image, QImage) else QImage()
+        self.update()
+
+    def _slot_gap(self):
+        return 4 if self._slot_size >= 14 else 2
 
     def _slot_color(self, index: int) -> QColor:
         if index >= 13:
@@ -187,17 +226,40 @@ class _EnemyCountIndicator(QWidget):
             return QColor(self._WARN_COLOR)
         return QColor(self._SAFE_COLOR)
 
+    def _normalize_slot_number(self, value: int) -> int:
+        try:
+            number = int(value)
+        except Exception:
+            return 0
+        if 1 <= number <= self._maximum:
+            return number
+        return 0
+
+    def _update_tooltip(self):
+        parts = [f"敵配置数 {self._count}/{self._maximum}"]
+        if self._key_enemy_number:
+            parts.append(f"鍵持ち敵: #{self._key_enemy_number}")
+        if self._fairy_enemy_number:
+            parts.append(f"落下死で妖精化: #{self._fairy_enemy_number}")
+        self.setToolTip(" / ".join(parts))
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, False)
 
         x = 4
-        y = 5
-        slot_h = 18
-        label_w = 52 if self.width() >= 260 else 0
-        gap = 4 if self.width() >= 260 else 2
+        icon_size = self._slot_size
+        y = icon_size + 5
+        slot_h = self._slot_size
+        label_w = 52 if self.width() >= self.minimumWidth() else 0
+        gap = self._slot_gap()
         slot_area_w = max(self._maximum * 3, self.width() - 8 - label_w)
-        slot_w = max(3, (slot_area_w - gap * (self._maximum - 1)) // self._maximum)
+        slot_w = min(
+            self._slot_size,
+            max(3, (slot_area_w - gap * (self._maximum - 1)) // self._maximum),
+        )
+        key_icon_y = max(0, y - icon_size - 2)
+        fairy_icon_y = y + slot_h + 2
         for index in range(1, self._maximum + 1):
             color = self._slot_color(index)
             is_filled = index <= self._count
@@ -209,12 +271,29 @@ class _EnemyCountIndicator(QWidget):
             painter.setPen(QPen(border, 1))
             painter.setBrush(fill)
             painter.drawRect(x, y, slot_w, slot_h)
+            if index == self._key_enemy_number:
+                self._draw_marker_image(painter, self._key_enemy_marker, x, key_icon_y, slot_w, icon_size)
+            if index == self._fairy_enemy_number:
+                self._draw_marker_image(painter, self._fairy_enemy_marker, x, fairy_icon_y, slot_w, icon_size)
             x += slot_w + gap
 
         if label_w:
             text_color = self._slot_color(min(max(self._count, 1), self._maximum))
             painter.setPen(text_color)
-            painter.drawText(x + 4, 5, label_w, 18, Qt.AlignVCenter | Qt.AlignLeft, f"{self._count}/{self._maximum}")
+            painter.drawText(x + 4, y, label_w, slot_h, Qt.AlignVCenter | Qt.AlignLeft, f"{self._count}/{self._maximum}")
+
+    def _draw_marker_image(self, painter: QPainter, image: QImage, slot_x: int,
+                           icon_y: int, slot_w: int, icon_size: int):
+        if image.isNull():
+            return
+        scaled = image.scaled(
+            icon_size,
+            icon_size,
+            Qt.KeepAspectRatio,
+            Qt.FastTransformation,
+        )
+        icon_x = slot_x + (slot_w - scaled.width()) // 2
+        painter.drawImage(icon_x, icon_y + (icon_size - scaled.height()) // 2, scaled)
 
 
 class MainWindow(QMainWindow):
@@ -865,6 +944,9 @@ class MainWindow(QMainWindow):
         self.level_view.rom_dropped.connect(self.load_rom)
         self.level_view.stage_png_dropped.connect(self._on_stage_png_dropped)
         self.enemy_count_indicator = _EnemyCountIndicator(self.level_view.viewport())
+        self.enemy_count_indicator.set_slot_size(
+            self._app_config.get("enemy_count_meter_slot_size", 18)
+        )
         self.enemy_count_indicator.hide()
         self.stage_number_label = QLabel("", self.level_view.viewport())
         self.stage_number_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
@@ -954,7 +1036,7 @@ class MainWindow(QMainWindow):
         indicator = self.enemy_count_indicator
         viewport = self.level_view.viewport()
         h = indicator.height()
-        w = min(356, max(indicator.minimumWidth(), viewport.width() - 8))
+        w = min(max(356, indicator.minimumWidth()), max(92, viewport.width() - 8))
         indicator.resize(w, h)
         x = max(4, (viewport.width() - w) // 2)
         y = 10
@@ -997,8 +1079,34 @@ class MainWindow(QMainWindow):
         level = self.levels[self.current_level_no]
         count = len(getattr(level, "enemies", []) or [])
         self.enemy_count_indicator.set_count(count, c.ENEMY_COUNT_MAX)
+        key_marker, fairy_marker = self._enemy_count_indicator_marker_images(level)
+        self.enemy_count_indicator.set_marker_images(key_marker, fairy_marker)
+        self.enemy_count_indicator.set_special_slots(
+            stage_ext.get_key_enemy_number(level),
+            stage_ext.get_fairy_enemy_number(level),
+        )
         self.enemy_count_indicator.show()
         self._position_enemy_count_indicator()
+
+    def _enemy_count_indicator_marker_images(self, level):
+        if self.tile_renderer is None or self.level_renderer is None:
+            return QImage(), QImage()
+        try:
+            ts_no = self.level_renderer.get_actual_tileset_no(
+                self.current_level_no,
+                level.tileset_no,
+            )
+            wall_color = self.level_renderer.get_wall_color(self.current_level_no)
+            key_img = self.level_renderer.key_enemy_overlay_image(64)
+            fairy_img = self.tile_renderer.get_tile_image(
+                self.level_renderer.get_enemy_animation(0x1C),
+                ts_no,
+                transparent=True,
+                bg_main_color=wall_color,
+            )
+            return key_img, fairy_img
+        except Exception:
+            return QImage(), QImage()
 
     def _build_left_panel(self) -> QWidget:
         left_widget = QWidget()
@@ -6283,6 +6391,10 @@ class MainWindow(QMainWindow):
         self.picker.set_marker_colors(self._marker_color_config())
         self.level_view.set_marker_shapes(self._marker_shape_config())
         self.picker.set_marker_shapes(self._marker_shape_config())
+        if hasattr(self, "enemy_count_indicator"):
+            self.enemy_count_indicator.set_slot_size(
+                self._app_config.get("enemy_count_meter_slot_size", 18)
+            )
         self._apply_renderer_marker_settings()
         self._refresh_view()
         if self.levels and self.level_renderer is not None:
@@ -7606,6 +7718,7 @@ class MainWindow(QMainWindow):
                 enemy_icon_provider=lambda code: self.picker._make_enemy_icon(code),
                 selection_available=self._get_selection_bounds() is not None,
                 parent=self,
+                app_config=self._app_config,
             )
             dlg.replace_requested.connect(self._perform_item_replace_from_dialog)
             self._item_replace_dialog = dlg
@@ -7765,7 +7878,12 @@ class MainWindow(QMainWindow):
             return
         from .palette_dialog import PaletteDialog, PALETTE_OFFSET
         before = bytes(self.rom.data[PALETTE_OFFSET:PALETTE_OFFSET + 32])
-        dlg = PaletteDialog(self.rom.data, parent=self, tile_renderer=self.tile_renderer)
+        dlg = PaletteDialog(
+            self.rom.data,
+            parent=self,
+            tile_renderer=self.tile_renderer,
+            app_config=self._app_config,
+        )
         dlg.exec_()
         after = bytes(self.rom.data[PALETTE_OFFSET:PALETTE_OFFSET + 32])
         if after != before:
@@ -7788,6 +7906,7 @@ class MainWindow(QMainWindow):
                 parent=self,
                 tile_renderer=self.tile_renderer,
                 config=self.config,
+                app_config=self._app_config,
             )
         except _ed.EnemyDropError as e:
             QMessageBox.critical(self, "敵ドロップ編集 不可", str(e))
@@ -7808,7 +7927,11 @@ class MainWindow(QMainWindow):
         o0, o1 = _di.OFF_WAIT, _di.OFF_JOY + _di.STEPS
         before = bytes(self.rom.data[o0:o1])
         try:
-            dlg = DemoInputDialog(self.rom.data, parent=self)
+            dlg = DemoInputDialog(
+                self.rom.data,
+                parent=self,
+                app_config=self._app_config,
+            )
         except _di.DemoInputError as e:
             QMessageBox.critical(self, "デモ操作編集 不可", str(e))
             return
@@ -7830,7 +7953,11 @@ class MainWindow(QMainWindow):
         o1 = last["off"] + 3 + last["count"] + 1
         before = bytes(self.rom.data[o0:o1])
         try:
-            dlg = ClearMessageDialog(self.rom.data, parent=self)
+            dlg = ClearMessageDialog(
+                self.rom.data,
+                parent=self,
+                app_config=self._app_config,
+            )
         except _cm.ClearMessageError as e:
             QMessageBox.critical(self, "クリア画面メッセージ編集 不可",
                                  str(e))
@@ -7850,7 +7977,11 @@ class MainWindow(QMainWindow):
         from ..core import title_screen as _ts
         before = bytes(self.rom.data)
         try:
-            dlg = TitleScreenDialog(self.rom.data, parent=self)
+            dlg = TitleScreenDialog(
+                self.rom.data,
+                parent=self,
+                app_config=self._app_config,
+            )
         except _ts.TitleScreenError as e:
             QMessageBox.critical(self, "タイトル画面 操作不可", str(e))
             return
@@ -7868,6 +7999,7 @@ class MainWindow(QMainWindow):
             self.rom,
             initial_level_no=self.current_level_no,
             parent=self,
+            app_config=self._app_config,
         )
         dlg.exec_()
 
@@ -7911,7 +8043,11 @@ class MainWindow(QMainWindow):
             return
         from .sound_viewer import SoundViewer
         try:
-            dlg = SoundViewer(self.rom, parent=self)
+            dlg = SoundViewer(
+                self.rom,
+                parent=self,
+                app_config=self._app_config,
+            )
         except Exception as e:
             QMessageBox.critical(self, "音楽データ表示 不可", f"{type(e).__name__}: {e}")
             return
@@ -7955,7 +8091,13 @@ class MainWindow(QMainWindow):
         from .mirror_dialog import MirrorDialog
         lv = self.levels[self.current_level_no]
         before = bytes(self.rom.data)
-        dlg = MirrorDialog(self.rom, lv, self.current_level_no, parent=self)
+        dlg = MirrorDialog(
+            self.rom,
+            lv,
+            self.current_level_no,
+            parent=self,
+            app_config=self._app_config,
+        )
         dlg.exec_()
         if bytes(self.rom.data) != before:
             self._set_dirty(True)
