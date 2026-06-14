@@ -1,7 +1,7 @@
 """改造ROM差分比較ダイアログ."""
 from pathlib import Path
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import (
     QDialog, QFileDialog, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
@@ -46,6 +46,10 @@ class RomDiffDialog(QDialog):
         self._right_renderer = None
         self._left_preview_image = None
         self._right_preview_image = None
+        self._last_compared_paths = None
+        self._auto_compare_timer = QTimer(self)
+        self._auto_compare_timer.setSingleShot(True)
+        self._auto_compare_timer.timeout.connect(self._compare_if_ready)
         self._build_ui()
         restore_dialog_geometry(self, self._app_config, "rom_diff_dlg")
         self._restore_splitter_state()
@@ -66,6 +70,8 @@ class RomDiffDialog(QDialog):
         self.right_path = QLineEdit()
         self.left_path.setPlaceholderText("比較元 ROM/ZIP")
         self.right_path.setPlaceholderText("比較先 ROM/ZIP")
+        self.left_path.textChanged.connect(self._schedule_auto_compare)
+        self.right_path.textChanged.connect(self._schedule_auto_compare)
         self.btn_left = QPushButton("参照...")
         self.btn_right = QPushButton("参照...")
         self.btn_left.clicked.connect(lambda: self._browse(self.left_path))
@@ -79,7 +85,8 @@ class RomDiffDialog(QDialog):
         root.addLayout(file_grid)
 
         btn_row = QHBoxLayout()
-        self.btn_compare = QPushButton("比較")
+        self.btn_compare = QPushButton("再比較")
+        self.btn_compare.setToolTip("同じ2ファイルをもう一度読み直して比較します。")
         self.btn_compare.clicked.connect(self._compare)
         self.lbl_result = QLabel("-")
         btn_row.addWidget(self.btn_compare)
@@ -156,6 +163,7 @@ class RomDiffDialog(QDialog):
         )
         if path:
             target.setText(path)
+            self._compare_if_ready()
 
     def dragEnterEvent(self, event):
         if self._event_paths(event):
@@ -177,6 +185,7 @@ class RomDiffDialog(QDialog):
             self.right_path.setText(paths[0])
         else:
             self.right_path.setText(paths[0])
+        self._compare_if_ready()
         event.acceptProposedAction()
 
     def _event_paths(self, event) -> list[str]:
@@ -222,6 +231,21 @@ class RomDiffDialog(QDialog):
             self.btn_compare.setEnabled(True)
 
         self._populate_table()
+        self._last_compared_paths = (left, right)
+
+    def _schedule_auto_compare(self):
+        self._auto_compare_timer.start(250)
+
+    def _compare_if_ready(self):
+        left = self.left_path.text().strip()
+        right = self.right_path.text().strip()
+        if not left or not right or left == right:
+            return
+        if self._last_compared_paths == (left, right):
+            return
+        if not Path(left).exists() or not Path(right).exists():
+            return
+        self._compare()
 
     def _populate_table(self):
         result = self._result

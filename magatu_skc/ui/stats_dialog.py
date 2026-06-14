@@ -1031,7 +1031,9 @@ class StatsDialog(QDialog):
             }
             for col, txt in enumerate(cells):
                 item = StatsTableItem(txt)
-                if col in self.FLAG_COLS or col in self.NUM_COLS or col == self.KEY_ENEMY_COL:
+                if col == self.SCORE_COL:
+                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                elif col in self.FLAG_COLS or col in self.NUM_COLS or col == self.KEY_ENEMY_COL:
                     item.setTextAlignment(Qt.AlignCenter)
                 item.setData(Qt.UserRole, row)  # レベル番号(0-indexed)
                 item.setData(SORT_ROLE, sort_values[col])
@@ -1202,6 +1204,8 @@ class StatsDialog(QDialog):
                 self.NORMAL_COL, self.HIDDEN_COL, self.INBLK_COL, self.ENEMY_COUNT_COL
             ):
                 item.setTextAlignment(Qt.AlignCenter)
+            elif col == self.SCORE_COL:
+                item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.table.setItem(row, col, item)
         self.table.setRowHeight(row, 32)
 

@@ -156,6 +156,9 @@ DEFAULT_CONFIG = {
     "stage_thumbnail_width": 160,
     "picker_icon_size": 36,
     "enemy_count_meter_slot_size": 18,
+    "last_session_restore_kind": "",
+    "last_readonly_rom_path": "",
+    "last_readonly_rom_level_no": 0,
     # ゲーム挙動改造ダイアログ サイズ/位置 (-1 = 未保存=既定)
     "hack_dlg_x": -1,
     "hack_dlg_y": -1,

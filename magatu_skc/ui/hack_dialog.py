@@ -964,14 +964,6 @@ class HackDialog(QDialog):
         self.btn_clear_msg.clicked.connect(self._on_show_clear_message)
         related_layout.addWidget(self.btn_clear_msg)
 
-        self.btn_special_proc = QPushButton("特殊処理ビューア")
-        self.btn_special_proc.setToolTip(
-            "各ステージにハードコードされた特殊処理 (Per-Room Special Process) を表示。\n"
-            "壊せる白壁・マイティボンジャック・ソロモン封印・エンディング処理などはここで実装されている。\n"
-            "読込専用。"
-        )
-        self.btn_special_proc.clicked.connect(self._on_show_special_process)
-        related_layout.addWidget(self.btn_special_proc)
         layout.addWidget(related_group)
 
         # 補助ボタン
