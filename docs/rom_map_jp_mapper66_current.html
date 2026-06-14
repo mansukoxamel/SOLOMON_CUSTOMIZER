@@ -165,6 +165,7 @@
       <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x60FC-0x6108 / 0x612C-0x6138 / 0x618C-0x619A / 0x61BC-0x61C8</td><td class="num">$E0EC / $E11C / $E17C / $E1AC</td><td class="num">54B</td><td>00埋め</td><td>DARK ROOM、FIRE LOSS、HIDDEN DOOR、KEY ENEMY scripts。</td></tr>
       <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x61EC-0x61F7</td><td class="num">$E1DC-$E1E7</td><td class="num">12B</td><td>00埋め</td><td>開始画面アナウンス pointer table。</td></tr>
       <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x639C-0x63B4 / 0x63CC-0x63E3</td><td class="num">$E38C-$E3A4 / $E3BC-$E3D3</td><td class="num">49B</td><td>00埋め</td><td>draw helper / main routine。</td></tr>
+      <tr><td>00埋め上書き</td><td><code>key_enemy_runtime.py</code></td><td class="num">0x6465-0x6473 / 0x5005-0x500F</td><td class="num">$E455-$E463 / $CFF5-$CFFF</td><td class="num">26B</td><td>00/EA埋め</td><td>Key/Fairy enemy runtime helper。selected key/fairy status value と fall-death key sub-slot compare。</td></tr>
       <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x657C-0x658A / 0x66FC-0x670B</td><td class="num">$E56C-$E57A / $E6EC-$E6FB</td><td class="num">31B</td><td>00埋め</td><td>FIRE SEALED、SPELL SEALED scripts。</td></tr>
       <tr><td>00埋め上書き</td><td><code>room_flags.py</code></td><td class="num">0x675C-0x6773</td><td class="num">$E74C-$E763</td><td class="num">24B</td><td>00埋め</td><td>Visible item in-block helper。<code>$0750-$0767</code> の24B bitmaskをNMI走査中に破壊的shiftし、該当セルを <code>$C0+item</code> へ変換する。</td></tr>
       <tr><td>00埋め上書き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x681C-0x6832</td><td class="num">$E80C-$E822</td><td class="num">23B</td><td>00埋め</td><td>Transparent Spark Ball Golem-ID AI wrapper。旧配置 <code>$8BE2</code> は initial magic / lives と衝突するため使用しない。</td></tr>
@@ -256,11 +257,11 @@
       <tr><td>Wide title idle-demo cleanup</td><td class="num">0x3C1E-0x3C26</td><td class="num">$BC0E-$BC16</td><td class="num">9B</td><td>Title timeout-only stub: `JSR $CC18`, then schedules the original action `$18`. Stops stale wide-title nametable from flashing during attract-demo startup without touching the shared action table.</td></tr>
       <tr><td>Key enemy item-tile recorder</td><td class="num">0x3C27-0x3C2D</td><td class="num">$BC17-$BC1D</td><td class="num">7B</td><td>Key enemy runtime helper used by the dropped-key path. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
       <tr><td>MAGICGATE</td><td class="num">0x3C30-0x3C51</td><td class="num">$BC20-$BC41</td><td class="num">34B</td><td>A/B magic gate restrictions.</td></tr>
-      <tr><td>Key enemy status writer</td><td class="num">0x3C52-0x3C5D</td><td class="num">$BC42-$BC4D</td><td class="num">12B</td><td>Key enemy runtime helper for the selected key carrier status write. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
+      <tr><td>Key/Fairy enemy status writer</td><td class="num">0x3C52-0x3C5D</td><td class="num">$BC42-$BC4D</td><td class="num">12B</td><td>Small writer stub for selected key/fairy enemy status. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
       <tr><td>DOORPREDRAW</td><td class="num">0x3C60-0x3C6A</td><td class="num">$BC50-$BC5A</td><td class="num">11B</td><td>Hidden / brown in-block / white in-block door redraw guard.</td></tr>
       <tr><td>Panel Monster Saramandor-ID AI wrapper</td><td class="num">0x3C6B-0x3C8E</td><td class="num">$BC5B-$BC7E</td><td class="num">36B</td><td>Panel Monster borrowed-ID routing.</td></tr>
       <tr><td>DARK cave</td><td class="num">0x3C90-0x3CC7</td><td class="num">$BC80-$BCB7</td><td class="num">56B</td><td>Dark-room flashing logic.</td></tr>
-      <tr><td>Key enemy fall-death handler</td><td class="num">0x3CC8-0x3CDF</td><td class="num">$BCB8-$BCCF</td><td class="num">24B</td><td>Key enemy runtime helper for fall-death key handling. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
+      <tr><td>Key/Fairy enemy fall-death handler</td><td class="num">0x3CC8-0x3CDF</td><td class="num">$BCB8-$BCCF</td><td class="num">24B</td><td>Key drop diversion only when the falling enemy is the selected key carrier; otherwise preserves the original fairy replacement. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
       <tr><td>Dark tempo bytes</td><td class="num">0x3CE0-0x3CE1</td><td class="num">$BCD0-$BCD1</td><td class="num">2B</td><td>Global dark-room tempo bytes `[LIGHT, PERIOD]`. Reserved by `room_flags.TEMPO`.</td></tr>
       <tr><td>Panel Monster fire dispatch</td><td class="num">0x3CE2-0x3D00</td><td class="num">$BCD2-$BCF0</td><td class="num">31B</td><td>Normal / 2-way / 3-way fire dispatch. Pair-normalizes parent type with <code>AND #$FE</code>.</td></tr>
       <tr><td>Gargoyle 2-shot gate</td><td class="num">0x3D0F-0x3D31</td><td class="num">$BCFF-$BD21</td><td class="num">35B</td><td>Conditional `$7A/$7B/$7E/$7F` gate for the accepted `$AE6F` two-Bullet variant.</td></tr>
@@ -285,8 +286,8 @@
       <tr><td>Panel Variant stage dispatch helper</td><td class="num">0x4143-0x4151</td><td class="num">$C133-$C141</td><td class="num">15B</td><td>Panel Variant ID帯ならstage entry、通常Panelならnormal entryへ分岐。</td></tr>
       <tr><td>Panel Monster Demonhead-ID AI wrapper</td><td class="num">0x4156-0x418E</td><td class="num">$C146-$C17E</td><td class="num">57B</td><td>Older Panel Monster borrowed-ID wrapper. When Panel Variant A/B/C runtime is active, `$A34C/$A34E/$A350` are redirected to the relocated `$E8B1` wrapper instead.</td></tr>
       <tr><td>Key enemy dropped-key handler</td><td class="num">0x4190-0x41E5</td><td class="num">$C180-$C1D5</td><td class="num">86B</td><td>Relocated from `$C0F0` in v0.6.157. PRG0 DoorCellTable/RoomFlagTable moved to PRG1 StageExt runtime bytes.</td></tr>
-      <tr><td>Key enemy binder / defeat chunk</td><td class="num">0x41E6-0x420D</td><td class="num">$C1D6-$C1FD</td><td class="num">40B</td><td>Initial-slot binder plus one split key-dropper chunk. Reclaimed from the former PRG0 RoomFlag/Door tables.</td></tr>
-      <tr><td>Expanded table tail padding</td><td class="num">0x420E-0x420F</td><td class="num">$C1FE-$C1FF</td><td class="num">2B</td><td>Kept under the expanded DoorCell/RoomFlag table allowance; not counted as free production space.</td></tr>
+      <tr><td>Key/Fairy enemy binder / defeat chunk</td><td class="num">0x41E6-0x41FF / 0x4201-0x420F</td><td class="num">$C1D6-$C1EF / $C1F1-$C1FF</td><td class="num">41B</td><td>Initial-slot binder for key/fairy targets plus one split key-dropper chunk. Reclaimed from the former PRG0 RoomFlag/Door tables.</td></tr>
+      <tr><td>Expanded table tail padding</td><td class="num">0x4200</td><td class="num">$C1F0</td><td class="num">1B</td><td>Kept under the expanded DoorCell/RoomFlag table allowance; not counted as free production space.</td></tr>
     </table>
   </div>
 
@@ -325,7 +326,7 @@
       <tr><td>mapper66 loader tail hook</td><td class="num">0x80C4-0x80C6</td><td class="num">$80B4-$80B6</td><td class="num">3B</td><td>StageExt / Panel Variant runtime hook (<code>JMP $8A00</code>). Visible item mask code must not occupy this tail.</td></tr>
       <tr><td>loader guard</td><td class="num">0x80C7-0x80CF</td><td class="num">$80B7-$80BF</td><td class="num">9B</td><td>Guard bytes.</td></tr>
       <tr><td>wide title decoder/data</td><td class="num">0x80D0-0x87FF</td><td class="num">$80C0-$87EF</td><td class="num">1,840B</td><td>Wide title decoder + blockA/blockB streams. Confirmed imported title uses 589B.</td></tr>
-      <tr><td>StageExtTable</td><td class="num">0x8800-0x8A0F</td><td class="num">$87F0-$89FF</td><td class="num">528B</td><td>Per-stage extension settings: 16B header + 64 rooms x 8B. Also carries mapper66 runtime room flags and door-cell bytes copied to `$0778/$077C`; the room-load runtime clears `$077A` for compatibility with special-cell conversion.</td></tr>
+      <tr><td>StageExtTable</td><td class="num">0x8800-0x8A0F</td><td class="num">$87F0-$89FF</td><td class="num">528B</td><td>Per-stage extension settings: 16B header + 64 rooms x 8B. byte2=key enemy initial slot, byte3=fall-death fairy enemy initial slot. Also carries mapper66 runtime room flags and door-cell bytes copied to `$0778/$077C`; the room-load runtime clears `$077A` for compatibility with special-cell conversion.</td></tr>
       <tr><td>Panel Variant combined runtime loader</td><td class="num">0x8A10-0x8A6F</td><td class="num">$8A00-$8A5F</td><td class="num">96B</td><td>Mapper66 room-load helper. Preserves StageExt runtime copies, clears `$077A`, copies the Solomon Seal block-state byte to `$077D`, and jumps through the Transparent Seal panel-tail helper, which copies 16B from PanelVariantStageTable to `$0740-$074F` before running the Seal suppress guard.</td></tr>
       <tr><td>PanelVariantStageTable</td><td class="num">0x8A70-0x8E7F</td><td class="num">$8A60-$8E6F</td><td class="num">1,040B</td><td>16B header + 64 rooms x 16B. Current layout uses byte0..5 as A/B/C speed+interval cache values; rhythm was removed from the design.</td></tr>
       <tr><td>Transparent-block item mask copy helper</td><td class="num">0x8E80-0x8EAA</td><td class="num">$8E70-$8E9A</td><td class="num">43B</td><td>Copies the current room's 24B transparent-block item bitmask from the PRG1 table to RAM <code>$0750-$0767</code> with page-crossing carry preserved.</td></tr>
@@ -409,7 +410,8 @@
     <tr><td class="num">0x697F-0x6983</td><td class="num">$E96F-$E973</td><td class="num">5B</td><td>原作00埋め。Panel Variant AI dispatch entry配置後の残り。</td></tr>
     <tr><td class="num">0x6798-0x67A2</td><td class="num">$E788-$E792</td><td class="num">11B</td><td>原作00埋め。Panel Variant AI dispatch Panel tail / parent field clear helper / parent speed guard配置後の断片。</td></tr>
     <tr><td class="num">0x6773</td><td class="num">$E763</td><td class="num">1B</td><td>Visible item in-block helper配置後の断片。</td></tr>
-    <tr><td class="num">0x6465-0x6474</td><td class="num">$E455-$E464</td><td class="num">16B</td><td>原作00埋め。かなり短い補助routine候補。</td></tr>
+    <tr><td class="num">0x645C-0x6461</td><td class="num">$E44C-$E451</td><td class="num">6B</td><td>原作00埋め。短い補助候補。</td></tr>
+    <tr><td class="num">0x6474</td><td class="num">$E464</td><td class="num">1B</td><td>Key/Fairy enemy status value helper配置後の断片。</td></tr>
   </table>
   <div class="note">
     <b>未予約の原作EA埋め候補:</b>
@@ -421,7 +423,6 @@
     <tr><td class="num">0x3D32-0x3D35</td><td class="num">$BD22-$BD25</td><td class="num">4B</td><td>bank0 cave内。Gargoyle 2-shot gate拡張後の短い断片。</td></tr>
     <tr><td class="num">0x3D46-0x3D4A</td><td class="num">$BD36-$BD3A</td><td class="num">5B</td><td>bank0 cave内。Spark Ball fast AI wrapper直後の断片。</td></tr>
     <tr><td class="num">0x3FF8-0x3FFC</td><td class="num">$BFE8-$BFEC</td><td class="num">5B</td><td>bank0 cave内。Spark Ball slow AI wrapper直後の断片。</td></tr>
-    <tr><td class="num">0x5005-0x500F</td><td class="num">$CFF5-$CFFF</td><td class="num">11B</td><td>Spark Ball animation hook圧縮後の末尾断片。</td></tr>
     <tr><td class="num">0x6A61-0x6A66</td><td class="num">$EA51-$EA56</td><td class="num">6B</td><td>原作EA埋め。短い補助候補だが周辺用途は再確認する。</td></tr>
     <tr><td class="num">0x5C0B-0x5C0F</td><td class="num">$DBFB-$DBFF</td><td class="num">5B</td><td>Spark Ball / Panel property selector 周辺の断片。基本は埋め草用。</td></tr>
     <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>36B</b></td><td>この表だけの候補抜粋合計。bank0 cave内14B、bank0 cave外22B。bank0 cave全体のEA未予約28Bとは別集計。</td></tr>

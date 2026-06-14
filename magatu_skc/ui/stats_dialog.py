@@ -17,7 +17,6 @@ from ..core import constants as c
 from ..core.element import Wall
 from ..core import room_flags as _rf
 from ..core import stage_ext as _se
-from ..core import special_process as _sp
 from .element_picker import ITEMS_LIST
 
 
@@ -264,7 +263,7 @@ class StatsDialog(QDialog):
             "区別せずベースアイテム別に集計。「配置敵」=面に置かれた敵"
             "(実数 ×N)、「ミラー敵」=デーモンミラーから出る敵(種類のみ・"
             "無スケジュールのミラーは除外)。<br>"
-            "「妖精化」=特殊処理で敵リスト1体目の落下死→妖精出現が有効なステージ。<br>"
+            "「妖精化」=落下死で妖精化する敵が設定されているステージ。<br>"
             "「理論得点」=配置されているアイテムをすべて取得した場合の取得時得点"
             "(到達可否、残りTIME換算、スコア倍率の副作用は除外)。<br>"
             "セルをダブルクリックでそのステージへジャンプ。"
@@ -988,16 +987,9 @@ class StatsDialog(QDialog):
         important_buckets[base][state] += 1
 
     def _falling_fairy_enabled(self, level_no: int) -> bool:
-        if self.rom is None:
+        if not (0 <= level_no < len(self.levels)):
             return False
-        region = getattr(self.rom, "region", "")
-        if hasattr(self.rom, "base_region"):
-            region = self.rom.base_region()
-        return _sp.has_falling_fairy_flag(
-            bytes(getattr(self.rom, "data", b"")),
-            region,
-            level_no,
-        )
+        return _se.get_fairy_enemy_number(self.levels[level_no]) > 0
 
     def _on_double_click(self, item):
         row = item.row()

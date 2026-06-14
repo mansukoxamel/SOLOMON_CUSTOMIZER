@@ -558,9 +558,17 @@ class LevelRenderer:
 
             # 8. 敵
             key_enemy_number = stage_ext.get_key_enemy_number(level)
+            fairy_enemy_number = stage_ext.get_fairy_enemy_number(level)
             key_enemy_img = None
             if key_enemy_number > 0:
                 key_enemy_img = self._key_enemy_overlay_image(tw)
+            fairy_enemy_img = None
+            if fairy_enemy_number > 0:
+                try:
+                    fairy_enemy_img = self.tr.get_tile_image(
+                        self.get_enemy_animation(0x1C), ts_no, transparent=True, bg_main_color=wall_color)
+                except Exception:
+                    fairy_enemy_img = None
             for enemy_index, enemy in enumerate(level.enemies, start=1):
                 ex, ey = enemy.position
                 if not (0 <= ex < c.LEVEL_W and 0 <= ey < c.LEVEL_H):
@@ -568,11 +576,17 @@ class LevelRenderer:
                 anim = self.get_enemy_animation(enemy.element_no)
                 en_img = self.tr.get_tile_image(
                     anim, ts_no, transparent=None, bg_main_color=wall_color)
-                if key_enemy_img is not None and enemy_index == key_enemy_number:
+                is_key_enemy = key_enemy_img is not None and enemy_index == key_enemy_number
+                is_fairy_enemy = fairy_enemy_img is not None and enemy_index == fairy_enemy_number
+                if is_key_enemy or is_fairy_enemy:
                     en_img = self._darkened_sprite_image(en_img)
                 painter.drawImage(ex * tw, ey * tw, en_img)
-                if key_enemy_img is not None and enemy_index == key_enemy_number:
+                if is_key_enemy:
                     painter.drawImage(ex * tw, ey * tw, key_enemy_img)
+                if is_fairy_enemy:
+                    painter.setOpacity(0.72)
+                    painter.drawImage(ex * tw, ey * tw, fairy_enemy_img)
+                    painter.setOpacity(1.0)
                 if enemy.element_no in PANEL_VARIANT_VISUAL_SOURCE:
                     painter.fillRect(
                         ex * tw, ey * tw, tw, tw,

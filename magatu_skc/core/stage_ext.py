@@ -13,13 +13,15 @@ TABLE_OFFSET = 0x8800
 TABLE_LENGTH = HEADER_SIZE + ROOM_COUNT * ENTRY_SIZE
 TABLE_END = TABLE_OFFSET + TABLE_LENGTH
 MAGIC = b"MGSTGEXT"
-FORMAT = 1
+FORMAT = 2
 
 FLAG_FIRE_RESET = 0x01
 FLAG_KEY_ENEMY = 0x02
 FLAG_ANNOUNCE = 0x04
+FLAG_FAIRY_ENEMY = 0x08
 
 DEFAULT_KEY_ENEMY_SLOT = 0xFF
+DEFAULT_FAIRY_ENEMY_SLOT = 0xFF
 
 RUNTIME_ROOM_FLAGS_OFFSET = 6
 RUNTIME_DOOR_CELL_OFFSET = 7
@@ -40,7 +42,7 @@ def _blank_entry() -> bytearray:
         0x00,                   # flags
         0x00,                   # fire reset count/value
         DEFAULT_KEY_ENEMY_SLOT, # enemy slot that carries the key
-        0x00,                   # key enemy mode/reserved
+        DEFAULT_FAIRY_ENEMY_SLOT, # enemy slot that becomes a fairy on fall death
         0x00,                   # announcement id
         0x00,                   # announcement flags
         0x00,
@@ -57,6 +59,8 @@ def init_level_defaults(level) -> None:
         level.key_enemy_slot = DEFAULT_KEY_ENEMY_SLOT
     if not hasattr(level, "key_enemy_mode"):
         level.key_enemy_mode = 0
+    if not hasattr(level, "fairy_enemy_slot"):
+        level.fairy_enemy_slot = DEFAULT_FAIRY_ENEMY_SLOT
     if not hasattr(level, "announce_id"):
         level.announce_id = 0
     if not hasattr(level, "announce_flags"):
@@ -69,7 +73,7 @@ def _level_to_entry(level, runtime_room_flags: int = 0, door_cell: int = 0) -> b
     entry[0] = int(level.stage_ext_flags) & 0xFF
     entry[1] = int(level.fire_reset_value) & 0xFF
     entry[2] = int(level.key_enemy_slot) & 0xFF
-    entry[3] = int(level.key_enemy_mode) & 0xFF
+    entry[3] = int(level.fairy_enemy_slot) & 0xFF
     entry[4] = int(level.announce_id) & 0xFF
     entry[5] = int(level.announce_flags) & 0xFF
     entry[RUNTIME_ROOM_FLAGS_OFFSET] = int(runtime_room_flags) & 0xFF
@@ -77,14 +81,17 @@ def _level_to_entry(level, runtime_room_flags: int = 0, door_cell: int = 0) -> b
     return bytes(entry)
 
 
-def _entry_to_level(entry: bytes, level) -> None:
+def _entry_to_level(entry: bytes, level, supports_fairy_enemy: bool = True) -> None:
     init_level_defaults(level)
     if len(entry) < ENTRY_SIZE:
         return
     level.stage_ext_flags = entry[0] & 0xFF
     level.fire_reset_value = entry[1] & 0xFF
     level.key_enemy_slot = entry[2] & 0xFF
-    level.key_enemy_mode = entry[3] & 0xFF
+    level.key_enemy_mode = 0
+    level.fairy_enemy_slot = entry[3] & 0xFF if supports_fairy_enemy else DEFAULT_FAIRY_ENEMY_SLOT
+    if not supports_fairy_enemy:
+        level.stage_ext_flags = int(level.stage_ext_flags) & ~FLAG_FAIRY_ENEMY
     level.announce_id = entry[4] & 0xFF
     level.announce_flags = entry[5] & 0xFF
     level.room_flags = entry[RUNTIME_ROOM_FLAGS_OFFSET] & RUNTIME_ROOM_FLAGS_USER_MASK
@@ -142,12 +149,13 @@ def _build_runtime_loader() -> bytes:
     from . import solomon_seal_block
     return (
         bytes.fromhex(
-        "a9 ff 8d 2a 07 8d 2b 07"
+        "a9 ff 8d 2a 07 8d 7f 07"
         "a9 00 8d 23 07 8d 24 07 8d 29 07 8d 7a 07 8d 7d 07"
         "ad 28 04 aa bd 9b 8e 8d 7d 07"
         "ad 28 04 0a 0a 0a 85 00"
         "a9 88 69 00 85 01"
         "a0 02 b1 00 8d 2b 07"
+        "c8 b1 00 8d 7e 07"
         "a0 06 b1 00 8d 78 07"
         "a0 07 b1 00 8d 7c 07"
         )
@@ -190,13 +198,15 @@ def read_table(rom_data: bytes, levels: list) -> bool:
         for level in levels:
             init_level_defaults(level)
         return False
-    if raw[len(MAGIC)] != FORMAT or raw[len(MAGIC) + 1] != ENTRY_SIZE:
+    fmt = raw[len(MAGIC)]
+    if fmt not in (1, FORMAT) or raw[len(MAGIC) + 1] != ENTRY_SIZE:
         for level in levels:
             init_level_defaults(level)
         return False
+    supports_fairy_enemy = fmt >= 2
     for i, level in enumerate(levels[:ROOM_COUNT]):
         base = HEADER_SIZE + i * ENTRY_SIZE
-        _entry_to_level(raw[base:base + ENTRY_SIZE], level)
+        _entry_to_level(raw[base:base + ENTRY_SIZE], level, supports_fairy_enemy)
     return True
 
 
@@ -240,3 +250,38 @@ def set_key_enemy_number(level, enemy_number: int) -> None:
     level.stage_ext_flags = int(level.stage_ext_flags) | FLAG_KEY_ENEMY
     level.key_enemy_slot = max(0, min(enemy_number - 1, 0xFE))
     level.key_enemy_mode = 0
+    if get_fairy_enemy_number(level) == enemy_number:
+        set_fairy_enemy_number(level, 0)
+
+
+def fairy_enemy_enabled(level) -> bool:
+    init_level_defaults(level)
+    return (
+        bool(int(level.stage_ext_flags) & FLAG_FAIRY_ENEMY)
+        and (int(level.fairy_enemy_slot) & 0xFF) != DEFAULT_FAIRY_ENEMY_SLOT
+    )
+
+
+def get_fairy_enemy_number(level) -> int:
+    init_level_defaults(level)
+    if not fairy_enemy_enabled(level):
+        return 0
+    slot = int(level.fairy_enemy_slot) & 0xFF
+    if slot == DEFAULT_FAIRY_ENEMY_SLOT:
+        return 0
+    return slot + 1
+
+
+def set_fairy_enemy_number(level, enemy_number: int) -> None:
+    init_level_defaults(level)
+    enemy_number = int(enemy_number)
+    if enemy_number <= 0:
+        level.stage_ext_flags = int(level.stage_ext_flags) & ~FLAG_FAIRY_ENEMY
+        level.fairy_enemy_slot = DEFAULT_FAIRY_ENEMY_SLOT
+        return
+    if get_key_enemy_number(level) == enemy_number:
+        level.stage_ext_flags = int(level.stage_ext_flags) & ~FLAG_FAIRY_ENEMY
+        level.fairy_enemy_slot = DEFAULT_FAIRY_ENEMY_SLOT
+        return
+    level.stage_ext_flags = int(level.stage_ext_flags) | FLAG_FAIRY_ENEMY
+    level.fairy_enemy_slot = max(0, min(enemy_number - 1, 0xFE))

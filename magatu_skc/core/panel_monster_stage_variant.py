@@ -1915,7 +1915,7 @@ def _build_runtime_loader() -> bytes:
     from . import solomon_seal_block
     return (
         bytes.fromhex(
-        "a9 ff 8d 2a 07 8d 2b 07"
+        "a9 ff 8d 2a 07 8d 7f 07"
         "a9 00 8d 23 07 8d 24 07 8d 29 07 8d 7a 07"
         "ad 28 04 aa bd 9b 8e 8d 7d 07"
         "8a 0a 0a 0a 85 00"
@@ -1923,6 +1923,7 @@ def _build_runtime_loader() -> bytes:
         "a0 06 b1 00 8d 78 07"
         "c8 b1 00 8d 7c 07"
         "a0 02 b1 00 8d 2b 07"
+        "c8 b1 00 8d 7e 07"
         "8a 0a 0a 0a 0a 18 69 70 85 00 08"
         "8a 4a 4a 4a 4a 28 69 8a 85 01"
         )

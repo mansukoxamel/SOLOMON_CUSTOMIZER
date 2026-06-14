@@ -1,9 +1,10 @@
-"""Runtime patch for per-stage key-carrying initial enemies.
+"""Runtime patch for per-stage key/fairy initial enemies.
 
 The UI/stage extension stores a 1-based enemy number as a zero-based slot in
 StageExtTable.  Mapper66's PRG1 loader copies that per-stage value into RAM
 before the room starts; the PRG0 hooks then bind it to the matching runtime
-enemy slot and spawn a normal key tile when that enemy is defeated.
+enemy slot.  Key enemies spawn a normal key tile when defeated; fairy enemies
+use the original fall-death fairy replacement path.
 """
 from __future__ import annotations
 
@@ -29,6 +30,8 @@ RAM_DROP_TILE = 0x0728
 RAM_INITIAL_COUNT = 0x0729
 RAM_TARGET_RUNTIME_SLOT = 0x072A
 RAM_SELECTED_INITIAL_SLOT = 0x072B
+RAM_FAIRY_SELECTED_INITIAL_SLOT = 0x077E
+RAM_FAIRY_TARGET_RUNTIME_SLOT = 0x077F
 
 
 from . import stage_ext
@@ -49,7 +52,7 @@ CPU_ENEMY_INIT = 0xC1D6
 CPU_ENEMY_STATUS = 0xBC42
 CPU_ENEMY_DEFEAT = 0xBE2F
 CPU_ENEMY_DEFEAT_MATCH1 = 0xBFED
-CPU_ENEMY_DEFEAT_MATCH2 = 0xC1EF
+CPU_ENEMY_DEFEAT_MATCH2 = 0xC1F1
 CPU_ENEMY_DEFEAT_MATCH3 = 0xBE74
 CPU_ENEMY_DEFEAT_MATCH4 = 0xBE94
 CPU_ENEMY_DEFEAT_MATCH5 = 0xBEF3
@@ -58,6 +61,10 @@ CPU_DOOR_LIGHT_POS = 0xBF50
 CPU_ITEM_TILE_READ = 0xBC17
 CPU_KEY_HANDLER = 0xC180
 CPU_FALL_KEY_HANDLER = 0xBCB8
+CPU_ENEMY_STATUS_VALUE = 0xE455
+CPU_FALL_KEY_COMPARE = 0xCFF5
+OLD_CPU_ENEMY_DEFEAT_MATCH2 = 0xC1EF
+OLD_CPU_FALL_KEY_COMPARE = 0xE44C
 
 OFF_ENEMY_INIT = _cf(CPU_ENEMY_INIT)
 OFF_ENEMY_STATUS = _cf(CPU_ENEMY_STATUS)
@@ -72,6 +79,10 @@ OFF_DOOR_LIGHT_POS = _cf(CPU_DOOR_LIGHT_POS)
 OFF_ITEM_TILE_READ = _cf(CPU_ITEM_TILE_READ)
 OFF_KEY_HANDLER = _cf(CPU_KEY_HANDLER)
 OFF_FALL_KEY_HANDLER = _cf(CPU_FALL_KEY_HANDLER)
+OFF_ENEMY_STATUS_VALUE = _cf(CPU_ENEMY_STATUS_VALUE)
+OFF_FALL_KEY_COMPARE = _cf(CPU_FALL_KEY_COMPARE)
+OLD_OFF_ENEMY_DEFEAT_MATCH2 = _cf(OLD_CPU_ENEMY_DEFEAT_MATCH2)
+OLD_OFF_FALL_KEY_COMPARE = _cf(OLD_CPU_FALL_KEY_COMPARE)
 
 OLD_CPU_ENEMY_DEFEAT = 0xC021
 OLD_CPU_DOOR_LIGHT_POS = 0xC06A
@@ -110,12 +121,14 @@ HOOK_FALL_FAIRY = bytes((0x4C, CPU_FALL_KEY_HANDLER & 0xFF, CPU_FALL_KEY_HANDLER
 
 def _build_enemy_init() -> bytes:
     return bytes.fromhex(
-        # Original JSR $B2EA, then bind selected initial enemy number to the
-        # runtime slot X. RAM $072B is the selected zero-based initial index.
+        # Original JSR $B2EA, then bind selected initial enemy numbers to the
+        # runtime slot X. RAM $072B/$077E are zero-based initial indexes.
         "20 ea b2"
-        "ad 2b 07 c9 ff f0 0b"
-        "ad 29 07 cd 2b 07 d0 03"
+        "ad 29 07"
+        "cd 2b 07 d0 03"
         "8e 2a 07"
+        "cd 7e 07 d0 03"
+        "8e 7f 07"
         "ee 29 07"
         "60"
     )
@@ -153,13 +166,38 @@ OLD_ENEMY_INIT_PREWRITE_FALL_FLAG = bytes.fromhex(
     "68 aa 60"
 )
 
+OLD_ENEMY_INIT_SELECTED_KEY = bytes.fromhex(
+    "20 ea b2"
+    "ad 2b 07 c9 ff f0 0b"
+    "ad 29 07 cd 2b 07 d0 03"
+    "8e 2a 07"
+    "ee 29 07"
+    "60"
+)
+
 
 def _build_enemy_status() -> bytes:
+    return (
+        bytes((0x20, CPU_ENEMY_STATUS_VALUE & 0xFF, CPU_ENEMY_STATUS_VALUE >> 8))
+        + bytes.fromhex("91 04 60")
+        + bytes([0xEA] * 6)
+    )
+
+
+OLD_ENEMY_STATUS_SELECTED_KEY = bytes.fromhex(
+    "a9 80 ec 2a 07 d0 02 a9 c0 91 04 60"
+)
+
+
+def _build_enemy_status_value() -> bytes:
     return bytes.fromhex(
-        # Original: LDA #$80 / STA ($04),Y.  The selected key enemy needs
-        # bit6 set too, because the original fall-death path consumes
-        # sub-slot[0] bit6 before entering $AF06.
-        "a9 80 ec 2a 07 d0 02 a9 c0 91 04 60"
+        # Return A=$C0 only for the selected key or fairy runtime slot.
+        # The bit6 flag is consumed by the original fall-death fairy route.
+        "a9 80"
+        "ec 2a 07 f0 04"
+        "ec 7f 07 d0 02"
+        "a9 c0"
+        "60"
     )
 
 
@@ -264,36 +302,58 @@ def _build_key_handler() -> bytes:
 
 
 def _build_fall_key_handler() -> bytes:
-    blob = bytearray.fromhex(
-        # If no key enemy is selected for this room ($072A=$FF), preserve the
-        # original fairy replacement. Otherwise use the selected runtime slot
-        # as the dropper's $02 input, then despawn the falling enemy normally.
-        "ad 2a 07 30 08"
-        "85 02 20 00 00 4c 76 b3"
-        "a0 03 b9 11 af 91 2e 88 10 f8 60"
-    )
-    blob[8:10] = _word(CPU_ENEMY_DEFEAT + 3)
+    blob = bytearray()
+    blob += bytes((0x20, CPU_FALL_KEY_COMPARE & 0xFF, CPU_FALL_KEY_COMPARE >> 8))
+    blob += bytes.fromhex("d0 06")
+    blob += bytes((0x20, (CPU_ENEMY_DEFEAT + 3) & 0xFF, (CPU_ENEMY_DEFEAT + 3) >> 8))
+    blob += bytes.fromhex("4c 76 b3")
+    blob += bytes.fromhex("a0 03 b9 11 af 91 2e 88 10 f8 60")
+    blob += bytes([0xEA] * (24 - len(blob)))
     return bytes(blob)
+
+
+OLD_FALL_KEY_HANDLER_SELECTED_KEY = bytes.fromhex(
+    "ad 2a 07 30 08"
+    "85 02 20 32 be 4c 76 b3"
+    "a0 03 b9 11 af 91 2e 88 10 f8 60"
+)
+
+
+def _build_fall_key_compare() -> bytes:
+    return bytes.fromhex(
+        # AF06 is reached from the current enemy's sub-slot pointer in $2C.
+        # $02 is not reliable there, so compare the pointer-table low byte for
+        # the selected key runtime slot.  The 17 sub-slot low bytes are unique.
+        "ae 2a 07"
+        "86 02"
+        "bd 06 b3"
+        "c5 2c"
+        "60"
+    )
 
 
 PRG1_STAGE_EXT_COPY = stage_ext.RUNTIME_LOADER
 ENEMY_INIT = _build_enemy_init()
 ENEMY_STATUS = _build_enemy_status()
+ENEMY_STATUS_VALUE = _build_enemy_status_value()
 ENEMY_DEFEAT_CHUNKS = _build_enemy_defeat_chunks()
 ENEMY_DEFEAT = ENEMY_DEFEAT_CHUNKS[0][1]
 DOOR_LIGHT_POS = _build_door_light_pos()
 ITEM_TILE_READ = _build_item_tile_read()
 KEY_HANDLER = _build_key_handler()
 FALL_KEY_HANDLER = _build_fall_key_handler()
+FALL_KEY_COMPARE = _build_fall_key_compare()
 
 RESERVED_SPANS = (
     (OFF_ENEMY_INIT, len(ENEMY_INIT)),
     (OFF_ENEMY_STATUS, len(ENEMY_STATUS)),
+    (OFF_ENEMY_STATUS_VALUE, len(ENEMY_STATUS_VALUE)),
     *[(off, len(blob)) for off, blob in ENEMY_DEFEAT_CHUNKS],
     (OFF_DOOR_LIGHT_POS, len(DOOR_LIGHT_POS)),
     (OFF_ITEM_TILE_READ, len(ITEM_TILE_READ)),
     (OFF_KEY_HANDLER, len(KEY_HANDLER)),
     (OFF_FALL_KEY_HANDLER, len(FALL_KEY_HANDLER)),
+    (OFF_FALL_KEY_COMPARE, len(FALL_KEY_COMPARE)),
 )
 
 
@@ -348,7 +408,18 @@ def _migrate_old_layout(rom_data, changed: list[str]) -> None:
         "85 02 20 2c c0 4c 76 b3"
         "a0 03 b9 11 af 91 2e 88 10 f8 60"
     )
+    old_match2 = bytes.fromhex(
+        "a0 0a b1 00 18 69 08 85 05"
+        "20 8a 91"
+        "4c 74 be"
+    )
+    old_fall_key_compare = bytes.fromhex("a5 02 cd 2a 07 60")
     for off, blob, name in (
+        (OFF_ENEMY_INIT, OLD_ENEMY_INIT_SELECTED_KEY, "current key enemy binder"),
+        (OFF_ENEMY_STATUS, OLD_ENEMY_STATUS_SELECTED_KEY, "current key enemy status writer"),
+        (OLD_OFF_ENEMY_DEFEAT_MATCH2, old_match2, "current key enemy shifted defeat chunk source"),
+        (OFF_FALL_KEY_HANDLER, OLD_FALL_KEY_HANDLER_SELECTED_KEY, "current key enemy fall handler"),
+        (OLD_OFF_FALL_KEY_COMPARE, old_fall_key_compare, "old key enemy fall-slot compare helper"),
         (_cf(0xC000), OLD_ENEMY_INIT_STACK_LEAK, "legacy key enemy binder at $C000"),
         (_cf(0xC000), OLD_ENEMY_INIT_STACK_BALANCED, "legacy key enemy binder at $C000"),
         (_cf(0xC000), OLD_ENEMY_INIT_PREWRITE_FALL_FLAG, "legacy prewrite fall-flag binder at $C000"),
@@ -389,23 +460,27 @@ def apply(rom_data, enabled: bool) -> list[str]:
         (OFF_PRG1_STAGE_EXT_COPY, PRG1_STAGE_EXT_COPY, "key enemy StageExt loader"),
         (OFF_ENEMY_INIT, ENEMY_INIT, "key enemy initial-slot binder"),
         (OFF_ENEMY_STATUS, ENEMY_STATUS, "key enemy status writer"),
+        (OFF_ENEMY_STATUS_VALUE, ENEMY_STATUS_VALUE, "key/fairy enemy status value helper"),
         *[(off, blob, "key enemy defeat dropper chunk") for off, blob in ENEMY_DEFEAT_CHUNKS],
         (OFF_DOOR_LIGHT_POS, DOOR_LIGHT_POS, "key enemy door-light helper"),
         (OFF_ITEM_TILE_READ, ITEM_TILE_READ, "key enemy pickup-tile recorder"),
         (OFF_KEY_HANDLER, KEY_HANDLER, "key enemy dropped-key handler"),
         (OFF_FALL_KEY_HANDLER, FALL_KEY_HANDLER, "key enemy fall-death handler"),
+        (OFF_FALL_KEY_COMPARE, FALL_KEY_COMPARE, "key enemy fall-slot compare helper"),
     ):
         _ensure_available(rom_data, off, blob, name)
 
     _write(rom_data, OFF_PRG1_STAGE_EXT_COPY, PRG1_STAGE_EXT_COPY, changed, "key enemy StageExt loader")
     _write(rom_data, OFF_ENEMY_INIT, ENEMY_INIT, changed, "key enemy initial-slot binder")
     _write(rom_data, OFF_ENEMY_STATUS, ENEMY_STATUS, changed, "key enemy status writer")
+    _write(rom_data, OFF_ENEMY_STATUS_VALUE, ENEMY_STATUS_VALUE, changed, "key/fairy enemy status value helper")
     for off, blob in ENEMY_DEFEAT_CHUNKS:
         _write(rom_data, off, blob, changed, "key enemy defeat dropper chunk")
     _write(rom_data, OFF_DOOR_LIGHT_POS, DOOR_LIGHT_POS, changed, "key enemy door-light helper")
     _write(rom_data, OFF_ITEM_TILE_READ, ITEM_TILE_READ, changed, "key enemy pickup-tile recorder")
     _write(rom_data, OFF_KEY_HANDLER, KEY_HANDLER, changed, "key enemy dropped-key handler")
     _write(rom_data, OFF_FALL_KEY_HANDLER, FALL_KEY_HANDLER, changed, "key enemy fall-death handler")
+    _write(rom_data, OFF_FALL_KEY_COMPARE, FALL_KEY_COMPARE, changed, "key enemy fall-slot compare helper")
     _write(rom_data, OFF_M66_LOADER_TAIL, HOOK_M66_LOADER_TAIL, changed, "mapper66 loader key hook")
     _write(rom_data, OFF_HOOK_ENEMY_INIT, HOOK_ENEMY_INIT, changed, "$95C5 key enemy init hook")
     _write(rom_data, OFF_HOOK_ENEMY_STATUS, HOOK_ENEMY_STATUS, changed, "$95CA key enemy status hook")
