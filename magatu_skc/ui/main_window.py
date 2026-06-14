@@ -58,7 +58,7 @@ from .element_picker import (
     BLOCK_PASSABLE_WHITE, BLOCK_INVISIBLE_SOLID,
     BLOCK_PASSABLE_BROWN, BLOCK_SOLID_BROWN,
     ENEMY_SPEED_TABLE, apply_enemy_speed, base_code_from_actual,
-    ITEMS_LIST, item_name,
+    ENEMIES_LIST, ITEMS_LIST, item_name,
 )
 
 APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
@@ -1239,9 +1239,9 @@ class MainWindow(QMainWindow):
         self.btn_sound_viewer.setEnabled(False)
         el.addWidget(self.btn_sound_viewer, 4, 0, 1, 2)
 
-        self.btn_item_replace = QPushButton("アイテム一括置換")
+        self.btn_item_replace = QPushButton("アイテム/モンスター一括置換")
         self.btn_item_replace.setToolTip(
-            "指定したアイテムを別アイテムへ一括置換。"
+            "指定したアイテムまたはモンスターを同じ種別内で一括置換。"
             "選択範囲、現在ステージ、全ステージを対象にできます。"
         )
         self.btn_item_replace.clicked.connect(self._on_show_item_replace)
@@ -7535,6 +7535,35 @@ class MainWindow(QMainWindow):
                     visible_cells.discard(item.position)
         self._refresh_changed_stages(changed_levels)
 
+    def _enemy_replace_matches(self, lv, enemy, opts):
+        if not self._item_replace_tile_in_scope(enemy.position, opts["scope"]):
+            return False
+        return int(enemy.element_no) == int(opts["from_enemy"])
+
+    def _count_enemy_replacements(self, opts):
+        total = 0
+        changed_levels = []
+        for level_no in self._item_replace_level_nos(opts["scope"]):
+            lv = self.levels[level_no]
+            count = sum(
+                1 for enemy in lv.enemies
+                if self._enemy_replace_matches(lv, enemy, opts)
+            )
+            if count:
+                total += count
+                changed_levels.append(level_no)
+        return total, changed_levels
+
+    def _apply_enemy_replacements(self, opts, changed_levels):
+        self._push_undo_levels(changed_levels, focus_level_no=self.current_level_no)
+        to_enemy = int(opts["to_enemy"]) & 0xFF
+        for level_no in changed_levels:
+            lv = self.levels[level_no]
+            for enemy in lv.enemies:
+                if self._enemy_replace_matches(lv, enemy, opts):
+                    enemy.element_no = to_enemy
+        self._refresh_changed_stages(changed_levels)
+
     def _on_show_item_replace(self):
         if not self.levels:
             return
@@ -7542,24 +7571,39 @@ class MainWindow(QMainWindow):
             return
         from .item_replace_dialog import ItemReplaceDialog
 
-        def current_picker_item_spec(show_warning=True, fallback=False):
+        def current_picker_replace_spec(show_warning=True, fallback=False):
             mode, value = self.picker.get_current()
-            if mode != MODE_ITEM:
-                if fallback and ITEMS_LIST:
-                    return int(ITEMS_LIST[0]), c.ITEM_FLAG_NORMAL
-                if show_warning:
-                    self.statusBar().showMessage(
-                        "ピッカーでアイテムを選択してから指定してください", 2500
-                    )
-                return None
-            return int(value), int(self.picker.get_item_flag())
+            if mode == MODE_ITEM:
+                return MODE_ITEM, int(value), int(self.picker.get_item_flag())
+            if mode == MODE_ENEMY:
+                enemy_no = apply_enemy_speed(
+                    int(value),
+                    int(getattr(self.picker, "current_enemy_speed", 1)),
+                )
+                return MODE_ENEMY, int(enemy_no), c.ITEM_FLAG_NORMAL
+            if fallback and ITEMS_LIST:
+                return MODE_ITEM, int(ITEMS_LIST[0]), c.ITEM_FLAG_NORMAL
+            if fallback and ENEMIES_LIST:
+                return MODE_ENEMY, int(ENEMIES_LIST[0][0]), c.ITEM_FLAG_NORMAL
+            if show_warning:
+                self.statusBar().showMessage(
+                    "ピッカーでアイテムまたはモンスターを選択してから指定してください", 2500
+                )
+            return None
+
+        def enemy_name(code):
+            if self.config is not None:
+                return self.config.enemy_desc.get(int(code), f"0x{int(code):02X}")
+            return f"0x{int(code):02X}"
 
         dlg = getattr(self, "_item_replace_dialog", None)
         is_new_dialog = dlg is None or not dlg.isVisible()
         if is_new_dialog:
             dlg = ItemReplaceDialog(
                 item_name_resolver=lambda code: item_name(code, self.config),
-                icon_provider=lambda code: self.picker._make_item_icon(code),
+                item_icon_provider=lambda code: self.picker._make_item_icon(code),
+                enemy_name_resolver=enemy_name,
+                enemy_icon_provider=lambda code: self.picker._make_enemy_icon(code),
                 selection_available=self._get_selection_bounds() is not None,
                 parent=self,
             )
@@ -7568,7 +7612,7 @@ class MainWindow(QMainWindow):
         else:
             dlg.set_selection_available(self._get_selection_bounds() is not None)
         if is_new_dialog:
-            spec = current_picker_item_spec(show_warning=False, fallback=True)
+            spec = current_picker_replace_spec(show_warning=False, fallback=True)
             if spec is not None:
                 dlg.set_initial_from_spec(spec)
                 dlg.set_initial_to_spec(spec)
@@ -7578,6 +7622,35 @@ class MainWindow(QMainWindow):
 
     def _perform_item_replace_from_dialog(self, opts):
         if not self.levels:
+            return
+        if opts.get("mode") == MODE_ENEMY:
+            count, changed_levels = self._count_enemy_replacements(opts)
+            if count <= 0:
+                QMessageBox.information(self, "モンスター一括置換", "置換対象はありませんでした。")
+                return
+            scope_label = {
+                "selection": "選択範囲",
+                "current": "現在ステージ",
+                "all": "全ステージ",
+            }.get(opts["scope"], "対象範囲")
+            reply = QMessageBox.question(
+                self,
+                "モンスター一括置換",
+                f"{scope_label}で {count} 件のモンスターを置換します。\n\n"
+                "実行後も Undo で戻せます。続行しますか？",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if reply != QMessageBox.Yes:
+                return
+            self._apply_enemy_replacements(opts, changed_levels)
+            self.statusBar().showMessage(
+                f"モンスター一括置換: {count} 件 / {len(changed_levels)} ステージ", 4000
+            )
+            self._log(
+                f"モンスター一括置換: {count}件 / scope={opts['scope']} / "
+                f"from=0x{opts['from_enemy']:02X} to=0x{opts['to_enemy']:02X}"
+            )
             return
         if (
             opts["to_state"] == c.ITEM_FLAG_WHITE_IN_BLOCK and
@@ -8456,7 +8529,7 @@ Alt+左クリック: スポイト（そのマスの要素をピッカーに取�
 {sc("clear_selection")}: 選択解除<br>
 {sc("paste_selection")}: ペースト（選択範囲またはホバー位置を起点）<br>
 {sc("cut_selection")}: 切り取り<br>
-{sc("item_replace")}: アイテム一括置換<br>
+{sc("item_replace")}: アイテム/モンスター一括置換<br>
 {sc("delete_hover_or_selection")} / {sc("delete_hover_or_selection_alt")}: 範囲内を削除<br>
 {sc("flip_horizontal")}: 左右反転<br>
 {sc("flip_vertical")}: 上下反転<br>
