@@ -158,7 +158,7 @@
   <h2>5. 判定の強さ</h2>
   <table>
     <tr><th>分類</th><th>意味</th><th>例</th></tr>
-    <tr><td class="ok">予約済/確定</td><td>コード・実機probe・現在実装のいずれかで用途が確定している。</td><td><code>$0723-$072B</code>, <code>$072C-$0739</code>, <code>$0778</code>, <code>$0779</code>, <code>$077C</code>, <code>$077E-$077F</code></td></tr>
+    <tr><td class="ok">予約済/確定</td><td>コード・実機probe・現在実装のいずれかで用途が確定している。</td><td><code>$0723-$072B</code>, <code>$072C-$0739</code>, <code>$0740-$074F</code>, <code>$0750-$0767</code>, <code>$0778</code>, <code>$0779</code>, <code>$077C</code>, <code>$077D</code>, <code>$077E-$077F</code></td></tr>
     <tr><td>本編使用</td><td>用途は概ね分かるが、内部構造の詳細は必要時に追加解析。</td><td><code>$0426-$0455</code>, <code>$04F7-$057E</code></td></tr>
     <tr><td class="warn">候補/非推奨</td><td>probe上は沈黙したが、構造保証が弱い、または重要領域に隣接。</td><td><code>$073A-$073F</code>, <code>$0768-$0777</code>, <code>$07E0-$07EF</code></td></tr>
     <tr><td class="ng">禁止</td><td>既知の本編領域。改造RAMにしない。</td><td><code>$0200-$02FF</code>, <code>$0304-$03E3</code>, <code>$0456-$04D5</code>, <code>$057F-$0722</code></td></tr>
