@@ -95,6 +95,9 @@ class LevelRenderer:
         self._key_enemy_overlay_cache[cache_key] = out
         return out
 
+    def key_enemy_overlay_image(self, target_size: int) -> QImage:
+        return self._key_enemy_overlay_image(target_size)
+
     def _darkened_sprite_image(self, source: QImage) -> QImage:
         cache_key = ("darkened_sprite", int(source.cacheKey()))
         cached = self._darkened_sprite_cache.get(cache_key)

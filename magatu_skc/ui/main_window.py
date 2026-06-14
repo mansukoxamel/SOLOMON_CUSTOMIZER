@@ -1097,13 +1097,7 @@ class MainWindow(QMainWindow):
                 level.tileset_no,
             )
             wall_color = self.level_renderer.get_wall_color(self.current_level_no)
-            from ..gfx.level_renderer import MD_KEY
-            key_img = self.tile_renderer.get_tile_image(
-                self.level_renderer.get_metadata_animation(MD_KEY),
-                ts_no,
-                transparent=True,
-                bg_main_color=wall_color,
-            )
+            key_img = self.level_renderer.key_enemy_overlay_image(64)
             fairy_img = self.tile_renderer.get_tile_image(
                 self.level_renderer.get_enemy_animation(0x1C),
                 ts_no,
