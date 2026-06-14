@@ -10,6 +10,7 @@ import copy
 
 from . import constants as c
 from .element import ElementType, LevelElement, Wall, byte_from_position, position_from_byte
+from . import solomon_seal_stage
 
 
 class SolomonSealBlockError(ValueError):
@@ -116,11 +117,19 @@ RESERVED_SPANS = (
 )
 
 
+def _seal_slots_for_rom(rom_data: bytes) -> tuple[tuple[int, int], ...]:
+    try:
+        stages = solomon_seal_stage.current_stages(rom_data, "JP")
+        return tuple((int(stage) - 1, slot_index) for slot_index, stage in enumerate(stages))
+    except Exception:
+        return SEAL_SLOTS
+
+
 def _seal_positions_by_level(rom_data: bytes) -> dict[int, tuple[int, int]]:
     result: dict[int, tuple[int, int]] = {}
     if rom_data is None or len(rom_data) < OFF_SEAL_POS_TABLE + len(SEAL_SLOTS):
         return result
-    for level_no, slot_index in SEAL_SLOTS:
+    for level_no, slot_index in _seal_slots_for_rom(rom_data):
         result[level_no] = position_from_byte(rom_data[OFF_SEAL_POS_TABLE + slot_index])
     return result
 
@@ -216,7 +225,7 @@ def build_transparent_tables(rom_data: bytes, levels: list) -> tuple[bytes, byte
     mask_indexes = bytearray([0xFF] * TRANSPARENT_SEAL_TABLE_LEN)
     clear_masks = bytearray([0xFF] * TRANSPARENT_SEAL_TABLE_LEN)
     positions = _seal_positions_by_level(rom_data)
-    for level_no, slot_index in SEAL_SLOTS:
+    for level_no, slot_index in _seal_slots_for_rom(rom_data):
         if not (0 <= level_no < len(levels)):
             continue
         seal_pos = positions.get(level_no)

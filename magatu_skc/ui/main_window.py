@@ -42,6 +42,7 @@ from ..core.config import (
     normalize_gamepad_shortcuts,
     normalize_shortcuts,
     resolve_project_path,
+    get_config_path,
     save_config,
 )
 from ..core import saver, ips, wall_color_hack
@@ -62,6 +63,7 @@ from .element_picker import (
 
 APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
 AUTOSAVE_HISTORY_LABEL = "前回の作業状態"
+WINDOW_STATE_DEBUG_ENV = "SOLOMON_WINDOW_STATE_DEBUG"
 
 
 class _XInputGamepad(ctypes.Structure):
@@ -258,6 +260,7 @@ class MainWindow(QMainWindow):
         from datetime import datetime
         self._session_log = []
         self._session_start = datetime.now()
+        self._window_state_first_show_logged = False
 
         from PyQt5.QtWidgets import QApplication
         self._default_font_size = QApplication.font().pointSize()
@@ -276,6 +279,8 @@ class MainWindow(QMainWindow):
 
         # ウィンドウ位置・サイズを復元
         self._restore_window_state()
+        QTimer.singleShot(0, lambda: self._write_window_state_debug("startup_timer_0ms"))
+        QTimer.singleShot(500, lambda: self._write_window_state_debug("startup_timer_500ms"))
         self._log("セッション開始")
 
     def _setup_shortcuts(self):
@@ -545,6 +550,109 @@ class MainWindow(QMainWindow):
         ts = datetime.now().strftime("%H:%M:%S")
         self._session_log.append(f"[{ts}] {msg}")
 
+    def _window_state_debug_path(self) -> Path:
+        return Path(__file__).parent.parent.parent / "logs" / "window_state_debug.log"
+
+    def _window_state_config_snapshot(self) -> dict:
+        keys = (
+            "window_x",
+            "window_y",
+            "window_w",
+            "window_h",
+            "window_fullscreen",
+            "window_maximized",
+            "splitter_sizes",
+            "stage_selector_visible",
+            "stage_selector_last_width",
+            "settings_dialog_x",
+            "settings_dialog_y",
+            "settings_dialog_w",
+            "settings_dialog_h",
+            "settings_dialog_tab",
+            "hack_dlg_x",
+            "hack_dlg_y",
+            "hack_dlg_w",
+            "hack_dlg_h",
+            "stats_dlg_x",
+            "stats_dlg_y",
+            "stats_dlg_w",
+            "stats_dlg_h",
+            "sprite_viewer_x",
+            "sprite_viewer_y",
+            "sprite_viewer_w",
+            "sprite_viewer_h",
+            "pixel_editor_x",
+            "pixel_editor_y",
+            "pixel_editor_w",
+            "pixel_editor_h",
+        )
+        return {key: self._app_config.get(key) for key in keys}
+
+    def _window_state_runtime_snapshot(self) -> dict:
+        geo = self.geometry()
+        fgeo = self.frameGeometry()
+        normal = self.normalGeometry()
+        screen = self.screen()
+        splitter_sizes = None
+        if hasattr(self, "splitter"):
+            splitter_sizes = list(self.splitter.sizes())
+        return {
+            "geometry": [geo.x(), geo.y(), geo.width(), geo.height()],
+            "frameGeometry": [fgeo.x(), fgeo.y(), fgeo.width(), fgeo.height()],
+            "normalGeometry": [normal.x(), normal.y(), normal.width(), normal.height()],
+            "pos": [self.x(), self.y()],
+            "size": [self.width(), self.height()],
+            "isVisible": self.isVisible(),
+            "isMaximized": self.isMaximized(),
+            "isFullScreen": self.isFullScreen(),
+            "windowState": int(self.windowState()),
+            "screen": screen.name() if screen is not None else None,
+            "splitter_sizes": splitter_sizes,
+        }
+
+    def _window_state_screen_snapshot(self) -> list:
+        screens = []
+        for screen in QApplication.screens():
+            geo = screen.geometry()
+            avail = screen.availableGeometry()
+            screens.append({
+                "name": screen.name(),
+                "geometry": [geo.x(), geo.y(), geo.width(), geo.height()],
+                "availableGeometry": [avail.x(), avail.y(), avail.width(), avail.height()],
+                "devicePixelRatio": float(screen.devicePixelRatio()),
+            })
+        return screens
+
+    def _write_window_state_debug(self, label: str, extra: dict | None = None):
+        if os.environ.get(WINDOW_STATE_DEBUG_ENV) != "1":
+            return
+        try:
+            from datetime import datetime
+            payload = {
+                "time": datetime.now().isoformat(timespec="milliseconds"),
+                "version": __version__,
+                "label": str(label),
+                "config_path": str(get_config_path()),
+                "config": self._window_state_config_snapshot(),
+                "runtime": self._window_state_runtime_snapshot(),
+                "screens": self._window_state_screen_snapshot(),
+            }
+            if extra:
+                payload["extra"] = extra
+            path = self._window_state_debug_path()
+            path.parent.mkdir(exist_ok=True)
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+                f.write("\n")
+        except Exception:
+            pass
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if not getattr(self, "_window_state_first_show_logged", False):
+            self._window_state_first_show_logged = True
+            self._write_window_state_debug("first_show_event")
+
     def _is_read_only(self) -> bool:
         return bool(getattr(self, "_read_only_mode", False))
 
@@ -591,8 +699,24 @@ class MainWindow(QMainWindow):
         h = cfg.get("window_h", 800)
         x = cfg.get("window_x", -1)
         y = cfg.get("window_y", -1)
+        restore_info = {
+            "requested": {
+                "x": x,
+                "y": y,
+                "w": w,
+                "h": h,
+                "fullscreen": cfg.get("window_fullscreen", False),
+                "maximized": cfg.get("window_maximized", False),
+            },
+            "resize_applied": False,
+            "move_applied": False,
+            "move_rejected_reason": "",
+            "state_applied": "normal",
+        }
+        self._write_window_state_debug("restore_before", restore_info)
         if isinstance(w, int) and isinstance(h, int) and w > 100 and h > 100:
             self.resize(w, h)
+            restore_info["resize_applied"] = True
         if isinstance(x, int) and isinstance(y, int) and x >= 0 and y >= 0:
             # 画面外に行かないように軽くチェック
             from PyQt5.QtWidgets import QApplication
@@ -603,15 +727,26 @@ class MainWindow(QMainWindow):
                     g = sc.geometry()
                     if g.contains(x + 50, y + 50):
                         self.move(x, y)
+                        restore_info["move_applied"] = True
                         break
+                if not restore_info["move_applied"]:
+                    restore_info["move_rejected_reason"] = "saved position is outside all screens"
+            else:
+                restore_info["move_rejected_reason"] = "no screens"
+        else:
+            restore_info["move_rejected_reason"] = "saved position is not set"
         if cfg.get("window_fullscreen", False):
             self.showFullScreen()
+            restore_info["state_applied"] = "fullscreen"
         elif cfg.get("window_maximized", False):
             self.showMaximized()
+            restore_info["state_applied"] = "maximized"
+        self._write_window_state_debug("restore_after", restore_info)
 
     def _save_window_state(self):
         """現在のウィンドウ状態を設定に保存"""
         cfg = self._app_config
+        self._write_window_state_debug("save_before")
         is_fullscreen = self.isFullScreen()
         cfg["window_fullscreen"] = is_fullscreen
         cfg["window_maximized"] = (not is_fullscreen) and self.isMaximized()
@@ -632,6 +767,9 @@ class MainWindow(QMainWindow):
             cfg["stage_selector_last_width"] = int(self._stage_selector_last_width)
         from ..core.config import save_config
         save_config(cfg)
+        self._write_window_state_debug("save_after", {
+            "saved_config": self._window_state_config_snapshot(),
+        })
 
     def _build_ui(self):
         # 中央ウィジェット
@@ -2830,6 +2968,68 @@ class MainWindow(QMainWindow):
                 "runtime_markers": {"invisible_breakable_cells"},
             }
         return None
+
+    def _solomon_seal_tile_block_label(self, level, tile: tuple) -> str:
+        x, y = tile
+        wall = level.tiles[y][x]
+        if wall == Wall.NONE and tile in getattr(level, "invisible_breakable_cells", set()):
+            return "壊せる透明ブロック"
+        if wall == Wall.NONE and tile in getattr(level, "invisible_solid_cells", set()):
+            return "壊せない透明ブロック"
+        if wall == Wall.NONE:
+            return "空気"
+        if wall == Wall.BROWN and tile in getattr(level, "passable_brown_cells", set()):
+            return "すり抜ける茶色ブロック"
+        if wall == Wall.BROWN and tile in getattr(level, "solid_brown_cells", set()):
+            return "壊せない茶色ブロック"
+        if wall == Wall.BROWN:
+            return "茶ブロック"
+        if wall == Wall.WHITE and tile in getattr(level, "breakable_white_cells", set()):
+            return "壊せる白ブロック"
+        if wall == Wall.WHITE and tile in getattr(level, "passable_white_cells", set()):
+            return "すり抜ける白ブロック"
+        if wall == Wall.WHITE:
+            return "壊せない白ブロック"
+        if wall == Wall.BROWN_WHITE:
+            return "壊せる白ブロック"
+        return "ブロック"
+
+    def _solomon_seal_can_overlap_tile(self, level, tile: tuple) -> bool:
+        x, y = tile
+        if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+            return False
+        wall = level.tiles[y][x]
+        if wall == Wall.NONE:
+            return tile not in getattr(level, "invisible_solid_cells", set())
+        if wall == Wall.BROWN:
+            return (
+                tile not in getattr(level, "passable_brown_cells", set())
+                and tile not in getattr(level, "solid_brown_cells", set())
+            )
+        if wall == Wall.WHITE:
+            return tile in getattr(level, "breakable_white_cells", set())
+        if wall == Wall.BROWN_WHITE:
+            return True
+        return False
+
+    def _show_solomon_seal_block_overlap_message(self, level, tile: tuple):
+        label = self._solomon_seal_tile_block_label(level, tile)
+        self.statusBar().showMessage(
+            f"ソロモンの封印は {label} には重ねられません {tile}", 3000
+        )
+
+    def _solomon_seal_can_move_to_tile(self, level, tile: tuple) -> bool:
+        if not self._solomon_seal_can_overlap_tile(level, tile):
+            return False
+        return bool(level.is_door_removed() or level.fixed_door_pos != tile)
+
+    def _show_solomon_seal_move_rejected_message(self, level, tile: tuple):
+        if not self._solomon_seal_can_overlap_tile(level, tile):
+            self._show_solomon_seal_block_overlap_message(level, tile)
+            return
+        self.statusBar().showMessage(
+            f"ソロモンの封印は扉には重ねられません {tile}", 3000
+        )
 
     def _collect_stage_level_meta_positions(self, level_no: int) -> list:
         if self.config is None:
@@ -5061,9 +5261,15 @@ class MainWindow(QMainWindow):
             elif sub == "mirror2":
                 lv.demon_mirrors[1].position = tile
         elif kind == "seal":
+            if not self._solomon_seal_can_move_to_tile(lv, tile):
+                self._show_solomon_seal_move_rejected_message(lv, tile)
+                return
             mp["ref"].position = tile
         elif kind == "seal_block":
             item_refs = list(mp.get("item_refs") or [])
+            if not self._solomon_seal_can_move_to_tile(lv, tile):
+                self._show_solomon_seal_move_rejected_message(lv, tile)
+                return
             if any(it.position == tile and it not in item_refs for it in getattr(lv, "items", []) or []):
                 self._show_key_door_item_overlap_message(tile)
                 return

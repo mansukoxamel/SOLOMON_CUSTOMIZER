@@ -41,6 +41,9 @@ from ..core import initial_lives
 from ..core import time_decrease_hack
 from ..core import wall_color_hack
 from ..core import stage_frame
+from ..core import solomon_seal_stage
+from ..core import constants as c
+from ..core.element import Wall
 from ..nes import palette as nes_palette
 
 
@@ -189,6 +192,44 @@ class HackDialog(QDialog):
         wftr_hint.setStyleSheet("color:#888; font-size:11px;")
         wftr.addRow(wftr_hint)
         layout.addWidget(wftr_group)
+
+        # ====== ソロモンの封印 出現面 ======
+        seal_group = QGroupBox("ソロモンの封印 出現面")
+        seal_group.setProperty("settings_category", "基本")
+        seal_f = QFormLayout(seal_group)
+        self._seal_stage_ok = solomon_seal_stage.supported(rom.region)
+        self._seal_stage_loading = False
+        self.combo_seal_stages = []
+        try:
+            current_seal_stages = solomon_seal_stage.current_stages(rom.data, rom.region)
+        except solomon_seal_stage.SolomonSealStageError:
+            current_seal_stages = solomon_seal_stage.defaults()
+            self._seal_stage_ok = False
+        for spec in solomon_seal_stage.SLOTS:
+            combo = QComboBox()
+            for stage_no in solomon_seal_stage.candidates(spec.slot, rom.data, rom.region):
+                combo.addItem(f"{stage_no}面", stage_no)
+            wanted = current_seal_stages[spec.slot]
+            idx = combo.findData(wanted)
+            combo.setCurrentIndex(idx if idx >= 0 else 0)
+            combo.setEnabled(self._seal_stage_ok)
+            combo.currentIndexChanged.connect(self._refresh_solomon_seal_stage_choices)
+            self.combo_seal_stages.append(combo)
+            seal_f.addRow(f"封印{spec.slot + 1}:", combo)
+        self._refresh_solomon_seal_stage_choices()
+        seal_hint = QLabel(
+            "1面につき封印1個まで。20面までに4個以上、44面までに6個以上、"
+            "48面までに8個配置される必要があります。ROM保存できる候補だけ表示します。"
+        )
+        seal_hint.setWordWrap(True)
+        seal_hint.setStyleSheet("color:#888; font-size:11px;")
+        seal_f.addRow(seal_hint)
+        if not self._seal_stage_ok:
+            note = QLabel("⚠ JP ROM以外、または特殊処理テーブル検証失敗のため無効です。")
+            note.setWordWrap(True)
+            note.setStyleSheet("color:#c33;")
+            seal_f.addRow(note)
+        layout.addWidget(seal_group)
 
         # ====== 初期魔法 (共通) ======
         im_group = QGroupBox("初期魔法（共通）")
@@ -1204,6 +1245,145 @@ class HackDialog(QDialog):
         if callable(applied):
             applied()
 
+    def _sync_parent_solomon_seal_stages(self, stages: list):
+        cfg = self._level_meta_config()
+        if cfg is not None:
+            for mi in getattr(cfg, "level_meta_items", []) or []:
+                no = int(getattr(mi, "no", -1))
+                desc = str(getattr(mi, "description", "")).lower()
+                if 0 <= no < len(stages) and "solomon" in desc and "seal" in desc:
+                    mi.level_no = int(stages[no]) - 1
+        parent = self.parent()
+        if parent is None:
+            return
+        refresh = getattr(parent, "_refresh_view", None)
+        if callable(refresh):
+            refresh()
+        refresh_thumb = getattr(parent, "_refresh_thumbnail", None)
+        current_level_no = getattr(parent, "current_level_no", None)
+        if callable(refresh_thumb) and current_level_no is not None:
+            refresh_thumb(current_level_no)
+
+    def _solomon_seal_is_clear_air(self, level, level_no: int, tile: tuple, seal_no: int) -> bool:
+        x, y = tile
+        if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+            return False
+        if x >= c.LEVEL_W - 1:
+            return False
+        if level.tiles[y][x] != Wall.NONE:
+            return False
+        runtime_marker_names = (
+            "breakable_white_cells",
+            "invisible_breakable_cells",
+            "invisible_solid_cells",
+            "passable_white_cells",
+            "passable_brown_cells",
+            "solid_brown_cells",
+        )
+        for name in runtime_marker_names:
+            if tile in getattr(level, name, set()):
+                return False
+        if tuple(getattr(level, "fixed_start_pos", (-1, -1))) == tile:
+            return False
+        if not level.is_key_removed() and tuple(getattr(level, "fixed_key_pos", (-1, -1))) == tile:
+            return False
+        if not level.is_door_removed() and tuple(getattr(level, "fixed_door_pos", (-1, -1))) == tile:
+            return False
+        if level.get_item_index(tile) >= 0 or level.get_enemy_index(tile) >= 0:
+            return False
+        for mirror in getattr(level, "demon_mirrors", []) or []:
+            if tuple(getattr(mirror, "position", (-1, -1))) == tile:
+                return False
+        cfg = self._level_meta_config()
+        if cfg is not None:
+            for mi in getattr(cfg, "level_meta_items", []) or []:
+                no = int(getattr(mi, "no", -1))
+                if no == int(seal_no):
+                    continue
+                if int(getattr(mi, "level_no", -1)) != int(level_no):
+                    continue
+                if tuple(getattr(mi, "position", (-1, -1))) == tile:
+                    return False
+        return True
+
+    def _nearest_solomon_seal_clear_air(self, level, level_no: int, origin: tuple, seal_no: int):
+        ox, oy = origin
+        candidates = []
+        for y in range(c.LEVEL_H):
+            for x in range(c.LEVEL_W):
+                tile = (x, y)
+                if not self._solomon_seal_is_clear_air(level, level_no, tile, seal_no):
+                    continue
+                dist = abs(x - ox) + abs(y - oy)
+                candidates.append((dist, abs(y - oy), abs(x - ox), y, x, tile))
+        if not candidates:
+            return None
+        candidates.sort()
+        return candidates[0][-1]
+
+    def _plan_solomon_seal_stage_relocations(self, stages: list) -> list:
+        parent = self.parent()
+        levels = getattr(parent, "levels", None)
+        cfg = self._level_meta_config()
+        if cfg is None or not levels:
+            return []
+        from ..core.element import position_from_byte
+
+        relocations = []
+        for mi in getattr(cfg, "level_meta_items", []) or []:
+            no = int(getattr(mi, "no", -1))
+            desc = str(getattr(mi, "description", "")).lower()
+            if not (0 <= no < len(stages) and "solomon" in desc and "seal" in desc):
+                continue
+            old_level_no = int(getattr(mi, "level_no", -1))
+            new_level_no = int(stages[no]) - 1
+            if old_level_no == new_level_no:
+                continue
+            if not (0 <= new_level_no < len(levels)):
+                continue
+            rom_offset = int(getattr(mi, "rom_offset", -1))
+            if self.rom is not None and 0 <= rom_offset < len(self.rom.data):
+                old_pos = position_from_byte(self.rom.data[rom_offset])
+            else:
+                old_pos = tuple(getattr(mi, "position", (0, 0)))
+            level = levels[new_level_no]
+            if self._solomon_seal_is_clear_air(level, new_level_no, old_pos, no):
+                new_pos = old_pos
+            else:
+                new_pos = self._nearest_solomon_seal_clear_air(level, new_level_no, old_pos, no)
+            if new_pos is None:
+                raise solomon_seal_stage.SolomonSealStageError(
+                    f"封印{no + 1}: {new_level_no + 1}面に配置可能な空気マスがありません。"
+                )
+            relocations.append({
+                "meta": mi,
+                "no": no,
+                "old_level_no": old_level_no,
+                "new_level_no": new_level_no,
+                "old_pos": old_pos,
+                "new_pos": new_pos,
+                "relocated": tuple(old_pos) != tuple(new_pos),
+            })
+        return relocations
+
+    def _apply_solomon_seal_stage_relocations(self, relocations: list, rom_data: bytearray) -> list:
+        from ..core.element import byte_from_position
+
+        notes = []
+        for item in relocations:
+            mi = item["meta"]
+            mi.level_no = int(item["new_level_no"])
+            mi.position = tuple(item["new_pos"])
+            rom_offset = int(getattr(mi, "rom_offset", -1))
+            if 0 <= rom_offset < len(rom_data):
+                rom_data[rom_offset] = byte_from_position(mi.position)
+            if item.get("relocated"):
+                notes.append(
+                    f"封印{int(item['no']) + 1}: {int(item['new_level_no']) + 1}面 "
+                    f"{tuple(item['old_pos'])} -> {tuple(item['new_pos'])}"
+                )
+        return notes
+
     def _collect_wall_color_values(self) -> list:
         try:
             wall_color_hack.special_values(self.rom.data)
@@ -1310,6 +1490,48 @@ class HackDialog(QDialog):
             changed.append(str(getattr(mi, "description", "") or f"meta {no}"))
         return changed
 
+    def _selected_solomon_seal_stages(self) -> list:
+        combos = getattr(self, "combo_seal_stages", []) or []
+        if len(combos) != len(solomon_seal_stage.SLOTS):
+            return solomon_seal_stage.defaults()
+        return [int(combo.currentData()) for combo in combos]
+
+    def _refresh_solomon_seal_stage_choices(self, *_args):
+        if getattr(self, "_seal_stage_loading", False):
+            return
+        combos = getattr(self, "combo_seal_stages", []) or []
+        if len(combos) != len(solomon_seal_stage.SLOTS):
+            return
+        current = self._selected_solomon_seal_stages()
+        self._seal_stage_loading = True
+        try:
+            for slot, combo in enumerate(combos):
+                old_value = current[slot]
+                valid_choices = []
+                for stage_no in solomon_seal_stage.candidates(slot, self.rom.data, self.rom.region):
+                    if stage_no != old_value and stage_no in (
+                        current[:slot] + current[slot + 1:]
+                    ):
+                        continue
+                    trial = list(current)
+                    trial[slot] = stage_no
+                    try:
+                        solomon_seal_stage.validate_stages(trial)
+                    except solomon_seal_stage.SolomonSealStageError:
+                        continue
+                    valid_choices.append(stage_no)
+                if old_value not in valid_choices:
+                    valid_choices.insert(0, old_value)
+                combo.blockSignals(True)
+                combo.clear()
+                for stage_no in valid_choices:
+                    combo.addItem(f"{stage_no}面", stage_no)
+                idx = combo.findData(old_value)
+                combo.setCurrentIndex(idx if idx >= 0 else 0)
+                combo.blockSignals(False)
+        finally:
+            self._seal_stage_loading = False
+
     def _collect_global_settings(self) -> dict:
         """現在の画面値をROM非依存のJSON設定として集める。"""
         settings = {
@@ -1377,6 +1599,7 @@ class HackDialog(QDialog):
             "gap_fix_enabled": self.chk_gapfix.isChecked(),
             "dark_light_frames": self.spin_dark_light.value(),
             "dark_dark_frames": self.spin_dark_dark.value(),
+            "solomon_seal_stages": self._selected_solomon_seal_stages(),
             "level_meta_positions": self._collect_level_meta_positions(),
         }
         supported = {
@@ -1402,6 +1625,7 @@ class HackDialog(QDialog):
             "stage_frame": bool(getattr(self, "_stage_frame_ok", False)),
             "gap_fix": bool(getattr(self, "_gapfix_ok", False)),
             "dark_tempo": bool(getattr(self, "_dark_tempo_ok", False)),
+            "solomon_seal_stages": bool(getattr(self, "_seal_stage_ok", False)),
         }
         return {
             "format": "solomon_customizer_global_settings",
@@ -1474,6 +1698,16 @@ class HackDialog(QDialog):
         set_spin("time_rate_fast", self.spin_time_fast, "ステージ制限時間 速い")
         set_spin("time_rate_normal", self.spin_time_normal, "ステージ制限時間 普通")
         set_spin("time_rate_slow", self.spin_time_slow, "ステージ制限時間 遅い")
+        if has("solomon_seal_stages") and getattr(self, "_seal_stage_ok", False):
+            values = solomon_seal_stage.validate_stages(settings["solomon_seal_stages"])
+            old = self._selected_solomon_seal_stages()
+            for combo, stage_no in zip(self.combo_seal_stages, values):
+                idx = combo.findData(int(stage_no))
+                if idx >= 0:
+                    combo.setCurrentIndex(idx)
+            if self._selected_solomon_seal_stages() != old:
+                changed.append("ソロモンの封印 出現面")
+                self._sync_parent_solomon_seal_stages(values)
         if has("wall_colors_1_48"):
             values = settings["wall_colors_1_48"]
             if values == []:
@@ -1751,6 +1985,22 @@ class HackDialog(QDialog):
                     warp_feather.apply(d, self.spin_warp_feather.value()))
             except warp_feather.WarpFeatherError as e:
                 QMessageBox.warning(self, "ワープ羽 設定失敗", str(e))
+
+        # ソロモンの封印 出現面
+        if getattr(self, "_seal_stage_ok", False):
+            try:
+                stages = self._selected_solomon_seal_stages()
+                seal_relocations = self._plan_solomon_seal_stage_relocations(stages)
+                seal_changes = solomon_seal_stage.apply(d, self.rom.region, stages)
+                if seal_changes:
+                    relocation_notes = self._apply_solomon_seal_stage_relocations(seal_relocations, d)
+                    applied.append("ソロモンの封印 出現面: " + " / ".join(seal_changes))
+                    if relocation_notes:
+                        applied.append("ソロモンの封印 位置補正: " + " / ".join(relocation_notes))
+                    self._sync_parent_solomon_seal_stages(stages)
+            except solomon_seal_stage.SolomonSealStageError as e:
+                QMessageBox.warning(self, "ソロモンの封印 出現面 設定失敗", str(e))
+                return False
 
         # 初期魔法 (共通)
         if getattr(self, "_initial_magic_ok", False):
