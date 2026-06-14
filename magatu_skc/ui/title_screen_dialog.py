@@ -21,6 +21,7 @@ from PyQt5.QtGui import QImage, QPixmap
 from ..core import title_screen as TS
 from ..core import rom as _rommod
 from ..nes.palette import NES_COLORS
+from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 from collections import Counter
 import json
 import os
@@ -148,12 +149,13 @@ class TitlePaletteDialog(QDialog):
 
 
 class TitleScreenDialog(QDialog):
-    def __init__(self, rom_data: bytearray, parent=None):
+    def __init__(self, rom_data: bytearray, parent=None, app_config=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
         self.setWindowTitle("タイトル移植 (配置+色区分+絵・US↔JP)")
         self._rom = rom_data
+        self._app_config = app_config
         # 開いた時点の ROM 全体を退避 (キャンセル復元用)
         self._snap = bytes(rom_data)
         self._changed = False
@@ -245,6 +247,7 @@ class TitleScreenDialog(QDialog):
         root.addWidget(bb)
 
         self._refresh()
+        restore_dialog_geometry(self, self._app_config, "title_screen_dlg")
 
     # --- 描画 (実タイトル画面を合成) ---
     def _build_image(self, color: bool = True) -> QImage:
@@ -893,3 +896,7 @@ class TitleScreenDialog(QDialog):
         # 開いた時点へ復元してから閉じる
         self._rom[:] = self._snap
         self.reject()
+
+    def done(self, r):
+        save_dialog_geometry(self, self._app_config, "title_screen_dlg")
+        super().done(r)

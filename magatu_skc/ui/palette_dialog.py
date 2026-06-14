@@ -20,6 +20,7 @@ from PyQt5.QtGui import QColor, QPixmap, QImage, QPainter, QPen
 from .. import __version__
 from ..nes.palette import NES_COLORS
 from ..core import wall_color_hack
+from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
 # 編集対象オフセット（パレットテーブル先頭）
@@ -77,13 +78,15 @@ class PaletteDialog(QDialog):
     SWATCH_W = 48
     SWATCH_H = 32
 
-    def __init__(self, rom_data: bytearray, parent=None, tile_renderer=None):
+    def __init__(self, rom_data: bytearray, parent=None, tile_renderer=None,
+                 app_config=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
         self.setWindowTitle("パレット編集")
         self.rom_data = rom_data
         self._tile_renderer = tile_renderer
+        self._app_config = app_config
         # 作業バッファ（OKまたはApplyで rom_data に反映）
         self._buf = [
             list(rom_data[PALETTE_OFFSET + p * BYTES_PER_PALETTE:
@@ -113,6 +116,7 @@ class PaletteDialog(QDialog):
         self._sel_wall = None
 
         self._build_ui()
+        restore_dialog_geometry(self, self._app_config, "palette_dlg")
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -678,3 +682,7 @@ class PaletteDialog(QDialog):
     def _apply_and_close(self):
         self._apply()
         self.accept()
+
+    def done(self, r):
+        save_dialog_geometry(self, self._app_config, "palette_dlg")
+        super().done(r)

@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import (
 
 from ..core import constants as c
 from .element_picker import MODE_ENEMY, MODE_ITEM, PICKER_MIME
+from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
 ITEM_REPLACE_STATE_OPTIONS = [
@@ -171,9 +172,11 @@ class ItemReplaceDialog(QDialog):
         enemy_icon_provider,
         selection_available=False,
         parent=None,
+        app_config=None,
     ):
         super().__init__(parent)
         self._mode = MODE_ITEM
+        self._app_config = app_config
         self.setWindowTitle("アイテム/モンスター一括置換")
         self.setMinimumWidth(520)
 
@@ -239,6 +242,7 @@ class ItemReplaceDialog(QDialog):
         self.from_spec.changed.connect(lambda: self._on_spec_changed(self.from_spec))
         self.to_spec.changed.connect(lambda: self._on_spec_changed(self.to_spec))
         self._update_replace_enabled()
+        restore_dialog_geometry(self, self._app_config, "item_replace_dlg")
 
     def set_initial_from_spec(self, spec):
         if spec is not None:
@@ -322,3 +326,7 @@ class ItemReplaceDialog(QDialog):
     def _update_replace_enabled(self):
         opts = self.options()
         self.btn_replace.setEnabled(opts is not None)
+
+    def done(self, r):
+        save_dialog_geometry(self, self._app_config, "item_replace_dlg")
+        super().done(r)

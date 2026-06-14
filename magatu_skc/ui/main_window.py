@@ -7606,6 +7606,7 @@ class MainWindow(QMainWindow):
                 enemy_icon_provider=lambda code: self.picker._make_enemy_icon(code),
                 selection_available=self._get_selection_bounds() is not None,
                 parent=self,
+                app_config=self._app_config,
             )
             dlg.replace_requested.connect(self._perform_item_replace_from_dialog)
             self._item_replace_dialog = dlg
@@ -7765,7 +7766,12 @@ class MainWindow(QMainWindow):
             return
         from .palette_dialog import PaletteDialog, PALETTE_OFFSET
         before = bytes(self.rom.data[PALETTE_OFFSET:PALETTE_OFFSET + 32])
-        dlg = PaletteDialog(self.rom.data, parent=self, tile_renderer=self.tile_renderer)
+        dlg = PaletteDialog(
+            self.rom.data,
+            parent=self,
+            tile_renderer=self.tile_renderer,
+            app_config=self._app_config,
+        )
         dlg.exec_()
         after = bytes(self.rom.data[PALETTE_OFFSET:PALETTE_OFFSET + 32])
         if after != before:
@@ -7788,6 +7794,7 @@ class MainWindow(QMainWindow):
                 parent=self,
                 tile_renderer=self.tile_renderer,
                 config=self.config,
+                app_config=self._app_config,
             )
         except _ed.EnemyDropError as e:
             QMessageBox.critical(self, "敵ドロップ編集 不可", str(e))
@@ -7808,7 +7815,11 @@ class MainWindow(QMainWindow):
         o0, o1 = _di.OFF_WAIT, _di.OFF_JOY + _di.STEPS
         before = bytes(self.rom.data[o0:o1])
         try:
-            dlg = DemoInputDialog(self.rom.data, parent=self)
+            dlg = DemoInputDialog(
+                self.rom.data,
+                parent=self,
+                app_config=self._app_config,
+            )
         except _di.DemoInputError as e:
             QMessageBox.critical(self, "デモ操作編集 不可", str(e))
             return
@@ -7830,7 +7841,11 @@ class MainWindow(QMainWindow):
         o1 = last["off"] + 3 + last["count"] + 1
         before = bytes(self.rom.data[o0:o1])
         try:
-            dlg = ClearMessageDialog(self.rom.data, parent=self)
+            dlg = ClearMessageDialog(
+                self.rom.data,
+                parent=self,
+                app_config=self._app_config,
+            )
         except _cm.ClearMessageError as e:
             QMessageBox.critical(self, "クリア画面メッセージ編集 不可",
                                  str(e))
@@ -7850,7 +7865,11 @@ class MainWindow(QMainWindow):
         from ..core import title_screen as _ts
         before = bytes(self.rom.data)
         try:
-            dlg = TitleScreenDialog(self.rom.data, parent=self)
+            dlg = TitleScreenDialog(
+                self.rom.data,
+                parent=self,
+                app_config=self._app_config,
+            )
         except _ts.TitleScreenError as e:
             QMessageBox.critical(self, "タイトル画面 操作不可", str(e))
             return
@@ -7868,6 +7887,7 @@ class MainWindow(QMainWindow):
             self.rom,
             initial_level_no=self.current_level_no,
             parent=self,
+            app_config=self._app_config,
         )
         dlg.exec_()
 
@@ -7911,7 +7931,11 @@ class MainWindow(QMainWindow):
             return
         from .sound_viewer import SoundViewer
         try:
-            dlg = SoundViewer(self.rom, parent=self)
+            dlg = SoundViewer(
+                self.rom,
+                parent=self,
+                app_config=self._app_config,
+            )
         except Exception as e:
             QMessageBox.critical(self, "音楽データ表示 不可", f"{type(e).__name__}: {e}")
             return
@@ -7955,7 +7979,13 @@ class MainWindow(QMainWindow):
         from .mirror_dialog import MirrorDialog
         lv = self.levels[self.current_level_no]
         before = bytes(self.rom.data)
-        dlg = MirrorDialog(self.rom, lv, self.current_level_no, parent=self)
+        dlg = MirrorDialog(
+            self.rom,
+            lv,
+            self.current_level_no,
+            parent=self,
+            app_config=self._app_config,
+        )
         dlg.exec_()
         if bytes(self.rom.data) != before:
             self._set_dirty(True)

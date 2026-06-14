@@ -6,17 +6,19 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QFont, QTextCursor
 
 from ..core import sound
+from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
 class SoundViewer(QDialog):
     """Display decoded sound/music sequence data as text."""
 
-    def __init__(self, rom, parent=None):
+    def __init__(self, rom, parent=None, app_config=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
         self.setWindowTitle("音楽データ表示")
         self.resize(920, 760)
+        self._app_config = app_config
         self.rom = rom
         self.songs = sound.read_sound_songs(self.rom.data)
 
@@ -57,6 +59,7 @@ class SoundViewer(QDialog):
         layout.addWidget(bb)
 
         self._refresh_text()
+        restore_dialog_geometry(self, self._app_config, "sound_viewer_dlg")
 
     def _selected_song(self):
         idx = self.song_combo.currentIndex()
@@ -82,3 +85,7 @@ class SoundViewer(QDialog):
 
     def _copy_text(self):
         QApplication.clipboard().setText(self.text.toPlainText())
+
+    def done(self, r):
+        save_dialog_geometry(self, self._app_config, "sound_viewer_dlg")
+        super().done(r)
