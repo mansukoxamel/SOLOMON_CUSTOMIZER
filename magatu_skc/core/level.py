@@ -70,6 +70,8 @@ class Level:
         # Cells drawn as white wall but converted to normal breakable stone at runtime.
         # Stored as (x, y) tuples. The visual map tile remains Wall.WHITE.
         self.breakable_white_cells = set()
+        # Cells drawn as cracked block but converted to cracked brown block at runtime.
+        self.cracked_block_cells = set()
         # Cells drawn as empty space but converted to normal breakable stone at runtime.
         self.invisible_breakable_cells = set()
         # Cells drawn as white wall but converted to empty space at runtime.
@@ -190,12 +192,16 @@ class Level:
         return self.tiles[y][x]
 
     def set_block(self, wall_type: Wall, pos: tuple):
+        if not hasattr(self, "cracked_block_cells"):
+            self.cracked_block_cells = set()
         x, y = pos
         if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H:
             self.tiles[y][x] = wall_type
             if wall_type != Wall.WHITE:
                 self.breakable_white_cells.discard((x, y))
                 self.passable_white_cells.discard((x, y))
+            if wall_type != Wall.BROWN:
+                self.cracked_block_cells.discard((x, y))
             if wall_type != Wall.BROWN:
                 self.passable_brown_cells.discard((x, y))
                 self.solid_brown_cells.discard((x, y))

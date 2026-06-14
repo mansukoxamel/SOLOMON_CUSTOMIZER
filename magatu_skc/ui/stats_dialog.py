@@ -561,6 +561,7 @@ class StatsDialog(QDialog):
         from ..gfx.level_renderer import MD_EMPTY, MD_BLOCK_BROWN, MD_BLOCK_WHITE
         meta = {
             "茶": MD_BLOCK_BROWN,
+            "ひび": None,
             "白": MD_BLOCK_WHITE,
             "茶白": MD_BLOCK_WHITE,
             "壊白": MD_BLOCK_WHITE,
@@ -572,6 +573,7 @@ class StatsDialog(QDialog):
         }.get(key, MD_EMPTY)
         colors = {
             "茶": QColor(120, 80, 40),
+            "ひび": QColor(255, 210, 80),
             "白": QColor(150, 150, 150),
             "茶白": QColor(80, 150, 255),
             "壊白": QColor(80, 230, 90),
@@ -582,7 +584,10 @@ class StatsDialog(QDialog):
             "固茶": QColor(255, 120, 220),
         }
         try:
-            anim = self.config.metadata_map.get(meta, 0)
+            if key == "ひび":
+                anim = self.config.item_map.get(0x01, 0)
+            else:
+                anim = self.config.metadata_map.get(meta, 0)
             sprite = self.tile_renderer.get_tile_image(anim, tileset_no, transparent=False)
             bg = QImage(ITEM_THUMB, ITEM_THUMB, QImage.Format_ARGB32)
             bg.fill(QColor(20, 20, 20))
@@ -604,7 +609,7 @@ class StatsDialog(QDialog):
 
     def _compose_block_strip(self, counts: dict, tileset_no: int,
                              wrap_width: int = 0, show_text: bool = False) -> QPixmap:
-        order = ["茶", "白", "茶白", "壊白", "透壊", "通白", "通茶", "透固", "固茶"]
+        order = ["茶", "ひび", "白", "茶白", "壊白", "透壊", "通白", "通茶", "透固", "固茶"]
         entries = [(key, counts[key]) for key in order if counts.get(key, 0) > 0]
         entries.extend((key, counts[key]) for key in sorted(counts) if key not in order and counts.get(key, 0) > 0)
         if not entries:
@@ -726,6 +731,7 @@ class StatsDialog(QDialog):
     def _block_counts(self, lv) -> dict:
         counts = {}
         breakable_white = set(getattr(lv, "breakable_white_cells", set()) or [])
+        cracked_block = set(getattr(lv, "cracked_block_cells", set()) or [])
         invisible_breakable = set(getattr(lv, "invisible_breakable_cells", set()) or [])
         passable_white = set(getattr(lv, "passable_white_cells", set()) or [])
         invisible_solid = set(getattr(lv, "invisible_solid_cells", set()) or [])
@@ -736,6 +742,8 @@ class StatsDialog(QDialog):
                 pos = (x, y)
                 if pos in breakable_white:
                     key = "壊白"
+                elif pos in cracked_block:
+                    key = "ひび"
                 elif pos in invisible_breakable:
                     key = "透壊"
                 elif pos in passable_white:

@@ -141,6 +141,7 @@ def _block_cell_signature(level, x: int, y: int) -> tuple:
     flags = []
     for attr, label in (
         ("breakable_white_cells", "breakable_white"),
+        ("cracked_block_cells", "cracked_block"),
         ("invisible_breakable_cells", "invisible_breakable"),
         ("passable_white_cells", "passable_white"),
         ("invisible_solid_cells", "invisible_solid"),

@@ -84,10 +84,9 @@ verbatim コピーするため file offset 不変):
 #   $0768-$0777 ENTITY_TAIL_CANDIDATE 補助候補16B         要probe
 #   $0778       ROOMFLAGS       room flag table cache         予約済(使用中)
 #   $0779       DARK_PHASE      暗闇 明滅フェーズカウンタ      予約済(使用中)
-#   $077A       BLOCK_OVERRIDE_DONE 特殊セル変換済みフラグ     予約済(使用中)
-#                               ・mapper66部屋ロードruntimeでクリアし、死亡後
-#                                 リスポーンでも特殊セルを再変換する。
-#   $077B       BLOCK_OVERRIDE_WORK 一時値                    予約済(使用中)
+#   $077A       BLOCK_OVERRIDE_LEGACY mapper66 loaderが互換目的でクリア 予約済(互換)
+#                               ・現行の特殊セル変換は変換済みフラグを読まない。
+#   $077B       BLOCK_OVERRIDE_WORK 旧一時値候補              予約済(互換)
 #   $077C       RUNTIME_DOOR_CELL 現在部屋の扉セル            予約済(使用中)
 #   $077D       SEAL_BLOCK_VALUE Solomon's Seal block-state value 予約済(使用中)
 #                               ・mapper66 StageExt loader がPRG1の部屋別表から
@@ -157,8 +156,8 @@ verbatim コピーするため file offset 不変):
 #   $0768-$0777 ENTITY_TAIL_CANDIDATE  secondary 16-byte candidate, probe before use
 #   $0778       ROOMFLAGS              room flag table cache, reserved in use
 #   $0779       DARK_PHASE             dark-room phase counter, reserved in use
-#   $077A       BLOCK_OVERRIDE_DONE    special-cell scanner done flag, reset by mapper66 room-load runtime
-#   $077B       BLOCK_OVERRIDE_WORK    temporary NMI work byte, reserved in use
+#   $077A       BLOCK_OVERRIDE_LEGACY  cleared by mapper66 room-load runtime, no current reader
+#   $077B       BLOCK_OVERRIDE_WORK    legacy temporary candidate, reserved for compatibility
 #   $077C       RUNTIME_DOOR_CELL      current room door cell, reserved in use
 #   $077D       SEAL_BLOCK_VALUE       Solomon's Seal block-state value from PRG1 table
 #   $077E-$077F FAIRY_ENEMY_RUNTIME    fall-death fairy enemy initial slot/runtime slot
@@ -257,6 +256,7 @@ assert len(DARK_CAVE_BLOB) == DARK_CAVE_RESERVED_SIZE
 # It converts direct m66 special cell IDs:
 #   $F9 -> $90  breakable white
 #   $FA -> $10  passable white
+#   $01 -> $D0  cracked brown block
 #   $40 -> $F8  invisible solid
 #   $50 -> $90  invisible breakable
 #   $A3 -> $10  passable brown
@@ -265,11 +265,11 @@ assert len(DARK_CAVE_BLOB) == DARK_CAVE_RESERVED_SIZE
 # the 24B mask at $0750-$0767 destructively and ORs $C0 into marked normal item
 # cells before the special-cell comparisons below.
 BW_CAVE = bytes.fromhex(
-    "20e495ad78072960f025a018a2c0204ce7c940f01bc9a4"
-    "f017c950f017c9f9f013c9faf013c9a3f00fcad0e2ee7a0760"
-    "a9f8d006a990d002a9109d1303d0ea"
+    "20e495ad78072960f026a018a2c0204ce7c901f024c940"
+    "f018c9a4f014c950f014c9f9f010c9faf014c9a3f010"
+    "cad0de60a9f8d00aa990d006a9d0d002a9109d1303d0e9"
 )
-BW_CAVE_RESERVED_SIZE = 67
+BW_CAVE_RESERVED_SIZE = 68
 assert len(BW_CAVE) <= BW_CAVE_RESERVED_SIZE
 BW_CAVE_BLOB = BW_CAVE + bytes([0xEA] * (BW_CAVE_RESERVED_SIZE - len(BW_CAVE)))
 assert len(BW_CAVE_BLOB) == BW_CAVE_RESERVED_SIZE
@@ -407,7 +407,7 @@ def _verify(rom_data) -> None:
     )
     pmsv_capacity_spans = (
         (_pmsv.OFF_FINAL_PANEL_TYPE_CLASSIFIER, 0x1E),
-        (_pmsv.OFF_FINAL_STAGE_DISPATCH_HELPER, 0x13),
+        (_pmsv.OFF_FINAL_STAGE_DISPATCH_HELPER, 0x12),
         (_pmsv.OFF_FINAL_GROUP_RAM_OFFSET_HELPER, 0x17),
         (_pmsv.OFF_FINAL_SPEED_SELECT_HELPER, 0x0A),
         (_pmsv.OFF_FINAL_STATIC_MARKER_HELPER, 0x10),

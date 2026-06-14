@@ -26,6 +26,7 @@ BREAKABLE_CELL_MODE_SOLID = 0xFD
 CELL_EMPTY = 0x10
 CELL_BROWN = 0x90
 CELL_WHITE = 0xF8
+CELL_CRACKED_BLOCK = 0x01
 CELL_INVISIBLE_SOLID = 0x40
 CELL_INVISIBLE_BREAKABLE = 0x50
 CELL_BREAKABLE_WHITE = 0xF9
@@ -151,6 +152,9 @@ def parse_level(rom_data: bytes, level_no: int) -> Level:
                 result.tiles[j][i] = Wall.WHITE
             elif value == CELL_BROWN:
                 result.tiles[j][i] = Wall.BROWN
+            elif value == CELL_CRACKED_BLOCK:
+                result.tiles[j][i] = Wall.BROWN
+                result.cracked_block_cells.add(pos)
             elif value == CELL_BREAKABLE_WHITE:
                 result.tiles[j][i] = Wall.WHITE
                 result.breakable_white_cells.add(pos)
@@ -341,6 +345,8 @@ def save_level_m66(rom_data: bytearray, level_no: int, level):
     # プレイ開始後の runtime が $0304 上で挙動値へ変換する。
     for pos in sorted(getattr(level, "breakable_white_cells", set()) or []):
         set_block(pos, CELL_BREAKABLE_WHITE)
+    for pos in sorted(getattr(level, "cracked_block_cells", set()) or []):
+        set_block(pos, CELL_CRACKED_BLOCK)
     for pos in sorted(getattr(level, "passable_white_cells", set()) or []):
         set_block(pos, CELL_PASSABLE_WHITE)
     for pos in sorted(getattr(level, "invisible_solid_cells", set()) or []):

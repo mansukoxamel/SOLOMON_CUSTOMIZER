@@ -118,7 +118,7 @@
     <tr><td class="num">$0768-$0777</td><td>entity終端後の沈黙帯</td><td class="warn">補助候補 16B</td><td>旧特殊ブロック32Bリスト跡の残り。$0778/$0779等の予約RAMに隣接するため、$0750-$0767より優先度は下げる。</td></tr>
     <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td class="ok">Customizer予約済</td><td>RoomFlagTableの現在部屋フラグcache。特殊扉(隠し/茶ブロック内/白ブロック内)/B禁止/A禁止/暗闇、bit4=ステージ開始時ファイヤー所持リセット、bit5=透明ブロック内アイテムmaskあり、bit6=特殊セル変換ありなど。</td></tr>
     <tr><td class="num">$0779</td><td>DARK_PHASE</td><td class="ok">Customizer予約済</td><td>暗闇モードの明滅フェーズカウンタ。</td></tr>
-    <tr><td class="num">$077A-$077B</td><td>runtime block override work</td><td class="ok">Customizer予約済</td><td><code>$077A</code> は特殊セル変換済みフラグ。mapper66部屋ロードruntimeで解除し、死亡後リスポーンでも再変換する。<code>$077B</code> は一時値。</td></tr>
+    <tr><td class="num">$077A-$077B</td><td>runtime block override legacy</td><td class="ok">Customizer予約済</td><td><code>$077A</code> はmapper66部屋ロードruntimeが互換目的でクリアする旧フラグ領域。現行の特殊セル変換は変換済みフラグを読まない。<code>$077B</code> は旧一時値候補。</td></tr>
     <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td class="ok">Customizer予約済</td><td>mapper66 StageExt loader がPRG1からコピーする現在部屋の扉セル。特殊扉(隠し/茶ブロック内/白ブロック内)処理が参照。</td></tr>
     <tr><td class="num">$077D</td><td>SEAL_BLOCK_VALUE</td><td class="ok">Customizer予約済</td><td>mapper66 StageExt loader がPRG1のソロモンの紋章ブロック状態表からコピーする現在部屋の上書き値。<code>$00</code>=原作、<code>$A0</code>=茶ブロック内、<code>$E0</code>=白ブロック内。</td></tr>
     <tr><td class="num">$077E-$077F</td><td>FAIRY_ENEMY_RUNTIME</td><td class="ok">Customizer予約済</td><td>落下死で妖精化する敵の対象初期敵番号/実行スロット。<code>key_enemy_runtime.py</code> が使用。</td></tr>
