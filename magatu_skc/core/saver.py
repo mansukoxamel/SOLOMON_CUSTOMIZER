@@ -63,6 +63,7 @@ def _run_save_step(step: str, func, *args, **kwargs):
 
 def validate_level_consistency(levels: list):
     """Check editor-level relationships before writing them into ROM bytes."""
+    from . import enemy_slot_rules
     from . import stage_ext
 
     for i, lv in enumerate(levels):
@@ -72,6 +73,10 @@ def validate_level_consistency(levels: list):
             raise SaveError(
                 f"Level {i + 1}: key enemy #{key_enemy_number} is selected, "
                 f"but only {enemy_count} initial enemies exist."
+            )
+        if key_enemy_number > 0 and not enemy_slot_rules.can_key_enemy_number(lv, key_enemy_number):
+            raise SaveError(
+                f"Level {i + 1}: enemy #{key_enemy_number} cannot be selected as a key enemy."
             )
         fairy_enemy_number = stage_ext.get_fairy_enemy_number(lv)
         if fairy_enemy_number <= 0:
@@ -85,6 +90,10 @@ def validate_level_consistency(levels: list):
             raise SaveError(
                 f"Level {i + 1}: enemy #{fairy_enemy_number} cannot be both "
                 "key-carrying and fall-death fairy."
+            )
+        if not enemy_slot_rules.can_fairy_enemy_number(lv, fairy_enemy_number, key_enemy_number):
+            raise SaveError(
+                f"Level {i + 1}: enemy #{fairy_enemy_number} cannot be selected as a fall-death fairy enemy."
             )
 
 

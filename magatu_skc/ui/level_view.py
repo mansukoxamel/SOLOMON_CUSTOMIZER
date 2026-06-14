@@ -621,9 +621,9 @@ class LevelView(QGraphicsView):
                 self._last_paint_tile = tile
         elif event.button() == Qt.RightButton:
             # 右クリック → 削除 + ドラッグ消し開始
-            self.tile_right_clicked.emit(tile)
             self._erasing = True
             self._last_erase_tile = tile
+            self.tile_right_clicked.emit(tile)
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
@@ -690,6 +690,16 @@ class LevelView(QGraphicsView):
             self._erasing = False
             self._last_erase_tile = None
         super().mouseReleaseEvent(event)
+
+    def cancel_mouse_button_state(self):
+        if self._dragging:
+            self.drag_end.emit()
+        self._dragging = False
+        self._last_drag_tile = None
+        self._painting = False
+        self._last_paint_tile = None
+        self._erasing = False
+        self._last_erase_tile = None
 
     def keyReleaseEvent(self, event):
         # Ctrl を離した瞬間にドラッグ終了
