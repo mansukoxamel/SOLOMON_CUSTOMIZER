@@ -1356,6 +1356,13 @@ class MainWindow(QMainWindow):
         self.btn_item_replace.setEnabled(False)
         el.addWidget(self.btn_item_replace, 5, 0, 1, 2)
 
+        self.btn_rom_diff = QPushButton("改造ROM差分比較")
+        self.btn_rom_diff.setToolTip(
+            "2つのROM/ZIPを読み込み、ステージデータの差分を面ごとに比較します。"
+        )
+        self.btn_rom_diff.clicked.connect(self._on_show_rom_diff)
+        el.addWidget(self.btn_rom_diff, 6, 0, 1, 2)
+
         left_layout.addWidget(edit_group)
 
         # レベル設定（編集UI - skchain移植）
@@ -7813,6 +7820,11 @@ class MainWindow(QMainWindow):
                           tile_renderer=self.tile_renderer,
                           app_config=self._app_config,
                           rom=self.rom, parent=self)
+        dlg.exec_()
+
+    def _on_show_rom_diff(self):
+        from .rom_diff_dialog import RomDiffDialog
+        dlg = RomDiffDialog(parent=self, app_config=self._app_config)
         dlg.exec_()
 
     # ====== ゲーム挙動改造 ======
