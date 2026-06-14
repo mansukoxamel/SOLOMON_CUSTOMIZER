@@ -65,6 +65,7 @@ class RomValidationDialog(QDialog):
         self._warnings = list(warnings or [])
         self._jump_callback = jump_callback
         self.setWindowTitle(title)
+        self.setModal(False)
         self.resize(900, 560)
 
         status = "問題なし" if not self._warnings else f"不整合 {len(self._warnings)} 件"
@@ -117,7 +118,6 @@ class RomValidationDialog(QDialog):
         if not stage_text:
             return
         self._jump_callback(int(stage_text), position_from_warning(message))
-        self.accept()
 
     def copy_results(self) -> None:
         lines = [self.summary.toPlainText().strip(), ""]

@@ -343,6 +343,8 @@ class MainWindow(QMainWindow):
         self._stage_compare_show_diff = False
         self._rom_validation_warnings = []
         self._rom_validation_rom = None
+        self._rom_validation_dialog = None
+        self._stats_dialog = None
         self.show_grid = False
         self.show_object_labels = False
         # Ctrl+クリックでの要素移動: 1回目で掴む、2回目で移動先
@@ -2442,6 +2444,12 @@ class MainWindow(QMainWindow):
         try:
             self._rom_validation_warnings = []
             self._rom_validation_rom = None
+            if getattr(self, "_rom_validation_dialog", None) is not None:
+                self._rom_validation_dialog.close()
+                self._rom_validation_dialog = None
+            if getattr(self, "_stats_dialog", None) is not None:
+                self._stats_dialog.close()
+                self._stats_dialog = None
             if hasattr(self, "btn_rom_validation"):
                 self.btn_rom_validation.setVisible(False)
             rom = Rom.load(path)
@@ -2751,13 +2759,24 @@ class MainWindow(QMainWindow):
         rom = getattr(self, "_rom_validation_rom", None) or self.rom
         if not rom:
             return
+        if (
+            getattr(self, "_rom_validation_dialog", None) is not None
+            and self._rom_validation_dialog.isVisible()
+        ):
+            self._rom_validation_dialog.raise_()
+            self._rom_validation_dialog.activateWindow()
+            return
         dlg = RomValidationDialog(
             rom,
             warnings,
             parent=self,
             jump_callback=self._jump_to_rom_validation_issue,
         )
-        dlg.exec_()
+        self._rom_validation_dialog = dlg
+        dlg.finished.connect(lambda _result: setattr(self, "_rom_validation_dialog", None))
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
 
     def _jump_to_rom_validation_issue(self, stage_no: int, pos=None):
         if not self.levels:
@@ -8344,6 +8363,10 @@ class MainWindow(QMainWindow):
     def _on_show_stats(self):
         if not self.levels:
             return
+        if getattr(self, "_stats_dialog", None) is not None and self._stats_dialog.isVisible():
+            self._stats_dialog.raise_()
+            self._stats_dialog.activateWindow()
+            return
         from .stats_dialog import StatsDialog
         item_desc = self.config.item_desc if self.config else {}
         dlg = StatsDialog(self.levels, item_desc=item_desc,
@@ -8351,7 +8374,11 @@ class MainWindow(QMainWindow):
                           tile_renderer=self.tile_renderer,
                           app_config=self._app_config,
                           rom=self.rom, parent=self)
-        dlg.exec_()
+        self._stats_dialog = dlg
+        dlg.finished.connect(lambda _result: setattr(self, "_stats_dialog", None))
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
 
     def _on_show_rom_diff(self):
         from .rom_diff_dialog import RomDiffDialog
