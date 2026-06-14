@@ -8556,20 +8556,27 @@ class MainWindow(QMainWindow):
         changed = False
         for mirror_no in range(2):
             sched_off = m66.OFFSET_M66_DROP_SCHED_DATA + (ln * 2 + mirror_no) * 8
-            for i in range(8):
-                if self.rom.data[sched_off + i] != 0:
+            if any(self.rom.data[sched_off + i] != 0 for i in range(8)):
+                changed = True
+            if mirror_no < len(lv.demon_mirrors):
+                sched = getattr(lv.demon_mirrors[mirror_no], "schedule_data", []) or []
+                if any(int(v) != 0 for v in list(sched)[:8]):
                     changed = True
+        if not changed:
+            self.statusBar().showMessage("ミラー1/2はすでに全OFFです", 3000)
+            return
+        self._push_undo()
+        for mirror_no in range(2):
+            sched_off = m66.OFFSET_M66_DROP_SCHED_DATA + (ln * 2 + mirror_no) * 8
+            for i in range(8):
                 self.rom.data[sched_off + i] = 0
             if mirror_no < len(lv.demon_mirrors):
                 lv.demon_mirrors[mirror_no].schedule_data = [0] * 8
         self._sync_mirror_panel()
         self._refresh_view()
-        if changed:
-            self._set_dirty(True)
-            self._log(f"ミラー出現OFF: L{ln + 1} のミラー1/2を全OFF")
-            self.statusBar().showMessage("ミラー1/2の出現タイミングを全OFFにしました", 3000)
-        else:
-            self.statusBar().showMessage("ミラー1/2はすでに全OFFです", 3000)
+        self._set_dirty(True)
+        self._log(f"ミラー出現OFF: L{ln + 1} のミラー1/2を全OFF")
+        self.statusBar().showMessage("ミラー1/2の出現タイミングを全OFFにしました", 3000)
 
     def _on_mirror_changed(self):
         """ミラーダイアログの Apply からコールバック"""

@@ -1,5 +1,9 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.200 (2026-06-14) Undo/Redo監査
+- ミラー出現OFFショートカットの変更をUndo/Redoできるようにした。
+- ステージ貼り付け、面入れ替え、Ctrl移動、選択範囲編集、一括置換などのUndo/Redo登録状況を確認した。
+
 ## v0.8.199 (2026-06-14) クリア画面キャラ候補の追加
 - クリア画面の2体キャラ差し替えプリセットに、Panel Monster、Spark Ball、Dragonを追加した。
 - クリア画面キャラ候補からDemonheadを削除した。
