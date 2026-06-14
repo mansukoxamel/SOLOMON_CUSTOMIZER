@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QLabel,
     QPushButton, QSpinBox, QFileDialog, QMessageBox, QSplitter,
     QGroupBox, QComboBox, QCheckBox, QListWidget, QApplication,
-    QToolBar, QAction, QRadioButton, QButtonGroup, QShortcut
+    QToolBar, QAction, QRadioButton, QButtonGroup, QShortcut, QToolButton
 )
 from PyQt5.QtCore import Qt, QSize, QEvent, QTimer, QUrl, QPoint
 from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor, QPainter, QPen, QImage
@@ -64,6 +64,24 @@ from .element_picker import (
 APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
 AUTOSAVE_HISTORY_LABEL = "前回の作業状態"
 WINDOW_STATE_DEBUG_ENV = "SOLOMON_WINDOW_STATE_DEBUG"
+
+
+class _StageNumberLabel(QLabel):
+    """Canvas stage label that also works as a stage selector."""
+
+    def __init__(self, owner, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._owner = owner
+        self.setCursor(Qt.PointingHandCursor)
+
+    def wheelEvent(self, event):
+        delta = event.angleDelta().y()
+        if delta:
+            # Match the existing right-side selector: wheel up moves to the previous stage.
+            self._owner._change_stage_relative(-1 if delta > 0 else 1, play_sound=True)
+            event.accept()
+            return
+        super().wheelEvent(event)
 
 
 class _XInputGamepad(ctypes.Structure):
@@ -948,15 +966,35 @@ class MainWindow(QMainWindow):
             self._app_config.get("enemy_count_meter_slot_size", 18)
         )
         self.enemy_count_indicator.hide()
-        self.stage_number_label = QLabel("", self.level_view.viewport())
-        self.stage_number_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.stage_number_label = _StageNumberLabel(self, "", self.level_view.viewport())
         self.stage_number_label.setStyleSheet(
             "QLabel { color: #54ff4d; background: transparent; "
             "font-size: 34px; font-weight: 900; }"
         )
-        self.stage_number_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.stage_number_label.setAlignment(Qt.AlignCenter)
         self.stage_number_label.setFixedHeight(54)
         self.stage_number_label.hide()
+        self.btn_stage_prev_canvas = QToolButton(self.level_view.viewport())
+        self.btn_stage_next_canvas = QToolButton(self.level_view.viewport())
+        for btn, text, tip, delta in (
+            (self.btn_stage_prev_canvas, "◀", "前のステージ", -1),
+            (self.btn_stage_next_canvas, "▶", "次のステージ", 1),
+        ):
+            btn.setText(text)
+            btn.setToolTip(tip)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setAutoRaise(True)
+            btn.setFixedSize(26, 24)
+            btn.setStyleSheet(
+                "QToolButton { color: #54ff4d; background: rgba(0, 40, 10, 150); "
+                "border: 1px solid #168c2d; border-radius: 2px; font-size: 15px; "
+                "font-weight: 900; padding: 0px; }"
+                "QToolButton:hover { background: rgba(0, 130, 30, 190); "
+                "border-color: #30ff53; }"
+                "QToolButton:pressed { background: rgba(30, 255, 70, 210); color: #001800; }"
+            )
+            btn.clicked.connect(lambda _checked=False, d=delta: self._change_stage_relative(d, play_sound=True))
+            btn.hide()
         self.level_view.viewport().installEventFilter(self)
 
         # スプリッター
@@ -1025,10 +1063,22 @@ class MainWindow(QMainWindow):
         right_limit = viewport.width() - 8
         if hasattr(self, "enemy_count_indicator") and self.enemy_count_indicator.isVisible():
             right_limit = min(right_limit, self.enemy_count_indicator.x() - 8)
-        label_w = max(150, min(260, right_limit - x))
+        button_w = 26
+        gap = 4
+        text_w = label.fontMetrics().horizontalAdvance(label.text()) + 10
+        label_w = min(max(120, text_w), max(60, right_limit - x - (button_w * 2) - (gap * 2)))
         label.resize(label_w, h)
-        label.move(x, y)
+        label.move(x + button_w + gap, y)
         label.raise_()
+        if hasattr(self, "btn_stage_prev_canvas") and hasattr(self, "btn_stage_next_canvas"):
+            btn_y = max(4, y + (h - self.btn_stage_prev_canvas.height()) // 2)
+            self.btn_stage_prev_canvas.move(x, btn_y)
+            self.btn_stage_next_canvas.move(
+                min(right_limit - button_w, x + button_w + gap + label_w + gap),
+                btn_y,
+            )
+            self.btn_stage_prev_canvas.raise_()
+            self.btn_stage_next_canvas.raise_()
 
     def _position_enemy_count_indicator(self):
         if not hasattr(self, "enemy_count_indicator"):
@@ -1063,11 +1113,22 @@ class MainWindow(QMainWindow):
             return
         if not self.levels or not (0 <= self.current_level_no < len(self.levels)):
             self.stage_number_label.hide()
+            if hasattr(self, "btn_stage_prev_canvas"):
+                self.btn_stage_prev_canvas.hide()
+            if hasattr(self, "btn_stage_next_canvas"):
+                self.btn_stage_next_canvas.hide()
             return
         stage_no = self.current_level_no + 1
         self.stage_number_label.setText(f"STAGE {stage_no:02d}")
-        self.stage_number_label.setToolTip(f"現在のステージ: {stage_no}")
+        self.stage_number_label.setToolTip(f"現在のステージ: {stage_no}\nマウスホイールでステージ切替")
         self.stage_number_label.show()
+        max_stage = min(c.LEVEL_COUNT, len(self.levels))
+        if hasattr(self, "btn_stage_prev_canvas"):
+            self.btn_stage_prev_canvas.setEnabled(stage_no > 1)
+            self.btn_stage_prev_canvas.show()
+        if hasattr(self, "btn_stage_next_canvas"):
+            self.btn_stage_next_canvas.setEnabled(stage_no < max_stage)
+            self.btn_stage_next_canvas.show()
         self._position_stage_number_label()
 
     def _update_enemy_count_indicator(self):
@@ -1549,10 +1610,6 @@ class MainWindow(QMainWindow):
         v = QVBoxLayout(w)
         v.setContentsMargins(4, 4, 4, 4)
 
-        title = QLabel("ステージ選択")
-        title.setObjectName("stageSelectTitle")
-        v.addWidget(title)
-
         from PyQt5.QtGui import QWheelEvent
 
         class _InvertedSpinBox(QSpinBox):
@@ -1583,7 +1640,7 @@ class MainWindow(QMainWindow):
         self.spin_level.setFocusPolicy(Qt.StrongFocus)
         self.spin_level.setMinimumHeight(30)
         self.spin_level.valueChanged.connect(self._on_level_changed)
-        v.addWidget(self.spin_level)
+        self.spin_level.hide()
 
         stage_ops = QHBoxLayout()
         self.btn_stage_copy = QPushButton("面コピー")
