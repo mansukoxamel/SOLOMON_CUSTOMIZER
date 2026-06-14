@@ -63,7 +63,6 @@ from .element_picker import (
 )
 
 APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
-AUTOSAVE_HISTORY_LABEL = "前回の作業状態"
 WINDOW_STATE_DEBUG_ENV = "SOLOMON_WINDOW_STATE_DEBUG"
 
 
@@ -349,6 +348,8 @@ class MainWindow(QMainWindow):
         # ROM読み込み履歴
         self.last_loaded_path: str = ""
         self._loaded_source_path: str = ""
+        self._loaded_workstate_path: str = ""
+        self._loaded_workstate_saved_at: str = ""
         self._history: list = self._load_history()
         # Undo/Redo: 編集前スナップショットのスタック、上限は設定で変更可能
         self._undo_stack: list = []
@@ -2425,6 +2426,8 @@ class MainWindow(QMainWindow):
         status_message: str = "",
         source_path_override: str = "",
         display_name_override: str = "",
+        workstate_path_override: str = "",
+        workstate_saved_at_override: str = "",
     ):
         try:
             rom = Rom.load(path)
@@ -2616,6 +2619,13 @@ class MainWindow(QMainWindow):
                     f"編集不可: 閲覧/ステージ出力専用 ({read_only_reason})"
                     "</span>"
                 )
+            workstate_note = ""
+            if workstate_saved_at_override:
+                workstate_note = (
+                    "<br><span style='color:#fbbf24'>"
+                    f"作業状態復元: {escape(self._format_autosave_saved_at(workstate_saved_at_override))}"
+                    "</span>"
+                )
             info_html = (
                 f"<b>{rom.display_name}</b><br>"
                 f"[{rom.region}, {len(rom)/1024:.0f}KB]<br>"
@@ -2623,6 +2633,7 @@ class MainWindow(QMainWindow):
                 f"{version_note}"
                 f"{expand_note}"
                 f"{readonly_note}"
+                f"{workstate_note}"
             )
             if known:
                 info_html += f"<br><span style='color:#aaa'>{known}</span>"
@@ -2677,6 +2688,8 @@ class MainWindow(QMainWindow):
             # 読込成功 → 再読込ボタンを有効化、履歴に追加、Undo履歴クリア、未保存マーククリア
             self.last_loaded_path = path
             self._loaded_source_path = source_path_override or path
+            self._loaded_workstate_path = workstate_path_override
+            self._loaded_workstate_saved_at = workstate_saved_at_override
             self.btn_reload.setEnabled(True)
             if add_history:
                 self._add_to_history(path)
@@ -2706,6 +2719,9 @@ class MainWindow(QMainWindow):
     def _autosave_undo_file_for_rom(self, rom_path: Path) -> Path:
         return rom_path.with_suffix(".undo.json")
 
+    def _autosave_meta_file_for_rom(self, rom_path: Path) -> Path:
+        return rom_path.with_suffix(".meta.json")
+
     def _load_autosave_manifest(self) -> dict:
         try:
             with open(self._autosave_manifest_file(), "r", encoding="utf-8") as f:
@@ -2713,6 +2729,57 @@ class MainWindow(QMainWindow):
             return data if isinstance(data, dict) else {}
         except Exception:
             return {}
+
+    def _load_autosave_metadata(self, autosave_path: str) -> dict:
+        if not autosave_path:
+            return {}
+        try:
+            rom_path = Path(autosave_path)
+            meta_path = self._autosave_meta_file_for_rom(rom_path)
+            if meta_path.exists():
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+        except Exception:
+            pass
+
+        manifest = self._load_autosave_manifest()
+        try:
+            latest = str(Path(str(manifest.get("latest", ""))))
+            current = str(Path(autosave_path))
+        except Exception:
+            latest = str(manifest.get("latest", ""))
+            current = str(autosave_path)
+        if latest and latest == current:
+            return manifest if isinstance(manifest, dict) else {}
+        return {}
+
+    def _format_autosave_saved_at(self, saved_at: str) -> str:
+        text = str(saved_at or "")
+        if not text:
+            return "保存日時不明"
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(text)
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            return text
+
+    def _autosave_display_name_from_metadata(self, metadata: dict, autosave_path: str) -> str:
+        display_name = str(metadata.get("display_name", "") or "")
+        if display_name:
+            return display_name
+        source_path = str(metadata.get("source_path", "") or "")
+        if source_path:
+            return Path(source_path).name
+        return "元ROM不明"
+
+    def _write_autosave_metadata(self, autosave_path: Path, metadata: dict):
+        meta_path = self._autosave_meta_file_for_rom(autosave_path)
+        meta_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(meta_path, "w", encoding="utf-8") as f:
+            json.dump(metadata, f, ensure_ascii=False, indent=2)
 
     def _latest_autosave_path(self) -> str:
         path = self._load_autosave_manifest().get("latest", "")
@@ -2734,9 +2801,13 @@ class MainWindow(QMainWindow):
             return False
 
     def _history_label_for_path(self, path: str) -> str:
-        latest = self._latest_autosave_path()
-        if latest and str(Path(path)) == str(Path(latest)):
-            return AUTOSAVE_HISTORY_LABEL
+        if self._is_autosave_path(path):
+            metadata = self._load_autosave_metadata(path)
+            display_name = self._autosave_display_name_from_metadata(metadata, path)
+            saved_at = self._format_autosave_saved_at(metadata.get("saved_at", ""))
+            latest = self._latest_autosave_path()
+            prefix = "前回の作業状態" if latest and str(Path(path)) == str(Path(latest)) else "作業状態"
+            return f"{prefix}: {display_name} / {saved_at}"
         p = Path(path)
         return f"{p.name}  ({p.parent.name})"
 
@@ -2786,7 +2857,40 @@ class MainWindow(QMainWindow):
     def _on_reload_rom(self):
         if not self.last_loaded_path:
             return
-        self.load_rom(self.last_loaded_path)
+        if self._is_autosave_path(self.last_loaded_path):
+            self._load_autosave_workstate(self.last_loaded_path, add_history=False)
+        else:
+            self.load_rom(self.last_loaded_path)
+
+    def _load_autosave_workstate(self, path: str, add_history: bool = True) -> bool:
+        metadata = self._load_autosave_metadata(path)
+        source_path = str(metadata.get("source_path", "") or "")
+        display_name = self._autosave_display_name_from_metadata(metadata, path)
+        saved_at = str(metadata.get("saved_at", "") or "")
+        self.load_rom(
+            path,
+            add_history=False,
+            status_message=(
+                f"{display_name} の作業状態を復元しました: "
+                f"{self._format_autosave_saved_at(saved_at)}"
+            ),
+            source_path_override=source_path,
+            display_name_override=display_name,
+            workstate_path_override=path,
+            workstate_saved_at_override=saved_at,
+        )
+        if str(Path(self.last_loaded_path)) != str(Path(path)):
+            return False
+        try:
+            level_no = int(metadata.get("last_level_no", 0))
+        except Exception:
+            level_no = 0
+        if self.levels and 0 <= level_no < len(self.levels):
+            self.spin_level.setValue(level_no + 1)
+        self._restore_autosave_undo_history(self._autosave_undo_file_for_rom(Path(path)))
+        if add_history:
+            self._remember_previous_workstate_history(path)
+        return True
 
     def _on_show_history(self):
         from PyQt5.QtWidgets import QMenu
@@ -2799,7 +2903,9 @@ class MainWindow(QMainWindow):
                 label = self._history_label_for_path(path)
                 action = menu.addAction(label)
                 action.setToolTip(path)
-                action.triggered.connect(lambda checked, pp=path: self.load_rom(pp))
+                action.triggered.connect(lambda checked, pp=path: (
+                    self._load_autosave_workstate(pp) if self._is_autosave_path(pp) else self.load_rom(pp)
+                ))
             menu.addSeparator()
             clr = menu.addAction("履歴をクリア")
             clr.triggered.connect(self._on_clear_history)
@@ -6672,8 +6778,10 @@ class MainWindow(QMainWindow):
                 self._undo_stack[-1], sorted(levels.keys())
             )
         manifest = {
+            "format": "solomon_customizer_autosave_meta",
             "latest": str(autosave_path),
             "latest_undo": str(undo_path),
+            "autosave_path": str(autosave_path),
             "saved_at": saved_at,
             "source_path": self._loaded_source_path or self.last_loaded_path,
             "display_name": self.rom.display_name if self.rom else "",
@@ -6684,6 +6792,7 @@ class MainWindow(QMainWindow):
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(manifest, f, ensure_ascii=False, indent=2)
+        self._write_autosave_metadata(autosave_path, manifest)
 
     def _prune_autosaves(self):
         autosaves = sorted(
@@ -6698,6 +6807,10 @@ class MainWindow(QMainWindow):
                 pass
             try:
                 self._autosave_undo_file_for_rom(old).unlink()
+            except Exception:
+                pass
+            try:
+                self._autosave_meta_file_for_rom(old).unlink()
             except Exception:
                 pass
         self._prune_missing_autosave_history()
@@ -6724,38 +6837,22 @@ class MainWindow(QMainWindow):
         if self._app_config.get("last_session_restore_kind") == "readonly":
             if self._restore_previous_readonly_rom_if_available():
                 return True
-        manifest = self._load_autosave_manifest()
         path = self._latest_autosave_path()
         if not path:
             return self._restore_previous_readonly_rom_if_available()
         try:
-            source_path = str(manifest.get("source_path", "") or "")
-            display_name = str(manifest.get("display_name", "") or "")
-            if not display_name and source_path:
-                display_name = Path(source_path).name
-            self.load_rom(
-                path,
-                add_history=False,
-                status_message="前回の作業状態を復元しました",
-                source_path_override=source_path,
-                display_name_override=display_name,
-            )
-            if str(Path(self.last_loaded_path)) != str(Path(path)):
+            if not self._load_autosave_workstate(path, add_history=False):
                 return False
-            try:
-                level_no = int(manifest.get("last_level_no", 0))
-            except Exception:
-                level_no = 0
-            if self.levels and 0 <= level_no < len(self.levels):
-                self.spin_level.setValue(level_no + 1)
-            self._restore_autosave_undo_history(self._autosave_undo_file_for_rom(Path(path)))
             self._remember_previous_workstate_history(path)
+            metadata = self._load_autosave_metadata(path)
+            display_name = self._autosave_display_name_from_metadata(metadata, path)
+            saved_at = self._format_autosave_saved_at(metadata.get("saved_at", ""))
             self.statusBar().showMessage(
-                f"前回の作業状態を復元しました: Stage {self.current_level_no + 1}",
+                f"{display_name} の作業状態を復元しました: {saved_at} / Stage {self.current_level_no + 1}",
                 5000,
             )
             self._log(
-                f"前回の作業状態を復元: {path} / Stage {self.current_level_no + 1}"
+                f"前回の作業状態を復元: {display_name} / {saved_at} / {path} / Stage {self.current_level_no + 1}"
             )
             return True
         except Exception as e:
