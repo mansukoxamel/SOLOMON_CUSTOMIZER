@@ -809,7 +809,17 @@ class MainWindow(QMainWindow):
             "現在ステージの2つのミラーについて、出現タイミング(64ビット)とTTLを編集"
         )
         self.btn_mirror.clicked.connect(self._on_show_mirror)
-        self.picker.set_mirror_detail_button(self.btn_mirror)
+        self.btn_mirror_off = QPushButton("OFF")
+        self.btn_mirror_off.setToolTip("現在ステージのミラー1/2の出現タイミングをすべてOFFにする")
+        self.btn_mirror_off.setFixedWidth(48)
+        self.btn_mirror_off.clicked.connect(self._on_clear_mirror_schedules)
+        mirror_button_row = QWidget()
+        mirror_button_layout = QHBoxLayout(mirror_button_row)
+        mirror_button_layout.setContentsMargins(0, 0, 0, 0)
+        mirror_button_layout.setSpacing(4)
+        mirror_button_layout.addWidget(self.btn_mirror, 1)
+        mirror_button_layout.addWidget(self.btn_mirror_off, 0)
+        self.picker.set_mirror_detail_button(mirror_button_row)
         self.picker.set_extra_panel_widget(self._build_panel_variant_panel())
 
         # 中央: レベルビュー
@@ -7877,6 +7887,48 @@ class MainWindow(QMainWindow):
         if bytes(self.rom.data) != before:
             self._set_dirty(True)
             self._log(f"ミラー詳細設定: L{self.current_level_no + 1} を変更")
+
+    def _on_clear_mirror_schedules(self):
+        if not self.rom or not self.levels:
+            return
+        if self._reject_read_only_edit():
+            return
+        if not self.rom.is_expanded():
+            QMessageBox.information(
+                self,
+                "ミラーOFF",
+                "拡張ROMを読み込んだ状態で使用できます。"
+            )
+            return
+        ans = QMessageBox.question(
+            self,
+            "ミラー出現タイミングをOFF",
+            f"Stage {self.current_level_no + 1} のミラー1/2の出現タイミングをすべてOFFにしますか？",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+        if ans != QMessageBox.Yes:
+            return
+        from ..core import m66
+        ln = self.current_level_no
+        lv = self.levels[ln]
+        changed = False
+        for mirror_no in range(2):
+            sched_off = m66.OFFSET_M66_DROP_SCHED_DATA + (ln * 2 + mirror_no) * 8
+            for i in range(8):
+                if self.rom.data[sched_off + i] != 0:
+                    changed = True
+                self.rom.data[sched_off + i] = 0
+            if mirror_no < len(lv.demon_mirrors):
+                lv.demon_mirrors[mirror_no].schedule_data = [0] * 8
+        self._sync_mirror_panel()
+        self._refresh_view()
+        if changed:
+            self._set_dirty(True)
+            self._log(f"ミラー出現OFF: L{ln + 1} のミラー1/2を全OFF")
+            self.statusBar().showMessage("ミラー1/2の出現タイミングを全OFFにしました", 3000)
+        else:
+            self.statusBar().showMessage("ミラー1/2はすでに全OFFです", 3000)
 
     def _on_mirror_changed(self):
         """ミラーダイアログの Apply からコールバック"""
