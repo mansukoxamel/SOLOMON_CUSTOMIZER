@@ -37,7 +37,7 @@ SHORTCUT_DEFINITIONS = [
     ("copy_selection", "コピー", "Ctrl+C"),
     ("paste_selection", "ペースト", "Ctrl+V"),
     ("cut_selection", "切り取り", "Ctrl+X"),
-    ("item_replace", "アイテム/モンスター一括置換", "Ctrl+H"),
+    ("item_replace", "オブジェクト一括置換", "Ctrl+H"),
     ("delete_hover_or_selection", "ホバー/選択範囲を削除", "Delete"),
     ("delete_hover_or_selection_alt", "ホバー/選択範囲を削除 代替", "Backspace"),
     ("clear_selection_escape", "選択解除(Esc)", "Esc"),
