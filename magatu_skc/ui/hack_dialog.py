@@ -42,6 +42,8 @@ from ..core import time_decrease_hack
 from ..core import wall_color_hack
 from ..core import stage_frame
 from ..core import solomon_seal_stage
+from ..core import constants as c
+from ..core.element import Wall
 from ..nes import palette as nes_palette
 
 
@@ -1262,6 +1264,126 @@ class HackDialog(QDialog):
         if callable(refresh_thumb) and current_level_no is not None:
             refresh_thumb(current_level_no)
 
+    def _solomon_seal_is_clear_air(self, level, level_no: int, tile: tuple, seal_no: int) -> bool:
+        x, y = tile
+        if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+            return False
+        if x >= c.LEVEL_W - 1:
+            return False
+        if level.tiles[y][x] != Wall.NONE:
+            return False
+        runtime_marker_names = (
+            "breakable_white_cells",
+            "invisible_breakable_cells",
+            "invisible_solid_cells",
+            "passable_white_cells",
+            "passable_brown_cells",
+            "solid_brown_cells",
+        )
+        for name in runtime_marker_names:
+            if tile in getattr(level, name, set()):
+                return False
+        if tuple(getattr(level, "fixed_start_pos", (-1, -1))) == tile:
+            return False
+        if not level.is_key_removed() and tuple(getattr(level, "fixed_key_pos", (-1, -1))) == tile:
+            return False
+        if not level.is_door_removed() and tuple(getattr(level, "fixed_door_pos", (-1, -1))) == tile:
+            return False
+        if level.get_item_index(tile) >= 0 or level.get_enemy_index(tile) >= 0:
+            return False
+        for mirror in getattr(level, "demon_mirrors", []) or []:
+            if tuple(getattr(mirror, "position", (-1, -1))) == tile:
+                return False
+        cfg = self._level_meta_config()
+        if cfg is not None:
+            for mi in getattr(cfg, "level_meta_items", []) or []:
+                no = int(getattr(mi, "no", -1))
+                if no == int(seal_no):
+                    continue
+                if int(getattr(mi, "level_no", -1)) != int(level_no):
+                    continue
+                if tuple(getattr(mi, "position", (-1, -1))) == tile:
+                    return False
+        return True
+
+    def _nearest_solomon_seal_clear_air(self, level, level_no: int, origin: tuple, seal_no: int):
+        ox, oy = origin
+        candidates = []
+        for y in range(c.LEVEL_H):
+            for x in range(c.LEVEL_W):
+                tile = (x, y)
+                if not self._solomon_seal_is_clear_air(level, level_no, tile, seal_no):
+                    continue
+                dist = abs(x - ox) + abs(y - oy)
+                candidates.append((dist, abs(y - oy), abs(x - ox), y, x, tile))
+        if not candidates:
+            return None
+        candidates.sort()
+        return candidates[0][-1]
+
+    def _plan_solomon_seal_stage_relocations(self, stages: list) -> list:
+        parent = self.parent()
+        levels = getattr(parent, "levels", None)
+        cfg = self._level_meta_config()
+        if cfg is None or not levels:
+            return []
+        from ..core.element import position_from_byte
+
+        relocations = []
+        for mi in getattr(cfg, "level_meta_items", []) or []:
+            no = int(getattr(mi, "no", -1))
+            desc = str(getattr(mi, "description", "")).lower()
+            if not (0 <= no < len(stages) and "solomon" in desc and "seal" in desc):
+                continue
+            old_level_no = int(getattr(mi, "level_no", -1))
+            new_level_no = int(stages[no]) - 1
+            if old_level_no == new_level_no:
+                continue
+            if not (0 <= new_level_no < len(levels)):
+                continue
+            rom_offset = int(getattr(mi, "rom_offset", -1))
+            if self.rom is not None and 0 <= rom_offset < len(self.rom.data):
+                old_pos = position_from_byte(self.rom.data[rom_offset])
+            else:
+                old_pos = tuple(getattr(mi, "position", (0, 0)))
+            level = levels[new_level_no]
+            if self._solomon_seal_is_clear_air(level, new_level_no, old_pos, no):
+                new_pos = old_pos
+            else:
+                new_pos = self._nearest_solomon_seal_clear_air(level, new_level_no, old_pos, no)
+            if new_pos is None:
+                raise solomon_seal_stage.SolomonSealStageError(
+                    f"封印{no + 1}: {new_level_no + 1}面に配置可能な空気マスがありません。"
+                )
+            relocations.append({
+                "meta": mi,
+                "no": no,
+                "old_level_no": old_level_no,
+                "new_level_no": new_level_no,
+                "old_pos": old_pos,
+                "new_pos": new_pos,
+                "relocated": tuple(old_pos) != tuple(new_pos),
+            })
+        return relocations
+
+    def _apply_solomon_seal_stage_relocations(self, relocations: list, rom_data: bytearray) -> list:
+        from ..core.element import byte_from_position
+
+        notes = []
+        for item in relocations:
+            mi = item["meta"]
+            mi.level_no = int(item["new_level_no"])
+            mi.position = tuple(item["new_pos"])
+            rom_offset = int(getattr(mi, "rom_offset", -1))
+            if 0 <= rom_offset < len(rom_data):
+                rom_data[rom_offset] = byte_from_position(mi.position)
+            if item.get("relocated"):
+                notes.append(
+                    f"封印{int(item['no']) + 1}: {int(item['new_level_no']) + 1}面 "
+                    f"{tuple(item['old_pos'])} -> {tuple(item['new_pos'])}"
+                )
+        return notes
+
     def _collect_wall_color_values(self) -> list:
         try:
             wall_color_hack.special_values(self.rom.data)
@@ -1868,9 +1990,13 @@ class HackDialog(QDialog):
         if getattr(self, "_seal_stage_ok", False):
             try:
                 stages = self._selected_solomon_seal_stages()
+                seal_relocations = self._plan_solomon_seal_stage_relocations(stages)
                 seal_changes = solomon_seal_stage.apply(d, self.rom.region, stages)
                 if seal_changes:
+                    relocation_notes = self._apply_solomon_seal_stage_relocations(seal_relocations, d)
                     applied.append("ソロモンの封印 出現面: " + " / ".join(seal_changes))
+                    if relocation_notes:
+                        applied.append("ソロモンの封印 位置補正: " + " / ".join(relocation_notes))
                     self._sync_parent_solomon_seal_stages(stages)
             except solomon_seal_stage.SolomonSealStageError as e:
                 QMessageBox.warning(self, "ソロモンの封印 出現面 設定失敗", str(e))
