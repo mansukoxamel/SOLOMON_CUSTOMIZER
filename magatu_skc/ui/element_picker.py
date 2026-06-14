@@ -340,6 +340,13 @@ class DraggablePickerList(QListWidget):
                         payload = f"{payload}|{int(provider())}"
                     except Exception:
                         pass
+            elif mode == MODE_ENEMY:
+                provider = getattr(self, "_enemy_speed_provider", None)
+                if callable(provider):
+                    try:
+                        payload = f"{mode}|{apply_enemy_speed(int(val), int(provider()))}"
+                    except Exception:
+                        pass
             mime.setData(PICKER_MIME, payload.encode("utf-8"))
             mime.setText(payload)
             drag.setMimeData(mime)

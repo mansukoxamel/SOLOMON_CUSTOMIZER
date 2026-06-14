@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
 )
 
 from ..core import constants as c
-from .element_picker import MODE_ITEM, PICKER_MIME
+from .element_picker import MODE_ENEMY, MODE_ITEM, PICKER_MIME
 
 
 ITEM_REPLACE_STATE_OPTIONS = [
@@ -28,11 +28,22 @@ STATE_LABELS = dict(ITEM_REPLACE_STATE_OPTIONS)
 class _ItemSpecDrop(QWidget):
     changed = pyqtSignal()
 
-    def __init__(self, title, item_name_resolver, icon_provider, parent=None):
+    def __init__(
+        self,
+        title,
+        item_name_resolver,
+        item_icon_provider,
+        enemy_name_resolver,
+        enemy_icon_provider,
+        parent=None,
+    ):
         super().__init__(parent)
         self._item_name = item_name_resolver
-        self._icon_provider = icon_provider
-        self._item = None
+        self._item_icon_provider = item_icon_provider
+        self._enemy_name = enemy_name_resolver
+        self._enemy_icon_provider = enemy_icon_provider
+        self._mode = None
+        self._value = None
         self._state = c.ITEM_FLAG_NORMAL
         self._show_state = True
         self.setAcceptDrops(True)
@@ -64,9 +75,19 @@ class _ItemSpecDrop(QWidget):
         hint.setStyleSheet("color:#9aa;")
         layout.addWidget(hint)
 
-    def set_spec(self, item_no, state):
-        self._item = int(item_no) & 0x3F
+    def set_spec(self, mode, value, state=c.ITEM_FLAG_NORMAL):
+        if mode not in (MODE_ITEM, MODE_ENEMY):
+            return
+        self._mode = mode
+        self._value = int(value) & (0x3F if mode == MODE_ITEM else 0xFF)
         self._state = int(state)
+        self._refresh_label()
+        self.changed.emit()
+
+    def clear_spec(self):
+        self._mode = None
+        self._value = None
+        self._state = c.ITEM_FLAG_NORMAL
         self._refresh_label()
         self.changed.emit()
 
@@ -75,22 +96,27 @@ class _ItemSpecDrop(QWidget):
         self._refresh_label()
 
     def spec(self):
-        if self._item is None:
+        if self._mode is None or self._value is None:
             return None
-        return self._item, self._state
+        return self._mode, self._value, self._state
 
     def _refresh_label(self):
-        if self._item is None:
+        if self._mode is None or self._value is None:
             self.lbl_value.setText("未指定")
             self.lbl_icon.clear()
             return
-        name = self._item_name(self._item)
-        text = f"{name} (0x{self._item:02X})"
-        if self._show_state:
+        if self._mode == MODE_ITEM:
+            name = self._item_name(self._value)
+            text = f"{name} (0x{self._value:02X})"
+            icon = self._item_icon_provider(self._value)
+        else:
+            name = self._enemy_name(self._value)
+            text = f"{name} (0x{self._value:02X})"
+            icon = self._enemy_icon_provider(self._value)
+        if self._mode == MODE_ITEM and self._show_state:
             state = STATE_LABELS.get(self._state, f"0x{self._state:X}")
             text = f"{text} / {state}"
         self.lbl_value.setText(text)
-        icon = self._icon_provider(self._item)
         pixmap = icon.pixmap(40, 40)
         self.lbl_icon.setPixmap(pixmap)
 
@@ -111,8 +137,8 @@ class _ItemSpecDrop(QWidget):
         if spec is None:
             event.ignore()
             return
-        item_no, state = spec
-        self.set_spec(item_no, state)
+        mode, value, state = spec
+        self.set_spec(mode, value, state)
         event.acceptProposedAction()
 
     @staticmethod
@@ -122,13 +148,14 @@ class _ItemSpecDrop(QWidget):
         try:
             payload = bytes(mime.data(PICKER_MIME)).decode("utf-8")
             parts = payload.split("|")
-            if len(parts) < 2 or parts[0] != MODE_ITEM:
+            if len(parts) < 2 or parts[0] not in (MODE_ITEM, MODE_ENEMY):
                 return None
-            item_no = int(parts[1])
+            mode = parts[0]
+            value = int(parts[1])
             state = int(parts[2]) if len(parts) >= 3 else c.ITEM_FLAG_NORMAL
         except Exception:
             return None
-        return item_no, state
+        return mode, value, state
 
 
 class ItemReplaceDialog(QDialog):
@@ -139,32 +166,40 @@ class ItemReplaceDialog(QDialog):
     def __init__(
         self,
         item_name_resolver,
-        icon_provider,
+        item_icon_provider,
+        enemy_name_resolver,
+        enemy_icon_provider,
         selection_available=False,
         parent=None,
     ):
         super().__init__(parent)
-        self.setWindowTitle("アイテム一括置換")
+        self._mode = MODE_ITEM
+        self.setWindowTitle("アイテム/モンスター一括置換")
         self.setMinimumWidth(520)
 
         layout = QVBoxLayout(self)
         note = QLabel(
             "検索元と置換先は、開いた時点のピッカー状態で初期化されます。"
             "変更する場合はピッカーからドラッグしてください。"
+            "アイテムとモンスターは同じ種別内でのみ置換できます。"
         )
         note.setWordWrap(True)
         layout.addWidget(note)
 
         self.from_spec = _ItemSpecDrop(
-            "検索するアイテム（状態込み）",
+            "検索する対象",
             item_name_resolver,
-            icon_provider,
+            item_icon_provider,
+            enemy_name_resolver,
+            enemy_icon_provider,
             self,
         )
         self.to_spec = _ItemSpecDrop(
-            "置換後アイテム（状態込み）",
+            "置換後の対象",
             item_name_resolver,
-            icon_provider,
+            item_icon_provider,
+            enemy_name_resolver,
+            enemy_icon_provider,
             self,
         )
         layout.addWidget(self.from_spec)
@@ -201,8 +236,8 @@ class ItemReplaceDialog(QDialog):
         buttons.addWidget(self.btn_close)
         layout.addLayout(buttons)
 
-        self.from_spec.changed.connect(self._update_replace_enabled)
-        self.to_spec.changed.connect(self._update_replace_enabled)
+        self.from_spec.changed.connect(lambda: self._on_spec_changed(self.from_spec))
+        self.to_spec.changed.connect(lambda: self._on_spec_changed(self.to_spec))
         self._update_replace_enabled()
 
     def set_initial_from_spec(self, spec):
@@ -232,11 +267,21 @@ class ItemReplaceDialog(QDialog):
         to_spec = self.to_spec.spec()
         if from_spec is None or to_spec is None:
             return None
-        from_item, from_state = from_spec
-        to_item, to_state = to_spec
+        from_mode, from_value, from_state = from_spec
+        to_mode, to_value, to_state = to_spec
+        if from_mode != to_mode:
+            return None
+        if from_mode == MODE_ENEMY:
+            return {
+                "mode": MODE_ENEMY,
+                "from_enemy": int(from_value),
+                "to_enemy": int(to_value),
+                "scope": self.cmb_scope.currentData(),
+            }
         return {
-            "from_item": int(from_item),
-            "to_item": int(to_item),
+            "mode": MODE_ITEM,
+            "from_item": int(from_value),
+            "to_item": int(to_value),
             "match_state": not bool(self.chk_ignore_state.isChecked()),
             "from_state": int(from_state),
             "to_state": int(to_state),
@@ -255,7 +300,25 @@ class ItemReplaceDialog(QDialog):
     def _sync_ignore_state_display(self):
         self.from_spec.set_state_visible(not self.chk_ignore_state.isChecked())
 
+    def _on_spec_changed(self, changed_spec):
+        spec = changed_spec.spec()
+        if spec is not None:
+            mode = spec[0]
+            if mode != self._mode:
+                self._mode = mode
+                other = self.to_spec if changed_spec is self.from_spec else self.from_spec
+                other.clear_spec()
+        self._sync_mode_ui()
+        self._update_replace_enabled()
+
+    def _sync_mode_ui(self):
+        is_item = self._mode == MODE_ITEM
+        self.chk_ignore_state.setEnabled(is_item)
+        self.chk_ignore_state.setVisible(is_item)
+        if not is_item:
+            self.chk_ignore_state.setChecked(False)
+        self._sync_ignore_state_display()
+
     def _update_replace_enabled(self):
-        self.btn_replace.setEnabled(
-            self.from_spec.spec() is not None and self.to_spec.spec() is not None
-        )
+        opts = self.options()
+        self.btn_replace.setEnabled(opts is not None)
