@@ -130,7 +130,7 @@
     <item no="0x04" description="Bat Symbol" animation="6" />
     <item no="0x05" description="Demon Mirror" animation="57" />
     <item no="0x06" description="Key (glitch)" animation="5" />
-    <item no="0x07" description="Open Door (glitch)" animation="81" />
+    <item no="0x07" description="Open Door" animation="81" />
     <item no="0x08" description="Diamond (blue, modifiable)" animation="10" />
     <item no="0x09" description="Firejar (blue, modifiable)" animation="77" />
     <item no="0x0a" description="Double Coin (gold, modifiable)" animation="79" />

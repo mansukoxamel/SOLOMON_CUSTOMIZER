@@ -42,10 +42,18 @@ def _enemy_positions(level) -> list:
 
 SHRINE_ITEM_MIN = 0x1C
 SHRINE_ITEM_MAX = 0x1F
+OPEN_DOOR_ITEM_NO = 0x07
 
 
 def _expected_shrine_item_no(stage_no: int) -> int:
     return SHRINE_ITEM_MIN + (((stage_no // 4) - 1) % 4)
+
+
+def _has_open_door_item(level) -> bool:
+    return any(
+        int(item.get_item_no()) == OPEN_DOOR_ITEM_NO
+        for item in (getattr(level, "items", []) or [])
+    )
 
 
 def _has_scheduled_mirror(mirror) -> bool:
@@ -203,6 +211,7 @@ def _collect_level_warnings(level, stage_index: int) -> list[str]:
     label = _stage_label(stage_index)
     item_positions = _item_positions(level)
     enemy_positions = _enemy_positions(level)
+    has_open_door_item = _has_open_door_item(level)
 
     if not _in_bounds(level.fixed_start_pos):
         warnings.append(f"{label}: 開始位置が画面外です {_pos_label(level.fixed_start_pos)}。")
@@ -213,7 +222,7 @@ def _collect_level_warnings(level, stage_index: int) -> list[str]:
 
     check_required_meta = stage_index < 48
     if level.is_key_removed():
-        if check_required_meta:
+        if check_required_meta and not has_open_door_item:
             warnings.append(f"{label}: 鍵が配置されていません。")
     elif not _in_bounds(level.fixed_key_pos):
         warnings.append(f"{label}: 鍵位置が画面外です {_pos_label(level.fixed_key_pos)}。")
@@ -227,7 +236,7 @@ def _collect_level_warnings(level, stage_index: int) -> list[str]:
                 warnings.append(f"{label}: 通常鍵が空気以外のブロック上にあります {_pos_label(key_pos)}。")
 
     if level.is_door_removed():
-        if check_required_meta:
+        if check_required_meta and not has_open_door_item:
             warnings.append(f"{label}: 扉が配置されていません。")
     elif not _in_bounds(level.fixed_door_pos):
         warnings.append(f"{label}: 扉位置が画面外です {_pos_label(level.fixed_door_pos)}。")
