@@ -863,11 +863,14 @@ class StatsDialog(QDialog):
             f_bfire = "●" if rf & _rf.BIT_NO_BFIRE else ""
             f_dark = "●" if rf & _rf.BIT_DARK else ""
             door_state = rf & _rf.DOOR_STATE_MASK
-            f_door = {
-                _rf.DOOR_STATE_HIDDEN: "隠",
-                _rf.DOOR_STATE_IN_BLOCK: "内",
-                _rf.DOOR_STATE_WHITE_IN_BLOCK: "白内",
-            }.get(door_state, "")
+            if lv.is_door_removed():
+                f_door = "削除"
+            else:
+                f_door = {
+                    _rf.DOOR_STATE_HIDDEN: "隠",
+                    _rf.DOOR_STATE_IN_BLOCK: "内",
+                    _rf.DOOR_STATE_WHITE_IN_BLOCK: "白内",
+                }.get(door_state, "")
             f_fire_reset = "●" if _se.fire_reset_enabled(lv) else ""
             f_fairy_drop = "●" if self._falling_fairy_enabled(row) else ""
 

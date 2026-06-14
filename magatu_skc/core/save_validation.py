@@ -2,6 +2,7 @@
 
 from . import constants as c
 from . import solomon_seal_stage
+from . import stage_ext
 from .element import Wall
 
 
@@ -238,6 +239,10 @@ def _collect_level_warnings(level, stage_index: int) -> list[str]:
     if level.is_door_removed():
         if check_required_meta and not has_open_door_item:
             warnings.append(f"{label}: 扉が配置されていません。")
+        if not level.is_key_removed():
+            warnings.append(f"{label}: 扉が削除されていますが鍵が残っています。鍵取得時に画面外の扉へ飛ぶ可能性があります。")
+        if stage_ext.get_key_enemy_number(level) > 0:
+            warnings.append(f"{label}: 扉が削除されていますが鍵持ち敵が設定されています。鍵取得時に画面外の扉へ飛ぶ可能性があります。")
     elif not _in_bounds(level.fixed_door_pos):
         warnings.append(f"{label}: 扉位置が画面外です {_pos_label(level.fixed_door_pos)}。")
     else:

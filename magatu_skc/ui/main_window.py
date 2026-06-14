@@ -5033,6 +5033,18 @@ class MainWindow(QMainWindow):
                 restore_rejected_click_edit()
                 return
 
+            protected_open_door_idx = lv.get_item_index(tile)
+            if (
+                protected_open_door_idx >= 0
+                and self._is_protected_open_door_item(lv, lv.items[protected_open_door_idx])
+                and value != BLOCK_NONE
+            ):
+                self.statusBar().showMessage(
+                    "扉削除中のOpen Doorにはブロックを置けません", 2000
+                )
+                restore_rejected_click_edit()
+                return
+
             # ブロック（茶 / 壊せる白 / 透明壊せる）+ メタ/アイテム → 状態フラグへ吸収
             skip_block_placement = False
             if value in (BLOCK_BROWN, BLOCK_BROWN_WHITE):
@@ -5249,6 +5261,12 @@ class MainWindow(QMainWindow):
             # アイテム × アイテム 重複禁止 → 置換
             existing = lv.get_item_index(tile)
             if existing >= 0:
+                if self._is_protected_open_door_item(lv, lv.items[existing]):
+                    self.statusBar().showMessage(
+                        "扉削除中のOpen Doorは削除できません", 2000
+                    )
+                    restore_rejected_click_edit()
+                    return
                 lv.delete_item(existing)
                 self.statusBar().showMessage(
                     f"既存アイテムを置換 {tile}", 2500
@@ -5378,6 +5396,12 @@ class MainWindow(QMainWindow):
                     return
                 lv.fixed_start_pos = tile
             elif value == "key":
+                if lv.is_door_removed():
+                    self.statusBar().showMessage(
+                        "扉が削除されているステージには鍵を置けません", 3000
+                    )
+                    restore_rejected_click_edit()
+                    return
                 if lv.get_item_index(tile) >= 0:
                     self.statusBar().showMessage(
                         f"アイテムがある位置には鍵を置けません {tile}", 3000
@@ -5889,13 +5913,50 @@ class MainWindow(QMainWindow):
             "visible_in_block_item_cells",
         )
         has_runtime_marker = any(tile in getattr(lv, name, set()) for name in marker_names)
+        can_delete_key = (
+            not lv.is_key_removed()
+            and lv.fixed_key_pos == tile
+            and self._can_delete_key_meta(lv)
+        )
+        can_delete_door = (
+            not lv.is_door_removed()
+            and lv.fixed_door_pos == tile
+            and self._can_delete_door_meta(lv)
+        )
         if (
             lv.get_item_index(tile) < 0
             and lv.get_enemy_index(tile) < 0
             and lv.tiles[tile[1]][tile[0]] == Wall.NONE
             and not has_runtime_marker
+            and not can_delete_key
+            and not can_delete_door
         ):
             return
+        if can_delete_door and stage_ext.get_key_enemy_number(lv) > 0:
+            self.statusBar().showMessage(
+                "扉を削除する前に鍵持ち敵を解除してください", 3000
+            )
+            return
+        if can_delete_door and not lv.is_key_removed() and not can_delete_key:
+            self.statusBar().showMessage(
+                "扉を削除する前に鍵メタを削除してください", 3000
+            )
+            return
+        key_enemy_number = stage_ext.get_key_enemy_number(lv)
+        if self._key_enemy_is_required_for_exit(lv) and key_enemy_number > 0:
+            idx = lv.get_enemy_index(tile)
+            while idx >= 0:
+                if idx <= key_enemy_number - 1:
+                    self.statusBar().showMessage(
+                        "鍵メタが無いため、この鍵持ち敵に影響する敵は削除できません", 3000
+                    )
+                    return
+                next_idx = -1
+                for i in range(idx - 1, -1, -1):
+                    if lv.enemies[i].position == tile:
+                        next_idx = i
+                        break
+                idx = next_idx
 
         self._push_undo()
         if not getattr(self, '_suppress_next_undo', False):
@@ -5903,10 +5964,25 @@ class MainWindow(QMainWindow):
 
         deleted = []
 
+        if can_delete_key:
+            from ..core import constants as cc
+            lv.visible_in_block_item_cells.discard(tile)
+            lv.fixed_key_pos = (0, -1)
+            lv.key_status = cc.KEY_STATUS_HIDDEN
+            deleted.append("key")
+
+        if can_delete_door:
+            from ..core import room_flags as _rf
+            lv.fixed_door_pos = (0, -1)
+            lv.room_flags = lv.room_flags & ~_rf.DOOR_STATE_MASK
+            deleted.append("door")
+
         # アイテム削除（同位置に複数ある場合に備えてループ）
         while True:
             idx = lv.get_item_index(tile)
             if idx < 0:
+                break
+            if self._is_protected_open_door_item(lv, lv.items[idx]):
                 break
             lv.delete_item(idx)
             deleted.append("item")
@@ -6011,6 +6087,38 @@ class MainWindow(QMainWindow):
 
     def _can_edit_tile_pos(self, x: int, y: int) -> bool:
         return 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H and not (x == 15 and self._is_col15_locked())
+
+    def _level_has_open_door_item(self, lv) -> bool:
+        return any((int(item.element_no) & 0x3F) == 0x07 for item in getattr(lv, "items", []) or [])
+
+    def _is_open_door_item(self, item) -> bool:
+        return (int(getattr(item, "element_no", 0)) & 0x3F) == 0x07
+
+    def _is_protected_open_door_item(self, lv, item) -> bool:
+        return bool(
+            self._is_open_door_item(item)
+            and (
+                lv.is_door_removed()
+                or (
+                    lv.is_key_removed()
+                    and stage_ext.get_key_enemy_number(lv) <= 0
+                )
+            )
+        )
+
+    def _can_delete_key_meta(self, lv) -> bool:
+        return bool(self._level_has_open_door_item(lv) or stage_ext.get_key_enemy_number(lv) > 0)
+
+    def _can_delete_door_meta(self, lv) -> bool:
+        return bool(self._level_has_open_door_item(lv))
+
+    def _key_enemy_is_required_for_exit(self, lv) -> bool:
+        return bool(
+            not lv.is_door_removed()
+            and lv.is_key_removed()
+            and not self._level_has_open_door_item(lv)
+            and stage_ext.get_key_enemy_number(lv) > 0
+        )
 
     def _tile_has_visible_key_or_door(self, lv, tile) -> bool:
         has_key = not lv.is_key_removed() and lv.fixed_key_pos == tile
@@ -6369,8 +6477,17 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("選択範囲がありません", 1500)
             return
         x1, y1, x2, y2 = bounds
-        self._push_undo()
         lv = self.levels[self.current_level_no]
+        key_enemy_number = stage_ext.get_key_enemy_number(lv)
+        if self._key_enemy_is_required_for_exit(lv) and key_enemy_number > 0:
+            for idx, enemy in enumerate(lv.enemies):
+                ex, ey = enemy.position
+                if idx <= key_enemy_number - 1 and x1 <= ex <= x2 and y1 <= ey <= y2:
+                    self.statusBar().showMessage(
+                        "鍵メタが無いため、鍵持ち敵に影響する敵は範囲削除できません", 3000
+                    )
+                    return
+        self._push_undo()
         # ブロック
         for y in range(y1, y2 + 1):
             for x in range(x1, x2 + 1):
@@ -6391,7 +6508,8 @@ class MainWindow(QMainWindow):
             })
         # アイテム
         lv.items = [it for it in lv.items
-                    if not (x1 <= it.position[0] <= x2 and y1 <= it.position[1] <= y2)]
+                    if self._is_protected_open_door_item(lv, it)
+                    or not (x1 <= it.position[0] <= x2 and y1 <= it.position[1] <= y2)]
         # 敵
         old_enemy_count = len(lv.enemies)
         lv.enemies = [en for en in lv.enemies
@@ -7875,10 +7993,22 @@ class MainWindow(QMainWindow):
             self._refresh_key_enemy_spin_range()
             self._refresh_fairy_enemy_spin_range()
             return
-        self._push_undo()
         from ..core import stage_ext as _se
         from ..core import enemy_slot_rules as _esr
         lv = self.levels[self.current_level_no]
+        if int(enemy_number) <= 0 and self._key_enemy_is_required_for_exit(lv):
+            self.statusBar().showMessage(
+                "鍵メタが無いため、この鍵持ち敵は解除できません", 3000
+            )
+            self._refresh_key_enemy_spin_range()
+            return
+        if int(enemy_number) > 0 and lv.is_door_removed():
+            self.statusBar().showMessage(
+                "扉が削除されているステージには鍵持ち敵を設定できません", 3000
+            )
+            self._refresh_key_enemy_spin_range()
+            return
+        self._push_undo()
         current = _se.get_key_enemy_number(lv)
         fairy_enemy_number = _se.get_fairy_enemy_number(lv)
         enemy_number = _esr.coerce_enemy_number(
@@ -8124,6 +8254,8 @@ class MainWindow(QMainWindow):
         self._refresh_changed_stages(changed_levels)
 
     def _item_replace_matches(self, lv, item, opts):
+        if self._is_protected_open_door_item(lv, item):
+            return False
         if not self._item_replace_tile_in_scope(item.position, opts["scope"]):
             return False
         if item.get_item_no() != opts["from_item"]:
@@ -8383,6 +8515,12 @@ class MainWindow(QMainWindow):
     def _on_show_rom_diff(self):
         from .rom_diff_dialog import RomDiffDialog
         dlg = RomDiffDialog(parent=self, app_config=self._app_config)
+        dlg.exec_()
+
+    def _on_show_rom_diff_for_paths(self, left_path: str, right_path: str):
+        from .rom_diff_dialog import RomDiffDialog
+        dlg = RomDiffDialog(parent=self, app_config=self._app_config)
+        dlg.set_compare_paths(left_path, right_path)
         dlg.exec_()
 
     # ====== ゲーム挙動改造 ======
@@ -8989,9 +9127,15 @@ class MainWindow(QMainWindow):
         if ans != QMessageBox.Yes:
             return
 
-        self._push_undo()
         lv = self.levels[self.current_level_no]
         can_edit_col15 = self.chk_edit_col15.isChecked()
+        if mode in ("all", "enemies") and self._key_enemy_is_required_for_exit(lv):
+            self.statusBar().showMessage(
+                "鍵メタが無いため、鍵持ち敵を含むモンスター削除はできません", 3000
+            )
+            return
+
+        self._push_undo()
 
         if mode in ("all", "blocks"):
             for y in range(c.LEVEL_H):
@@ -9001,13 +9145,28 @@ class MainWindow(QMainWindow):
                     lv.tiles[y][x] = Wall.NONE
         if mode in ("all", "items"):
             if can_edit_col15:
-                lv.items = []
-                lv.visible_in_block_item_cells = set()
-            else:
-                lv.items = [item for item in lv.items if item.position[0] == 15]
+                lv.items = [
+                    item for item in lv.items
+                    if self._is_protected_open_door_item(lv, item)
+                ]
                 lv.visible_in_block_item_cells = {
                     pos for pos in getattr(lv, "visible_in_block_item_cells", set())
-                    if pos[0] == 15
+                    if any(
+                        item.position == pos and self._is_protected_open_door_item(lv, item)
+                        for item in lv.items
+                    )
+                }
+            else:
+                lv.items = [
+                    item for item in lv.items
+                    if item.position[0] == 15 or self._is_protected_open_door_item(lv, item)
+                ]
+                lv.visible_in_block_item_cells = {
+                    pos for pos in getattr(lv, "visible_in_block_item_cells", set())
+                    if pos[0] == 15 or any(
+                        item.position == pos and self._is_protected_open_door_item(lv, item)
+                        for item in lv.items
+                    )
                 }
         if mode in ("all", "enemies"):
             if can_edit_col15:
@@ -9291,7 +9450,7 @@ Alt+左クリック: スポイト（そのマスの要素をピッカーに取�
             event.ignore()
 
     def dropEvent(self, event):
-        """ドロップ時 - 最初の .nes / .zip ファイルを読み込み（内部D&Dは子で処理）"""
+        """ドロップ時 - 2ROMなら差分比較、1ROMなら読み込み（内部D&Dは子で処理）"""
         from .element_picker import PICKER_MIME
         if event.mimeData().hasFormat(PICKER_MIME):
             # 子ウィジェットで処理されなかった内部D&Dは無視
@@ -9301,14 +9460,22 @@ Alt+左クリック: スポイト（そのマスの要素をピッカーに取�
             event.ignore()
             return
 
+        paths = []
         for url in event.mimeData().urls():
             if not url.isLocalFile():
                 continue
             path = url.toLocalFile()
             lower = path.lower()
             if lower.endswith('.nes') or lower.endswith('.zip'):
-                event.acceptProposedAction()
-                self.load_rom(path)
-                return
+                paths.append(path)
+
+        if len(paths) >= 2:
+            event.acceptProposedAction()
+            self._on_show_rom_diff_for_paths(paths[0], paths[1])
+            return
+        if len(paths) == 1:
+            event.acceptProposedAction()
+            self.load_rom(paths[0])
+            return
 
         event.ignore()
