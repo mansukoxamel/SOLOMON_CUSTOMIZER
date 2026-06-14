@@ -222,6 +222,11 @@ DEFAULT_CONFIG = {
     "item_replace_dlg_y": -1,
     "item_replace_dlg_w": -1,
     "item_replace_dlg_h": -1,
+    "rom_diff_dlg_x": -1,
+    "rom_diff_dlg_y": -1,
+    "rom_diff_dlg_w": -1,
+    "rom_diff_dlg_h": -1,
+    "rom_diff_dlg_splitter": [],
     # SOLOMON_CUSTOMIZER標準（今後実装予定）
     "icon_path": DEFAULT_ICON_PATH,
     "font_family": "",

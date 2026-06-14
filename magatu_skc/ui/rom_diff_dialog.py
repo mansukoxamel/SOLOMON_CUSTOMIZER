@@ -6,7 +6,7 @@ from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import (
     QDialog, QFileDialog, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
     QLabel, QLineEdit, QMessageBox, QPushButton, QPlainTextEdit, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget,
+    QTableWidgetItem, QVBoxLayout, QWidget, QSplitter, QSizePolicy,
 )
 
 from ..core import constants as c
@@ -15,6 +15,7 @@ from ..gfx.level_renderer import LevelRenderer
 from ..gfx.tile_renderer import TileRenderer
 from ..nes.config_loader import SkcConfig
 from ..nes.tile import load_chr_tiles
+from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
 SORT_ROLE = Qt.UserRole + 1
@@ -32,17 +33,22 @@ class RomDiffDialog(QDialog):
         ("summary", "概要"),
     )
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, app_config=None):
         super().__init__(parent)
+        if parent is not None:
+            self.setFont(parent.font())
         self.setWindowTitle("改造ROM差分比較")
         self.resize(1120, 820)
         self.setAcceptDrops(True)
+        self._app_config = app_config
         self._result = None
         self._left_renderer = None
         self._right_renderer = None
         self._left_preview_image = None
         self._right_preview_image = None
         self._build_ui()
+        restore_dialog_geometry(self, self._app_config, "rom_diff_dlg")
+        self._restore_splitter_state()
 
     def _build_ui(self):
         root = QVBoxLayout(self)
@@ -80,6 +86,9 @@ class RomDiffDialog(QDialog):
         btn_row.addWidget(self.lbl_result, 1)
         root.addLayout(btn_row)
 
+        self.main_splitter = QSplitter(Qt.Vertical)
+        root.addWidget(self.main_splitter, 1)
+
         self.table = QTableWidget(0, len(self.COLUMNS), self)
         self.table.setHorizontalHeaderLabels([label for _, label in self.COLUMNS])
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -91,20 +100,26 @@ class RomDiffDialog(QDialog):
             len(self.COLUMNS) - 1, QHeaderView.Stretch
         )
         self.table.itemSelectionChanged.connect(self._show_selected_details)
-        root.addWidget(self.table, 3)
+        self.main_splitter.addWidget(self.table)
 
         self.details = QPlainTextEdit()
         self.details.setReadOnly(True)
         self.details.setPlaceholderText("表の行を選択すると、ここに詳細差分を表示します。")
-        root.addWidget(self.details, 2)
+        self.main_splitter.addWidget(self.details)
 
         preview_group = QGroupBox("選択ステージの画像")
         preview_layout = QHBoxLayout(preview_group)
+        preview_layout.setContentsMargins(8, 8, 8, 8)
+        preview_layout.setSpacing(0)
         self.left_preview = self._make_preview_panel("比較元")
         self.right_preview = self._make_preview_panel("比較先")
         preview_layout.addWidget(self.left_preview["root"], 1)
         preview_layout.addWidget(self.right_preview["root"], 1)
-        root.addWidget(preview_group, 3)
+        self.main_splitter.addWidget(preview_group)
+        self.main_splitter.setSizes([360, 180, 360])
+        self.main_splitter.splitterMoved.connect(
+            lambda _pos, _index: self._refresh_preview_labels()
+        )
 
         close_row = QHBoxLayout()
         close_row.addStretch()
@@ -116,12 +131,18 @@ class RomDiffDialog(QDialog):
     def _make_preview_panel(self, title: str) -> dict:
         root = QWidget()
         layout = QVBoxLayout(root)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         label = QLabel(title)
         label.setAlignment(Qt.AlignCenter)
         image = QLabel("比較後、変更ステージを選択すると表示します")
         image.setAlignment(Qt.AlignCenter)
-        image.setMinimumSize(384, 288)
-        image.setStyleSheet("QLabel { background: #000; color: #888; }")
+        image.setMinimumSize(420, 315)
+        image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        image.setStyleSheet(
+            "QLabel { background: #000; color: #888; "
+            "border: 1px solid #1f7a35; }"
+        )
         layout.addWidget(label)
         layout.addWidget(image, 1)
         return {"root": root, "title": label, "image": image}
@@ -283,15 +304,17 @@ class RomDiffDialog(QDialog):
             self._result.left_levels[idx],
             level_no=idx,
             show_grid=False,
-            show_hidden_overlay=True,
+            show_hidden_overlay=False,
             show_col15=True,
+            show_border=True,
         )
         self._right_preview_image = self._right_renderer.render(
             self._result.right_levels[idx],
             level_no=idx,
             show_grid=False,
-            show_hidden_overlay=True,
+            show_hidden_overlay=False,
             show_col15=True,
+            show_border=True,
         )
         self.left_preview["title"].setText(f"比較元 Stage {stage_no}")
         self.right_preview["title"].setText(f"比較先 Stage {stage_no}")
@@ -307,7 +330,8 @@ class RomDiffDialog(QDialog):
             label.setPixmap(QPixmap())
             return
         pixmap = QPixmap.fromImage(image).scaled(
-            label.size(),
+            max(1, label.width() - 2),
+            max(1, label.height() - 2),
             Qt.KeepAspectRatio,
             Qt.FastTransformation,
         )
@@ -328,6 +352,33 @@ class RomDiffDialog(QDialog):
         super().resizeEvent(event)
         if self._left_preview_image is not None or self._right_preview_image is not None:
             self._refresh_preview_labels()
+
+    def done(self, result):
+        save_dialog_geometry(self, self._app_config, "rom_diff_dlg")
+        self._save_splitter_state()
+        super().done(result)
+
+    def _restore_splitter_state(self):
+        if self._app_config is None:
+            return
+        sizes = self._app_config.get("rom_diff_dlg_splitter", [])
+        if isinstance(sizes, list) and len(sizes) == 3:
+            try:
+                self.main_splitter.setSizes([max(60, int(v)) for v in sizes])
+            except Exception:
+                pass
+
+    def _save_splitter_state(self):
+        if self._app_config is None:
+            return
+        try:
+            self._app_config["rom_diff_dlg_splitter"] = [
+                int(v) for v in self.main_splitter.sizes()
+            ]
+            from ..core.config import save_config
+            save_config(self._app_config)
+        except Exception:
+            pass
 
 
 class DiffTableItem(QTableWidgetItem):

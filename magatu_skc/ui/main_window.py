@@ -7824,7 +7824,7 @@ class MainWindow(QMainWindow):
 
     def _on_show_rom_diff(self):
         from .rom_diff_dialog import RomDiffDialog
-        dlg = RomDiffDialog(parent=self)
+        dlg = RomDiffDialog(parent=self, app_config=self._app_config)
         dlg.exec_()
 
     # ====== ゲーム挙動改造 ======

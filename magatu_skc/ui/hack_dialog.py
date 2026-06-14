@@ -1104,6 +1104,7 @@ class HackDialog(QDialog):
                 parent=self,
                 tile_renderer=self.tile_renderer,
                 config=self.config,
+                app_config=self._app_config,
             )
         except _ed.EnemyDropError as e:
             QMessageBox.critical(self, "敵ドロップ編集 不可", str(e))
@@ -1118,7 +1119,11 @@ class HackDialog(QDialog):
         o0, o1 = _di.OFF_WAIT, _di.OFF_JOY + _di.STEPS
         before = bytes(self.rom.data[o0:o1])
         try:
-            dlg = DemoInputDialog(self.rom.data, parent=self)
+            dlg = DemoInputDialog(
+                self.rom.data,
+                parent=self,
+                app_config=self._app_config,
+            )
         except _di.DemoInputError as e:
             QMessageBox.critical(self, "デモ操作編集 不可", str(e))
             return
@@ -1134,7 +1139,11 @@ class HackDialog(QDialog):
         o1 = last["off"] + 3 + last["count"] + 1
         before = bytes(self.rom.data[o0:o1])
         try:
-            dlg = ClearMessageDialog(self.rom.data, parent=self)
+            dlg = ClearMessageDialog(
+                self.rom.data,
+                parent=self,
+                app_config=self._app_config,
+            )
         except _cm.ClearMessageError as e:
             QMessageBox.critical(self, "クリア画面メッセージ編集 不可", str(e))
             return
@@ -1148,6 +1157,7 @@ class HackDialog(QDialog):
             self.rom,
             initial_level_no=self._initial_level_no,
             parent=self,
+            app_config=self._app_config,
         )
         dlg.exec_()
 
