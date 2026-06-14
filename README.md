@@ -4,36 +4,62 @@
 
 ## 日本語
 
-ファミコン版『ソロモンの鍵』を、ステージエディタの範囲を超えて改造できるカスタマイザーです。  
-日本版ROMを mapper66 / wide-title 形式へ自動拡張し、ステージ配置だけでなく、敵AI、弾速、部屋別ルール、タイトル画面、パレット、テストプレイ用ROM生成までGUIから扱えます。
+ファミコン版『ソロモンの鍵』を、ステージ編集からゲーム挙動の調整まで扱えるカスタマイザーです。  
 
 ![SOLOMON_CUSTOMIZER main window](docs/images/readme_main_window.png)
 
 ## 目玉機能
 
-- 日本版ROMを mapper66 / wide-title 形式へ自動変換して容量制約を広げる
-- 全53ステージのブロック、アイテム、敵、鍵、扉、スタート位置をGUI編集
-- 隠しアイテム、ブロック内アイテム、特殊メタ要素を見える形で配置
-- 部屋ごとにBファイア禁止、A換石禁止、隠し扉、暗闇ステージを設定
-- デーモンミラーの出現敵、出現スケジュール、敵寿命を詳細編集
-- Panel Variant A/B/Cの弾速と発射間隔をステージごとに調整
-- パネルモンスター弾の左右速度バグ修正と弾速プリセットを適用
-- Spark Ball、Ghost/Neul、Golem/Dragon/Gargoyleなどの移動速度を調整
-- 強化スパークボール、強化ガーゴイル、Demonheadなど敵AI拡張を設定
-- 敵撃破時のドロップ内容と確率をテーブル編集
-- ワープ羽の進行数、初期魔法、初期残数、制限時間、暗闇テンポを変更
-- タイトル画面を別ROMから移植し、上部ロゴPNG読込/保存やタイトル色編集に対応
-- メインパレットとステージ壁色を編集し、表示を即時プレビュー
-- 全ステージ統計で重要アイテム、敵、ミラー敵、部屋フラグを一覧確認
-- スプライト/キャラクタービューアでROM内フレームやCHRタイルを確認
-- 現在ステージから始まる一時ROMを作って、そのままエミュレータでテストプレイ
-- `.nes`、`.ips`、ステージデータ入り `.png`、設定 `.json` の出力
+- **ボーナスステージ4つを含む全53面を編集**  
+  ブロック、アイテム、敵、鍵、扉、スタート位置、ミラー、星座パネルをGUIで編集できます。
+
+- **6種類の新しいブロックを追加**  
+  壊せる/壊せない/すり抜けと、茶色/白/透明の組み合わせを拡張しています。
+
+- **隠し/ブロック内/白ブロック内/透明ブロック内アイテムに対応**  
+  状態付きアイテムを見える形で配置できます。
+
+- **ソロモンの封印8個の出現面と場所を編集**  
+  分岐条件を守りながら、封印のステージと座標を変更できます。
+
+- **部屋ごとのルールと特殊挙動を編集**  
+  換石/魔法禁止、暗闇、隠し扉、扉の透明/ブロック内状態などを設定できます。
+
+- **デーモンミラーを詳細編集**  
+  出現敵、出現スケジュール、敵寿命、ミラー反転を編集できます。
+
+- **敵AI・弾速・特殊敵をGUIから調整**  
+  強化サラマンダー、強化ガーゴイル、強化スパークボール2種類、強化パネルモンスター3種類を追加できます。
+
+- **ゲーム挙動編集・バグ修正・移動速度変更**  
+  敵の移動速度、弾速、敵ドロップ、合鍵を持つ敵、落下死で妖精化する敵を調整できます。
+
+- **タイトル画面・パレット・スプライト編集**  
+  タイトル移植、キャラクター色、ステージ壁色、16x16ピクセル編集に対応しています。
+
+- **改造ROM差分比較ツール**  
+  2つのROM/ZIPを読み込み、面ごとの差分量と詳細差分を確認できます。
+
+- **全ステージ統計と理論得点**  
+  アイテム、敵、ミラー敵、部屋フラグ、ブロック内訳、理論得点を一覧できます。
+
+- **現在ステージからすぐテストプレイ**  
+  任意の面から始まる一時ROMを作り、そのままエミュレータで確認できます。
+
+- **作業状態の自動保存と復元**  
+  元ROM名、保存日時、表示ステージ、Undo/Redo履歴を復元できます。
+
+- **入出力と共有**  
+  `.nes`、`.ips`、ステージデータ入り `.png`、共通設定 `.json` などを出力できます。
+
+- **歴代エディターからのステージデータ引き継ぎに対応**  
+  既存の改造ROMや旧エディター由来のデータを再編集しやすい形で読み込めます。
 
 ## 重要
 
 - このリポジトリにROMデータは含まれません。
-- 所有しているROMを読み込んで使う前提です。
-- US ROMは通常編集対象ではなく、タイトル移植など限定用途の素材としてだけ扱います。
+- ご自身で所有している日本版ROMを読み込んで使う前提です。
+- US ROMは通常編集対象ではなく、ステージデータ取り込みやタイトル画面移植など限定用途の素材としてだけ扱います。
 - 『ソロモンの鍵』および関連する名称・画像・ゲーム内容の権利は、テクモ / コーエーテクモゲームスおよび各権利者に帰属します。
 - このツールは非公式のファン制作ツールです。権利上の問題や掲載内容への懸念がある場合は、GitHub Issues等でご連絡ください。確認次第、該当内容を修正または削除します。
 
@@ -57,24 +83,58 @@ SOLOMON_CUSTOMIZERの開発では、過去に作られたソロモンの鍵向�
 - skedit
 - skchain
 
-これらのツールと作者の方々に感謝します。
+これらのツールと作者の方々に感謝いたします。
 
 ## English
 
-SOLOMON_CUSTOMIZER is a GUI customizer for the Famicom version of *Solomon's Key*.
-It automatically expands the Japanese ROM to the mapper66 / wide-title format and lets you edit much more than stage layouts.
+SOLOMON_CUSTOMIZER is a customizer for the Famicom version of *Solomon's Key*, covering both stage editing and gameplay behavior tweaks.
 
 ### Highlights
 
-- Converts a Japanese ROM into the expanded mapper66 / wide-title format
-- Edits all 53 stages: blocks, items, enemies, keys, doors, and start positions
-- Configures room rules such as B-fire disable, A-button stone disable, hidden doors, and dark rooms
-- Edits Demon Mirror enemy spawns, schedules, and enemy lifetimes
-- Adjusts panel monster projectile timing/speed and applies projectile bug fixes
-- Tunes enemy behaviors and speed values, including enhanced enemy variants
-- Edits item drops, player starting values, timers, palettes, wall colors, and title-screen assets
-- Exports `.nes`, `.ips`, stage-data `.png`, and settings `.json` files
-- Builds a temporary test ROM from the current stage for emulator playtesting
+- **Edit all 53 rooms, including the 4 bonus stages**  
+  Edit blocks, items, enemies, keys, doors, start positions, mirrors, and zodiac panels in the GUI.
+
+- **Adds 6 new block types**  
+  Expands block behavior with breakable/unbreakable/pass-through variants across brown/white/transparent styles.
+
+- **Supports hidden, in-block, white-block, and transparent-block items**  
+  Place item states that are hard to see or manage in the original game data.
+
+- **Edit the stage and position of all 8 Solomon's Seals**  
+  Move seal stages and coordinates while preserving the game's branch conditions.
+
+- **Edit per-room rules and special behavior**  
+  Configure stone/magic restrictions, dark rooms, hidden doors, and transparent/in-block door states.
+
+- **Detailed Demon Mirror editing**  
+  Edit spawned enemies, spawn schedules, enemy lifetimes, and mirror behavior.
+
+- **Adjust enemy AI, projectile speed, and special enemies**  
+  Add enhanced Saramandor, enhanced Gargoyle, 2 enhanced Spark Ball variants, and 3 enhanced Panel Monster variants.
+
+- **Gameplay behavior edits, bug fixes, and movement speed changes**  
+  Adjust enemy movement, projectile speed, enemy drops, key-carrying enemies, and falling-death fairy enemies.
+
+- **Title screen, palette, and sprite editing**  
+  Supports title import, character colors, wall colors, and 16x16 pixel editing.
+
+- **Modified ROM comparison tool**  
+  Load two ROM/ZIP files and compare per-stage difference counts and detailed changes.
+
+- **Full-stage statistics and theoretical score totals**  
+  List items, enemies, mirror enemies, room flags, block counts, and theoretical scores.
+
+- **Test play from any stage**  
+  Create a temporary ROM starting from the chosen stage and launch it in an emulator.
+
+- **Auto-save and work-state restore**  
+  Restores the original ROM name, save timestamp, visible stage, and undo/redo history.
+
+- **Export and sharing**  
+  Export `.nes`, `.ips`, stage-data `.png`, common settings `.json`, and related data.
+
+- **Import stage data from earlier editors**  
+  Load existing modified ROMs and data from older editors for easier re-editing.
 
 ### Important
 
