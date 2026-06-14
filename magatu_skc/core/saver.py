@@ -67,13 +67,24 @@ def validate_level_consistency(levels: list):
 
     for i, lv in enumerate(levels):
         key_enemy_number = stage_ext.get_key_enemy_number(lv)
-        if key_enemy_number <= 0:
-            continue
         enemy_count = len(getattr(lv, "enemies", []) or [])
-        if key_enemy_number > enemy_count:
+        if key_enemy_number > 0 and key_enemy_number > enemy_count:
             raise SaveError(
                 f"Level {i + 1}: key enemy #{key_enemy_number} is selected, "
                 f"but only {enemy_count} initial enemies exist."
+            )
+        fairy_enemy_number = stage_ext.get_fairy_enemy_number(lv)
+        if fairy_enemy_number <= 0:
+            continue
+        if fairy_enemy_number > enemy_count:
+            raise SaveError(
+                f"Level {i + 1}: fairy enemy #{fairy_enemy_number} is selected, "
+                f"but only {enemy_count} initial enemies exist."
+            )
+        if key_enemy_number > 0 and fairy_enemy_number == key_enemy_number:
+            raise SaveError(
+                f"Level {i + 1}: enemy #{fairy_enemy_number} cannot be both "
+                "key-carrying and fall-death fairy."
             )
 
 
@@ -296,7 +307,7 @@ def save_levels_to_rom(rom: Rom, levels: list):
         "Key enemy runtime検証/適用",
         key_enemy_runtime.apply,
         rom.data,
-        any(stage_ext.key_enemy_enabled(lv) for lv in levels),
+        any(stage_ext.key_enemy_enabled(lv) or stage_ext.fairy_enemy_enabled(lv) for lv in levels),
     )
     if rom.is_expanded() and panel_monster_stage_variant.has_panel_stage_runtime_ids(levels):
         _run_save_step("Panel Variant runtime検証/適用", panel_monster_stage_variant.apply, rom.data, levels)
@@ -305,6 +316,12 @@ def save_levels_to_rom(rom: Rom, levels: list):
         _run_save_step(
             "原作item bitmap特殊処理無効化",
             special_process.disable_imported_item_bitmask_processes,
+            rom.data,
+            rom.base_region(),
+        )
+        _run_save_step(
+            "原作1体目妖精化特殊処理無効化",
+            special_process.disable_falling_fairy_subroutine,
             rom.data,
             rom.base_region(),
         )

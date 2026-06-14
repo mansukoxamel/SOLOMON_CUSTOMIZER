@@ -1319,6 +1319,13 @@ class MainWindow(QMainWindow):
         self.spin_key_enemy.valueChanged.connect(self._on_meta_key_enemy_changed)
         form.addRow("鍵持ち敵 (#):", self.spin_key_enemy)
 
+        self.spin_fairy_enemy = QSpinBox()
+        self.spin_fairy_enemy.setRange(0, c.ENEMY_COUNT_MAX)
+        self.spin_fairy_enemy.setSpecialValueText("(なし)")
+        self.spin_fairy_enemy.setToolTip("0=なし。1から15は、このステージの初期配置敵リスト順です。鍵持ち敵と同じ番号は指定できません。")
+        self.spin_fairy_enemy.valueChanged.connect(self._on_meta_fairy_enemy_changed)
+        form.addRow("落下死で妖精化する敵 (#):", self.spin_fairy_enemy)
+
         self.combo_const = QComboBox()
         self.combo_const.addItem("(なし)", -1)
         for code, (name, _) in c.CONSTELLATION_NAMES.items():
@@ -4896,6 +4903,7 @@ class MainWindow(QMainWindow):
                     f"敵を追加 {tile} (このマスに{count}体)", 2500
                 )
             self._refresh_key_enemy_spin_range()
+            self._refresh_fairy_enemy_spin_range()
         elif mode == MODE_META:
             tx, ty = tile
             target_is_white_in_block = tile in getattr(lv, "breakable_white_cells", set())
@@ -5451,6 +5459,7 @@ class MainWindow(QMainWindow):
             deleted.append("enemy")
         if "enemy" in deleted:
             self._refresh_key_enemy_spin_range(warn=True)
+            self._refresh_fairy_enemy_spin_range(warn=True)
 
         # ブロック削除
         had_runtime_marker = False
@@ -5879,6 +5888,7 @@ class MainWindow(QMainWindow):
         self._push_undo()
         self._paste_clipboard_at(self._clipboard, ox, oy)
         self._refresh_key_enemy_spin_range()
+        self._refresh_fairy_enemy_spin_range()
         self.statusBar().showMessage(f"ペースト: ({ox},{oy}) 起点", 2000)
         self._refresh_view()
 
@@ -5927,6 +5937,7 @@ class MainWindow(QMainWindow):
                       if not (x1 <= en.position[0] <= x2 and y1 <= en.position[1] <= y2)]
         if len(lv.enemies) != old_enemy_count:
             self._refresh_key_enemy_spin_range(warn=True)
+            self._refresh_fairy_enemy_spin_range(warn=True)
         self.statusBar().showMessage(
             f"範囲削除: ({x1},{y1})-({x2},{y2})", 2000
         )
@@ -7100,6 +7111,37 @@ class MainWindow(QMainWindow):
             f"0=なし。1から{max_enemy}は初期配置敵の順番です。このステージの敵数: {len(lv.enemies)}"
         )
 
+    def _refresh_fairy_enemy_spin_range(self, warn: bool = False):
+        if not self.levels or not hasattr(self, "spin_fairy_enemy"):
+            return
+        lv = self.levels[self.current_level_no]
+        max_enemy = min(len(lv.enemies), c.ENEMY_COUNT_MAX)
+        from ..core import stage_ext as _se
+        current = _se.get_fairy_enemy_number(lv)
+        key_current = _se.get_key_enemy_number(lv)
+        display_current = current
+        invalid = current > max_enemy or (current > 0 and current == key_current)
+        if invalid:
+            if self._is_read_only():
+                display_current = 0
+            else:
+                _se.set_fairy_enemy_number(lv, 0)
+                display_current = 0
+                self._set_dirty(True)
+            if warn and not self._is_read_only():
+                QMessageBox.warning(
+                    self,
+                    "妖精化敵設定を解除",
+                    "妖精化敵に指定していた番号が、このステージで使えないため解除しました。"
+                )
+        old_block = self.spin_fairy_enemy.blockSignals(True)
+        self.spin_fairy_enemy.setRange(0, max_enemy)
+        self.spin_fairy_enemy.setValue(display_current)
+        self.spin_fairy_enemy.blockSignals(old_block)
+        self.spin_fairy_enemy.setToolTip(
+            f"0=なし。1から{max_enemy}は初期配置敵の順番です。鍵持ち敵と同じ番号は指定できません。"
+        )
+
     def _load_meta_to_ui(self):
         """現在レベルのメタ情報をUIに反映（シグナル抑制）"""
         if not self.levels:
@@ -7117,6 +7159,7 @@ class MainWindow(QMainWindow):
             from ..core import stage_ext as _se
             self.chk_fire_reset.setChecked(_se.fire_reset_enabled(lv))
             self._refresh_key_enemy_spin_range()
+            self._refresh_fairy_enemy_spin_range()
             # 星座
             if lv.has_constellation():
                 cn = lv.get_constellation_no()
@@ -7296,12 +7339,41 @@ class MainWindow(QMainWindow):
         max_enemy = min(len(self.levels[self.current_level_no].enemies), c.ENEMY_COUNT_MAX)
         if enemy_number > max_enemy:
             self._refresh_key_enemy_spin_range()
+            self._refresh_fairy_enemy_spin_range()
             return
         self._push_undo()
         from ..core import stage_ext as _se
         lv = self.levels[self.current_level_no]
         _se.set_key_enemy_number(lv, enemy_number)
         self._set_dirty(True)
+        self._refresh_fairy_enemy_spin_range()
+        self._refresh_view()
+
+    def _on_meta_fairy_enemy_changed(self, enemy_number):
+        if self._meta_loading or not self.levels:
+            return
+        if self._reject_read_only_edit():
+            return
+        max_enemy = min(len(self.levels[self.current_level_no].enemies), c.ENEMY_COUNT_MAX)
+        if enemy_number > max_enemy:
+            self._refresh_fairy_enemy_spin_range()
+            return
+        self._push_undo()
+        from ..core import stage_ext as _se
+        lv = self.levels[self.current_level_no]
+        key_enemy_number = _se.get_key_enemy_number(lv)
+        if enemy_number > 0 and enemy_number == key_enemy_number:
+            current = _se.get_fairy_enemy_number(lv)
+            if enemy_number > current and enemy_number < max_enemy:
+                enemy_number += 1
+            elif enemy_number < current and enemy_number > 1:
+                enemy_number -= 1
+            else:
+                self._refresh_fairy_enemy_spin_range()
+                return
+        _se.set_fairy_enemy_number(lv, enemy_number)
+        self._set_dirty(True)
+        self._refresh_fairy_enemy_spin_range()
         self._refresh_view()
 
     def _on_meta_constellation_changed(self, idx):
@@ -8072,6 +8144,7 @@ class MainWindow(QMainWindow):
             else:
                 lv.enemies = [enemy for enemy in lv.enemies if enemy.position[0] == 15]
             self._refresh_key_enemy_spin_range(warn=True)
+            self._refresh_fairy_enemy_spin_range(warn=True)
 
         self._log(f"ステージクリア: S{self.current_level_no + 1} / {label}")
         self._refresh_view()

@@ -180,6 +180,37 @@ def disable_imported_item_bitmask_processes(rom_data: bytearray, region: str) ->
     return changed
 
 
+FALLING_FAIRY_SUBROUTINE_BODY = {
+    "JP": bytes.fromhex("20 ba b9 ad f7 04 09 40 8d f7 04 60"),
+}
+
+
+def disable_falling_fairy_subroutine(rom_data: bytearray, region: str) -> list[str]:
+    """Disable the original first-enemy fall-death fairy flag routine.
+
+    Mapper66 imports this behavior into StageExt fairy_enemy_slot instead.
+    Keep the original routine body in place after a leading RTS rather than
+    blanking it, so direct callers simply return.
+    """
+    target = FALLING_FAIRY_SUBROUTINE.get(region)
+    sig = FALLING_FAIRY_SUBROUTINE_BODY.get(region)
+    if target is None or sig is None:
+        return []
+    off = target - RAM_TO_ROM_DIFF
+    if off < 0 or off + len(sig) > len(rom_data):
+        return []
+    cur = bytes(rom_data[off:off + len(sig)])
+    if cur[:1] == b"\x60":
+        return []
+    if cur != sig:
+        raise ValueError(
+            f"Falling fairy special routine signature mismatch at 0x{off:04X}: "
+            f"got {cur.hex(' ')}"
+        )
+    rom_data[off] = 0x60
+    return ["falling fairy subroutine"]
+
+
 # ---- 既知のサブルーチン呼び出しパターン (注釈用) ----
 # (region, ROMオフセット差) を考慮するために RAM アドレスベースで持つ
 # RAM addr → 説明
@@ -231,6 +262,9 @@ def has_falling_fairy_flag(rom_data: bytes, region: str, level_no: int) -> bool:
         return False
     target = FALLING_FAIRY_SUBROUTINE.get(region)
     if target is None:
+        return False
+    target_off = target - RAM_TO_ROM_DIFF
+    if 0 <= target_off < len(rom_data) and rom_data[target_off] == 0x60:
         return False
     lo = target & 0xff
     hi = (target >> 8) & 0xff

@@ -93,9 +93,8 @@ verbatim コピーするため file offset 不変):
 #                               ・mapper66 StageExt loader がPRG1の部屋別表から
 #                                 コピー。$00=原作$60 / $A0=茶ブロック内 /
 #                                 $E0=白ブロック内。
-#   $077E-$077F FREE_CANDIDATE  (未割当・小フラグ/カウンタ用)  補助候補2B
-#                               まとまったRAMは$0750-$0767を優先。
-#                               使用前に必ず再probe・用途名を決めて追記。
+#   $077E-$077F FAIRY_ENEMY_RUNTIME 落下死妖精化敵runtime 予約済(使用中)
+#                               $077E=対象初期敵番号 / $077F=実行slot。
 #
 # ▼ ★bank1 (mapper66 拡張2本目PRG) 予約
 #   ・file 0x80D0-0x87FF : wide decoder + blockA/B stream
@@ -121,7 +120,7 @@ verbatim コピーするため file offset 不変):
 #     → v0.7.72で旧特殊ブロック32Bリストを廃止し、v0.7.149時点で
 #        $0740-$074F はPanel Variant cacheとして予約済み。
 #        $0750-$0767 は透明ブロック内アイテムruntime maskとして予約済み。
-#        $073A-$073F / $0768-$0777 / $077E-$077F は補助候補だが、
+#        $073A-$073F / $0768-$0777 は補助候補だが、
 #        沈黙でも構造保証は弱いので正式使用前に用途別probe必須。
 #   ・$0780-$07DF = probe で書込検出 = ★使用禁止。
 #
@@ -140,7 +139,7 @@ verbatim コピーするため file offset 不変):
 #      例: room flag は $0428→$C1C0,X ROMテーブル再読込で RAM不要化可。
 #          暗闇周期も $043C/$043D(global frame counter)から導出余地。
 #   2. まとまったRAMが必要 → $0768-$0777 を候補にする。
-#      小フラグだけなら $077E-$077F も候補。
+#      小フラグだけでも予約済み範囲は使わない。
 #      用途名を決めて上の表に追記してからコードで使う。
 #   3. 長期保存 / 毎NMI書込 / 複数バイト連続使用 → ★再プローブ必須
 #      (ramfree3_probe 流儀: 無音蓄積+低頻度要約、バグ再現シナリオ込み、
@@ -162,7 +161,7 @@ verbatim コピーするため file offset 不変):
 #   $077B       BLOCK_OVERRIDE_WORK    temporary NMI work byte, reserved in use
 #   $077C       RUNTIME_DOOR_CELL      current room door cell, reserved in use
 #   $077D       SEAL_BLOCK_VALUE       Solomon's Seal block-state value from PRG1 table
-#   $077E-$077F FREE_CANDIDATE         secondary 2-byte tail candidate
+#   $077E-$077F FAIRY_ENEMY_RUNTIME    fall-death fairy enemy initial slot/runtime slot
 #
 # Current ROM cave ledger lives in docs/rom_map_jp_mapper66_current.html.
 # Do not add or move a hard-coded ROM/RAM address without updating the HTML

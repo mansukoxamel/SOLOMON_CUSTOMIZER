@@ -308,6 +308,12 @@ def expand_rom(rom, levels: list):
     # ミラー裏のブロックを除去（C++と同じ前処理）
     remove_blocks_behind_demon_mirrors(levels)
 
+    from . import special_process, stage_ext
+    for i, lvl in enumerate(levels):
+        if special_process.has_falling_fairy_flag(src_data, src_region, i):
+            if getattr(lvl, "enemies", None):
+                stage_ext.set_fairy_enemy_number(lvl, 1)
+
     # 各レベルのデータを書き戻し
     for i, lvl in enumerate(levels):
         m66.save_level_m66(new_data, i, lvl)
@@ -315,8 +321,8 @@ def expand_rom(rom, levels: list):
     # ミラー関連データを各レベルローカルに展開
     patch_mirror_enemy_set_bytes(new_data, enemy_sets, levels)
     patch_mirror_drop_schedule_bytes(new_data, drop_schedules, levels)
-    from . import stage_ext
     stage_ext.patch_table(new_data, levels)
+    special_process.disable_falling_fairy_subroutine(new_data, src_region)
     m66.patch_breakable_white_data(new_data, levels)
 
     # rom オブジェクトを書き換え
