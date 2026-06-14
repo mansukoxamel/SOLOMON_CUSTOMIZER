@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (
     QToolBar, QAction, QRadioButton, QButtonGroup, QShortcut
 )
 from PyQt5.QtCore import Qt, QSize, QEvent, QTimer, QUrl, QPoint
-from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor, QPainter, QPen, QImage, QFont
+from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor, QPainter, QPen, QImage
 from PyQt5.QtMultimedia import QSoundEffect
 
 from .. import __version__
@@ -170,15 +170,38 @@ class _EnemyCountIndicator(QWidget):
         self._maximum = c.ENEMY_COUNT_MAX
         self._key_enemy_number = 0
         self._fairy_enemy_number = 0
+        self._slot_size = 18
+        self._key_enemy_marker = QImage()
+        self._fairy_enemy_marker = QImage()
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
-        self.setFixedHeight(28)
-        self.setMinimumWidth(92)
+        self._apply_size_hints()
         self.setToolTip("敵配置数 0/15")
+
+    def sizeHint(self):
+        return QSize(self.minimumWidth(), self.height())
+
+    def set_slot_size(self, size: int):
+        try:
+            value = int(size)
+        except Exception:
+            value = 18
+        self._slot_size = max(10, min(32, value))
+        self._apply_size_hints()
+        self.update()
+
+    def _apply_size_hints(self):
+        gap = self._slot_gap()
+        label_w = 52
+        total_w = 8 + self._maximum * self._slot_size + gap * (self._maximum - 1) + label_w
+        total_h = self._slot_size * 3 + 10
+        self.setFixedHeight(total_h)
+        self.setMinimumWidth(max(120, total_w))
 
     def set_count(self, count: int, maximum: int = c.ENEMY_COUNT_MAX):
         self._count = max(0, int(count))
         self._maximum = max(1, int(maximum))
+        self._apply_size_hints()
         self._update_tooltip()
         self.update()
 
@@ -187,6 +210,14 @@ class _EnemyCountIndicator(QWidget):
         self._fairy_enemy_number = self._normalize_slot_number(fairy_enemy_number)
         self._update_tooltip()
         self.update()
+
+    def set_marker_images(self, key_image=None, fairy_image=None):
+        self._key_enemy_marker = key_image if isinstance(key_image, QImage) else QImage()
+        self._fairy_enemy_marker = fairy_image if isinstance(fairy_image, QImage) else QImage()
+        self.update()
+
+    def _slot_gap(self):
+        return 4 if self._slot_size >= 14 else 2
 
     def _slot_color(self, index: int) -> QColor:
         if index >= 13:
@@ -217,12 +248,18 @@ class _EnemyCountIndicator(QWidget):
         painter.setRenderHint(QPainter.Antialiasing, False)
 
         x = 4
-        y = 5
-        slot_h = 18
-        label_w = 52 if self.width() >= 260 else 0
-        gap = 4 if self.width() >= 260 else 2
+        icon_size = self._slot_size
+        y = icon_size + 5
+        slot_h = self._slot_size
+        label_w = 52 if self.width() >= self.minimumWidth() else 0
+        gap = self._slot_gap()
         slot_area_w = max(self._maximum * 3, self.width() - 8 - label_w)
-        slot_w = max(3, (slot_area_w - gap * (self._maximum - 1)) // self._maximum)
+        slot_w = min(
+            self._slot_size,
+            max(3, (slot_area_w - gap * (self._maximum - 1)) // self._maximum),
+        )
+        key_icon_y = max(0, y - icon_size - 2)
+        fairy_icon_y = y + slot_h + 2
         for index in range(1, self._maximum + 1):
             color = self._slot_color(index)
             is_filled = index <= self._count
@@ -234,45 +271,29 @@ class _EnemyCountIndicator(QWidget):
             painter.setPen(QPen(border, 1))
             painter.setBrush(fill)
             painter.drawRect(x, y, slot_w, slot_h)
-            marks = []
             if index == self._key_enemy_number:
-                marks.append(("K", QColor("#facc15")))
+                self._draw_marker_image(painter, self._key_enemy_marker, x, key_icon_y, slot_w, icon_size)
             if index == self._fairy_enemy_number:
-                marks.append(("F", QColor("#7dd3fc")))
-            if marks:
-                mark_w = min(14, max(8, slot_w - 2))
-                mark_h = 9
-                mark_gap = 1
-                total_h = len(marks) * mark_h + (len(marks) - 1) * mark_gap
-                mark_y = y + max(0, (slot_h - total_h) // 2)
-                old_font = painter.font()
-                font = QFont(old_font)
-                font.setPixelSize(8)
-                font.setBold(True)
-                painter.setFont(font)
-                for text, mark_color in marks:
-                    mark_x = x + max(0, (slot_w - mark_w) // 2)
-                    bg = QColor(0, 0, 0, 185)
-                    painter.setPen(QPen(mark_color, 1))
-                    painter.setBrush(bg)
-                    painter.drawRect(mark_x, mark_y, mark_w, mark_h)
-                    painter.setPen(mark_color)
-                    painter.drawText(
-                        mark_x,
-                        mark_y,
-                        mark_w + 1,
-                        mark_h,
-                        Qt.AlignCenter,
-                        text,
-                    )
-                    mark_y += mark_h + mark_gap
-                painter.setFont(old_font)
+                self._draw_marker_image(painter, self._fairy_enemy_marker, x, fairy_icon_y, slot_w, icon_size)
             x += slot_w + gap
 
         if label_w:
             text_color = self._slot_color(min(max(self._count, 1), self._maximum))
             painter.setPen(text_color)
-            painter.drawText(x + 4, 5, label_w, 18, Qt.AlignVCenter | Qt.AlignLeft, f"{self._count}/{self._maximum}")
+            painter.drawText(x + 4, y, label_w, slot_h, Qt.AlignVCenter | Qt.AlignLeft, f"{self._count}/{self._maximum}")
+
+    def _draw_marker_image(self, painter: QPainter, image: QImage, slot_x: int,
+                           icon_y: int, slot_w: int, icon_size: int):
+        if image.isNull():
+            return
+        scaled = image.scaled(
+            icon_size,
+            icon_size,
+            Qt.KeepAspectRatio,
+            Qt.FastTransformation,
+        )
+        icon_x = slot_x + (slot_w - scaled.width()) // 2
+        painter.drawImage(icon_x, icon_y + (icon_size - scaled.height()) // 2, scaled)
 
 
 class MainWindow(QMainWindow):
@@ -923,6 +944,9 @@ class MainWindow(QMainWindow):
         self.level_view.rom_dropped.connect(self.load_rom)
         self.level_view.stage_png_dropped.connect(self._on_stage_png_dropped)
         self.enemy_count_indicator = _EnemyCountIndicator(self.level_view.viewport())
+        self.enemy_count_indicator.set_slot_size(
+            self._app_config.get("enemy_count_meter_slot_size", 18)
+        )
         self.enemy_count_indicator.hide()
         self.stage_number_label = QLabel("", self.level_view.viewport())
         self.stage_number_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
@@ -1012,7 +1036,7 @@ class MainWindow(QMainWindow):
         indicator = self.enemy_count_indicator
         viewport = self.level_view.viewport()
         h = indicator.height()
-        w = min(356, max(indicator.minimumWidth(), viewport.width() - 8))
+        w = min(max(356, indicator.minimumWidth()), max(92, viewport.width() - 8))
         indicator.resize(w, h)
         x = max(4, (viewport.width() - w) // 2)
         y = 10
@@ -1055,12 +1079,40 @@ class MainWindow(QMainWindow):
         level = self.levels[self.current_level_no]
         count = len(getattr(level, "enemies", []) or [])
         self.enemy_count_indicator.set_count(count, c.ENEMY_COUNT_MAX)
+        key_marker, fairy_marker = self._enemy_count_indicator_marker_images(level)
+        self.enemy_count_indicator.set_marker_images(key_marker, fairy_marker)
         self.enemy_count_indicator.set_special_slots(
             stage_ext.get_key_enemy_number(level),
             stage_ext.get_fairy_enemy_number(level),
         )
         self.enemy_count_indicator.show()
         self._position_enemy_count_indicator()
+
+    def _enemy_count_indicator_marker_images(self, level):
+        if self.tile_renderer is None or self.level_renderer is None:
+            return QImage(), QImage()
+        try:
+            ts_no = self.level_renderer.get_actual_tileset_no(
+                self.current_level_no,
+                level.tileset_no,
+            )
+            wall_color = self.level_renderer.get_wall_color(self.current_level_no)
+            from ..gfx.level_renderer import MD_KEY
+            key_img = self.tile_renderer.get_tile_image(
+                self.level_renderer.get_metadata_animation(MD_KEY),
+                ts_no,
+                transparent=True,
+                bg_main_color=wall_color,
+            )
+            fairy_img = self.tile_renderer.get_tile_image(
+                self.level_renderer.get_enemy_animation(0x1C),
+                ts_no,
+                transparent=True,
+                bg_main_color=wall_color,
+            )
+            return key_img, fairy_img
+        except Exception:
+            return QImage(), QImage()
 
     def _build_left_panel(self) -> QWidget:
         left_widget = QWidget()
@@ -6345,6 +6397,10 @@ class MainWindow(QMainWindow):
         self.picker.set_marker_colors(self._marker_color_config())
         self.level_view.set_marker_shapes(self._marker_shape_config())
         self.picker.set_marker_shapes(self._marker_shape_config())
+        if hasattr(self, "enemy_count_indicator"):
+            self.enemy_count_indicator.set_slot_size(
+                self._app_config.get("enemy_count_meter_slot_size", 18)
+            )
         self._apply_renderer_marker_settings()
         self._refresh_view()
         if self.levels and self.level_renderer is not None:

@@ -155,6 +155,23 @@ class SettingsDialog(QDialog):
         )
         df.addRow("ホバー情報文字サイズ:", self.spin_hover_popup_font_size)
 
+        self.spin_enemy_meter_slot_size = QSpinBox()
+        self.spin_enemy_meter_slot_size.setRange(10, 32)
+        self.spin_enemy_meter_slot_size.setSuffix(" px")
+        self.spin_enemy_meter_slot_size.setValue(
+            normalize_int_setting(
+                self.config.get("enemy_count_meter_slot_size"),
+                18,
+                10,
+                32,
+            )
+        )
+        self.spin_enemy_meter_slot_size.setToolTip(
+            "キャンバス上部の敵数メーターの1マスサイズです。"
+            "鍵持ち敵/妖精化敵の表示画像も同じ大きさで拡大縮小します。"
+        )
+        df.addRow("敵数メーター1マス:", self.spin_enemy_meter_slot_size)
+
         self.chk_font_bold = QCheckBox("太字")
         self.chk_font_bold.setChecked(bool(self.config.get("font_bold", False)))
         df.addRow("太字:", self.chk_font_bold)
@@ -491,6 +508,7 @@ class SettingsDialog(QDialog):
         for spin in (
             self.spin_font_size,
             self.spin_hover_popup_font_size,
+            self.spin_enemy_meter_slot_size,
             self.spin_theme_gray,
             self.spin_autosave_keep_count,
             self.spin_undo_limit,
@@ -504,6 +522,9 @@ class SettingsDialog(QDialog):
         self.config["font_size"] = self.spin_font_size.value()
         self.config["hover_info_popup_font_size"] = (
             self.spin_hover_popup_font_size.value()
+        )
+        self.config["enemy_count_meter_slot_size"] = (
+            self.spin_enemy_meter_slot_size.value()
         )
         if self._font_family_default:
             self.config["font_family"] = ""
