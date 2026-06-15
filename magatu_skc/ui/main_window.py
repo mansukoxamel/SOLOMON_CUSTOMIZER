@@ -6206,16 +6206,26 @@ class MainWindow(QMainWindow):
             if kind == "item" and self._solomon_seal_meta_at(self.current_level_no, tile) is not None:
                 self._show_key_door_item_overlap_message(tile)
                 return
-            if kind == "item" and self._is_blocking_edit_block_cell(lv, tile):
-                self._show_block_absorb_rejected_message(tile)
-                return
+            item_absorb_flag = None
+            if kind == "item":
+                item_absorb_flag = self._block_absorb_flag_at_tile(lv, tile)
+                if self._is_blocking_edit_block_cell(lv, tile):
+                    if not self._can_apply_absorb_flag_to_moving_item(mp.get("ref"), item_absorb_flag):
+                        self._show_block_absorb_rejected_message(tile)
+                        return
             if kind == "enemy" and lv.fixed_start_pos == tile:
                 self._show_start_enemy_overlap_message(tile)
                 return
             if kind == "enemy" and self._is_blocking_edit_block_cell(lv, tile):
                 self._show_actor_block_overlap_message(tile)
                 return
-            if kind == "item" and mp.get("visible_in_block"):
+            if kind == "item":
+                self._restore_drag_item_absorbed_block(lv, mp)
+            if kind == "item" and item_absorb_flag is not None:
+                if not self._apply_absorb_flag_to_moving_item(lv, mp, tile, item_absorb_flag):
+                    self._show_block_absorb_rejected_message(tile)
+                    return
+            elif kind == "item" and mp.get("visible_in_block"):
                 cells = getattr(lv, "visible_in_block_item_cells", set())
                 cells.discard(mp.get("current_pos"))
                 cells.add(tile)
@@ -6754,6 +6764,19 @@ class MainWindow(QMainWindow):
             return c.ITEM_FLAG_IN_BLOCK
         return None
 
+    def _runtime_block_markers_at_tile(self, lv, tile) -> set:
+        marker_names = set(self._runtime_marker_names()) - {"visible_in_block_item_cells"}
+        return {name for name in marker_names if tile in getattr(lv, name, set())}
+
+    def _block_absorb_flag_at_tile(self, lv, tile) -> int | None:
+        x, y = tile
+        if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+            return None
+        return self._block_absorb_flag_from_parts(
+            lv.tiles[y][x],
+            self._runtime_block_markers_at_tile(lv, tile),
+        )
+
     def _show_block_absorb_rejected_message(self, tile):
         self.statusBar().showMessage(
             f"このブロックとはアイテム/鍵/扉を重ねられません {tile}", 3000
@@ -6837,6 +6860,61 @@ class MainWindow(QMainWindow):
         else:
             item.element_no = base | flag
             visible_cells.discard(tile)
+        return True
+
+    def _can_apply_absorb_flag_to_moving_item(self, item, flag: int) -> bool:
+        if flag is None:
+            return False
+        base = int(getattr(item, "element_no", 0)) & 0x3F
+        if flag in (c.ITEM_FLAG_WHITE_IN_BLOCK, c.ITEM_FLAG_VISIBLE_IN_BLOCK):
+            return base <= c.ITEM_WHITE_IN_BLOCK_MAX_BASE
+        return flag == c.ITEM_FLAG_IN_BLOCK
+
+    def _restore_drag_item_absorbed_block(self, lv, mp):
+        state = mp.pop("absorbed_block_state", None)
+        if not state:
+            return
+        tile = state.get("tile")
+        if tile is None:
+            return
+        x, y = tile
+        lv.tiles[y][x] = state.get("wall_type", Wall.NONE)
+        self._pop_runtime_markers_at(lv, tile)
+        self._restore_runtime_markers_at(lv, tile, state.get("runtime_markers", set()))
+        item = mp.get("ref")
+        if item is not None:
+            item.element_no = state.get("item_element_no", item.element_no)
+            visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+            if state.get("item_visible"):
+                visible_cells.add(tile)
+            else:
+                visible_cells.discard(tile)
+
+    def _apply_absorb_flag_to_moving_item(self, lv, mp, tile, flag: int) -> bool:
+        item = mp.get("ref")
+        if item is None or not self._can_apply_absorb_flag_to_moving_item(item, flag):
+            return False
+        visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+        x, y = tile
+        old_pos = item.position
+        mp["absorbed_block_state"] = {
+            "tile": tile,
+            "wall_type": lv.tiles[y][x],
+            "runtime_markers": self._pop_runtime_markers_at(lv, tile),
+            "item_element_no": item.element_no,
+            "item_visible": old_pos in visible_cells,
+        }
+        visible_cells.discard(old_pos)
+        lv.tiles[y][x] = Wall.NONE
+        base = int(item.element_no) & 0x3F
+        item.position = tile
+        if flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
+            item.element_no = base
+            visible_cells.add(tile)
+        else:
+            item.element_no = base | flag
+            visible_cells.discard(tile)
+        mp["current_pos"] = tile
         return True
 
     def _tile_has_absorb_target(self, lv, tile) -> bool:
