@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QGraphicsLineItem, QGraphicsEllipseItem, QGraphicsPolygonItem,
 )
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QFont, QPolygonF
-from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QRect
+from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QRect, QRectF
 
 from ..core import constants as c
 
@@ -236,18 +236,31 @@ class LevelView(QGraphicsView):
             key: QColor(value) for key, value in DEFAULT_MARKER_COLORS.items()
         }
         self._marker_shapes = dict(DEFAULT_MARKER_SHAPES)
+        self._tile_offset_override = None
+        self._top_viewport_padding_px = 0
 
     def set_image(self, qimage):
         scene = self.scene()
         scene.clear()
         pixmap = QPixmap.fromImage(qimage)
         self._pixmap_item = scene.addPixmap(pixmap)
-        scene.setSceneRect(0, 0, pixmap.width(), pixmap.height())
         self._label_items = []
         self._overlay_items = []
         self.fit_to_view()
 
+    def set_tile_offset_override(self, offsets):
+        self._tile_offset_override = offsets
+
+    def set_top_viewport_padding(self, px: int):
+        value = max(0, int(px or 0))
+        if self._top_viewport_padding_px == value:
+            return
+        self._top_viewport_padding_px = value
+        self.fit_to_view()
+
     def _tile_offsets(self):
+        if self._tile_offset_override is not None:
+            return self._tile_offset_override
         x_offset = 0
         y_offset = 0
         if self._pixmap_item is not None:
@@ -444,6 +457,25 @@ class LevelView(QGraphicsView):
             hover_color.setAlpha(220)
             add_rect(hover, hover_color, width=2, inset=0)
 
+        diff_fill = QColor(255, 0, 220, 70)
+        diff_pen = QColor(255, 0, 220, 150)
+        for ref_rect in overlays.get("compare_reference_diff_rects", ()):
+            x, y, w, h = ref_rect
+            item = QGraphicsRectItem(x, y, w, h)
+            item.setPen(self._overlay_pen(diff_pen, width=1))
+            item.setBrush(QBrush(diff_fill))
+            add(item)
+
+        ref_hover = overlays.get("compare_reference_hover_rect")
+        if ref_hover is not None:
+            x, y, w, h = ref_hover
+            pen_color = QColor(255, 0, 220, 235)
+            fill_color = QColor(255, 0, 220, 55)
+            item = QGraphicsRectItem(x, y, w, h)
+            item.setPen(self._overlay_pen(pen_color, width=3))
+            item.setBrush(QBrush(fill_color))
+            add(item)
+
     def set_object_labels(self, labels, with_border: bool = True):
         """キャンバス注釈をビュー上の通常フォントで重ねる。
 
@@ -499,7 +531,20 @@ class LevelView(QGraphicsView):
     def fit_to_view(self):
         if self._pixmap_item is None:
             return
-        self.fitInView(self._pixmap_item, Qt.KeepAspectRatio)
+        pixmap = self._pixmap_item.pixmap()
+        img_w = pixmap.width()
+        img_h = pixmap.height()
+        if img_w <= 0 or img_h <= 0:
+            return
+        viewport = self.viewport()
+        view_w = max(1, viewport.width())
+        view_h = max(1, viewport.height())
+        top_px = min(max(0, self._top_viewport_padding_px), max(0, view_h - 32))
+        scale = min(view_w / img_w, max(1, view_h - top_px) / img_h)
+        top_scene = top_px / scale if scale > 0 else 0
+        scene_rect = QRectF(0, -top_scene, img_w, img_h + top_scene)
+        self.scene().setSceneRect(scene_rect)
+        self.fitInView(scene_rect, Qt.KeepAspectRatio)
 
     def display_tile_size(self) -> float:
         return max(1.0, c.TILE_WIDTH * float(self.transform().m11()))

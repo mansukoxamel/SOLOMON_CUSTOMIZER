@@ -1,4 +1,4 @@
-"""改造ROM差分比較ダイアログ."""
+"""ROM比較ダイアログ."""
 from pathlib import Path
 
 from PyQt5.QtCore import Qt, QTimer
@@ -37,10 +37,12 @@ class RomDiffDialog(QDialog):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("改造ROM差分比較")
+        self.setWindowTitle("ROM比較")
         self.resize(1120, 820)
         self.setAcceptDrops(True)
+        self._parent_window = parent
         self._app_config = app_config
+        self._compare_mode = "rom"
         self._result = None
         self._left_renderer = None
         self._right_renderer = None
@@ -159,7 +161,7 @@ class RomDiffDialog(QDialog):
             self,
             "比較するROM/ZIPを選択",
             "",
-            "NES ROM / ZIP (*.nes *.zip);;All files (*.*)",
+            "ROM / ZIP (*.nes *.zip);;All files (*.*)",
         )
         if path:
             target.setText(path)
@@ -202,18 +204,29 @@ class RomDiffDialog(QDialog):
             if not url.isLocalFile():
                 continue
             path = url.toLocalFile()
-            if Path(path).suffix.lower() in (".nes", ".zip"):
+            if self._is_rom_like(path):
                 paths.append(path)
         return paths
+
+    @staticmethod
+    def _is_rom_like(path: str) -> bool:
+        return Path(path).suffix.lower() in (".nes", ".zip")
 
     def _compare(self):
         left = self.left_path.text().strip()
         right = self.right_path.text().strip()
         if not left or not right:
-            QMessageBox.warning(self, "ROM差分比較", "比較元と比較先を両方選択してください。")
+            QMessageBox.warning(self, "ROM比較", "比較元と比較先を両方選択してください。")
             return
         if left == right:
-            QMessageBox.warning(self, "ROM差分比較", "別々のROM/ZIPを選択してください。")
+            QMessageBox.warning(self, "ROM比較", "別々のファイルを選択してください。")
+            return
+        if not (self._is_rom_like(left) and self._is_rom_like(right)):
+            QMessageBox.warning(
+                self,
+                "ROM比較",
+                "ROM/ZIP同士を選択してください。PNG比較はメイン画面の比較編集を使ってください。",
+            )
             return
 
         self.btn_compare.setEnabled(False)
@@ -222,6 +235,7 @@ class RomDiffDialog(QDialog):
         self.details.clear()
         self._clear_previews()
         try:
+            self._compare_mode = "rom"
             self._result = compare_rom_stage_data(left, right)
             self._left_renderer = self._make_renderer(self._result.left_rom)
             self._right_renderer = self._make_renderer(self._result.right_rom)
@@ -229,7 +243,7 @@ class RomDiffDialog(QDialog):
             self._result = None
             self._left_renderer = None
             self._right_renderer = None
-            QMessageBox.critical(self, "ROM差分比較", f"比較に失敗しました。\n{exc}")
+            QMessageBox.critical(self, "ROM比較", f"比較に失敗しました。\n{exc}")
             self.lbl_result.setText("比較失敗")
             return
         finally:
@@ -249,6 +263,8 @@ class RomDiffDialog(QDialog):
         if self._last_compared_paths == (left, right):
             return
         if not Path(left).exists() or not Path(right).exists():
+            return
+        if not (self._is_rom_like(left) and self._is_rom_like(right)):
             return
         self._compare()
 
@@ -309,7 +325,10 @@ class RomDiffDialog(QDialog):
         ]
         lines.extend(stage.details)
         self.details.setPlainText("\n".join(lines))
-        self._update_previews(stage.stage_no)
+        if self._compare_mode == "rom":
+            self._update_previews(stage.stage_no)
+        else:
+            self._refresh_preview_labels()
 
     def _make_renderer(self, rom):
         cfg_path = Path(__file__).parent.parent / "skc_config.xml"
