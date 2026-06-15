@@ -457,6 +457,16 @@ class LevelView(QGraphicsView):
             hover_color.setAlpha(220)
             add_rect(hover, hover_color, width=2, inset=0)
 
+        ref_hover = overlays.get("compare_reference_hover_rect")
+        if ref_hover is not None:
+            x, y, w, h = ref_hover
+            pen_color = QColor(255, 0, 220, 235)
+            fill_color = QColor(255, 0, 220, 55)
+            item = QGraphicsRectItem(x, y, w, h)
+            item.setPen(self._overlay_pen(pen_color, width=3))
+            item.setBrush(QBrush(fill_color))
+            add(item)
+
     def set_object_labels(self, labels, with_border: bool = True):
         """キャンバス注釈をビュー上の通常フォントで重ねる。
 

@@ -343,6 +343,7 @@ class MainWindow(QMainWindow):
         self._stage_compare_show_diff = False
         self._stage_compare_edit_mode = False
         self._stage_compare_edit_orientation = "horizontal"
+        self._stage_compare_edit_current_size = None
         self._rom_validation_warnings = []
         self._rom_validation_rom = None
         self._rom_validation_dialog = None
@@ -3882,6 +3883,7 @@ class MainWindow(QMainWindow):
         self._stage_compare_show_diff = False
         self._stage_compare_edit_mode = False
         self._stage_compare_edit_orientation = "horizontal"
+        self._stage_compare_edit_current_size = None
         self._set_stage_compare_controls_visible(False)
         if hasattr(self, "btn_stage_compare_current"):
             self.btn_stage_compare_current.setChecked(True)
@@ -3981,8 +3983,11 @@ class MainWindow(QMainWindow):
             painter.end()
         return result
 
+    def _stage_compare_edit_gap(self) -> int:
+        return 12
+
     def _make_stage_png_edit_reference_image(self, current_image: QImage, png_image: QImage) -> QImage:
-        gap = 12
+        gap = self._stage_compare_edit_gap()
         if self._stage_compare_edit_orientation == "vertical":
             out_w = max(current_image.width(), png_image.width())
             out_h = current_image.height() + gap + png_image.height()
@@ -4004,11 +4009,42 @@ class MainWindow(QMainWindow):
 
     def _stage_compare_canvas_image(self, current_image: QImage) -> QImage:
         if self._is_stage_compare_edit_view():
+            self._stage_compare_edit_current_size = (
+                current_image.width(),
+                current_image.height(),
+            )
             return self._make_stage_png_edit_reference_image(
                 current_image,
                 self._stage_compare_png_image,
             )
+        self._stage_compare_edit_current_size = None
         return current_image
+
+    def _stage_compare_reference_hover_rect(self):
+        if not self._is_stage_compare_edit_view() or self._hover_tile is None:
+            return None
+        if self._stage_compare_png_image is None or self._stage_compare_edit_current_size is None:
+            return None
+        x, y = self._hover_tile
+        if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+            return None
+        tw = c.TILE_WIDTH
+        current_w, current_h = self._stage_compare_edit_current_size
+        png_offset = self._stage_png_cell_offset(self._stage_compare_png_image)
+        if self._stage_compare_edit_orientation == "vertical":
+            sx = (x + png_offset) * tw
+            sy = current_h + self._stage_compare_edit_gap() + y * tw
+        else:
+            sx = current_w + self._stage_compare_edit_gap() + (x + png_offset) * tw
+            sy = y * tw
+        if (
+            sx < 0
+            or sy < 0
+            or sx + tw > self.level_view.scene().sceneRect().right() + 1
+            or sy + tw > self.level_view.scene().sceneRect().bottom() + 1
+        ):
+            return None
+        return (sx, sy, tw, tw)
 
     def start_stage_compare_edit_from_png(self, png_path: str):
         if not self.levels:
@@ -4646,6 +4682,7 @@ class MainWindow(QMainWindow):
             "special_marks": special_marks,
             "selection_rect": self._selection_rect,
             "hover_tile": self._hover_tile,
+            "compare_reference_hover_rect": self._stage_compare_reference_hover_rect(),
         }
 
         if self.chk_hidden.isChecked():
