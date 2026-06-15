@@ -550,7 +550,7 @@ class SettingsDialog(QDialog):
         for key, _label, default in SHORTCUT_DEFINITIONS:
             edit = self._shortcut_edits[key]
             text = edit.keySequence().toString(QKeySequence.PortableText).strip()
-            shortcuts[key] = text or DEFAULT_SHORTCUTS[key]
+            shortcuts[key] = text
         self.config["shortcuts"] = normalize_shortcuts(shortcuts)
         gamepad_shortcuts = {}
         for key, _label, _default in SHORTCUT_DEFINITIONS:

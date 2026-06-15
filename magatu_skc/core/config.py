@@ -26,7 +26,7 @@ SHORTCUT_DEFINITIONS = [
     ("test_play", "テストプレイ", "P"),
     ("stage_prev", "前のステージ", "PgUp"),
     ("stage_next", "次のステージ", "PgDown"),
-    ("stage_compare", "PNG比較表示切替", "Tab"),
+    ("stage_compare", "PNG比較表示切替", ""),
     ("settings", "設定", "F9"),
     ("grid", "グリッド表示切替", "G"),
     ("undo", "Undo", "Ctrl+Z"),
@@ -38,6 +38,8 @@ SHORTCUT_DEFINITIONS = [
     ("paste_selection", "ペースト", "Ctrl+V"),
     ("cut_selection", "切り取り", "Ctrl+X"),
     ("item_replace", "オブジェクト一括置換", "Ctrl+H"),
+    ("item_flag_toggle", "ホバー位置のアイテム状態切替", "Tab"),
+    ("item_flag_toggle_reverse", "ホバー位置のアイテム状態逆切替", "Shift+Tab"),
     ("delete_hover_or_selection", "ホバー/選択範囲を削除", "Delete"),
     ("delete_hover_or_selection_alt", "ホバー/選択範囲を削除 代替", "Backspace"),
     ("clear_selection_escape", "選択解除(Esc)", "Esc"),
@@ -107,8 +109,14 @@ def normalize_shortcuts(value) -> dict:
     if isinstance(value, dict):
         for key, _label, default in SHORTCUT_DEFINITIONS:
             raw = value.get(key, default)
-            text = str(raw or default).strip()
-            shortcuts[key] = text or default
+            if raw is None:
+                raw = default
+            shortcuts[key] = str(raw).strip()
+        if (
+            shortcuts.get("stage_compare") == "Tab"
+            and shortcuts.get("item_flag_toggle") == "Tab"
+        ):
+            shortcuts["stage_compare"] = ""
     return shortcuts
 
 
