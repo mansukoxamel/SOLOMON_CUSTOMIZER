@@ -1084,7 +1084,7 @@ class MainWindow(QMainWindow):
         self._drag_base_level = None
         # 未保存変更フラグ
         self._dirty = False
-        self.level_view.rom_dropped.connect(self.load_rom)
+        self.level_view.rom_dropped.connect(self._on_rom_dropped)
         self.level_view.stage_png_dropped.connect(self._on_stage_png_dropped)
         self.enemy_count_indicator = _EnemyCountIndicator(self.level_view.viewport())
         self.enemy_count_indicator.set_slot_size(
@@ -2619,7 +2619,37 @@ class MainWindow(QMainWindow):
 
         if not path:
             return
+        if not self._confirm_replace_current_work("別のROMを開きます"):
+            return
         self.load_rom(path)
+
+    def _on_rom_dropped(self, path: str):
+        if not self._confirm_replace_current_work("ドロップされたROMを開きます"):
+            return
+        self.load_rom(path)
+
+    def _confirm_replace_current_work(self, action_label: str = "別のROMを読み込みます") -> bool:
+        if not self.rom or not self._dirty or self._is_read_only():
+            return True
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Warning)
+        box.setWindowTitle("未保存の変更")
+        box.setText("現在の編集内容はまだ保存されていません。")
+        box.setInformativeText(
+            f"{action_label}。\n"
+            "保存せずに続行すると、現在の編集内容は破棄されます。"
+        )
+        save_btn = box.addButton("保存して続行", QMessageBox.AcceptRole)
+        discard_btn = box.addButton("破棄して続行", QMessageBox.DestructiveRole)
+        cancel_btn = box.addButton("キャンセル", QMessageBox.RejectRole)
+        box.setDefaultButton(cancel_btn)
+        box.exec_()
+        clicked = box.clickedButton()
+        if clicked == save_btn:
+            return bool(self._on_save_rom())
+        if clicked == discard_btn:
+            return True
+        return False
 
     def load_rom(
         self,
@@ -3168,6 +3198,8 @@ class MainWindow(QMainWindow):
     def _on_reload_rom(self):
         if not self.last_loaded_path:
             return
+        if not self._confirm_replace_current_work("現在のROMを再読み込みします"):
+            return
         if self._is_autosave_path(self.last_loaded_path):
             self._load_autosave_workstate(self.last_loaded_path, add_history=False)
         else:
@@ -3213,15 +3245,21 @@ class MainWindow(QMainWindow):
                 label = self._history_label_for_path(path)
                 action = menu.addAction(label)
                 action.setToolTip(path)
-                action.triggered.connect(lambda checked, pp=path: (
-                    self._load_autosave_workstate(pp) if self._is_autosave_path(pp) else self.load_rom(pp)
-                ))
+                action.triggered.connect(lambda checked, pp=path: self._open_history_path(pp))
             menu.addSeparator()
             clr = menu.addAction("履歴をクリア")
             clr.triggered.connect(self._on_clear_history)
         # ボタンの真下に表示
         btn = self.btn_history
         menu.exec_(btn.mapToGlobal(btn.rect().bottomLeft()))
+
+    def _open_history_path(self, path: str):
+        if not self._confirm_replace_current_work("履歴からROM/作業状態を開きます"):
+            return
+        if self._is_autosave_path(path):
+            self._load_autosave_workstate(path)
+        else:
+            self.load_rom(path)
 
     def _on_clear_history(self):
         latest = self._latest_autosave_path()
@@ -3280,11 +3318,11 @@ class MainWindow(QMainWindow):
 
     def _on_save_rom(self):
         if not self.rom:
-            return
+            return False
         if self._reject_read_only_edit():
-            return
+            return False
         if not self._confirm_save_validation_warnings():
-            return
+            return False
         # デフォルト名: 元ROM名のステム + _YYYYMMDD_HHMMSS.nes
         from datetime import datetime
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -3300,7 +3338,7 @@ class MainWindow(QMainWindow):
             "NES ROMs (*.nes);;All files (*)"
         )
         if not path:
-            return
+            return False
         try:
             saved_data = saver.build_saved_rom_data(self.rom, self.levels)
             saver.write_rom_data(saved_data, path)
@@ -3323,8 +3361,10 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"ROM保存完了: {path}", 5000)
             self._set_dirty(False)
             self._log(f"ROM保存: {path}{bundle_msg}")
+            return True
         except Exception as e:
             self._show_save_failure("保存失敗", e, "ROM保存失敗")
+            return False
 
     def _on_test_play(self):
         """現在の編集状態 + ステージ選択(現在レベル) で一時ROMを生成しエミュ起動"""
@@ -10303,7 +10343,7 @@ Alt+左クリック: スポイト（そのマスの要素をピッカーに取�
             return
         if len(paths) == 1 and (paths[0].lower().endswith('.nes') or paths[0].lower().endswith('.zip')):
             event.acceptProposedAction()
-            self.load_rom(paths[0])
+            self._on_rom_dropped(paths[0])
             return
 
         event.ignore()
