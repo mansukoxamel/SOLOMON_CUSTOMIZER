@@ -457,6 +457,15 @@ class LevelView(QGraphicsView):
             hover_color.setAlpha(220)
             add_rect(hover, hover_color, width=2, inset=0)
 
+        diff_fill = QColor(255, 0, 220, 70)
+        diff_pen = QColor(255, 0, 220, 150)
+        for ref_rect in overlays.get("compare_reference_diff_rects", ()):
+            x, y, w, h = ref_rect
+            item = QGraphicsRectItem(x, y, w, h)
+            item.setPen(self._overlay_pen(diff_pen, width=1))
+            item.setBrush(QBrush(diff_fill))
+            add(item)
+
         ref_hover = overlays.get("compare_reference_hover_rect")
         if ref_hover is not None:
             x, y, w, h = ref_hover
