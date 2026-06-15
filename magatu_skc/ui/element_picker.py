@@ -1545,6 +1545,12 @@ class ElementPicker(QWidget):
             "mirror1": "mirror1_marker_color",
             "mirror2": "mirror2_marker_color",
         }.get(meta_kind)
+        if meta_kind == "start":
+            return self._make_icon_from_tile(
+                anim,
+                transparent_background=True,
+                tile_transparent=True,
+            )
         return self._make_icon_from_tile(anim, meta_marker_color_key=marker_key)
 
     # ========== Populate ==========
@@ -1809,6 +1815,23 @@ class ElementPicker(QWidget):
 
     def get_current(self):
         return self.current_mode, self.current_value
+
+    def current_icon(self) -> QIcon:
+        """現在選択中の mode/value からアイコンを返す。
+
+        QListWidget の選択状態は再描画時に一瞬揺れることがあるため、
+        キャンバスカーソル用には current_mode/current_value を正とする。
+        """
+        mode, value = self.get_current()
+        if mode == MODE_BLOCK:
+            return self._make_block_icon(value)
+        if mode == MODE_META:
+            return self._make_meta_icon(value)
+        if mode == MODE_ITEM:
+            return self._make_item_icon(int(value))
+        if mode == MODE_ENEMY:
+            return self._make_enemy_icon(int(value))
+        return QIcon()
 
     def get_selected_items(self):
         """全カテゴリリストから選択中アイテムを返す（外部互換用）"""

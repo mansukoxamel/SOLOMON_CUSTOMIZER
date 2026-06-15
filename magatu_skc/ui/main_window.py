@@ -869,6 +869,41 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
+    def _set_picker_override_cursor(self, cursor: QCursor):
+        self._picker_canvas_cursor = QCursor(cursor)
+        try:
+            viewport = self.level_view.viewport()
+            if viewport.underMouse():
+                if getattr(self, "_picker_override_cursor_active", False):
+                    QApplication.changeOverrideCursor(self._picker_canvas_cursor)
+                else:
+                    QApplication.setOverrideCursor(self._picker_canvas_cursor)
+                    self._picker_override_cursor_active = True
+        except Exception:
+            pass
+
+    def _apply_picker_override_cursor(self):
+        cursor = getattr(self, "_picker_canvas_cursor", None)
+        if cursor is None:
+            return
+        try:
+            if getattr(self, "_picker_override_cursor_active", False):
+                QApplication.changeOverrideCursor(cursor)
+            else:
+                QApplication.setOverrideCursor(cursor)
+                self._picker_override_cursor_active = True
+        except Exception:
+            pass
+
+    def _clear_picker_override_cursor(self):
+        if not getattr(self, "_picker_override_cursor_active", False):
+            return
+        try:
+            QApplication.restoreOverrideCursor()
+        except Exception:
+            pass
+        self._picker_override_cursor_active = False
+
     def showEvent(self, event):
         super().showEvent(event)
         if not getattr(self, "_window_state_first_show_logged", False):
@@ -1172,6 +1207,21 @@ class MainWindow(QMainWindow):
             self._position_enemy_count_indicator()
             self._position_stage_number_label()
             self._position_stage_compare_diff_label()
+        if (hasattr(self, "level_view") and
+                obj is self.level_view.viewport() and
+                event.type() in (
+                    QEvent.Enter,
+                    QEvent.Leave,
+                    QEvent.MouseButtonPress,
+                    QEvent.MouseButtonRelease,
+                    QEvent.MouseMove,
+                    QEvent.FocusIn,
+                    QEvent.FocusOut,
+                )):
+            if event.type() in (QEvent.Enter, QEvent.MouseMove, QEvent.FocusIn):
+                self._apply_picker_override_cursor()
+            elif event.type() in (QEvent.Leave, QEvent.FocusOut):
+                self._clear_picker_override_cursor()
         return super().eventFilter(obj, event)
 
     def _level_view_top_overlay_padding(self) -> int:
@@ -5095,22 +5145,27 @@ class MainWindow(QMainWindow):
 
     def _update_cursor_from_picker(self):
         """ピッカーで選択中のアイコンを LevelView のカーソル形状に設定"""
-        items = self.picker.get_selected_items()
-        if not items:
-            self.level_view.unsetCursor()
-            return
-        icon = items[0].icon()
+        icon_provider = getattr(self.picker, "current_icon", None)
+        icon = icon_provider() if callable(icon_provider) else None
         if icon.isNull():
             self.level_view.unsetCursor()
+            self.level_view.viewport().unsetCursor()
+            self._picker_canvas_cursor = None
+            self._clear_picker_override_cursor()
             return
         # 32x32 のカーソル（小さすぎず大きすぎず）
         pixmap = icon.pixmap(32, 32)
         if pixmap.isNull():
             self.level_view.unsetCursor()
+            self.level_view.viewport().unsetCursor()
+            self._picker_canvas_cursor = None
+            self._clear_picker_override_cursor()
             return
         # ホットスポットは中央
         cursor = QCursor(pixmap, 16, 16)
         self.level_view.setCursor(cursor)
+        self.level_view.viewport().setCursor(cursor)
+        self._set_picker_override_cursor(cursor)
 
     def _on_tile_hovered(self, tile):
         """ホバー位置変化時の処理 - 軽量再描画 + ステータスバー更新"""
