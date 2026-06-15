@@ -426,6 +426,20 @@ class MainWindow(QMainWindow):
         self.shortcut_item_replace.setContext(Qt.WindowShortcut)
         self.shortcut_item_replace.setAutoRepeat(False)
         self.shortcut_item_replace.activated.connect(self._on_show_item_replace)
+        self.shortcut_item_flag_toggle = QShortcut(
+            self._shortcut_sequence("item_flag_toggle"), self
+        )
+        self.shortcut_item_flag_toggle.setContext(Qt.WindowShortcut)
+        self.shortcut_item_flag_toggle.setAutoRepeat(False)
+        self.shortcut_item_flag_toggle.activated.connect(self._cycle_hover_item_flag)
+        self.shortcut_item_flag_toggle_reverse = QShortcut(
+            self._shortcut_sequence("item_flag_toggle_reverse"), self
+        )
+        self.shortcut_item_flag_toggle_reverse.setContext(Qt.WindowShortcut)
+        self.shortcut_item_flag_toggle_reverse.setAutoRepeat(False)
+        self.shortcut_item_flag_toggle_reverse.activated.connect(
+            lambda: self._cycle_hover_item_flag(reverse=True)
+        )
         self.shortcut_hover_actions = []
         for action in (
             "hover_enemy_left",
@@ -478,6 +492,8 @@ class MainWindow(QMainWindow):
             "stage_next": "shortcut_stage_next",
             "stage_compare": "shortcut_stage_compare_toggle",
             "item_replace": "shortcut_item_replace",
+            "item_flag_toggle": "shortcut_item_flag_toggle",
+            "item_flag_toggle_reverse": "shortcut_item_flag_toggle_reverse",
         }
         for action, attr in mapping.items():
             shortcut = getattr(self, attr, None)
@@ -519,6 +535,12 @@ class MainWindow(QMainWindow):
             return True
         if action == "item_replace":
             self._on_show_item_replace()
+            return True
+        if action == "item_flag_toggle":
+            self._cycle_hover_item_flag()
+            return True
+        if action == "item_flag_toggle_reverse":
+            self._cycle_hover_item_flag(reverse=True)
             return True
         if action == "clear_selection":
             if self._selection_rect is not None:
@@ -585,6 +607,88 @@ class MainWindow(QMainWindow):
             self._set_hover_item_flag(flag, label)
             return True
         return False
+
+    def _item_flag_cycle_order(self, allow_visible: bool = True):
+        flags = [
+            c.ITEM_FLAG_NORMAL,
+            c.ITEM_FLAG_HIDDEN,
+            c.ITEM_FLAG_IN_BLOCK,
+            c.ITEM_FLAG_WHITE_IN_BLOCK,
+        ]
+        if allow_visible:
+            flags.append(c.ITEM_FLAG_VISIBLE_IN_BLOCK)
+        return flags
+
+    def _item_flag_label(self, flag: int) -> str:
+        return {
+            c.ITEM_FLAG_NORMAL: "通常",
+            c.ITEM_FLAG_HIDDEN: "隠し",
+            c.ITEM_FLAG_IN_BLOCK: "ブロック内",
+            c.ITEM_FLAG_WHITE_IN_BLOCK: "白ブロック内",
+            c.ITEM_FLAG_VISIBLE_IN_BLOCK: "透明ブロック内",
+        }.get(flag, f"0x{int(flag):X}")
+
+    def _next_item_flag(self, current: int, allowed, reverse: bool = False):
+        order = [flag for flag in self._item_flag_cycle_order() if flag in set(allowed)]
+        if not order:
+            return c.ITEM_FLAG_NORMAL
+        try:
+            idx = order.index(current)
+        except ValueError:
+            return order[-1] if reverse else order[0]
+        step = -1 if reverse else 1
+        return order[(idx + step) % len(order)]
+
+    def _cycle_hover_item_flag(self, reverse: bool = False):
+        if self._hover_tile is None or not self.levels:
+            self.statusBar().showMessage("状態を切り替える対象がありません", 1200)
+            return
+        lv = self.levels[self.current_level_no]
+        tile = self._hover_tile
+        allowed = self._item_flag_cycle_order()
+        current = None
+
+        if not lv.is_key_removed() and lv.fixed_key_pos == tile:
+            from ..core import constants as cc
+            if tile in getattr(lv, "visible_in_block_item_cells", set()):
+                current = c.ITEM_FLAG_VISIBLE_IN_BLOCK
+            else:
+                current = {
+                    cc.KEY_STATUS_NORMAL: c.ITEM_FLAG_NORMAL,
+                    cc.KEY_STATUS_HIDDEN: c.ITEM_FLAG_HIDDEN,
+                    cc.KEY_STATUS_IN_BLOCK: c.ITEM_FLAG_IN_BLOCK,
+                    cc.KEY_STATUS_WHITE_IN_BLOCK: c.ITEM_FLAG_WHITE_IN_BLOCK,
+                }.get(lv.key_status, c.ITEM_FLAG_NORMAL)
+        elif not lv.is_door_removed() and lv.fixed_door_pos == tile:
+            from ..core import room_flags as _rf
+            allowed = self._item_flag_cycle_order(allow_visible=False)
+            door_state = lv.room_flags & _rf.DOOR_STATE_MASK
+            current = {
+                _rf.DOOR_STATE_NORMAL: c.ITEM_FLAG_NORMAL,
+                _rf.DOOR_STATE_HIDDEN: c.ITEM_FLAG_HIDDEN,
+                _rf.DOOR_STATE_IN_BLOCK: c.ITEM_FLAG_IN_BLOCK,
+                _rf.DOOR_STATE_WHITE_IN_BLOCK: c.ITEM_FLAG_WHITE_IN_BLOCK,
+            }.get(door_state, c.ITEM_FLAG_NORMAL)
+        else:
+            idx = lv.get_item_index(tile)
+            if idx < 0:
+                self.statusBar().showMessage("状態を切り替えるアイテムがありません", 1200)
+                return
+            item = lv.items[idx]
+            if item.element_no >= c.ITEM_COPY_INDICATOR_MIN and not item.is_white_in_block():
+                self.statusBar().showMessage("このアイテム形式は状態変更できません", 1500)
+                return
+            base = int(item.element_no) & 0x3F
+            if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
+                allowed = [
+                    c.ITEM_FLAG_NORMAL,
+                    c.ITEM_FLAG_HIDDEN,
+                    c.ITEM_FLAG_IN_BLOCK,
+                ]
+            current = self._item_replace_state(lv, item)
+
+        next_flag = self._next_item_flag(current, allowed, reverse=reverse)
+        self._set_hover_item_flag(next_flag, self._item_flag_label(next_flag))
 
     def _delete_hover_or_selection(self):
         if self._selection_rect is not None:
@@ -2526,6 +2630,7 @@ class MainWindow(QMainWindow):
         display_name_override: str = "",
         workstate_path_override: str = "",
         workstate_saved_at_override: str = "",
+        initial_level_no: int | None = None,
     ):
         try:
             self._rom_validation_warnings = []
@@ -2803,7 +2908,24 @@ class MainWindow(QMainWindow):
             self.meta_group.setEnabled(edit_enabled)
             self.picker.setEnabled(edit_enabled)
             self.chk_edit_col15.setEnabled(edit_enabled)
-            self.spin_level.setValue(1)
+            if initial_level_no is None:
+                target_level_no = 0
+            else:
+                try:
+                    target_level_no = int(initial_level_no)
+                except Exception:
+                    target_level_no = 0
+            if levels:
+                target_level_no = max(0, min(target_level_no, len(levels) - 1))
+            else:
+                target_level_no = 0
+            self.current_level_no = target_level_no
+            self.list_levels.blockSignals(True)
+            self.spin_level.blockSignals(True)
+            self.list_levels.setCurrentRow(self.current_level_no)
+            self.spin_level.setValue(self.current_level_no + 1)
+            self.spin_level.blockSignals(False)
+            self.list_levels.blockSignals(False)
             self._refresh_view()
             # 全レベルのサムネイル生成（53枚、約1〜3秒）
             self.statusBar().showMessage("サムネイル生成中...")
@@ -3056,6 +3178,10 @@ class MainWindow(QMainWindow):
         source_path = str(metadata.get("source_path", "") or "")
         display_name = self._autosave_display_name_from_metadata(metadata, path)
         saved_at = str(metadata.get("saved_at", "") or "")
+        try:
+            level_no = int(metadata.get("last_level_no", 0))
+        except Exception:
+            level_no = 0
         self.load_rom(
             path,
             add_history=False,
@@ -3067,15 +3193,10 @@ class MainWindow(QMainWindow):
             display_name_override=display_name,
             workstate_path_override=path,
             workstate_saved_at_override=saved_at,
+            initial_level_no=level_no,
         )
         if str(Path(self.last_loaded_path)) != str(Path(path)):
             return False
-        try:
-            level_no = int(metadata.get("last_level_no", 0))
-        except Exception:
-            level_no = 0
-        if self.levels and 0 <= level_no < len(self.levels):
-            self.spin_level.setValue(level_no + 1)
         self._restore_autosave_undo_history(self._autosave_undo_file_for_rom(Path(path)))
         if add_history:
             self._remember_previous_workstate_history(path)
@@ -3958,10 +4079,10 @@ class MainWindow(QMainWindow):
         self._stage_compare_show_diff = bool(show_diff)
         if show_diff:
             self.btn_stage_compare_diff.setChecked(True)
-            self.lbl_stage_compare_mode.setText("差分 (Tabで切替)")
+            self.lbl_stage_compare_mode.setText("差分")
         else:
             self.btn_stage_compare_current.setChecked(True)
-            self.lbl_stage_compare_mode.setText("現在 (Tabで切替)")
+            self.lbl_stage_compare_mode.setText("現在")
         self._refresh_view()
 
     def _toggle_stage_compare_view(self):
@@ -6067,6 +6188,12 @@ class MainWindow(QMainWindow):
             if self._clip_has_key_door_item_overlap(base_lv, clip, ox, oy):
                 self._show_key_door_item_overlap_message((ox, oy))
                 return
+            if self._clip_has_item_block_overlap(base_lv, clip, ox, oy):
+                self._show_block_absorb_rejected_message((ox, oy))
+                return
+            if self._clip_has_actor_block_overlap(base_lv, clip, ox, oy):
+                self._show_actor_block_overlap_message((ox, oy))
+                return
             selection_target = (clip, ox, oy)
         elif self._is_locked_col15_tile(tile):
             self._show_col15_locked_message("16列目へは移動できません（「16列目を編集」をONにしてください）")
@@ -6079,10 +6206,26 @@ class MainWindow(QMainWindow):
             if kind == "item" and self._solomon_seal_meta_at(self.current_level_no, tile) is not None:
                 self._show_key_door_item_overlap_message(tile)
                 return
+            item_absorb_flag = None
+            if kind == "item":
+                item_absorb_flag = self._block_absorb_flag_at_tile(lv, tile)
+                if self._is_blocking_edit_block_cell(lv, tile):
+                    if not self._can_apply_absorb_flag_to_moving_item(mp.get("ref"), item_absorb_flag):
+                        self._show_block_absorb_rejected_message(tile)
+                        return
             if kind == "enemy" and lv.fixed_start_pos == tile:
                 self._show_start_enemy_overlap_message(tile)
                 return
-            if kind == "item" and mp.get("visible_in_block"):
+            if kind == "enemy" and self._is_blocking_edit_block_cell(lv, tile):
+                self._show_actor_block_overlap_message(tile)
+                return
+            if kind == "item":
+                self._restore_drag_item_absorbed_block(lv, mp)
+            if kind == "item" and item_absorb_flag is not None:
+                if not self._apply_absorb_flag_to_moving_item(lv, mp, tile, item_absorb_flag):
+                    self._show_block_absorb_rejected_message(tile)
+                    return
+            elif kind == "item" and mp.get("visible_in_block"):
                 cells = getattr(lv, "visible_in_block_item_cells", set())
                 cells.discard(mp.get("current_pos"))
                 cells.add(tile)
@@ -6096,6 +6239,9 @@ class MainWindow(QMainWindow):
                 if lv.get_item_index(tile) >= 0:
                     self._show_key_door_item_overlap_message(tile)
                     return
+                if self._is_blocking_edit_block_cell(lv, tile):
+                    self._show_block_absorb_rejected_message(tile)
+                    return
                 if mp.get("visible_in_block"):
                     cells = getattr(lv, "visible_in_block_item_cells", set())
                     cells.discard(mp.get("current_pos"))
@@ -6106,10 +6252,16 @@ class MainWindow(QMainWindow):
                 if lv.get_item_index(tile) >= 0:
                     self._show_key_door_item_overlap_message(tile)
                     return
+                if self._is_blocking_edit_block_cell(lv, tile):
+                    self._show_block_absorb_rejected_message(tile)
+                    return
                 lv.fixed_door_pos = tile
             elif sub == "start":
                 if lv.get_enemy_index(tile) >= 0:
                     self._show_start_enemy_overlap_message(tile)
+                    return
+                if self._is_blocking_edit_block_cell(lv, tile):
+                    self._show_actor_block_overlap_message(tile)
                     return
                 lv.fixed_start_pos = tile
             elif sub == "mirror1":
@@ -6125,6 +6277,9 @@ class MainWindow(QMainWindow):
             item_refs = list(mp.get("item_refs") or [])
             if not self._solomon_seal_can_move_to_tile(lv, tile):
                 self._show_solomon_seal_move_rejected_message(lv, tile)
+                return
+            if self._tile_has_actor_for_block_move(lv, tile):
+                self._show_actor_block_overlap_message(tile)
                 return
             if any(it.position == tile and it not in item_refs for it in getattr(lv, "items", []) or []):
                 self._show_key_door_item_overlap_message(tile)
@@ -6154,6 +6309,16 @@ class MainWindow(QMainWindow):
         elif kind == "bomb_jack":
             self._move_bomb_jack_marker(mp["sub"], tile)
         elif kind == "block":
+            if self._tile_has_actor_for_block_move(lv, tile):
+                self._show_actor_block_overlap_message(tile)
+                return
+            absorb_flag = self._block_absorb_flag_from_parts(
+                mp.get("wall_type"), mp.get("runtime_markers", set())
+            )
+            target_has_absorb = self._tile_has_absorb_target(lv, tile)
+            if target_has_absorb and not self._can_apply_absorb_flag_to_tile(lv, tile, absorb_flag):
+                self._show_block_absorb_rejected_message(tile)
+                return
             # 通り過ぎたタイルの「元の壁」を復元してから新位置にブロック配置
             cx, cy = mp["current_pos"]
             # 現在位置を元に戻す
@@ -6162,13 +6327,24 @@ class MainWindow(QMainWindow):
             self._restore_runtime_markers_at(
                 lv, (cx, cy), mp.get("prev_markers_at_current", set())
             )
+            self._restore_absorb_target_state(lv, mp.get("prev_absorb_state_at_current"))
             # 新位置の元の壁を保存
             tx, ty = tile
             mp["prev_wall_at_current"] = lv.tiles[ty][tx]
             mp["prev_markers_at_current"] = self._pop_runtime_markers_at(lv, tile)
-            # 新位置にブロック配置
-            lv.tiles[ty][tx] = mp["wall_type"]
-            self._restore_runtime_markers_at(lv, tile, mp.get("runtime_markers", set()))
+            mp["prev_absorb_state_at_current"] = None
+            if target_has_absorb:
+                mp["prev_absorb_state_at_current"] = self._snapshot_absorb_target_state(lv, tile)
+                lv.tiles[ty][tx] = Wall.NONE
+                if not self._apply_absorb_flag_to_tile(lv, tile, absorb_flag):
+                    self._restore_absorb_target_state(lv, mp.get("prev_absorb_state_at_current"))
+                    mp["prev_absorb_state_at_current"] = None
+                    self._show_block_absorb_rejected_message(tile)
+                    return
+            else:
+                # 新位置にブロック配置
+                lv.tiles[ty][tx] = mp["wall_type"]
+                self._restore_runtime_markers_at(lv, tile, mp.get("runtime_markers", set()))
             mp["current_pos"] = tile
         elif kind == "selection":
             # ベース状態（削除後の状態）に復元してから新位置に貼り直す
@@ -6488,6 +6664,283 @@ class MainWindow(QMainWindow):
         has_key = not lv.is_key_removed() and lv.fixed_key_pos == tile
         has_door = not lv.is_door_removed() and lv.fixed_door_pos == tile
         return has_key or has_door
+
+    def _is_blocking_edit_block_cell(self, lv, tile) -> bool:
+        x, y = tile
+        if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+            return False
+        if lv.tiles[y][x] != Wall.NONE:
+            return True
+        block_marker_names = set(self._runtime_marker_names()) - {"visible_in_block_item_cells"}
+        return any(tile in getattr(lv, name, set()) for name in block_marker_names)
+
+    def _tile_has_actor_for_block_move(self, lv, tile) -> bool:
+        return lv.fixed_start_pos == tile or lv.get_enemy_index(tile) >= 0
+
+    def _clip_has_actor_block_overlap(self, lv, clip, ox: int, oy: int) -> bool:
+        if clip is None:
+            return False
+        block_positions = {
+            (x, y)
+            for y in range(c.LEVEL_H)
+            for x in range(c.LEVEL_W)
+            if self._is_blocking_edit_block_cell(lv, (x, y))
+        }
+        actor_positions = {enemy.position for enemy in lv.enemies}
+        start_pos = lv.fixed_start_pos
+
+        for (rx, ry), _wall in clip.get("blocks", {}).items():
+            tx, ty = ox + rx, oy + ry
+            if self._can_edit_tile_pos(tx, ty):
+                block_positions.add((tx, ty))
+        for name, rel_cells in clip.get("runtime_markers", {}).items():
+            if name == "visible_in_block_item_cells":
+                continue
+            for rx, ry in rel_cells:
+                tx, ty = ox + rx, oy + ry
+                if self._can_edit_tile_pos(tx, ty):
+                    block_positions.add((tx, ty))
+        for en_data in clip.get("enemies", []):
+            rx, ry = en_data["rel_pos"]
+            tx, ty = ox + rx, oy + ry
+            if self._can_edit_tile_pos(tx, ty):
+                actor_positions.add((tx, ty))
+        for meta_data in clip.get("meta", []):
+            if meta_data.get("kind") != "start":
+                continue
+            rx, ry = meta_data["rel_pos"]
+            tx, ty = ox + rx, oy + ry
+            if self._can_edit_tile_pos(tx, ty):
+                start_pos = (tx, ty)
+            break
+        actor_positions.add(start_pos)
+        return bool(block_positions.intersection(actor_positions))
+
+    def _clip_has_item_block_overlap(self, lv, clip, ox: int, oy: int) -> bool:
+        if clip is None:
+            return False
+        block_positions = {
+            (x, y)
+            for y in range(c.LEVEL_H)
+            for x in range(c.LEVEL_W)
+            if self._is_blocking_edit_block_cell(lv, (x, y))
+        }
+        item_positions = {item.position for item in lv.items}
+
+        for (rx, ry), _wall in clip.get("blocks", {}).items():
+            tx, ty = ox + rx, oy + ry
+            if self._can_edit_tile_pos(tx, ty):
+                block_positions.add((tx, ty))
+        for name, rel_cells in clip.get("runtime_markers", {}).items():
+            if name == "visible_in_block_item_cells":
+                continue
+            for rx, ry in rel_cells:
+                tx, ty = ox + rx, oy + ry
+                if self._can_edit_tile_pos(tx, ty):
+                    block_positions.add((tx, ty))
+        for it_data in clip.get("items", []):
+            rx, ry = it_data["rel_pos"]
+            tx, ty = ox + rx, oy + ry
+            if self._can_edit_tile_pos(tx, ty):
+                item_positions.add((tx, ty))
+        return bool(block_positions.intersection(item_positions))
+
+    def _show_actor_block_overlap_message(self, tile):
+        self.statusBar().showMessage(
+            f"主人公・敵とブロックは同じ位置にできません {tile}", 3000
+        )
+
+    def _block_absorb_flag_from_parts(self, wall_type, runtime_markers) -> int | None:
+        markers = set(runtime_markers or ())
+        if wall_type == Wall.NONE and "invisible_breakable_cells" in markers:
+            return c.ITEM_FLAG_VISIBLE_IN_BLOCK
+        if wall_type == Wall.WHITE and "breakable_white_cells" in markers:
+            return c.ITEM_FLAG_WHITE_IN_BLOCK
+        if wall_type in (Wall.BROWN, Wall.BROWN_WHITE) and not markers.intersection({
+            "cracked_block_cells",
+            "passable_brown_cells",
+            "solid_brown_cells",
+        }):
+            return c.ITEM_FLAG_IN_BLOCK
+        return None
+
+    def _runtime_block_markers_at_tile(self, lv, tile) -> set:
+        marker_names = set(self._runtime_marker_names()) - {"visible_in_block_item_cells"}
+        return {name for name in marker_names if tile in getattr(lv, name, set())}
+
+    def _block_absorb_flag_at_tile(self, lv, tile) -> int | None:
+        x, y = tile
+        if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+            return None
+        return self._block_absorb_flag_from_parts(
+            lv.tiles[y][x],
+            self._runtime_block_markers_at_tile(lv, tile),
+        )
+
+    def _show_block_absorb_rejected_message(self, tile):
+        self.statusBar().showMessage(
+            f"このブロックとはアイテム/鍵/扉を重ねられません {tile}", 3000
+        )
+
+    def _snapshot_absorb_target_state(self, lv, tile):
+        state = {"tile": tile}
+        if not lv.is_key_removed() and lv.fixed_key_pos == tile:
+            state["key_status"] = lv.key_status
+            state["key_visible"] = tile in getattr(lv, "visible_in_block_item_cells", set())
+        if not lv.is_door_removed() and lv.fixed_door_pos == tile:
+            from ..core import room_flags as _rf
+            state["door_state"] = lv.room_flags & _rf.DOOR_STATE_MASK
+        idx = lv.get_item_index(tile)
+        if idx >= 0:
+            item = lv.items[idx]
+            state["item_ref"] = item
+            state["item_element_no"] = item.element_no
+            state["item_visible"] = tile in getattr(lv, "visible_in_block_item_cells", set())
+        return state
+
+    def _restore_absorb_target_state(self, lv, state):
+        if not state:
+            return
+        tile = state.get("tile")
+        visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+        if "key_status" in state:
+            lv.key_status = state["key_status"]
+            if state.get("key_visible"):
+                visible_cells.add(tile)
+            else:
+                visible_cells.discard(tile)
+        if "door_state" in state:
+            from ..core import room_flags as _rf
+            lv.room_flags = (lv.room_flags & ~_rf.DOOR_STATE_MASK) | state["door_state"]
+        item = state.get("item_ref")
+        if item is not None:
+            item.element_no = state.get("item_element_no", item.element_no)
+            if state.get("item_visible"):
+                visible_cells.add(tile)
+            else:
+                visible_cells.discard(tile)
+
+    def _apply_absorb_flag_to_tile(self, lv, tile, flag: int) -> bool:
+        visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+        if not lv.is_key_removed() and lv.fixed_key_pos == tile:
+            from ..core import constants as cc
+            if flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
+                lv.key_status = cc.KEY_STATUS_NORMAL
+                visible_cells.add(tile)
+            else:
+                lv.key_status = {
+                    c.ITEM_FLAG_IN_BLOCK: cc.KEY_STATUS_IN_BLOCK,
+                    c.ITEM_FLAG_WHITE_IN_BLOCK: cc.KEY_STATUS_WHITE_IN_BLOCK,
+                }.get(flag, cc.KEY_STATUS_NORMAL)
+                visible_cells.discard(tile)
+            return True
+        if not lv.is_door_removed() and lv.fixed_door_pos == tile:
+            if flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
+                return False
+            from ..core import room_flags as _rf
+            door_state = {
+                c.ITEM_FLAG_IN_BLOCK: _rf.DOOR_STATE_IN_BLOCK,
+                c.ITEM_FLAG_WHITE_IN_BLOCK: _rf.DOOR_STATE_WHITE_IN_BLOCK,
+            }.get(flag, _rf.DOOR_STATE_NORMAL)
+            lv.room_flags = (lv.room_flags & ~_rf.DOOR_STATE_MASK) | door_state
+            return True
+        idx = lv.get_item_index(tile)
+        if idx < 0:
+            return False
+        item = lv.items[idx]
+        if self._is_protected_open_door_item(lv, item):
+            return False
+        base = int(item.element_no) & 0x3F
+        if flag in (c.ITEM_FLAG_WHITE_IN_BLOCK, c.ITEM_FLAG_VISIBLE_IN_BLOCK):
+            if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
+                return False
+        if flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
+            item.element_no = base
+            visible_cells.add(tile)
+        else:
+            item.element_no = base | flag
+            visible_cells.discard(tile)
+        return True
+
+    def _can_apply_absorb_flag_to_moving_item(self, item, flag: int) -> bool:
+        if flag is None:
+            return False
+        base = int(getattr(item, "element_no", 0)) & 0x3F
+        if flag in (c.ITEM_FLAG_WHITE_IN_BLOCK, c.ITEM_FLAG_VISIBLE_IN_BLOCK):
+            return base <= c.ITEM_WHITE_IN_BLOCK_MAX_BASE
+        return flag == c.ITEM_FLAG_IN_BLOCK
+
+    def _restore_drag_item_absorbed_block(self, lv, mp):
+        state = mp.pop("absorbed_block_state", None)
+        if not state:
+            return
+        tile = state.get("tile")
+        if tile is None:
+            return
+        x, y = tile
+        lv.tiles[y][x] = state.get("wall_type", Wall.NONE)
+        self._pop_runtime_markers_at(lv, tile)
+        self._restore_runtime_markers_at(lv, tile, state.get("runtime_markers", set()))
+        item = mp.get("ref")
+        if item is not None:
+            item.element_no = state.get("item_element_no", item.element_no)
+            visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+            if state.get("item_visible"):
+                visible_cells.add(tile)
+            else:
+                visible_cells.discard(tile)
+
+    def _apply_absorb_flag_to_moving_item(self, lv, mp, tile, flag: int) -> bool:
+        item = mp.get("ref")
+        if item is None or not self._can_apply_absorb_flag_to_moving_item(item, flag):
+            return False
+        visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+        x, y = tile
+        old_pos = item.position
+        mp["absorbed_block_state"] = {
+            "tile": tile,
+            "wall_type": lv.tiles[y][x],
+            "runtime_markers": self._pop_runtime_markers_at(lv, tile),
+            "item_element_no": item.element_no,
+            "item_visible": old_pos in visible_cells,
+        }
+        visible_cells.discard(old_pos)
+        lv.tiles[y][x] = Wall.NONE
+        base = int(item.element_no) & 0x3F
+        item.position = tile
+        if flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
+            item.element_no = base
+            visible_cells.add(tile)
+        else:
+            item.element_no = base | flag
+            visible_cells.discard(tile)
+        mp["current_pos"] = tile
+        return True
+
+    def _tile_has_absorb_target(self, lv, tile) -> bool:
+        return bool(
+            (not lv.is_key_removed() and lv.fixed_key_pos == tile) or
+            (not lv.is_door_removed() and lv.fixed_door_pos == tile) or
+            lv.get_item_index(tile) >= 0
+        )
+
+    def _can_apply_absorb_flag_to_tile(self, lv, tile, flag: int) -> bool:
+        if flag is None:
+            return False
+        if not lv.is_key_removed() and lv.fixed_key_pos == tile:
+            return True
+        if not lv.is_door_removed() and lv.fixed_door_pos == tile:
+            return flag != c.ITEM_FLAG_VISIBLE_IN_BLOCK
+        idx = lv.get_item_index(tile)
+        if idx < 0:
+            return False
+        item = lv.items[idx]
+        if self._is_protected_open_door_item(lv, item):
+            return False
+        base = int(item.element_no) & 0x3F
+        if flag in (c.ITEM_FLAG_WHITE_IN_BLOCK, c.ITEM_FLAG_VISIBLE_IN_BLOCK):
+            return base <= c.ITEM_WHITE_IN_BLOCK_MAX_BASE
+        return True
 
     def _clip_has_start_enemy_overlap(self, lv, clip, ox: int, oy: int) -> bool:
         if clip is None:
@@ -7620,6 +8073,12 @@ class MainWindow(QMainWindow):
             return
         if self._event_matches_shortcut(event, "item_replace"):
             self._on_show_item_replace()
+            return
+        if self._event_matches_shortcut(event, "item_flag_toggle"):
+            self._cycle_hover_item_flag()
+            return
+        if self._event_matches_shortcut(event, "item_flag_toggle_reverse"):
+            self._cycle_hover_item_flag(reverse=True)
             return
         if self._event_matches_shortcut(event, "delete_hover_or_selection"):
             self._delete_hover_or_selection()
@@ -9762,6 +10221,8 @@ Alt+左クリック: スポイト（そのマスの要素をピッカーに取�
 {sc("hover_info")}: ホバー情報ポップアップの表示/非表示<br>
 <br>
 <b>アイテムフラグ</b><br>
+{sc("item_flag_toggle")}: ホバー位置のアイテム/鍵/扉状態を順に切替<br>
+{sc("item_flag_toggle_reverse")}: ホバー位置のアイテム/鍵/扉状態を逆順に切替<br>
 {sc("hover_item_normal")}: ホバー位置のアイテム/鍵/扉を通常に変更<br>
 {sc("hover_item_hidden")}: ホバー位置のアイテム/鍵/扉を隠しに変更（デーモンミラー上では隠しアイテム0x48を配置）<br>
 {sc("hover_item_in_block")}: ホバー位置のアイテム/鍵/扉をブロック内に変更<br>
