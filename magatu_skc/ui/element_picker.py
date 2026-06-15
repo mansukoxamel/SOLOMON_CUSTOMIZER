@@ -671,7 +671,7 @@ class MirrorEnemyPanel(QWidget):
             sprite = self._tile_renderer.get_tile_image(anim, 0, transparent=True)
             icon_size = self._rows[0]._icon_size if self._rows else ICON_SIZE
             bg = QImage(icon_size, icon_size, QImage.Format_ARGB32)
-            bg.fill(_QC(20, 20, 20))
+            bg.fill(_QC(0, 0, 0, 0))
             painter = QPainter(bg)
             scaled = sprite.scaled(icon_size, icon_size, Qt.KeepAspectRatio, Qt.FastTransformation)
             ox = (icon_size - scaled.width()) // 2
@@ -1349,7 +1349,9 @@ class ElementPicker(QWidget):
 
     def _make_icon_from_tile(self, tile_no: int, apply_blue_filter: bool = False,
                              overlay_color=None, hatch_color=None,
-                             block_marker=None, meta_marker_color_key=None) -> QIcon:
+                             block_marker=None, meta_marker_color_key=None,
+                             transparent_background: bool = False,
+                             tile_transparent: bool = False) -> QIcon:
         """tile_definitions の tile_no から QIcon 生成
 
         skchain互換: 現在レベルのタイルセット番号を使って描画。これにより
@@ -1372,17 +1374,20 @@ class ElementPicker(QWidget):
             marker_shape_spec,
         )
 
-        # tile_renderer は palette index 0 のみ透明扱いするので、そのまま使う
         sprite = self.tile_renderer.get_tile_image(
             tile_no,
             self.current_tileset_no,
-            transparent=True,
+            transparent=tile_transparent,
             bg_main_color=self.current_wall_color,
         )
 
-        # 現在ステージの空背景に重ね、キャンバス上の色と揃える
         icon_size = self._icon_size
-        bg = self._make_icon_background(icon_size)
+        if transparent_background:
+            bg = QImage(icon_size, icon_size, QImage.Format_ARGB32)
+            bg.fill(QColor(0, 0, 0, 0))
+        else:
+            # 現在ステージの空背景に重ね、キャンバス上の色と揃える
+            bg = self._make_icon_background(icon_size)
         painter = QPainter(bg)
         scaled = sprite.scaled(icon_size, icon_size, Qt.KeepAspectRatio, Qt.FastTransformation)
         ox = (icon_size - scaled.width()) // 2
@@ -1508,9 +1513,16 @@ class ElementPicker(QWidget):
             return self._make_icon_from_tile(
                 anim,
                 overlay_color=(55, 135, 255, 115),
+                transparent_background=True,
+                tile_transparent=True,
             )
         overlay = (245, 220, 80, 80) if enemy_no in ENHANCED_ENEMY_CODES else None
-        return self._make_icon_from_tile(anim, overlay_color=overlay)
+        return self._make_icon_from_tile(
+            anim,
+            overlay_color=overlay,
+            transparent_background=True,
+            tile_transparent=True,
+        )
 
     def _make_meta_icon(self, meta_kind: str) -> QIcon:
         """メタ種別（鍵/扉/スタート/ミラー）からアイコン"""
