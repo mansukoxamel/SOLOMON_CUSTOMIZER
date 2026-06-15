@@ -341,10 +341,13 @@ class MainWindow(QMainWindow):
         self._stage_compare_level_no = None
         self._stage_compare_path = ""
         self._stage_compare_show_diff = False
+        self._stage_compare_edit_mode = False
+        self._stage_compare_edit_orientation = "horizontal"
         self._rom_validation_warnings = []
         self._rom_validation_rom = None
         self._rom_validation_dialog = None
         self._stats_dialog = None
+        self._rom_diff_dialog = None
         self.show_grid = False
         self.show_object_labels = False
         # Ctrl+クリックでの要素移動: 1回目で掴む、2回目で移動先
@@ -409,6 +412,12 @@ class MainWindow(QMainWindow):
         self.shortcut_stage_compare_toggle.setContext(Qt.WindowShortcut)
         self.shortcut_stage_compare_toggle.activated.connect(self._toggle_stage_compare_view)
         self.shortcut_stage_compare_toggle.setEnabled(False)
+        self.shortcut_stage_compare_orientation = QShortcut(QKeySequence("Q"), self)
+        self.shortcut_stage_compare_orientation.setContext(Qt.WindowShortcut)
+        self.shortcut_stage_compare_orientation.activated.connect(
+            self._toggle_stage_compare_edit_orientation
+        )
+        self.shortcut_stage_compare_orientation.setEnabled(False)
         self.shortcut_item_replace = QShortcut(self._shortcut_sequence("item_replace"), self)
         self.shortcut_item_replace.setContext(Qt.WindowShortcut)
         self.shortcut_item_replace.setAutoRepeat(False)
@@ -1043,9 +1052,24 @@ class MainWindow(QMainWindow):
         if (hasattr(self, "level_view") and
                 obj is self.level_view.viewport() and
                 event.type() in (QEvent.Resize, QEvent.Show)):
+            self.level_view.set_top_viewport_padding(self._level_view_top_overlay_padding())
             self._position_enemy_count_indicator()
             self._position_stage_number_label()
         return super().eventFilter(obj, event)
+
+    def _level_view_top_overlay_padding(self) -> int:
+        if not getattr(self, "levels", None):
+            return 0
+        heights = []
+        label = getattr(self, "stage_number_label", None)
+        if label is not None:
+            heights.append(label.height())
+        indicator = getattr(self, "enemy_count_indicator", None)
+        if indicator is not None:
+            heights.append(indicator.height())
+        if not heights:
+            return 0
+        return max(heights) + 8
 
     def _position_stage_number_label(self):
         if not hasattr(self, "stage_number_label"):
@@ -1261,37 +1285,42 @@ class MainWindow(QMainWindow):
         stage_btn_row.addWidget(self.btn_stage_save)
         fl.addLayout(stage_btn_row)
 
-        stage_compare_row = QHBoxLayout()
-        self.btn_stage_compare_png = QPushButton("PNGと比較")
-        self.btn_stage_compare_png.clicked.connect(self._on_stage_compare_png)
-        self.btn_stage_compare_png.setEnabled(False)
-        stage_compare_row.addWidget(self.btn_stage_compare_png)
-
         self.btn_stage_compare_current = QPushButton("現在")
         self.btn_stage_compare_current.setCheckable(True)
         self.btn_stage_compare_current.clicked.connect(
             lambda: self._set_stage_compare_view(False)
         )
-        stage_compare_row.addWidget(self.btn_stage_compare_current)
 
         self.btn_stage_compare_diff = QPushButton("差分")
         self.btn_stage_compare_diff.setCheckable(True)
         self.btn_stage_compare_diff.clicked.connect(
             lambda: self._set_stage_compare_view(True)
         )
-        stage_compare_row.addWidget(self.btn_stage_compare_diff)
 
         self._stage_compare_view_group = QButtonGroup(self)
         self._stage_compare_view_group.setExclusive(True)
         self._stage_compare_view_group.addButton(self.btn_stage_compare_current)
         self._stage_compare_view_group.addButton(self.btn_stage_compare_diff)
         self.lbl_stage_compare_mode = QLabel("")
-        stage_compare_row.addWidget(self.lbl_stage_compare_mode)
-        fl.addLayout(stage_compare_row)
+        stage_compare_edit_row = QHBoxLayout()
+        stage_compare_edit_row.addWidget(self.lbl_stage_compare_mode, 1)
+        self.btn_stage_compare_orientation = QPushButton("縦横(Q)")
+        self.btn_stage_compare_orientation.setToolTip(
+            "比較しながら編集の表示方向を横並び/縦並びで切り替えます。"
+        )
+        self.btn_stage_compare_orientation.clicked.connect(
+            self._toggle_stage_compare_edit_orientation
+        )
+        stage_compare_edit_row.addWidget(self.btn_stage_compare_orientation)
+        self.btn_stage_compare_edit_end = QPushButton("終了")
+        self.btn_stage_compare_edit_end.setToolTip("比較編集モードを終了して通常表示に戻します。")
+        self.btn_stage_compare_edit_end.clicked.connect(lambda: self._clear_stage_compare())
+        stage_compare_edit_row.addWidget(self.btn_stage_compare_edit_end)
+        fl.addLayout(stage_compare_edit_row)
 
-        self.btn_rom_diff = QPushButton("改造ROM差分比較")
+        self.btn_rom_diff = QPushButton("比較ツール")
         self.btn_rom_diff.setToolTip(
-            "2つのROM/ZIPを読み込み、ステージデータの差分を面ごとに比較します。"
+            "ROM/ZIP同士のステージ差分、PNG同士の画像差分、現在ステージとPNGの比較を行います。"
         )
         self.btn_rom_diff.clicked.connect(self._on_show_rom_diff)
         fl.addWidget(self.btn_rom_diff)
@@ -2692,7 +2721,6 @@ class MainWindow(QMainWindow):
             self.btn_save_ips.setEnabled(edit_enabled)
             self.btn_stage_load.setEnabled(edit_enabled)
             self.btn_stage_save.setEnabled(True)
-            self.btn_stage_compare_png.setEnabled(True)
             self._stage_clipboard = None
             self._stage_swap_source_no = None
             self._clear_stage_compare(refresh=False)
@@ -3818,6 +3846,15 @@ class MainWindow(QMainWindow):
             label.setVisible(bool(visible))
             if not visible:
                 label.setText("")
+        orientation_btn = getattr(self, "btn_stage_compare_orientation", None)
+        if orientation_btn is not None:
+            orientation_btn.setVisible(bool(visible and self._stage_compare_edit_mode))
+        end_btn = getattr(self, "btn_stage_compare_edit_end", None)
+        if end_btn is not None:
+            end_btn.setVisible(bool(visible and self._stage_compare_edit_mode))
+        orientation_shortcut = getattr(self, "shortcut_stage_compare_orientation", None)
+        if orientation_shortcut is not None:
+            orientation_shortcut.setEnabled(bool(visible and self._stage_compare_edit_mode))
         shortcut = getattr(self, "shortcut_stage_compare_toggle", None)
         if shortcut is not None:
             shortcut.setEnabled(bool(visible))
@@ -3829,6 +3866,13 @@ class MainWindow(QMainWindow):
             and self._stage_compare_level_no == self.current_level_no
         )
 
+    def _is_stage_compare_edit_view(self) -> bool:
+        return bool(
+            self._stage_compare_edit_mode
+            and self._stage_compare_png_image is not None
+            and self._stage_compare_level_no == self.current_level_no
+        )
+
     def _clear_stage_compare(self, refresh: bool = True):
         self._stage_compare_png_image = None
         self._stage_compare_diff_image = None
@@ -3836,9 +3880,13 @@ class MainWindow(QMainWindow):
         self._stage_compare_level_no = None
         self._stage_compare_path = ""
         self._stage_compare_show_diff = False
+        self._stage_compare_edit_mode = False
+        self._stage_compare_edit_orientation = "horizontal"
         self._set_stage_compare_controls_visible(False)
         if hasattr(self, "btn_stage_compare_current"):
             self.btn_stage_compare_current.setChecked(True)
+        if hasattr(self, "level_view"):
+            self.level_view.set_tile_offset_override(None)
         if refresh:
             self._refresh_view()
 
@@ -3932,6 +3980,77 @@ class MainWindow(QMainWindow):
         finally:
             painter.end()
         return result
+
+    def _make_stage_png_edit_reference_image(self, current_image: QImage, png_image: QImage) -> QImage:
+        gap = 12
+        if self._stage_compare_edit_orientation == "vertical":
+            out_w = max(current_image.width(), png_image.width())
+            out_h = current_image.height() + gap + png_image.height()
+        else:
+            out_w = current_image.width() + gap + png_image.width()
+            out_h = max(current_image.height(), png_image.height())
+        result = QImage(out_w, out_h, QImage.Format_ARGB32)
+        result.fill(QColor(0, 0, 0))
+        painter = QPainter(result)
+        try:
+            painter.drawImage(0, 0, current_image)
+            if self._stage_compare_edit_orientation == "vertical":
+                painter.drawImage(0, current_image.height() + gap, png_image)
+            else:
+                painter.drawImage(current_image.width() + gap, 0, png_image)
+        finally:
+            painter.end()
+        return result
+
+    def _stage_compare_canvas_image(self, current_image: QImage) -> QImage:
+        if self._is_stage_compare_edit_view():
+            return self._make_stage_png_edit_reference_image(
+                current_image,
+                self._stage_compare_png_image,
+            )
+        return current_image
+
+    def start_stage_compare_edit_from_png(self, png_path: str):
+        if not self.levels:
+            return
+        png_image = QImage(png_path)
+        if png_image.isNull():
+            QMessageBox.warning(self, "比較編集", "PNG画像の読み込みに失敗しました")
+            return
+        self._stage_compare_png_image = png_image
+        self._stage_compare_png_level = None
+        self._stage_compare_diff_image = None
+        self._stage_compare_level_no = self.current_level_no
+        self._stage_compare_path = png_path
+        self._stage_compare_show_diff = False
+        self._stage_compare_edit_mode = True
+        self._stage_compare_edit_orientation = "horizontal"
+        self._set_stage_compare_controls_visible(True)
+        self._update_stage_compare_edit_label()
+        self._refresh_view()
+        self.statusBar().showMessage(
+            f"比較しながら編集: L{self.current_level_no + 1} と {Path(png_path).name}",
+            5000,
+        )
+
+    def _update_stage_compare_edit_label(self):
+        if not hasattr(self, "lbl_stage_compare_mode"):
+            return
+        direction = "縦" if self._stage_compare_edit_orientation == "vertical" else "横"
+        self.lbl_stage_compare_mode.setText(
+            f"比較編集({direction}): {Path(self._stage_compare_path).name}"
+        )
+
+    def _toggle_stage_compare_edit_orientation(self):
+        if not self._is_stage_compare_edit_view():
+            return
+        self._stage_compare_edit_orientation = (
+            "vertical"
+            if self._stage_compare_edit_orientation == "horizontal"
+            else "horizontal"
+        )
+        self._update_stage_compare_edit_label()
+        self._refresh_view()
 
     def _on_stage_compare_png(self):
         if not self.levels:
@@ -4403,10 +4522,12 @@ class MainWindow(QMainWindow):
 
     def _refresh_view(self):
         if not self.levels or self.level_renderer is None:
+            self.level_view.set_top_viewport_padding(0)
             self._update_enemy_count_indicator()
             self._update_stage_number_label()
             return
         if not (0 <= self.current_level_no < len(self.levels)):
+            self.level_view.set_top_viewport_padding(0)
             self._update_enemy_count_indicator()
             self._update_stage_number_label()
             return
@@ -4414,6 +4535,7 @@ class MainWindow(QMainWindow):
         if (
             self._stage_compare_png_image is not None
             and self._stage_compare_level_no == self.current_level_no
+            and not self._stage_compare_edit_mode
         ):
             self._stage_compare_diff_image = self._make_stage_png_diff_image(
                 self._render_current_stage_for_png_compare(),
@@ -4431,7 +4553,7 @@ class MainWindow(QMainWindow):
         if self._is_stage_compare_diff_view():
             img = self._stage_compare_diff_image
         else:
-            img = self.level_renderer.render(
+            current_img = self.level_renderer.render(
                 level,
                 level_no=self.current_level_no,
                 show_grid=self.show_grid,
@@ -4444,6 +4566,12 @@ class MainWindow(QMainWindow):
                 bonus_items=self._get_bonus_items(),
                 draw_editor_markers=False,
             )
+            img = self._stage_compare_canvas_image(current_img)
+        if self._is_stage_compare_edit_view():
+            self.level_view.set_tile_offset_override((1, 0))
+        else:
+            self.level_view.set_tile_offset_override(None)
+        self.level_view.set_top_viewport_padding(self._level_view_top_overlay_padding())
         self.level_view.set_image(img)
         self.picker.set_marker_source_tile_size(self.level_view.display_tile_size())
         if self._is_stage_compare_diff_view():
@@ -4618,7 +4746,8 @@ class MainWindow(QMainWindow):
                 bonus_items=self._get_bonus_items(),
                 draw_editor_markers=False,
             )
-            self.level_view.set_image(img)
+            self.level_view.set_top_viewport_padding(self._level_view_top_overlay_padding())
+            self.level_view.set_image(self._stage_compare_canvas_image(img))
             sp_marks = self._get_special_marks()
             self.level_view.set_editor_overlays(
                 self._build_editor_overlays(level, sp_marks),
@@ -8525,15 +8654,26 @@ class MainWindow(QMainWindow):
         dlg.activateWindow()
 
     def _on_show_rom_diff(self):
+        self._open_rom_diff_dialog()
+
+    def _open_rom_diff_dialog(self):
         from .rom_diff_dialog import RomDiffDialog
+        dlg = getattr(self, "_rom_diff_dialog", None)
+        if dlg is not None and dlg.isVisible():
+            dlg.raise_()
+            dlg.activateWindow()
+            return dlg
         dlg = RomDiffDialog(parent=self, app_config=self._app_config)
-        dlg.exec_()
+        self._rom_diff_dialog = dlg
+        dlg.finished.connect(lambda _result: setattr(self, "_rom_diff_dialog", None))
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
+        return dlg
 
     def _on_show_rom_diff_for_paths(self, left_path: str, right_path: str):
-        from .rom_diff_dialog import RomDiffDialog
-        dlg = RomDiffDialog(parent=self, app_config=self._app_config)
+        dlg = self._open_rom_diff_dialog()
         dlg.set_compare_paths(left_path, right_path)
-        dlg.exec_()
 
     # ====== ゲーム挙動改造 ======
 
@@ -9462,7 +9602,7 @@ Alt+左クリック: スポイト（そのマスの要素をピッカーに取�
             event.ignore()
 
     def dropEvent(self, event):
-        """ドロップ時 - 2ROMなら差分比較、1ROMなら読み込み（内部D&Dは子で処理）"""
+        """ドロップ時 - 2比較ファイルなら比較ツール、1ROMなら読み込み（内部D&Dは子で処理）"""
         from .element_picker import PICKER_MIME
         if event.mimeData().hasFormat(PICKER_MIME):
             # 子ウィジェットで処理されなかった内部D&Dは無視
@@ -9478,14 +9618,14 @@ Alt+左クリック: スポイト（そのマスの要素をピッカーに取�
                 continue
             path = url.toLocalFile()
             lower = path.lower()
-            if lower.endswith('.nes') or lower.endswith('.zip'):
+            if lower.endswith('.nes') or lower.endswith('.zip') or lower.endswith('.png'):
                 paths.append(path)
 
         if len(paths) >= 2:
             event.acceptProposedAction()
             self._on_show_rom_diff_for_paths(paths[0], paths[1])
             return
-        if len(paths) == 1:
+        if len(paths) == 1 and (paths[0].lower().endswith('.nes') or paths[0].lower().endswith('.zip')):
             event.acceptProposedAction()
             self.load_rom(paths[0])
             return
