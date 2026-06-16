@@ -278,7 +278,7 @@ def save_levels_to_rom(rom: Rom, levels: list):
     breakable_runtime_cells = []
     for lv in levels:
         breakable = set(getattr(lv, "breakable_white_cells", set()) or [])
-        breakable.update(getattr(lv, "cracked_block_cells", set()) or [])
+        breakable.update(m66.cracked_block_cells(lv))
         breakable.update(getattr(lv, "invisible_breakable_cells", set()) or [])
         empty = set(getattr(lv, "passable_white_cells", set()) or [])
         empty.update(getattr(lv, "passable_brown_cells", set()) or [])

@@ -389,7 +389,12 @@ class LevelRenderer:
                         # 既存データ互換のため一応 WHITE と同等に描画。
                         painter.drawImage(x * tw, y * tw, white_img)
 
-            cracked_cells = getattr(level, "cracked_block_cells", set())
+            cracked_cells = {
+                pos for pos in getattr(level, "cracked_block_cells", set())
+                if 0 <= pos[0] < c.LEVEL_W
+                and 0 <= pos[1] < c.LEVEL_H
+                and level.tiles[pos[1]][pos[0]] == Wall.BROWN
+            }
             cracked_img = None
             if cracked_cells:
                 cracked_anim = self.get_item_animation(0x01)

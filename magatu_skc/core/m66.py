@@ -269,7 +269,7 @@ def _visible_in_block_cell_index(pos) -> int | None:
 
 
 def _cracked_in_block_item_cells(level) -> set:
-    cracked = set(getattr(level, "cracked_block_cells", set()) or [])
+    cracked = cracked_block_cells(level)
     if not cracked:
         return set()
     item_positions = {
@@ -282,6 +282,14 @@ def _cracked_in_block_item_cells(level) -> set:
 
 def cracked_in_block_item_cells(level) -> set:
     return _cracked_in_block_item_cells(level)
+
+
+def cracked_block_cells(level) -> set:
+    return {
+        pos for pos in set(getattr(level, "cracked_block_cells", set()) or [])
+        if _visible_in_block_cell_index(pos) is not None
+        and level.tiles[pos[1]][pos[0]] == Wall.BROWN
+    }
 
 
 def _read_visible_in_block_item_mask_cells(rom_data: bytes, level_no: int) -> set:
@@ -402,7 +410,7 @@ def save_level_m66(rom_data: bytearray, level_no: int, level):
     # プレイ開始後の runtime が $0304 上で挙動値へ変換する。
     for pos in sorted(getattr(level, "breakable_white_cells", set()) or []):
         set_block(pos, CELL_BREAKABLE_WHITE)
-    for pos in sorted(getattr(level, "cracked_block_cells", set()) or []):
+    for pos in sorted(cracked_block_cells(level)):
         set_block(pos, CELL_CRACKED_BLOCK)
     for pos in sorted(getattr(level, "passable_white_cells", set()) or []):
         set_block(pos, CELL_PASSABLE_WHITE)

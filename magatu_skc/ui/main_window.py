@@ -5724,6 +5724,8 @@ class MainWindow(QMainWindow):
                 pass
             elif value == BLOCK_NONE:
                 lv.set_block(Wall.NONE, tile)
+                lv.cracked_block_cells.discard(tile)
+                lv.breakable_white_cells.discard(tile)
                 lv.invisible_breakable_cells.discard(tile)
                 lv.invisible_solid_cells.discard(tile)
                 lv.passable_brown_cells.discard(tile)
@@ -5744,12 +5746,14 @@ class MainWindow(QMainWindow):
                 lv.cracked_block_cells.add(tile)
             elif value == BLOCK_WHITE:
                 lv.set_block(Wall.WHITE, tile)
+                lv.cracked_block_cells.discard(tile)
                 lv.breakable_white_cells.discard(tile)
                 lv.passable_white_cells.discard(tile)
                 lv.passable_brown_cells.discard(tile)
                 lv.solid_brown_cells.discard(tile)
             elif value == BLOCK_BREAKABLE_WHITE:
                 lv.set_block(Wall.WHITE, tile)
+                lv.cracked_block_cells.discard(tile)
                 lv.invisible_breakable_cells.discard(tile)
                 lv.passable_white_cells.discard(tile)
                 lv.passable_brown_cells.discard(tile)
@@ -5757,6 +5761,7 @@ class MainWindow(QMainWindow):
                 lv.breakable_white_cells.add(tile)
             elif value == BLOCK_INVISIBLE_BREAKABLE:
                 lv.set_block(Wall.NONE, tile)
+                lv.cracked_block_cells.discard(tile)
                 lv.breakable_white_cells.discard(tile)
                 lv.invisible_solid_cells.discard(tile)
                 lv.passable_white_cells.discard(tile)
@@ -5765,6 +5770,7 @@ class MainWindow(QMainWindow):
                 lv.invisible_breakable_cells.add(tile)
             elif value == BLOCK_PASSABLE_WHITE:
                 lv.set_block(Wall.WHITE, tile)
+                lv.cracked_block_cells.discard(tile)
                 lv.breakable_white_cells.discard(tile)
                 lv.invisible_breakable_cells.discard(tile)
                 lv.invisible_solid_cells.discard(tile)
@@ -5773,6 +5779,7 @@ class MainWindow(QMainWindow):
                 lv.passable_white_cells.add(tile)
             elif value == BLOCK_INVISIBLE_SOLID:
                 lv.set_block(Wall.NONE, tile)
+                lv.cracked_block_cells.discard(tile)
                 lv.breakable_white_cells.discard(tile)
                 lv.invisible_breakable_cells.discard(tile)
                 lv.passable_white_cells.discard(tile)
@@ -5799,6 +5806,11 @@ class MainWindow(QMainWindow):
                 lv.solid_brown_cells.add(tile)
             elif value == BLOCK_BROWN_WHITE:
                 lv.set_block(Wall.BROWN_WHITE, tile)
+                lv.cracked_block_cells.discard(tile)
+                lv.breakable_white_cells.discard(tile)
+                lv.passable_white_cells.discard(tile)
+                lv.invisible_breakable_cells.discard(tile)
+                lv.invisible_solid_cells.discard(tile)
                 lv.passable_brown_cells.discard(tile)
                 lv.solid_brown_cells.discard(tile)
         elif mode == MODE_ITEM:
@@ -9074,6 +9086,7 @@ class MainWindow(QMainWindow):
         if block_kind == BLOCK_NONE:
             lv.set_block(Wall.NONE, tile)
             lv.cracked_block_cells.discard(tile)
+            lv.breakable_white_cells.discard(tile)
             lv.invisible_breakable_cells.discard(tile)
             lv.invisible_solid_cells.discard(tile)
             lv.passable_brown_cells.discard(tile)
@@ -9094,12 +9107,14 @@ class MainWindow(QMainWindow):
             lv.cracked_block_cells.add(tile)
         elif block_kind == BLOCK_WHITE:
             lv.set_block(Wall.WHITE, tile)
+            lv.cracked_block_cells.discard(tile)
             lv.breakable_white_cells.discard(tile)
             lv.passable_white_cells.discard(tile)
             lv.passable_brown_cells.discard(tile)
             lv.solid_brown_cells.discard(tile)
         elif block_kind == BLOCK_BREAKABLE_WHITE:
             lv.set_block(Wall.WHITE, tile)
+            lv.cracked_block_cells.discard(tile)
             lv.invisible_breakable_cells.discard(tile)
             lv.passable_white_cells.discard(tile)
             lv.passable_brown_cells.discard(tile)
@@ -9107,6 +9122,7 @@ class MainWindow(QMainWindow):
             lv.breakable_white_cells.add(tile)
         elif block_kind == BLOCK_INVISIBLE_BREAKABLE:
             lv.set_block(Wall.NONE, tile)
+            lv.cracked_block_cells.discard(tile)
             lv.breakable_white_cells.discard(tile)
             lv.invisible_solid_cells.discard(tile)
             lv.passable_white_cells.discard(tile)
@@ -9115,6 +9131,7 @@ class MainWindow(QMainWindow):
             lv.invisible_breakable_cells.add(tile)
         elif block_kind == BLOCK_PASSABLE_WHITE:
             lv.set_block(Wall.WHITE, tile)
+            lv.cracked_block_cells.discard(tile)
             lv.breakable_white_cells.discard(tile)
             lv.invisible_breakable_cells.discard(tile)
             lv.invisible_solid_cells.discard(tile)
@@ -9123,6 +9140,7 @@ class MainWindow(QMainWindow):
             lv.passable_white_cells.add(tile)
         elif block_kind == BLOCK_INVISIBLE_SOLID:
             lv.set_block(Wall.NONE, tile)
+            lv.cracked_block_cells.discard(tile)
             lv.breakable_white_cells.discard(tile)
             lv.invisible_breakable_cells.discard(tile)
             lv.passable_white_cells.discard(tile)

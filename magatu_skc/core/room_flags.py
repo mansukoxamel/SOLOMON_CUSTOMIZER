@@ -216,6 +216,7 @@ OFF_TEMPO       = 0x3CE0   # $BCD0  全体共通テンポ 2B [LIGHT, PERIOD]
 OFF_VISIBLE_INBLOCK_HELPER = 0x675C  # $E74C  visible item bitmask -> white in-block helper
 VISIBLE_INBLOCK_HELPER_CAPACITY = 0x18
 OFF_BW_CAVE     = 0x4100   # $C0F0  runtime special-cell scanner
+OFF_WHITE_INBLOCK_RUNTIME_HELPER = 0x5B71  # $DB61 direct white in-block item -> two-hit runtime helper
 OFF_CAVE_FREE0  = 0x3BEE   # $BBDE  (cave 空き判定の起点)
 OFF_CAVE_FREE1  = 0x4210   # $C200  (cave 空き判定の終点)
 OFF_TITLE_IDLE_DEMO_CLEAR = 0x3C1E  # $BC0E  wide-title idle demo cleanup (9B)
@@ -262,11 +263,12 @@ assert len(DARK_CAVE_BLOB) == DARK_CAVE_RESERVED_SIZE
 #   $50 -> $90  invisible breakable
 #   $A3 -> $10  passable brown
 #   $A4 -> $F8  solid brown
-# For visible in-block items, each scanned cell calls $E74C. The helper consumes
-# the 24B mask at $0750-$0767 destructively and ORs $C0 into marked normal item
-# cells before the special-cell comparisons below.
+# For direct white in-block items, the scanner calls $DB61 before $E74C. Direct
+# $C0-$DF cells have already been drawn as white, so $DB61 lowers the live grid
+# to $80-$9F. Head magic then does first hit: OR #$40 -> $C0-$DF, second hit:
+# release the item. Mask-converted/cracked cells still flow through $E74C.
 BW_CAVE = bytes.fromhex(
-    "20e495ad78072960f026a018a2c0204ce7c901f024c940"
+    "20e495ad78072960f026a018a2c02061dbc901f024c940"
     "f018c9a4f014c950f014c9f9f010c9faf014c9a3f010"
     "cad0de60a9f8d00aa990d006a9d0d002a9109d1303d0e9"
 )
@@ -279,6 +281,10 @@ VISIBLE_INBLOCK_HELPER = bytes.fromhex(
     "8a2907d00188b950070a995007bd1303900509c09d130360"
 )
 assert len(VISIBLE_INBLOCK_HELPER) <= VISIBLE_INBLOCK_HELPER_CAPACITY
+WHITE_INBLOCK_RUNTIME_HELPER = bytes.fromhex(
+    "bd1303c9c0900ac9e0b00629bf9d1303604c4ce7"
+)
+assert len(WHITE_INBLOCK_RUNTIME_HELPER) == 20
 # 全体共通テンポ既定: 明45フレ / 暗100フレ → PERIOD=145
 TEMPO_DEFAULT = bytes([45, 145])  # [LIGHT, PERIOD(=LIGHT+DARK)]
 
@@ -427,6 +433,7 @@ def _verify(rom_data) -> None:
         (OFF_DARK_CAVE, DARK_CAVE_RESERVED_SIZE),  # 暗闇 cave
         (OFF_TEMPO, 2),                      # 暗闇テンポ
         (OFF_BW_CAVE, BW_CAVE_RESERVED_SIZE),
+        (OFF_WHITE_INBLOCK_RUNTIME_HELPER, len(WHITE_INBLOCK_RUNTIME_HELPER)),
         *_sv.RESERVED_SPANS,                 # Saramandor #2 bullet variant
         *_gv.RESERVED_SPANS,                 # Gargoyle #2 two-Bullet variant
         *_pmv.RESERVED_SPANS,                # Panel Monster borrowed-ID variants
@@ -455,6 +462,19 @@ def _verify(rom_data) -> None:
     ):
         raise RoomFlagError(
             f"VisibleInBlock helper (file 0x{OFF_VISIBLE_INBLOCK_HELPER:X}) "
+            "が空きでありません。別改造と競合の可能性があるため中止します。"
+        )
+    white_helper_cur = bytes(
+        rom_data[
+            OFF_WHITE_INBLOCK_RUNTIME_HELPER:
+            OFF_WHITE_INBLOCK_RUNTIME_HELPER + len(WHITE_INBLOCK_RUNTIME_HELPER)
+        ]
+    )
+    if white_helper_cur != WHITE_INBLOCK_RUNTIME_HELPER and any(
+        b not in (0xEA, 0x00) for b in white_helper_cur
+    ):
+        raise RoomFlagError(
+            f"WhiteInBlock runtime helper (file 0x{OFF_WHITE_INBLOCK_RUNTIME_HELPER:X}) "
             "が空きでありません。別改造と競合の可能性があるため中止します。"
         )
 
@@ -632,6 +652,9 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
         if bytes(rom_data[OFF_VISIBLE_INBLOCK_HELPER:OFF_VISIBLE_INBLOCK_HELPER + len(VISIBLE_INBLOCK_HELPER)]) != VISIBLE_INBLOCK_HELPER:
             rom_data[OFF_VISIBLE_INBLOCK_HELPER:OFF_VISIBLE_INBLOCK_HELPER + len(VISIBLE_INBLOCK_HELPER)] = VISIBLE_INBLOCK_HELPER
             changed.append("VisibleInBlock helper 注入 ($E74C)")
+        if bytes(rom_data[OFF_WHITE_INBLOCK_RUNTIME_HELPER:OFF_WHITE_INBLOCK_RUNTIME_HELPER + len(WHITE_INBLOCK_RUNTIME_HELPER)]) != WHITE_INBLOCK_RUNTIME_HELPER:
+            rom_data[OFF_WHITE_INBLOCK_RUNTIME_HELPER:OFF_WHITE_INBLOCK_RUNTIME_HELPER + len(WHITE_INBLOCK_RUNTIME_HELPER)] = WHITE_INBLOCK_RUNTIME_HELPER
+            changed.append("WhiteInBlock runtime helper 注入 ($DB61)")
         if bytes(rom_data[OFF_BW_CAVE:OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE]) != BW_CAVE_BLOB:
             rom_data[OFF_BW_CAVE:OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE] = BW_CAVE_BLOB
             changed.append("BreakableWhite cave 注入 ($C0F0)")
