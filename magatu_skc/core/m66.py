@@ -75,9 +75,41 @@ M66_LOADER_TAIL_OFF = 0x80C4
 M66_LOADER_TAIL_HOOK = bytes.fromhex("4c008a")
 M66_LOADER_TAIL_GUARD_OFF = 0x80C7
 M66_LOADER_TAIL_GUARD = bytes([0x00] * 9)
-VISIBLE_IN_BLOCK_RESERVED_SPANS = ((VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF, len(VISIBLE_IN_BLOCK_MASK_COPY_HELPER)),)
 assert RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_LEN == 34
 assert len(VISIBLE_IN_BLOCK_MASK_COPY_HELPER) == 43
+INITIAL_DRAW_LOW_CLASSIFIER_PATCH_OFF = 0x10 + (0x9620 - 0x8000)
+INITIAL_DRAW_LOW_CLASSIFIER_OLD = bytes.fromhex("a210c940b001aa")
+INITIAL_DRAW_LOW_CLASSIFIER_HELPER_CPU = 0xE764
+INITIAL_DRAW_LOW_CLASSIFIER_HELPER_OFF = 0x10 + (INITIAL_DRAW_LOW_CLASSIFIER_HELPER_CPU - 0x8000)
+INITIAL_DRAW_LOW_CLASSIFIER_CONT1_CPU = 0xE788
+INITIAL_DRAW_LOW_CLASSIFIER_CONT1_OFF = 0x10 + (INITIAL_DRAW_LOW_CLASSIFIER_CONT1_CPU - 0x8000)
+INITIAL_DRAW_LOW_CLASSIFIER_CONT2_CPU = 0xE3EC
+INITIAL_DRAW_LOW_CLASSIFIER_CONT2_OFF = 0x10 + (INITIAL_DRAW_LOW_CLASSIFIER_CONT2_CPU - 0x8000)
+INITIAL_DRAW_LOW_CLASSIFIER_TABLE_CPU = 0xE2DD
+INITIAL_DRAW_LOW_CLASSIFIER_TABLE_OFF = 0x10 + (INITIAL_DRAW_LOW_CLASSIFIER_TABLE_CPU - 0x8000)
+INITIAL_DRAW_LOW_CLASSIFIER_PATCH = (
+    bytes((
+        0x20,
+        INITIAL_DRAW_LOW_CLASSIFIER_HELPER_CPU & 0xFF,
+        INITIAL_DRAW_LOW_CLASSIFIER_HELPER_CPU >> 8,
+    ))
+    + bytes([0xEA] * (len(INITIAL_DRAW_LOW_CLASSIFIER_OLD) - 3))
+)
+INITIAL_DRAW_LOW_CLASSIFIER_HELPER = bytes.fromhex("c940b002aa60a50038e910484a4a4aa86829074c88e7")
+INITIAL_DRAW_LOW_CLASSIFIER_CONT1 = bytes.fromhex("aabddd e23950074cece3".replace(" ", ""))
+INITIAL_DRAW_LOW_CLASSIFIER_CONT2 = bytes.fromhex("f003a20160a21060")
+INITIAL_DRAW_LOW_CLASSIFIER_TABLE = bytes([1, 2, 4, 8, 16, 32, 64, 128])
+assert len(INITIAL_DRAW_LOW_CLASSIFIER_PATCH) == len(INITIAL_DRAW_LOW_CLASSIFIER_OLD)
+assert len(INITIAL_DRAW_LOW_CLASSIFIER_HELPER) == 22
+assert len(INITIAL_DRAW_LOW_CLASSIFIER_CONT1) == 10
+assert len(INITIAL_DRAW_LOW_CLASSIFIER_CONT2) == 8
+VISIBLE_IN_BLOCK_RESERVED_SPANS = (
+    (VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF, len(VISIBLE_IN_BLOCK_MASK_COPY_HELPER)),
+    (INITIAL_DRAW_LOW_CLASSIFIER_HELPER_OFF, len(INITIAL_DRAW_LOW_CLASSIFIER_HELPER)),
+    (INITIAL_DRAW_LOW_CLASSIFIER_CONT1_OFF, len(INITIAL_DRAW_LOW_CLASSIFIER_CONT1)),
+    (INITIAL_DRAW_LOW_CLASSIFIER_CONT2_OFF, len(INITIAL_DRAW_LOW_CLASSIFIER_CONT2)),
+    (INITIAL_DRAW_LOW_CLASSIFIER_TABLE_OFF, len(INITIAL_DRAW_LOW_CLASSIFIER_TABLE)),
+)
 INITIAL_DRAW_WHITE_THRESHOLD_PATCH_OFF = 0x10 + (0x9617 - 0x8000)
 INITIAL_DRAW_WHITE_THRESHOLD_OLD = 0xF8
 INITIAL_DRAW_WHITE_THRESHOLD_NEW = 0xC0
@@ -236,6 +268,22 @@ def _visible_in_block_cell_index(pos) -> int | None:
     return y * c.LEVEL_W + x
 
 
+def _cracked_in_block_item_cells(level) -> set:
+    cracked = set(getattr(level, "cracked_block_cells", set()) or [])
+    if not cracked:
+        return set()
+    item_positions = {
+        item.position
+        for item in (getattr(level, "items", []) or [])
+        if _visible_in_block_cell_index(item.position) is not None
+    }
+    return cracked & item_positions
+
+
+def cracked_in_block_item_cells(level) -> set:
+    return _cracked_in_block_item_cells(level)
+
+
 def _read_visible_in_block_item_mask_cells(rom_data: bytes, level_no: int) -> set:
     cells = set()
     base = _visible_in_block_table_offset(level_no)
@@ -274,11 +322,20 @@ def load_all_levels_m66(rom) -> list:
             and (runtime_room_flags[i] & room_flags.BIT_VISIBLE_INBLOCK_ITEMS)
         ):
             continue
-        item_positions = {item.position for item in levels[i].items}
-        levels[i].visible_in_block_item_cells = {
-            pos for pos in cells
-            if pos in item_positions
-        }
+        item_by_pos = {item.position: item for item in levels[i].items}
+        visible = set()
+        for pos in cells:
+            item = item_by_pos.get(pos)
+            if item is None:
+                continue
+            if (int(item.element_no) & 0xC0) == c.ITEM_FLAG_HIDDEN:
+                item.element_no = int(item.element_no) & 0x3F
+                x, y = pos
+                levels[i].tiles[y][x] = Wall.BROWN
+                levels[i].cracked_block_cells.add(pos)
+            else:
+                visible.add(pos)
+        levels[i].visible_in_block_item_cells = visible
     try:
         from . import room_flags
         flags = room_flags.read_table(bytes(rom.data), len(levels))
@@ -369,9 +426,14 @@ def save_level_m66(rom_data: bytearray, level_no: int, level):
             if not has_block and not has_item:
                 set_block((mx, my), c.ITEM_NO_DEMON_MIRROR)
 
+    cracked_item_cells = _cracked_in_block_item_cells(level)
+
     # アイテム配置（ブロックを上書き）
     for item in level.items:
-        set_block(item.position, item.element_no)
+        value = int(item.element_no)
+        if item.position in cracked_item_cells:
+            value = (value & 0x3F) | c.ITEM_FLAG_HIDDEN
+        set_block(item.position, value)
 
     if (getattr(level, "key_status", c.KEY_STATUS_NORMAL) == c.KEY_STATUS_WHITE_IN_BLOCK and
             not level.is_key_removed()):
@@ -414,6 +476,7 @@ def save_level_m66(rom_data: bytearray, level_no: int, level):
 def save_all_levels_m66(rom, levels: list):
     """拡張ROM全レベルを書き戻し"""
     validate_visible_in_block_items(levels)
+    validate_cracked_in_block_items(levels)
     for i, level in enumerate(levels):
         save_level_m66(rom.data, i, level)
     from . import stage_ext
@@ -423,6 +486,10 @@ def save_all_levels_m66(rom, levels: list):
 
 def visible_in_block_items_needed(levels: list) -> bool:
     return any(bool(getattr(level, "visible_in_block_item_cells", set()) or []) for level in levels or [])
+
+
+def cracked_in_block_items_needed(levels: list) -> bool:
+    return any(bool(_cracked_in_block_item_cells(level)) for level in levels or [])
 
 
 def validate_visible_in_block_items(levels: list) -> None:
@@ -459,6 +526,35 @@ def validate_visible_in_block_items(levels: list) -> None:
                 )
 
 
+def validate_cracked_in_block_items(levels: list) -> None:
+    for room_no, level in enumerate(levels or []):
+        cells = _cracked_in_block_item_cells(level)
+        if not cells:
+            continue
+        visible_cells = set(getattr(level, "visible_in_block_item_cells", set()) or [])
+        item_by_pos = {item.position: item for item in getattr(level, "items", []) or []}
+        for pos in sorted(cells):
+            if _visible_in_block_cell_index(pos) is None:
+                raise ValueError(
+                    f"Stage {room_no + 1}: ひび割れブロック内マーカー {pos} が範囲外です"
+                )
+            if pos in visible_cells:
+                raise ValueError(
+                    f"Stage {room_no + 1}: {pos} は透明ブロック内とひび割れブロック内を同時に指定できません"
+                )
+            item = item_by_pos.get(pos)
+            if item is None:
+                raise ValueError(
+                    f"Stage {room_no + 1}: ひび割れブロック内マーカー {pos} にアイテムがありません"
+                )
+            base = int(item.element_no) & 0x3F
+            if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
+                raise ValueError(
+                    f"Stage {room_no + 1}: item 0x{base:02X} at {pos} cannot be "
+                    "ひび割れブロック内アイテムとして保存できません"
+                )
+
+
 def build_breakable_white_data(levels: list) -> bytearray:
     """Build the reused PRG1 runtime side-list area.
 
@@ -469,7 +565,9 @@ def build_breakable_white_data(levels: list) -> bytearray:
     """
     data = bytearray([0x00] * (COUNT_M66_LEVELS * LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA))
     for room_no, level in enumerate((levels or [])[:COUNT_M66_LEVELS]):
-        cells = sorted(getattr(level, "visible_in_block_item_cells", set()) or [])
+        cells = set(getattr(level, "visible_in_block_item_cells", set()) or [])
+        cells.update(_cracked_in_block_item_cells(level))
+        cells = sorted(cells)
         base = _visible_in_block_table_offset(room_no) - OFFSET_M66_BREAKABLE_WHITE_DATA
         for pos in cells:
             idx = _visible_in_block_cell_index(pos)
@@ -513,6 +611,12 @@ def patch_runtime_block_loader(rom_data: bytearray):
     off = SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF
     if len(rom_data) > off and rom_data[off] == SPECIAL_HIGH_ID_THRESHOLD_OLD:
         rom_data[off] = SPECIAL_HIGH_ID_THRESHOLD_NEW
+    off = INITIAL_DRAW_LOW_CLASSIFIER_PATCH_OFF
+    ln = len(INITIAL_DRAW_LOW_CLASSIFIER_PATCH)
+    if len(rom_data) >= off + ln:
+        cur = bytes(rom_data[off:off + ln])
+        if cur == INITIAL_DRAW_LOW_CLASSIFIER_OLD:
+            rom_data[off:off + ln] = INITIAL_DRAW_LOW_CLASSIFIER_PATCH
     off = INITIAL_DRAW_WHITE_THRESHOLD_PATCH_OFF
     if len(rom_data) > off and rom_data[off] == INITIAL_DRAW_WHITE_THRESHOLD_OLD:
         rom_data[off] = INITIAL_DRAW_WHITE_THRESHOLD_NEW
@@ -545,6 +649,17 @@ def patch_runtime_block_loader(rom_data: bytearray):
         cur_helper = bytes(rom_data[VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF:helper_end])
         if cur_helper != VISIBLE_IN_BLOCK_MASK_COPY_HELPER:
             rom_data[VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF:helper_end] = VISIBLE_IN_BLOCK_MASK_COPY_HELPER
+    for helper_off, helper in (
+        (INITIAL_DRAW_LOW_CLASSIFIER_HELPER_OFF, INITIAL_DRAW_LOW_CLASSIFIER_HELPER),
+        (INITIAL_DRAW_LOW_CLASSIFIER_CONT1_OFF, INITIAL_DRAW_LOW_CLASSIFIER_CONT1),
+        (INITIAL_DRAW_LOW_CLASSIFIER_CONT2_OFF, INITIAL_DRAW_LOW_CLASSIFIER_CONT2),
+        (INITIAL_DRAW_LOW_CLASSIFIER_TABLE_OFF, INITIAL_DRAW_LOW_CLASSIFIER_TABLE),
+    ):
+        helper_end = helper_off + len(helper)
+        if len(rom_data) >= helper_end:
+            cur_helper = bytes(rom_data[helper_off:helper_end])
+            if cur_helper != helper:
+                rom_data[helper_off:helper_end] = helper
     tail_end = M66_LOADER_TAIL_OFF + len(M66_LOADER_TAIL_HOOK)
     if len(rom_data) >= tail_end:
         rom_data[M66_LOADER_TAIL_OFF:tail_end] = M66_LOADER_TAIL_HOOK

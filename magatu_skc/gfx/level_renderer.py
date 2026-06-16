@@ -390,6 +390,7 @@ class LevelRenderer:
                         painter.drawImage(x * tw, y * tw, white_img)
 
             cracked_cells = getattr(level, "cracked_block_cells", set())
+            cracked_img = None
             if cracked_cells:
                 cracked_anim = self.get_item_animation(0x01)
                 cracked_img = self.tr.get_tile_image(
@@ -514,7 +515,14 @@ class LevelRenderer:
                 item_img = self.tr.get_tile_image(
                     anim, ts_no, transparent=None, bg_main_color=wall_color)
 
-                if item.is_in_block():
+                if item.position in cracked_cells and cracked_img is not None:
+                    painter.drawImage(ix * tw, iy * tw, cracked_img)
+                    if show_secret_elements:
+                        painter.drawImage(ix * tw, iy * tw, item_img)
+                        painter.setOpacity(0.5)
+                        painter.drawImage(ix * tw, iy * tw, cracked_img)
+                        painter.setOpacity(1.0)
+                elif item.is_in_block():
                     # ブロック内: アイテムを下に描画 → 半透明ブロックを上に重ねて
                     # 「ブロック越しにアイテムが透けて見える」表現
                     block_img = white_img if item.is_white_in_block() else brown_img

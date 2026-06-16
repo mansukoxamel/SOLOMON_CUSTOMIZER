@@ -5589,7 +5589,7 @@ class MainWindow(QMainWindow):
 
             # 白ブロック（壊せない）にアイテムが既にあると、そのアイテムは取れなくなるので拒否
             if value in (
-                BLOCK_WHITE, BLOCK_CRACKED, BLOCK_PASSABLE_WHITE,
+                BLOCK_WHITE, BLOCK_PASSABLE_WHITE,
                 BLOCK_PASSABLE_BROWN, BLOCK_SOLID_BROWN,
             ) and lv.get_item_index(tile) >= 0:
                 self.statusBar().showMessage(
@@ -5610,7 +5610,7 @@ class MainWindow(QMainWindow):
                 restore_rejected_click_edit()
                 return
 
-            # ブロック（茶 / 壊せる白 / 透明壊せる）+ メタ/アイテム → 状態フラグへ吸収
+            # ブロック（茶 / ひび割れ / 壊せる白 / 透明壊せる）+ メタ/アイテム → 状態へ吸収
             skip_block_placement = False
             if value in (BLOCK_BROWN, BLOCK_BROWN_WHITE):
                 if not lv.is_key_removed() and lv.fixed_key_pos == tile:
@@ -5644,6 +5644,15 @@ class MainWindow(QMainWindow):
                         self.statusBar().showMessage(
                             f"アイテムを in_block フラグ付きに自動変換 {tile}", 2500
                         )
+            elif value == BLOCK_CRACKED:
+                idx = lv.get_item_index(tile)
+                if idx >= 0:
+                    item = lv.items[idx]
+                    item.element_no = int(item.element_no) & 0x3F
+                    lv.visible_in_block_item_cells.discard(tile)
+                    self.statusBar().showMessage(
+                        f"アイテムをひび割れブロック内に自動変換 {tile}", 2500
+                    )
             elif value == BLOCK_BREAKABLE_WHITE:
                 if not lv.is_key_removed() and lv.fixed_key_pos == tile:
                     from ..core import constants as cc
@@ -5851,12 +5860,14 @@ class MainWindow(QMainWindow):
 
             # フラグ決定:
             # - タイルが茶 → 強制 in_block (0x80)
+            # - ひび割れ → 通常アイテム + ひび割れセルの組み合わせ
             # - 壊せる白 → 強制 white-in-block (0xC0) に吸収
             # - 透明な壊せるブロック → 強制 透明ブロック内 に吸収
             # - ピッカーが白ブロック内 → item flag だけで表現
             # - ピッカーが透明ブロック内 → 通常アイテム + runtime変換マーカー
             # - タイルが空 → ピッカーで選択中のフラグを使用
             target_is_transparent_in_block = tile in getattr(lv, "invisible_breakable_cells", set())
+            target_is_cracked_in_block = tile in getattr(lv, "cracked_block_cells", set())
             visible_in_block_item = (
                 picker_flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK or
                 target_is_transparent_in_block
@@ -5888,6 +5899,12 @@ class MainWindow(QMainWindow):
                 if picker_flag != c.ITEM_FLAG_WHITE_IN_BLOCK:
                     self.statusBar().showMessage(
                         f"白い壊せるブロック内のため自動で白ブロック内フラグON {tile}", 2500
+                    )
+            elif target_is_cracked_in_block:
+                flag = c.ITEM_FLAG_NORMAL
+                if picker_flag != c.ITEM_FLAG_NORMAL:
+                    self.statusBar().showMessage(
+                        f"ひび割れブロック内のため通常item_idで保存 {tile}", 2500
                     )
             elif lv.tiles[ty][tx] in (Wall.BROWN, Wall.BROWN_WHITE):
                 flag = c.ITEM_FLAG_IN_BLOCK

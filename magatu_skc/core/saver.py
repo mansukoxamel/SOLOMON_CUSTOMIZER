@@ -239,11 +239,12 @@ def save_levels_to_rom(rom: Rom, levels: list):
         from . import m66, solomon_seal_block
         levels = solomon_seal_block.levels_for_save(rom.data, levels)
         _run_save_step("透明ブロック内アイテム整合性チェック", m66.validate_visible_in_block_items, levels)
+        _run_save_step("ひび割れブロック内アイテム整合性チェック", m66.validate_cracked_in_block_items, levels)
         _run_save_step("mapper66ステージデータ書き込み", m66.save_all_levels_m66, rom, levels)
     else:
         from . import m66
-        if m66.visible_in_block_items_needed(levels):
-            raise SaveError("透明ブロック内アイテムはmapper66拡張ROM保存専用です。")
+        if m66.visible_in_block_items_needed(levels) or m66.cracked_in_block_items_needed(levels):
+            raise SaveError("透明/ひび割れブロック内アイテムはmapper66拡張ROM保存専用です。")
         # 標準ROM
         _run_save_step("通常ROMステージデータ書き込み", _write_standard_level_data, rom, levels)
 
@@ -288,13 +289,14 @@ def save_levels_to_rom(rom: Rom, levels: list):
             "empty": empty,
             "solid": solid,
             "visible_in_block_items": set(getattr(lv, "visible_in_block_item_cells", set()) or []),
+            "cracked_in_block_items": m66.cracked_in_block_item_cells(lv),
         })
     runtime_room_flags = []
     for idx, lv in enumerate(levels):
         flags = getattr(lv, "room_flags", 0) & 0xFF
         if stage_ext.fire_reset_enabled(lv):
             flags |= room_flags.BIT_FIRE_RESET
-        if getattr(lv, "visible_in_block_item_cells", set()):
+        if getattr(lv, "visible_in_block_item_cells", set()) or m66.cracked_in_block_item_cells(lv):
             flags |= room_flags.BIT_VISIBLE_INBLOCK_ITEMS
         cells = breakable_runtime_cells[idx] if idx < len(breakable_runtime_cells) else {}
         if any(cells.get(kind) for kind in ("breakable", "empty", "solid")):
