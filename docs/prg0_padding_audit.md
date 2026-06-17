@@ -176,11 +176,29 @@ PRG0 is now an emergency reserve, not normal feature space.
 Current emergency candidates are intentionally not classified as free. They are
 only places worth investigating first if PRG0 is absolutely unavoidable.
 
+### Primary Emergency Candidates
+
+These two ranges are the main PRG0 emergency reserve candidates. They are still
+not "free space"; they are the best current places to investigate first when a
+release-blocking PRG0-only fix is unavoidable.
+
+Mesen focus probe result on 2026-06-17:
+`mesen_probes/lua/prg0_emergency_candidates_focus_probe_v099.lua`
+
+- Probe ran through at least frame 23100.
+- No `READ` or `EXEC` events were logged for either primary candidate.
+- This proves only "not touched in this test coverage", not universal safety.
+
+| Priority | File offset | CPU | Size | Original bytes | Latest runtime observation | Status |
+|---:|---|---:|---:|---|---|---|
+| 1 | `0x696C-0x6983` | `$E95C-$E973` | 24B | `00` run | No READ/EXEC through frame 23100 in focus probe. | Primary emergency candidate. Static ASM proof still required before use. |
+| 2 | `0x693C-0x694F` | `$E92C-$E93F` | 20B | `00` run | No READ/EXEC through frame 23100 in focus probe. | Primary emergency candidate. Static ASM proof still required before use. |
+
+### Tiny / Last-Resort Candidate
+
 | File offset | CPU | Size | Original bytes | Status |
 |---|---:|---:|---|---|
-| `0x693C-0x694F` | `$E92C-$E93F` | 20B | `00` run | Emergency candidate only. Needs ASM and Mesen read/exec proof. |
-| `0x696C-0x6983` | `$E95C-$E973` | 24B | `00` run | Emergency candidate only. Needs ASM and Mesen read/exec proof. |
-| `0x1ECA-0x1ECF` | `$9EBA-$9EBF` | 6B | `EA` run | Tiny emergency patch candidate only. Too small for normal helpers. |
+| `0x1ECA-0x1ECF` | `$9EBA-$9EBF` | 6B | `EA` run | Not a main reserve. Keep only as a last-resort tiny patch fragment; NOP does not mean unconditional safety. |
 
 The `0x4FC6-0x4FC9` / `$CFB6-$CFB9` `20` run is not listed as a reserve
 candidate: the ASM context decodes it as instructions/operands near `$2003`, so
