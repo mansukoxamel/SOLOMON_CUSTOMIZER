@@ -150,6 +150,7 @@
       <b>原作埋め領域の扱い:</b>
       <code>00</code> / <code>EA</code> 連続領域は「候補」であって未使用保証ではない。
       下表の範囲は実装モジュールが書き込むため、原作では埋め領域に見えても使用済みまたは予約済みとして扱う。
+      PRG0の新規利用前には、<code>docs/prg0_padding_audit.md</code> の専用台帳で <code>00</code> / <code>EA</code> / <code>FF</code> / <code>EF</code> の扱いとNG範囲を確認する。
       原作コード/データを直接パッチする行は、空き容量ではなく既存処理の差し替え。
     </div>
     <table>
