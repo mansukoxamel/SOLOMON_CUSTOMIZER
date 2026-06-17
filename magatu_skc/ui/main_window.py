@@ -6038,7 +6038,10 @@ class MainWindow(QMainWindow):
                     )
                     restore_rejected_click_edit()
                     return
+                old_key_pos = tuple(lv.fixed_key_pos)
                 lv.fixed_key_pos = tile
+                if old_key_pos != tile:
+                    lv.visible_in_block_item_cells.discard(old_key_pos)
                 # 配置フラグを key_status に反映
                 from ..core import constants as cc
                 picker_flag = self.picker.get_item_flag()
