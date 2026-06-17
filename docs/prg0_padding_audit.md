@@ -157,6 +157,35 @@ Remaining fragments after current production reservations:
 These fragments are too small for normal helpers. Use them only for deliberate
 byte-level patches after updating the cave ledger.
 
+## Emergency Reserve Policy
+
+PRG0 is now an emergency reserve, not normal feature space.
+
+- Normal feature work must prefer PRG1 reserve or an existing verified helper.
+- Do not spend a PRG0 run only to make an implementation easier.
+- A PRG0 reserve may be used only for a release-blocking runtime bug that cannot
+  be fixed in PRG1 or by shrinking/reusing an existing helper.
+- Before using a reserve candidate, prove both sides:
+  1. Static proof: check the surrounding ASM and all pointer/table references.
+  2. Runtime proof: run a Mesen read/exec probe on the candidate in stages that
+     exercise the related system.
+- If a candidate is consumed, move it to the reserved table in this document,
+  update `docs/rom_map_jp_mapper66_current.html`, and update the implementation
+  constants in the same commit.
+
+Current emergency candidates are intentionally not classified as free. They are
+only places worth investigating first if PRG0 is absolutely unavoidable.
+
+| File offset | CPU | Size | Original bytes | Status |
+|---|---:|---:|---|---|
+| `0x693C-0x694F` | `$E92C-$E93F` | 20B | `00` run | Emergency candidate only. Needs ASM and Mesen read/exec proof. |
+| `0x696C-0x6983` | `$E95C-$E973` | 24B | `00` run | Emergency candidate only. Needs ASM and Mesen read/exec proof. |
+| `0x1ECA-0x1ECF` | `$9EBA-$9EBF` | 6B | `EA` run | Tiny emergency patch candidate only. Too small for normal helpers. |
+
+The `0x4FC6-0x4FC9` / `$CFB6-$CFB9` `20` run is not listed as a reserve
+candidate: the ASM context decodes it as instructions/operands near `$2003`, so
+it must be treated as code/data context until proven otherwise.
+
 ## PRG0 Areas To Prefer Avoiding
 
 The following are not all proven dangerous byte-for-byte, but they are poor
