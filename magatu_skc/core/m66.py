@@ -54,8 +54,8 @@ RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_OLD = bytes.fromhex(
     "ad28040a0a0a0a0a18694f8500ad28044a4a4a1869f88501a018b100994f0788d0f8"
 )
 RESPAWN_DIRECT_CELL_COPY_PATCH_OFF = OFFSET_M66_LOADER_A2 + 22
-RESPAWN_DIRECT_CELL_COPY_OLD = bytes.fromhex("a57c")
-RESPAWN_DIRECT_CELL_COPY_NEW = bytes.fromhex("d020")
+RESPAWN_DIRECT_CELL_COPY_SKCHAIN = bytes.fromhex("a57c")
+RESPAWN_DIRECT_CELL_COPY_BYPASS = bytes.fromhex("d020")
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF = 0x8E80
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER_CPU = 0x8E70
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER = bytes.fromhex(
@@ -605,17 +605,17 @@ def patch_runtime_block_loader(rom_data: bytearray):
     - Treat initial room cells $C0-$FF as the white-wall draw class. This lets
       $C0-$F7 act as white breakable blocks with an item inside, while the
       existing break test still keeps $F8-$FF solid.
-    - Bypass the original $7C bit0 respawn-only high-cell normalization. The
-      mapper66 format already stores a full direct 192-cell room grid; applying
-      the packed-stream one-shot rule on respawn turns high-ID in-block items
-      into plain blocks or empty cells.
+    The SKCHAIN/original $7C bit0 respawn gate must remain intact here.  It
+    carries one-shot high-score/1UP item behavior for original item-stream
+    tokens such as $33/$6E-$73/$AE/$AF/$B3.  Custom in-block item states must
+    be preserved by later mask/table logic, not by bypassing that gate.
     """
     off = RESPAWN_DIRECT_CELL_COPY_PATCH_OFF
-    ln = len(RESPAWN_DIRECT_CELL_COPY_NEW)
+    ln = len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN)
     if len(rom_data) >= off + ln:
         cur = bytes(rom_data[off:off + ln])
-        if cur == RESPAWN_DIRECT_CELL_COPY_OLD:
-            rom_data[off:off + ln] = RESPAWN_DIRECT_CELL_COPY_NEW
+        if cur == RESPAWN_DIRECT_CELL_COPY_BYPASS:
+            rom_data[off:off + ln] = RESPAWN_DIRECT_CELL_COPY_SKCHAIN
     off = SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF
     if len(rom_data) > off and rom_data[off] == SPECIAL_HIGH_ID_THRESHOLD_OLD:
         rom_data[off] = SPECIAL_HIGH_ID_THRESHOLD_NEW
