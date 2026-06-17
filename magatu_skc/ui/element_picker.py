@@ -61,6 +61,7 @@ ITEM_FLAG_HIDDEN = 0x40
 ITEM_FLAG_IN_BLOCK = 0x80
 ITEM_FLAG_WHITE_IN_BLOCK = 0xC0
 ITEM_FLAG_VISIBLE_IN_BLOCK = 0x100
+ITEM_FLAG_CRACKED_IN_BLOCK = 0x200
 
 
 # アイテム一覧（コード, 表示名）
@@ -429,12 +430,39 @@ class DraggablePickerList(QListWidget):
 class FullWidthRadioButton(QRadioButton):
     """Radio button whose whole widget rect is clickable."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._base_point_size = self.font().pointSize()
+
     def hitButton(self, pos):
         return self.rect().contains(pos)
 
     def minimumSizeHint(self):
         hint = super().minimumSizeHint()
         return QSize(0, hint.height())
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._fit_text_font()
+
+    def _fit_text_font(self):
+        text = self.text()
+        if not text:
+            return
+        base = self._base_point_size if self._base_point_size > 0 else 9
+        available = max(10, self.width() - 22)
+        font = self.font()
+        for size in range(base, 6, -1):
+            font.setPointSize(size)
+            metrics = self.fontMetrics() if size == self.font().pointSize() else None
+            if metrics is None:
+                from PyQt5.QtGui import QFontMetrics
+                metrics = QFontMetrics(font)
+            if metrics.horizontalAdvance(text) <= available:
+                self.setFont(font)
+                return
+        font.setPointSize(7)
+        self.setFont(font)
 
 
 MIRROR_ENEMY_SET_MAX = 7
@@ -1078,12 +1106,14 @@ class ElementPicker(QWidget):
         self.rb_flag_in_block = FullWidthRadioButton("BL内")
         self.rb_flag_white_in_block = FullWidthRadioButton("白BL")
         self.rb_flag_visible_in_block = FullWidthRadioButton("透BL")
+        self.rb_flag_cracked_in_block = FullWidthRadioButton("ひびBL")
         for rb, flag, tooltip in [
             (self.rb_flag_normal, ITEM_FLAG_NORMAL, "通常"),
             (self.rb_flag_hidden, ITEM_FLAG_HIDDEN, "隠し"),
             (self.rb_flag_in_block, ITEM_FLAG_IN_BLOCK, "ブロック内"),
             (self.rb_flag_white_in_block, ITEM_FLAG_WHITE_IN_BLOCK, "白ブロック内"),
             (self.rb_flag_visible_in_block, ITEM_FLAG_VISIBLE_IN_BLOCK, "透明ブロック内"),
+            (self.rb_flag_cracked_in_block, ITEM_FLAG_CRACKED_IN_BLOCK, "ひび割れブロック内"),
         ]:
             self.flag_btns.addButton(rb)
             rb.setToolTip(tooltip)
@@ -1760,10 +1790,13 @@ class ElementPicker(QWidget):
             ITEM_FLAG_IN_BLOCK,
             ITEM_FLAG_WHITE_IN_BLOCK,
             ITEM_FLAG_VISIBLE_IN_BLOCK,
+            ITEM_FLAG_CRACKED_IN_BLOCK,
         )
         if mode == MODE_META and value in ("start", "mirror1", "mirror2"):
             allowed = {ITEM_FLAG_NORMAL}
-        elif mode == MODE_META and value in ("key", "door"):
+        elif mode == MODE_META and value == "key":
+            allowed = set(all_flags) - {ITEM_FLAG_CRACKED_IN_BLOCK}
+        elif mode == MODE_META and value == "door":
             allowed = {
                 ITEM_FLAG_NORMAL,
                 ITEM_FLAG_HIDDEN,
@@ -1779,6 +1812,7 @@ class ElementPicker(QWidget):
             (self.rb_flag_in_block, ITEM_FLAG_IN_BLOCK),
             (self.rb_flag_white_in_block, ITEM_FLAG_WHITE_IN_BLOCK),
             (self.rb_flag_visible_in_block, ITEM_FLAG_VISIBLE_IN_BLOCK),
+            (self.rb_flag_cracked_in_block, ITEM_FLAG_CRACKED_IN_BLOCK),
         )
         for rb, flag in buttons:
             rb.setEnabled(flag in allowed)

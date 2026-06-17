@@ -66,6 +66,7 @@ SHORTCUT_DEFINITIONS = [
     ("hover_item_in_block", "ホバー位置をブロック内に変更", "B"),
     ("hover_item_white_in_block", "ホバー位置を白ブロック内に変更", "W"),
     ("hover_item_visible_in_block", "ホバー位置を透明ブロック内に変更", "T"),
+    ("hover_item_cracked_in_block", "ホバー位置をひび割れブロック内に変更", "C"),
 ]
 DEFAULT_SHORTCUTS = {key: default for key, _label, default in SHORTCUT_DEFINITIONS}
 

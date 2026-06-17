@@ -27,6 +27,7 @@ ITEM_REPLACE_STATE_OPTIONS = [
     (c.ITEM_FLAG_IN_BLOCK, "ブロック内"),
     (c.ITEM_FLAG_WHITE_IN_BLOCK, "白ブロック内"),
     (c.ITEM_FLAG_VISIBLE_IN_BLOCK, "透明ブロック内"),
+    (c.ITEM_FLAG_CRACKED_IN_BLOCK, "ひび割れブロック内"),
 ]
 STATE_LABELS = dict(ITEM_REPLACE_STATE_OPTIONS)
 
