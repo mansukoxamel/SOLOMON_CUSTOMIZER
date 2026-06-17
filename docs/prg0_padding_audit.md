@@ -17,7 +17,7 @@ NES file offset = 0x10 + (CPU - 0x8000)
 ## Hard Rules
 
 - Do not place new PRG0 code/data only because the original byte is `00`, `EA`,
-  or `FF`.
+  `FF`, `20`, `80`, `FE`, or another repeated value.
 - A PRG0 address is usable only when it is listed here or in
   `docs/rom_map_jp_mapper66_current.html` as reserved/candidate and the matching
   implementation `OFF_*` / `RESERVED_SPANS` is updated in the same change.
@@ -38,6 +38,18 @@ NES file offset = 0x10 + (CPU - 0x8000)
 | `FF` | Illegal opcode on NMOS 6502; also common as data sentinel/fill. | Not a safe code cave marker. Treat as data unless proven otherwise. |
 | `EF` | Illegal opcode value, not a standard padding byte. | Do not treat as padding. If seen in a table or stream, assume data. |
 
+## Other Fill Patterns To Check
+
+These patterns are rarer in this ROM than `00`/`EA`, but they are important
+because they can look like padding while still being meaningful data or code.
+
+| Pattern | Why it can appear | PRG0 policy |
+|---|---|---|
+| Repeated `20` or game-font blank codes | Text/PPU/script data can use a space or blank tile value as visible padding. On 6502, `20` is also `JSR abs` if executed. | Never treat as free space without proving the surrounding bytes are not text, PPU script, or executable code. |
+| Repeated terminators such as `FF`, `FE`, `80`, or game-specific end markers | Enemy/item/music/script streams may use terminator values after the real payload. The repeated bytes can be part of the parser contract. | Treat as table/stream data until the owning parser and pointer boundaries are confirmed. |
+| Instruction-skip padding such as `2C` (`BIT abs`) | Some 6502 code uses multi-byte instructions to intentionally consume following bytes or align timing. | Disassemble from the real entry point before claiming the bytes. A byte that looks like data may be an operand of a previous instruction. |
+| Any repeated nonzero value | Could be a lookup table, speed table, pointer high byte, tile ID, metatile ID, or sentinel. | Mark `unknown` unless ASM context and runtime reads prove it is unused. |
+
 ## Known PRG0 Padding Runs In The Original JP ROM
 
 Mechanical scan of original JP PRG0 for runs of at least 4 identical bytes:
@@ -45,9 +57,14 @@ Mechanical scan of original JP PRG0 for runs of at least 4 identical bytes:
 - `00`: 119 runs, total 1129 bytes.
 - `EA`: 8 runs, total 1751 bytes.
 - `FF`: 1 run, total 8 bytes.
+- `20`: 1 run, total 4 bytes.
+- `80`: 1 run, total 8 bytes.
+- `EF`: 1 run, total 10 bytes.
+- `2C` / `FE`: no runs of 4+ bytes found.
 
-This count is diagnostic only. Most `00` runs are not free. The tables below
-are the authority.
+This count is diagnostic only. Most `00` runs are not free, and nonzero runs
+are even more likely to be table/script data unless proven otherwise. The
+tables below are the authority.
 
 ## Safe / Reserved PRG0 Areas Already Used By The App
 
