@@ -53,9 +53,23 @@ RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED = bytes([0xEA] * len(RUNTIME_BLOCK_LIST_C
 RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_OLD = bytes.fromhex(
     "ad28040a0a0a0a0a18694f8500ad28044a4a4a1869f88501a018b100994f0788d0f8"
 )
-RESPAWN_DIRECT_CELL_COPY_PATCH_OFF = OFFSET_M66_LOADER_A2 + 22
-RESPAWN_DIRECT_CELL_COPY_SKCHAIN = bytes.fromhex("a57c")
-RESPAWN_DIRECT_CELL_COPY_BYPASS = bytes.fromhex("d020")
+RESPAWN_DIRECT_CELL_COPY_PATCH_OFF = OFFSET_M66_LOADER_A2 + 15
+RESPAWN_DIRECT_CELL_COPY_SKCHAIN = bytes.fromhex(
+    "ad2804c930f022a57c6a901db100c9f8b017293fc92e9011b10029802a9005"
+    "a990189007a910189002b10099130388d0cf"
+)
+RESPAWN_DIRECT_CELL_COPY_THRESHOLD_C0 = bytes.fromhex(
+    "ad2804c930f022a57c6a901db100c9c0b017293fc92e9011b10029802a9005"
+    "a990189007a910189002b10099130388d0cf"
+)
+RESPAWN_DIRECT_CELL_COPY_BYPASS = bytes.fromhex(
+    "ad2804c930f022d0206a901db100c9c0b017293fc92e9011b10029802a9005"
+    "a990189007a910189002b10099130388d0cf"
+)
+RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE = bytes.fromhex(
+    "a57c6a9024b100c9f4b01ec9f0b004c9c0b016293fc92e9010b10029802a"
+    "9005a990189006a9109002b10099130388d0cf"
+)
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF = 0x8E80
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER_CPU = 0x8E70
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER = bytes.fromhex(
@@ -608,14 +622,20 @@ def patch_runtime_block_loader(rom_data: bytearray):
     The SKCHAIN/original $7C bit0 respawn gate must remain intact here.  It
     carries one-shot high-score/1UP item behavior for original item-stream
     tokens such as $33/$6E-$73/$AE/$AF/$B3.  Custom in-block item states must
-    be preserved by later mask/table logic, not by bypassing that gate.
+    be preserved by later mask/table logic.  The widened $C0-$FF raw-copy
+    window still lets $F0-$F3 pass through the respawn normalizer so one-shot
+    white in-block items become an empty white block after death.
     """
     off = RESPAWN_DIRECT_CELL_COPY_PATCH_OFF
     ln = len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN)
     if len(rom_data) >= off + ln:
         cur = bytes(rom_data[off:off + ln])
-        if cur == RESPAWN_DIRECT_CELL_COPY_BYPASS:
-            rom_data[off:off + ln] = RESPAWN_DIRECT_CELL_COPY_SKCHAIN
+        if cur in (
+            RESPAWN_DIRECT_CELL_COPY_SKCHAIN,
+            RESPAWN_DIRECT_CELL_COPY_THRESHOLD_C0,
+            RESPAWN_DIRECT_CELL_COPY_BYPASS,
+        ):
+            rom_data[off:off + ln] = RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE
     off = SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF
     if len(rom_data) > off and rom_data[off] == SPECIAL_HIGH_ID_THRESHOLD_OLD:
         rom_data[off] = SPECIAL_HIGH_ID_THRESHOLD_NEW
