@@ -312,10 +312,6 @@ def _build_group_ram_offset_helper(cpu_base: int) -> bytes:
     a = _Asm()
     a.b(0xA0, 0x01, 0xB1, 0x2E)
     a.jsr(CPU_FINAL_ABC_GROUP_OFFSET_HELPER)
-    a.b(0xE0, 0xFF)
-    a.branch(0xF0, "orig")
-    a.b(0x60)
-    a.label("orig")
     a.b(0x60)
     return a.finish()
 
@@ -691,27 +687,8 @@ def _build_parent_speed_guard() -> bytes:
     a = _Asm()
     a.jsr(0x8AC0)
     a.b(0xA0, 0x01, 0xB1, 0x08)
-    a.jsr(CPU_FINAL_ABC_GROUP_OFFSET_HELPER)
-    a.b(0xE0, 0xFF)
-    a.branch(0xD0, "clear")
-    a.b(0xA0, 0x01, 0xB1, 0x08)
-    a.b(0xC9, 0x52)
+    a.jsr(CPU_FINAL_PANEL_TYPE_CLASSIFIER)
     a.branch(0x90, "done")
-    a.b(0xC9, 0x5C)
-    a.branch(0xB0, "check_66")
-    a.b(0xC9, 0x54)
-    a.branch(0x90, "clear")
-    a.b(0xC9, 0x56)
-    a.branch(0x90, "done")
-    a.b(0xC9, 0x58)
-    a.branch(0x90, "clear")
-    a.b(0xC9, 0x5A)
-    a.branch(0x90, "done")
-    a.branch(0xB0, "clear")
-    a.label("check_66")
-    a.b(0x29, 0xFE, 0xC9, 0x66)
-    a.branch(0xD0, "done")
-    a.label("clear")
     a.b(0xA9, 0x00)
     a.b(0xA0, 0x09, 0x91, 0x08, 0x88, 0x91, 0x08)
     a.b(0xA0, 0x06, 0x91, 0x08, 0x88, 0x91, 0x08)
@@ -1049,6 +1026,15 @@ ORIG_FINAL_AI_WRAPPER_CANDIDATE = bytes.fromhex(
 ORIG_FINAL_ABC_GROUP_OFFSET_HELPER = bytes.fromhex(
     "00000000000000000000000000000000000000004004000000011c7136d9"
 )
+LEGACY_FINAL_GROUP_RAM_OFFSET_HELPER = bytes.fromhex(
+    "a0 01 b1 2e 20 2c e9 e0 ff f0 01 60 60"
+)
+LEGACY_FINAL_PARENT_SPEED_GUARD = bytes.fromhex(
+    "20 c0 8a a0 01 b1 08 20 2c e9 e0 ff d0 24 a0 01 b1 08 c9 52 90 2c "
+    "c9 5c b0 12 c9 54 90 14 c9 56 90 20 c9 58 90 0c c9 5a 90 18 b0 "
+    "06 29 fe c9 66 d0 10 a9 00 a0 09 91 08 88 91 08 a0 06 91 08 88 "
+    "91 08 60"
+)
 
 
 def _fill(byte: int, size: int) -> bytes:
@@ -1060,6 +1046,19 @@ def _pad(blob: bytes, size: int, fill: int = 0xEA) -> bytes:
     if len(blob) >= size:
         return blob[:size]
     return blob + _fill(fill, size - len(blob))
+
+
+FINAL_GROUP_RAM_OFFSET_HELPER_WRITE = _pad(
+    FINAL_GROUP_RAM_OFFSET_HELPER,
+    len(LEGACY_FINAL_GROUP_RAM_OFFSET_HELPER),
+    0xEA,
+)
+FINAL_PARENT_SPEED_GUARD_WRITE = (
+    FINAL_PARENT_SPEED_GUARD
+    + _fill(0x00, len(LEGACY_FINAL_PARENT_SPEED_GUARD) - len(FINAL_PARENT_SPEED_GUARD))
+)
+assert len(FINAL_GROUP_RAM_OFFSET_HELPER_WRITE) == len(LEGACY_FINAL_GROUP_RAM_OFFSET_HELPER)
+assert len(FINAL_PARENT_SPEED_GUARD_WRITE) == len(LEGACY_FINAL_PARENT_SPEED_GUARD)
 
 
 def _unique_signatures(signatures: tuple[bytes, ...]) -> tuple[bytes, ...]:
@@ -1235,9 +1234,9 @@ def _validate_final_split_signatures(
         ),
         (
             OFF_FINAL_PARENT_SPEED_GUARD,
-            FINAL_PARENT_SPEED_GUARD,
+            FINAL_PARENT_SPEED_GUARD_WRITE,
             "Panel Variant final parent speed guard",
-            (ORIG_FINAL_PARENT_SPEED_GUARD,),
+            (ORIG_FINAL_PARENT_SPEED_GUARD, LEGACY_FINAL_PARENT_SPEED_GUARD),
         ),
         (
             OFF_FINAL_PANEL_TYPE_CLASSIFIER,
@@ -1275,9 +1274,9 @@ def _validate_final_split_signatures(
         ),
         (
             OFF_FINAL_GROUP_RAM_OFFSET_HELPER,
-            FINAL_GROUP_RAM_OFFSET_HELPER,
+            FINAL_GROUP_RAM_OFFSET_HELPER_WRITE,
             "Panel Variant final group RAM offset helper",
-            (_fill(0xEA, len(FINAL_GROUP_RAM_OFFSET_HELPER)),),
+            (_fill(0xEA, len(FINAL_GROUP_RAM_OFFSET_HELPER_WRITE)), LEGACY_FINAL_GROUP_RAM_OFFSET_HELPER),
         ),
         (
             OFF_FINAL_ABC_GROUP_OFFSET_HELPER,
@@ -1388,7 +1387,8 @@ def apply_final_split_test_candidate(
         OFF_FINAL_AI_DISPATCH_PANEL_HELPER + len(FINAL_AI_DISPATCH_PANEL_HELPER),
         OFF_FINAL_PARENT_FIELD_CLEAR_HELPER + len(FINAL_PARENT_FIELD_CLEAR_HELPER),
         OFF_FINAL_ABC_GROUP_OFFSET_HELPER + len(FINAL_ABC_GROUP_OFFSET_HELPER),
-        OFF_FINAL_PARENT_SPEED_GUARD + len(FINAL_PARENT_SPEED_GUARD),
+        OFF_FINAL_PARENT_SPEED_GUARD + len(FINAL_PARENT_SPEED_GUARD_WRITE),
+        OFF_FINAL_GROUP_RAM_OFFSET_HELPER + len(FINAL_GROUP_RAM_OFFSET_HELPER_WRITE),
         OFF_FINAL_AI_WRAPPER_CANDIDATE + len(FINAL_AI_WRAPPER_CANDIDATE),
         OFF_FINAL_STAGE_DISPATCH_HELPER + len(FINAL_STAGE_DISPATCH_HELPER),
         GLOBAL_CACHE_TABLE_END,
@@ -1444,13 +1444,13 @@ def apply_final_split_test_candidate(
         (panel_monster_variant.OFF_FIRE_DISPATCH, FINAL_FIRE_DISPATCH, "Panel Variant final fire dispatch"),
         (OFF_FINAL_AI_DISPATCH_HELPER, FINAL_AI_DISPATCH_HELPER, "Panel Variant final AI dispatch helper"),
         (OFF_FINAL_AI_DISPATCH_PANEL_HELPER, FINAL_AI_DISPATCH_PANEL_HELPER, "Panel Variant final AI dispatch panel tail"),
-        (OFF_FINAL_PARENT_SPEED_GUARD, FINAL_PARENT_SPEED_GUARD, "Panel Variant final parent speed guard"),
+        (OFF_FINAL_PARENT_SPEED_GUARD, FINAL_PARENT_SPEED_GUARD_WRITE, "Panel Variant final parent speed guard"),
         (OFF_FINAL_PANEL_TYPE_CLASSIFIER, FINAL_PANEL_TYPE_CLASSIFIER, "Panel Variant final shared Panel type classifier"),
         (OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL, FINAL_PANEL_TYPE_CLASSIFIER_TAIL, "Panel Variant final shared Panel type classifier tail"),
         (OFF_FINAL_STAGE_DISPATCH_TAIL, FINAL_STAGE_DISPATCH_TAIL, "Panel Variant final stage dispatch tail"),
         (panel_monster_variant.OFF_FIRE_3WAY, FINAL_FIRE_COMMON, "Panel Variant final common fire loop"),
         (OFF_FINAL_STATE0_INTERVAL_HELPER, final_state0_interval_helper, "Panel Variant final interval helper"),
-        (OFF_FINAL_GROUP_RAM_OFFSET_HELPER, FINAL_GROUP_RAM_OFFSET_HELPER, "Panel Variant final group RAM offset helper"),
+        (OFF_FINAL_GROUP_RAM_OFFSET_HELPER, FINAL_GROUP_RAM_OFFSET_HELPER_WRITE, "Panel Variant final group RAM offset helper"),
         (OFF_FINAL_ABC_GROUP_OFFSET_HELPER, FINAL_ABC_GROUP_OFFSET_HELPER, "Panel Variant final A/B/C-only group offset helper"),
         (OFF_FINAL_SPEED_SELECT_HELPER, FINAL_SPEED_SELECT_HELPER, "Panel Variant final speed select helper"),
         (OFF_FINAL_STATIC_MARKER_HELPER, FINAL_STATIC_MARKER_HELPER, "Panel Variant final static marker helper"),

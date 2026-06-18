@@ -100,6 +100,8 @@ document, `docs/rom_map_jp_mapper66_current.html`, and implementation constants.
 | `0x6774-0x6789` | `$E764-$E779` | 22B | `m66.py` | mixed / adjacent to `00` | Cracked in-block initial draw helper. Not extendable without checking neighboring bytes. |
 | `0x678C-0x6797` | `$E77C-$E787` | 12B | `room_flags.py` | `00` run | White in-block runtime extension. Starts at `$E77C` deliberately; `$E77A-$E77B` are not included. |
 | `0x6798-0x67A1` | `$E788-$E791` | 10B | `m66.py` | `00` run | Cracked in-block initial draw continuation. |
+| `0x67B4-0x67D0` | `$E7A4-$E7C0` | 29B | `panel_monster_stage_variant.py` | mixed / rewritten | Panel Variant parent speed guard. Uses the shared Panel type classifier after `$8AC0`. |
+| `0x67D1-0x681B` | `$E7C1-$E80B` | 75B | emergency reserve | mixed / zero-filled by saver | Recovered from the old parent speed guard span. Do not use for normal feature work; re-probe/review before emergency use. |
 | `0x681C-0x6832` | `$E80C-$E822` | 23B | `spark_ball_variant.py` | `00` run | Transparent Spark Ball Golem-ID AI wrapper. |
 | `0x6833-0x6885` | `$E823-$E875` | 83B | `panel_monster_stage_variant.py` | `00` run | Panel Variant Bullet speed extra-step helper/table area. |
 | `0x68AC-0x68C0` | `$E89C-$E8B0` | 21B | `panel_monster_stage_variant.py` | `00` run | Dynamic speed marker helper. |
@@ -135,8 +137,9 @@ Do not allocate here by eye; use `room_flags._verify()` and module
 Current state from `docs/rom_map_jp_mapper66_current.html`:
 
 - Total cave: 1570B.
-- Production-reserved/used: 1540B.
-- Unreserved fragments: 30B total.
+- Production-reserved/used: 1535B.
+- Unreserved bank0 cave fragments: 35B total.
+- PRG0 later-bank emergency reserve newly recovered from Panel Variant parent speed guard: 75B at `0x67D1-0x681B` / `$E7C1-$E80B`.
 - Maximum contiguous fragment: 5B.
 
 Remaining fragments after current production reservations:
@@ -152,6 +155,7 @@ Remaining fragments after current production reservations:
 | `0x3D97` | `$BD87` | 1B | candidate fragment only |
 | `0x3E4D-0x3E4F` | `$BE3D-$BE3F` | 3B | candidate fragment only |
 | `0x3E8E-0x3E8F` | `$BE7E-$BE7F` | 2B | candidate fragment only |
+| `0x3EB7-0x3EBB` | `$BEA7-$BEAB` | 5B | recovered from Panel Variant group helper compression |
 | `0x3EF9` | `$BEE9` | 1B | candidate fragment only |
 | `0x3FF8-0x3FFC` | `$BFE8-$BFEC` | 5B | candidate fragment only |
 | `0x400F` | `$BFFF` | 1B | candidate fragment only |

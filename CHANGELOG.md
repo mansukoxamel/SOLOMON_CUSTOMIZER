@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.251 (2026-06-19) Panel Variant PRG0小ヘルパーを圧縮
+- Panel VariantのA/B/C cache offset helperから不要な分岐を削り、13Bから8Bへ縮小した。
+- 親速度guardを既存のPanel type classifier呼び出しへ統合し、A/B/Cと2方向/3方向借用IDの判定を同じ分類器に寄せて67Bから29Bへ縮小した。
+- 合計43BのPRG0予約を削減し、回収分を非常用余力として扱えるよう管理簿を更新した。
+
 ## v0.8.250 (2026-06-19) PanelVariantStageTableを縮小してPRG1予約を回収
 - 強化パネルモンスターA/B/Cの速度・発射間隔を、部屋別 `PanelVariantStageTable` ではなくPRG1先頭6Bの共通テーブルから `$0740-$0745` へ初期化する方式へ変更した。
 - 最終保存パスでは旧64部屋分の `PanelVariantStageTable` を書き込まず、旧テーブル領域 `0x8A76-0x8E7F` / 1,034B を今後のPRG1予約候補として回収した。
