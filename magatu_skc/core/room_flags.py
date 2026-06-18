@@ -106,7 +106,8 @@ verbatim コピーするため file offset 不変):
 #   ・file 0x8EEB-0x9018 : Transparent Solomon Seal suppress tables/helpers
 #     (透明壊せるブロック内の取得済み紋章を再配置しないため、room load
 #      後に $0304+cell を $50 へ戻し、$0750-$0767 のmask bitを消す)
-#   ・file 0x9019-0xBB95 : PRG1 general reserve
+#   ・file 0x9019-0x904C : mapper66 respawn direct-cell copy helper
+#   ・file 0x904D-0xBB95 : PRG1 general reserve
 #     (bank1 を使う改造を足すときは必ず上記予約を避ける)。
 #   ・file 0xBB96   : SW byte = $FF 固定 (bank-switch bus-conflict
 #     用。CPU $BB86。title_screen._WT_SW_B1_OFF)。データで踏まない。

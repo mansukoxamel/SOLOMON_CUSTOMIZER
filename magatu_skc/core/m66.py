@@ -70,6 +70,22 @@ RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE = bytes.fromhex(
     "a57c6a9024b100c9f4b01ec9f0b004c9c0b016293fc92e9010b10029802a"
     "9005a990189006a9109002b10099130388d0cf"
 )
+RESPAWN_DIRECT_CELL_COPY_HELPER_OFF = 0x9019
+RESPAWN_DIRECT_CELL_COPY_HELPER_CPU = 0x9009
+RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER = (
+    bytes((
+        0x20,
+        RESPAWN_DIRECT_CELL_COPY_HELPER_CPU & 0xFF,
+        RESPAWN_DIRECT_CELL_COPY_HELPER_CPU >> 8,
+    ))
+    + bytes([0xEA] * (len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN) - 3))
+)
+RESPAWN_DIRECT_CELL_COPY_HELPER = bytes.fromhex(
+    "a57c6a9026b100c9f4b020c9f09004a9f9d01ac9c0b014293fc92e900e"
+    "b1002980f004a990d006a910d002b10099130388d0cd60"
+)
+assert len(RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER) == len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN)
+assert len(RESPAWN_DIRECT_CELL_COPY_HELPER) == 52
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF = 0x8E80
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER_CPU = 0x8E70
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER = bytes.fromhex(
@@ -118,6 +134,7 @@ assert len(INITIAL_DRAW_LOW_CLASSIFIER_HELPER) == 22
 assert len(INITIAL_DRAW_LOW_CLASSIFIER_CONT1) == 10
 assert len(INITIAL_DRAW_LOW_CLASSIFIER_CONT2) == 8
 VISIBLE_IN_BLOCK_RESERVED_SPANS = (
+    (RESPAWN_DIRECT_CELL_COPY_HELPER_OFF, len(RESPAWN_DIRECT_CELL_COPY_HELPER)),
     (VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF, len(VISIBLE_IN_BLOCK_MASK_COPY_HELPER)),
     (INITIAL_DRAW_LOW_CLASSIFIER_HELPER_OFF, len(INITIAL_DRAW_LOW_CLASSIFIER_HELPER)),
     (INITIAL_DRAW_LOW_CLASSIFIER_CONT1_OFF, len(INITIAL_DRAW_LOW_CLASSIFIER_CONT1)),
@@ -623,8 +640,9 @@ def patch_runtime_block_loader(rom_data: bytearray):
     carries one-shot high-score/1UP item behavior for original item-stream
     tokens such as $33/$6E-$73/$AE/$AF/$B3.  Custom in-block item states must
     be preserved by later mask/table logic.  The widened $C0-$FF raw-copy
-    window still lets $F0-$F3 pass through the respawn normalizer so one-shot
-    white in-block items become an empty white block after death.
+    window still lets $F0-$F3 pass through the respawn helper so one-shot
+    white in-block items become an empty breakable white block ($F9) after death, without
+    changing the original brown in-block one-shot fallback ($90).
     """
     off = RESPAWN_DIRECT_CELL_COPY_PATCH_OFF
     ln = len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN)
@@ -634,8 +652,16 @@ def patch_runtime_block_loader(rom_data: bytearray):
             RESPAWN_DIRECT_CELL_COPY_SKCHAIN,
             RESPAWN_DIRECT_CELL_COPY_THRESHOLD_C0,
             RESPAWN_DIRECT_CELL_COPY_BYPASS,
+            RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE,
         ):
-            rom_data[off:off + ln] = RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE
+            rom_data[off:off + ln] = RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER
+        elif cur != RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER:
+            return
+        helper_end = RESPAWN_DIRECT_CELL_COPY_HELPER_OFF + len(RESPAWN_DIRECT_CELL_COPY_HELPER)
+        if len(rom_data) >= helper_end:
+            cur_helper = bytes(rom_data[RESPAWN_DIRECT_CELL_COPY_HELPER_OFF:helper_end])
+            if cur_helper != RESPAWN_DIRECT_CELL_COPY_HELPER:
+                rom_data[RESPAWN_DIRECT_CELL_COPY_HELPER_OFF:helper_end] = RESPAWN_DIRECT_CELL_COPY_HELPER
     off = SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF
     if len(rom_data) > off and rom_data[off] == SPECIAL_HIGH_ID_THRESHOLD_OLD:
         rom_data[off] = SPECIAL_HIGH_ID_THRESHOLD_NEW
