@@ -1,5 +1,9 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.246 (2026-06-18) Panel Variant helperと白ブロック内runtimeの予約重複を修正
+- `panel_monster_stage_variant.py` の final AI dispatch panel helper を `0x678C-$E77C` から `0x69D4-$E9C4` へ移設し、`room_flags.py` の White in-block runtime extension `0x678C-0x6797` と重ならないようにした。
+- 移設先 `0x69D4-0x69DF / $E9C4-$E9CF` は、ASM文字列検索、原作ROMポインタ検索、6502 absolute/indexed operandスキャンで原作参照なしを確認した候補として管理簿へ反映した。
+
 ## v0.8.244 (2026-06-18) ひび割れブロック内one-shotのmask再注入を修正
 - ひび割れブロック内one-shotの死亡後復元helperで、runtime grid位置バイト (`$CE` など) をそのまま visible-item mask index として使っていた問題を修正した。
 - mask bitを消す時だけ位置バイトから `$10` を引き、`$CE -> $BE` のように192セルmask用indexへ変換することで、死亡後に復元したひび割れ下地が `$C1` などへ再注入されて残骸化しないようにした。
