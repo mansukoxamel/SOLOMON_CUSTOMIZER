@@ -2,7 +2,7 @@
 
 This module is intentionally separate from ``panel_monster_variant.py``.
 The existing module owns the production 2-way/3-way borrowed-ID Panel Monster
-feature.  This module is for the newer stage-parameterized A/B/C families:
+feature.  This module is for the newer global-parameterized A/B/C families:
 
   C: $31/$33/$35/$37
   A: $41/$43/$45/$47
@@ -11,8 +11,8 @@ feature.  This module is for the newer stage-parameterized A/B/C families:
 Current scope:
   - hook the state0 firing interval compare at $A575/$A579;
   - keep the state1 pre-shot mouth delay at the stock $10;
-  - read the current room's A/B/C speed+interval bytes from the $0740-$074F
-    cache.
+  - read the global A/B/C speed+interval bytes from the $0740-$0745 cache
+    initialized by the mapper66 room loader.
 
 Rhythm was removed from the design; there is intentionally no 1x speed preset
 because stock Panel Monster already covers normal-speed shots.
@@ -143,6 +143,18 @@ HEADER_SIZE = 16
 TABLE_OFFSET = 0x8A70
 TABLE_LENGTH = HEADER_SIZE + ROOM_COUNT * ENTRY_SIZE
 TABLE_END = TABLE_OFFSET + TABLE_LENGTH
+GLOBAL_CACHE_TABLE_OFFSET = TABLE_OFFSET
+GLOBAL_CACHE_TABLE_LENGTH = 6
+GLOBAL_CACHE_TABLE_END = GLOBAL_CACHE_TABLE_OFFSET + GLOBAL_CACHE_TABLE_LENGTH
+CPU_GLOBAL_CACHE_TABLE = GLOBAL_CACHE_TABLE_OFFSET - 0x10
+RUNTIME_CACHE_VALUES = (
+    RAM_PV_A_SPEED,
+    RAM_PV_A_INTERVAL,
+    RAM_PV_B_SPEED,
+    RAM_PV_B_INTERVAL,
+    RAM_PV_C_SPEED,
+    RAM_PV_C_INTERVAL,
+)
 MAGIC = b"PANELVAR"
 FORMAT = 1
 ENABLE_STAGE_TABLE_INTERVAL_PROTOTYPE = False
@@ -1079,23 +1091,6 @@ def _expect_signature(rom_data: bytearray, off: int, name: str,
     )
 
 
-def _validate_panel_variant_table_signature(rom_data: bytearray) -> None:
-    raw = bytes(rom_data[TABLE_OFFSET:TABLE_END])
-    if raw == bytes(TABLE_LENGTH):
-        return
-    if (
-        raw.startswith(MAGIC)
-        and raw[len(MAGIC)] == FORMAT
-        and raw[len(MAGIC) + 1] == ENTRY_SIZE
-        and raw[len(MAGIC) + 2] == ROOM_COUNT
-    ):
-        return
-    raise PanelMonsterStageVariantError(
-        f"PanelVariantStageTable signature mismatch at file 0x{TABLE_OFFSET:X}: "
-        f"got {raw[:16].hex(' ')}"
-    )
-
-
 def _validate_runtime_loader_signature(rom_data: bytearray) -> None:
     _expect_signature(
         rom_data,
@@ -1103,15 +1098,18 @@ def _validate_runtime_loader_signature(rom_data: bytearray) -> None:
         "mapper66 loader tail",
         (ORIG_M66_LOADER_TAIL, HOOK_M66_LOADER_TAIL),
     )
-    _expect_signature(
-        rom_data,
-        OFF_PRG1_RUNTIME_LOADER,
-        "Panel Variant PRG1 runtime loader",
-        (
-            _fill(0x00, 0x60),
-            stage_ext.RUNTIME_LOADER + _fill(0x00, 0x60 - len(stage_ext.RUNTIME_LOADER)),
-            RUNTIME_LOADER + _fill(0x00, 0x60 - len(RUNTIME_LOADER)),
-        ),
+    cur = bytes(rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + 0x60])
+    accepted = (
+        _fill(0x00, 0x60),
+        stage_ext.RUNTIME_LOADER + _fill(0x00, 0x60 - len(stage_ext.RUNTIME_LOADER)),
+        _runtime_loader_slot(),
+    )
+    if cur in accepted or _looks_like_fixed_cache_runtime_loader(cur):
+        return
+    expected = " / ".join(sig[:16].hex(" ") for sig in accepted)
+    raise PanelMonsterStageVariantError(
+        f"Panel Variant PRG1 runtime loader signature mismatch at file "
+        f"0x{OFF_PRG1_RUNTIME_LOADER:X}: got {cur[:16].hex(' ')}, expected {expected}"
     )
 
 
@@ -1120,7 +1118,6 @@ def _validate_final_split_signatures(
     final_state0_interval_helper: bytes,
 ) -> None:
     """Verify every final split writer before mutating ROM bytes."""
-    _validate_panel_variant_table_signature(rom_data)
     _validate_runtime_loader_signature(rom_data)
     panel_bullet_speed_fix.current_state(rom_data)
 
@@ -1385,7 +1382,6 @@ def apply_final_split_test_candidate(
     if rom_data is None:
         raise PanelMonsterStageVariantError("ROM is missing.")
     min_len = max(
-        TABLE_END,
         OFF_FINAL_BULLET_SPEED_APPLY + len(FINAL_BULLET_SPEED_APPLY) + len(FINAL_BULLET_SPEED_TABLE),
         OFF_FINAL_BULLET_SPEED_EXTRA_HELPER + len(FINAL_BULLET_SPEED_EXTRA_HELPER),
         OFF_FINAL_AI_DISPATCH_HELPER + len(FINAL_AI_DISPATCH_HELPER),
@@ -1395,6 +1391,7 @@ def apply_final_split_test_candidate(
         OFF_FINAL_PARENT_SPEED_GUARD + len(FINAL_PARENT_SPEED_GUARD),
         OFF_FINAL_AI_WRAPPER_CANDIDATE + len(FINAL_AI_WRAPPER_CANDIDATE),
         OFF_FINAL_STAGE_DISPATCH_HELPER + len(FINAL_STAGE_DISPATCH_HELPER),
+        GLOBAL_CACHE_TABLE_END,
         panel_monster_variant.OFF_ANIM_HOOK + len(FINAL_STAGE_ANIM_HOOK),
     )
     if len(rom_data) < min_len:
@@ -1404,8 +1401,8 @@ def apply_final_split_test_candidate(
     _validate_final_split_signatures(rom_data, final_state0_interval_helper)
 
     changed: list[str] = []
-    if patch_table(rom_data, levels, common_settings):
-        changed.append("PanelVariantStageTable")
+    if patch_global_cache_table(rom_data, common_settings):
+        changed.append("Panel Variant global cache table")
     changed.extend(apply_runtime_loader(rom_data))
 
     _write_blob(rom_data, panel_monster_variant.OFF_HOOK_PANEL_FIRE, HOOK_PANEL_FIRE_WITH_SPARK_PROPERTY, changed, "$A556 Panel Variant fire hook / Spark property hook")
@@ -1681,7 +1678,7 @@ def panel_variant_prg0_prg1_budget_estimate() -> dict[str, int]:
     """
     pure = panel_variant_pure_growth_estimate()
     prg1_movable_data = PANEL_VARIANT_BLOB.sizes["speed_preset_runtime_table"]
-    prg1_existing_stage_data = TABLE_LENGTH
+    prg1_existing_stage_data = GLOBAL_CACHE_TABLE_LENGTH
     prg1_existing_loader = len(RUNTIME_LOADER)
     prg1_loader_reserved = 0x60
     prg0_runtime_blob_without_movable_data = len(PANEL_VARIANT_BLOB.data) - prg1_movable_data
@@ -1728,7 +1725,7 @@ RESERVED_SPANS = (
     (OFF_FINAL_FIRE_MARKER_TABLE, len(FINAL_FIRE_MARKER_TABLE)),
     (panel_monster_variant.OFF_BULLET_HOOK, len(FINAL_MERGED_PANEL_BULLET_HOOK)),
     (OFF_PRG1_RUNTIME_LOADER, 0x60),
-    (TABLE_OFFSET, TABLE_LENGTH),
+    (GLOBAL_CACHE_TABLE_OFFSET, GLOBAL_CACHE_TABLE_LENGTH),
 )
 
 
@@ -1752,7 +1749,7 @@ def has_panel_stage_variant_ids(levels: list) -> bool:
 def has_panel_stage_runtime_ids(levels: list) -> bool:
     """Return True when the final split Panel runtime is needed.
 
-    A/B/C IDs need the per-stage speed/interval path.  Older 2-way/3-way
+    A/B/C IDs need the global speed/interval cache path.  Older 2-way/3-way
     borrowed Panel IDs also use the relocated shared wrapper when this runtime
     is present, so 2-way-only stages must enable it too.
     """
@@ -1878,11 +1875,10 @@ def entry_to_level(entry: bytes, level) -> None:
 
 
 def build_table(levels: list = None, common_settings: dict | None = None) -> bytes:
-    """Build the PRG1 PanelVariantStageTable.
+    """Build the legacy PRG1 PanelVariantStageTable image.
 
-    Entry bytes 0..5 are the fixed global speed+interval cache:
-    A speed, A interval, B speed, B interval, C speed, C interval.  Older
-    per-level values are intentionally ignored.
+    Final saves no longer write/read this table.  The helper is kept only for
+    old probe/prototype tooling and uses the fixed global settings image.
     """
     table = bytearray([0x00] * TABLE_LENGTH)
     table[:len(MAGIC)] = MAGIC
@@ -1904,6 +1900,16 @@ def patch_table(rom_data: bytearray, levels: list = None, common_settings: dict 
     if bytes(rom_data[TABLE_OFFSET:TABLE_END]) == table:
         return False
     rom_data[TABLE_OFFSET:TABLE_END] = table
+    return True
+
+
+def patch_global_cache_table(rom_data: bytearray, common_settings: dict | None = None) -> bool:
+    if len(rom_data) < GLOBAL_CACHE_TABLE_END:
+        return False
+    table = _runtime_cache_entry(common_settings)
+    if bytes(rom_data[GLOBAL_CACHE_TABLE_OFFSET:GLOBAL_CACHE_TABLE_END]) == table:
+        return False
+    rom_data[GLOBAL_CACHE_TABLE_OFFSET:GLOBAL_CACHE_TABLE_END] = table
     return True
 
 
@@ -1931,10 +1937,14 @@ def read_table(rom_data: bytes, levels: list = None) -> list[bytes]:
     return entries
 
 
+def _runtime_cache_entry(common_settings: dict | None = None) -> bytes:
+    entry = common_entry(common_settings)
+    return entry[:6]
+
+
 def _build_runtime_loader() -> bytes:
     # This supersedes stage_ext.RUNTIME_LOADER while preserving its side effects.
     # StageExt pointer starts at entry byte0: bank1 CPU $8800 + room*8.
-    # PanelVariant pointer starts at entry byte0: bank1 CPU $8A70 + room*16.
     # The Solomon Seal block-state table is a separate PRG1 table at CPU $8E9B;
     # keep the current room number in X and copy its byte to $077D.
     from . import solomon_seal_block
@@ -1949,32 +1959,59 @@ def _build_runtime_loader() -> bytes:
         "c8 b1 00 8d 7c 07"
         "a0 02 b1 00 8d 2b 07"
         "c8 b1 00 8d 7e 07"
-        "8a 0a 0a 0a 0a 18 69 70 85 00 08"
-        "8a 4a 4a 4a 4a 28 69 8a 85 01"
+        "a0 05"
+        )
+        + bytes((
+            0xB9,
+            CPU_GLOBAL_CACHE_TABLE & 0xFF,
+            CPU_GLOBAL_CACHE_TABLE >> 8,
+            0x99,
+            RAM_PV_A_SPEED & 0xFF,
+            RAM_PV_A_SPEED >> 8,
+        ))
+        + bytes.fromhex(
+        "88 10 f7"
         )
         + bytes((
             0x4C,
-            solomon_seal_block.CPU_PRG1_TRANSPARENT_SEAL_PANEL_TAIL_HELPER & 0xFF,
-            solomon_seal_block.CPU_PRG1_TRANSPARENT_SEAL_PANEL_TAIL_HELPER >> 8,
+            solomon_seal_block.CPU_PRG1_TRANSPARENT_SEAL_SUPPRESS_HELPER & 0xFF,
+            solomon_seal_block.CPU_PRG1_TRANSPARENT_SEAL_SUPPRESS_HELPER >> 8,
         ))
     )
 
 
 RUNTIME_LOADER = _build_runtime_loader()
 assert len(RUNTIME_LOADER) <= 0x60
-RUNTIME_LOADER_SLOT = RUNTIME_LOADER + _fill(0x00, 0x60 - len(RUNTIME_LOADER))
+
+
+def _runtime_loader_slot() -> bytes:
+    loader = _build_runtime_loader()
+    if len(loader) > 0x60:
+        raise PanelMonsterStageVariantError(
+            f"Panel Variant PRG1 runtime loader is too large: {len(loader)}B"
+        )
+    return loader + _fill(0x00, 0x60 - len(loader))
+
+
+RUNTIME_LOADER_SLOT = _runtime_loader_slot()
+
+
+def _looks_like_fixed_cache_runtime_loader(slot: bytes) -> bool:
+    slot = bytes(slot[:0x60])
+    return slot == _runtime_loader_slot()
 
 
 def apply_runtime_loader(rom_data: bytearray) -> list[str]:
+    slot = _runtime_loader_slot()
     if len(rom_data) < OFF_PRG1_RUNTIME_LOADER + len(RUNTIME_LOADER_SLOT):
         return []
     cur = bytes(rom_data[OFF_M66_LOADER_TAIL:OFF_M66_LOADER_TAIL + len(ORIG_M66_LOADER_TAIL)])
     if cur not in (ORIG_M66_LOADER_TAIL, HOOK_M66_LOADER_TAIL):
         return []
     changed: list[str] = []
-    if bytes(rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(RUNTIME_LOADER_SLOT)]) != RUNTIME_LOADER_SLOT:
-        rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(RUNTIME_LOADER_SLOT)] = RUNTIME_LOADER_SLOT
-        changed.append("Panel stage-variant combined PRG1 runtime loader")
+    if bytes(rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(slot)]) != slot:
+        rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(slot)] = slot
+        changed.append("Panel Variant global-cache PRG1 runtime loader")
     if cur != HOOK_M66_LOADER_TAIL:
         rom_data[OFF_M66_LOADER_TAIL:OFF_M66_LOADER_TAIL + len(HOOK_M66_LOADER_TAIL)] = HOOK_M66_LOADER_TAIL
         changed.append("mapper66 loader Panel stage-variant hook")
@@ -1989,6 +2026,9 @@ def _write_blob(rom_data, off: int, blob: bytes, changed: list[str], name: str) 
 
 def apply_stage_table_interval_prototype(rom_data, levels: list = None) -> list[str]:
     """Apply the table-loaded interval prototype.
+
+    Legacy probe path only; production final saves use the global-cache loader
+    and do not reserve PanelVariantStageTable.
 
     The room-load-time PRG1 loader fills $0740-$074F from
     PanelVariantStageTable.  The PRG0 hook changes only the state0 firing

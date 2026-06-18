@@ -308,7 +308,7 @@
       <div class="seg cave" style="width:5.62%">wide title<br><small>1,840B</small></div>
       <div class="seg data" style="width:1.61%">StageExt<br><small>528B</small></div>
       <div class="seg hook" style="width:.29%">PV loader<br><small>96B</small></div>
-      <div class="seg data" style="width:3.17%">PanelVariant<br><small>1,040B</small></div>
+      <div class="seg free" style="width:3.15%">PV reserve<br><small>1,034B</small></div>
       <div class="seg hook" style="width:.13%"><span class="tiny">mask helper</span></div>
       <div class="seg data" style="width:.20%">seal<br><small>64B</small></div>
       <div class="seg hook" style="width:.57%"><span class="tiny">seal guard</span></div>
@@ -325,8 +325,8 @@
     <div class="labels"><span>$8000</span><span>$80C0</span><span>$87F0</span><span>$BB86</span><span>$C000</span><span>$F500</span><span>$FEF0</span><span>$FFFF</span></div>
     <div class="note">
       <b>PRG1 reserve:</b>
-      general reserve 11,014B + bank1 reserve 1,145B + tail reserve 192B =
-      <b>12,351B</b> が現在の候補。既存のwide title / StageExt / PanelVariant / visible item mask / level data / drop schedule / metadata / vectorsは踏まない。
+      recovered PanelVariant reserve 1,034B + recovered Seal tail 10B + general reserve 11,014B + bank1 reserve 1,145B + tail reserve 192B =
+      <b>13,395B</b> が現在の候補。既存のwide title / StageExt / visible item mask / level data / drop schedule / metadata / vectorsは踏まない。
     </div>
     <table>
       <tr><th>用途</th><th>file offset</th><th>bank1 CPU</th><th>Size</th><th>備考</th></tr>
@@ -335,11 +335,12 @@
       <tr><td>loader guard</td><td class="num">0x80C7-0x80CF</td><td class="num">$80B7-$80BF</td><td class="num">9B</td><td>Guard bytes.</td></tr>
       <tr><td>wide title decoder/data</td><td class="num">0x80D0-0x87FF</td><td class="num">$80C0-$87EF</td><td class="num">1,840B</td><td>Wide title decoder + blockA/blockB streams. Confirmed imported title uses 589B.</td></tr>
       <tr><td>StageExtTable</td><td class="num">0x8800-0x8A0F</td><td class="num">$87F0-$89FF</td><td class="num">528B</td><td>Per-stage extension settings: 16B header + 64 rooms x 8B. byte2=key enemy initial slot, byte3=fall-death fairy enemy initial slot. Also carries mapper66 runtime room flags and door-cell bytes copied to `$0778/$077C`; the room-load runtime clears legacy `$077A` for compatibility.</td></tr>
-      <tr><td>Panel Variant combined runtime loader</td><td class="num">0x8A10-0x8A6F</td><td class="num">$8A00-$8A5F</td><td class="num">96B</td><td>Mapper66 room-load helper. Preserves StageExt runtime copies, clears legacy `$077A`, copies the Solomon Seal block-state byte to `$077D`, and jumps through the Transparent Seal panel-tail helper, which copies 16B from PanelVariantStageTable to `$0740-$074F` before running the Seal suppress guard.</td></tr>
-      <tr><td>PanelVariantStageTable</td><td class="num">0x8A70-0x8E7F</td><td class="num">$8A60-$8E6F</td><td class="num">1,040B</td><td>16B header + 64 rooms x 16B. Current layout uses byte0..5 as A/B/C speed+interval cache values; rhythm was removed from the design.</td></tr>
+      <tr><td>Panel Variant combined runtime loader</td><td class="num">0x8A10-0x8A6F</td><td class="num">$8A00-$8A5F</td><td class="num">96B</td><td>Mapper66 room-load helper. Preserves StageExt runtime copies, clears legacy `$077A`, copies the Solomon Seal block-state byte to `$077D`, copies the 6B global A/B/C Panel Variant table to <code>$0740-$0745</code>, then jumps directly to the Transparent Seal suppress guard.</td></tr>
+      <tr><td>Panel Variant global cache table</td><td class="num">0x8A70-0x8A75</td><td class="num">$8A60-$8A65</td><td class="num">6B</td><td>All-stage common A/B/C cache image: A speed/interval, B speed/interval, C speed/interval. Copied to RAM <code>$0740-$0745</code> by the runtime loader.</td></tr>
+      <tr><td>Recovered PanelVariant reserve</td><td class="num">0x8A76-0x8E7F</td><td class="num">$8A66-$8E6F</td><td class="num">1,034B</td><td>Former 64-room <code>PanelVariantStageTable</code> body. Final saves no longer read or write this room table after A/B/C settings became global. Keep as PRG1 reserve; old ROMs may still contain stale table bytes, but current runtime does not reference them.</td></tr>
       <tr><td>Transparent/cracked item side-data copy helper</td><td class="num">0x8E80-0x8EAA</td><td class="num">$8E70-$8E9A</td><td class="num">43B</td><td>Copies the current room's 32B side slot from the PRG1 table to RAM <code>$0750-$076F</code> with page-crossing carry preserved. The first 24B are the visible-item mask; the last 8B are cracked in-block cell positions.</td></tr>
         <tr><td>Solomon Seal block-state table</td><td class="num">0x8EAB-0x8EEA</td><td class="num">$8E9B-$8EDA</td><td class="num">64B</td><td>1 byte per room. <code>$00</code>=original hidden seal, <code>$A0</code>=brown in-block seal, <code>$E0</code>=white in-block seal. Copied to RAM <code>$077D</code> by StageExt loader.</td></tr>
-        <tr><td>Transparent Solomon Seal suppress tables/helpers</td><td class="num">0x8EEB-0x9018</td><td class="num">$8EDB-$9008</td><td class="num">302B</td><td>Stage-load-time guard for transparent-breakable Solomon's Seal cells. If the room's Seal bit is already set in <code>$7A</code>, restores the live grid cell to <code>$50</code> and clears the visible-in-block mask bit before the PRG0 converter runs. Reserved through <code>solomon_seal_block.RESERVED_SPANS</code>.</td></tr>
+        <tr><td>Transparent Solomon Seal suppress tables/helpers</td><td class="num">0x8EEB-0x900E</td><td class="num">$8EDB-$8FFE</td><td class="num">292B</td><td>Stage-load-time guard for transparent-breakable Solomon's Seal cells. If the room's Seal bit is already set in <code>$7A</code>, restores the live grid cell to <code>$50</code> and clears the visible-in-block mask bit before the PRG0 converter runs. The old Panel tail copy helper is now a 3B jump only; <code>0x900F-0x9018</code> is recovered PRG1 reserve.</td></tr>
         <tr><td>mapper66 respawn direct-cell copy helper</td><td class="num">0x9019-0x904C</td><td class="num">$9009-$903C</td><td class="num">52B</td><td>Called from the mapper66 l_a2 loader. Preserves SKCHAIN one-shot suppression while mapping custom <code>$F0-$F3</code> white in-block one-shot cells to empty breakable white block <code>$F9</code> after death.</td></tr>
         <tr><td>Cracked in-block one-shot respawn helper</td><td class="num">0x904D-0x908F</td><td class="num">$903D-$907F</td><td class="num">67B</td><td>Called by the mapper66 room loader after copying <code>$0750-$076F</code>. On death respawn only, scans <code>$0768-$076F</code>, restores listed live grid cells from <code>$10</code> to <code>$01</code>, and clears the matching mask bit after converting the runtime position byte to the 192-cell mask index.</td></tr>
         <tr><td>PRG1 general reserve</td><td class="num">0x9090-0xBB95</td><td class="num">$9080-$BB85</td><td class="num">11,014B</td><td>Recovered from the old oversized wide-title reservation. Candidate area for stage-load-time tables and non-gameplay-screen code/data.</td></tr>

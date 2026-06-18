@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.250 (2026-06-19) PanelVariantStageTableを縮小してPRG1予約を回収
+- 強化パネルモンスターA/B/Cの速度・発射間隔を、部屋別 `PanelVariantStageTable` ではなくPRG1先頭6Bの共通テーブルから `$0740-$0745` へ初期化する方式へ変更した。
+- 最終保存パスでは旧64部屋分の `PanelVariantStageTable` を書き込まず、旧テーブル領域 `0x8A76-0x8E7F` / 1,034B を今後のPRG1予約候補として回収した。
+- Transparent Sealの旧Panel tail helperはコピー処理をやめ、Seal抑止helperへの3Bジャンプだけに縮小した。
+
 ## v0.8.249 (2026-06-19) A/B/Cパネルモンスター設定を全ステージ共通化
 - 強化パネルモンスターA/B/Cの速度・発射間隔を、ステージ別設定から敵設定画面の全ステージ共通設定へ移した。
 - 既存PNG/XML/ROMに残る旧ステージ別A/B/Cパラメーターは読み込み互換のみとし、保存時のPanelVariantStageTableには現在の共通A/B/C設定だけを使うようにした。
