@@ -1,6 +1,6 @@
 # PRG0 padding / cave audit for JP mapper66 ROM
 
-Last updated: 2026-06-17
+Last updated: 2026-06-18
 
 This document is the PRG0-specific safety ledger for places that look like
 padding in the original Japanese ROM. It exists because `00`/`EA` bytes are not
@@ -103,6 +103,9 @@ document, `docs/rom_map_jp_mapper66_current.html`, and implementation constants.
 | `0x681C-0x6832` | `$E80C-$E822` | 23B | `spark_ball_variant.py` | `00` run | Transparent Spark Ball Golem-ID AI wrapper. |
 | `0x6833-0x6885` | `$E823-$E875` | 83B | `panel_monster_stage_variant.py` | `00` run | Panel Variant Bullet speed extra-step helper/table area. |
 | `0x68AC-0x68C0` | `$E89C-$E8B0` | 21B | `panel_monster_stage_variant.py` | `00` run | Dynamic speed marker helper. |
+| `0x693C-0x6959` | `$E92C-$E949` | 30B | `panel_monster_stage_variant.py` | `00` / mixed | Panel Variant A/B/C group offset helper. Former emergency candidate band; now used. |
+| `0x696C-0x697E` | `$E95C-$E96E` | 19B | `panel_monster_stage_variant.py` | `00` run | Panel Variant final AI dispatch helper. Former emergency candidate band; now used. |
+| `0x69D4-0x69DF` | `$E9C4-$E9CF` | 12B | `panel_monster_stage_variant.py` | `00` run | Panel Variant final AI dispatch panel tail. Static scan found no original absolute/indexed operand or pointer reference before reservation. |
 | `0x6FD4-0x7004` | `$EFC4-$EFF4` | 49B | `spark_ball_variant.py` | `EA` run | Spark Ball pause hook. |
 | `0x7005-0x700F` | `$EFF5-$EFFF` | 11B | `solomon_seal_block.py` | `EA` run | Solomon Seal block helper. |
 
@@ -176,23 +179,26 @@ PRG0 is now an emergency reserve, not normal feature space.
 Current emergency candidates are intentionally not classified as free. They are
 only places worth investigating first if PRG0 is absolutely unavoidable.
 
-### Primary Emergency Candidates
-
-These two ranges are the main PRG0 emergency reserve candidates. They are still
-not "free space"; they are the best current places to investigate first when a
-release-blocking PRG0-only fix is unavoidable.
+### Former Primary Emergency Candidates
 
 Mesen focus probe result on 2026-06-17:
 `mesen_probes/lua/prg0_emergency_candidates_focus_probe_v099.lua`
 
 - Probe ran through at least frame 23100.
 - No `READ` or `EXEC` events were logged for either primary candidate.
-- This proves only "not touched in this test coverage", not universal safety.
+- This proved only "not touched in this test coverage", not universal safety.
+- These ranges are no longer candidates in the current production layout.
 
 | Priority | File offset | CPU | Size | Original bytes | Latest runtime observation | Status |
 |---:|---|---:|---:|---|---|---|
-| 1 | `0x696C-0x6983` | `$E95C-$E973` | 24B | `00` run | No READ/EXEC through frame 23100 in focus probe. | Primary emergency candidate. Static ASM proof still required before use. |
-| 2 | `0x693C-0x694F` | `$E92C-$E93F` | 20B | `00` run | No READ/EXEC through frame 23100 in focus probe. | Primary emergency candidate. Static ASM proof still required before use. |
+| - | `0x696C-0x697E` | `$E95C-$E96E` | 19B | `00` run | No READ/EXEC through frame 23100 in old focus probe. | Used by `panel_monster_stage_variant.py`; not free. |
+| - | `0x693C-0x6959` | `$E92C-$E949` | 30B | `00` / mixed | No READ/EXEC through frame 23100 in old focus probe for `$E92C-$E93F`. | Used by `panel_monster_stage_variant.py`; not free. |
+
+### Current Emergency Candidates
+
+There is no current primary PRG0 emergency reserve candidate large enough to
+trust without new work. Run `tools/prg0_free_space_audit.py` and then perform
+ASM boundary review before promoting any row to this section.
 
 ### Tiny / Last-Resort Candidate
 

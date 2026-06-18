@@ -42,6 +42,7 @@ tools/
 !tools/
 !tools/start_stage_patch.py
 !tools/rom_validation_tool.py
+!tools/prg0_free_space_audit.py
 __pycache__/
 **/__pycache__/
 *.py[cod]

@@ -1,5 +1,9 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.247 (2026-06-18) PRG0空き領域発掘監査を追加
+- 原作PRG0の同一バイトrun、既存予約span、既知NG領域、6502 absolute/indexed operand参照を横断して分類する読み取り専用ツール `tools/prg0_free_space_audit.py` を追加した。
+- `docs/prg0_padding_audit.md` を現状の予約状態に合わせて更新し、PRG0を通常開発用ではなく非常用固定バンク領域として扱う方針を明確化した。
+
 ## v0.8.246 (2026-06-18) Panel Variant helperと白ブロック内runtimeの予約重複を修正
 - `panel_monster_stage_variant.py` の final AI dispatch panel helper を `0x678C-$E77C` から `0x69D4-$E9C4` へ移設し、`room_flags.py` の White in-block runtime extension `0x678C-0x6797` と重ならないようにした。
 - 移設先 `0x69D4-0x69DF / $E9C4-$E9CF` は、ASM文字列検索、原作ROMポインタ検索、6502 absolute/indexed operandスキャンで原作参照なしを確認した候補として管理簿へ反映した。
