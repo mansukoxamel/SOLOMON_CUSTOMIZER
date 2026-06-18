@@ -288,12 +288,14 @@ def xml_element_to_level(level_elem: ET.Element) -> Level:
     lv.fairy_enemy_slot = int(level_elem.attrib.get("fairy_enemy_slot", "255"))
     lv.announce_id = int(level_elem.attrib.get("announce_id", "0"))
     lv.announce_flags = int(level_elem.attrib.get("announce_flags", "0"))
-    lv.panel_variant_a_speed = int(level_elem.attrib.get("panel_variant_a_speed", "0"))
-    lv.panel_variant_a_interval = int(level_elem.attrib.get("panel_variant_a_interval", "192"))
-    lv.panel_variant_b_speed = int(level_elem.attrib.get("panel_variant_b_speed", "1"))
-    lv.panel_variant_b_interval = int(level_elem.attrib.get("panel_variant_b_interval", "192"))
-    lv.panel_variant_c_speed = int(level_elem.attrib.get("panel_variant_c_speed", "2"))
-    lv.panel_variant_c_interval = int(level_elem.attrib.get("panel_variant_c_interval", "192"))
+    # Stage-local Panel Variant parameters are retained only for old-file
+    # compatibility.  Current saves use global A/B/C settings instead.
+    lv.panel_variant_a_speed = 0
+    lv.panel_variant_a_interval = 192
+    lv.panel_variant_b_speed = 1
+    lv.panel_variant_b_interval = 192
+    lv.panel_variant_c_speed = 2
+    lv.panel_variant_c_interval = 192
 
     # 星座
     const_no = int(level_elem.attrib.get("constellation_no", "0"))

@@ -20,6 +20,14 @@ MAX_UNDO_LIMIT = 999
 DEFAULT_HOVER_INFO_POPUP_FONT_SIZE = 16
 MIN_HOVER_INFO_POPUP_FONT_SIZE = 10
 MAX_HOVER_INFO_POPUP_FONT_SIZE = 40
+DEFAULT_PANEL_VARIANT_SETTINGS = {
+    "a_speed": 0,
+    "a_interval": 0xC0,
+    "b_speed": 1,
+    "b_interval": 0xC0,
+    "c_speed": 2,
+    "c_interval": 0xC0,
+}
 
 SHORTCUT_DEFINITIONS = [
     ("help", "ショートカットヘルプ", "F1"),
@@ -129,6 +137,26 @@ def normalize_gamepad_shortcuts(value) -> dict:
             raw = str(value.get(key, shortcuts.get(key, "")) or "").strip()
             shortcuts[key] = raw if raw in valid else shortcuts.get(key, "")
     return shortcuts
+
+
+def normalize_panel_variant_settings(value) -> dict:
+    settings = dict(DEFAULT_PANEL_VARIANT_SETTINGS)
+    if isinstance(value, dict):
+        for key in ("a_speed", "b_speed", "c_speed"):
+            settings[key] = normalize_int_setting(
+                value.get(key),
+                DEFAULT_PANEL_VARIANT_SETTINGS[key],
+                0,
+                3,
+            )
+        for key in ("a_interval", "b_interval", "c_interval"):
+            settings[key] = normalize_int_setting(
+                value.get(key),
+                DEFAULT_PANEL_VARIANT_SETTINGS[key],
+                1,
+                255,
+            )
+    return settings
 
 
 DEFAULT_CONFIG = {
@@ -270,6 +298,7 @@ DEFAULT_CONFIG = {
     "undo_limit": DEFAULT_UNDO_LIMIT,
     "hover_info_popup_enabled": False,
     "hover_info_popup_font_size": DEFAULT_HOVER_INFO_POPUP_FONT_SIZE,
+    "panel_variant_settings": DEFAULT_PANEL_VARIANT_SETTINGS,
     "shortcuts": DEFAULT_SHORTCUTS,
     "gamepad_shortcuts": DEFAULT_GAMEPAD_SHORTCUTS,
 }
@@ -324,6 +353,9 @@ def load_config() -> dict:
             cfg["gamepad_shortcuts"] = normalize_gamepad_shortcuts(
                 cfg.get("gamepad_shortcuts")
             )
+            cfg["panel_variant_settings"] = normalize_panel_variant_settings(
+                cfg.get("panel_variant_settings")
+            )
             return cfg
         except Exception:
             pass
@@ -331,6 +363,9 @@ def load_config() -> dict:
     cfg["shortcuts"] = normalize_shortcuts(cfg.get("shortcuts"))
     cfg["gamepad_shortcuts"] = normalize_gamepad_shortcuts(
         cfg.get("gamepad_shortcuts")
+    )
+    cfg["panel_variant_settings"] = normalize_panel_variant_settings(
+        cfg.get("panel_variant_settings")
     )
     return cfg
 

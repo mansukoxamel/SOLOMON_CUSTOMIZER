@@ -18,6 +18,7 @@ from .. import __version__
 from ..core import hack_data
 from ..core import walk_speed
 from ..core import panel_monster_hack
+from ..core import panel_monster_stage_variant
 from ..core import panel_bullet_speed_fix
 from ..core import demo_stage_hack
 from ..core import dragon_hack
@@ -43,6 +44,7 @@ from ..core import wall_color_hack
 from ..core import stage_frame
 from ..core import solomon_seal_stage
 from ..core import constants as c
+from ..core.config import normalize_panel_variant_settings
 from ..core.element import Wall
 from ..nes import palette as nes_palette
 
@@ -480,6 +482,37 @@ class HackDialog(QDialog):
         if not self._pm_bullet_speed_ok:
             self.chk_pm_bullet_speed_fix.setEnabled(False)
             self.combo_pm_bullet_speed_fix.setEnabled(False)
+
+        pv_note = QLabel(
+            "A/B/Cパネルモンスターはステージ別ではなく、全ステージ共通の固定値を使います。"
+            "既存ステージデータ内の旧A/B/C個別値は読み込み互換のみで、保存時には使いません。"
+        )
+        pv_note.setWordWrap(True)
+        pv_note.setStyleSheet("color:#888; font-size:11px;")
+        pmf.addRow(pv_note)
+        self._panel_variant_controls = {}
+        pv_settings = normalize_panel_variant_settings(
+            (self._app_config or {}).get("panel_variant_settings")
+        )
+        for key, label in (("a", "A"), ("b", "B"), ("c", "C")):
+            row = QWidget()
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(4)
+            combo = QComboBox()
+            for preset, preset_label in panel_monster_stage_variant.SPEED_PRESET_NAMES.items():
+                combo.addItem(preset_label, preset)
+            self._set_combo_data(combo, pv_settings[f"{key}_speed"])
+            spin = QSpinBox()
+            spin.setRange(1, 255)
+            spin.setSuffix(" F")
+            spin.setValue(pv_settings[f"{key}_interval"])
+            row_layout.addWidget(QLabel("速度"))
+            row_layout.addWidget(combo, 1)
+            row_layout.addWidget(QLabel("間隔"))
+            row_layout.addWidget(spin, 1)
+            pmf.addRow(f"Panel {label}:", row)
+            self._panel_variant_controls[key] = (combo, spin)
         layout.addWidget(pm_group)
 
         # ====== デモプレイのステージ ======
@@ -1059,6 +1092,13 @@ class HackDialog(QDialog):
             if chk.isChecked()
         ]
 
+    def _panel_variant_settings_from_ui(self) -> dict:
+        values = {}
+        for key, (combo, spin) in getattr(self, "_panel_variant_controls", {}).items():
+            values[f"{key}_speed"] = int(combo.currentData())
+            values[f"{key}_interval"] = int(spin.value())
+        return normalize_panel_variant_settings(values)
+
     def _on_spark_pause_digit_changed(self, _state):
         selected = self._selected_spark_pause_digits()
         if len(selected) <= spark_ball_variant.PAUSE_DIGIT_COUNT:
@@ -1584,6 +1624,7 @@ class HackDialog(QDialog):
             "panel_monster_cooldown_frames": self.spin_pm.value(),
             "panel_bullet_speed_fix_enabled": self.chk_pm_bullet_speed_fix.isChecked(),
             "panel_bullet_speed_fix_value": self._combo_data(self.combo_pm_bullet_speed_fix),
+            "panel_variant_settings": self._panel_variant_settings_from_ui(),
             "demo_stage": self.spin_ds.value(),
             "golem_snappy": self.chk_golem_snappy.isChecked(),
             "gargoyle_snappy": self.chk_gargoyle_snappy.isChecked(),
@@ -1686,6 +1727,17 @@ class HackDialog(QDialog):
                 old = combo.currentIndex()
                 if self._set_combo_data(combo, settings[key]) and combo.currentIndex() != old:
                     changed.append(label)
+
+        def set_panel_variant_settings(key, label):
+            if not has(key):
+                return
+            old = self._panel_variant_settings_from_ui()
+            values = normalize_panel_variant_settings(settings[key])
+            for name, (combo, spin) in getattr(self, "_panel_variant_controls", {}).items():
+                self._set_combo_data(combo, values[f"{name}_speed"])
+                spin.setValue(values[f"{name}_interval"])
+            if self._panel_variant_settings_from_ui() != old:
+                changed.append(label)
 
         set_spin("start_stage", self.spin_stage, "開始ステージ")
         set_spin("continue_max_stage", self.spin_continue, "コンティニュー上限")
@@ -1813,6 +1865,7 @@ class HackDialog(QDialog):
         set_spin("panel_monster_cooldown_frames", self.spin_pm, "パネルモンスター クールダウン")
         set_check("panel_bullet_speed_fix_enabled", self.chk_pm_bullet_speed_fix, "パネルモンスター 弾の左右速度バグ修正")
         set_combo("panel_bullet_speed_fix_value", self.combo_pm_bullet_speed_fix, "パネルモンスター 弾速度")
+        set_panel_variant_settings("panel_variant_settings", "パネルモンスター A/B/C共通値")
         set_spin("demo_stage", self.spin_ds, "デモステージ")
         set_check("golem_snappy", self.chk_golem_snappy, "ゴーレム キビキビ")
         set_check("gargoyle_snappy", self.chk_gargoyle_snappy, "ガーゴイル キビキビ")
@@ -2244,6 +2297,19 @@ class HackDialog(QDialog):
             except room_flags.RoomFlagError as e:
                 QMessageBox.warning(self, "暗闇テンポ設定 失敗", str(e))
 
+        panel_variant_settings = self._panel_variant_settings_from_ui()
+        if self._app_config is not None:
+            old_panel_variant_settings = normalize_panel_variant_settings(
+                self._app_config.get("panel_variant_settings")
+            )
+            if panel_variant_settings != old_panel_variant_settings:
+                self._app_config["panel_variant_settings"] = panel_variant_settings
+                try:
+                    from ..core.config import save_config
+                    save_config(self._app_config)
+                except Exception:
+                    pass
+                applied.append("パネルモンスター A/B/C共通値")
 
         if applied:
             QMessageBox.information(
@@ -2303,6 +2369,10 @@ class HackDialog(QDialog):
                     self.combo_pm_bullet_speed_fix,
                     panel_bullet_speed_fix.SLOW_VALUE,
                 )
+        default_panel_variant = normalize_panel_variant_settings({})
+        for key, (combo, spin) in getattr(self, "_panel_variant_controls", {}).items():
+            self._set_combo_data(combo, default_panel_variant[f"{key}_speed"])
+            spin.setValue(default_panel_variant[f"{key}_interval"])
         if self._golem_ok:
             self.chk_golem_snappy.setChecked(False)
         if self._gargoyle_ok:

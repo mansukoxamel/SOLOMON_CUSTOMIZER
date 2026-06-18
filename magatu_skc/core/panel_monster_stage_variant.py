@@ -1376,7 +1376,11 @@ def _validate_final_split_signatures(
         _expect_signature(rom_data, off, name, (*signatures, blob))
 
 
-def apply_final_split_test_candidate(rom_data: bytearray, levels: list = None) -> list[str]:
+def apply_final_split_test_candidate(
+    rom_data: bytearray,
+    levels: list = None,
+    common_settings: dict | None = None,
+) -> list[str]:
     """Apply the accepted split Panel Variant runtime."""
     if rom_data is None:
         raise PanelMonsterStageVariantError("ROM is missing.")
@@ -1400,7 +1404,7 @@ def apply_final_split_test_candidate(rom_data: bytearray, levels: list = None) -
     _validate_final_split_signatures(rom_data, final_state0_interval_helper)
 
     changed: list[str] = []
-    if patch_table(rom_data, levels):
+    if patch_table(rom_data, levels, common_settings):
         changed.append("PanelVariantStageTable")
     changed.extend(apply_runtime_loader(rom_data))
 
@@ -1825,6 +1829,30 @@ def build_entry(
     ))
 
 
+def normalize_common_settings(settings: dict | None = None) -> dict:
+    settings = settings or {}
+    return {
+        "a_speed": normalize_speed_preset(settings.get("a_speed", DEFAULT_A_SPEED_PRESET)),
+        "a_interval": int(settings.get("a_interval", DEFAULT_A_INTERVAL)) & 0xFF,
+        "b_speed": normalize_speed_preset(settings.get("b_speed", DEFAULT_B_SPEED_PRESET)),
+        "b_interval": int(settings.get("b_interval", DEFAULT_B_INTERVAL)) & 0xFF,
+        "c_speed": normalize_speed_preset(settings.get("c_speed", DEFAULT_C_SPEED_PRESET)),
+        "c_interval": int(settings.get("c_interval", DEFAULT_C_INTERVAL)) & 0xFF,
+    }
+
+
+def common_entry(settings: dict | None = None) -> bytes:
+    values = normalize_common_settings(settings)
+    return build_entry(
+        values["a_speed"],
+        values["a_interval"],
+        values["b_speed"],
+        values["b_interval"],
+        values["c_speed"],
+        values["c_interval"],
+    )
+
+
 def level_to_entry(level) -> bytes:
     init_level_defaults(level)
     return build_entry(
@@ -1849,12 +1877,12 @@ def entry_to_level(entry: bytes, level) -> None:
     setattr(level, LEVEL_ATTRS["c_interval"], entry[5] & 0xFF)
 
 
-def build_table(levels: list = None) -> bytes:
+def build_table(levels: list = None, common_settings: dict | None = None) -> bytes:
     """Build the PRG1 PanelVariantStageTable.
 
-    Entry bytes 0..5 are the current speed+interval cache:
-    A speed, A interval, B speed, B interval, C speed, C interval.
-    Rhythm was removed from the feature.
+    Entry bytes 0..5 are the fixed global speed+interval cache:
+    A speed, A interval, B speed, B interval, C speed, C interval.  Older
+    per-level values are intentionally ignored.
     """
     table = bytearray([0x00] * TABLE_LENGTH)
     table[:len(MAGIC)] = MAGIC
@@ -1862,20 +1890,17 @@ def build_table(levels: list = None) -> bytes:
     table[len(MAGIC) + 1] = ENTRY_SIZE
     table[len(MAGIC) + 2] = ROOM_COUNT
     table[len(MAGIC) + 3] = 0
-    levels = levels or []
+    entry = common_entry(common_settings)
     for i in range(ROOM_COUNT):
         base = HEADER_SIZE + i * ENTRY_SIZE
-        if i < len(levels):
-            table[base:base + ENTRY_SIZE] = level_to_entry(levels[i])
-        else:
-            table[base:base + ENTRY_SIZE] = _blank_entry()
+        table[base:base + ENTRY_SIZE] = entry
     return bytes(table)
 
 
-def patch_table(rom_data: bytearray, levels: list = None) -> bool:
+def patch_table(rom_data: bytearray, levels: list = None, common_settings: dict | None = None) -> bool:
     if len(rom_data) < TABLE_END:
         return False
-    table = build_table(levels)
+    table = build_table(levels, common_settings)
     if bytes(rom_data[TABLE_OFFSET:TABLE_END]) == table:
         return False
     rom_data[TABLE_OFFSET:TABLE_END] = table
@@ -1901,8 +1926,8 @@ def read_table(rom_data: bytes, levels: list = None) -> list[bytes]:
         for i in range(ROOM_COUNT)
     ]
     if levels is not None:
-        for i, level in enumerate(levels[:ROOM_COUNT]):
-            entry_to_level(entries[i], level)
+        for level in levels[:ROOM_COUNT]:
+            init_level_defaults(level)
     return entries
 
 

@@ -225,7 +225,7 @@ def _write_standard_level_data(rom: Rom, levels: list):
     write_item_data(rom, levels, region)
 
 
-def save_levels_to_rom(rom: Rom, levels: list):
+def save_levels_to_rom(rom: Rom, levels: list, panel_variant_settings: dict | None = None):
     """全レベルをROMに書き戻す（標準ROM/拡張ROM両対応）
 
     Args:
@@ -322,7 +322,13 @@ def save_levels_to_rom(rom: Rom, levels: list):
         any(stage_ext.key_enemy_enabled(lv) or stage_ext.fairy_enemy_enabled(lv) for lv in levels),
     )
     if rom.is_expanded() and panel_monster_stage_variant.has_panel_stage_runtime_ids(levels):
-        _run_save_step("Panel Variant runtime検証/適用", panel_monster_stage_variant.apply, rom.data, levels)
+        _run_save_step(
+            "Panel Variant runtime検証/適用",
+            panel_monster_stage_variant.apply,
+            rom.data,
+            levels,
+            panel_variant_settings,
+        )
     if rom.is_expanded():
         from . import rom_metadata
         _run_save_step(
@@ -340,11 +346,11 @@ def save_levels_to_rom(rom: Rom, levels: list):
         _run_save_step("Customizer metadata書き込み", rom_metadata.write_metadata, rom.data)
 
 
-def build_saved_rom_data(rom: Rom, levels: list) -> bytes:
+def build_saved_rom_data(rom: Rom, levels: list, panel_variant_settings: dict | None = None) -> bytes:
     """Validate and build saved ROM bytes without mutating the open ROM."""
     work = Rom(bytes(rom.data), rom.path)
     work.display_name = rom.display_name
-    save_levels_to_rom(work, levels)
+    save_levels_to_rom(work, levels, panel_variant_settings)
     return bytes(work.data)
 
 

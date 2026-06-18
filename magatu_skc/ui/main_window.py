@@ -41,6 +41,7 @@ from ..core.config import (
     DEFAULT_SHORTCUTS,
     normalize_int_setting,
     normalize_gamepad_shortcuts,
+    normalize_panel_variant_settings,
     normalize_shortcuts,
     resolve_project_path,
     get_config_path,
@@ -1815,53 +1816,28 @@ class MainWindow(QMainWindow):
         return left_widget
 
     def _build_panel_variant_panel(self) -> QWidget:
-        from PyQt5.QtWidgets import QFormLayout
-
         wrap = QWidget()
         wrap_layout = QVBoxLayout(wrap)
         wrap_layout.setContentsMargins(0, 0, 0, 0)
         wrap_layout.setSpacing(4)
 
-        group = QGroupBox("強化パネルモンスター設定")
+        group = QGroupBox("強化パネルモンスター")
         group.setToolTip(
-            "A/B/Cパネルモンスターのステージ別設定。次バージョンで全ステージ共通の固定値へ整理予定。"
+            "A/B/Cパネルモンスターは全ステージ共通設定です。敵設定画面で変更します。"
         )
-        layout = QFormLayout(group)
+        layout = QVBoxLayout(group)
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(2)
 
         notice = QLabel(
-            "次バージョンでステージごとのA/B/C設定は廃止予定です。"
-            "PRG0の保守余力がなく、不具合発生時の改善が難しいため、"
-            "A/B/Cは全ステージ共通の固定パラメーターへ整理します。"
+            "ステージごとのA/B/C速度・間隔設定は廃止しました。"
+            "PRG0の保守余力確保のため、A/B/Cは敵設定画面の共通固定値を使います。"
         )
         notice.setWordWrap(True)
         notice.setStyleSheet("color: #a06000;")
-        layout.addRow(notice)
+        layout.addWidget(notice)
 
         self._panel_variant_controls = {}
-        for key, label in (("a", "A"), ("b", "B"), ("c", "C")):
-            row = QHBoxLayout()
-            combo = QComboBox()
-            combo.addItem("1/4", 0)
-            combo.addItem("1/2", 1)
-            combo.addItem("2x", 2)
-            combo.addItem("3x", 3)
-            combo.currentIndexChanged.connect(
-                lambda _idx, k=key: self._on_panel_variant_setting_changed(k)
-            )
-            spin = QSpinBox()
-            spin.setRange(1, 255)
-            spin.valueChanged.connect(
-                lambda _val, k=key: self._on_panel_variant_setting_changed(k)
-            )
-            row.addWidget(combo, 1)
-            row.addWidget(QLabel("間隔"))
-            row.addWidget(spin, 1)
-            layout.addRow(label, row)
-            self._panel_variant_controls[key] = (combo, spin)
-
-        group.setEnabled(False)
         self.panel_variant_group = group
         wrap_layout.addWidget(group)
 
@@ -3386,6 +3362,13 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
+    def _panel_variant_settings_for_save(self) -> dict:
+        settings = normalize_panel_variant_settings(
+            self._app_config.get("panel_variant_settings")
+        )
+        self._app_config["panel_variant_settings"] = settings
+        return settings
+
     def _on_save_rom(self):
         if not self.rom:
             return False
@@ -3410,7 +3393,11 @@ class MainWindow(QMainWindow):
         if not path:
             return False
         try:
-            saved_data = saver.build_saved_rom_data(self.rom, self.levels)
+            saved_data = saver.build_saved_rom_data(
+                self.rom,
+                self.levels,
+                self._panel_variant_settings_for_save(),
+            )
             saver.write_rom_data(saved_data, path)
             self._remember_save_path(path)
             self.rom.data = bytearray(saved_data)
@@ -3464,7 +3451,11 @@ class MainWindow(QMainWindow):
             try:
                 if not self._is_read_only():
                     # レベルを反映
-                    saver.save_levels_to_rom(self.rom, self.levels)
+                    saver.save_levels_to_rom(
+                        self.rom,
+                        self.levels,
+                        self._panel_variant_settings_for_save(),
+                    )
                 # ステージ選択: 現在レベルから開始
                 self._patch_testplay_start_stage(stage_no)
                 if not self._is_read_only():
@@ -3574,7 +3565,11 @@ class MainWindow(QMainWindow):
 
         # 2. 現在の編集状態を保存用ROMデータに反映
         try:
-            modified_data = saver.build_saved_rom_data(self.rom, self.levels)
+            modified_data = saver.build_saved_rom_data(
+                self.rom,
+                self.levels,
+                self._panel_variant_settings_for_save(),
+            )
         except Exception as e:
             self._show_save_failure("IPS生成失敗", e, "IPS保存失敗")
             return
@@ -8064,7 +8059,11 @@ class MainWindow(QMainWindow):
         out_dir = self._autosave_dir()
         out_dir.mkdir(parents=True, exist_ok=True)
         path = out_dir / f"workstate_{stamp}.nes"
-        saved_data = saver.build_saved_rom_data(self.rom, self.levels)
+        saved_data = saver.build_saved_rom_data(
+            self.rom,
+            self.levels,
+            self._panel_variant_settings_for_save(),
+        )
         saver.write_rom_data(saved_data, str(path))
         self._write_autosave_undo_history(self._autosave_undo_file_for_rom(path))
         self._write_autosave_manifest(path, saved_at)
@@ -8852,51 +8851,10 @@ class MainWindow(QMainWindow):
             self._meta_loading = False
 
     def _load_panel_variant_to_ui(self, level):
-        if not hasattr(self, "_panel_variant_controls"):
-            return
-        from ..core import panel_monster_stage_variant as _pmsv
-        _pmsv.init_level_defaults(level)
-        values = {
-            "a": (
-                getattr(level, "panel_variant_a_speed"),
-                getattr(level, "panel_variant_a_interval"),
-            ),
-            "b": (
-                getattr(level, "panel_variant_b_speed"),
-                getattr(level, "panel_variant_b_interval"),
-            ),
-            "c": (
-                getattr(level, "panel_variant_c_speed"),
-                getattr(level, "panel_variant_c_interval"),
-            ),
-        }
-        for key, (speed, interval) in values.items():
-            combo, spin = self._panel_variant_controls[key]
-            combo.blockSignals(True)
-            spin.blockSignals(True)
-            idx = combo.findData(int(speed) & 0xFF)
-            combo.setCurrentIndex(idx if idx >= 0 else 0)
-            spin.setValue(max(1, min(255, int(interval) & 0xFF)))
-            spin.blockSignals(False)
-            combo.blockSignals(False)
-        self.panel_variant_group.setEnabled(True)
+        return
 
     def _on_panel_variant_setting_changed(self, key):
-        if self._meta_loading or not self.levels:
-            return
-        if self._reject_read_only_edit():
-            return
-        if key not in getattr(self, "_panel_variant_controls", {}):
-            return
-        self._push_undo()
-        combo, spin = self._panel_variant_controls[key]
-        speed = int(combo.currentData())
-        interval = int(spin.value()) & 0xFF
-        lv = self.levels[self.current_level_no]
-        setattr(lv, f"panel_variant_{key}_speed", speed)
-        setattr(lv, f"panel_variant_{key}_interval", interval)
-        self._set_dirty(True)
-        self._update_info()
+        return
 
     def _on_meta_tileset_changed(self, val):
         if self._meta_loading or not self.levels:
