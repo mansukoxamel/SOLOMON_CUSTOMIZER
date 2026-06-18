@@ -81,7 +81,13 @@ verbatim コピーするため file offset 不変):
 #   $0750-$0767 VISIBLE_INBLOCK_ITEM_MASK 透明ブロック内アイテムbitmask 予約済(使用中)
 #                               ・mapper66 loader がPRG1 0xF860 tableから24Bコピー。
 #                               ・$E74C helper がNMI中に破壊的shiftで参照。
-#   $0768-$0777 ENTITY_TAIL_CANDIDATE 補助候補16B         要probe
+#   $0768-$076F CRACKED_INBLOCK_LIST ひび割れブロック内アイテム位置リスト
+#                               予約済(使用中)
+#                               ・mapper66 loader がPRG1 visible-item slot末尾8B
+#                                 からコピー。死亡後one-shot skipで消えた
+#                                 ひび割れ下地を描画前に$01へ戻し、
+#                                 対応mask bitも消して中身再注入を防ぐ。
+#   $0770-$0777 ENTITY_TAIL_CANDIDATE 補助候補8B          要probe
 #   $0778       ROOMFLAGS       room flag table cache         予約済(使用中)
 #   $0779       DARK_PHASE      暗闇 明滅フェーズカウンタ      予約済(使用中)
 #   $077A       BLOCK_OVERRIDE_LEGACY mapper66 loaderが互換目的でクリア 予約済(互換)
@@ -107,7 +113,8 @@ verbatim コピーするため file offset 不変):
 #     (透明壊せるブロック内の取得済み紋章を再配置しないため、room load
 #      後に $0304+cell を $50 へ戻し、$0750-$0767 のmask bitを消す)
 #   ・file 0x9019-0x904C : mapper66 respawn direct-cell copy helper
-#   ・file 0x904D-0xBB95 : PRG1 general reserve
+#   ・file 0x904D-0x908F : cracked in-block one-shot respawn helper
+#   ・file 0x9090-0xBB95 : PRG1 general reserve
 #     (bank1 を使う改造を足すときは必ず上記予約を避ける)。
 #   ・file 0xBB96   : SW byte = $FF 固定 (bank-switch bus-conflict
 #     用。CPU $BB86。title_screen._WT_SW_B1_OFF)。データで踏まない。
@@ -154,7 +161,8 @@ verbatim コピーするため file offset 不変):
 #   $073A-$073F ENTITY_TAIL_CANDIDATE  secondary 6-byte candidate, probe before use
 #   $0740-$074F PANEL_VARIANT_CACHE    Panel stage-variant runtime cache, reserved in use
 #   $0750-$0767 VISIBLE_INBLOCK_ITEM_MASK visible item in-block runtime mask, reserved in use
-#   $0768-$0777 ENTITY_TAIL_CANDIDATE  secondary 16-byte candidate, probe before use
+#   $0768-$076F CRACKED_INBLOCK_LIST   cracked in-block item cell list, reserved in use
+#   $0770-$0777 ENTITY_TAIL_CANDIDATE  secondary 8-byte candidate, probe before use
 #   $0778       ROOMFLAGS              room flag table cache, reserved in use
 #   $0779       DARK_PHASE             dark-room phase counter, reserved in use
 #   $077A       BLOCK_OVERRIDE_LEGACY  cleared by mapper66 room-load runtime, no current reader

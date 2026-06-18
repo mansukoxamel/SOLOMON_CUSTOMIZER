@@ -21,6 +21,7 @@ LENGTH_M66_MAP_DATA = LENGTH_M66_LVL_W * LENGTH_M66_LVL_H  # 192
 LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA = 32
 LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_ROOM_DATA = LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA
 LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_MASK_BYTES = 24
+LENGTH_M66_CRACKED_IN_BLOCK_LIST_BYTES = 8
 BREAKABLE_CELL_MODE_EMPTY = 0xFE
 BREAKABLE_CELL_MODE_SOLID = 0xFD
 CELL_EMPTY = 0x10
@@ -72,6 +73,8 @@ RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE = bytes.fromhex(
 )
 RESPAWN_DIRECT_CELL_COPY_HELPER_OFF = 0x9019
 RESPAWN_DIRECT_CELL_COPY_HELPER_CPU = 0x9009
+CRACKED_IN_BLOCK_RESPAWN_HELPER_OFF = 0x904D
+CRACKED_IN_BLOCK_RESPAWN_HELPER_CPU = 0x903D
 RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER = (
     bytes((
         0x20,
@@ -90,15 +93,18 @@ VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF = 0x8E80
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER_CPU = 0x8E70
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER = bytes.fromhex(
     "ad28040a0a0a0a0a18694f8500a90069008501ad28044a4a4a18650169f88501"
-    "a018b100994f0788d0f860"
+    "a020b100994f0788d0f860"
 )
 RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH = (
     bytes((
         0x20,
         VISIBLE_IN_BLOCK_MASK_COPY_HELPER_CPU & 0xFF,
         VISIBLE_IN_BLOCK_MASK_COPY_HELPER_CPU >> 8,
+        0x20,
+        CRACKED_IN_BLOCK_RESPAWN_HELPER_CPU & 0xFF,
+        CRACKED_IN_BLOCK_RESPAWN_HELPER_CPU >> 8,
     ))
-    + bytes([0xEA] * (len(RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_OLD) - 3))
+    + bytes([0xEA] * (len(RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_OLD) - 6))
 )
 RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_LEN = len(RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH)
 M66_LOADER_TAIL_OFF = 0x80C4
@@ -107,6 +113,12 @@ M66_LOADER_TAIL_GUARD_OFF = 0x80C7
 M66_LOADER_TAIL_GUARD = bytes([0x00] * 9)
 assert RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_LEN == 34
 assert len(VISIBLE_IN_BLOCK_MASK_COPY_HELPER) == 43
+CRACKED_IN_BLOCK_RESPAWN_HELPER = bytes.fromhex(
+    "a57c6a9035a008883030b96807c9fff0f6aabd0403c910d0eea9019d0403"
+    "98488a38e910484a4a4aa8682907aab950073d789099500768a810cd60"
+    "fefdfbf7efdfbf7f"
+)
+assert len(CRACKED_IN_BLOCK_RESPAWN_HELPER) == 67
 INITIAL_DRAW_LOW_CLASSIFIER_PATCH_OFF = 0x10 + (0x9620 - 0x8000)
 INITIAL_DRAW_LOW_CLASSIFIER_OLD = bytes.fromhex("a210c940b001aa")
 INITIAL_DRAW_LOW_CLASSIFIER_HELPER_CPU = 0xE764
@@ -135,6 +147,7 @@ assert len(INITIAL_DRAW_LOW_CLASSIFIER_CONT1) == 10
 assert len(INITIAL_DRAW_LOW_CLASSIFIER_CONT2) == 8
 VISIBLE_IN_BLOCK_RESERVED_SPANS = (
     (RESPAWN_DIRECT_CELL_COPY_HELPER_OFF, len(RESPAWN_DIRECT_CELL_COPY_HELPER)),
+    (CRACKED_IN_BLOCK_RESPAWN_HELPER_OFF, len(CRACKED_IN_BLOCK_RESPAWN_HELPER)),
     (VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF, len(VISIBLE_IN_BLOCK_MASK_COPY_HELPER)),
     (INITIAL_DRAW_LOW_CLASSIFIER_HELPER_OFF, len(INITIAL_DRAW_LOW_CLASSIFIER_HELPER)),
     (INITIAL_DRAW_LOW_CLASSIFIER_CONT1_OFF, len(INITIAL_DRAW_LOW_CLASSIFIER_CONT1)),
@@ -592,6 +605,11 @@ def validate_cracked_in_block_items(levels: list) -> None:
                     f"Stage {room_no + 1}: item 0x{base:02X} at {pos} cannot be "
                     "ひび割れブロック内アイテムとして保存できません"
                 )
+        if len(cells) > LENGTH_M66_CRACKED_IN_BLOCK_LIST_BYTES:
+            raise ValueError(
+                f"Stage {room_no + 1}: ひび割れブロック内アイテムは "
+                f"{LENGTH_M66_CRACKED_IN_BLOCK_LIST_BYTES}個までです"
+            )
 
 
 def build_breakable_white_data(levels: list) -> bytearray:
@@ -604,11 +622,15 @@ def build_breakable_white_data(levels: list) -> bytearray:
     """
     data = bytearray([0x00] * (COUNT_M66_LEVELS * LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA))
     for room_no, level in enumerate((levels or [])[:COUNT_M66_LEVELS]):
-        cells = set(getattr(level, "visible_in_block_item_cells", set()) or [])
-        cells.update(_cracked_in_block_item_cells(level))
-        cells = sorted(cells)
         base = _visible_in_block_table_offset(room_no) - OFFSET_M66_BREAKABLE_WHITE_DATA
-        for pos in cells:
+        cracked_cells = sorted(_cracked_in_block_item_cells(level))
+        for i in range(LENGTH_M66_CRACKED_IN_BLOCK_LIST_BYTES):
+            data[base + LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_MASK_BYTES + i] = 0xFF
+        for i, pos in enumerate(cracked_cells[:LENGTH_M66_CRACKED_IN_BLOCK_LIST_BYTES]):
+            data[base + LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_MASK_BYTES + i] = byte_from_position(pos)
+        cells = set(getattr(level, "visible_in_block_item_cells", set()) or [])
+        cells.update(cracked_cells)
+        for pos in sorted(cells):
             idx = _visible_in_block_cell_index(pos)
             if idx is not None:
                 data[base + (idx >> 3)] |= 1 << (idx & 0x07)
@@ -703,6 +725,11 @@ def patch_runtime_block_loader(rom_data: bytearray):
         cur_helper = bytes(rom_data[VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF:helper_end])
         if cur_helper != VISIBLE_IN_BLOCK_MASK_COPY_HELPER:
             rom_data[VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF:helper_end] = VISIBLE_IN_BLOCK_MASK_COPY_HELPER
+    helper_end = CRACKED_IN_BLOCK_RESPAWN_HELPER_OFF + len(CRACKED_IN_BLOCK_RESPAWN_HELPER)
+    if len(rom_data) >= helper_end:
+        cur_helper = bytes(rom_data[CRACKED_IN_BLOCK_RESPAWN_HELPER_OFF:helper_end])
+        if cur_helper != CRACKED_IN_BLOCK_RESPAWN_HELPER:
+            rom_data[CRACKED_IN_BLOCK_RESPAWN_HELPER_OFF:helper_end] = CRACKED_IN_BLOCK_RESPAWN_HELPER
     for helper_off, helper in (
         (INITIAL_DRAW_LOW_CLASSIFIER_HELPER_OFF, INITIAL_DRAW_LOW_CLASSIFIER_HELPER),
         (INITIAL_DRAW_LOW_CLASSIFIER_CONT1_OFF, INITIAL_DRAW_LOW_CLASSIFIER_CONT1),
