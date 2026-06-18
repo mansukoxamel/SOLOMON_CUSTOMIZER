@@ -1823,10 +1823,21 @@ class MainWindow(QMainWindow):
         wrap_layout.setSpacing(4)
 
         group = QGroupBox("強化パネルモンスター設定")
-        group.setToolTip("A/B/Cパネルモンスターの弾速度と発射間隔をステージごとに設定")
+        group.setToolTip(
+            "A/B/Cパネルモンスターのステージ別設定。次バージョンで全ステージ共通の固定値へ整理予定。"
+        )
         layout = QFormLayout(group)
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(2)
+
+        notice = QLabel(
+            "次バージョンでステージごとのA/B/C設定は廃止予定です。"
+            "PRG0の保守余力がなく、不具合発生時の改善が難しいため、"
+            "A/B/Cは全ステージ共通の固定パラメーターへ整理します。"
+        )
+        notice.setWordWrap(True)
+        notice.setStyleSheet("color: #a06000;")
+        layout.addRow(notice)
 
         self._panel_variant_controls = {}
         for key, label in (("a", "A"), ("b", "B"), ("c", "C")):
