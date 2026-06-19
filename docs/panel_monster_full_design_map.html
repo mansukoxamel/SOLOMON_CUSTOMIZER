@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>Panel Monster Full Design Map - SOLOMON_CUSTOMIZER</title>
+  <style>
+    :root {
+      --bg: #101214;
+      --panel: #181c20;
+      --panel2: #20262b;
+      --ink: #eef3f2;
+      --muted: #a9b5b2;
+      --line: #3a454a;
+      --accent: #74c69d;
+      --warn: #ffd166;
+      --bad: #ef767a;
+      --blue: #7ab7ff;
+      --violet: #b8a1ff;
+      --code: #d8f3dc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 15px/1.65 "Segoe UI", "Meiryo", sans-serif;
+    }
+    header {
+      padding: 28px 32px 18px;
+      border-bottom: 1px solid var(--line);
+      background: #13171a;
+    }
+    h1, h2, h3 { line-height: 1.25; margin: 0; }
+    h1 { font-size: 28px; }
+    h2 {
+      margin-top: 34px;
+      padding-bottom: 7px;
+      border-bottom: 1px solid var(--line);
+      font-size: 22px;
+    }
+    h3 { margin-top: 22px; font-size: 17px; color: var(--accent); }
+    main { max-width: 1320px; margin: 0 auto; padding: 24px 32px 64px; }
+    p { margin: 10px 0; }
+    code {
+      color: var(--code);
+      background: #0b0d0f;
+      border: 1px solid #263036;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 0.92em;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 22px;
+      background: var(--panel);
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      vertical-align: top;
+    }
+    th {
+      background: #263039;
+      color: #fff;
+      text-align: left;
+      white-space: nowrap;
+    }
+    .lead {
+      margin-top: 12px;
+      max-width: 1000px;
+      color: var(--muted);
+    }
+    .note, .warn, .danger, .ok {
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      margin: 14px 0;
+    }
+    .warn { border-color: #8f7227; background: #211b10; }
+    .danger { border-color: #8d3b44; background: #241316; }
+    .ok { border-color: #2f7454; background: #112019; }
+    .grid2, .grid3, .grid4 {
+      display: grid;
+      gap: 12px;
+      margin: 14px 0;
+    }
+    .grid2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      min-height: 72px;
+    }
+    .card strong { color: #fff; }
+    .tag {
+      display: inline-block;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 8px;
+      margin: 2px;
+      color: var(--ink);
+      background: #0d1114;
+      font-size: 12px;
+    }
+    .tag.stock { border-color: var(--blue); }
+    .tag.variant { border-color: var(--violet); }
+    .tag.phase1 { border-color: var(--warn); color: var(--warn); }
+    .flow {
+      display: grid;
+      gap: 8px;
+      margin: 16px 0 24px;
+    }
+    .flow.cols5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .flow.cols6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .node {
+      position: relative;
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      border-radius: 6px;
+      padding: 10px;
+      min-height: 82px;
+    }
+    .node:after {
+      content: ">";
+      position: absolute;
+      right: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-weight: bold;
+    }
+    .node:last-child:after { content: ""; }
+    .node .addr { display: block; color: var(--accent); font-family: Consolas, monospace; }
+    .node .small { display: block; color: var(--muted); font-size: 13px; }
+    .lane {
+      border-left: 5px solid var(--line);
+      padding: 10px 12px;
+      margin: 10px 0;
+      background: var(--panel);
+    }
+    .lane.stock { border-color: var(--blue); }
+    .lane.borrowed { border-color: var(--accent); }
+    .lane.abc { border-color: var(--violet); }
+    .lane.remove { border-color: var(--bad); }
+    .mono { font-family: Consolas, "Cascadia Mono", monospace; }
+    .small { color: var(--muted); font-size: 13px; }
+    .num { text-align: right; font-family: Consolas, monospace; white-space: nowrap; }
+    .kbd {
+      display: inline-block;
+      background: #0b0d0f;
+      border: 1px solid var(--line);
+      padding: 0 6px;
+      border-radius: 4px;
+      font-family: Consolas, monospace;
+    }
+    .matrix th:first-child, .matrix td:first-child { width: 210px; }
+    .toc a { color: var(--accent); text-decoration: none; }
+    .toc li { margin: 4px 0; }
+    @media (max-width: 980px) {
+      .grid2, .grid3, .grid4, .flow.cols5, .flow.cols6 { grid-template-columns: 1fr; }
+      .node:after { content: ""; }
+      main { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Panel Monster Full Design Map</h1>
+  <p class="lead">
+    Baseline: commit <code>61ef7c7</code> / JP mapper66 wide-title編集ROM。
+    この資料は、Panel Monster周辺を再実装する前に、原作処理・既存2-way/3-way・A/B/C Panel Variant・RAM/ROM配置・Bullet衝突契約を一枚で追えるようにするための設計図である。
+  </p>
+  <p>
+    <span class="tag stock">stock</span>
+    <span class="tag borrowed">2-way / 3-way</span>
+    <span class="tag variant">A/B/C</span>
+    <span class="tag phase1">Phase 1 target</span>
+  </p>
+</header>
+
+<main>
+  <section class="toc">
+    <h2>0. 先に結論</h2>
+    <div class="danger">
+      <strong>今の問題は「Panel Monsterの全体像が一つの設計として固定されていない」こと。</strong>
+      実装は動作修正を重ねた層構造になっており、A/B/Cの速度・間隔を消す作業でも、Fire path、AI path、Bullet path、loader/cache、親物理guardのどこへ影響するかを毎回見失いやすい。
+    </div>
+    <ul>
+      <li><a href="#scope">1. 対象範囲</a></li>
+      <li><a href="#stock">2. 原作Panel Monster</a></li>
+      <li><a href="#slots">3. main/sub slot構造</a></li>
+      <li><a href="#borrowed">4. 2-way/3-way borrowed-ID Panel Monster</a></li>
+      <li><a href="#abc">5. A/B/C Panel Variant</a></li>
+      <li><a href="#runtime">6. Runtime配置とhook一覧</a></li>
+      <li><a href="#problem">7. 現在の問題点</a></li>
+      <li><a href="#phase1">8. Phase 1設計</a></li>
+      <li><a href="#tests">9. 検証設計</a></li>
+      <li><a href="#foundation-pass0">10. Foundation Pass 0 実行チェックリスト</a></li>
+    </ul>
+  </section>
+
+  <section id="scope">
+    <h2>1. 対象範囲</h2>
+    <div class="grid3">
+      <div class="card">
+        <strong>原作Panel Monster</strong><br>
+        IDs <code>$24-$27</code>。Panel本体は方向を持ち、一定間隔でBullet <code>$20-$23</code> を生成する。
+      </div>
+      <div class="card">
+        <strong>既存強化Panel Monster</strong><br>
+        IDs <code>$52/$53/$56/$57</code> は2-way、<code>$5A/$5B/$66/$67</code> は3-way。現在も維持対象。
+      </div>
+      <div class="card">
+        <strong>A/B/C Panel Variant</strong><br>
+        IDs <code>$31/$33/$35/$37</code>, <code>$41/$43/$45/$47</code>, <code>$49/$4B/$4D/$4F</code>。Phase 1の主対象。
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Phase 1の目的:</strong>
+      A/B/Cを「ステージごとに速度/間隔が変わる敵」ではなく、「敵IDだけでA/B/C種別と方向が決まるPanel Monster派生」として整理する。
+      そのため、PRG1 stage table、PRG1 global cache table、RAM <code>$0740-$0745</code> cache、cache読込helperは削除候補になる。
+    </div>
+  </section>
+
+  <section id="stock">
+    <h2>2. 原作Panel Monsterの処理</h2>
+
+    <h3>2.1 状態遷移</h3>
+    <div class="flow cols5">
+      <div class="node">
+        <span class="addr">$A54C</span>
+        AI entry<br>
+        <span class="small">$B201で behavior&gt;&gt;2 をstate化</span>
+      </div>
+      <div class="node">
+        <span class="addr">$A575</span>
+        state 0 cooldown<br>
+        <span class="small">sub[2] >= $C0 で発射準備</span>
+      </div>
+      <div class="node">
+        <span class="addr">$B2EA</span>
+        child sub-slot確保<br>
+        <span class="small">sub[6]へchild slot index</span>
+      </div>
+      <div class="node">
+        <span class="addr">$A556</span>
+        state 1 fire<br>
+        <span class="small">pre-shot wait $10後に $AE76</span>
+      </div>
+      <div class="node">
+        <span class="addr">$AE76</span>
+        Bullet materialize<br>
+        <span class="small">type $20, behavior=direction</span>
+      </div>
+    </div>
+
+    <table>
+      <tr><th>アドレス</th><th>役割</th><th>Phase 1での扱い</th></tr>
+      <tr><td><code>$A54C</code></td><td>Panel Monster AI dispatch。state 0/1へ分岐。</td><td>維持。A/B/Cも最終的にはここへ寄せる。</td></tr>
+      <tr><td><code>$A575</code></td><td>state 0 cooldown。原作比較は <code>CMP #$C0</code>。</td><td>A/B/C interval override hookが入っている。Phase 1ではcache依存を削る。</td></tr>
+      <tr><td><code>$A556</code></td><td>state 1 fire。原作pre-shot waitは <code>CMP #$10</code>。</td><td>fire dispatch hookの入口。2-way/3-way/A/B/Cが合流。</td></tr>
+      <tr><td><code>$AE76</code></td><td>child Bullet生成。親sub[6]で対象child slotを決める。</td><td>維持。ここを壊すとBullet追跡が崩れる。</td></tr>
+      <tr><td><code>$AFBB</code></td><td>Bullet AI dispatch。</td><td>速度presetとextra-stepのhookが合流する。</td></tr>
+    </table>
+
+    <h3>2.2 Bullet衝突契約</h3>
+    <div class="flow cols5">
+      <div class="node"><span class="addr">$AFBB</span>Bullet AI dispatch</div>
+      <div class="node"><span class="addr">$B201</span>state抽出</div>
+      <div class="node"><span class="addr">$AFD8</span>state 2 moving/collision</div>
+      <div class="node"><span class="addr">$AC39</span>4隅collision sample</div>
+      <div class="node"><span class="addr">$B016/$9BE3</span>hit tile決定/破壊</div>
+    </div>
+    <div class="warn">
+      <strong>重要:</strong>
+      <code>$8689</code> は共通物理であり、Bullet固有の壁衝突ではない。
+      Bulletを速くする時に <code>$8689</code> だけを複数回呼ぶと、<code>$AC39</code> のcollision sample前に壁を抜ける。
+      2x/3xは「移動substepごとに <code>$AC39</code> を確認する」契約が必要。
+    </div>
+  </section>
+
+  <section id="slots">
+    <h2>3. main/sub slot構造</h2>
+    <table class="matrix">
+      <tr><th>offset</th><th>main slot</th><th>sub slot</th><th>Panel Monsterでの意味</th></tr>
+      <tr><td><code>+0</code></td><td>status/active</td><td>status/active</td><td>child slotを有効化する時にsub[0]へ <code>$80</code>。</td></tr>
+      <tr><td><code>+1</code></td><td>entity type</td><td>counter/state byte</td><td>main[1]でPanel種別、sub[1]でpre-shot counter。</td></tr>
+      <tr><td><code>+2</code></td><td>previous type/state helper</td><td>counter</td><td>sub[2]がcooldown counter。state0で比較される。</td></tr>
+      <tr><td><code>+3</code></td><td>behavior: state + direction</td><td>汎用</td><td>low 2 bitsが方向。bit2以上がAI state。</td></tr>
+      <tr><td><code>+5</code></td><td>Y velocity</td><td>汎用</td><td>親drift対策で0化対象。</td></tr>
+      <tr><td><code>+6</code></td><td>Y subpixel</td><td>child slot index</td><td>親sub[6]から <code>$AE76</code> がchildを引く。</td></tr>
+      <tr><td><code>+7</code></td><td>Y position</td><td>A/B/C Bullet speed marker</td><td>混同注意。main+7は位置、sub+7がmarker。</td></tr>
+      <tr><td><code>+8</code></td><td>X velocity</td><td>汎用</td><td>親drift対策で0化対象。</td></tr>
+      <tr><td><code>+9</code></td><td>X subpixel</td><td>汎用</td><td>親drift対策で0化対象。</td></tr>
+      <tr><td><code>+10</code></td><td>X position</td><td>汎用</td><td>Bullet spawn位置、移動補正対象。</td></tr>
+    </table>
+    <div class="danger">
+      <strong>probe設計上の注意:</strong>
+      <code>main+7</code> をBullet markerとして読むと誤診断になる。A/B/C Bullet speed markerはchild sub-slot <code>+7</code>。
+    </div>
+  </section>
+
+  <section id="borrowed">
+    <h2>4. 2-way/3-way borrowed-ID Panel Monster</h2>
+
+    <h3>4.1 目的</h3>
+    <p>
+      <code>panel_monster_variant.py</code> が担当する既存機能。
+      借用IDはtype byteを保持したまま、property/animationをPanel Monsterへ寄せ、AI wrapperで方向bitを作って原作Panel AIへ入れる。
+    </p>
+
+    <table>
+      <tr><th>family</th><th>IDs</th><th>fire behavior</th><th>維持要件</th></tr>
+      <tr><td>2-way</td><td><code>$52/$53/$56/$57</code></td><td>2発。marker tableは2-way entry。</td><td>A/B/C Phase 1で壊さない。</td></tr>
+      <tr><td>3-way</td><td><code>$5A/$5B/$66/$67</code></td><td>3発。Saramandor-ID系も含む。</td><td>A/B/C分類helperに巻き込まない。</td></tr>
+    </table>
+
+    <h3>4.2 既存hook</h3>
+    <div class="flow cols6">
+      <div class="node"><span class="addr">$A556</span>Panel fire hook</div>
+      <div class="node"><span class="addr">$BCD2</span>fire dispatch</div>
+      <div class="node"><span class="addr">$BD88</span>common fire loop</div>
+      <div class="node"><span class="addr">$AE76</span>spawn Bullet</div>
+      <div class="node"><span class="addr">$BF69</span>Bullet hook</div>
+      <div class="node"><span class="addr">$AC39</span>collision sample</div>
+    </div>
+  </section>
+
+  <section id="abc">
+    <h2>5. A/B/C Panel Variant</h2>
+
+    <h3>5.1 ID設計</h3>
+    <table>
+      <tr><th>Group</th><th>IDs</th><th>方向</th><th>current 61ef7c7 behavior</th><th>Phase 1後</th></tr>
+      <tr><td>C</td><td><code>$31/$33/$35/$37</code></td><td>R/L/U/D</td><td>group offset <code>$04</code> で <code>$0744/$0745</code> を読む。</td><td>敵IDは維持。速度/間隔cacheは廃止対象。</td></tr>
+      <tr><td>A</td><td><code>$41/$43/$45/$47</code></td><td>R/L/U/D</td><td>group offset <code>$00</code> で <code>$0740/$0741</code> を読む。</td><td>敵IDは維持。速度/間隔cacheは廃止対象。</td></tr>
+      <tr><td>B</td><td><code>$49/$4B/$4D/$4F</code></td><td>R/L/U/D</td><td>group offset <code>$02</code> で <code>$0742/$0743</code> を読む。</td><td>敵IDは維持。速度/間隔cacheは廃止対象。</td></tr>
+    </table>
+
+    <h3>5.2 current 61ef7c7 data flow</h3>
+    <div class="flow cols6">
+      <div class="node">
+        <span class="addr">common_settings</span>
+        UI/global config<br>
+        <span class="small">A/B/C speed+interval</span>
+      </div>
+      <div class="node">
+        <span class="addr">PRG1 $8A60</span>
+        global cache table<br>
+        <span class="small">6 bytes</span>
+      </div>
+      <div class="node">
+        <span class="addr">$8A00 loader</span>
+        room load runtime<br>
+        <span class="small">copies 6 bytes</span>
+      </div>
+      <div class="node">
+        <span class="addr">$0740-$0745</span>
+        RAM cache<br>
+        <span class="small">A/B/C speed+interval</span>
+      </div>
+      <div class="node">
+        <span class="addr">$BE62/$BEBD</span>
+        interval/speed helper<br>
+        <span class="small">reads RAM cache</span>
+      </div>
+      <div class="node">
+        <span class="addr">Bullet marker</span>
+        sub-slot <code>+7</code><br>
+        <span class="small">$88-$8B</span>
+      </div>
+    </div>
+
+    <div class="warn">
+      <strong>Phase 1で切る線:</strong>
+      <code>common_settings -> PRG1 global cache table -> loader copy -> $0740-$0745 -> cache helper</code>
+      の経路を消す。A/B/C敵ID、方向、Bullet marker、2-way/3-way共存は残す。
+    </div>
+
+    <h3>5.3 marker設計</h3>
+    <table>
+      <tr><th>marker</th><th>意味</th><th>保存場所</th><th>Bullet処理</th></tr>
+      <tr><td><code>$88</code></td><td>1/4 speed</td><td>child sub-slot <code>+7</code></td><td>速度table値を低速値へ。</td></tr>
+      <tr><td><code>$89</code></td><td>1/2 speed</td><td>child sub-slot <code>+7</code></td><td>速度table値を低速値へ。</td></tr>
+      <tr><td><code>$8A</code></td><td>2x speed</td><td>child sub-slot <code>+7</code></td><td>stock速度 + 1 extra movement step + collision sample。</td></tr>
+      <tr><td><code>$8B</code></td><td>3x speed</td><td>child sub-slot <code>+7</code></td><td>stock速度 + 2 extra movement steps + collision sample。</td></tr>
+      <tr><td><code>$00</code></td><td>normal/unmarked</td><td>child sub-slot <code>+7</code></td><td>通常Panel Bullet。</td></tr>
+    </table>
+  </section>
+
+  <section id="runtime">
+    <h2>6. Runtime配置とhook一覧</h2>
+
+    <h3>6.1 current 61ef7c7 final pieces</h3>
+    <table>
+      <tr><th>piece</th><th>file</th><th>CPU</th><th>size</th><th>capacity</th><th>役割</th></tr>
+      <tr><td>fire_dispatch</td><td class="num">0x3CE2-0x3D00</td><td class="num">$BCD2-$BCF0</td><td class="num">31B</td><td class="num">31B</td><td>normal / 2-way / 3-way / A/B/C fire path選択。</td></tr>
+      <tr><td>stage_dispatch_tail</td><td class="num">0x3D01-0x3D03</td><td class="num">$BCF1-$BCF3</td><td class="num">3B</td><td class="num">3B</td><td>A/B/C stage fire helperへのtail jump。</td></tr>
+      <tr><td>fire_marker_table</td><td class="num">0x3D04-0x3D0E</td><td class="num">$BCF4-$BCFE</td><td class="num">11B</td><td class="num">11B</td><td>2-way/3-way/A/B/C marker列。</td></tr>
+      <tr><td>fire_common</td><td class="num">0x3D98-0x3E09</td><td class="num">$BD88-$BDF9</td><td class="num">114B</td><td class="num">120B</td><td>Bullet生成loop。<code>$AE76</code>を呼ぶ。</td></tr>
+      <tr><td>state0_interval_helper</td><td class="num">0x3E72-0x3E83</td><td class="num">$BE62-$BE73</td><td class="num">18B</td><td class="num">18B</td><td>A/B/C group offsetからRAM intervalを読む。</td></tr>
+      <tr><td>group_ram_offset_helper</td><td class="num">0x3EAF-0x3EB6</td><td class="num">$BE9F-$BEA6</td><td class="num">8B</td><td class="num">23B</td><td>A/B/C group offset helperを呼ぶ。</td></tr>
+      <tr><td>speed_select_helper</td><td class="num">0x3ECD-0x3ED3</td><td class="num">$BEBD-$BEC3</td><td class="num">7B</td><td class="num">10B</td><td><code>$0740+$X</code> からspeed presetを読む。</td></tr>
+      <tr><td>static_marker_helper</td><td class="num">0x3F50-0x3F5B</td><td class="num">$BF40-$BF4B</td><td class="num">12B</td><td class="num">16B</td><td>child sub-slot marker書込。</td></tr>
+      <tr><td>merged_panel_bullet_hook</td><td class="num">0x3F79-0x3FC9</td><td class="num">$BF69-$BFB9</td><td class="num">81B</td><td class="num">81B</td><td>Panel Bullet marker処理、移動補正。</td></tr>
+      <tr><td>bullet_speed_apply_and_table</td><td class="num">0x4098-0x40CE</td><td class="num">$C088-$C0BE</td><td class="num">55B</td><td class="num">58B</td><td>markerから速度table値を選ぶ。</td></tr>
+      <tr><td>bullet_speed_extra_helper</td><td class="num">0x6833-0x6885</td><td class="num">$E823-$E875</td><td class="num">83B</td><td class="num">121B</td><td>2x/3x extra step + <code>$AC39</code> collision check。</td></tr>
+      <tr><td>parent_field_clear_helper</td><td class="num">0x67A3-0x67B3</td><td class="num">$E793-$E7A3</td><td class="num">17B</td><td class="num">17B</td><td>親velocity/subpixel clear。</td></tr>
+      <tr><td>parent_speed_guard</td><td class="num">0x67B4-0x67D0</td><td class="num">$E7A4-$E7C0</td><td class="num">29B</td><td class="num">104B</td><td><code>$866D</code> speed init後に親速度を消す。</td></tr>
+      <tr><td>shared_ai_wrapper</td><td class="num">0x68C1-0x68FB</td><td class="num">$E8B1-$E8EB</td><td class="num">59B</td><td class="num">171B</td><td>borrowed-ID direction normalize。</td></tr>
+      <tr><td>abc_group_offset_helper</td><td class="num">0x693C-0x6959</td><td class="num">$E92C-$E949</td><td class="num">30B</td><td class="num">48B</td><td>A/B/Cだけにoffsetを返す。2-way/3-wayは除外。</td></tr>
+      <tr><td>ai_dispatch_helper</td><td class="num">0x696C-0x697E</td><td class="num">$E95C-$E96E</td><td class="num">19B</td><td class="num">24B</td><td>A/B/C AI dispatch entry。</td></tr>
+      <tr><td>ai_dispatch_panel_helper</td><td class="num">0x69D4-0x69DF</td><td class="num">$E9C4-$E9CF</td><td class="num">12B</td><td class="num">12B</td><td>A/B/C panel tail。</td></tr>
+    </table>
+
+    <h3>6.2 RAM/PRG1 current cache配置</h3>
+    <table>
+      <tr><th>場所</th><th>current role</th><th>Phase 1 role</th></tr>
+      <tr><td><code>PRG1 0x8A70-0x8A75</code></td><td>global cache table 6B。A/B/C speed+interval。</td><td>削除候補。PRG1 reserveへ戻す。</td></tr>
+      <tr><td><code>PRG1 0x8A10-0x8A6F</code></td><td>runtime loader slot 96B。StageExt side effects + cache copy。</td><td>StageExt side effectsは維持。cache copyだけ削除。</td></tr>
+      <tr><td><code>RAM $0740-$0745</code></td><td>A/B/C runtime cache。</td><td>Panel Variant用途から解放。再利用は別probe後。</td></tr>
+      <tr><td><code>RAM $0750-$0767</code></td><td>visible item mask。</td><td>無関係。触らない。</td></tr>
+    </table>
+  </section>
+
+  <section id="problem">
+    <h2>7. 現在の問題点</h2>
+
+    <div class="lane remove">
+      <strong>問題1: A/B/C速度・間隔の保存経路が過剰</strong><br>
+      current 61ef7c7では、全ステージ共通の6B値をPRG1へ置き、loaderでRAMへコピーし、PRG0 helperがRAMから読む。
+      しかしPhase 1要件では「ステージ別A/B/C速度・間隔を廃止」するため、この経路は目的に対して重い。
+    </div>
+
+    <div class="lane remove">
+      <strong>問題2: cache helperが設計の中心に残っている</strong><br>
+      <code>$BE62</code> interval helper、<code>$BE9F</code> group RAM offset helper、<code>$BEBD</code> speed selectorがcache前提。
+      これを残したまま「見た目だけtableを消す」と、再保存互換やMesen検証でズレる。
+    </div>
+
+    <div class="lane remove">
+      <strong>問題3: 親drift対策と共通物理の責務が曖昧</strong><br>
+      current 61ef7c7は <code>$866D</code> speed initializer hookで速度を消す。
+      ただし、どの段階で <code>$8689</code> common physicsが走るかは別問題で、probeではここを明確に分けて見る必要がある。
+    </div>
+
+    <div class="lane remove">
+      <strong>問題4: Bullet markerの観測点を間違えると結論が崩れる</strong><br>
+      markerはchild sub-slot <code>+7</code>。main-slot <code>+7</code> はY座標。
+      Mesen probeではこの区別を最初に固定する。
+    </div>
+  </section>
+
+  <section id="phase1">
+    <h2>8. Phase 1設計</h2>
+
+    <h3>8.1 作業順</h3>
+    <table>
+      <tr><th>順番</th><th>作業</th><th>理由</th><th>成功条件</th></tr>
+      <tr>
+        <td class="num">1</td>
+        <td>この設計図を基準にする。</td>
+        <td>接続全体を固定しないままコードを削ると、loader/cache/Bullet/AIが混ざる。</td>
+        <td>どのhelperが何を読むか説明できる。</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td>cache経路を廃止する設計を確定。</td>
+        <td>Phase 1の本体はPRG1 table/RAM cache依存の削除。</td>
+        <td><code>$0740-$0745</code> をPanel Variantが読まない。</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td>interval/speed helperを直接値または固定契約へ置換。</td>
+        <td>cache helperを残すとPhase 1が完了しない。</td>
+        <td><code>$BE62/$BEBD/$E92C</code> の責務がcache非依存になる。</td>
+      </tr>
+      <tr>
+        <td class="num">4</td>
+        <td>runtime loaderからcache copyだけ削除。</td>
+        <td>StageExt/Seal/visible item side effectsは別機能なので残す。</td>
+        <td>loader再保存互換が維持される。</td>
+      </tr>
+      <tr>
+        <td class="num">5</td>
+        <td>ROM/RAM管理簿と <code>RESERVED_SPANS</code> を同時更新。</td>
+        <td>空き領域誤認を防ぐ。</td>
+        <td><code>room_flags._verify()</code> が通る。</td>
+      </tr>
+      <tr>
+        <td class="num">6</td>
+        <td>Mesen probeで動作確認。</td>
+        <td>静的署名だけではBullet/親driftは確定しない。</td>
+        <td>旧cache writeなし、Bullet marker正、A/B/C方向正。</td>
+      </tr>
+    </table>
+
+    <h3>8.2 削除/維持マトリクス</h3>
+    <table>
+      <tr><th>項目</th><th>Phase 1</th><th>理由</th></tr>
+      <tr><td>A/B/C敵ID</td><td class="ok">維持</td><td>ユーザーが配置済みの敵種別を読めなくしてはいけない。</td></tr>
+      <tr><td>A/B/C speed/intervalのステージ別保存</td><td class="danger">廃止</td><td>Issue Phase 1の中心。</td></tr>
+      <tr><td><code>PanelVariantStageTable</code> 64 room table</td><td class="danger">廃止/予約回収</td><td>ステージ別値が不要になる。</td></tr>
+      <tr><td>PRG1 6B global cache table</td><td class="danger">廃止候補</td><td>直接operand方式にするなら不要。</td></tr>
+      <tr><td>RAM <code>$0740-$0745</code></td><td class="danger">Panel用途から解放</td><td>cacheを読まない設計にする。</td></tr>
+      <tr><td>2-way/3-way borrowed IDs</td><td class="ok">維持</td><td>既存機能。A/B/C helperに巻き込まない。</td></tr>
+      <tr><td>Bullet marker <code>$88-$8B</code></td><td class="ok">維持</td><td>速度preset判定に必要。保存場所はsub+7。</td></tr>
+      <tr><td>Bullet extra step + <code>$AC39</code></td><td class="ok">維持</td><td>壁抜け防止の核。</td></tr>
+      <tr><td>property/animation Panel classifier</td><td class="ok">維持</td><td>見た目をPanel Monsterにするため必要。</td></tr>
+    </table>
+  </section>
+
+  <section id="tests">
+    <h2>9. 検証設計</h2>
+
+    <h3>9.1 静的検証</h3>
+    <table>
+      <tr><th>検証</th><th>目的</th><th>必要条件</th></tr>
+      <tr><td><code>python -m compileall -q magatu_skc</code></td><td>生成ASM/定数assertが壊れていない。</td><td>通る。</td></tr>
+      <tr><td><code>git diff --check</code></td><td>空白/改行事故を防ぐ。</td><td>通る。</td></tr>
+      <tr><td><code>room_flags._verify()</code></td><td>ROM/RAM予約重複を防ぐ。</td><td>通る。</td></tr>
+      <tr><td>クリーンJP ROM -> mapper66 -> patch apply</td><td>初回保存互換。</td><td>署名エラーなし。</td></tr>
+      <tr><td>同じROMへ再apply</td><td>再保存互換。</td><td>差分 <code>[]</code>。</td></tr>
+      <tr><td>旧cache runtime ROMへapply</td><td>既存ユーザーROMの移行。</td><td>direct runtimeへ正規化。</td></tr>
+    </table>
+
+    <h3>9.2 Mesen probe観測点</h3>
+    <table>
+      <tr><th>観測</th><th>見る場所</th><th>期待</th></tr>
+      <tr><td>旧cache write</td><td><code>$0740-$074F</code> write callback</td><td>Phase 1後はPanel Variant由来のwriteなし。</td></tr>
+      <tr><td>interval helper</td><td><code>$A575</code>, helper CPU</td><td>A/B/Cと通常Panelの分岐が正しい。</td></tr>
+      <tr><td>speed selector</td><td>speed helper / dynamic marker helper</td><td>A/B/Cごとのmarkerが正しい。</td></tr>
+      <tr><td>child marker</td><td>child sub-slot <code>+7</code></td><td><code>$88-$8B</code> または <code>$00</code>。</td></tr>
+      <tr><td>main position</td><td>main slot <code>+7/+10</code></td><td>markerと混同しない。</td></tr>
+      <tr><td>Bullet collision</td><td><code>$AC39</code>, <code>$AFD8</code></td><td>2x/3x extra stepごとにcollision sample。</td></tr>
+      <tr><td>親drift</td><td><code>$866D</code>, <code>$8689</code>, main <code>+5/+8/+6/+9</code></td><td>A/B/C親が借用元速度を継承しない。</td></tr>
+    </table>
+
+    <div class="ok">
+      <strong>次に実装へ進む条件:</strong>
+      このHTMLのPhase 1 matrixに沿って、どのbytesを削り、どのbytesを残すかを先に決める。
+      その後にコードを触る。最初に実装から入らない。
+    </div>
+  </section>
+
+  <section id="foundation-pass0">
+    <h2>10. Foundation Pass 0 実行チェックリスト</h2>
+
+    <div class="note">
+      <strong>このPassの目的:</strong>
+      まだROM runtimeは変更しない。まず、以降の作業が「cacheだけ削る」「速度だけ直す」「driftだけ潰す」という局所作業へ戻らないよう、Panel Monster全系統の土台を固定する。
+    </div>
+
+    <h3>10.1 まず確認する現在地</h3>
+    <table>
+      <tr><th>確認</th><th>コマンド/見る場所</th><th>期待値</th></tr>
+      <tr><td>基準commit</td><td><code>git rev-parse --short HEAD</code></td><td><code>61ef7c7</code></td></tr>
+      <tr><td>設計図</td><td><code>docs/panel_monster_full_design_map.html</code></td><td>Git管理対象として追加済み。</td></tr>
+      <tr><td>Issue</td><td>GitHub Issue #1</td><td>旧段階案を消さず、Foundation Pass方針を追記済み。</td></tr>
+      <tr><td>作業開始条件</td><td>このHTML</td><td>どの経路を触るか説明してから着手する。</td></tr>
+    </table>
+
+    <h3>10.2 Pass 0で確定する不変条件</h3>
+    <table>
+      <tr><th>不変条件</th><th>理由</th><th>破ると起きる問題</th></tr>
+      <tr><td>Panel系IDは失わない。</td><td>既存ステージデータの敵種別互換を守る。</td><td>古いステージでA/B/C敵が消える。</td></tr>
+      <tr><td>ステージ別A/B/C speed/interval値は復元しない。</td><td>旧仕様を延命しない。</td><td>cache/table互換が残り、Phase 1が終わらない。</td></tr>
+      <tr><td>2-way/3-wayをA/B/C cache pathへ巻き込まない。</td><td>既存強化Panel Monsterは維持対象。</td><td>2-way/3-wayの弾数や方向が崩れる。</td></tr>
+      <tr><td>Bullet markerはchild sub-slot <code>+7</code>。</td><td>speed preset判定の実体。</td><td>main+7のY座標をmarkerと誤診断する。</td></tr>
+      <tr><td>速いBulletはsubstepごとに <code>$AC39</code> を守る。</td><td>壁抜け防止。</td><td>2x/3x Bulletが壁をすり抜ける。</td></tr>
+      <tr><td><code>$0740-$0745</code> はPhase 4でPanel用途から外す。</td><td>cache廃止は土台整理後に行う。</td><td>loader/RAM/helperだけ先に変えて挙動がずれる。</td></tr>
+    </table>
+
+    <h3>10.3 最初にやる実作業</h3>
+    <table>
+      <tr><th>順番</th><th>作業</th><th>成果物</th></tr>
+      <tr><td class="num">1</td><td>このHTMLをGit管理へ追加する。</td><td>Foundation Pass 0の基準資料が履歴に残る。</td></tr>
+      <tr><td class="num">2</td><td>Issue #1の追記方針とHTMLのPass構成が一致しているか確認する。</td><td>GitHub上の方針とローカル設計図が食い違わない。</td></tr>
+      <tr><td class="num">3</td><td>次の作業対象を「分類」「Fire path」「Bullet path」「cache廃止」に分けて選ぶ。</td><td>コード変更の入口が明確になる。</td></tr>
+      <tr><td class="num">4</td><td>コードへ入る前に、触るhook/siteと守る検証を宣言する。</td><td>局所修正の迷走を防ぐ。</td></tr>
+    </table>
+
+    <div class="ok">
+      <strong>Pass 0の完了条件:</strong>
+      このHTMLがGitに入り、Issue #1の改訂方針と一致し、次に触る場所を「なぜそこからか」説明できる状態。
+      ここまで終わってから、Foundation Pass 1の分類整理へ進む。
+    </div>
+  </section>
+</main>
+</body>
+</html>
