@@ -201,6 +201,8 @@
       <li><a href="#phase1">8. Phase 1設計</a></li>
       <li><a href="#tests">9. 検証設計</a></li>
       <li><a href="#foundation-pass0">10. Foundation Pass 0 実行チェックリスト</a></li>
+      <li><a href="#foundation-pass1">11. Foundation Pass 1 分類契約</a></li>
+      <li><a href="#staging-area">12. 全体組み直し用の仮置き場</a></li>
     </ul>
   </section>
 
@@ -590,6 +592,275 @@
       <strong>Pass 0の完了条件:</strong>
       このHTMLがGitに入り、Issue #1の改訂方針と一致し、次に触る場所を「なぜそこからか」説明できる状態。
       ここまで終わってから、Foundation Pass 1の分類整理へ進む。
+    </div>
+  </section>
+
+  <section id="foundation-pass1">
+    <h2>11. Foundation Pass 1 分類契約</h2>
+
+    <div class="note">
+      <strong>このPassの目的:</strong>
+      Panel系IDを一つの分類思想へ揃える。ここではまだASMを削らない。
+      先に「どの分類器が何を返すべきか」「どのhookがどの分類を使うべきか」を固定する。
+    </div>
+
+    <h3>11.1 現在の分類器が割れている場所</h3>
+    <table>
+      <tr><th>分類処理</th><th>実装場所</th><th>判定対象</th><th>現在の用途</th><th>問題</th></tr>
+      <tr>
+        <td>A/B/C group offset</td>
+        <td><code>panel_monster_stage_variant._build_abc_group_offset_helper()</code><br><code>$E92C</code></td>
+        <td>A/B/C IDsのみ</td>
+        <td><code>$0740-$0745</code> cacheのoffset決定</td>
+        <td>cache廃止後は責務が消える。2-way/3-wayとは別分類。</td>
+      </tr>
+      <tr>
+        <td>shared Panel type classifier</td>
+        <td><code>panel_monster_stage_variant._build_panel_type_classifier()</code><br><code>$BFBA/$DAB9</code></td>
+        <td>A/B/C + 2-way/3-way borrowed IDs</td>
+        <td>property/animation、parent speed guard、fire stage dispatch</td>
+        <td>広いPanel判定として有用。ただしgroupや弾数は返さない。</td>
+      </tr>
+      <tr>
+        <td>borrowed-ID property/anim checks</td>
+        <td><code>panel_monster_variant._build_property_hook()</code><br><code>panel_monster_variant._build_anim_hook()</code></td>
+        <td>2-way/3-way borrowed IDs</td>
+        <td>Panel見た目へ差し替え</td>
+        <td>A/B/C導入後はstage側のclassifierへ寄せる必要がある。</td>
+      </tr>
+      <tr>
+        <td>fire dispatch type checks</td>
+        <td><code>_build_final_fire_dispatch()</code>, <code>_build_fire_dispatch()</code></td>
+        <td>2-way/3-way, A/B/C</td>
+        <td>弾数と発射入口の選択</td>
+        <td>見た目分類とは別に、弾数分類が必要。</td>
+      </tr>
+      <tr>
+        <td>AI wrapper routing</td>
+        <td><code>_build_final_ai_wrapper_candidate()</code>, <code>_build_final_ai_dispatch_helper()</code></td>
+        <td>borrowed IDs, A/B/C ranges</td>
+        <td>方向正規化、親速度clear、stock Panel AIへ合流</td>
+        <td>方向分類とPanel見た目分類が混在している。</td>
+      </tr>
+    </table>
+
+    <h3>11.2 分類を4種類へ分ける</h3>
+    <table>
+      <tr><th>分類名</th><th>返す情報</th><th>使う場所</th><th>使ってはいけない場所</th></tr>
+      <tr>
+        <td><strong>Visual Panel Classifier</strong></td>
+        <td>Panel見た目かどうか。Carry set/clearだけでよい。</td>
+        <td>property hook、animation hook、parent speed guard。</td>
+        <td>A/B/C speed/interval選択、弾数選択。</td>
+      </tr>
+      <tr>
+        <td><strong>Fire Family Classifier</strong></td>
+        <td>normal / 2-way / 3-way / A/B/C。</td>
+        <td><code>$A556</code> fire dispatch、common fire loop入口。</td>
+        <td>property/animation hook。</td>
+      </tr>
+      <tr>
+        <td><strong>A/B/C Parameter Classifier</strong></td>
+        <td>A/B/C group。A/B/C以外は無効。</td>
+        <td>A/B/C speed marker、A/B/C interval。</td>
+        <td>2-way/3-way borrowed IDs、通常Panel。</td>
+      </tr>
+      <tr>
+        <td><strong>Direction Normalizer</strong></td>
+        <td>Panel direction bits 0..3。</td>
+        <td>AI wrapper、<code>$AE76</code>前のdirection setup。</td>
+        <td>見た目分類、cache/table分類。</td>
+      </tr>
+    </table>
+
+    <h3>11.3 IDごとの分類表</h3>
+    <table>
+      <tr><th>ID group</th><th>Visual Panel</th><th>Fire Family</th><th>A/B/C Param</th><th>Direction Source</th></tr>
+      <tr><td><code>$24-$27</code></td><td>stock Panel</td><td>normal</td><td>none</td><td>type / behavior low bits</td></tr>
+      <tr><td><code>$52/$53/$56/$57</code></td><td>yes</td><td>2-way</td><td>none</td><td>borrowed-ID wrapper</td></tr>
+      <tr><td><code>$5A/$5B/$66/$67</code></td><td>yes</td><td>3-way</td><td>none</td><td>borrowed-ID wrapper</td></tr>
+      <tr><td><code>$31/$33/$35/$37</code></td><td>yes</td><td>A/B/C</td><td>C</td><td>ID low direction bits</td></tr>
+      <tr><td><code>$41/$43/$45/$47</code></td><td>yes</td><td>A/B/C</td><td>A</td><td>ID low direction bits</td></tr>
+      <tr><td><code>$49/$4B/$4D/$4F</code></td><td>yes</td><td>A/B/C</td><td>B</td><td>ID low direction bits</td></tr>
+      <tr><td>その他敵</td><td>no</td><td>stock enemy</td><td>none</td><td>original AI</td></tr>
+    </table>
+
+    <h3>11.4 Pass 1での禁止事項</h3>
+    <div class="danger">
+      <p><strong>禁止:</strong> Visual Panel ClassifierでA/B/C speed/intervalを決める。</p>
+      <p><strong>禁止:</strong> A/B/C Parameter Classifierに2-way/3-way borrowed IDsを通す。</p>
+      <p><strong>禁止:</strong> property/animation hookのためだけにFire Family分類を呼ぶ。</p>
+      <p><strong>禁止:</strong> direction normalizeとparent velocity clearを別々の場所で重複実行し、どちらが正か分からない状態にする。</p>
+    </div>
+
+    <h3>11.5 次のコード変更候補</h3>
+    <table>
+      <tr><th>候補</th><th>内容</th><th>リスク</th><th>先に確認すること</th></tr>
+      <tr>
+        <td>分類関数のPython側命名整理</td>
+        <td>helper名とコメントを上の4分類に合わせる。</td>
+        <td>低</td>
+        <td>ROM bytesを変えない範囲で始められるか。</td>
+      </tr>
+      <tr>
+        <td>property/animationの分類契約統一</td>
+        <td>stage variant有効時はshared Panel type classifierへ寄せる。</td>
+        <td>中</td>
+        <td>Spark Ball hookとのfall-throughを壊さないか。</td>
+      </tr>
+      <tr>
+        <td>A/B/C parameter helperの責務縮小</td>
+        <td>cache offset helperではなくA/B/C group selectorとして定義し直す。</td>
+        <td>中</td>
+        <td>Phase 4でcache廃止する時に消すのか、直接operand selectorとして残すのか。</td>
+      </tr>
+      <tr>
+        <td>parent clear責務の一本化</td>
+        <td>AI wrapper entry clearとspeed initializer guardの役割を分離。</td>
+        <td>高</td>
+        <td>Mesenで親drift観測点を固定してから。</td>
+      </tr>
+    </table>
+
+    <div class="ok">
+      <strong>Pass 1の完了条件:</strong>
+      4種類の分類契約がHTMLとコードコメントで一致し、次の実装修正が「どの分類契約を改善するか」で説明できること。
+    </div>
+  </section>
+
+  <section id="staging-area">
+    <h2>12. 全体組み直し用の仮置き場</h2>
+
+    <div class="warn">
+      <strong>判断:</strong>
+      Panel Monster周辺を全部組み立て直す場合、いきなり現在のhook/caveへ分割配置してはいけない。
+      まず仮置き場で一体runtimeとして組み、入口・出口・サイズ・破壊レジスタ・RAM副作用を確認してから、本番配置へ分解する。
+    </div>
+
+    <h3>12.1 仮置き場は2種類に分ける</h3>
+    <table>
+      <tr><th>種類</th><th>場所</th><th>目的</th><th>本番ROMに残すか</th></tr>
+      <tr>
+        <td><strong>Build-time staging blob</strong></td>
+        <td>Python生成上の仮想base address</td>
+        <td>Panel Monster全体runtimeを一つの連続blobとして設計し、内部entry/label/branch/sizeを検証する。</td>
+        <td>残さない。設計とサイズ計測用。</td>
+      </tr>
+      <tr>
+        <td><strong>ROM-side probe staging</strong></td>
+        <td>PRG1 reserveまたは明示した実験用PRG0 cave</td>
+        <td>Mesenで実行時挙動を確認するための一時配置。hookは最小限のtrampolineで入る。</td>
+        <td>原則残さない。本番前に分解/再配置する。</td>
+      </tr>
+    </table>
+
+    <h3>12.2 なぜ仮置き場が必要か</h3>
+    <table>
+      <tr><th>理由</th><th>説明</th><th>仮置きなしで起きる問題</th></tr>
+      <tr>
+        <td>分割配置のままだと全体が見えない</td>
+        <td>現在は <code>$BCD2</code>, <code>$BD88</code>, <code>$BE62</code>, <code>$BF69</code>, <code>$C088</code>, <code>$E823</code>, <code>$E8B1</code>, <code>$E92C</code> などに分散している。</td>
+        <td>一箇所直すたびに別helperの契約を壊す。</td>
+      </tr>
+      <tr>
+        <td>branch距離とentry pointを先に確定できる</td>
+        <td>一体blobならlabel基準で設計でき、あとで本番配置へ分割する時に必要なlong jumpだけを判断できる。</td>
+        <td>小断片へ先に詰めて、分岐距離不足や余白不足で設計が歪む。</td>
+      </tr>
+      <tr>
+        <td>破壊レジスタを追いやすい</td>
+        <td>Panel fire、AI wrapper、Bullet hookはA/X/Y/PHA/PLAの契約が違う。一体設計で入口ごとのpreserve契約を明示する。</td>
+        <td>一見動くが、別敵や次フレームでズレる。</td>
+      </tr>
+      <tr>
+        <td>Mesen probe対象を固定できる</td>
+        <td>仮置きruntimeのentryを少数にし、exec traceで何が走ったかを見やすくする。</td>
+        <td>既存分散helperのログが混ざり、原因箇所を誤認する。</td>
+      </tr>
+    </table>
+
+    <h3>12.3 仮置きruntimeに含める単位</h3>
+    <table>
+      <tr><th>単位</th><th>含めるもの</th><th>外へ出してよいもの</th></tr>
+      <tr><td>分類</td><td>Visual Panel / Fire Family / A/B/C Parameter / Direction Normalizer</td><td>ROM配置表、docs用メタ情報</td></tr>
+      <tr><td>AI entry</td><td>A/B/C entry、borrowed-ID wrapper、parent field clear契約</td><td>既存stock AI <code>$A54C</code></td></tr>
+      <tr><td>Fire path</td><td>normal / 2-way / 3-way / A/B/C dispatch、common fire loop、marker write</td><td><code>$AE76</code> child materialize</td></tr>
+      <tr><td>Bullet path</td><td>marker decode、speed apply、2x/3x extra-step、collision sample契約</td><td>stock impact path <code>$AFD8/$B016/$9BE3</code></td></tr>
+      <tr><td>Cache廃止</td><td>A/B/C fixed operandまたは固定契約</td><td>旧<code>$0740-$0745</code> cache、旧PRG1 table</td></tr>
+    </table>
+
+    <h3>12.4 仮置きから本番配置へ移す手順</h3>
+    <table>
+      <tr><th>順番</th><th>作業</th><th>完了条件</th></tr>
+      <tr><td class="num">1</td><td>Pythonで一体staging blobを生成する。base CPUは仮でよい。</td><td>全entry pointと内部labelが解決する。</td></tr>
+      <tr><td class="num">2</td><td>現行runtimeのentry契約とstaging blobのentry契約を表で比較する。</td><td>A/X/Y/stack/zero page副作用が説明できる。</td></tr>
+      <tr><td class="num">3</td><td>staging blobのサイズを測る。</td><td>現行分散runtimeより小さくなる見込みがある。</td></tr>
+      <tr><td class="num">4</td><td>ROM-side probe stagingへ一時配置するか判断する。</td><td>静的確認だけで足りない挙動がある時だけ使う。</td></tr>
+      <tr><td class="num">5</td><td>Mesenで通常Panel、2-way、3-way、A/B/C、Bullet衝突を確認する。</td><td>壁抜け、親drift、marker誤書込がない。</td></tr>
+      <tr><td class="num">6</td><td>本番配置へ分解する。</td><td><code>RESERVED_SPANS</code> とROM/RAM管理簿を同じ変更で更新する。</td></tr>
+    </table>
+
+    <h3>12.5 仮置き場の候補と禁止</h3>
+    <div class="danger">
+      <p><strong>禁止:</strong> 空いていそうなPRG0へ直接置く。</p>
+      <p><strong>禁止:</strong> 既存hook先を一部だけstaging版へ差し替え、残りを旧runtimeに繋いだ混在状態を長く残す。</p>
+      <p><strong>禁止:</strong> Mesen確認用のROM-side stagingを本番仕様として扱う。</p>
+    </div>
+    <div class="ok">
+      <strong>推奨:</strong>
+      まずbuild-time staging blobで全体設計とサイズを固める。
+      実機確認が必要になった段階で、PRG1 reserveまたは明示した実験用PRG0候補へ一時配置し、検証後に本番配置へ分解する。
+    </div>
+
+    <h3>12.6 既存機能を一時停止して貸すprobe profile</h3>
+    <p>
+      ROM上に空きがない場合は、別機能の予約領域を一時停止し、Panel MonsterのROM-side stagingへ貸すことはできる。
+      ただしこれは<strong>検証ROM専用</strong>であり、保存ROM、本番配置、通常リリースには含めない。
+      目的は「Panel Monster全体を一度まとまった形で動かし、fire path、bullet path、親/子状態、A/B/C差分をMesenで観察する」ことに限定する。
+    </p>
+    <table>
+      <tr><th>候補</th><th>借り方</th><th>使ってよい条件</th><th>注意</th></tr>
+      <tr>
+        <td>stage announcement cluster</td>
+        <td><code>stage_announcement.py</code> が使うPRG0断片をprobe ROMで無効化して貸す。</td>
+        <td>ステージ開始演出や警告表示を検証対象にしない。</td>
+        <td>比較的借りやすいが断片配置なので、一体blob全体をそのまま置く場所にはならない。</td>
+      </tr>
+      <tr>
+        <td>visible / white / cracked in-block helpers</td>
+        <td>該当ブロック機能を使わないprobe roomに限定して一時停止する。</td>
+        <td>Panel Monster検証ステージ内で該当ブロックや隠しアイテムを使わない。</td>
+        <td>ステージ挙動が変わるため、通常プレイ確認には使わない。</td>
+      </tr>
+      <tr>
+        <td>key enemy runtime</td>
+        <td>key enemyを含まないprobe room専用で候補にする。</td>
+        <td>鍵、扉、fairy/door light系の検証を同時に行わない。</td>
+        <td>周辺連動が大きいので、借りる前にentry/hook一覧を別表で固定する。</td>
+      </tr>
+      <tr>
+        <td>later-bank emergency reserve</td>
+        <td><code>0x67D1-0x681B</code> 付近の小さいreserveをtrampolineや小helperに使う。</td>
+        <td>75 bytes級の小処理で足りる。</td>
+        <td>705 bytes級の組み直し本体は入らない。</td>
+      </tr>
+      <tr>
+        <td>PRG1 reserve</td>
+        <td>bank状態が保証できる地点だけ、probe staging本体の置き場として使う。</td>
+        <td>呼び出し時点のmapper bankが固定でき、PRG0 fixed bankから安全に到達できる。</td>
+        <td>PRG0から常時JSRできる場所ではない。bank保証がない入口には使わない。</td>
+      </tr>
+    </table>
+    <div class="danger">
+      <p><strong>貸してはいけない:</strong> Panel Monsterとの共存確認対象であるSpark Ball、Gargoyle、Saramandor周辺を先に潰す。</p>
+      <p><strong>貸してはいけない:</strong> 原作の敵speed/state tableや <code>$DB99-$DBDE</code> など、意味が確定していない本体データ領域をprobe用途で上書きする。</p>
+      <p><strong>貸してはいけない:</strong> probeで動いた一時停止構成を、そのままproductionの省スペース策として採用する。</p>
+    </div>
+    <div class="ok">
+      <strong>実装方針:</strong>
+      <code>panel_probe_runtime_profile</code> のような明示名で、通常保存経路とは別の検証ROM生成スイッチにする。
+      スイッチを入れた時だけ借用対象featureを無効化し、Panel Monster staging entryへhookを向ける。
+      検証が終わったら、測定したサイズとentry契約だけを本番再配置へ持ち帰る。
     </div>
   </section>
 </main>
