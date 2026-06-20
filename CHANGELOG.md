@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK59 (2026-06-20) 2-way/3-way Fire dispatch代表IDを定数化
+- Panel Monster v2のFire dispatchで使う代表ID `$52/$56` と `$5A/$66` を定数化した。
+- ALT ID `$53/$57/$5B/$67` は既存通り `AND #$FE` で代表IDへ寄せる契約を維持する。
+- guardも同じ定数を見るようにし、Fire pathの数字ベタ書きを減らした。
+
 ## EX-PANEL-V2-BLOCK58 (2026-06-20) Panel Monster v2分類checkを全方向IDへ拡張
 - `tools/panel_monster_v2_runtime_check.py` のspeed checkをA/B/C各4方向IDすべてへ広げた。
 - 2-way/3-way borrowed-ID checkも `$52/$53/$56/$57/$5A/$5B/$66/$67` 全部を通すようにした。

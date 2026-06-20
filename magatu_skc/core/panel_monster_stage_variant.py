@@ -78,6 +78,8 @@ PANEL_STAGE_VARIANT_IDS = frozenset((
 
 BORROWED_PANEL_RUNTIME_IDS = frozenset((0x52, 0x53, 0x56, 0x57, 0x5A, 0x5B, 0x66, 0x67))
 PANEL_STAGE_RUNTIME_IDS = PANEL_STAGE_VARIANT_IDS | BORROWED_PANEL_RUNTIME_IDS
+BORROWED_FIRE_2WAY_CANONICAL_IDS = (0x52, 0x56)
+BORROWED_FIRE_3WAY_CANONICAL_IDS = (0x5A, 0x66)
 
 GROUP_C_IDS = frozenset((0x31, 0x33, 0x35, 0x37))
 GROUP_A_IDS = frozenset((0x41, 0x43, 0x45, 0x47))
@@ -540,14 +542,12 @@ def _build_panel_type_classifier_tail() -> bytes:
 def _build_final_fire_dispatch(stage_tail_cpu: int, two_entry_cpu: int, three_entry_cpu: int) -> bytes:
     a = _Asm()
     a.b(0xA0, 0x01, 0xB1, 0x2E, 0x29, 0xFE)
-    a.b(0xC9, 0x52)
-    a.branch(0xF0, "two")
-    a.b(0xC9, 0x56)
-    a.branch(0xF0, "two")
-    a.b(0xC9, 0x5A)
-    a.branch(0xF0, "three")
-    a.b(0xC9, 0x66)
-    a.branch(0xF0, "three")
+    for enemy_id in BORROWED_FIRE_2WAY_CANONICAL_IDS:
+        a.b(0xC9, enemy_id)
+        a.branch(0xF0, "two")
+    for enemy_id in BORROWED_FIRE_3WAY_CANONICAL_IDS:
+        a.b(0xC9, enemy_id)
+        a.branch(0xF0, "three")
     a.jmp(stage_tail_cpu)
     a.label("two")
     a.jmp(two_entry_cpu)
@@ -2053,11 +2053,17 @@ def _validate_pmv2_classifier_runtime_contract() -> None:
         "A lower bound $40": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0x20))),
         "B upper bound $50": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0x28))),
         "classifier panel return": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0x38, 0x60))),
-        "2-way fire dispatch $52": (FINAL_FIRE_DISPATCH, bytes((0xC9, 0x52))),
-        "2-way fire dispatch $56": (FINAL_FIRE_DISPATCH, bytes((0xC9, 0x56))),
-        "3-way fire dispatch $5A": (FINAL_FIRE_DISPATCH, bytes((0xC9, 0x5A))),
-        "3-way fire dispatch $66": (FINAL_FIRE_DISPATCH, bytes((0xC9, 0x66))),
     }
+    for enemy_id in BORROWED_FIRE_2WAY_CANONICAL_IDS:
+        required_patterns[f"2-way fire dispatch ${enemy_id:02X}"] = (
+            FINAL_FIRE_DISPATCH,
+            bytes((0xC9, enemy_id)),
+        )
+    for enemy_id in BORROWED_FIRE_3WAY_CANONICAL_IDS:
+        required_patterns[f"3-way fire dispatch ${enemy_id:02X}"] = (
+            FINAL_FIRE_DISPATCH,
+            bytes((0xC9, enemy_id)),
+        )
     for shifted_id in (0x29, 0x2B, 0x2D, 0x33):
         required_patterns[f"borrowed Panel tail ${shifted_id:02X}"] = (
             FINAL_PANEL_TYPE_CLASSIFIER_TAIL,
