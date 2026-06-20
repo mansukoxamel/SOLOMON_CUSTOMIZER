@@ -1,5 +1,9 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK66 (2026-06-20) Panel Monster settings台帳名を統一
+- RAM/ROM管理簿と `room_flags.py` の予約メモを、`PANEL_VARIANT_CACHE` ではなく `PANEL_VARIANT_SETTINGS` / settings table表現へ揃えた。
+- 実行バイトは変更せず、PRG1 6B settings tableとRAM `$0740-$0745` copyの契約を読み間違えないようにした。
+
 ## EX-PANEL-V2-BLOCK65 (2026-06-20) Panel Monster v2内部名をsettings tableへ整理
 - `panel_monster_stage_variant.py` 内の古い `global_cache` / `runtime_cache` 名をsettings table表現へ置き換えた。
 - PRG1 6B settings tableとRAM `$0740-$0745` copyの実態に合わせ、次の実装で読み違えない名前へ揃えた。

@@ -71,9 +71,9 @@ verbatim コピーするため file offset 不変):
 #                                 level load で grid 全再init される前提。
 #                               ・他機能はこの帯を ★title描画中に触らない。
 #   $073A-$073F ENTITY_TAIL_CANDIDATE 補助候補6B          要probe
-#   $0740-$074F PANEL_VARIANT_CACHE Panel stage-variant cache 予約中
+#   $0740-$074F PANEL_VARIANT_SETTINGS Panel stage-variant settings copy 予約中
 #                               ・panel_monster_stage_variant.py が部屋ロード時に
-#                                 PRG1 PanelVariantStageTable からコピー。
+#                                 PRG1 settings table からコピー。
 #                               ・現在は speed+interval:
 #                                 $0740=A speed / $0741=A interval /
 #                                 $0742=B speed / $0743=B interval /
@@ -105,7 +105,8 @@ verbatim コピーするため file offset 不変):
 #   ・file 0x80D0-0x87FF : wide decoder + blockA/B stream
 #   ・file 0x8800-0x8A0F : StageExtTable
 #   ・file 0x8A10-0x8A6F : Panel Variant combined runtime loader
-#   ・file 0x8A70-0x8E7F : PanelVariantStageTable
+#   ・file 0x8A70-0x8A75 : Panel Variant settings table
+#   ・file 0x8A76-0x8E7F : PanelVariant PRG1 reserve
 #   ・file 0x8E80-0x8EAA : visible item mask copy helper
 #   ・file 0x8EAB-0x8EEA : Solomon Seal block-state table
 #     (64B, 1 byte/room。StageExt loader が $077D へコピー)
@@ -125,7 +126,7 @@ verbatim コピーするため file offset 不変):
 #   ・$0723-$077F = entity終端後の隙間。ramfree3_probe 285秒・
 #     面$02/$04/$05/$08・妖精×4・死亡 で実機沈黙確認。
 #     → v0.7.72で旧特殊ブロック32Bリストを廃止し、v0.7.149時点で
-#        $0740-$074F はPanel Variant cacheとして予約済み。
+#        $0740-$074F はPanel Variant settings copyとして予約済み。
 #        $0750-$0767 は透明ブロック内アイテムruntime maskとして予約済み。
 #        $073A-$073F / $0768-$0777 は補助候補だが、
 #        沈黙でも構造保証は弱いので正式使用前に用途別probe必須。
@@ -159,7 +160,7 @@ verbatim コピーするため file offset 不変):
 # Current custom RAM ledger (ASCII mirror, keep this in sync with docs/ram_map_current.html):
 #   $0723-$072B KEY_ENEMY_RUNTIME      key-carrying enemy runtime, reserved in use
 #   $073A-$073F ENTITY_TAIL_CANDIDATE  secondary 6-byte candidate, probe before use
-#   $0740-$074F PANEL_VARIANT_CACHE    Panel stage-variant runtime cache, reserved in use
+#   $0740-$074F PANEL_VARIANT_SETTINGS Panel stage-variant runtime settings copy, reserved in use
 #   $0750-$0767 VISIBLE_INBLOCK_ITEM_MASK visible item in-block runtime mask, reserved in use
 #   $0768-$076F CRACKED_INBLOCK_LIST   cracked in-block item cell list, reserved in use
 #   $0770-$0777 ENTITY_TAIL_CANDIDATE  secondary 8-byte candidate, probe before use
