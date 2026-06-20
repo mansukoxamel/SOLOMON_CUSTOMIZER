@@ -6864,7 +6864,7 @@ class MainWindow(QMainWindow):
         if lv.is_door_removed():
             reason = "扉削除中"
         elif lv.is_key_removed() and stage_ext.get_key_enemy_number(lv) <= 0:
-            reason = "鍵が無い"
+            reason = "鍵が無いステージ"
         else:
             reason = "ステージ成立条件保護中"
         if action == "delete":
