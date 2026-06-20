@@ -193,8 +193,8 @@ OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER = 0x68AC  # CPU $E89C, 25B original 00-fil
 CPU_FINAL_DYNAMIC_SPEED_MARKER_HELPER = _cpu(OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER)
 OFF_FINAL_PARENT_FIELD_CLEAR_HELPER = 0x67A3  # CPU $E793, original 00-fill before Spark helper
 CPU_FINAL_PARENT_FIELD_CLEAR_HELPER = _cpu(OFF_FINAL_PARENT_FIELD_CLEAR_HELPER)
-OFF_FINAL_AI_WRAPPER_CANDIDATE = 0x68C1  # CPU $E8B1, original 00-fill after dynamic marker helper
-CPU_FINAL_AI_WRAPPER_CANDIDATE = _cpu(OFF_FINAL_AI_WRAPPER_CANDIDATE)
+OFF_FINAL_SHARED_AI_WRAPPER = 0x68C1  # CPU $E8B1, original 00-fill after dynamic marker helper
+CPU_FINAL_SHARED_AI_WRAPPER = _cpu(OFF_FINAL_SHARED_AI_WRAPPER)
 OFF_SPEED_INIT_CALL = 0x067D  # CPU $866D, original JSR $8AC0 speed initializer
 OFF_FINAL_AI_DISPATCH_HELPER = 0x696C  # CPU $E95C, original 00-fill
 CPU_FINAL_AI_DISPATCH_HELPER = _cpu(OFF_FINAL_AI_DISPATCH_HELPER)
@@ -544,7 +544,7 @@ def _build_final_fire_dispatch(stage_tail_cpu: int, two_entry_cpu: int, three_en
     return a.finish()
 
 
-def _build_final_ai_wrapper_candidate(cpu_base: int, clear_helper_cpu: int) -> tuple[bytes, dict[str, int]]:
+def _build_final_shared_ai_wrapper(cpu_base: int, clear_helper_cpu: int) -> tuple[bytes, dict[str, int]]:
     a = _Asm()
     a.label("entry")
     a.b(0xA0, 0x01, 0xB1, 0x2E)
@@ -630,8 +630,8 @@ FINAL_FIRE_DISPATCH = _build_final_fire_dispatch(
     panel_monster_variant.CPU_FIRE_3WAY + 0x08,
 )
 FINAL_HOOK_STATE0_INTERVAL = bytes.fromhex("20") + _word(CPU_FINAL_STATE0_INTERVAL_HELPER) + bytes.fromhex("ea ea ea")
-FINAL_AI_WRAPPER_CANDIDATE, FINAL_AI_WRAPPER_ENTRIES = _build_final_ai_wrapper_candidate(
-    CPU_FINAL_AI_WRAPPER_CANDIDATE,
+FINAL_SHARED_AI_WRAPPER, FINAL_AI_WRAPPER_ENTRIES = _build_final_shared_ai_wrapper(
+    CPU_FINAL_SHARED_AI_WRAPPER,
     CPU_FINAL_PARENT_FIELD_CLEAR_HELPER,
 )
 FINAL_AI_DISPATCH_HELPER, FINAL_AI_DISPATCH_PANEL_HELPER, FINAL_AI_DISPATCH_ENTRIES = _build_final_ai_dispatch_helper(
@@ -660,7 +660,7 @@ assert len(FINAL_FIRE_MARKER_TABLE) <= 0x12
 assert len(FINAL_STATIC_MARKER_HELPER) <= 0x10
 assert len(FINAL_DYNAMIC_SPEED_MARKER_HELPER) <= 0x1E
 assert len(FINAL_PARENT_FIELD_CLEAR_HELPER) <= FINAL_PARENT_FIELD_CLEAR_HELPER_CAPACITY
-assert len(FINAL_AI_WRAPPER_CANDIDATE) <= 0xAB
+assert len(FINAL_SHARED_AI_WRAPPER) <= 0xAB
 assert len(FINAL_PARENT_SPEED_GUARD) <= FINAL_PARENT_SPEED_GUARD_CAPACITY
 assert len(FINAL_PANEL_TYPE_CLASSIFIER) <= 0x1E
 assert len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL) <= 0x14
@@ -668,7 +668,7 @@ assert len(FINAL_STAGE_PROPERTY_HOOK) <= len(panel_monster_variant.CAVE_PROPERTY
 assert len(FINAL_STAGE_ANIM_HOOK) <= len(panel_monster_variant.CAVE_ANIM_HOOK)
 
 
-def panel_variant_bullet_placement_candidate() -> dict[str, int]:
+def panel_variant_bullet_placement_report() -> dict[str, int]:
     v2_speed = panel_monster_v2_split_speed_runtime_blobs()
     return {
         "v2_speed_decode_off": OFF_FINAL_BULLET_SPEED_APPLY,
@@ -686,7 +686,7 @@ def panel_variant_bullet_placement_candidate() -> dict[str, int]:
     }
 
 
-def panel_variant_fire_placement_candidate() -> dict[str, int]:
+def panel_variant_fire_placement_report() -> dict[str, int]:
     return {
         "fire_dispatch_off": panel_monster_variant.OFF_FIRE_DISPATCH,
         "fire_dispatch_size": len(FINAL_FIRE_DISPATCH),
@@ -715,11 +715,11 @@ def panel_variant_fire_placement_candidate() -> dict[str, int]:
     }
 
 
-def panel_variant_ai_wrapper_candidate() -> dict[str, int]:
+def panel_variant_ai_wrapper_report() -> dict[str, int]:
     return {
-        "ai_wrapper_size": len(FINAL_AI_WRAPPER_CANDIDATE),
-        "ai_wrapper_candidate_off": OFF_FINAL_AI_WRAPPER_CANDIDATE,
-        "ai_wrapper_candidate_capacity": 0xAB,
+        "ai_wrapper_size": len(FINAL_SHARED_AI_WRAPPER),
+        "ai_wrapper_off": OFF_FINAL_SHARED_AI_WRAPPER,
+        "ai_wrapper_capacity": 0xAB,
         "ai_dispatch_helper_off": OFF_FINAL_AI_DISPATCH_HELPER,
         "ai_dispatch_helper_size": len(FINAL_AI_DISPATCH_HELPER),
         "ai_dispatch_panel_helper_off": OFF_FINAL_AI_DISPATCH_PANEL_HELPER,
@@ -735,8 +735,8 @@ def panel_variant_ai_wrapper_candidate() -> dict[str, int]:
     }
 
 
-def panel_variant_split_placement_candidate() -> dict[str, object]:
-    """Return the current split placement plan without writing ROM data."""
+def panel_variant_split_placement_report() -> dict[str, object]:
+    """Return the current split placement without writing ROM data."""
     v2_speed_sizes = _v2_split_speed_reserved_sizes()
     pieces = (
         ("fire_dispatch", panel_monster_variant.OFF_FIRE_DISPATCH, len(FINAL_FIRE_DISPATCH), len(panel_monster_variant.CAVE_FIRE_DISPATCH)),
@@ -757,7 +757,7 @@ def panel_variant_split_placement_candidate() -> dict[str, object]:
         ("parent_field_clear_helper", OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, len(FINAL_PARENT_FIELD_CLEAR_HELPER), FINAL_PARENT_FIELD_CLEAR_HELPER_CAPACITY),
         ("v2_speed_tables_and_fast_loop", OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, v2_speed_sizes["tables_and_fast_loop"], 0x79),
         ("v2_speed_decode", OFF_FINAL_BULLET_SPEED_APPLY, v2_speed_sizes["speed_decode"], 0x3A),
-        ("shared_ai_wrapper", OFF_FINAL_AI_WRAPPER_CANDIDATE, len(FINAL_AI_WRAPPER_CANDIDATE), 0xAB),
+        ("shared_ai_wrapper", OFF_FINAL_SHARED_AI_WRAPPER, len(FINAL_SHARED_AI_WRAPPER), 0xAB),
         ("fire_marker_table", OFF_FINAL_FIRE_MARKER_TABLE, len(FINAL_FIRE_MARKER_TABLE), 0x0B),
         ("v2_bullet_speed_hook", panel_monster_variant.OFF_BULLET_HOOK, v2_speed_sizes["bullet_speed_hook"], FINAL_BULLET_SPEED_HOOK_CAPACITY),
     )
@@ -798,7 +798,7 @@ ORIG_FINAL_BULLET_SPEED_EXTRA_HELPER = bytes.fromhex(
     "00a494222400409204100096a014f000000001aca9b2490121524b5899450144"
     "d3201909532b09000100000000000000000000"
 )
-ORIG_FINAL_AI_WRAPPER_CANDIDATE = bytes.fromhex(
+ORIG_FINAL_SHARED_AI_WRAPPER = bytes.fromhex(
     "000000001103d1e0410181381100610e0500190381000100e10001bfdcb5e622"
     "f0808c491837605128a0561d4416b63c5808c400014ad91a094b53"
 )
@@ -944,7 +944,7 @@ def _validate_final_split_signatures(
     )
 
     ai_entry = _word(FINAL_AI_DISPATCH_ENTRIES["entry"])
-    panel_ai_entry = _word(CPU_FINAL_AI_WRAPPER_CANDIDATE)
+    panel_ai_entry = _word(CPU_FINAL_SHARED_AI_WRAPPER)
     for off, name in (
         (panel_monster_variant.OFF_AI_DEMON_52_53, "$A34C Panel Monster 2-way borrowed AI"),
         (panel_monster_variant.OFF_AI_DEMON_56_57, "$A34E Panel Monster 2-way borrowed AI"),
@@ -1081,10 +1081,10 @@ def _validate_final_split_signatures(
             ),
         ),
         (
-            OFF_FINAL_AI_WRAPPER_CANDIDATE,
-            FINAL_AI_WRAPPER_CANDIDATE,
+            OFF_FINAL_SHARED_AI_WRAPPER,
+            FINAL_SHARED_AI_WRAPPER,
             "Panel Variant final shared AI wrapper",
-            (ORIG_FINAL_AI_WRAPPER_CANDIDATE,),
+            (ORIG_FINAL_SHARED_AI_WRAPPER,),
         ),
         (
             OFF_FINAL_FIRE_MARKER_TABLE,
@@ -1147,7 +1147,7 @@ def apply_panel_monster_v2_runtime(
         OFF_FINAL_ABC_GROUP_OFFSET_HELPER + len(FINAL_ABC_GROUP_OFFSET_HELPER),
         OFF_FINAL_PARENT_SPEED_GUARD + len(FINAL_PARENT_SPEED_GUARD_WRITE),
         OFF_FINAL_GROUP_RAM_OFFSET_HELPER + len(FINAL_GROUP_RAM_OFFSET_HELPER_WRITE),
-        OFF_FINAL_AI_WRAPPER_CANDIDATE + len(FINAL_AI_WRAPPER_CANDIDATE),
+        OFF_FINAL_SHARED_AI_WRAPPER + len(FINAL_SHARED_AI_WRAPPER),
         OFF_FINAL_STAGE_DISPATCH_HELPER + len(FINAL_STAGE_DISPATCH_HELPER),
         GLOBAL_CACHE_TABLE_END,
         panel_monster_variant.OFF_ANIM_HOOK + len(FINAL_STAGE_ANIM_HOOK),
@@ -1184,7 +1184,7 @@ def apply_panel_monster_v2_runtime(
     _write_blob(rom_data, OFF_SPEED_INIT_CALL, HOOK_SPEED_INIT_CALL, changed, "$866D Panel Variant parent speed guard hook")
 
     ai_entry = _word(FINAL_AI_DISPATCH_ENTRIES["entry"])
-    panel_ai_entry = _word(CPU_FINAL_AI_WRAPPER_CANDIDATE)
+    panel_ai_entry = _word(CPU_FINAL_SHARED_AI_WRAPPER)
     for off, name in (
         (panel_monster_variant.OFF_AI_DEMON_52_53, "$A34C Panel Monster 2-way borrowed AI"),
         (panel_monster_variant.OFF_AI_DEMON_56_57, "$A34E Panel Monster 2-way borrowed AI"),
@@ -1219,7 +1219,7 @@ def apply_panel_monster_v2_runtime(
         (OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, FINAL_PARENT_FIELD_CLEAR_HELPER, "Panel Variant final parent field clear helper"),
         (OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, v2_speed["tables_and_fast_loop"], "Panel Variant v2 Bullet speed tables/fast loop"),
         (OFF_FINAL_BULLET_SPEED_APPLY, v2_speed["speed_decode"], "Panel Variant v2 Bullet speed decode"),
-        (OFF_FINAL_AI_WRAPPER_CANDIDATE, FINAL_AI_WRAPPER_CANDIDATE, "Panel Variant final shared AI wrapper"),
+        (OFF_FINAL_SHARED_AI_WRAPPER, FINAL_SHARED_AI_WRAPPER, "Panel Variant final shared AI wrapper"),
         (OFF_FINAL_FIRE_MARKER_TABLE, FINAL_FIRE_MARKER_TABLE, "Panel Variant final fire marker table"),
         (panel_monster_variant.OFF_BULLET_HOOK, v2_speed["bullet_speed_hook"], "Panel Variant v2 Bullet speed hook"),
         (OFF_FINAL_STAGE_DISPATCH_HELPER, FINAL_STAGE_DISPATCH_HELPER, "Panel Variant final stage dispatch helper"),
@@ -1468,8 +1468,8 @@ def panel_monster_v2_speed_core_contract() -> dict[str, object]:
     }
 
 
-def panel_monster_v2_split_speed_placement_candidate() -> dict[str, object]:
-    """Return a concrete split placement candidate for wiring v2 speed runtime."""
+def panel_monster_v2_split_speed_placement_report() -> dict[str, object]:
+    """Return the concrete split placement for the v2 speed runtime."""
     blob = PANEL_MONSTER_V2_SPEED_CORE_BLOB
     section_sizes = dict(blob.sizes)
     decode_size = section_sizes["speed_decode"]
@@ -1562,7 +1562,7 @@ def panel_monster_v2_split_speed_save_report(rom_data: bytes | bytearray) -> dic
         for name, (off, blob) in sections.items()
     }
     return {
-        "placement": panel_monster_v2_split_speed_placement_candidate(),
+        "placement": panel_monster_v2_split_speed_placement_report(),
         "written": written,
         "all_written": all(written.values()),
     }
@@ -1657,7 +1657,7 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
         raise PanelMonsterStageVariantError(
             f"Panel Monster v2 static speed sections mismatch: {sorted(contract['sizes'])!r}"
         )
-    placement = panel_monster_v2_split_speed_placement_candidate()
+    placement = panel_monster_v2_split_speed_placement_report()
     if not placement["fits"]:
         raise PanelMonsterStageVariantError(
             f"Panel Monster v2 split speed placement does not fit: {placement!r}"
@@ -1802,7 +1802,7 @@ RESERVED_SPANS = (
     (OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, len(FINAL_PARENT_FIELD_CLEAR_HELPER)),
     (OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, _v2_split_speed_reserved_sizes()["tables_and_fast_loop"]),
     (OFF_FINAL_BULLET_SPEED_APPLY, _v2_split_speed_reserved_sizes()["speed_decode"]),
-    (OFF_FINAL_AI_WRAPPER_CANDIDATE, len(FINAL_AI_WRAPPER_CANDIDATE)),
+    (OFF_FINAL_SHARED_AI_WRAPPER, len(FINAL_SHARED_AI_WRAPPER)),
     (OFF_FINAL_FIRE_MARKER_TABLE, len(FINAL_FIRE_MARKER_TABLE)),
     (panel_monster_variant.OFF_BULLET_HOOK, _v2_split_speed_reserved_sizes()["bullet_speed_hook"]),
     (OFF_PRG1_RUNTIME_LOADER, 0x60),

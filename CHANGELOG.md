@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK33 (2026-06-20) 現行runtime名へ整理
+- Panel Monster v2の現行保存経路で使うAI wrapperと配置確認関数から、旧試作扱いの `candidate` 名を外した。
+- 生成ROMバイトは変えず、最新runtimeだけを追いやすい名前へ寄せた。
+- 余計な互換・救済の入口は増やしていない。
+
 ## EX-PANEL-V2-BLOCK32 (2026-06-20) Panel Monster v2 runtime check tool
 - `tools/panel_monster_v2_runtime_check.py` を追加し、通常保存経路のv2 runtime reportをCLIで確認できるようにした。
 - speed/cache書込、guard一式、再保存同一性をまとめて確認する。
