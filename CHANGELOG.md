@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK52 (2026-06-20) Stage announcement runtimeを常時書き込みへ変更
+- 開始画面アナウンス未使用時に `$9061` hookを原作へ戻す処理をやめた。
+- runtime flagsが0、key enemy slotが `$FF` の時は描画せず原作更新へ戻るため、未使用ステージでも常時配置できる。
+- 保存ROMの構造差分を減らすため、main/draw/table/script/CHR/hookを毎回同じ配置へ書く。
+
 ## EX-PANEL-V2-BLOCK51 (2026-06-20) Key/Fairy enemy runtimeを常時書き込みへ変更
 - `key_enemy_runtime.apply()` の `enabled=False` 早期returnを削除し、保存時に毎回同じruntime/hookを配置するようにした。
 - StageExt loaderが未使用時に `$072A/$077F` を `$FF` へ初期化するため、key/fairy未使用ステージではruntimeが実行時に何もしない。

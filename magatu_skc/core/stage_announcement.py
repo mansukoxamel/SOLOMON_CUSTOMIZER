@@ -204,7 +204,6 @@ def is_needed(levels: list, runtime_room_flags: list[int]) -> bool:
 
 
 def apply(rom_data: bytearray, levels: list, runtime_room_flags: list[int]) -> list[str]:
-    enabled = is_needed(levels, runtime_room_flags)
     changed: list[str] = []
 
     cur = bytes(rom_data[OFF_HOOK_START_UPDATE:OFF_HOOK_START_UPDATE + 3])
@@ -212,11 +211,6 @@ def apply(rom_data: bytearray, levels: list, runtime_room_flags: list[int]) -> l
         raise StageAnnouncementError(
             f"$9061 start-screen update hook mismatch: got {cur.hex(' ')}"
         )
-    if not enabled:
-        if cur != ORIG_START_UPDATE:
-            rom_data[OFF_HOOK_START_UPDATE:OFF_HOOK_START_UPDATE + 3] = ORIG_START_UPDATE
-            changed.append("restore stage announcement hook")
-        return changed
 
     for off, blob, name in (
         (OFF_MAIN, MAIN, "stage announcement main"),
