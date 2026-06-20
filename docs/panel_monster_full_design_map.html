@@ -863,6 +863,170 @@
       検証が終わったら、測定したサイズとentry契約だけを本番再配置へ持ち帰る。
     </div>
   </section>
+  <section>
+    <h2>13. Panel Monster runtime v2 作り直し計画</h2>
+    <div class="danger">
+      <p><strong>この章の結論:</strong> 旧runtimeを少しずつ並べ替えて直す方針は中止する。</p>
+      <p>Panel Monster v2 は、通常Panel、2-way/3-way、A/B/C、interval、speed、Bullet衝突、親drift防止を同じ設計上で作り直す。</p>
+      <p>2xだけ別、3xだけ別、probeで止める、他機能を潰したまま本番化する、という逃げ方は禁止する。</p>
+    </div>
+
+    <h3>13.1 現在地点の意味</h3>
+    <table>
+      <tr><th>項目</th><th>状態</th><th>判断</th></tr>
+      <tr><td>Git基準</td><td><code>a3f76c8</code></td><td>危ないEX probe実装は入っていない。</td></tr>
+      <tr><td>アプリversion</td><td><code>0.8.251</code></td><td>通常アプリ状態。Panel Monster v2は未実装。</td></tr>
+      <tr><td>設計資料</td><td>このHTMLとIssue #1用の整理がある。</td><td>ここを土台に、旧実装修理ではなくv2設計へ進む。</td></tr>
+      <tr><td>既知の失敗</td><td>EX4の連続配置、3x停止案。</td><td>作り直し方針から除外する。再利用しない。</td></tr>
+      <tr><td>次の作業</td><td>v2仕様と検証順を固定する。</td><td>コード配置を動かす前に、同一ルートの実行契約を固める。</td></tr>
+    </table>
+
+    <h3>13.2 v2で必ず満たす仕様</h3>
+    <table>
+      <tr><th>機能</th><th>v2仕様</th><th>禁止</th></tr>
+      <tr>
+        <td>speed preset</td>
+        <td><code>$88/$89/$8A/$8B</code> を同じdecoderへ通す。preset値からbase velocityとextra substep数を同じ表で決める。</td>
+        <td>2xと3xで別helper、別hook、別collision契約にする。</td>
+      </tr>
+      <tr>
+        <td>2x / 3x</td>
+        <td>2xはextra substep 1回、3xはextra substep 2回。同じloopで回数だけ変える。</td>
+        <td>3xを停止する、2x扱いに丸める、または壁抜けする速度tableだけで代用する。</td>
+      </tr>
+      <tr>
+        <td>Bullet collision</td>
+        <td>1 substepごとに移動して、直後に必ず <code>$AC39</code> を呼ぶ。衝突したらstock impact pathへ合流する。</td>
+        <td><code>$8689</code> だけを複数回呼んで、collision sampleを最後に1回だけにする。</td>
+      </tr>
+      <tr>
+        <td>通常Panel / 2-way / 3-way / A/B/C</td>
+        <td>fire pathは同じchild materialize契約を使い、markerだけでBullet側へ情報を渡す。</td>
+        <td>A/B/Cだけ特別なBullet型や別AIへ逃がして、通常Panelとの共存確認を後回しにする。</td>
+      </tr>
+      <tr>
+        <td>親drift防止</td>
+        <td>親main-slotの速度/subpixel clearを、AI入口かspeed init直後の一箇所で保証する。</td>
+        <td>原作共有speed tableをゼロ化する。</td>
+      </tr>
+      <tr>
+        <td>property / animation</td>
+        <td>Panel type classifierを一つにし、旧2-way/3-wayとA/B/Cを同じ分類表で扱う。</td>
+        <td>見た目だけ通すためにA/B/C専用の暫定hookを増やす。</td>
+      </tr>
+    </table>
+
+    <h3>13.3 v2 runtimeの部品分割</h3>
+    <table>
+      <tr><th>部品</th><th>責務</th><th>入力</th><th>出力/副作用</th><th>完了条件</th></tr>
+      <tr>
+        <td><code>pmv2_type_classifier</code></td>
+        <td>通常Panel、旧強化Panel、A/B/C Panelを分類する。</td>
+        <td>entity type</td>
+        <td>Panelならcarry/flagまたはXに分類結果。</td>
+        <td>property、animation、AI dispatchが同じ分類を使う。</td>
+      </tr>
+      <tr>
+        <td><code>pmv2_parent_normalize</code></td>
+        <td>借用IDの方向と親速度をPanel用へ正規化する。</td>
+        <td>main pointer <code>($2E)</code></td>
+        <td>main+3 direction、main+5/+6/+8/+9 clear。</td>
+        <td>A/B/Cが画面上でdriftしない。</td>
+      </tr>
+      <tr>
+        <td><code>pmv2_fire_dispatch</code></td>
+        <td>normal / 2-way / 3-way / A/B/C の発射数とmarker列を選ぶ。</td>
+        <td>parent type、stage/group setting</td>
+        <td>child sub-slot <code>+7</code> にmarkerを書く。</td>
+        <td>通常Panelはmarker <code>$00</code>、強化Bulletは必ず <code>$80-$8B</code>。</td>
+      </tr>
+      <tr>
+        <td><code>pmv2_speed_decode</code></td>
+        <td>marker <code>$88-$8B</code> からbase velocityとextra countを読む。</td>
+        <td>child marker、direction</td>
+        <td>velocity write、extra count。</td>
+        <td>1/4、1/2、2x、3xが同じ表と同じdecoderを通る。</td>
+      </tr>
+      <tr>
+        <td><code>pmv2_bullet_step_loop</code></td>
+        <td>extra count分だけ移動し、各substep後に衝突判定する。</td>
+        <td>extra count、Bullet main pointer</td>
+        <td>position/subpixel update、<code>$AC39</code>、必要時impact。</td>
+        <td>2x/3xが同じloopで、回数だけ違う。</td>
+      </tr>
+      <tr>
+        <td><code>pmv2_impact_bridge</code></td>
+        <td>substep中の衝突を原作Bullet impact処理へ渡す。</td>
+        <td><code>$07</code> collision mask</td>
+        <td><code>$B016/$918A/$9BE3</code> 系へ合流、または同等処理。</td>
+        <td>壁抜けせず、破壊可能ブロックと消滅状態が原作と一致する。</td>
+      </tr>
+    </table>
+
+    <h3>13.4 実装順</h3>
+    <table>
+      <tr><th>段階</th><th>作るもの</th><th>まだ触らないもの</th><th>合格条件</th></tr>
+      <tr>
+        <td class="num">1</td>
+        <td>Python上で <code>pmv2</code> blob builderを作る。ROMへはまだ書かない。</td>
+        <td>既存hook、ROM配置、RESERVED_SPANS。</td>
+        <td>entry一覧、内部label、サイズ、外部JSR先が表で出る。</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td><code>pmv2_speed_decode</code> と <code>pmv2_bullet_step_loop</code> だけを生成する。</td>
+        <td>fire path、A/B/C AI、property/animation。</td>
+        <td>2x/3xが同じloop、extra countだけ違うことをASM dumpで確認できる。</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td>Mesen probe専用ROMでBullet speedだけを差し替える。</td>
+        <td>通常保存経路。</td>
+        <td>1/4、1/2、2x、3xを同一ステージで観察し、壁衝突ログが取れる。</td>
+      </tr>
+      <tr>
+        <td class="num">4</td>
+        <td>fire dispatchとmarker writeをv2へ接続する。</td>
+        <td>配置最適化。</td>
+        <td>通常Panel、2-way、3-way、A/B/Cが同じchild marker契約でBulletへ渡る。</td>
+      </tr>
+      <tr>
+        <td class="num">5</td>
+        <td>parent normalizeとtype classifierを統合する。</td>
+        <td>他機能領域の借用。</td>
+        <td>親driftなし、旧2-way/3-way見た目維持、A/B/C見た目維持。</td>
+      </tr>
+      <tr>
+        <td class="num">6</td>
+        <td>本番配置を決める。</td>
+        <td>仕様変更。</td>
+        <td>ROM/RAM管理簿と <code>RESERVED_SPANS</code> が同じ差分で更新され、重複がない。</td>
+      </tr>
+    </table>
+
+    <h3>13.5 Mesen合格チェック</h3>
+    <table>
+      <tr><th>チェック</th><th>観察対象</th><th>合格</th><th>失敗なら戻る場所</th></tr>
+      <tr><td>通常Panel</td><td>普通の<code>$24-$27</code></td><td>発射間隔、方向、Bullet寿命が旧実装と同じ。</td><td>fire dispatch。</td></tr>
+      <tr><td>2-way/3-way</td><td><code>$52/$53/$56/$57/$5A/$5B/$66/$67</code></td><td>弾数、spread、軸補正が旧実装と同じ。</td><td>marker write / diagonal correction。</td></tr>
+      <tr><td>A/B/C parent</td><td><code>$31-$37/$41-$4F</code></td><td>親が流れない。借用元の動きが出ない。</td><td>parent normalize。</td></tr>
+      <tr><td>interval</td><td>A/B/C firing interval</td><td>A/B/Cそれぞれの設定が発射間隔に反映される。</td><td>stage/group setting decode。</td></tr>
+      <tr><td>speed 1/4・1/2</td><td>marker <code>$88/$89</code></td><td>table-only低速として壁衝突が自然。</td><td>speed decode table。</td></tr>
+      <tr><td>speed 2x・3x</td><td>marker <code>$8A/$8B</code></td><td>同じloopで1回/2回extra substep。各substep後に<code>$AC39</code>。</td><td>bullet step loop。</td></tr>
+      <tr><td>impact</td><td>白/茶/壊せるブロック衝突</td><td>壁抜けしない。破壊・消滅状態が原作Bulletと同じ。</td><td>impact bridge。</td></tr>
+    </table>
+
+    <h3>13.6 直近の作業単位</h3>
+    <div class="ok">
+      <p><strong>次にやること:</strong> <code>panel_monster_stage_variant.py</code> へROM未適用の <code>build_panel_monster_v2_blob()</code> を追加する。</p>
+      <p>最初のblobには <code>pmv2_speed_decode</code>、<code>pmv2_bullet_step_loop</code>、<code>pmv2_impact_bridge</code> だけを入れる。</p>
+      <p>この段階では既存runtime、保存ROM、UI、管理簿を変えない。サイズとASM構造だけを確認する。</p>
+    </div>
+    <div class="danger">
+      <p><strong>この段階でやらないこと:</strong> PRG0配置替え、3x停止、他機能の一時停止、旧runtimeの部分置換。</p>
+      <p>まず2x/3xが同じルートに載った新Bullet speed coreを作り、その後にfire pathへ接続する。</p>
+    </div>
+  </section>
 </main>
 </body>
 </html>
