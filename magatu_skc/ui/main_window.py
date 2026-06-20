@@ -3695,7 +3695,12 @@ class MainWindow(QMainWindow):
 
         work_rom = _Rom(bytes(saved_data), self.rom.path)
         work_rom.display_name = rom_file.name
-        dlg = HackDialog(work_rom, parent=self, app_config=self._app_config)
+        dlg = HackDialog(
+            work_rom,
+            parent=self,
+            app_config=self._app_config,
+            levels=self.levels,
+        )
         try:
             payload = dlg._collect_global_settings()
         finally:

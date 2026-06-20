@@ -1601,6 +1601,25 @@ class HackDialog(QDialog):
                 return i
         return -1
 
+    def _current_final_stage_redirect_stage_no(self) -> int:
+        level_no = self._current_final_stage_redirect_level_no()
+        return level_no + 1 if level_no >= 0 else 0
+
+    def _set_final_stage_redirect_stage_no(self, stage_no: int) -> bool:
+        if not self.levels:
+            return False
+        try:
+            stage_no = int(stage_no)
+        except Exception:
+            stage_no = 0
+        if stage_no < 1 or stage_no > len(self.levels):
+            stage_no = 0
+        selected = stage_no - 1 if stage_no > 0 else -1
+        old = self._current_final_stage_redirect_level_no()
+        idx = self.combo_final_stage_redirect.findData(selected)
+        self.combo_final_stage_redirect.setCurrentIndex(idx if idx >= 0 else 0)
+        return old != selected
+
     def _apply_final_stage_redirect_setting(self) -> bool:
         if not self.levels:
             return False
@@ -1619,6 +1638,7 @@ class HackDialog(QDialog):
         settings = {
             "start_stage": self.spin_stage.value(),
             "continue_max_stage": self.spin_continue.value(),
+            "final_stage_redirect_after_stage": self._current_final_stage_redirect_stage_no(),
             "warp_feather_steps": self.spin_warp_feather.value(),
             "initial_magic_max": self.spin_initial_magic_max.value(),
             "initial_magic_pattern": self.edit_initial_magic.text(),
@@ -1781,6 +1801,9 @@ class HackDialog(QDialog):
 
         set_spin("start_stage", self.spin_stage, "開始ステージ")
         set_spin("continue_max_stage", self.spin_continue, "コンティニュー上限")
+        if has("final_stage_redirect_after_stage"):
+            if self._set_final_stage_redirect_stage_no(settings["final_stage_redirect_after_stage"]):
+                changed.append("最終面への移行")
         set_spin("warp_feather_steps", self.spin_warp_feather, "ワープ羽")
         set_spin("initial_magic_max", self.spin_initial_magic_max, "初期魔法 最大数")
         if has("initial_magic_pattern") and self.edit_initial_magic.isEnabled():
