@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK41 (2026-06-20) 2-way/3-way runtime checkを追加
+- `tools/panel_monster_v2_runtime_check.py` のmatrixに2-way/3-way borrowed-ID代表ケースを追加した。
+- A/B/Cだけでなく、`$52/$56/$5A/$66` でも通常保存経路、guard、配置/予約check、再保存同一性を確認する。
+- ROM挙動は変えず、borrowed Panel Monster系統の保存経路確認を強化した。
+
 ## EX-PANEL-V2-BLOCK40 (2026-06-20) 実配置とRESERVED_SPANSの一致checkを追加
 - `panel_monster_v2_runtime_save_report()` に `reserved_covers_placement` を追加した。
 - split placement reportの全pieceが `RESERVED_SPANS` に含まれているかをCLI checkで確認する。

@@ -40,6 +40,13 @@ INTERVAL_CASES = (
     ("B", 0x49, "b_interval", 0xE1),
 )
 
+BORROWED_CASES = (
+    ("2WAY_R", 0x52),
+    ("2WAY_U", 0x56),
+    ("3WAY_R", 0x5A),
+    ("3WAY_U", 0x66),
+)
+
 
 def _hex_byte(value: str) -> int:
     value = value.strip()
@@ -142,6 +149,11 @@ def run_check(args: argparse.Namespace) -> tuple[bool, dict[str, object]]:
         settings = _interval_settings(interval_key, interval)
         result = _run_one_case(bytes(source_rom.data), enemy_id, settings)
         result["case"] = f"{group_name} interval=0x{interval:02X}"
+        result["enemy_id"] = enemy_id
+        cases.append(result)
+    for case_name, enemy_id in BORROWED_CASES:
+        result = _run_one_case(bytes(source_rom.data), enemy_id, dict(DEFAULT_SETTINGS))
+        result["case"] = case_name
         result["enemy_id"] = enemy_id
         cases.append(result)
 
