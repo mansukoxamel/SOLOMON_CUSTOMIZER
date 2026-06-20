@@ -1792,8 +1792,10 @@ class ElementPicker(QWidget):
             ITEM_FLAG_VISIBLE_IN_BLOCK,
             ITEM_FLAG_CRACKED_IN_BLOCK,
         )
-        if mode == MODE_META and value in ("start", "mirror1", "mirror2"):
+        if mode == MODE_META and value == "start":
             allowed = {ITEM_FLAG_NORMAL}
+        elif mode == MODE_META and value in ("mirror1", "mirror2"):
+            allowed = set(all_flags) - {ITEM_FLAG_HIDDEN}
         elif mode == MODE_META and value == "key":
             allowed = set(all_flags)
         elif mode == MODE_META and value == "door":
