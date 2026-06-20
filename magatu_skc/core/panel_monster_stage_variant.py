@@ -1723,6 +1723,67 @@ def panel_monster_v2_speed_core_contract() -> dict[str, object]:
     }
 
 
+def panel_monster_v2_current_speed_runtime_layout() -> dict[str, object]:
+    """Return the concrete speed-core pieces written by the normal save path."""
+    return {
+        "speed_apply": {
+            "off": OFF_FINAL_BULLET_SPEED_APPLY,
+            "cpu": CPU_FINAL_BULLET_SPEED_APPLY,
+            "size": len(FINAL_BULLET_SPEED_APPLY),
+        },
+        "speed_velocity_table": {
+            "off": OFF_FINAL_BULLET_SPEED_APPLY + len(FINAL_BULLET_SPEED_APPLY),
+            "cpu": CPU_FINAL_BULLET_SPEED_APPLY + len(FINAL_BULLET_SPEED_APPLY),
+            "size": len(FINAL_BULLET_SPEED_TABLE),
+        },
+        "speed_extra_helper": {
+            "off": OFF_FINAL_BULLET_SPEED_EXTRA_HELPER,
+            "cpu": CPU_FINAL_BULLET_SPEED_EXTRA_HELPER,
+            "size": len(FINAL_BULLET_SPEED_EXTRA_HELPER),
+        },
+        "total_size": (
+            len(FINAL_BULLET_SPEED_APPLY)
+            + len(FINAL_BULLET_SPEED_TABLE)
+            + len(FINAL_BULLET_SPEED_EXTRA_HELPER)
+        ),
+        "extra_counts": {
+            "1/4": SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_QUARTER]["extra_steps"],
+            "1/2": SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_HALF]["extra_steps"],
+            "2x": SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_2X]["extra_steps"],
+            "3x": SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_3X]["extra_steps"],
+        },
+    }
+
+
+def panel_monster_v2_speed_core_save_report(rom_data: bytes | bytearray) -> dict[str, object]:
+    """Report whether the current speed-core pieces are present in saved ROM data."""
+    if rom_data is None:
+        raise PanelMonsterStageVariantError("ROM is missing.")
+    sections = {
+        "speed_apply": (
+            OFF_FINAL_BULLET_SPEED_APPLY,
+            FINAL_BULLET_SPEED_APPLY,
+        ),
+        "speed_velocity_table": (
+            OFF_FINAL_BULLET_SPEED_APPLY + len(FINAL_BULLET_SPEED_APPLY),
+            FINAL_BULLET_SPEED_TABLE,
+        ),
+        "speed_extra_helper": (
+            OFF_FINAL_BULLET_SPEED_EXTRA_HELPER,
+            FINAL_BULLET_SPEED_EXTRA_HELPER,
+        ),
+    }
+    written = {
+        name: bytes(rom_data[off:off + len(blob)]) == blob
+        for name, (off, blob) in sections.items()
+    }
+    return {
+        "layout": panel_monster_v2_current_speed_runtime_layout(),
+        "written": written,
+        "all_written": all(written.values()),
+    }
+
+
 def _validate_pmv2_speed_core_runtime_contract() -> None:
     """Guard the normal ROM save path against a broken Panel Monster speed core."""
     extra_counts = {

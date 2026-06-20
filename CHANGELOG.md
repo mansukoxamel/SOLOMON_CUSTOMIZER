@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK3 (2026-06-20) Panel Monster v2 speed core保存結果report
+- 通常のROM保存結果に、現行speed apply、velocity table、extra helperが実際に書かれているか確認する `panel_monster_v2_speed_core_save_report()` を追加した。
+- 実保存レイアウトを `panel_monster_v2_current_speed_runtime_layout()` で取得できるようにし、次ブロック以降の配置変更と比較できる基準を固定した。
+- ROM挙動はまだ変更せず、普通の「ROMを作る」結果をブロック単位で検証しやすくした。
+
 ## EX-PANEL-V2-BLOCK2 (2026-06-20) Panel Monster v2 speed coreを保存経路で検証
 - 通常のROM保存経路で、現行Panel Variant speed runtimeがv2最低契約を満たすか検証するguardを追加した。
 - 2x/3xが同じextra-step loopで、extra countだけ1/2に分かれ、各substepで`$AC39`を呼ぶことを保存前に確認する。
