@@ -34,6 +34,12 @@ MATRIX_CASES = (
     ("B", 0x49, "b_speed"),
 )
 
+INTERVAL_CASES = (
+    ("C", 0x31, "c_interval", 0x21),
+    ("A", 0x41, "a_interval", 0x7F),
+    ("B", 0x49, "b_interval", 0xE1),
+)
+
 
 def _hex_byte(value: str) -> int:
     value = value.strip()
@@ -73,15 +79,19 @@ def _run_one_case(
 
     saved = saver.build_saved_rom_data(source_rom, levels, settings)
     report = panel_v2.panel_monster_v2_runtime_save_report(saved, settings)
+    cache_values = dict(report["cache"]["contract"]["entry_values"])
+    cache_values_ok = cache_values == settings
 
     saved_rom = Rom(saved, "panel_monster_v2_check.nes")
     resaved = saver.build_saved_rom_data(saved_rom, load_all_levels(saved_rom), settings)
     same_output = saved == resaved
 
-    ok = bool(report["guards_ok"] and report["all_written"] and same_output)
+    ok = bool(report["guards_ok"] and report["all_written"] and same_output and cache_values_ok)
     result = dict(report)
     result["saved_len"] = len(saved)
     result["same_output"] = same_output
+    result["cache_values_ok"] = cache_values_ok
+    result["cache_values"] = cache_values
     result["ok"] = ok
     return result
 
@@ -89,6 +99,12 @@ def _run_one_case(
 def _matrix_settings(group_speed_key: str, speed: int) -> dict[str, int]:
     settings = dict(DEFAULT_SETTINGS)
     settings[group_speed_key] = speed
+    return settings
+
+
+def _interval_settings(interval_key: str, interval: int) -> dict[str, int]:
+    settings = dict(DEFAULT_SETTINGS)
+    settings[interval_key] = interval
     return settings
 
 
@@ -107,6 +123,12 @@ def run_check(args: argparse.Namespace) -> tuple[bool, dict[str, object]]:
             result["case"] = f"{group_name} speed={speed}"
             result["enemy_id"] = enemy_id
             cases.append(result)
+    for group_name, enemy_id, interval_key, interval in INTERVAL_CASES:
+        settings = _interval_settings(interval_key, interval)
+        result = _run_one_case(bytes(source_rom.data), enemy_id, settings)
+        result["case"] = f"{group_name} interval=0x{interval:02X}"
+        result["enemy_id"] = enemy_id
+        cases.append(result)
 
     first = dict(cases[0])
     first["cases"] = cases
@@ -123,13 +145,14 @@ def print_result(result: dict[str, object]) -> None:
             print(
                 f"  {case['case']}: ok={case['ok']} "
                 f"guards_ok={case['guards_ok']} all_written={case['all_written']} "
-                f"same_output={case['same_output']}"
+                f"same_output={case['same_output']} cache_values_ok={case['cache_values_ok']}"
             )
     print(f"saved_len {result['saved_len']}")
     print(f"apply_path {result['apply_path']}")
     print(f"guards_ok {result['guards_ok']}")
     print(f"all_written {result['all_written']}")
     print(f"same_output {result['same_output']}")
+    print(f"cache_values_ok {result['cache_values_ok']}")
     print("guards")
     for name, status in dict(result["guards"]).items():
         print(f"  {name}: {status}")

@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK36 (2026-06-20) interval cache値checkを追加
+- `tools/panel_monster_v2_runtime_check.py` にA/B/C interval代表値の保存ケースを追加した。
+- runtime reportのcache entry valuesが設定値そのものと一致することを `cache_values_ok` として確認する。
+- ROM挙動は変えず、ユーザー指定値をPRG1 global cacheへ置く契約を機械確認しやすくした。
+
 ## EX-PANEL-V2-BLOCK35 (2026-06-20) runtime checkをA/B/C速度matrix化
 - `tools/panel_monster_v2_runtime_check.py` の既定動作を、A/B/C各groupと1/4・1/2・2x・3xの12ケース確認へ広げた。
 - 各ケースで通常保存、runtime report、再保存同一性を確認する。
