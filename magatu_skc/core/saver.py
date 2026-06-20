@@ -321,7 +321,7 @@ def save_levels_to_rom(rom: Rom, levels: list, panel_variant_settings: dict | No
         rom.data,
         any(stage_ext.key_enemy_enabled(lv) or stage_ext.fairy_enemy_enabled(lv) for lv in levels),
     )
-    if rom.is_expanded() and panel_monster_stage_variant.has_panel_stage_runtime_ids(levels):
+    if rom.is_expanded():
         _run_save_step(
             "Panel Variant runtime検証/適用",
             panel_monster_stage_variant.apply,

@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK48 (2026-06-20) Panel Monster v2 runtimeを常時書き込みへ変更
+- 拡張ROM保存時は、ステージ内のPanel Monster使用有無に関係なくPanel Monster v2 runtimeを毎回同じ配置へ書くようにした。
+- 「未使用だから書かない」方式をやめ、保存ROMの構造差分、重複、巻き込み事故を減らす方針を `AGENTS.md` とROM管理簿へ明記した。
+- 通常Panelだけのcheckも、v2 runtimeが書かれていることを期待する内容へ反転した。
+
 ## EX-PANEL-V2-BLOCK47 (2026-06-20) v2 runtime対象IDの静的guardを追加
 - A/B/C IDとborrowed 2-way/3-way IDを合わせた `PANEL_STAGE_RUNTIME_IDS` を定数化した。
 - `has_panel_stage_runtime_ids()` が同じ定数を使うようにし、2-way/3-wayだけのステージでもv2 runtime適用対象から漏れないようにした。

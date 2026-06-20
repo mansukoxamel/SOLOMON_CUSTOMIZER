@@ -177,14 +177,20 @@ def _run_normal_case(source_data: bytes, enemy_id: int) -> dict[str, object]:
     saved_rom = Rom(saved, "panel_monster_normal_check.nes")
     resaved = saver.build_saved_rom_data(saved_rom, load_all_levels(saved_rom), dict(DEFAULT_SETTINGS))
     same_output = saved == resaved
-    v2_runtime_absent = not bool(report["all_written"])
+    v2_runtime_written = bool(report["all_written"])
 
     return {
-        "runtime_expected": False,
-        "ok": same_output and v2_runtime_absent,
+        "runtime_expected": True,
+        "ok": same_output and v2_runtime_written,
         "saved_len": len(saved),
+        "guards_ok": report["guards_ok"],
+        "placement_ok": report["placement_ok"],
+        "reserved_ok": report["reserved_ok"],
+        "reserved_covers_placement": report["reserved_covers_placement"],
+        "all_written": report["all_written"],
+        "cache_values_ok": True,
         "same_output": same_output,
-        "v2_runtime_absent": v2_runtime_absent,
+        "v2_runtime_written": v2_runtime_written,
     }
 
 
