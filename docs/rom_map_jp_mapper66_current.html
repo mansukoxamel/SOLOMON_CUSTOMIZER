@@ -137,7 +137,7 @@
       <tr><td class="num">0x639C-0x63B4 / 0x61EC-0x61F7</td><td>Stage start announcement draw helper</td><td>`$9471` 互換の待機を行う開始画面アナウンス用PPU scriptポインタ共有ヘルパ。</td></tr>
       <tr><td class="num">0x60FC-0x6108 / 0x612C-0x6138 / 0x618C-0x619A / 0x61BC-0x61C8 / 0x657C-0x658A / 0x66FC-0x670B</td><td>Stage start announcement scripts</td><td>`DARK ROOM` / `FIRE LOSS` / `HIDDEN DOOR` / `KEY ENEMY` / `FIRE SEALED` / `SPELL SEALED`。</td></tr>
       <tr><td class="num">0x67B4-0x67D0</td><td>Panel Variant parent speed guard</td><td>`$866D` hook target。`$8AC0` 後に共通Panel type classifierでA/B/Cと借用Panel IDを判定し、親速度・サブピクセルを消す。</td></tr>
-      <tr><td class="num">0x67D1-0x681B</td><td>Panel Variant parent guard tail reserve</td><td>親速度guard圧縮で回収した非常用候補75B。通常開発では使わず、PRG0致命修正時だけ再検証して使う。</td></tr>
+      <tr><td class="num">0x67D1-0x6817</td><td>Panel Monster v2 Bullet entry helper</td><td>`$BF69` Bullet state2 hookから入る短い入口。`$80-$84` spread markerを処理し、plus/minus/speed tailへ分岐する。0x681C以降のTransparent Spark Ball領域には入らない。</td></tr>
       <tr><td class="num">0x675C-0x6773</td><td>Visible item in-block helper</td><td>`$E74C` NMI helper。`$0750-$0767` の24B bitmaskを破壊的にshiftし、maskありセルは白ブロック内アイテムへ差し替え、maskなしセルは `$E77C` へ分岐する。</td></tr>
       <tr><td class="num">0x678C-0x6797</td><td>White in-block runtime extension</td><td>`$E77C` helper。maskなしの直接 `$C0-$F7` 白ブロック内アイテムだけ、初期描画後の生グリッドを `$80-$B7` へ落として2段階破壊にする。</td></tr>
       <tr><td class="num">0x69D4-0x69DF</td><td>Panel Variant final AI dispatch panel tail</td><td>`$E9C4` helper。`0x678C-0x6797` の White in-block runtime extension との重複を避けるため移設。ASM文字列検索、原作ROMポインタ検索、6502 absolute/indexed operandスキャンで `$E9C4-$E9CF` への原作参照なしを確認。</td></tr>
@@ -147,6 +147,7 @@
       <tr><td class="num">0x6833-0x6882</td><td>Panel Monster v2 Bullet speed tables + fast loop</td><td>Velocity table, extra-step count table, and shared 2x/3x substep loop. Samples <code>$AC39</code> after each extra step and returns on wall collision without entering the stock impact/destruction path.</td></tr>
       <tr><td class="num">0x68AC-0x68C0</td><td>Panel Variant dynamic speed marker helper</td><td>Panel Variant Bullet speed marker helper relocated from the post-Bullet-hook gap.</td></tr>
       <tr><td class="num">0x68C1-0x68FB</td><td>Panel Variant shared AI wrapper</td><td>A/B/Cとborrowed Panel IDのdirection normalize。現行実体59B。</td></tr>
+      <tr><td class="num">0x697F-0x699E</td><td>Panel Monster v2 Bullet entry tail helper</td><td>`$67D1` entry helperから分岐するminus/plus/speed tail。2-way/3-wayのspread adjustと、`$88-$8B` speed markerのdecode/fast loop呼び出しを置く。</td></tr>
       <tr><td class="num">0x6FD4-0x7004</td><td>Spark Ball pause hook</td><td>PRG0後半のEA埋め領域を利用。49B。</td></tr>
       <tr><td class="num">0x7005-0x700F</td><td>Solomon Seal block helper</td><td>`$BB90` の紋章セル書き込みから呼ぶ11Bヘルパ。StageExt loader がコピーした `$077D` を見て、原作 `$60` / 茶ブロック内 `$A0` / 白ブロック内 `$E0` を書く。</td></tr>
     </table>
@@ -178,6 +179,8 @@
       <tr><td>00埋め上書き</td><td><code>room_flags.py</code></td><td class="num">0x675C-0x6773 / 0x678C-0x6797</td><td class="num">$E74C-$E763 / $E77C-$E787</td><td class="num">36B</td><td>00埋め</td><td>Visible item in-block helper。<code>$0750-$0767</code> の24B bitmaskをNMI走査中に破壊的shiftし、maskありセルを <code>$C0+item</code> へ変換する。maskなしの直接 <code>$C0-$F7</code> 白ブロック内アイテムは <code>$80-$B7</code> へ落として2段階破壊にする。</td></tr>
       <tr><td>00埋め上書き</td><td><code>m66.py</code></td><td class="num">0x62ED-0x62F4 / 0x63FC-0x6403 / 0x6774-0x6789 / 0x6798-0x67A1</td><td class="num">$E2DD-$E2E4 / $E3EC-$E3F3 / $E764-$E779 / $E788-$E791</td><td class="num">48B</td><td>00埋め</td><td>ひび割れブロック内アイテム用の初期描画低値分類ヘルパ。既存の透明ブロック内maskを読み、<code>$40-$7F</code> かつmaskありのセルだけひび割れ表示へ分類する。</td></tr>
       <tr><td>00埋め上書き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x681C-0x6832</td><td class="num">$E80C-$E822</td><td class="num">23B</td><td>00埋め</td><td>Transparent Spark Ball Golem-ID AI wrapper。旧配置 <code>$8BE2</code> は initial magic / lives と衝突するため使用しない。</td></tr>
+      <tr><td>既存tail上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x67D1-0x6817</td><td class="num">$E7C1-$E807</td><td class="num">71B</td><td>原作tail data</td><td>Panel Monster v2 Bullet entry helper。<code>$BF69</code> からJMPし、2-way/3-way spread markerとspeed markerを同じ入口で処理する。</td></tr>
+      <tr><td>既存tail上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x697F-0x699E</td><td class="num">$E96F-$E98E</td><td class="num">32B</td><td>原作tail data</td><td>Panel Monster v2 Bullet entry tail helper。minus/plus位置補正とspeed decode/fast loop tail。</td></tr>
       <tr><td>00埋め上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x69D4-0x69DF</td><td class="num">$E9C4-$E9CF</td><td class="num">12B</td><td>00埋め</td><td>Panel Variant final AI dispatch panel tail。<code>room_flags.py</code> の <code>$E77C</code> White in-block runtime extension との重複回避のため移設。</td></tr>
       <tr><td>小routine</td><td><code>spark_ball_variant.py</code></td><td class="num">0x6FD4-0x7004</td><td class="num">$EFC4-$EFF4</td><td class="num">49B</td><td>EA埋め</td><td>Spark Ball pause hook。ID判定を圧縮済み。</td></tr>
     </table>

@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK43 (2026-06-20) 2-way/3-way spread marker処理を復元
+- v2 Bullet hookに旧2-way/3-wayの `$80-$84` spread marker処理を戻し、`$88-$8B` speed marker処理と同居させた。
+- 2-way/3-wayが複数発を同じ位置へ重ねて1発に見える状態を直す。
+- 保存前guardにspread marker経路とaxis adjustのbyte確認を追加した。
+
 ## EX-PANEL-V2-BLOCK42 (2026-06-20) 通常Panel単体の保存checkを追加
 - `tools/panel_monster_v2_runtime_check.py` のmatrixに通常Panel代表ケースを追加した。
 - 通常Panel単体ではv2 runtimeを無理に書かず、保存/再保存が安定することを確認する。

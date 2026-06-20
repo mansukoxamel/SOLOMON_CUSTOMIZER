@@ -193,6 +193,11 @@ OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER = 0x68AC  # CPU $E89C, 25B original 00-fil
 CPU_FINAL_DYNAMIC_SPEED_MARKER_HELPER = _cpu(OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER)
 OFF_FINAL_PARENT_FIELD_CLEAR_HELPER = 0x67A3  # CPU $E793, original 00-fill before Spark helper
 CPU_FINAL_PARENT_FIELD_CLEAR_HELPER = _cpu(OFF_FINAL_PARENT_FIELD_CLEAR_HELPER)
+OFF_FINAL_BULLET_ENTRY_HELPER = 0x67D1  # CPU $E7C1, tail after parent speed guard before v2 speed tables
+CPU_FINAL_BULLET_ENTRY_HELPER = _cpu(OFF_FINAL_BULLET_ENTRY_HELPER)
+OFF_FINAL_BULLET_ENTRY_HELPER_END = 0x681C  # Spark Ball Golem wrapper starts here.
+OFF_FINAL_BULLET_ENTRY_TAIL_HELPER = 0x697F  # CPU $E96F, short tail between AI helpers
+CPU_FINAL_BULLET_ENTRY_TAIL_HELPER = _cpu(OFF_FINAL_BULLET_ENTRY_TAIL_HELPER)
 OFF_FINAL_SHARED_AI_WRAPPER = 0x68C1  # CPU $E8B1, original 00-fill after dynamic marker helper
 CPU_FINAL_SHARED_AI_WRAPPER = _cpu(OFF_FINAL_SHARED_AI_WRAPPER)
 OFF_SPEED_INIT_CALL = 0x067D  # CPU $866D, original JSR $8AC0 speed initializer
@@ -604,7 +609,9 @@ def _build_stage_anim_hook() -> bytes:
     return a.finish()
 
 
-FINAL_BULLET_SPEED_HOOK_CAPACITY = len(panel_monster_variant.CAVE_BULLET_HOOK) + 0x21
+FINAL_BULLET_SPEED_HOOK_CAPACITY = len(panel_monster_variant.CAVE_BULLET_HOOK)
+FINAL_BULLET_ENTRY_HELPER_CAPACITY = OFF_FINAL_BULLET_ENTRY_HELPER_END - OFF_FINAL_BULLET_ENTRY_HELPER
+FINAL_BULLET_ENTRY_TAIL_HELPER_CAPACITY = OFF_FINAL_AI_DISPATCH_PANEL_HELPER - OFF_FINAL_BULLET_ENTRY_TAIL_HELPER
 FINAL_STATE0_INTERVAL_HELPER = _build_final_state0_interval_helper()
 FINAL_GROUP_RAM_OFFSET_HELPER = _build_final_group_ram_offset_helper()
 FINAL_ABC_GROUP_OFFSET_HELPER = _build_abc_group_offset_helper()
@@ -680,9 +687,15 @@ def panel_variant_bullet_placement_report() -> dict[str, int]:
         "v2_bullet_speed_hook_off": panel_monster_variant.OFF_BULLET_HOOK,
         "v2_bullet_speed_hook_size": len(v2_speed["bullet_speed_hook"]),
         "v2_bullet_speed_hook_capacity": FINAL_BULLET_SPEED_HOOK_CAPACITY,
+        "v2_bullet_entry_helper_off": OFF_FINAL_BULLET_ENTRY_HELPER,
+        "v2_bullet_entry_helper_size": len(v2_speed["bullet_entry_helper"]),
+        "v2_bullet_entry_helper_capacity": FINAL_BULLET_ENTRY_HELPER_CAPACITY,
+        "v2_bullet_entry_tail_helper_off": OFF_FINAL_BULLET_ENTRY_TAIL_HELPER,
+        "v2_bullet_entry_tail_helper_size": len(v2_speed["bullet_entry_tail_helper"]),
+        "v2_bullet_entry_tail_helper_capacity": FINAL_BULLET_ENTRY_TAIL_HELPER_CAPACITY,
         "existing_bullet_hook_size": len(panel_monster_variant.CAVE_BULLET_HOOK),
         "v2_total_size": sum(len(blob) for blob in v2_speed.values()),
-        "v2_total_capacity": 0x3A + 0x79 + FINAL_BULLET_SPEED_HOOK_CAPACITY,
+        "v2_total_capacity": 0x3A + 0x79 + FINAL_BULLET_SPEED_HOOK_CAPACITY + FINAL_BULLET_ENTRY_HELPER_CAPACITY + FINAL_BULLET_ENTRY_TAIL_HELPER_CAPACITY,
     }
 
 
@@ -756,6 +769,8 @@ def panel_variant_split_placement_report() -> dict[str, object]:
         ("dynamic_speed_marker_helper", OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER, len(FINAL_DYNAMIC_SPEED_MARKER_HELPER), 0x1E),
         ("parent_field_clear_helper", OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, len(FINAL_PARENT_FIELD_CLEAR_HELPER), FINAL_PARENT_FIELD_CLEAR_HELPER_CAPACITY),
         ("v2_speed_tables_and_fast_loop", OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, v2_speed_sizes["tables_and_fast_loop"], 0x79),
+        ("v2_bullet_entry_helper", OFF_FINAL_BULLET_ENTRY_HELPER, v2_speed_sizes["bullet_entry_helper"], FINAL_BULLET_ENTRY_HELPER_CAPACITY),
+        ("v2_bullet_entry_tail_helper", OFF_FINAL_BULLET_ENTRY_TAIL_HELPER, v2_speed_sizes["bullet_entry_tail_helper"], FINAL_BULLET_ENTRY_TAIL_HELPER_CAPACITY),
         ("v2_speed_decode", OFF_FINAL_BULLET_SPEED_APPLY, v2_speed_sizes["speed_decode"], 0x3A),
         ("shared_ai_wrapper", OFF_FINAL_SHARED_AI_WRAPPER, len(FINAL_SHARED_AI_WRAPPER), 0xAB),
         ("fire_marker_table", OFF_FINAL_FIRE_MARKER_TABLE, len(FINAL_FIRE_MARKER_TABLE), 0x0B),
@@ -842,6 +857,14 @@ ORIG_FINAL_BULLET_SPEED_EXTRA_HELPER = bytes.fromhex(
     "000001000100010001ddc1155100012aaf000100010001000100005354449648"
     "00a494222400409204100096a014f000000001aca9b2490121524b5899450144"
     "d3201909532b09000100000000000000000000"
+)
+ORIG_FINAL_BULLET_ENTRY_HELPER = bytes.fromhex(
+    "00000000010001000100010001000110111011000105413c7900012008aaac02"
+    "80701c08306fe400006c6c00406d6cdeb620080001555320098aa33449901b"
+    "244992932409929321490001a001b12e29fec972f007c976f0064c11ad"
+)
+ORIG_FINAL_BULLET_ENTRY_TAIL_HELPER = bytes.fromhex(
+    "0000000000ffff8103e10fbffb8c63844387c3bc7b800385438003fffffffefe"
 )
 ORIG_FINAL_SHARED_AI_WRAPPER = bytes.fromhex(
     "000000001103d1e0410181381100610e0500190381000100e10001bfdcb5e622"
@@ -1118,6 +1141,20 @@ def _validate_final_split_signatures(
             ),
         ),
         (
+            OFF_FINAL_BULLET_ENTRY_HELPER,
+            v2_speed["bullet_entry_helper"],
+            "Panel Variant v2 Bullet entry helper",
+            (
+                ORIG_FINAL_BULLET_ENTRY_HELPER[:len(v2_speed["bullet_entry_helper"])],
+            ),
+        ),
+        (
+            OFF_FINAL_BULLET_ENTRY_TAIL_HELPER,
+            v2_speed["bullet_entry_tail_helper"],
+            "Panel Variant v2 Bullet entry tail helper",
+            (ORIG_FINAL_BULLET_ENTRY_TAIL_HELPER[:len(v2_speed["bullet_entry_tail_helper"])],),
+        ),
+        (
             OFF_FINAL_BULLET_SPEED_APPLY,
             v2_speed["speed_decode"],
             "Panel Variant final Bullet speed apply/table",
@@ -1186,6 +1223,8 @@ def apply_panel_monster_v2_runtime(
     min_len = max(
         OFF_FINAL_BULLET_SPEED_APPLY + len(v2_speed["speed_decode"]),
         OFF_FINAL_BULLET_SPEED_EXTRA_HELPER + len(v2_speed["tables_and_fast_loop"]),
+        OFF_FINAL_BULLET_ENTRY_HELPER + len(v2_speed["bullet_entry_helper"]),
+        OFF_FINAL_BULLET_ENTRY_TAIL_HELPER + len(v2_speed["bullet_entry_tail_helper"]),
         OFF_FINAL_AI_DISPATCH_HELPER + len(FINAL_AI_DISPATCH_HELPER),
         OFF_FINAL_AI_DISPATCH_PANEL_HELPER + len(FINAL_AI_DISPATCH_PANEL_HELPER),
         OFF_FINAL_PARENT_FIELD_CLEAR_HELPER + len(FINAL_PARENT_FIELD_CLEAR_HELPER),
@@ -1263,6 +1302,8 @@ def apply_panel_monster_v2_runtime(
         (OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER, FINAL_DYNAMIC_SPEED_MARKER_HELPER, "Panel Variant final dynamic speed marker helper"),
         (OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, FINAL_PARENT_FIELD_CLEAR_HELPER, "Panel Variant final parent field clear helper"),
         (OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, v2_speed["tables_and_fast_loop"], "Panel Variant v2 Bullet speed tables/fast loop"),
+        (OFF_FINAL_BULLET_ENTRY_HELPER, v2_speed["bullet_entry_helper"], "Panel Variant v2 Bullet entry helper"),
+        (OFF_FINAL_BULLET_ENTRY_TAIL_HELPER, v2_speed["bullet_entry_tail_helper"], "Panel Variant v2 Bullet entry tail helper"),
         (OFF_FINAL_BULLET_SPEED_APPLY, v2_speed["speed_decode"], "Panel Variant v2 Bullet speed decode"),
         (OFF_FINAL_SHARED_AI_WRAPPER, FINAL_SHARED_AI_WRAPPER, "Panel Variant final shared AI wrapper"),
         (OFF_FINAL_FIRE_MARKER_TABLE, FINAL_FIRE_MARKER_TABLE, "Panel Variant final fire marker table"),
@@ -1397,19 +1438,62 @@ def _build_pmv2_bullet_step_loop(cpu_base: int) -> bytes:
     return bytes(blob)
 
 
-def _build_pmv2_bullet_speed_hook(speed_decode_cpu: int, bullet_step_loop_cpu: int) -> bytes:
-    """Build the v2 Bullet state2 entry that routes all speed markers alike."""
+def _build_pmv2_bullet_entry_tail_helper(speed_decode_cpu: int, bullet_step_loop_cpu: int) -> bytes:
+    """Build the short out-of-line tail for the v2 Bullet entry helper."""
+    a = _Asm()
+    a.b(0xB1, 0x2E, 0x38, 0xE9, 0x01, 0x91, 0x2E)
+    a.b(0x68, 0xAA, 0x68, 0x60)
+    a.b(0xB1, 0x2E, 0x18, 0x69, 0x01, 0x91, 0x2E)
+    a.b(0x68, 0xAA, 0x68, 0x60)
+    a.jsr(speed_decode_cpu)
+    a.jsr(bullet_step_loop_cpu)
+    a.b(0x68, 0xAA, 0x68, 0x60)
+    return a.finish()
+
+
+def _build_pmv2_bullet_entry_helper(minus_tail_cpu: int, plus_tail_cpu: int, speed_tail_cpu: int) -> bytes:
+    """Build the v2 Bullet state2 body for spread and speed markers."""
     a = _Asm()
     a.jsr(0xB201)
     a.b(0x48, 0xC9, 0x02)
     a.branch(0xD0, "done")
-    a.b(0x8A, 0x48)
-    a.jsr(speed_decode_cpu)
-    a.jsr(bullet_step_loop_cpu)
-    a.b(0x68, 0xAA)
+    a.b(0x8A, 0x48)                   # Preserve caller-visible X.
+    a.b(0xA0, 0x07, 0xB1, 0x2C)        # child sub[7] marker
+    a.branch(0x10, "restore_x")
+    a.b(0xC9, 0x88)
+    a.branch(0xB0, "speed")
+    a.b(0x29, 0x7F, 0xAA)
+    a.branch(0xF0, "restore_x")
+    a.b(0xE0, 0x03)
+    a.branch(0x90, "axis")
+    a.b(0xA0, 0x01, 0xB1, 0x2C, 0x29, 0x01)
+    a.branch(0xD0, "restore_x")
+    a.label("axis")
+    a.b(0xA0, 0x03, 0xB1, 0x2E, 0x29, 0x02)
+    a.branch(0xF0, "y_axis")
+    a.b(0xA0, 0x0A)
+    a.branch(0xD0, "axis_done")
+    a.label("y_axis")
+    a.b(0xA0, 0x07)
+    a.label("axis_done")
+    a.b(0x8A, 0x29, 0x01)
+    a.branch(0xD0, "plus")
+    a.jmp(minus_tail_cpu)
     a.label("done")
     a.b(0x68, 0x60)
+    a.label("plus")
+    a.jmp(plus_tail_cpu)
+    a.label("speed")
+    a.jmp(speed_tail_cpu)
+    a.label("restore_x")
+    a.b(0x68, 0xAA)
+    a.b(0x68, 0x60)
     return a.finish()
+
+
+def _build_pmv2_bullet_speed_hook(entry_helper_cpu: int) -> bytes:
+    """Build the small v2 Bullet state2 entry kept in the original slot."""
+    return bytes.fromhex("4c") + _word(entry_helper_cpu)
 
 
 def build_panel_monster_v2_speed_core_blob(base_cpu: int = 0x8000) -> PanelMonsterV2Blob:
@@ -1457,11 +1541,31 @@ def build_panel_monster_v2_speed_core_blob(base_cpu: int = 0x8000) -> PanelMonst
         entries,
         sizes,
         base_cpu,
-        "bullet_speed_hook",
-        _build_pmv2_bullet_speed_hook(
+        "bullet_entry_tail_helper",
+        _build_pmv2_bullet_entry_tail_helper(
             entries["speed_decode"],
             entries["bullet_step_loop"],
         ),
+    )
+    _append_blob_section(
+        out,
+        entries,
+        sizes,
+        base_cpu,
+        "bullet_entry_helper",
+        _build_pmv2_bullet_entry_helper(
+            entries["bullet_entry_tail_helper"],
+            (entries["bullet_entry_tail_helper"] + 0x0B) & 0xFFFF,
+            (entries["bullet_entry_tail_helper"] + 0x16) & 0xFFFF,
+        ),
+    )
+    _append_blob_section(
+        out,
+        entries,
+        sizes,
+        base_cpu,
+        "bullet_speed_hook",
+        _build_pmv2_bullet_speed_hook(entries["bullet_entry_helper"]),
     )
     return PanelMonsterV2Blob(
         base_cpu=base_cpu,
@@ -1488,6 +1592,8 @@ def _v2_split_speed_reserved_sizes() -> dict[str, int]:
         "speed_decode": len(blobs["speed_decode"]),
         "tables_and_fast_loop": len(blobs["tables_and_fast_loop"]),
         "bullet_speed_hook": len(blobs["bullet_speed_hook"]),
+        "bullet_entry_helper": len(blobs["bullet_entry_helper"]),
+        "bullet_entry_tail_helper": len(blobs["bullet_entry_tail_helper"]),
     }
 
 
@@ -1524,6 +1630,8 @@ def panel_monster_v2_split_speed_placement_report() -> dict[str, object]:
         + section_sizes["bullet_step_loop"]
     )
     hook_size = section_sizes["bullet_speed_hook"]
+    entry_helper_size = section_sizes["bullet_entry_helper"]
+    entry_tail_helper_size = section_sizes["bullet_entry_tail_helper"]
     rows = [
         {
             "name": "v2_speed_decode",
@@ -1540,6 +1648,20 @@ def panel_monster_v2_split_speed_placement_report() -> dict[str, object]:
             "capacity": 0x79,
         },
         {
+            "name": "v2_bullet_entry_helper",
+            "file_start": OFF_FINAL_BULLET_ENTRY_HELPER,
+            "cpu_start": CPU_FINAL_BULLET_ENTRY_HELPER,
+            "size": entry_helper_size,
+            "capacity": FINAL_BULLET_ENTRY_HELPER_CAPACITY,
+        },
+        {
+            "name": "v2_bullet_entry_tail_helper",
+            "file_start": OFF_FINAL_BULLET_ENTRY_TAIL_HELPER,
+            "cpu_start": CPU_FINAL_BULLET_ENTRY_TAIL_HELPER,
+            "size": entry_tail_helper_size,
+            "capacity": FINAL_BULLET_ENTRY_TAIL_HELPER_CAPACITY,
+        },
+        {
             "name": "v2_bullet_speed_hook",
             "file_start": panel_monster_variant.OFF_BULLET_HOOK,
             "cpu_start": panel_monster_variant.CPU_BULLET_HOOK,
@@ -1554,10 +1676,10 @@ def panel_monster_v2_split_speed_placement_report() -> dict[str, object]:
     return {
         "pieces": rows,
         "fits": all(row["remaining"] >= 0 for row in rows),
-        "total_size": decode_size + table_loop_size + hook_size,
+        "total_size": decode_size + table_loop_size + entry_helper_size + entry_tail_helper_size + hook_size,
         "total_capacity": sum(row["capacity"] for row in rows),
         "static_blob_size": len(blob.data),
-        "layout_rule": "Put decode alone in the $C088 slot; put tables plus fast loop in the $E823 slot.",
+        "layout_rule": "Put decode alone in the $C088 slot; put tables plus fast loop in the $E823 slot; keep $BF69 as a small jump into the $E7C1 entry helper; keep the short plus/speed tail at $E96F.",
     }
 
 
@@ -1579,7 +1701,13 @@ def panel_monster_v2_split_speed_runtime_blobs() -> dict[str, bytes]:
     return {
         "speed_decode": _build_pmv2_speed_decode(velocity_table_cpu, extra_count_table_cpu),
         "tables_and_fast_loop": tables_and_fast_loop,
-        "bullet_speed_hook": _build_pmv2_bullet_speed_hook(CPU_FINAL_BULLET_SPEED_APPLY, loop_cpu),
+        "bullet_entry_tail_helper": _build_pmv2_bullet_entry_tail_helper(CPU_FINAL_BULLET_SPEED_APPLY, loop_cpu),
+        "bullet_entry_helper": _build_pmv2_bullet_entry_helper(
+            CPU_FINAL_BULLET_ENTRY_TAIL_HELPER,
+            CPU_FINAL_BULLET_ENTRY_TAIL_HELPER + 0x0B,
+            CPU_FINAL_BULLET_ENTRY_TAIL_HELPER + 0x16,
+        ),
+        "bullet_speed_hook": _build_pmv2_bullet_speed_hook(CPU_FINAL_BULLET_ENTRY_HELPER),
     }
 
 
@@ -1596,6 +1724,14 @@ def panel_monster_v2_split_speed_save_report(rom_data: bytes | bytearray) -> dic
         "tables_and_fast_loop": (
             OFF_FINAL_BULLET_SPEED_EXTRA_HELPER,
             blobs["tables_and_fast_loop"],
+        ),
+        "bullet_entry_helper": (
+            OFF_FINAL_BULLET_ENTRY_HELPER,
+            blobs["bullet_entry_helper"],
+        ),
+        "bullet_entry_tail_helper": (
+            OFF_FINAL_BULLET_ENTRY_TAIL_HELPER,
+            blobs["bullet_entry_tail_helper"],
         ),
         "bullet_speed_hook": (
             panel_monster_variant.OFF_BULLET_HOOK,
@@ -1684,6 +1820,18 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
         "$8C upper bound": (speed_decode, bytes((0xC9, 0x8C))),
         "$88 marker index decode": (speed_decode, bytes((0x38, 0xE9, 0x88))),
         "$AC39 collision sample": (fast_loop, bytes((0x20, 0x39, 0xAC))),
+        "bullet hook jumps to entry helper": (
+            split_blobs["bullet_speed_hook"],
+            bytes.fromhex("4c") + _word(CPU_FINAL_BULLET_ENTRY_HELPER),
+        ),
+        "$80-$84 spread marker path": (
+            split_blobs["bullet_entry_helper"],
+            bytes((0xC9, 0x88, 0xB0)),
+        ),
+        "spread axis adjust": (
+            split_blobs["bullet_entry_tail_helper"],
+            bytes((0xB1, 0x2E, 0x38, 0xE9, 0x01, 0x91, 0x2E)),
+        ),
     }
     for name, (blob, pattern) in required_patterns.items():
         if pattern not in blob:
@@ -1705,6 +1853,8 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
         "speed_extra_count_table",
         "speed_decode",
         "bullet_step_loop",
+        "bullet_entry_tail_helper",
+        "bullet_entry_helper",
         "bullet_speed_hook",
     }
     if set(contract["sizes"]) != required_sections:
@@ -1854,6 +2004,8 @@ RESERVED_SPANS = (
     (OFF_FINAL_STATIC_MARKER_HELPER, len(FINAL_STATIC_MARKER_HELPER)),
     (OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER, len(FINAL_DYNAMIC_SPEED_MARKER_HELPER)),
     (OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, len(FINAL_PARENT_FIELD_CLEAR_HELPER)),
+    (OFF_FINAL_BULLET_ENTRY_HELPER, _v2_split_speed_reserved_sizes()["bullet_entry_helper"]),
+    (OFF_FINAL_BULLET_ENTRY_TAIL_HELPER, _v2_split_speed_reserved_sizes()["bullet_entry_tail_helper"]),
     (OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, _v2_split_speed_reserved_sizes()["tables_and_fast_loop"]),
     (OFF_FINAL_BULLET_SPEED_APPLY, _v2_split_speed_reserved_sizes()["speed_decode"]),
     (OFF_FINAL_SHARED_AI_WRAPPER, len(FINAL_SHARED_AI_WRAPPER)),
