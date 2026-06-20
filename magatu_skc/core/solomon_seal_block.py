@@ -304,7 +304,6 @@ def apply(rom_data: bytearray, levels: list) -> list[str]:
     _verify(rom_data)
     table = build_table(bytes(rom_data), levels)
     transparent_tables = build_transparent_tables(bytes(rom_data), levels)
-    enabled = any(table)
     changed: list[str] = []
     for off, blob, name in (
         (OFF_PRG1_TRANSPARENT_SEAL_CELL_TABLE, transparent_tables[0], "Transparent Seal cell table"),
@@ -321,25 +320,11 @@ def apply(rom_data: bytearray, levels: list) -> list[str]:
             TRANSPARENT_SEAL_PANEL_TAIL_HELPER_SLOT,
             "Transparent Seal Panel loader tail helper",
         ),
+        (OFF_SEAL_HELPER, SEAL_HELPER, "Solomon Seal block helper $EFF5"),
+        (OFF_PRG1_SEAL_BLOCK_TABLE, table, "Solomon Seal block-state table"),
+        (OFF_SEAL_WRITE, HOOK_SEAL_WRITE, "$BB90 Solomon Seal block-state hook"),
     ):
         if bytes(rom_data[off:off + len(blob)]) != blob:
             rom_data[off:off + len(blob)] = blob
             changed.append(name)
-    if not enabled:
-        if bytes(rom_data[OFF_SEAL_WRITE:OFF_SEAL_WRITE + len(HOOK_SEAL_WRITE)]) == HOOK_SEAL_WRITE:
-            rom_data[OFF_SEAL_WRITE:OFF_SEAL_WRITE + len(ORIG_SEAL_WRITE)] = ORIG_SEAL_WRITE
-            changed.append("restore original Solomon Seal cell write")
-        if any(rom_data[OFF_PRG1_SEAL_BLOCK_TABLE:OFF_PRG1_SEAL_BLOCK_TABLE + SEAL_BLOCK_TABLE_LEN]):
-            rom_data[OFF_PRG1_SEAL_BLOCK_TABLE:OFF_PRG1_SEAL_BLOCK_TABLE + SEAL_BLOCK_TABLE_LEN] = bytes(SEAL_BLOCK_TABLE_LEN)
-            changed.append("clear Solomon Seal block-state table")
-        return changed
-    if bytes(rom_data[OFF_SEAL_HELPER:OFF_SEAL_HELPER + len(SEAL_HELPER)]) != SEAL_HELPER:
-        rom_data[OFF_SEAL_HELPER:OFF_SEAL_HELPER + len(SEAL_HELPER)] = SEAL_HELPER
-        changed.append("Solomon Seal block helper $EFF5")
-    if bytes(rom_data[OFF_PRG1_SEAL_BLOCK_TABLE:OFF_PRG1_SEAL_BLOCK_TABLE + SEAL_BLOCK_TABLE_LEN]) != table:
-        rom_data[OFF_PRG1_SEAL_BLOCK_TABLE:OFF_PRG1_SEAL_BLOCK_TABLE + SEAL_BLOCK_TABLE_LEN] = table
-        changed.append("Solomon Seal block-state table")
-    if bytes(rom_data[OFF_SEAL_WRITE:OFF_SEAL_WRITE + len(HOOK_SEAL_WRITE)]) != HOOK_SEAL_WRITE:
-        rom_data[OFF_SEAL_WRITE:OFF_SEAL_WRITE + len(HOOK_SEAL_WRITE)] = HOOK_SEAL_WRITE
-        changed.append("$BB90 Solomon Seal block-state hook")
     return changed

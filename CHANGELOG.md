@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK50 (2026-06-20) Solomon Seal block-state runtimeを常時書き込みへ変更
+- Solomon Seal block-stateが未使用の時に `$BB90` hookを原作へ戻す処理をやめた。
+- block-state tableが全ゼロでもhelper/table/hookを毎回同じ配置へ書き、helper側で原作相当の `$60` 書き込みへ戻す。
+- 保存ROMの構造差分を減らすため、runtime常時書き込み方針へ揃えた。
+
 ## EX-PANEL-V2-BLOCK49 (2026-06-20) Gargoyle 2-shot runtimeを常時書き込みへ変更
 - ステージ内の強化Gargoyle ID有無で `gargoyle_variant.apply()` を呼ぶ/呼ばない分岐を削除した。
 - Gargoyle 2-shot runtimeはgate付きなので、未使用ステージでも毎回同じROM配置へ書き、通常Gargoyleは原作相当ルートへ戻す。
