@@ -100,6 +100,31 @@ NORMAL_CASES = (
 RUNTIME_IDS = panel_v2.PANEL_STAGE_RUNTIME_IDS
 
 
+def _ids_from_cases(cases: tuple) -> set[int]:
+    return {int(row[1]) & 0xFF for row in cases}
+
+
+def _validate_case_matrix_contract() -> None:
+    speed_ids = _ids_from_cases(SPEED_CASES)
+    interval_ids = _ids_from_cases(INTERVAL_CASES)
+    borrowed_ids = _ids_from_cases(BORROWED_CASES)
+    normal_ids = _ids_from_cases(NORMAL_CASES)
+    expected_variant_ids = set(panel_v2.PANEL_STAGE_VARIANT_IDS)
+    expected_borrowed_ids = set(panel_v2.BORROWED_PANEL_RUNTIME_IDS)
+    expected_normal_ids = set(panel_v2.STOCK_PANEL_IDS)
+    problems = []
+    if speed_ids != expected_variant_ids:
+        problems.append(f"speed ids {sorted(speed_ids)} != {sorted(expected_variant_ids)}")
+    if interval_ids != expected_variant_ids:
+        problems.append(f"interval ids {sorted(interval_ids)} != {sorted(expected_variant_ids)}")
+    if borrowed_ids != expected_borrowed_ids:
+        problems.append(f"borrowed ids {sorted(borrowed_ids)} != {sorted(expected_borrowed_ids)}")
+    if normal_ids != expected_normal_ids:
+        problems.append(f"normal ids {sorted(normal_ids)} != {sorted(expected_normal_ids)}")
+    if problems:
+        raise AssertionError("Panel Monster v2 check matrix coverage mismatch: " + "; ".join(problems))
+
+
 def _hex_byte(value: str) -> int:
     value = value.strip()
     base = 16 if value.lower().startswith("0x") else 10
@@ -232,6 +257,7 @@ def _interval_settings(interval_key: str, interval: int) -> dict[str, int]:
 
 
 def run_check(args: argparse.Namespace) -> tuple[bool, dict[str, object]]:
+    _validate_case_matrix_contract()
     source_rom = _load_expanded_rom(args.rom)
     if args.mode == "single":
         settings = _settings_from_args(args)
