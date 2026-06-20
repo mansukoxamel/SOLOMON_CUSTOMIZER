@@ -411,9 +411,9 @@
       <tr><td>group_ram_offset_helper</td><td class="num">0x3EAF-0x3EB6</td><td class="num">$BE9F-$BEA6</td><td class="num">8B</td><td class="num">23B</td><td>A/B/C group offset helperを呼ぶ。</td></tr>
       <tr><td>speed_select_helper</td><td class="num">0x3ECD-0x3ED3</td><td class="num">$BEBD-$BEC3</td><td class="num">7B</td><td class="num">10B</td><td><code>$0740+$X</code> からspeed presetを読む。</td></tr>
       <tr><td>static_marker_helper</td><td class="num">0x3F50-0x3F5B</td><td class="num">$BF40-$BF4B</td><td class="num">12B</td><td class="num">16B</td><td>child sub-slot marker書込。</td></tr>
-      <tr><td>merged_panel_bullet_hook</td><td class="num">0x3F79-0x3FC9</td><td class="num">$BF69-$BFB9</td><td class="num">81B</td><td class="num">81B</td><td>Panel Bullet marker処理、移動補正。</td></tr>
-      <tr><td>bullet_speed_apply_and_table</td><td class="num">0x4098-0x40CE</td><td class="num">$C088-$C0BE</td><td class="num">55B</td><td class="num">58B</td><td>markerから速度table値を選ぶ。</td></tr>
-      <tr><td>bullet_speed_extra_helper</td><td class="num">0x6833-0x6885</td><td class="num">$E823-$E875</td><td class="num">83B</td><td class="num">121B</td><td>2x/3x extra step + <code>$AC39</code> collision check。</td></tr>
+      <tr><td>v2_bullet_speed_hook</td><td class="num">0x3F79-0x3F8C</td><td class="num">$BF69-$BF7C</td><td class="num">20B</td><td class="num">81B</td><td>Bullet state2からv2 decodeとfast loopへ入る入口。slot自体は旧hook互換のため81B予約。</td></tr>
+      <tr><td>v2_speed_decode</td><td class="num">0x4098-0x40CF</td><td class="num">$C088-$C0BF</td><td class="num">56B</td><td class="num">58B</td><td>marker <code>$88-$8B</code> をdecodeし、速度presetとextra countを決める。</td></tr>
+      <tr><td>v2_speed_tables_and_fast_loop</td><td class="num">0x6833-0x6882</td><td class="num">$E823-$E872</td><td class="num">80B</td><td class="num">121B</td><td>速度table、extra count table、2x/3x共有substep loop。壁衝突時は破壊/撃破effectへ入らず戻る。</td></tr>
       <tr><td>parent_field_clear_helper</td><td class="num">0x67A3-0x67B3</td><td class="num">$E793-$E7A3</td><td class="num">17B</td><td class="num">17B</td><td>親velocity/subpixel clear。</td></tr>
       <tr><td>parent_speed_guard</td><td class="num">0x67B4-0x67D0</td><td class="num">$E7A4-$E7C0</td><td class="num">29B</td><td class="num">104B</td><td><code>$866D</code> speed init後に親速度を消す。</td></tr>
       <tr><td>shared_ai_wrapper</td><td class="num">0x68C1-0x68FB</td><td class="num">$E8B1-$E8EB</td><td class="num">59B</td><td class="num">171B</td><td>borrowed-ID direction normalize。</td></tr>

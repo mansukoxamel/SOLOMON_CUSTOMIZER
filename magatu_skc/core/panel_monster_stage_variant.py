@@ -885,21 +885,20 @@ assert len(FINAL_STAGE_ANIM_HOOK) <= len(panel_monster_variant.CAVE_ANIM_HOOK)
 
 
 def panel_variant_bullet_placement_candidate() -> dict[str, int]:
+    v2_speed = panel_monster_v2_split_speed_runtime_blobs()
     return {
-        "bullet_speed_apply_off": OFF_FINAL_BULLET_SPEED_APPLY,
-        "bullet_speed_apply_size": len(FINAL_BULLET_SPEED_APPLY),
-        "bullet_speed_table_off": OFF_FINAL_BULLET_SPEED_APPLY + len(FINAL_BULLET_SPEED_APPLY),
-        "bullet_speed_table_size": len(FINAL_BULLET_SPEED_TABLE),
-        "bullet_speed_gap_capacity": 0x3A,
-        "bullet_speed_extra_helper_off": OFF_FINAL_BULLET_SPEED_EXTRA_HELPER,
-        "bullet_speed_extra_helper_size": len(FINAL_BULLET_SPEED_EXTRA_HELPER),
-        "merged_bullet_hook_off": panel_monster_variant.OFF_BULLET_HOOK,
-        "merged_bullet_hook_size": len(FINAL_MERGED_PANEL_BULLET_HOOK),
+        "v2_speed_decode_off": OFF_FINAL_BULLET_SPEED_APPLY,
+        "v2_speed_decode_size": len(v2_speed["speed_decode"]),
+        "v2_speed_decode_capacity": 0x3A,
+        "v2_speed_tables_and_fast_loop_off": OFF_FINAL_BULLET_SPEED_EXTRA_HELPER,
+        "v2_speed_tables_and_fast_loop_size": len(v2_speed["tables_and_fast_loop"]),
+        "v2_speed_tables_and_fast_loop_capacity": 0x79,
+        "v2_bullet_speed_hook_off": panel_monster_variant.OFF_BULLET_HOOK,
+        "v2_bullet_speed_hook_size": len(v2_speed["bullet_speed_hook"]),
+        "v2_bullet_speed_hook_capacity": len(FINAL_MERGED_PANEL_BULLET_HOOK),
         "existing_bullet_hook_size": len(panel_monster_variant.CAVE_BULLET_HOOK),
-        "merged_bullet_hook_growth": (
-            len(FINAL_MERGED_PANEL_BULLET_HOOK) - len(panel_monster_variant.CAVE_BULLET_HOOK)
-        ),
-        "post_bullet_hook_gap_capacity": 0x21,
+        "v2_total_size": sum(len(blob) for blob in v2_speed.values()),
+        "v2_total_capacity": 0x3A + 0x79 + len(FINAL_MERGED_PANEL_BULLET_HOOK),
     }
 
 

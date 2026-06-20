@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK8 (2026-06-20) Panel Monster v2 speed配置台帳を現行化
+- 実装内のBullet配置reportを旧speed apply/extra helper表記から、v2 split speed runtimeのdecode / tables+fast loop / hook表記へ更新した。
+- ROM管理簿とPanel Monster設計図の速度runtimeサイズを、Block 7時点の実体 `$C088` 56B、`$E823` 80B、`$BF69` 20Bに合わせた。
+- 挙動変更は入れず、次のcache/interval整理へ進むための台帳を現行化した。
+
 ## EX-PANEL-V2-BLOCK7 (2026-06-20) Panel Monster v2 fast弾の壁衝突エフェクト抑止
 - v2 fast loopの追加substepで壁衝突した時に、破壊/撃破系の後処理 `$AFDF` へ飛ばさないよう修正した。
 - 旧extra helperと同じく、`$AC39`で衝突を確認したら追加stepを打ち切って戻るだけにした。
