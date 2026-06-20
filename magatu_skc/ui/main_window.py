@@ -5621,7 +5621,7 @@ class MainWindow(QMainWindow):
                 return
 
             # 扉位置に通常ブロックは置けない。茶/壊せる白は特殊扉状態へ吸収する。
-            if (value not in passable_block_values and
+            if (value != BLOCK_NONE and
                     value not in in_block_absorb_values and
                     not lv.is_door_removed() and lv.fixed_door_pos == tile):
                 self.statusBar().showMessage(
