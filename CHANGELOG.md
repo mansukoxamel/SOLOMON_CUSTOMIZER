@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-DOCS2 (2026-06-20) PRG0 audit資料をv2現状へ追従
+- `prg0_padding_audit.md` のparent guard tail reserveを、saverがゼロ埋めする領域ではなく「触らないreserve」として更新した。
+- v2 speed tables + fast loopの範囲を、現行実体の `0x6833-0x6882` / `$E823-$E872` / 80Bへ更新した。
+- 実装変更はなく、PRG0候補の見え方を最新ROM優先の方針に合わせた。
+
 ## EX-PANEL-V2-BLOCK15 (2026-06-20) 古いspeed実験runtime署名を保存前検証から除外
 - 保存前検証で、旧speed extra helper、旧speed apply/table、旧merged Bullet hookを受け付けないようにした。
 - 受け付けるのは原作状態と最新v2 speed runtimeだけに絞った。

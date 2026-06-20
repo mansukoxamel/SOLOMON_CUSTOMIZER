@@ -101,9 +101,9 @@ document, `docs/rom_map_jp_mapper66_current.html`, and implementation constants.
 | `0x678C-0x6797` | `$E77C-$E787` | 12B | `room_flags.py` | `00` run | White in-block runtime extension. Starts at `$E77C` deliberately; `$E77A-$E77B` are not included. |
 | `0x6798-0x67A1` | `$E788-$E791` | 10B | `m66.py` | `00` run | Cracked in-block initial draw continuation. |
 | `0x67B4-0x67D0` | `$E7A4-$E7C0` | 29B | `panel_monster_stage_variant.py` | mixed / rewritten | Panel Variant parent speed guard. Uses the shared Panel type classifier after `$8AC0`. |
-| `0x67D1-0x681B` | `$E7C1-$E80B` | 75B | emergency reserve | mixed / zero-filled by saver | Recovered from the old parent speed guard span. Do not use for normal feature work; re-probe/review before emergency use. |
+| `0x67D1-0x681B` | `$E7C1-$E80B` | 75B | emergency reserve | mixed / untouched by saver | Recovered from the old parent speed guard span. Do not use for normal feature work; re-probe/review before emergency use. |
 | `0x681C-0x6832` | `$E80C-$E822` | 23B | `spark_ball_variant.py` | `00` run | Transparent Spark Ball Golem-ID AI wrapper. |
-| `0x6833-0x6885` | `$E823-$E875` | 83B | `panel_monster_stage_variant.py` | `00` run | Panel Variant Bullet speed extra-step helper/table area. |
+| `0x6833-0x6882` | `$E823-$E872` | 80B | `panel_monster_stage_variant.py` | `00` run | Panel Monster v2 Bullet speed tables plus shared fast loop. |
 | `0x68AC-0x68C0` | `$E89C-$E8B0` | 21B | `panel_monster_stage_variant.py` | `00` run | Dynamic speed marker helper. |
 | `0x693C-0x6959` | `$E92C-$E949` | 30B | `panel_monster_stage_variant.py` | `00` / mixed | Panel Variant A/B/C group offset helper. Former emergency candidate band; now used. |
 | `0x696C-0x697E` | `$E95C-$E96E` | 19B | `panel_monster_stage_variant.py` | `00` run | Panel Variant final AI dispatch helper. Former emergency candidate band; now used. |
