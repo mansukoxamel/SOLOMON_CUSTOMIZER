@@ -3731,6 +3731,7 @@ class MainWindow(QMainWindow):
                 show_hidden_overlay=self.chk_hidden.isChecked(),
                 show_border=True,
                 bonus_items=bonus,
+                show_enemy_variant_overlays=self.chk_stage_png_secrets.isChecked(),
             )
             self._sync_enemy_codes_from_rom(i)
             self._save_png_with_xml(img, level, stage_dir / f"level_{i + 1:02d}.png", level_no=i)
@@ -4120,6 +4121,7 @@ class MainWindow(QMainWindow):
             special_marks=self._get_special_marks(self.current_level_no),
             show_border=True,
             bonus_items=self._get_bonus_items(),
+            show_enemy_variant_overlays=self.chk_stage_png_secrets.isChecked(),
         )
         self._sync_enemy_codes_from_rom(self.current_level_no)
         self._save_png_with_xml(img, level, path, level_no=self.current_level_no)
@@ -4145,6 +4147,7 @@ class MainWindow(QMainWindow):
                 special_marks=self._get_special_marks(i),
                 show_border=True,
                 bonus_items=bonus,
+                show_enemy_variant_overlays=self.chk_stage_png_secrets.isChecked(),
             )
             self._sync_enemy_codes_from_rom(i)
             self._save_png_with_xml(img, level, path, level_no=i)
@@ -4326,6 +4329,7 @@ class MainWindow(QMainWindow):
             special_marks=self._get_special_marks(self.current_level_no),
             show_border=True,
             bonus_items=self._get_bonus_items(),
+            show_enemy_variant_overlays=self.chk_stage_png_secrets.isChecked(),
         )
 
     def _render_current_stage_for_compare_edit_base(self) -> QImage:

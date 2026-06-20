@@ -10,6 +10,7 @@ from ..core import room_flags, stage_ext
 from ..core.element import Wall, ElementType
 from ..core.level import Level
 from .tile_renderer import TileRenderer
+from ..ui.element_picker import ENHANCED_ENEMY_CODES
 
 
 # メタタイル番号定数（C++ Constants_level.h より）
@@ -328,7 +329,8 @@ class LevelRenderer:
                show_border: bool = False,
                bonus_items: list = None,
                show_secret_elements: bool = True,
-               draw_editor_markers: bool = True) -> QImage:
+               draw_editor_markers: bool = True,
+               show_enemy_variant_overlays: bool = True) -> QImage:
         """show_col15=False のとき、左に1列分の黒パディングを追加して
         左右対称な見た目にする (ホバー/クリック座標は LevelView 側で自動補正)
 
@@ -624,10 +626,15 @@ class LevelRenderer:
                     painter.setOpacity(0.72)
                     painter.drawImage(ex * tw, ey * tw, fairy_enemy_img)
                     painter.setOpacity(1.0)
-                if enemy.element_no in PANEL_VARIANT_VISUAL_SOURCE:
+                if show_enemy_variant_overlays and enemy.element_no in PANEL_VARIANT_VISUAL_SOURCE:
                     painter.fillRect(
                         ex * tw, ey * tw, tw, tw,
                         QColor(55, 135, 255, 80)
+                    )
+                elif show_enemy_variant_overlays and enemy.element_no in ENHANCED_ENEMY_CODES:
+                    painter.fillRect(
+                        ex * tw, ey * tw, tw, tw,
+                        QColor(245, 220, 80, 80)
                     )
 
             # 8.5 level_meta_items（ソロモンの紋章/六芒星、ボムジャック、テクモバニー、Page of Time/Space）
