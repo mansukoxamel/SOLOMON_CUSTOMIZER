@@ -807,6 +807,29 @@ def _span_overlap_report(spans: tuple[tuple[int, int], ...]) -> dict[str, object
     }
 
 
+def _placement_reserved_coverage_report(
+    placement_report: dict[str, object],
+    reserved_report: dict[str, object],
+) -> dict[str, object]:
+    reserved_pairs = {
+        (span["file_start"], span["size"])
+        for span in reserved_report["spans"]
+    }
+    missing = []
+    for piece in placement_report["pieces"]:
+        pair = (piece["file_start"], piece["size"])
+        if pair not in reserved_pairs:
+            missing.append({
+                "name": piece["name"],
+                "file_start": piece["file_start"],
+                "size": piece["size"],
+            })
+    return {
+        "missing": missing,
+        "all_placement_reserved": not missing,
+    }
+
+
 ORIG_FINAL_PARENT_FIELD_CLEAR_HELPER = bytes.fromhex(
     "0008210001000100010001000140010101"
 )
@@ -1615,12 +1638,14 @@ def panel_monster_v2_runtime_save_report(
     cache_report = panel_monster_v2_global_cache_save_report(rom_data, common_settings)
     placement_report = panel_variant_split_placement_report()
     reserved_report = panel_monster_v2_reserved_span_report()
+    coverage_report = _placement_reserved_coverage_report(placement_report, reserved_report)
     return {
         "apply_path": apply_panel_monster_v2_runtime.__name__,
         "guards": guard_results,
         "guards_ok": all(result is True for result in guard_results.values()),
         "placement_ok": placement_report["overlap_free"],
         "reserved_ok": reserved_report["overlap_free"],
+        "reserved_covers_placement": coverage_report["all_placement_reserved"],
         "speed_all_written": speed_report["all_written"],
         "cache_all_written": cache_report["all_written"],
         "all_written": speed_report["all_written"] and cache_report["all_written"],
@@ -1628,6 +1653,7 @@ def panel_monster_v2_runtime_save_report(
         "cache": cache_report,
         "placement": placement_report,
         "reserved": reserved_report,
+        "reserved_coverage": coverage_report,
     }
 
 

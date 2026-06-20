@@ -91,6 +91,7 @@ def _run_one_case(
         report["guards_ok"]
         and report["placement_ok"]
         and report["reserved_ok"]
+        and report["reserved_covers_placement"]
         and report["all_written"]
         and same_output
         and cache_values_ok
@@ -159,7 +160,7 @@ def print_result(result: dict[str, object]) -> None:
             print(
                 f"  {case['case']}: ok={case['ok']} "
                 f"guards_ok={case['guards_ok']} placement_ok={case['placement_ok']} "
-                f"reserved_ok={case['reserved_ok']} "
+                f"reserved_ok={case['reserved_ok']} reserved_covers={case['reserved_covers_placement']} "
                 f"all_written={case['all_written']} "
                 f"same_output={case['same_output']} cache_values_ok={case['cache_values_ok']}"
             )
@@ -168,6 +169,7 @@ def print_result(result: dict[str, object]) -> None:
     print(f"guards_ok {result['guards_ok']}")
     print(f"placement_ok {result['placement_ok']}")
     print(f"reserved_ok {result['reserved_ok']}")
+    print(f"reserved_covers_placement {result['reserved_covers_placement']}")
     print(f"all_written {result['all_written']}")
     print(f"same_output {result['same_output']}")
     print(f"cache_values_ok {result['cache_values_ok']}")

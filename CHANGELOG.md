@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK40 (2026-06-20) 実配置とRESERVED_SPANSの一致checkを追加
+- `panel_monster_v2_runtime_save_report()` に `reserved_covers_placement` を追加した。
+- split placement reportの全pieceが `RESERVED_SPANS` に含まれているかをCLI checkで確認する。
+- ROM挙動は変えず、実配置と実装予約のズレを早く検出できるようにした。
+
 ## EX-PANEL-V2-BLOCK39 (2026-06-20) runtime checkにsingle保存出力を追加
 - `tools/panel_monster_v2_runtime_check.py --mode single --out ...` で、通常保存経路を通したROMを必要時だけ書き出せるようにした。
 - 既定のmatrix checkはこれまで通りROMを書かず、15ケースの保存/guard/cache/配置/予約/再保存だけを確認する。
