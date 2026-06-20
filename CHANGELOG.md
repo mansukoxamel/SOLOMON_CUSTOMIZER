@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK71 (2026-06-20) Panel Monster fire tailを実空き化
+- v2最終書き込みで、旧Panel Monster common fire loopの未使用末尾6Bを明示的に`EA`へ戻すようにした。
+- 旧120B経路の残りバイトを残さず、v2最終ROMでは`$BDFA-$BDFF`を実際の短い非常用空きとして扱えるようにした。
+- 互換救済ではなく、現在のv2最終ROMの配置を固定するための整理。
+
 ## EX-PANEL-V2-BLOCK70 (2026-06-20) Panel Monster dynamic marker helperを圧縮
 - dynamic speed marker helper内のchild sub-slot marker書き込みを、既存のstatic marker helper呼び出しへ寄せた。
 - 判定は増やさず、同じ後処理だけを共有してdynamic helperを24Bから16Bへ削減した。

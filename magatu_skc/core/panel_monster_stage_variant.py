@@ -663,6 +663,9 @@ FINAL_FIRE_COMMON = _build_final_fire_common(
     CPU_FINAL_STATIC_MARKER_HELPER,
     CPU_FINAL_DYNAMIC_SPEED_MARKER_HELPER,
 )
+FINAL_FIRE_COMMON_TAIL_CLEAR = bytes(
+    [0xEA] * (len(panel_monster_variant.CAVE_FIRE_3WAY) - len(FINAL_FIRE_COMMON))
+)
 PREVIOUS_FIRE_DISPATCH = _build_previous_fire_dispatch(
     _cpu(0x3D01),
     panel_monster_variant.CPU_FIRE_3WAY + 0x0C,
@@ -1133,6 +1136,12 @@ def _validate_final_split_signatures(
             (_fill(0xEA, len(FINAL_FIRE_COMMON)), panel_monster_variant.CAVE_FIRE_3WAY[:len(FINAL_FIRE_COMMON)]),
         ),
         (
+            panel_monster_variant.OFF_FIRE_3WAY + len(FINAL_FIRE_COMMON),
+            FINAL_FIRE_COMMON_TAIL_CLEAR,
+            "Panel Variant final common fire loop tail clear",
+            (_fill(0xEA, len(FINAL_FIRE_COMMON_TAIL_CLEAR)), panel_monster_variant.CAVE_FIRE_3WAY[len(FINAL_FIRE_COMMON):]),
+        ),
+        (
             OFF_FINAL_STATE0_INTERVAL_HELPER,
             final_state0_interval_helper,
             "Panel Variant final interval helper",
@@ -1336,6 +1345,7 @@ def apply_panel_monster_v2_runtime(
         (OFF_FINAL_PANEL_TYPE_CLASSIFIER, FINAL_PANEL_TYPE_CLASSIFIER, "Panel Variant final shared Panel type classifier"),
         (OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL, FINAL_PANEL_TYPE_CLASSIFIER_TAIL, "Panel Variant final shared Panel type classifier tail"),
         (panel_monster_variant.OFF_FIRE_3WAY, FINAL_FIRE_COMMON, "Panel Variant final common fire loop"),
+        (panel_monster_variant.OFF_FIRE_3WAY + len(FINAL_FIRE_COMMON), FINAL_FIRE_COMMON_TAIL_CLEAR, "Panel Variant final common fire loop tail clear"),
         (OFF_FINAL_STATE0_INTERVAL_HELPER, final_state0_interval_helper, "Panel Variant final interval helper"),
         (OFF_FINAL_GROUP_RAM_OFFSET_HELPER, FINAL_GROUP_RAM_OFFSET_HELPER_WRITE, "Panel Variant final group RAM offset helper"),
         (OFF_FINAL_ABC_GROUP_OFFSET_HELPER, FINAL_ABC_GROUP_OFFSET_HELPER, "Panel Variant final A/B/C-only group offset helper"),
