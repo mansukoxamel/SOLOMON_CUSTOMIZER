@@ -1399,6 +1399,7 @@ def apply_final_split_test_candidate(
 
     final_state0_interval_helper = _final_state0_interval_helper_for_rom(rom_data)
     _validate_final_split_signatures(rom_data, final_state0_interval_helper)
+    _validate_pmv2_speed_core_runtime_contract()
 
     changed: list[str] = []
     if patch_global_cache_table(rom_data, common_settings):
@@ -1720,6 +1721,49 @@ def panel_monster_v2_speed_core_contract() -> dict[str, object]:
         "current_speed_core_size": current_speed_core,
         "judgement": "static planning only; not a production placement result",
     }
+
+
+def _validate_pmv2_speed_core_runtime_contract() -> None:
+    """Guard the normal ROM save path against a broken Panel Monster speed core."""
+    extra_counts = {
+        SPEED_PRESET_QUARTER: SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_QUARTER]["extra_steps"],
+        SPEED_PRESET_HALF: SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_HALF]["extra_steps"],
+        SPEED_PRESET_FAST_2X: SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_2X]["extra_steps"],
+        SPEED_PRESET_FAST_3X: SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_3X]["extra_steps"],
+    }
+    expected_counts = {
+        SPEED_PRESET_QUARTER: 0,
+        SPEED_PRESET_HALF: 0,
+        SPEED_PRESET_FAST_2X: 1,
+        SPEED_PRESET_FAST_3X: 2,
+    }
+    if extra_counts != expected_counts:
+        raise PanelMonsterStageVariantError(
+            f"Panel Monster v2 speed extra-step contract mismatch: {extra_counts!r}"
+        )
+
+    helper = FINAL_BULLET_SPEED_EXTRA_HELPER
+    required_patterns = {
+        "$8A lower bound": bytes((0xC9, 0x8A)),
+        "$8C upper bound": bytes((0xC9, 0x8C)),
+        "$8A/$8B count decode": bytes((0x38, 0xE9, 0x89, 0xAA)),
+        "$AC39 collision sample": bytes((0x20, 0x39, 0xAC)),
+    }
+    for name, pattern in required_patterns.items():
+        if pattern not in helper:
+            raise PanelMonsterStageVariantError(
+                f"Panel Monster v2 speed core is missing {name} pattern."
+            )
+    if bytes((0xC9, 0x8B, 0xB0)) in helper:
+        raise PanelMonsterStageVariantError(
+            "Panel Monster v2 speed core rejects 3x before the shared extra-step loop."
+        )
+
+    contract = panel_monster_v2_speed_core_contract()
+    if contract["extra_counts"] != {"1/4": 0, "1/2": 0, "2x": 1, "3x": 2}:
+        raise PanelMonsterStageVariantError(
+            f"Panel Monster v2 static speed contract mismatch: {contract['extra_counts']!r}"
+        )
 
 
 def build_panel_variant_blob(base_cpu: int = 0x8000) -> PanelVariantBlob:
