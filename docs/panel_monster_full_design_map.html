@@ -538,7 +538,7 @@
       <tr><td><code>room_flags._verify()</code></td><td>ROM/RAM予約重複を防ぐ。</td><td>通る。</td></tr>
       <tr><td>クリーンJP ROM -> mapper66 -> patch apply</td><td>原作状態から最新v2へ書ける。</td><td>署名エラーなし。</td></tr>
       <tr><td>同じROMへ再apply</td><td>最新v2状態をもう一度保存できる。</td><td>同一出力。</td></tr>
-      <tr><td>global cache report</td><td>PRG1 6B tableとloaderが書かれている。</td><td><code>all_written=True</code>。</td></tr>
+      <tr><td><code>panel_monster_v2_runtime_save_report()</code></td><td>speed/cache書込と保存前guard一式をまとめて見る。</td><td><code>guards_ok=True</code> / <code>all_written=True</code>。</td></tr>
     </table>
 
     <h3>9.2 Mesen probe観測点</h3>
