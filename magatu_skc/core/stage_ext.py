@@ -19,6 +19,7 @@ FLAG_FIRE_RESET = 0x01
 FLAG_KEY_ENEMY = 0x02
 FLAG_ANNOUNCE = 0x04
 FLAG_FAIRY_ENEMY = 0x08
+FLAG_FINAL_STAGE_REDIRECT = 0x10
 
 DEFAULT_KEY_ENEMY_SLOT = 0xFF
 DEFAULT_FAIRY_ENEMY_SLOT = 0xFF
@@ -154,6 +155,7 @@ def _build_runtime_loader() -> bytes:
         "ad 28 04 aa bd 9b 8e 8d 7d 07"
         "ad 28 04 0a 0a 0a 85 00"
         "a9 88 69 00 85 01"
+        "a0 00 b1 00 29 10 0a 0a 0a 8d 7a 07"
         "a0 02 b1 00 8d 2b 07"
         "c8 b1 00 8d 7e 07"
         "a0 06 b1 00 8d 78 07"
@@ -222,6 +224,19 @@ def set_fire_reset_enabled(level, enabled: bool) -> None:
         level.fire_reset_value = 0
     else:
         level.stage_ext_flags = int(level.stage_ext_flags) & ~FLAG_FIRE_RESET
+
+
+def final_stage_redirect_enabled(level) -> bool:
+    init_level_defaults(level)
+    return bool(int(level.stage_ext_flags) & FLAG_FINAL_STAGE_REDIRECT)
+
+
+def set_final_stage_redirect_enabled(level, enabled: bool) -> None:
+    init_level_defaults(level)
+    if enabled:
+        level.stage_ext_flags = int(level.stage_ext_flags) | FLAG_FINAL_STAGE_REDIRECT
+    else:
+        level.stage_ext_flags = int(level.stage_ext_flags) & ~FLAG_FINAL_STAGE_REDIRECT
 
 
 def key_enemy_enabled(level) -> bool:

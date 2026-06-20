@@ -36,6 +36,7 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 from .. import __version__
 from . import constants as c
+from . import stage_ext
 from .element import LevelElement, ElementType, Wall, DemonMirror
 from .level import Level
 
@@ -66,7 +67,9 @@ def level_to_xml_element(level: Level) -> ET.Element:
     lv.set("constellation_position", _pos_str(level.get_constellation_pos()))
     lv.set("tileset", str(level.tileset_no))
     lv.set("room_flags", str(int(level.room_flags) & ~0x20))
-    lv.set("stage_ext_flags", str(getattr(level, "stage_ext_flags", 0)))
+    stage_flags = int(getattr(level, "stage_ext_flags", 0))
+    stage_flags &= ~stage_ext.FLAG_FINAL_STAGE_REDIRECT
+    lv.set("stage_ext_flags", str(stage_flags))
     lv.set("fire_reset_value", str(getattr(level, "fire_reset_value", 0)))
     lv.set("key_enemy_slot", str(getattr(level, "key_enemy_slot", 255)))
     lv.set("key_enemy_mode", str(getattr(level, "key_enemy_mode", 0)))
@@ -282,6 +285,7 @@ def xml_element_to_level(level_elem: ET.Element) -> Level:
     lv.tileset_no = int(level_elem.attrib.get("tileset", "0"))
     lv.room_flags = int(level_elem.attrib.get("room_flags", "0")) & ~0x20
     lv.stage_ext_flags = int(level_elem.attrib.get("stage_ext_flags", "0"))
+    lv.stage_ext_flags &= ~stage_ext.FLAG_FINAL_STAGE_REDIRECT
     lv.fire_reset_value = int(level_elem.attrib.get("fire_reset_value", "0"))
     lv.key_enemy_slot = int(level_elem.attrib.get("key_enemy_slot", "255"))
     lv.key_enemy_mode = int(level_elem.attrib.get("key_enemy_mode", "0"))

@@ -2357,6 +2357,7 @@ def _build_runtime_loader() -> bytes:
         "ad 28 04 aa bd 9b 8e 8d 7d 07"
         "8a 0a 0a 0a 85 00"
         "a9 88 69 00 85 01"
+        "a0 00 b1 00 29 10 0a 0a 0a 8d 7a 07"
         "a0 06 b1 00 8d 78 07"
         "c8 b1 00 8d 7c 07"
         "a0 02 b1 00 8d 2b 07"

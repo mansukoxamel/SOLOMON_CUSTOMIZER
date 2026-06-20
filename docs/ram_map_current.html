@@ -120,7 +120,7 @@
     <tr><td class="num">$0770-$0777</td><td>entity終端後の沈黙帯</td><td class="warn">補助候補 8B</td><td>旧特殊ブロック32Bリスト跡の残り。$0778/$0779等の予約RAMに隣接するため、$0750-$076Fより優先度は下げる。</td></tr>
     <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td class="ok">Customizer予約済</td><td>RoomFlagTableの現在部屋フラグcache。特殊扉(隠し/茶ブロック内/白ブロック内)/B禁止/A禁止/暗闇、bit4=ステージ開始時ファイヤー所持リセット、bit5=透明ブロック内アイテムmaskあり、bit6=特殊セル変換ありなど。</td></tr>
     <tr><td class="num">$0779</td><td>DARK_PHASE</td><td class="ok">Customizer予約済</td><td>暗闇モードの明滅フェーズカウンタ。</td></tr>
-    <tr><td class="num">$077A-$077B</td><td>runtime block override legacy</td><td class="ok">Customizer予約済</td><td><code>$077A</code> はmapper66部屋ロードruntimeが互換目的でクリアする旧フラグ領域。現行の特殊セル変換は変換済みフラグを読まない。<code>$077B</code> は旧一時値候補。</td></tr>
+    <tr><td class="num">$077A-$077B</td><td>FINAL_STAGE_REDIRECT / legacy work</td><td class="ok">Customizer予約済</td><td><code>$077A</code> bit7 は現在部屋クリア後に次ステージを原作最終面へ差し替えるruntimeフラグ。mapper66部屋ロードruntimeがStageExtTable byte0 bit4からコピーする。<code>$077B</code> は旧一時値候補。</td></tr>
     <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td class="ok">Customizer予約済</td><td>mapper66 StageExt loader がPRG1からコピーする現在部屋の扉セル。特殊扉(隠し/茶ブロック内/白ブロック内)処理が参照。</td></tr>
     <tr><td class="num">$077D</td><td>SEAL_BLOCK_VALUE</td><td class="ok">Customizer予約済</td><td>mapper66 StageExt loader がPRG1のソロモンの紋章ブロック状態表からコピーする現在部屋の上書き値。<code>$00</code>=原作、<code>$A0</code>=茶ブロック内、<code>$E0</code>=白ブロック内。</td></tr>
     <tr><td class="num">$077E-$077F</td><td>FAIRY_ENEMY_RUNTIME</td><td class="ok">Customizer予約済</td><td>落下死で妖精化する敵の対象初期敵番号/実行スロット。<code>key_enemy_runtime.py</code> が使用。</td></tr>
@@ -135,6 +135,7 @@
     <tr><td class="num">$0723-$072B</td><td>KEY_ENEMY_RUNTIME</td><td>鍵持ち敵</td><td>部屋中常駐</td><td>ドロップ鍵の表示/取得/光輪演出位置補正、初期配置敵スロット対応に使用。</td></tr>
     <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td>Room Flag拡張</td><td>プレイ中常駐</td><td>LOADERが部屋開始時に <code>$0428</code> でRoomFlagTableを引いて書く。bit4はStageExtTableの fire reset、bit5/bit6は透明ブロック内アイテムmask/特殊セル変換の実行時専用フラグ。</td></tr>
     <tr><td class="num">$0779</td><td>DARK_PHASE</td><td>暗闇面</td><td>プレイ中常駐</td><td>NMIで進む。旧 <code>$0461</code> はサウンド衝突で妖精SEループを起こしたため廃止。</td></tr>
+    <tr><td class="num">$077A</td><td>FINAL_STAGE_REDIRECT</td><td>クリア後の最終面送り</td><td>部屋中常駐</td><td>bit7=この面クリア後、次ステージ番号を原作最終面へ差し替える。StageExtTable byte0 bit4からコピー。</td></tr>
     <tr><td class="num">$0740-$074F</td><td>PANEL_VARIANT_SETTINGS</td><td>Panel Monster A/B/C variant</td><td>部屋中常駐</td><td>PRG1 runtime loaderが全ステージ共通のspeed+interval 6Bを <code>0x8A70-0x8A75</code> からコピーする。旧64部屋分 <code>PanelVariantStageTable</code> は使わない。</td></tr>
     <tr><td class="num">$0750-$0767</td><td>VISIBLE_INBLOCK_ITEM_MASK</td><td>透明ブロック内アイテム</td><td>部屋中常駐</td><td>mapper66 loader がPRG1 <code>0xF860-0xFEFF</code> から現在部屋の24B bitmaskをコピー。<code>$E74C</code> helper が参照し、処理中にmaskを破壊的にshiftする。</td></tr>
     <tr><td class="num">$0768-$076F</td><td>CRACKED_INBLOCK_LIST</td><td>ひび割れブロック内アイテム</td><td>部屋中常駐</td><td>mapper66 loader がPRG1 <code>0xF860-0xFEFF</code> の現在部屋slot末尾8Bをコピー。死亡後のone-shot対象アイテムは再注入せず、下地のひび割れブロックだけを描画前に復元する。</td></tr>

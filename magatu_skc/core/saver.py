@@ -245,6 +245,7 @@ def save_levels_to_rom(rom: Rom, levels: list, panel_variant_settings: dict | No
         panel_monster_stage_variant, spark_ball_variant, gargoyle_variant,
         stage_ext, key_enemy_runtime, stage_announcement, title_screen,
         drop_pickup_guard, special_process, solomon_seal_block,
+        final_stage_redirect,
     )
     from .element import byte_from_position
     # IMPORTANT: this apply order is part of the ROM layout contract.
@@ -293,6 +294,7 @@ def save_levels_to_rom(rom: Rom, levels: list, panel_variant_settings: dict | No
     if rom.is_expanded():
         _run_save_step("StageExt table書き込み", stage_ext.patch_table, rom.data, levels, runtime_room_flags, door_cells)
         _run_save_step("StageExt runtime loader検証/適用", stage_ext.apply_runtime_loader, rom.data)
+        _run_save_step("Final stage redirect runtime検証/適用", final_stage_redirect.apply, rom.data, levels)
     _run_save_step("開始画面アナウンス検証/適用", stage_announcement.apply, rom.data, levels, runtime_room_flags)
     _run_save_step(
         "Room Flag runtime検証/適用",
