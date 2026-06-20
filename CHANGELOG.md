@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK51 (2026-06-20) Key/Fairy enemy runtimeを常時書き込みへ変更
+- `key_enemy_runtime.apply()` の `enabled=False` 早期returnを削除し、保存時に毎回同じruntime/hookを配置するようにした。
+- StageExt loaderが未使用時に `$072A/$077F` を `$FF` へ初期化するため、key/fairy未使用ステージではruntimeが実行時に何もしない。
+- 保存ROMの構造差分を減らすため、runtime常時書き込み方針へ揃えた。
+
 ## EX-PANEL-V2-BLOCK50 (2026-06-20) Solomon Seal block-state runtimeを常時書き込みへ変更
 - Solomon Seal block-stateが未使用の時に `$BB90` hookを原作へ戻す処理をやめた。
 - block-state tableが全ゼロでもhelper/table/hookを毎回同じ配置へ書き、helper側で原作相当の `$60` 書き込みへ戻す。
