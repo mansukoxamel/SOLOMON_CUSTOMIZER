@@ -28,10 +28,19 @@ DEFAULT_SETTINGS = {
     "c_interval": 0xA0,
 }
 
-MATRIX_CASES = (
-    ("C", 0x31, "c_speed"),
-    ("A", 0x41, "a_speed"),
-    ("B", 0x49, "b_speed"),
+SPEED_CASES = (
+    ("C_R", 0x31, "c_speed"),
+    ("C_L", 0x33, "c_speed"),
+    ("C_U", 0x35, "c_speed"),
+    ("C_D", 0x37, "c_speed"),
+    ("A_R", 0x41, "a_speed"),
+    ("A_L", 0x43, "a_speed"),
+    ("A_U", 0x45, "a_speed"),
+    ("A_D", 0x47, "a_speed"),
+    ("B_R", 0x49, "b_speed"),
+    ("B_L", 0x4B, "b_speed"),
+    ("B_U", 0x4D, "b_speed"),
+    ("B_D", 0x4F, "b_speed"),
 )
 
 INTERVAL_CASES = (
@@ -42,9 +51,13 @@ INTERVAL_CASES = (
 
 BORROWED_CASES = (
     ("2WAY_R", 0x52),
+    ("2WAY_R_ALT", 0x53),
     ("2WAY_U", 0x56),
+    ("2WAY_U_ALT", 0x57),
     ("3WAY_R", 0x5A),
+    ("3WAY_R_ALT", 0x5B),
     ("3WAY_U", 0x66),
+    ("3WAY_U_ALT", 0x67),
 )
 
 MIXED_CASES = (
@@ -218,7 +231,7 @@ def run_check(args: argparse.Namespace) -> tuple[bool, dict[str, object]]:
         return bool(result["ok"]), result
 
     cases = []
-    for group_name, enemy_id, speed_key in MATRIX_CASES:
+    for group_name, enemy_id, speed_key in SPEED_CASES:
         for speed in range(4):
             settings = _matrix_settings(speed_key, speed)
             result = _run_one_case(bytes(source_rom.data), enemy_id, settings)

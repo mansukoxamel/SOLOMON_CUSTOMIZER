@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK58 (2026-06-20) Panel Monster v2分類checkを全方向IDへ拡張
+- `tools/panel_monster_v2_runtime_check.py` のspeed checkをA/B/C各4方向IDすべてへ広げた。
+- 2-way/3-way borrowed-ID checkも `$52/$53/$56/$57/$5A/$5B/$66/$67` 全部を通すようにした。
+- 分類ブロックで代表IDだけが通る状態を避け、全方向IDが同じ保存経路・同じruntime配置へ乗ることを確認する。
+
 ## EX-PANEL-V2-BLOCK57 (2026-06-20) Panel Monster v2設定レポートのcache表現を削減
 - Panel Monster v2の保存レポートキーを `settings_table` / `ram_copy` / `settings_table_written` へ変更した。
 - 保存時の変更名とguardエラー文を「global cache」ではなく「settings table」表現へ揃えた。
