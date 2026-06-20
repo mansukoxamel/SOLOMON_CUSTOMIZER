@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK53 (2026-06-20) mapper66 Room Flag runtimeを常時書き込みへ変更
+- mapper66拡張ROMではRoom FlagのPRG0 hook/cave/runtime helperを毎回同じ配置へ書くようにした。
+- 拡張ROMのRoom Flag読み戻しはStageExt tableを常に正とし、hook常時ON時に古いPRG0 tableへ落ちないようにした。
+- 通常ROMは既存の原作復元動作を維持し、今回の固定化は通常編集対象のmapper66拡張ROMに限定した。
+
 ## EX-PANEL-V2-BLOCK52 (2026-06-20) Stage announcement runtimeを常時書き込みへ変更
 - 開始画面アナウンス未使用時に `$9061` hookを原作へ戻す処理をやめた。
 - runtime flagsが0、key enemy slotが `$FF` の時は描画せず原作更新へ戻るため、未使用ステージでも常時配置できる。

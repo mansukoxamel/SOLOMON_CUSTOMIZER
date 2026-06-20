@@ -512,8 +512,7 @@ def read_table(rom_data, count: int = 53) -> list:
         try:
             from . import stage_ext
             flags = stage_ext.read_runtime_room_flags(bytes(rom_data), count)
-            if any(flags):
-                return [f & ~RUNTIME_ONLY_FLAGS for f in flags]
+            return [f & ~RUNTIME_ONLY_FLAGS for f in flags]
         except Exception:
             pass
     hooks = (
@@ -609,8 +608,10 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
     dtab = build_door_table(door_cells)
     prg0_needed = is_needed(room_flags)
     runtime_needed = any((f & RUNTIME_ONLY_FLAGS) for f in room_flags or [])
+    expanded = len(rom_data) == 0x18010
+    fixed_runtime = expanded
 
-    if not prg0_needed and not runtime_needed:
+    if not fixed_runtime and not prg0_needed and not runtime_needed:
         # 原作復元: フック3点のみ原作へ戻す。cave/表は死にコード化で
         # 触らない (フックを戻せば二度と到達しない=挙動は原作と完全同一。
         # cave 空きは元 00/EA 混在で per-byte 原型不明、一律埋めは逆効果)
@@ -626,7 +627,7 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
             changed.append("$909A (特殊セル変換) フック→原作復元")
         return changed
 
-    if prg0_needed:
+    if fixed_runtime or prg0_needed:
         # cave コード注入
         for off, blob, name in (
             (OFF_LOADER_CAVE, LOADER_CAVE, "LOADER ($BBE0)"),
@@ -636,7 +637,6 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
             if bytes(rom_data[off:off + len(blob)]) != blob:
                 rom_data[off:off + len(blob)] = blob
                 changed.append(f"{name} cave 注入")
-    expanded = len(rom_data) == 0x18010
     # DoorCellTable / RoomFlagTable 書込。mapper66では同じ情報をPRG1
     # StageExtTableへ移し、PRG0 $C180-$C1FF はコード用に空ける。
     if prg0_needed and not expanded and bytes(rom_data[OFF_DOORTAB:OFF_DOORTAB + ROOM_COUNT]) != bytes(dtab):
@@ -647,7 +647,7 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
         n = sum(1 for b in tbl if b)
         changed.append(f"RoomFlagTable 書込 ({n}部屋にフラグ)")
     # フック有効化
-    if prg0_needed:
+    if fixed_runtime or prg0_needed:
         for off, _orig, new, name in _HOOKS:
             if bytes(rom_data[off:off + 3]) != new:
                 rom_data[off:off + 3] = new
@@ -658,7 +658,7 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
                 rom_data[off:off + 3] = orig
                 changed.append(f"{name} フック→原作復元")
 
-    if runtime_needed:
+    if fixed_runtime or runtime_needed:
         if bytes(rom_data[OFF_VISIBLE_INBLOCK_HELPER:OFF_VISIBLE_INBLOCK_HELPER + len(VISIBLE_INBLOCK_HELPER)]) != VISIBLE_INBLOCK_HELPER:
             rom_data[OFF_VISIBLE_INBLOCK_HELPER:OFF_VISIBLE_INBLOCK_HELPER + len(VISIBLE_INBLOCK_HELPER)] = VISIBLE_INBLOCK_HELPER
             changed.append("VisibleInBlock helper 注入 ($E74C)")
@@ -678,7 +678,7 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
 
     # 暗闇: dark ビットが1部屋でもあれば DARK cave + テンポ + $8055 フック。
     # 無ければ $8055 は原作のまま(暗闇未使用時は NMI 非フック=完全無影響)。
-    if _dark_needed(room_flags):
+    if fixed_runtime or _dark_needed(room_flags):
         if bytes(rom_data[OFF_DARK_CAVE:OFF_DARK_CAVE + DARK_CAVE_RESERVED_SIZE]) != DARK_CAVE_BLOB:
             rom_data[OFF_DARK_CAVE:OFF_DARK_CAVE + DARK_CAVE_RESERVED_SIZE] = DARK_CAVE_BLOB
             changed.append("DARK cave 注入 ($BC80)")
