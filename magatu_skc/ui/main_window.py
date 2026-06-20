@@ -4,6 +4,8 @@ import copy
 import ctypes
 import json
 import os
+import subprocess
+import sys
 import xml.etree.ElementTree as ET
 from html import escape
 from pathlib import Path
@@ -335,6 +337,7 @@ class MainWindow(QMainWindow):
         self.current_level_no = 0
         self._read_only_mode = False
         self._read_only_reason = ""
+        self._restart_after_close = False
         self._stage_clipboard = None
         self._stage_swap_source_no = None
         self._stage_compare_png_image = None
@@ -1421,18 +1424,23 @@ class MainWindow(QMainWindow):
         self.btn_open.clicked.connect(self._on_open_rom)
         fl.addWidget(self.btn_open)
 
-        # 再読込・履歴ボタン（2列）
+        # 再起動・再読込・履歴ボタン（3列）
         btn_row = QHBoxLayout()
+        self.btn_restart = QPushButton("再起動")
+        self.btn_restart.setToolTip("アプリを再起動")
+        self.btn_restart.clicked.connect(self._on_restart_app)
+        btn_row.addWidget(self.btn_restart, 1)
+
         self.btn_reload = QPushButton("再読込")
         self.btn_reload.setToolTip("現在のROMを再読み込み（編集を破棄）")
         self.btn_reload.clicked.connect(self._on_reload_rom)
         self.btn_reload.setEnabled(False)
-        btn_row.addWidget(self.btn_reload)
+        btn_row.addWidget(self.btn_reload, 1)
 
         self.btn_history = QPushButton("履歴")
         self.btn_history.setToolTip("最近開いたROMから選択")
         self.btn_history.clicked.connect(self._on_show_history)
-        btn_row.addWidget(self.btn_history)
+        btn_row.addWidget(self.btn_history, 1)
         fl.addLayout(btn_row)
 
         self.lbl_rom = QLabel("(未読込)")
@@ -3250,6 +3258,14 @@ class MainWindow(QMainWindow):
             self._load_autosave_workstate(self.last_loaded_path, add_history=False)
         else:
             self.load_rom(self.last_loaded_path)
+
+    def _on_restart_app(self):
+        if not self._confirm_replace_current_work("アプリを再起動します"):
+            return
+        self._restart_after_close = True
+        self.statusBar().showMessage("アプリを再起動します", 2000)
+        self._log("アプリ再起動")
+        self.close()
 
     def _load_autosave_workstate(self, path: str, add_history: bool = True) -> bool:
         metadata = self._load_autosave_metadata(path)
@@ -8184,6 +8200,16 @@ class MainWindow(QMainWindow):
         self._save_window_state()
         self._log("セッション終了")
         self._save_session_log()
+        if getattr(self, "_restart_after_close", False):
+            try:
+                args = [sys.executable] + sys.argv
+                subprocess.Popen(args, cwd=str(Path(__file__).parent.parent.parent))
+            except Exception as e:
+                self._restart_after_close = False
+                QMessageBox.critical(self, "再起動失敗", f"{type(e).__name__}: {e}")
+                self._log(f"再起動失敗: {type(e).__name__}: {e}")
+                event.ignore()
+                return
         event.accept()
 
     def _remember_readonly_rom_state(self):
