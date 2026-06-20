@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK64 (2026-06-20) Mesen確認ROMセット出力modeを追加
+- `tools/panel_monster_v2_runtime_check.py --mode mesen-set` を追加した。
+- A/B/C代表、2-way ALT、3-way ALT、通常Panel代表の6本を同じコマンドで出力できるようにした。
+- 以後のMesen確認で、確認ROM生成の手入力ミスと確認待ち時間を減らす。
+
 ## EX-PANEL-V2-BLOCK63 (2026-06-20) Panel Monster v2 check matrix coverage guardを追加
 - `tools/panel_monster_v2_runtime_check.py` にcase matrix coverage guardを追加した。
 - speed/interval caseがA/B/C全ID、borrowed caseが2-way/3-way全ID、normal caseが通常Panel全IDを覆っているかを実装定数と照合する。

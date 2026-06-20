@@ -97,6 +97,27 @@ NORMAL_CASES = (
     ("NORMAL_D", 0x27),
 )
 
+MESEN_SET_CASES = (
+    (
+        "A_D_3x_interval7f",
+        0x47,
+        {"a_speed": 3, "a_interval": 0x7F},
+    ),
+    (
+        "B_D_2x_intervale1",
+        0x4F,
+        {"b_speed": 2, "b_interval": 0xE1},
+    ),
+    (
+        "C_U_half_interval21",
+        0x35,
+        {"c_speed": 1, "c_interval": 0x21},
+    ),
+    ("2way_R_alt", 0x53, {}),
+    ("3way_R_alt", 0x5B, {}),
+    ("normal_D", 0x27, {}),
+)
+
 RUNTIME_IDS = panel_v2.PANEL_STAGE_RUNTIME_IDS
 
 
@@ -259,6 +280,27 @@ def _interval_settings(interval_key: str, interval: int) -> dict[str, int]:
 def run_check(args: argparse.Namespace) -> tuple[bool, dict[str, object]]:
     _validate_case_matrix_contract()
     source_rom = _load_expanded_rom(args.rom)
+    if args.mode == "mesen-set":
+        out_dir = args.out_dir
+        out_dir.mkdir(parents=True, exist_ok=True)
+        cases = []
+        for case_name, enemy_id, overrides in MESEN_SET_CASES:
+            settings = dict(DEFAULT_SETTINGS)
+            settings.update(overrides)
+            result = _run_one_case(bytes(source_rom.data), enemy_id, settings, keep_saved=True)
+            out_path = out_dir / f"panel_v2_{args.label}_{case_name}.nes"
+            out_path.write_bytes(bytes(result["saved_data"]))
+            result.pop("saved_data", None)
+            result["case"] = case_name
+            result["enemy_id"] = enemy_id
+            result["wrote_rom"] = str(out_path)
+            cases.append(result)
+        first = dict(cases[0])
+        first["cases"] = cases
+        first["case_count"] = len(cases)
+        first["ok"] = all(bool(case["ok"]) for case in cases)
+        first["wrote_roms"] = [case["wrote_rom"] for case in cases]
+        return bool(first["ok"]), first
     if args.mode == "single":
         settings = _settings_from_args(args)
         result = _run_one_case(bytes(source_rom.data), args.enemy_id, settings, keep_saved=args.out is not None)
@@ -332,8 +374,11 @@ def print_result(result: dict[str, object]) -> None:
     print(f"all_written {result['all_written']}")
     print(f"same_output {result['same_output']}")
     print(f"settings_values_ok {result['settings_values_ok']}")
-    if "wrote_rom" in result:
+    if "wrote_rom" in result and "wrote_roms" not in result:
         print(f"wrote_rom {result['wrote_rom']}")
+    if "wrote_roms" in result:
+        for path in result["wrote_roms"]:
+            print(f"wrote_rom {path}")
     print("guards")
     for name, status in dict(result["guards"]).items():
         print(f"  {name}: {status}")
@@ -357,9 +402,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--mode",
-        choices=("matrix", "single"),
+        choices=("matrix", "single", "mesen-set"),
         default="matrix",
-        help="matrix checks A/B/C across all speed presets; single uses the explicit args.",
+        help="matrix checks all guarded cases; single uses explicit args; mesen-set writes representative ROMs.",
     )
     parser.add_argument("--a-speed", type=int, choices=range(4), default=0)
     parser.add_argument("--b-speed", type=int, choices=range(4), default=1)
@@ -371,6 +416,17 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--out",
         type=Path,
         help="Write the single-mode saved ROM to this path after checks pass.",
+    )
+    parser.add_argument(
+        "--out-dir",
+        type=Path,
+        default=ROOT / "exports",
+        help="Directory for mesen-set output ROMs.",
+    )
+    parser.add_argument(
+        "--label",
+        default="block_current",
+        help="Filename label for mesen-set output ROMs.",
     )
     return parser.parse_args(argv)
 
