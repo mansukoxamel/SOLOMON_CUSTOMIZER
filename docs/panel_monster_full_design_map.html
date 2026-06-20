@@ -794,7 +794,7 @@
       <tr><td>分類</td><td>Visual Panel / Fire Family / A/B/C Parameter / Direction Normalizer</td><td>ROM配置表、docs用メタ情報</td></tr>
       <tr><td>AI entry</td><td>A/B/C entry、borrowed-ID wrapper、parent field clear契約</td><td>既存stock AI <code>$A54C</code></td></tr>
       <tr><td>Fire path</td><td>normal / 2-way / 3-way / A/B/C dispatch、common fire loop、marker write</td><td><code>$AE76</code> child materialize</td></tr>
-      <tr><td>Bullet path</td><td>marker decode、speed apply、2x/3x extra-step、collision sample契約</td><td>stock impact path <code>$AFD8/$B016/$9BE3</code></td></tr>
+      <tr><td>Bullet path</td><td>marker decode、speed apply、2x/3x extra-step、collision sample契約</td><td>fast loopは壁衝突時にstock impact/destruction pathへ入らない。</td></tr>
       <tr><td>Global cache固定</td><td>PRG1 6B table + RAM <code>$0740-$0745</code></td><td>直接operand化、64-room table復活</td></tr>
     </table>
 
@@ -933,7 +933,7 @@
       </tr>
       <tr>
         <td>Bullet collision</td>
-        <td>1 substepごとに移動して、直後に必ず <code>$AC39</code> を呼ぶ。衝突したらstock impact pathへ合流する。</td>
+        <td>1 substepごとに移動して、直後に必ず <code>$AC39</code> を呼ぶ。衝突したらfast loopを抜け、破壊/撃破effectへ入らない。</td>
         <td><code>$8689</code> だけを複数回呼んで、collision sampleを最後に1回だけにする。</td>
       </tr>
       <tr>
@@ -998,11 +998,11 @@
         <td>2x/3xが同じloopで、回数だけ違う。</td>
       </tr>
       <tr>
-        <td><code>pmv2_impact_bridge</code></td>
-        <td>substep中の衝突を原作Bullet impact処理へ渡す。</td>
+        <td><code>pmv2_collision_exit</code></td>
+        <td>substep中の衝突を検出し、fast loopだけを止める。</td>
         <td><code>$07</code> collision mask</td>
-        <td><code>$B016/$918A/$9BE3</code> 系へ合流、または同等処理。</td>
-        <td>壁抜けせず、破壊可能ブロックと消滅状態が原作と一致する。</td>
+        <td>stock impact/destruction pathへ入らずreturn。</td>
+        <td>壁抜けせず、A normalで不要な破壊/撃破graphicが出ない。</td>
       </tr>
     </table>
 
@@ -1056,7 +1056,7 @@
       <tr><td>interval</td><td>A/B/C firing interval</td><td>A/B/Cそれぞれの設定が発射間隔に反映される。</td><td>stage/group setting decode。</td></tr>
       <tr><td>speed 1/4・1/2</td><td>marker <code>$88/$89</code></td><td>table-only低速として壁衝突が自然。</td><td>speed decode table。</td></tr>
       <tr><td>speed 2x・3x</td><td>marker <code>$8A/$8B</code></td><td>同じloopで1回/2回extra substep。各substep後に<code>$AC39</code>。</td><td>bullet step loop。</td></tr>
-      <tr><td>impact</td><td>白/茶/壊せるブロック衝突</td><td>壁抜けしない。破壊・消滅状態が原作Bulletと同じ。</td><td>impact bridge。</td></tr>
+      <tr><td>collision exit</td><td>白/茶/壊せるブロック衝突</td><td>壁抜けしない。A normal衝突で不要な破壊/撃破graphicが出ない。</td><td>bullet step loop。</td></tr>
     </table>
 
     <h3>13.6 直近の作業単位</h3>
