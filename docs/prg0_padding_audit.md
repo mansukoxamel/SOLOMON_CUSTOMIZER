@@ -139,10 +139,10 @@ Do not allocate here by eye; use `room_flags._verify()` and module
 Current state from `docs/rom_map_jp_mapper66_current.html`:
 
 - Total cave: 1570B.
-- Production-reserved/used: 1514B.
-- Unreserved bank0 cave fragments: 56B total.
+- Production-reserved/used: 1504B.
+- Unreserved bank0 cave fragments: 66B total.
 - PRG0 later-bank emergency reserve newly recovered from Panel Variant parent speed guard: 75B at `0x67D1-0x681B` / `$E7C1-$E80B`.
-- Maximum contiguous fragment: 7B.
+- Maximum contiguous fragment: 14B.
 
 Remaining fragments after current production reservations:
 
@@ -153,7 +153,7 @@ Remaining fragments after current production reservations:
 | `0x3C5E-0x3C5F` | `$BC4E-$BC4F` | 2B | candidate fragment only |
 | `0x3C8F` | `$BC7F` | 1B | candidate fragment only |
 | `0x3D0B-0x3D0E` | `$BCFB-$BCFE` | 4B | recovered from Panel Monster fire dispatch compression |
-| `0x3D32-0x3D35` | `$BD22-$BD25` | 4B | candidate fragment only |
+| `0x3D28-0x3D35` | `$BD18-$BD25` | 14B | recovered from Gargoyle 2-shot gate ID compression |
 | `0x3D46-0x3D4A` | `$BD36-$BD3A` | 5B | candidate fragment only |
 | `0x3D97` | `$BD87` | 1B | candidate fragment only |
 | `0x3E0A-0x3E0F` | `$BDFA-$BDFF` | 6B | recovered from Panel Monster v2 final common fire loop sizing |

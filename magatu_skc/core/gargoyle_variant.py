@@ -58,12 +58,11 @@ OLD_HOOK_WAIT = bytes((0x4C, *(_word(0xBEC7)))) + bytes([0xEA] * 5)
 CAVE_GATE = bytes.fromhex(
     # Only $7A/$7B/$7E/$7F are strengthened.  Everything else replays stock $AE6F
     # prologue and jumps into $AE76.
-    "a0 01 b1 2e c9 7a f0 18 c9 7b f0 14"
-    "c9 7e f0 10 c9 7f f0 0c"
+    "a0 01 b1 2e 29 fa c9 7a f0 0c"
     "a0 03 b1 2e aa 09 02 91 2e 4c 76 ae"
     "4c 3b bd"
 )
-assert len(CAVE_GATE) == 35
+assert len(CAVE_GATE) == 25
 
 CAVE_TWO_BULLET = bytes.fromhex(
     # Exact accepted v7 body, including the second Bullet X lead and

@@ -240,7 +240,7 @@
     </div>
     <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
     <div class="note">
-      <b>棚卸メモ:</b> 2026-06-20 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約56B。内訳は原作00埋め2B / 原作EA埋め54B、最大連続空き7B。Panel Variant final split runtime と Panel Monster / Variant animation hook はproduction予約として含める。
+      <b>棚卸メモ:</b> 2026-06-20 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約66B。内訳は原作00埋め2B / 原作EA埋め64B、最大連続空き14B。Panel Variant final split runtime と Panel Monster / Variant animation hook はproduction予約として含める。
       実装側の許容スパン上は <code>0x4190-0x420D</code> が expanded table span と key enemy で重複するため、空き計算は重複を二重加算しない union で扱う。
     </div>
     <div class="note">
@@ -256,7 +256,7 @@
       <tr><td class="num">0x3C5E-0x3C5F</td><td class="num">$BC4E-$BC4F</td><td class="num">2B</td><td>原作EA埋め。DOORPREDRAW直前の断片。</td></tr>
       <tr><td class="num">0x3C8F</td><td class="num">$BC7F</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x3D0B-0x3D0E</td><td class="num">$BCFB-$BCFE</td><td class="num">4B</td><td>Panel Monster fire dispatch圧縮で回収。短い非常用候補。</td></tr>
-      <tr><td class="num">0x3D32-0x3D35</td><td class="num">$BD22-$BD25</td><td class="num">4B</td><td>原作EA埋め。Gargoyle 2-shot gate拡張後の短い断片。</td></tr>
+      <tr><td class="num">0x3D28-0x3D35</td><td class="num">$BD18-$BD25</td><td class="num">14B</td><td>Gargoyle 2-shot gateのID判定圧縮で回収。短い非常用候補。</td></tr>
       <tr><td class="num">0x3D46-0x3D4A</td><td class="num">$BD36-$BD3A</td><td class="num">5B</td><td>原作EA埋め。Spark Ball fast AI wrapperのID判定圧縮で回収。直後はGargoyle 2-shot body。</td></tr>
       <tr><td class="num">0x3D97</td><td class="num">$BD87</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x3E0A-0x3E0F</td><td class="num">$BDFA-$BDFF</td><td class="num">6B</td><td>Panel Monster v2 final common fire loopの実予約が114Bであるため回収。短い非常用候補。</td></tr>
@@ -269,7 +269,7 @@
       <tr><td class="num">0x400F</td><td class="num">$BFFF</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x414F-0x4152</td><td class="num">$C13F-$C142</td><td class="num">4B</td><td>Panel Monster fire marker table移動後の残り。短い非常用候補。</td></tr>
       <tr><td class="num">0x418F</td><td class="num">$C17F</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>56B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。内訳は00埋め2B / EA埋め54B。最大連続は <code>$BEBD-$BEC3</code> の7B。</td></tr>
+      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>66B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。内訳は00埋め2B / EA埋め64B。最大連続は <code>$BD18-$BD25</code> の14B。</td></tr>
     </table>
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
@@ -284,7 +284,7 @@
       <tr><td>Key/Fairy enemy fall-death handler</td><td class="num">0x3CC8-0x3CDF</td><td class="num">$BCB8-$BCCF</td><td class="num">24B</td><td>Key drop diversion only when the falling enemy is the selected key carrier; otherwise preserves the original fairy replacement. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
       <tr><td>Dark tempo bytes</td><td class="num">0x3CE0-0x3CE1</td><td class="num">$BCD0-$BCD1</td><td class="num">2B</td><td>Global dark-room tempo bytes `[LIGHT, PERIOD]`. Reserved by `room_flags.TEMPO`.</td></tr>
       <tr><td>Panel Monster fire dispatch</td><td class="num">0x3CE2-0x3D0A</td><td class="num">$BCD2-$BCFA</td><td class="num">41B</td><td>Normal / 2-way / 3-way / A/B/C fire dispatch. Absorbs the old 3B stage tail and 15B stage helper, reducing reserved PRG0 bytes by 8B.</td></tr>
-      <tr><td>Gargoyle 2-shot gate</td><td class="num">0x3D0F-0x3D31</td><td class="num">$BCFF-$BD21</td><td class="num">35B</td><td>Conditional `$7A/$7B/$7E/$7F` gate for the accepted `$AE6F` two-Bullet variant.</td></tr>
+      <tr><td>Gargoyle 2-shot gate</td><td class="num">0x3D0F-0x3D27</td><td class="num">$BCFF-$BD17</td><td class="num">25B</td><td>Conditional `$7A/$7B/$7E/$7F` gate for the accepted `$AE6F` two-Bullet variant. ID判定を <code>AND #$FA</code> で圧縮済み。</td></tr>
       <tr><td>Spark Ball fast AI wrapper</td><td class="num">0x3D36-0x3D45</td><td class="num">$BD26-$BD35</td><td class="num">16B</td><td>Relocated out of gap_fix range. ID判定を <code>AND #$FE</code> で圧縮済み。</td></tr>
       <tr><td>Gargoyle 2-shot body</td><td class="num">0x3D4B-0x3D96</td><td class="num">$BD3B-$BD86</td><td class="num">76B</td><td>Accepted `SecondXAhead16_DirVelocity` body.</td></tr>
       <tr><td>Panel Monster common fire loop</td><td class="num">0x3D98-0x3E09</td><td class="num">$BD88-$BDF9</td><td class="num">114B</td><td>Panel Monster v2 final shared normal / 2-way / 3-way fire routine. Entry points: normal <code>$BD88</code>, 3-way <code>$BD8C</code>, 2-way <code>$BD90</code>. The former tail <code>$BDFA-$BDFF</code> is tracked as free.</td></tr>

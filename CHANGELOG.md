@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK72 (2026-06-20) Gargoyle 2-shot gateを圧縮
+- Gargoyle 2-shot gateのID判定を4比較から`AND #$FA`付きの1比較へ縮めた。
+- 対象IDは従来どおり`$7A/$7B/$7E/$7F`だけで、通常Gargoyleの戻り経路は維持した。
+- PRG0予約を10B削減し、bank0 caveの最大連続空きを14Bへ増やした。
+
 ## EX-PANEL-V2-BLOCK71 (2026-06-20) Panel Monster fire tailを実空き化
 - v2最終書き込みで、旧Panel Monster common fire loopの未使用末尾6Bを明示的に`EA`へ戻すようにした。
 - 旧120B経路の残りバイトを残さず、v2最終ROMでは`$BDFA-$BDFF`を実際の短い非常用空きとして扱えるようにした。
