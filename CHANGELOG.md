@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK15 (2026-06-20) 古いspeed実験runtime署名を保存前検証から除外
+- 保存前検証で、旧speed extra helper、旧speed apply/table、旧merged Bullet hookを受け付けないようにした。
+- 受け付けるのは原作状態と最新v2 speed runtimeだけに絞った。
+- 挙動変更はなく、最新ROMを成立させるための検証範囲を細くした。
+
 ## EX-PANEL-V2-DOCS (2026-06-20) Panel Monster v2 cache方針を資料へ反映
 - Panel Monster設計図のcache方針を、撤去候補ではなく「cacheは残す。PRG0を削る。」へ更新した。
 - ROM管理簿にPanel Variant shared AI wrapperの現行59B配置を追記した。

@@ -1297,7 +1297,6 @@ def _validate_final_split_signatures(
             "Panel Variant final Bullet speed extra-step helper",
             (
                 _pad(ORIG_FINAL_BULLET_SPEED_EXTRA_HELPER, len(v2_speed["tables_and_fast_loop"]), 0x00),
-                _pad(FINAL_BULLET_SPEED_EXTRA_HELPER, len(v2_speed["tables_and_fast_loop"])),
             ),
         ),
         (
@@ -1305,7 +1304,6 @@ def _validate_final_split_signatures(
             v2_speed["speed_decode"],
             "Panel Variant final Bullet speed apply/table",
             (
-                _pad(FINAL_BULLET_SPEED_APPLY + FINAL_BULLET_SPEED_TABLE, len(v2_speed["speed_decode"])),
                 _fill(0xEA, len(v2_speed["speed_decode"])),
                 _pad(STATE0_INTERVAL_HELPER, len(v2_speed["speed_decode"])),
             ),
@@ -1327,7 +1325,6 @@ def _validate_final_split_signatures(
             v2_speed["bullet_speed_hook"],
             "Panel Variant final merged Bullet hook",
             (
-                FINAL_MERGED_PANEL_BULLET_HOOK[:len(v2_speed["bullet_speed_hook"])],
                 _fill(0xEA, len(v2_speed["bullet_speed_hook"])),
                 _pad(panel_monster_variant.CAVE_BULLET_HOOK, len(v2_speed["bullet_speed_hook"])),
             ),
