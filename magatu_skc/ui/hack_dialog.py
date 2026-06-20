@@ -91,6 +91,9 @@ def _setup_enemy_group(dialog, group, form, sort_key: int, enemy_codes=()):
     form.addRow(row)
 
 
+DEFAULT_FINAL_STAGE_REDIRECT_STAGE_NO = 48
+
+
 class HackDialog(QDialog):
     """ゲーム挙動改造ダイアログ"""
 
@@ -154,7 +157,7 @@ class HackDialog(QDialog):
         self.spin_stage = QSpinBox()
         self.spin_stage.setRange(1, 53)
         self.spin_stage.setValue((rom.data[0x1145] if 0x1145 < len(rom.data) else 0) + 1)
-        sf.addRow("開始ステージ:", self.spin_stage)
+        sf.addRow("", self.spin_stage)
         layout.addWidget(stage_group)
 
         # ====== コンティニュー上限ステージ ======
@@ -166,36 +169,40 @@ class HackDialog(QDialog):
         self.spin_continue.setRange(1, 53)
         cur = rom.data[self._continue_offset] if self._continue_offset < len(rom.data) else 0x28
         self.spin_continue.setValue(cur + 1)
-        cf.addRow("コンティニュー上限:", self.spin_continue)
+        cf.addRow("", self.spin_continue)
         layout.addWidget(cont_group)
 
         # ====== 最終面への移行 ======
-        final_group = QGroupBox("最終面への移行")
+        final_group = QGroupBox("最終ステージ")
         final_group.setProperty("settings_category", "基本")
         ff = QFormLayout(final_group)
         self.combo_final_stage_redirect = QComboBox()
-        self.combo_final_stage_redirect.addItem("なし", -1)
         for stage_no in range(1, 54):
-            self.combo_final_stage_redirect.addItem(f"{stage_no}面をクリアした後", stage_no - 1)
+            label = f"{stage_no}面をクリアした後"
+            data = stage_no - 1
+            if stage_no == DEFAULT_FINAL_STAGE_REDIRECT_STAGE_NO:
+                label += "（原作）"
+                data = -1
+            self.combo_final_stage_redirect.addItem(label, data)
         current_final_redirect = self._current_final_stage_redirect_level_no()
         idx = self.combo_final_stage_redirect.findData(current_final_redirect)
         self.combo_final_stage_redirect.setCurrentIndex(idx if idx >= 0 else 0)
         self.combo_final_stage_redirect.setToolTip(
             "選んだ面をクリアした後、次の面を原作最終面に差し替えます。"
-            "内部保存はステージ拡張フラグですが、PNG/ステージデータには持ち出しません。"
+            "48面は原作相当なので追加フラグを書きません。"
         )
-        ff.addRow("移行条件:", self.combo_final_stage_redirect)
+        ff.addRow("", self.combo_final_stage_redirect)
         layout.addWidget(final_group)
 
         # ====== ワープ羽 ======
-        wftr_group = QGroupBox("ワープ羽")
+        wftr_group = QGroupBox("ワープの羽")
         wftr_group.setProperty("settings_category", "基本")
         wftr = QFormLayout(wftr_group)
         self._warp_feather_ok = False
         self.spin_warp_feather = QSpinBox()
         self.spin_warp_feather.setRange(
             warp_feather.MIN_STEPS, warp_feather.MAX_STEPS)
-        self.spin_warp_feather.setSuffix(" 面分")
+        self.spin_warp_feather.setSuffix(" 面分ワープ")
         try:
             self.spin_warp_feather.setValue(
                 warp_feather.current_steps(rom.data))
@@ -207,7 +214,7 @@ class HackDialog(QDialog):
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             wftr.addRow(note)
-        wftr.addRow("取得後の進行数:", self.spin_warp_feather)
+        wftr.addRow("", self.spin_warp_feather)
         wftr_hint = QLabel(
             "原作は6面分。実コードは $C69F の #$05 と通常クリアの +1 で合計6。"
             "この値は $28 bit6 ルートのクリア進行数を変えます。")
@@ -228,6 +235,9 @@ class HackDialog(QDialog):
         except solomon_seal_stage.SolomonSealStageError:
             current_seal_stages = solomon_seal_stage.defaults()
             self._seal_stage_ok = False
+        seal_grid = QGridLayout()
+        seal_grid.setHorizontalSpacing(8)
+        seal_grid.setVerticalSpacing(4)
         for spec in solomon_seal_stage.SLOTS:
             combo = QComboBox()
             for stage_no in solomon_seal_stage.candidates(spec.slot, rom.data, rom.region):
@@ -238,7 +248,11 @@ class HackDialog(QDialog):
             combo.setEnabled(self._seal_stage_ok)
             combo.currentIndexChanged.connect(self._refresh_solomon_seal_stage_choices)
             self.combo_seal_stages.append(combo)
-            seal_f.addRow(f"封印{spec.slot + 1}:", combo)
+            row = spec.slot // 2
+            col = (spec.slot % 2) * 2
+            seal_grid.addWidget(QLabel(f"封印{spec.slot + 1}:"), row, col)
+            seal_grid.addWidget(combo, row, col + 1)
+        seal_f.addRow(seal_grid)
         self._refresh_solomon_seal_stage_choices()
         seal_hint = QLabel(
             "1面につき封印1個まで。20面までに4個以上、44面までに6個以上、"
@@ -1603,7 +1617,7 @@ class HackDialog(QDialog):
 
     def _current_final_stage_redirect_stage_no(self) -> int:
         level_no = self._current_final_stage_redirect_level_no()
-        return level_no + 1 if level_no >= 0 else 0
+        return level_no + 1 if level_no >= 0 else DEFAULT_FINAL_STAGE_REDIRECT_STAGE_NO
 
     def _set_final_stage_redirect_stage_no(self, stage_no: int) -> bool:
         if not self.levels:
@@ -1611,10 +1625,10 @@ class HackDialog(QDialog):
         try:
             stage_no = int(stage_no)
         except Exception:
-            stage_no = 0
+            stage_no = DEFAULT_FINAL_STAGE_REDIRECT_STAGE_NO
         if stage_no < 1 or stage_no > len(self.levels):
-            stage_no = 0
-        selected = stage_no - 1 if stage_no > 0 else -1
+            stage_no = DEFAULT_FINAL_STAGE_REDIRECT_STAGE_NO
+        selected = -1 if stage_no == DEFAULT_FINAL_STAGE_REDIRECT_STAGE_NO else stage_no - 1
         old = self._current_final_stage_redirect_level_no()
         idx = self.combo_final_stage_redirect.findData(selected)
         self.combo_final_stage_redirect.setCurrentIndex(idx if idx >= 0 else 0)
@@ -2099,10 +2113,12 @@ class HackDialog(QDialog):
         if self._apply_final_stage_redirect_setting():
             selected = int(self.combo_final_stage_redirect.currentData())
             if selected < 0:
-                applied.append("最終面への移行 → なし")
+                applied.append(
+                    f"最終ステージ → {DEFAULT_FINAL_STAGE_REDIRECT_STAGE_NO}面をクリアした後（原作）"
+                )
             else:
-                applied.append(f"最終面への移行 → {selected + 1}面をクリアした後")
-            self._mark_parent_dirty("最終面への移行設定を変更")
+                applied.append(f"最終ステージ → {selected + 1}面をクリアした後")
+            self._mark_parent_dirty("最終ステージ設定を変更")
 
         # ワープ羽
         if getattr(self, "_warp_feather_ok", False):
