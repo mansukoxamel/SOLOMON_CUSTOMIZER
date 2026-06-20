@@ -1,8 +1,13 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK12 (2026-06-20) Panel Variant parent speed guardの水増し書込を停止
+- `parent_speed_guard` は実体29Bで完結しているため、保存時に旧67B長へ0 paddingして書く処理をやめた。
+- 署名検証も現行の29B単位へ合わせ、後続領域をguard書込の対象から外した。
+- cache経路は維持し、PRG0非常用候補を潰していた余計な38B書込だけを止めた。
+
 ## EX-PANEL-V2-BLOCK11 (2026-06-20) Panel Variant group RAM helperの水増し書込を停止
 - `group_ram_offset_helper` は実体8Bで完結しているため、保存時に旧13B長へEA paddingして書く処理をやめた。
-- 旧13B helperで保存されたROMも再保存できるよう、署名検証では先頭8Bを受け付ける。
+- 署名検証も現行の8B単位へ合わせ、後続領域をhelper書込の対象から外した。
 - cache経路は維持し、PRG0の不要な5B書込だけを止めて、管理簿上の短い非常用候補と実装を一致させた。
 
 ## EX-PANEL-V2-BLOCK10 (2026-06-20) Panel Monster v2 global cache契約report

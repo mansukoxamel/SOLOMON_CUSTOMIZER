@@ -1025,17 +1025,6 @@ ORIG_FINAL_AI_WRAPPER_CANDIDATE = bytes.fromhex(
 ORIG_FINAL_ABC_GROUP_OFFSET_HELPER = bytes.fromhex(
     "00000000000000000000000000000000000000004004000000011c7136d9"
 )
-LEGACY_FINAL_GROUP_RAM_OFFSET_HELPER = bytes.fromhex(
-    "a0 01 b1 2e 20 2c e9 e0 ff f0 01 60 60"
-)
-LEGACY_FINAL_PARENT_SPEED_GUARD = bytes.fromhex(
-    "20 c0 8a a0 01 b1 08 20 2c e9 e0 ff d0 24 a0 01 b1 08 c9 52 90 2c "
-    "c9 5c b0 12 c9 54 90 14 c9 56 90 20 c9 58 90 0c c9 5a 90 18 b0 "
-    "06 29 fe c9 66 d0 10 a9 00 a0 09 91 08 88 91 08 a0 06 91 08 88 "
-    "91 08 60"
-)
-
-
 def _fill(byte: int, size: int) -> bytes:
     return bytes([byte & 0xFF] * int(size))
 
@@ -1048,12 +1037,9 @@ def _pad(blob: bytes, size: int, fill: int = 0xEA) -> bytes:
 
 
 FINAL_GROUP_RAM_OFFSET_HELPER_WRITE = FINAL_GROUP_RAM_OFFSET_HELPER
-FINAL_PARENT_SPEED_GUARD_WRITE = (
-    FINAL_PARENT_SPEED_GUARD
-    + _fill(0x00, len(LEGACY_FINAL_PARENT_SPEED_GUARD) - len(FINAL_PARENT_SPEED_GUARD))
-)
+FINAL_PARENT_SPEED_GUARD_WRITE = FINAL_PARENT_SPEED_GUARD
 assert len(FINAL_GROUP_RAM_OFFSET_HELPER_WRITE) == len(FINAL_GROUP_RAM_OFFSET_HELPER)
-assert len(FINAL_PARENT_SPEED_GUARD_WRITE) == len(LEGACY_FINAL_PARENT_SPEED_GUARD)
+assert len(FINAL_PARENT_SPEED_GUARD_WRITE) == len(FINAL_PARENT_SPEED_GUARD)
 
 
 def _unique_signatures(signatures: tuple[bytes, ...]) -> tuple[bytes, ...]:
@@ -1232,7 +1218,7 @@ def _validate_final_split_signatures(
             OFF_FINAL_PARENT_SPEED_GUARD,
             FINAL_PARENT_SPEED_GUARD_WRITE,
             "Panel Variant final parent speed guard",
-            (ORIG_FINAL_PARENT_SPEED_GUARD, LEGACY_FINAL_PARENT_SPEED_GUARD),
+            (ORIG_FINAL_PARENT_SPEED_GUARD[:len(FINAL_PARENT_SPEED_GUARD_WRITE)],),
         ),
         (
             OFF_FINAL_PANEL_TYPE_CLASSIFIER,
@@ -1272,7 +1258,7 @@ def _validate_final_split_signatures(
             OFF_FINAL_GROUP_RAM_OFFSET_HELPER,
             FINAL_GROUP_RAM_OFFSET_HELPER_WRITE,
             "Panel Variant final group RAM offset helper",
-            (_fill(0xEA, len(FINAL_GROUP_RAM_OFFSET_HELPER_WRITE)), LEGACY_FINAL_GROUP_RAM_OFFSET_HELPER[:len(FINAL_GROUP_RAM_OFFSET_HELPER_WRITE)]),
+            (_fill(0xEA, len(FINAL_GROUP_RAM_OFFSET_HELPER_WRITE)),),
         ),
         (
             OFF_FINAL_ABC_GROUP_OFFSET_HELPER,
