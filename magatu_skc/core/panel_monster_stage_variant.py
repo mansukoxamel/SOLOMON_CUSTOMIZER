@@ -11,8 +11,9 @@ feature.  This module is for the newer global-parameterized A/B/C families:
 Current scope:
   - hook the state0 firing interval compare at $A575/$A579;
   - keep the state1 pre-shot mouth delay at the stock $10;
-  - read the global A/B/C speed+interval bytes from the $0740-$0745 cache
-    initialized by the mapper66 room loader.
+  - write one fixed PRG1 A/B/C speed+interval table on every expanded-ROM save;
+  - copy that table to $0740-$0745 during room load so the PRG0 fire path stays
+    small and does not branch over stage contents.
 
 Rhythm was removed from the design; there is intentionally no 1x speed preset
 because stock Panel Monster already covers normal-speed shots.
@@ -2123,9 +2124,10 @@ def has_panel_stage_variant_ids(levels: list) -> bool:
 def has_panel_stage_runtime_ids(levels: list) -> bool:
     """Return True when the final split Panel runtime is needed.
 
-    A/B/C IDs need the global speed/interval cache path.  Older 2-way/3-way
-    borrowed Panel IDs also use the relocated shared wrapper when this runtime
-    is present, so 2-way-only stages must enable it too.
+    This helper is kept for callers that need to inspect level contents, but
+    the expanded-ROM save path writes the v2 runtime unconditionally.  A/B/C
+    IDs use the PRG1 settings table copied to $0740-$0745, and older 2-way/
+    3-way borrowed Panel IDs use the same relocated shared wrapper.
     """
     for lv in levels or []:
         for enemy in getattr(lv, "enemies", []) or []:
@@ -2235,7 +2237,7 @@ def _runtime_cache_entry(common_settings: dict | None = None) -> bytes:
 
 
 def panel_monster_v2_global_cache_contract(common_settings: dict | None = None) -> dict[str, object]:
-    """Return the current A/B/C global cache contract before changing it."""
+    """Return the A/B/C PRG1 settings-table and room-load RAM-copy contract."""
     cache_entry = _runtime_cache_entry(common_settings)
     return {
         "global_cache_table": {

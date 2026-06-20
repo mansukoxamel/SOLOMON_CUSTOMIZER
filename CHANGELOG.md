@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK55 (2026-06-20) Panel Monster v2設定テーブルの説明を固定書き込み契約へ整理
+- Panel Monster v2の冒頭説明を、PRG1固定設定テーブルを毎回書き、room loadで `$0740-$0745` へコピーする実態に合わせた。
+- `has_panel_stage_runtime_ids()` の説明へ、拡張ROM保存経路ではruntimeを常時書き込むことを明記した。
+- 実行バイトは変更せず、古い「cache依存」に見える説明だけを現在の設計へ揃えた。
+
 ## EX-PANEL-V2-BLOCK54 (2026-06-20) Key/Fairy runtime呼び出しを固定書き込み契約へ整理
 - `key_enemy_runtime.apply()` から未使用になった `enabled` 引数を削除した。
 - 保存経路からKey/Fairy enemy使用有無の条件引数を渡さないようにし、runtimeは常に同じROM配置へ書く契約を明確にした。
