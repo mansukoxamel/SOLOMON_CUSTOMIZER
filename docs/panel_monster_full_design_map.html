@@ -517,7 +517,7 @@
       <tr><th>項目</th><th>v2 Foundation</th><th>理由</th></tr>
       <tr><td>A/B/C敵ID</td><td class="ok">維持</td><td>ユーザーが配置済みの敵種別を読めなくしてはいけない。</td></tr>
       <tr><td>A/B/C speed/intervalのglobal cache保存</td><td class="ok">維持</td><td>PRG1 table + RAM cacheでPRG0を短くする。</td></tr>
-      <tr><td><code>PanelVariantStageTable</code> 64 room table</td><td class="danger">廃止/予約回収</td><td>ステージ別値が不要になる。</td></tr>
+      <tr><td><code>PanelVariantStageTable</code> 64 room table</td><td class="danger">廃止済み</td><td>現行runtimeはglobal 6B cacheだけを読む。</td></tr>
       <tr><td>PRG1 6B global cache table</td><td class="ok">維持</td><td>ユーザー値をPRG1側に置く。</td></tr>
       <tr><td>RAM <code>$0740-$0745</code></td><td class="ok">維持</td><td>loaderからPRG0 helperへ渡す短いcache。</td></tr>
       <tr><td>2-way/3-way borrowed IDs</td><td class="ok">維持</td><td>既存機能。A/B/C helperに巻き込まない。</td></tr>
@@ -795,7 +795,7 @@
       <tr><td>AI entry</td><td>A/B/C entry、borrowed-ID wrapper、parent field clear契約</td><td>既存stock AI <code>$A54C</code></td></tr>
       <tr><td>Fire path</td><td>normal / 2-way / 3-way / A/B/C dispatch、common fire loop、marker write</td><td><code>$AE76</code> child materialize</td></tr>
       <tr><td>Bullet path</td><td>marker decode、speed apply、2x/3x extra-step、collision sample契約</td><td>stock impact path <code>$AFD8/$B016/$9BE3</code></td></tr>
-      <tr><td>Global cache固定</td><td>PRG1 6B table + RAM <code>$0740-$0745</code></td><td>直接operand化、旧64-room table</td></tr>
+      <tr><td>Global cache固定</td><td>PRG1 6B table + RAM <code>$0740-$0745</code></td><td>直接operand化、64-room table復活</td></tr>
     </table>
 
     <h3>12.4 仮置きから本番配置へ移す手順</h3>

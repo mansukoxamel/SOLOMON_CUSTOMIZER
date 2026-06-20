@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK26 (2026-06-20) global cache名へ整理
+- `TABLE_OFFSET` の旧table名をやめ、`GLOBAL_CACHE_TABLE_OFFSET = 0x8A70` として直接定義した。
+- 設計図とROM管理簿の64-room table説明を、現行global 6B cacheとPRG1 reserveの説明へ寄せた。
+- ROM挙動は変えず、旧table前提の読み方を減らした。
+
 ## EX-PANEL-V2-BLOCK25 (2026-06-20) 旧64-room PanelVariantStageTable helperを削除
 - 未使用になっていた `build_table()` / `patch_table()` / `read_table()` を削除した。
 - 旧16B entry画像と旧table header定数を削除し、通常保存経路はglobal 6B cacheだけを見る形へ寄せた。
