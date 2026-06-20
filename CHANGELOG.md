@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK28 (2026-06-20) fire marker契約guardを追加
+- 保存前検証にPanel Monster v2 fire marker tableの固定guardを追加した。
+- static/dynamic marker helperがchild sub-slot `+7` を書くこと、dynamic speed markerが `$88` 起点であることを確認する。
+- ROM挙動は変えず、通常Panel/2-way/3-way/A/B/CのBullet marker契約がずれたROM作成を止めるようにした。
+
 ## EX-PANEL-V2-BLOCK27 (2026-06-20) global cache契約guardを追加
 - 保存前検証に `Panel Monster v2 global cache` の6B固定guardを追加した。
 - PRG1 global cache imageが6Bであること、RAM cacheが `$0740-$0745` に連続していること、loaderが6B copyを持つことを確認する。

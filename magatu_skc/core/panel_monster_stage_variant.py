@@ -1159,6 +1159,7 @@ def apply_panel_monster_v2_runtime(
     _validate_final_split_signatures(rom_data, final_state0_interval_helper)
     _validate_pmv2_speed_core_runtime_contract()
     _validate_pmv2_global_cache_runtime_contract()
+    _validate_pmv2_fire_marker_runtime_contract()
 
     changed: list[str] = []
     if patch_global_cache_table(rom_data, common_settings):
@@ -1674,6 +1675,26 @@ def _validate_pmv2_global_cache_runtime_contract() -> None:
         raise PanelMonsterStageVariantError(
             "Panel Monster v2 runtime loader no longer copies the 6-byte global cache."
         )
+
+
+def _validate_pmv2_fire_marker_runtime_contract() -> None:
+    """Guard the Panel Monster fire path marker contract."""
+    expected_marker_table = bytes((0x83, 0x84, 0xFF, 0x81, 0x80, 0x82, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF))
+    if FINAL_FIRE_MARKER_TABLE != expected_marker_table:
+        raise PanelMonsterStageVariantError(
+            f"Panel Monster v2 fire marker table mismatch: {FINAL_FIRE_MARKER_TABLE!r}"
+        )
+    required_patterns = {
+        "static child sub+7 write": (FINAL_STATIC_MARKER_HELPER, bytes((0x20, 0x56, 0xB1, 0xA0, 0x07))),
+        "dynamic speed marker base $88": (FINAL_DYNAMIC_SPEED_MARKER_HELPER, bytes((0x09, 0x88))),
+        "dynamic child sub+7 write": (FINAL_DYNAMIC_SPEED_MARKER_HELPER, bytes((0x20, 0x56, 0xB1, 0xA0, 0x07))),
+        "fire common dynamic sentinel $FE": (FINAL_FIRE_COMMON, bytes((0xC9, 0xFE))),
+    }
+    for name, (blob, pattern) in required_patterns.items():
+        if pattern not in blob:
+            raise PanelMonsterStageVariantError(
+                f"Panel Monster v2 fire marker path is missing {name}."
+            )
 
 
 RESERVED_SPANS = (
