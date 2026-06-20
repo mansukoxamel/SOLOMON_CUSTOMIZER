@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK21 (2026-06-20) 旧interval prototype入口を削除
+- 無効化済みだった `apply_stage_table_interval_prototype()` と判定関数を削除した。
+- 旧prototype用のAI wrapper/head定数と旧state0 helperを削除した。
+- 通常のROM作成経路は、原作状態または最新final状態から最新v2へ書く形に絞った。
+
 ## EX-PANEL-V2-BLOCK20 (2026-06-20) 旧speed runtime builderを削除
 - 旧 `bullet_speed_apply` / `extra_helper` / `merged_bullet_hook` を生成する未使用builderを削除した。
 - v2 Bullet hook容量は旧builderの長さではなく、明示的な `FINAL_BULLET_SPEED_HOOK_CAPACITY` で扱うようにした。

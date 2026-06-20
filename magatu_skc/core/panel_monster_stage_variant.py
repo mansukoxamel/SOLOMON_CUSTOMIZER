@@ -157,7 +157,6 @@ RUNTIME_CACHE_VALUES = (
 )
 MAGIC = b"PANELVAR"
 FORMAT = 1
-ENABLE_STAGE_TABLE_INTERVAL_PROTOTYPE = False
 
 CPU_PRG1_RUNTIME_LOADER = 0x8A00
 OFF_PRG1_RUNTIME_LOADER = 0x8A10
@@ -169,15 +168,9 @@ HOOK_M66_LOADER_TAIL = bytes((
     CPU_PRG1_RUNTIME_LOADER >> 8,
 ))
 
-# These offsets are the current v7/v4 test-ROM cave locations.  They are
-# deliberately named as prototype locations, not final production reservations.
-OFF_AI_WRAPPER_C_PROTO = 0x3C6B
-OFF_AI_WRAPPER_AB_PROTO = 0x3D0F
 OFF_STATE0_INTERVAL_HOOK = 0x2585  # CPU $A575
 OFF_STATE0_INTERVAL_CMP = 0x2589   # CPU $A579
 OFF_STATE0_INTERVAL_THRESHOLD = OFF_STATE0_INTERVAL_CMP + 1
-OFF_STATE0_INTERVAL_HELPER = 0x4098  # CPU $C088
-OFF_STATE1_MOUTH_GATE = 0x3D52  # CPU $BD42
 STATE1_MOUTH_GATE_SIZE = 0x3F
 OFF_AI_RANGE_30_33 = 0xA33C - 0x8000 + 0x10
 OFF_AI_RANGE_34_37 = 0xA33E - 0x8000 + 0x10
@@ -248,30 +241,6 @@ HOOK_8B05_SPARK_ANIM = (
     + _word(spark_ball_variant.CPU_ANIM_HOOK)
     + bytes([0xEA] * (len(panel_monster_variant.HOOK_8B05) - 3))
 )
-V7_STATE0_INTERVAL_HOOK = bytes.fromhex("4c 80 c1 2c c9 c0")
-V8_STATE0_INTERVAL_HOOK = bytes.fromhex("20 88 c0 ea c5 0f")
-HOOK_STATE0_INTERVAL = bytes.fromhex("20 88 c0 ea ea ea")
-
-V7_AI_WRAPPER_C_HEAD = bytes.fromhex(
-    "a9 00 a0 05 91 2e a0 06 91 2e a0 08 91 2e a0 09 "
-    "91 2e a0 01 b1 2e 4a 29 01 09 02 48 a0 03 b1 2e "
-    "29 fc 91 2e 68 11 2e 91 2e 4c 4c a5"
-)
-
-FIXED_AI_WRAPPER_C = bytes.fromhex(
-    "a9 00 a0 05 91 2e a0 06 91 2e a0 08 91 2e a0 09 "
-    "91 2e a0 01 b1 2e 29 06 4a a8 b9 9d bc 48 a0 03 "
-    "b1 2e 29 fc 91 2e 68 11 2e 91 2e 4c 4c a5 "
-    "02 03 00 01"
-)
-
-V7_AI_WRAPPER_AB_HEAD = bytes.fromhex(
-    "a9 00 a0 05 91 2e a0 06 91 2e a0 08 91 2e a0 09 "
-    "91 2e a0 01 b1 2e 4a 29 01 48 a0 03 b1 2e 29 fc "
-    "91 2e 68 11 2e 91 2e 4c 4c a5 2e c9 6e f0 07 "
-    "c9 6f f0 06 4c 4a a6 4c 2d a9 4c 2d a9"
-)
-
 DEFAULT_ENTRY = bytes((
     DEFAULT_A_SPEED_PRESET,
     DEFAULT_A_INTERVAL,
@@ -283,30 +252,6 @@ DEFAULT_ENTRY = bytes((
     0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00,
 ))
-
-def _build_state0_interval_helper(cpu_base: int) -> bytes:
-    a = _Asm()
-    a.b(0xA0, 0x01, 0xB1, 0x2E, 0x29, 0xF8)
-    a.b(0x4A, 0x4A, 0x4A, 0x38, 0xE9, 0x06, 0xAA)
-    a.b(0xBD, 0xFF, 0xFF, 0xAA)
-    a.b(0xA0, 0x02, 0xB1, 0x2C, 0xDD, 0x41, 0x07, 0x60)
-    a.label("ram_offset_table")
-    a.b(0x04, 0x00, 0x00, 0x02)
-    blob = bytearray(a.finish())
-    table_cpu = (int(cpu_base) + a.labels["ram_offset_table"]) & 0xFFFF
-    for i in range(len(blob) - 2):
-        if blob[i] == 0xBD and blob[i + 1:i + 3] == bytes((0xFF, 0xFF)):
-            blob[i + 1:i + 3] = bytes((table_cpu & 0xFF, table_cpu >> 8))
-            return bytes(blob)
-    raise PanelMonsterStageVariantError("state0 interval helper placeholder mismatch")
-
-
-STATE0_INTERVAL_HELPER = _build_state0_interval_helper(0xC088)
-STATE1_MOUTH_GATE = (
-    bytes.fromhex("a0 01 b1 2c c9 10 90 03 4c 9a bd 60")
-    + bytes([0xEA] * (STATE1_MOUTH_GATE_SIZE - 12))
-)
-
 
 def _build_group_ram_offset_helper(cpu_base: int) -> bytes:
     a = _Asm()
@@ -985,9 +930,6 @@ def _validate_final_split_signatures(
         "$A575 state0 interval hook site",
         (
             ORIG_STATE0_INTERVAL_HOOK,
-            V7_STATE0_INTERVAL_HOOK,
-            V8_STATE0_INTERVAL_HOOK,
-            HOOK_STATE0_INTERVAL,
             FINAL_HOOK_STATE0_INTERVAL,
         ),
     )
@@ -1109,7 +1051,6 @@ def _validate_final_split_signatures(
             (
                 _fill(0xEA, len(final_state0_interval_helper)),
                 spark_ball_variant.CAVE_PROPERTY_HOOK[:len(final_state0_interval_helper)],
-                STATE0_INTERVAL_HELPER[:len(final_state0_interval_helper)],
             ),
         ),
         (
@@ -1162,7 +1103,6 @@ def _validate_final_split_signatures(
             "Panel Variant final Bullet speed apply/table",
             (
                 _fill(0xEA, len(v2_speed["speed_decode"])),
-                _pad(STATE0_INTERVAL_HELPER, len(v2_speed["speed_decode"])),
             ),
         ),
         (
@@ -2109,81 +2049,6 @@ def _write_blob(rom_data, off: int, blob: bytes, changed: list[str], name: str) 
     if bytes(rom_data[off:off + len(blob)]) != blob:
         rom_data[off:off + len(blob)] = blob
         changed.append(name)
-
-
-def apply_stage_table_interval_prototype(rom_data, levels: list = None) -> list[str]:
-    """Apply the table-loaded interval prototype.
-
-    Legacy probe path only; production final saves use the global-cache loader
-    and do not reserve PanelVariantStageTable.
-
-    The room-load-time PRG1 loader fills $0740-$074F from
-    PanelVariantStageTable.  The PRG0 hook changes only the state0 firing
-    interval compare at $A575/$A579; the state1 mouth delay remains stock.
-    """
-    if rom_data is None or len(rom_data) < max(TABLE_END, OFF_STATE0_INTERVAL_HELPER + len(STATE0_INTERVAL_HELPER)):
-        raise PanelMonsterStageVariantError("ROM is too short for PanelVariantStageTable.")
-    cur_hook = bytes(rom_data[OFF_STATE0_INTERVAL_HOOK:OFF_STATE0_INTERVAL_HOOK + len(ORIG_STATE0_INTERVAL_HOOK)])
-    if cur_hook not in (
-        ORIG_STATE0_INTERVAL_HOOK,
-        V7_STATE0_INTERVAL_HOOK,
-        V8_STATE0_INTERVAL_HOOK,
-        HOOK_STATE0_INTERVAL,
-    ):
-        raise PanelMonsterStageVariantError(
-            f"$A575 state0 interval hook signature mismatch: got {cur_hook.hex(' ')}"
-        )
-
-    changed: list[str] = []
-    _write_blob(
-        rom_data,
-        OFF_AI_WRAPPER_C_PROTO,
-        FIXED_AI_WRAPPER_C + bytes([0xEA] * (STATE1_MOUTH_GATE_SIZE - len(FIXED_AI_WRAPPER_C))),
-        changed,
-        "Panel stage-variant C direction table wrapper",
-    )
-    if patch_table(rom_data, levels):
-        changed.append("PanelVariantStageTable")
-    changed.extend(apply_runtime_loader(rom_data))
-    _write_blob(
-        rom_data,
-        OFF_STATE0_INTERVAL_HELPER,
-        STATE0_INTERVAL_HELPER,
-        changed,
-        "Panel stage-variant state0 interval helper reads $0741/$0743/$0745",
-    )
-    _write_blob(
-        rom_data,
-        OFF_STATE1_MOUTH_GATE,
-        STATE1_MOUTH_GATE,
-        changed,
-        "Panel stage-variant state1 mouth gate restored to $10",
-    )
-    _write_blob(
-        rom_data,
-        OFF_STATE0_INTERVAL_HOOK,
-        HOOK_STATE0_INTERVAL,
-        changed,
-        "$A575 Panel stage-variant interval helper hook",
-    )
-    return changed
-
-
-def can_apply_stage_table_interval_prototype(rom_data) -> bool:
-    """Return True when the ROM already contains the ABC prototype wrappers."""
-    if not ENABLE_STAGE_TABLE_INTERVAL_PROTOTYPE:
-        return False
-    if rom_data is None:
-        return False
-    cur_c = bytes(rom_data[OFF_AI_WRAPPER_C_PROTO:OFF_AI_WRAPPER_C_PROTO + len(FIXED_AI_WRAPPER_C)])
-    cur_c_old = bytes(rom_data[OFF_AI_WRAPPER_C_PROTO:OFF_AI_WRAPPER_C_PROTO + len(V7_AI_WRAPPER_C_HEAD)])
-    return (
-        cur_c == FIXED_AI_WRAPPER_C
-        or cur_c_old == V7_AI_WRAPPER_C_HEAD
-    ) and (
-        bytes(rom_data[OFF_AI_WRAPPER_AB_PROTO:OFF_AI_WRAPPER_AB_PROTO + len(V7_AI_WRAPPER_AB_HEAD)])
-        == V7_AI_WRAPPER_AB_HEAD
-    )
 
 
 apply = apply_final_split_test_candidate
