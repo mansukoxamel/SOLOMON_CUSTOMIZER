@@ -487,10 +487,19 @@ def save_level_m66(rom_data: bytearray, level_no: int, level):
     # ミラー位置にブロックもアイテムもなければミラーマーカー(0x05)を配置
     # ブロックやアイテムで意図的に隠されたミラーは上書きしない
     item_positions = {item.position for item in level.items}
+    hidden_mirror_block_cells = (
+        set(getattr(level, "breakable_white_cells", set()) or []) |
+        set(cracked_block_cells(level)) |
+        set(getattr(level, "passable_white_cells", set()) or []) |
+        set(getattr(level, "invisible_solid_cells", set()) or []) |
+        set(getattr(level, "invisible_breakable_cells", set()) or []) |
+        set(getattr(level, "passable_brown_cells", set()) or []) |
+        set(getattr(level, "solid_brown_cells", set()) or [])
+    )
     for m in range(2):
         if is_mirror_visible_m66(level, m):
             mx, my = level.demon_mirrors[m].position
-            has_block = level.tiles[my][mx] != Wall.NONE
+            has_block = level.tiles[my][mx] != Wall.NONE or (mx, my) in hidden_mirror_block_cells
             has_item = (mx, my) in item_positions
             if not has_block and not has_item:
                 set_block((mx, my), c.ITEM_NO_DEMON_MIRROR)
