@@ -1161,6 +1161,7 @@ def apply_panel_monster_v2_runtime(
     _validate_pmv2_global_cache_runtime_contract()
     _validate_pmv2_fire_marker_runtime_contract()
     _validate_pmv2_parent_runtime_contract()
+    _validate_pmv2_classifier_runtime_contract()
 
     changed: list[str] = []
     if patch_global_cache_table(rom_data, common_settings):
@@ -1719,6 +1720,31 @@ def _validate_pmv2_parent_runtime_contract() -> None:
         if pattern not in blob:
             raise PanelMonsterStageVariantError(
                 f"Panel Monster v2 parent cleanup is missing {name}."
+            )
+
+
+def _validate_pmv2_classifier_runtime_contract() -> None:
+    """Guard the Panel Monster type-classification contract."""
+    required_patterns = {
+        "A/B/C lower bound $30": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0x18))),
+        "C upper split $38": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0x1C))),
+        "A lower bound $40": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0x20))),
+        "B upper bound $50": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0x28))),
+        "classifier panel return": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0x38, 0x60))),
+        "2-way fire dispatch $52": (FINAL_FIRE_DISPATCH, bytes((0xC9, 0x52))),
+        "2-way fire dispatch $56": (FINAL_FIRE_DISPATCH, bytes((0xC9, 0x56))),
+        "3-way fire dispatch $5A": (FINAL_FIRE_DISPATCH, bytes((0xC9, 0x5A))),
+        "3-way fire dispatch $66": (FINAL_FIRE_DISPATCH, bytes((0xC9, 0x66))),
+    }
+    for shifted_id in (0x29, 0x2B, 0x2D, 0x33):
+        required_patterns[f"borrowed Panel tail ${shifted_id:02X}"] = (
+            FINAL_PANEL_TYPE_CLASSIFIER_TAIL,
+            bytes((0xC9, shifted_id)),
+        )
+    for name, (blob, pattern) in required_patterns.items():
+        if pattern not in blob:
+            raise PanelMonsterStageVariantError(
+                f"Panel Monster v2 classifier is missing {name}."
             )
 
 

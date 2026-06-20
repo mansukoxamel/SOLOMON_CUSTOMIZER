@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK30 (2026-06-20) classifier契約guardを追加
+- 保存前検証にPanel Monster v2 classifier guardを追加した。
+- A/B/C分類の境界、borrowed Panel tail分類、2-way/3-way fire dispatchの比較値を確認する。
+- ROM挙動は変えず、分類変更で通常Panel/2-way/3-way/A/B/Cの経路がずれたROM作成を止めるようにした。
+
 ## EX-PANEL-V2-BLOCK29 (2026-06-20) parent drift契約guardを追加
 - 保存前検証にPanel Monster v2 parent cleanup guardを追加した。
 - `$866D` hookがparent speed guardへ入ること、親main `+5/+6/+8/+9` とA/B/C entry側の同フィールドを0化する命令列を確認する。
