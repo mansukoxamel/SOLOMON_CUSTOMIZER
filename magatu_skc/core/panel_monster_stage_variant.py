@@ -785,6 +785,28 @@ def panel_variant_split_placement_report() -> dict[str, object]:
     }
 
 
+def _span_overlap_report(spans: tuple[tuple[int, int], ...]) -> dict[str, object]:
+    rows = []
+    overlaps = []
+    for index, (off, size) in enumerate(spans):
+        end = int(off) + int(size) - 1
+        rows.append({
+            "index": index,
+            "file_start": int(off),
+            "file_end": end,
+            "size": int(size),
+        })
+    for left_index, left in enumerate(rows):
+        for right in rows[left_index + 1:]:
+            if left["file_end"] >= right["file_start"] and right["file_end"] >= left["file_start"]:
+                overlaps.append((left["index"], right["index"]))
+    return {
+        "spans": rows,
+        "overlaps": overlaps,
+        "overlap_free": not overlaps,
+    }
+
+
 ORIG_FINAL_PARENT_FIELD_CLEAR_HELPER = bytes.fromhex(
     "0008210001000100010001000140010101"
 )
@@ -1592,17 +1614,20 @@ def panel_monster_v2_runtime_save_report(
     speed_report = panel_monster_v2_split_speed_save_report(rom_data)
     cache_report = panel_monster_v2_global_cache_save_report(rom_data, common_settings)
     placement_report = panel_variant_split_placement_report()
+    reserved_report = panel_monster_v2_reserved_span_report()
     return {
         "apply_path": apply_panel_monster_v2_runtime.__name__,
         "guards": guard_results,
         "guards_ok": all(result is True for result in guard_results.values()),
         "placement_ok": placement_report["overlap_free"],
+        "reserved_ok": reserved_report["overlap_free"],
         "speed_all_written": speed_report["all_written"],
         "cache_all_written": cache_report["all_written"],
         "all_written": speed_report["all_written"] and cache_report["all_written"],
         "speed": speed_report,
         "cache": cache_report,
         "placement": placement_report,
+        "reserved": reserved_report,
     }
 
 
@@ -1811,6 +1836,11 @@ RESERVED_SPANS = (
     (OFF_PRG1_RUNTIME_LOADER, 0x60),
     (GLOBAL_CACHE_TABLE_OFFSET, GLOBAL_CACHE_TABLE_LENGTH),
 )
+
+
+def panel_monster_v2_reserved_span_report() -> dict[str, object]:
+    """Return overlap status for implementation-reserved Panel Monster v2 spans."""
+    return _span_overlap_report(RESERVED_SPANS)
 
 
 def is_panel_stage_variant_id(enemy_id: int) -> bool:

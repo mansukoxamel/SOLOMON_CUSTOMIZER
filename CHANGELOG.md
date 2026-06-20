@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK38 (2026-06-20) RESERVED_SPANS重複checkを統合
+- `panel_monster_v2_reserved_span_report()` を追加し、Panel Monster v2の実装予約span同士の重複を確認できるようにした。
+- `panel_monster_v2_runtime_save_report()` とCLI checkに `reserved_ok` を追加した。
+- ROM挙動は変えず、ROM/RAM管理簿と実装予約を固める前提を強化した。
+
 ## EX-PANEL-V2-BLOCK37 (2026-06-20) runtime reportに配置重複checkを統合
 - `panel_monster_v2_runtime_save_report()` に `placement_ok` とsplit placement reportを追加した。
 - `tools/panel_monster_v2_runtime_check.py` で15ケースすべて、guard/cache/再保存に加えて配置重複なしも確認する。
