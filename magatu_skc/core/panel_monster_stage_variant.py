@@ -342,13 +342,13 @@ def _build_static_marker_helper() -> bytes:
     return bytes.fromhex("48 a5 02 20 56 b1 a0 07 68 91 00 60")
 
 
-def _build_dynamic_speed_marker_helper(group_offset_cpu: int) -> bytes:
+def _build_dynamic_speed_marker_helper(group_offset_cpu: int, static_marker_cpu: int) -> bytes:
     a = _Asm()
     a.b(0x8A, 0x48)
     a.jsr(group_offset_cpu)
-    a.b(0xBD, 0x40, 0x07, 0x09, DYNAMIC_SPEED_MARKER_BASE, 0x48)
-    a.b(0xA5, 0x02, 0x20, 0x56, 0xB1, 0xA0, 0x07)
-    a.b(0x68, 0x91, 0x00, 0x68, 0xAA, 0x60)
+    a.b(0xBD, 0x40, 0x07, 0x09, DYNAMIC_SPEED_MARKER_BASE)
+    a.jsr(static_marker_cpu)
+    a.b(0x68, 0xAA, 0x60)
     return a.finish()
 
 
@@ -646,7 +646,10 @@ FINAL_STATE0_INTERVAL_HELPER = _build_final_state0_interval_helper()
 FINAL_GROUP_RAM_OFFSET_HELPER = _build_final_group_ram_offset_helper()
 FINAL_ABC_GROUP_OFFSET_HELPER = _build_abc_group_offset_helper()
 FINAL_STATIC_MARKER_HELPER = _build_static_marker_helper()
-FINAL_DYNAMIC_SPEED_MARKER_HELPER = _build_dynamic_speed_marker_helper(CPU_FINAL_GROUP_RAM_OFFSET_HELPER)
+FINAL_DYNAMIC_SPEED_MARKER_HELPER = _build_dynamic_speed_marker_helper(
+    CPU_FINAL_GROUP_RAM_OFFSET_HELPER,
+    CPU_FINAL_STATIC_MARKER_HELPER,
+)
 FINAL_PARENT_FIELD_CLEAR_HELPER = _build_parent_field_clear_helper()
 FINAL_FIRE_MARKER_TABLE = _build_final_fire_marker_table()
 PREVIOUS_STAGE_DISPATCH_TAIL = _build_previous_stage_dispatch_tail(CPU_FINAL_STAGE_DISPATCH_HELPER)
@@ -678,6 +681,9 @@ FINAL_SHARED_AI_WRAPPER, FINAL_AI_WRAPPER_ENTRIES = _build_final_shared_ai_wrapp
 )
 PREVIOUS_DYNAMIC_SPEED_MARKER_HELPER = bytes.fromhex(
     "8a4820bdbe098848a5022056b1a00768910068aa60"
+)
+PREVIOUS_INLINE_DYNAMIC_SPEED_MARKER_HELPER = bytes.fromhex(
+    "8a48209fbebd4007098848a5022056b1a00768910068aa60"
 )
 PREVIOUS_SHARED_AI_WRAPPER = _build_final_shared_ai_wrapper(
     _cpu(0x68C1),
@@ -1159,7 +1165,8 @@ def _validate_final_split_signatures(
             "Panel Variant final dynamic speed marker helper",
             (
                 _fill(0x00, len(FINAL_DYNAMIC_SPEED_MARKER_HELPER)),
-                PREVIOUS_DYNAMIC_SPEED_MARKER_HELPER + PREVIOUS_SHARED_AI_WRAPPER[:0x03],
+                PREVIOUS_DYNAMIC_SPEED_MARKER_HELPER[:len(FINAL_DYNAMIC_SPEED_MARKER_HELPER)],
+                PREVIOUS_INLINE_DYNAMIC_SPEED_MARKER_HELPER[:len(FINAL_DYNAMIC_SPEED_MARKER_HELPER)],
             ),
         ),
         (
@@ -2028,7 +2035,10 @@ def _validate_pmv2_fire_marker_runtime_contract() -> None:
     required_patterns = {
         "static child sub+7 write": (FINAL_STATIC_MARKER_HELPER, bytes((0x20, 0x56, 0xB1, 0xA0, 0x07))),
         "dynamic speed marker base $88": (FINAL_DYNAMIC_SPEED_MARKER_HELPER, bytes((0x09, DYNAMIC_SPEED_MARKER_BASE))),
-        "dynamic child sub+7 write": (FINAL_DYNAMIC_SPEED_MARKER_HELPER, bytes((0x20, 0x56, 0xB1, 0xA0, 0x07))),
+        "dynamic static marker call": (
+            FINAL_DYNAMIC_SPEED_MARKER_HELPER,
+            bytes((0x20, CPU_FINAL_STATIC_MARKER_HELPER & 0xFF, CPU_FINAL_STATIC_MARKER_HELPER >> 8)),
+        ),
         "fire common dynamic sentinel $FE": (FINAL_FIRE_COMMON, bytes((0xC9, 0xFE))),
     }
     for name, (blob, pattern) in required_patterns.items():

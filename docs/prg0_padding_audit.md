@@ -104,7 +104,8 @@ document, `docs/rom_map_jp_mapper66_current.html`, and implementation constants.
 | `0x67D1-0x681B` | `$E7C1-$E80B` | 75B | emergency reserve | mixed / untouched by saver | Recovered from the old parent speed guard span. Do not use for normal feature work; re-probe/review before emergency use. |
 | `0x681C-0x6832` | `$E80C-$E822` | 23B | `spark_ball_variant.py` | `00` run | Transparent Spark Ball Golem-ID AI wrapper. |
 | `0x6833-0x6882` | `$E823-$E872` | 80B | `panel_monster_stage_variant.py` | `00` run | Panel Monster v2 Bullet speed tables plus shared fast loop. |
-| `0x68AC-0x68C3` | `$E89C-$E8B3` | 24B | `panel_monster_stage_variant.py` | `00` run | Dynamic speed marker helper. The old speed select helper is inlined here. |
+| `0x68AC-0x68BB` | `$E89C-$E8AB` | 16B | `panel_monster_stage_variant.py` | `00` run | Dynamic speed marker helper. The old speed select helper is inlined here; marker writes use the shared static marker helper. |
+| `0x68BC-0x68C3` | `$E8AC-$E8B3` | 8B | emergency reserve | `00` run | Recovered from dynamic speed marker helper compression. Short emergency candidate only. |
 | `0x68C4-0x68FE` | `$E8B4-$E8EE` | 59B | `panel_monster_stage_variant.py` | `00` run | Shared AI wrapper for direction normalize. |
 | `0x693C-0x6959` | `$E92C-$E949` | 30B | `panel_monster_stage_variant.py` | `00` / mixed | Panel Variant A/B/C group offset helper. Former emergency candidate band; now used. |
 | `0x696C-0x697E` | `$E95C-$E96E` | 19B | `panel_monster_stage_variant.py` | `00` run | Panel Variant final AI dispatch helper. Former emergency candidate band; now used. |

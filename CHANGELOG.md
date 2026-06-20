@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK70 (2026-06-20) Panel Monster dynamic marker helperを圧縮
+- dynamic speed marker helper内のchild sub-slot marker書き込みを、既存のstatic marker helper呼び出しへ寄せた。
+- 判定は増やさず、同じ後処理だけを共有してdynamic helperを24Bから16Bへ削減した。
+- BLOCK68以降のPRG0削減は合計20Bになった。
+
 ## EX-PANEL-V2-BLOCK69 (2026-06-20) Panel Monster speed select helperを撤去
 - `speed_select_helper` 7Bをdynamic speed marker helperへ吸収し、dynamic側の増加を3Bに抑えてPRG0予約を差し引き4B削減した。
 - A/B/Cのspeed marker生成は、fire入口でA/B/Cに限定された後だけ走るため、追加の共通判定は増やしていない。
