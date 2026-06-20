@@ -172,7 +172,7 @@
 <header>
   <h1>Panel Monster Full Design Map</h1>
   <p class="lead">
-    Planning baseline: commit <code>6df3733</code>。Current runtime checkpoint: <code>9d39e66</code> / <code>EX-PANEL-V2-BLOCK68</code>。
+    Planning baseline: commit <code>6df3733</code>。Current runtime checkpoint: <code>9d39e66</code> / <code>EX-PANEL-V2-BLOCK69</code>。
     この資料は、Panel Monster周辺を再実装する前に、原作処理・既存2-way/3-way・A/B/C Panel Variant・RAM/ROM配置・Bullet衝突契約を一枚で追えるようにするための設計図である。
   </p>
   <p>
@@ -408,7 +408,7 @@
   <section id="runtime">
     <h2>6. Runtime配置とhook一覧</h2>
 
-    <h3>6.1 current BLOCK65 final pieces</h3>
+    <h3>6.1 current BLOCK69 final pieces</h3>
     <table>
       <tr><th>piece</th><th>file</th><th>CPU</th><th>size</th><th>capacity</th><th>役割</th></tr>
       <tr><td>fire_dispatch</td><td class="num">0x3CE2-0x3D0A</td><td class="num">$BCD2-$BCFA</td><td class="num">41B</td><td class="num">41B</td><td>normal / 2-way / 3-way / A/B/C fire path選択。旧tail/helperを吸収してPRG0予約を8B削減。</td></tr>
@@ -416,7 +416,6 @@
       <tr><td>fire_common</td><td class="num">0x3D98-0x3E09</td><td class="num">$BD88-$BDF9</td><td class="num">114B</td><td class="num">120B</td><td>Bullet生成loop。<code>$AE76</code>を呼ぶ。</td></tr>
       <tr><td>state0_interval_helper</td><td class="num">0x3E72-0x3E83</td><td class="num">$BE62-$BE73</td><td class="num">18B</td><td class="num">18B</td><td>A/B/C group offsetからRAM intervalを読む。</td></tr>
       <tr><td>group_ram_offset_helper</td><td class="num">0x3EAF-0x3EB6</td><td class="num">$BE9F-$BEA6</td><td class="num">8B</td><td class="num">23B</td><td>A/B/C group offset helperを呼ぶ。</td></tr>
-      <tr><td>speed_select_helper</td><td class="num">0x3ECD-0x3ED3</td><td class="num">$BEBD-$BEC3</td><td class="num">7B</td><td class="num">10B</td><td><code>$0740+$X</code> からspeed presetを読む。</td></tr>
       <tr><td>static_marker_helper</td><td class="num">0x3F50-0x3F5B</td><td class="num">$BF40-$BF4B</td><td class="num">12B</td><td class="num">16B</td><td>child sub-slot marker書込。</td></tr>
       <tr><td>v2_bullet_speed_hook</td><td class="num">0x3F79-0x3F7B</td><td class="num">$BF69-$BF6B</td><td class="num">3B</td><td class="num">78B</td><td>Bullet state2から<code>$E7C1</code> entry helperへJMPする小入口。分類器を踏まない。</td></tr>
       <tr><td>v2_speed_decode</td><td class="num">0x4098-0x40CF</td><td class="num">$C088-$C0BF</td><td class="num">56B</td><td class="num">58B</td><td>marker <code>$88-$8B</code> をdecodeし、速度presetとextra countを決める。</td></tr>
@@ -424,7 +423,8 @@
       <tr><td>parent_field_clear_helper</td><td class="num">0x67A3-0x67B3</td><td class="num">$E793-$E7A3</td><td class="num">17B</td><td class="num">17B</td><td>親velocity/subpixel clear。</td></tr>
       <tr><td>parent_speed_guard</td><td class="num">0x67B4-0x67D0</td><td class="num">$E7A4-$E7C0</td><td class="num">29B</td><td class="num">104B</td><td><code>$866D</code> speed init後に親速度を消す。</td></tr>
       <tr><td>v2_bullet_entry_helper</td><td class="num">0x67D1-0x6817</td><td class="num">$E7C1-$E807</td><td class="num">71B</td><td class="num">75B</td><td><code>$80-$84</code> spread markerと<code>$88-$8B</code> speed markerを判定し、tail helperへ分岐する。</td></tr>
-      <tr><td>shared_ai_wrapper</td><td class="num">0x68C1-0x68FB</td><td class="num">$E8B1-$E8EB</td><td class="num">59B</td><td class="num">171B</td><td>borrowed-ID direction normalize。</td></tr>
+      <tr><td>dynamic_speed_marker_helper</td><td class="num">0x68AC-0x68C3</td><td class="num">$E89C-$E8B3</td><td class="num">24B</td><td class="num">24B</td><td>A/B/C settingsからspeed markerを書き込む。旧speed_select_helperを吸収しPRG0予約を4B削減。</td></tr>
+      <tr><td>shared_ai_wrapper</td><td class="num">0x68C4-0x68FE</td><td class="num">$E8B4-$E8EE</td><td class="num">59B</td><td class="num">168B</td><td>borrowed-ID direction normalize。</td></tr>
       <tr><td>abc_group_offset_helper</td><td class="num">0x693C-0x6959</td><td class="num">$E92C-$E949</td><td class="num">30B</td><td class="num">48B</td><td>A/B/Cだけにoffsetを返す。2-way/3-wayは除外。</td></tr>
       <tr><td>ai_dispatch_helper</td><td class="num">0x696C-0x697E</td><td class="num">$E95C-$E96E</td><td class="num">19B</td><td class="num">24B</td><td>A/B/C AI dispatch entry。</td></tr>
       <tr><td>v2_bullet_entry_tail_helper</td><td class="num">0x697F-0x699E</td><td class="num">$E96F-$E98E</td><td class="num">32B</td><td class="num">85B</td><td>2-way/3-way spreadのminus/plus補正と、speed decode/fast loop呼び出しtail。</td></tr>
@@ -920,7 +920,7 @@
     <table>
       <tr><th>項目</th><th>状態</th><th>判断</th></tr>
       <tr><td>Git基準</td><td><code>9d39e66</code></td><td>settings tableへ内部名も揃え、古い一時保存表現を実装内から除去した地点。</td></tr>
-      <tr><td>アプリversion</td><td><code>EX-PANEL-V2-BLOCK68</code></td><td>Panel Monster v2 runtimeは通常の「ROMを作る」経路で毎回同じROM配置へ書かれる。</td></tr>
+      <tr><td>アプリversion</td><td><code>EX-PANEL-V2-BLOCK69</code></td><td>Panel Monster v2 runtimeは通常の「ROMを作る」経路で毎回同じROM配置へ書かれる。</td></tr>
       <tr><td>設計資料</td><td>このHTMLとIssue #1用の整理がある。</td><td>ここを土台に、旧実装修理ではなくv2 runtimeを小ブロックで固定する。</td></tr>
       <tr><td>既知の失敗</td><td>EX4の連続配置、3x停止案。</td><td>作り直し方針から除外する。再利用しない。</td></tr>
       <tr><td>次の作業</td><td>保存経路の固定化を保ったまま、分類・Fire path・Bullet pathを小ブロックで進める。</td><td>あなたを呼ぶのは画面挙動確認が必要な時だけ。</td></tr>

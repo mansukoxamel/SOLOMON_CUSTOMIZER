@@ -188,8 +188,6 @@ CPU_FINAL_STATE0_INTERVAL_HELPER = _cpu(OFF_FINAL_STATE0_INTERVAL_HELPER)
 OFF_FINAL_STATE0_INTERVAL_THRESHOLD = OFF_FINAL_STATE0_INTERVAL_HELPER + 0x10
 OFF_FINAL_GROUP_RAM_OFFSET_HELPER = 0x3EAF  # CPU $BE9F, 23B gap
 CPU_FINAL_GROUP_RAM_OFFSET_HELPER = _cpu(OFF_FINAL_GROUP_RAM_OFFSET_HELPER)
-OFF_FINAL_SPEED_SELECT_HELPER = 0x3ECD  # CPU $BEBD, 10B gap
-CPU_FINAL_SPEED_SELECT_HELPER = _cpu(OFF_FINAL_SPEED_SELECT_HELPER)
 OFF_FINAL_FIRE_MARKER_TABLE = OFF_FINAL_STAGE_DISPATCH_HELPER  # CPU $C134, 11B former stage dispatch helper
 CPU_FINAL_FIRE_MARKER_TABLE = _cpu(OFF_FINAL_FIRE_MARKER_TABLE)
 OFF_FINAL_STATIC_MARKER_HELPER = 0x3F50  # CPU $BF40, 16B gap
@@ -203,7 +201,7 @@ CPU_FINAL_BULLET_ENTRY_HELPER = _cpu(OFF_FINAL_BULLET_ENTRY_HELPER)
 OFF_FINAL_BULLET_ENTRY_HELPER_END = 0x681C  # Spark Ball Golem wrapper starts here.
 OFF_FINAL_BULLET_ENTRY_TAIL_HELPER = 0x697F  # CPU $E96F, short tail between AI helpers
 CPU_FINAL_BULLET_ENTRY_TAIL_HELPER = _cpu(OFF_FINAL_BULLET_ENTRY_TAIL_HELPER)
-OFF_FINAL_SHARED_AI_WRAPPER = 0x68C1  # CPU $E8B1, original 00-fill after dynamic marker helper
+OFF_FINAL_SHARED_AI_WRAPPER = 0x68C4  # CPU $E8B4, shifted after inlined dynamic marker helper
 CPU_FINAL_SHARED_AI_WRAPPER = _cpu(OFF_FINAL_SHARED_AI_WRAPPER)
 OFF_SPEED_INIT_CALL = 0x067D  # CPU $866D, original JSR $8AC0 speed initializer
 OFF_FINAL_AI_DISPATCH_HELPER = 0x696C  # CPU $E95C, original 00-fill
@@ -297,13 +295,6 @@ def _build_state1_fire_marker(speed_select_cpu: int) -> bytes:
     return a.finish()
 
 
-def _build_speed_preset_select_helper(group_offset_cpu: int) -> bytes:
-    a = _Asm()
-    a.jsr(group_offset_cpu)
-    a.b(0xBD, 0x40, 0x07, 0x60)
-    return a.finish()
-
-
 SPEED_PRESET_RUNTIME_TABLE = bytes((
     SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_QUARTER]["right_down"],
     SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_QUARTER]["left_up"],
@@ -347,19 +338,15 @@ def _build_final_group_ram_offset_helper() -> bytes:
     return _build_group_ram_offset_helper(CPU_FINAL_GROUP_RAM_OFFSET_HELPER)
 
 
-def _build_final_speed_select_helper() -> bytes:
-    return _build_speed_preset_select_helper(CPU_FINAL_GROUP_RAM_OFFSET_HELPER)
-
-
 def _build_static_marker_helper() -> bytes:
     return bytes.fromhex("48 a5 02 20 56 b1 a0 07 68 91 00 60")
 
 
-def _build_dynamic_speed_marker_helper(speed_select_cpu: int) -> bytes:
+def _build_dynamic_speed_marker_helper(group_offset_cpu: int) -> bytes:
     a = _Asm()
     a.b(0x8A, 0x48)
-    a.jsr(speed_select_cpu)
-    a.b(0x09, DYNAMIC_SPEED_MARKER_BASE, 0x48)
+    a.jsr(group_offset_cpu)
+    a.b(0xBD, 0x40, 0x07, 0x09, DYNAMIC_SPEED_MARKER_BASE, 0x48)
     a.b(0xA5, 0x02, 0x20, 0x56, 0xB1, 0xA0, 0x07)
     a.b(0x68, 0x91, 0x00, 0x68, 0xAA, 0x60)
     return a.finish()
@@ -658,9 +645,8 @@ FINAL_BULLET_ENTRY_TAIL_HELPER_CAPACITY = OFF_FINAL_AI_DISPATCH_PANEL_HELPER - O
 FINAL_STATE0_INTERVAL_HELPER = _build_final_state0_interval_helper()
 FINAL_GROUP_RAM_OFFSET_HELPER = _build_final_group_ram_offset_helper()
 FINAL_ABC_GROUP_OFFSET_HELPER = _build_abc_group_offset_helper()
-FINAL_SPEED_SELECT_HELPER = _build_final_speed_select_helper()
 FINAL_STATIC_MARKER_HELPER = _build_static_marker_helper()
-FINAL_DYNAMIC_SPEED_MARKER_HELPER = _build_dynamic_speed_marker_helper(CPU_FINAL_SPEED_SELECT_HELPER)
+FINAL_DYNAMIC_SPEED_MARKER_HELPER = _build_dynamic_speed_marker_helper(CPU_FINAL_GROUP_RAM_OFFSET_HELPER)
 FINAL_PARENT_FIELD_CLEAR_HELPER = _build_parent_field_clear_helper()
 FINAL_FIRE_MARKER_TABLE = _build_final_fire_marker_table()
 PREVIOUS_STAGE_DISPATCH_TAIL = _build_previous_stage_dispatch_tail(CPU_FINAL_STAGE_DISPATCH_HELPER)
@@ -690,6 +676,16 @@ FINAL_SHARED_AI_WRAPPER, FINAL_AI_WRAPPER_ENTRIES = _build_final_shared_ai_wrapp
     CPU_FINAL_SHARED_AI_WRAPPER,
     CPU_FINAL_PARENT_FIELD_CLEAR_HELPER,
 )
+PREVIOUS_DYNAMIC_SPEED_MARKER_HELPER = bytes.fromhex(
+    "8a4820bdbe098848a5022056b1a00768910068aa60"
+)
+PREVIOUS_SHARED_AI_WRAPPER = _build_final_shared_ai_wrapper(
+    _cpu(0x68C1),
+    CPU_FINAL_PARENT_FIELD_CLEAR_HELPER,
+)[0]
+PREVIOUS_SHARED_AI_WRAPPER_SHIFTED = (
+    PREVIOUS_SHARED_AI_WRAPPER[0x03:] + bytes.fromhex("224748")
+)
 FINAL_AI_DISPATCH_HELPER, FINAL_AI_DISPATCH_PANEL_HELPER, FINAL_AI_DISPATCH_ENTRIES = _build_final_ai_dispatch_helper(
     CPU_FINAL_AI_DISPATCH_HELPER,
     CPU_FINAL_AI_DISPATCH_PANEL_HELPER,
@@ -710,10 +706,9 @@ assert len(FINAL_AI_DISPATCH_PANEL_HELPER) <= FINAL_AI_DISPATCH_PANEL_HELPER_CAP
 assert len(FINAL_STATE0_INTERVAL_HELPER) <= 0x12
 assert len(FINAL_GROUP_RAM_OFFSET_HELPER) <= 0x17
 assert len(FINAL_ABC_GROUP_OFFSET_HELPER) <= 0x30
-assert len(FINAL_SPEED_SELECT_HELPER) <= 0x0A
 assert len(FINAL_FIRE_MARKER_TABLE) <= 0x12
 assert len(FINAL_STATIC_MARKER_HELPER) <= 0x10
-assert len(FINAL_DYNAMIC_SPEED_MARKER_HELPER) <= 0x1E
+assert len(FINAL_DYNAMIC_SPEED_MARKER_HELPER) <= (OFF_FINAL_SHARED_AI_WRAPPER - OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER)
 assert len(FINAL_PARENT_FIELD_CLEAR_HELPER) <= FINAL_PARENT_FIELD_CLEAR_HELPER_CAPACITY
 assert len(FINAL_SHARED_AI_WRAPPER) <= 0xAB
 assert len(FINAL_PARENT_SPEED_GUARD) <= FINAL_PARENT_SPEED_GUARD_CAPACITY
@@ -763,8 +758,6 @@ def panel_variant_fire_placement_report() -> dict[str, int]:
         "group_ram_offset_helper_size": len(FINAL_GROUP_RAM_OFFSET_HELPER),
         "abc_group_offset_helper_off": OFF_FINAL_ABC_GROUP_OFFSET_HELPER,
         "abc_group_offset_helper_size": len(FINAL_ABC_GROUP_OFFSET_HELPER),
-        "speed_select_helper_off": OFF_FINAL_SPEED_SELECT_HELPER,
-        "speed_select_helper_size": len(FINAL_SPEED_SELECT_HELPER),
         "fire_marker_table_off": OFF_FINAL_FIRE_MARKER_TABLE,
         "fire_marker_table_size": len(FINAL_FIRE_MARKER_TABLE),
         "static_marker_helper_off": OFF_FINAL_STATIC_MARKER_HELPER,
@@ -808,7 +801,6 @@ def panel_variant_split_placement_report() -> dict[str, object]:
         ("state0_interval_helper", OFF_FINAL_STATE0_INTERVAL_HELPER, len(FINAL_STATE0_INTERVAL_HELPER), 0x12),
         ("group_ram_offset_helper", OFF_FINAL_GROUP_RAM_OFFSET_HELPER, len(FINAL_GROUP_RAM_OFFSET_HELPER), 0x17),
         ("abc_group_offset_helper", OFF_FINAL_ABC_GROUP_OFFSET_HELPER, len(FINAL_ABC_GROUP_OFFSET_HELPER), 0x30),
-        ("speed_select_helper", OFF_FINAL_SPEED_SELECT_HELPER, len(FINAL_SPEED_SELECT_HELPER), 0x0A),
         ("static_fire_marker_helper", OFF_FINAL_STATIC_MARKER_HELPER, len(FINAL_STATIC_MARKER_HELPER), 0x10),
         ("dynamic_speed_marker_helper", OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER, len(FINAL_DYNAMIC_SPEED_MARKER_HELPER), 0x1E),
         ("parent_field_clear_helper", OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, len(FINAL_PARENT_FIELD_CLEAR_HELPER), FINAL_PARENT_FIELD_CLEAR_HELPER_CAPACITY),
@@ -913,6 +905,10 @@ ORIG_FINAL_BULLET_ENTRY_TAIL_HELPER = bytes.fromhex(
 ORIG_FINAL_SHARED_AI_WRAPPER = bytes.fromhex(
     "000000001103d1e0410181381100610e0500190381000100e10001bfdcb5e622"
     "f0808c491837605128a0561d4416b63c5808c400014ad91a094b53"
+)
+ORIG_FINAL_SHARED_AI_WRAPPER_SHIFTED = bytes.fromhex(
+    "001103d1e0410181381100610e0500190381000100e10001bfdcb5e622f080"
+    "8c491837605128a0561d4416b63c5808c400014ad91a094b53224748"
 )
 ORIG_FINAL_ABC_GROUP_OFFSET_HELPER = bytes.fromhex(
     "00000000000000000000000000000000000000004004000000011c7136d9"
@@ -1152,12 +1148,6 @@ def _validate_final_split_signatures(
             (_fill(0x00, len(FINAL_ABC_GROUP_OFFSET_HELPER)), ORIG_FINAL_ABC_GROUP_OFFSET_HELPER),
         ),
         (
-            OFF_FINAL_SPEED_SELECT_HELPER,
-            FINAL_SPEED_SELECT_HELPER,
-            "Panel Variant final speed select helper",
-            (_fill(0xEA, len(FINAL_SPEED_SELECT_HELPER)),),
-        ),
-        (
             OFF_FINAL_STATIC_MARKER_HELPER,
             FINAL_STATIC_MARKER_HELPER,
             "Panel Variant final static marker helper",
@@ -1167,7 +1157,10 @@ def _validate_final_split_signatures(
             OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER,
             FINAL_DYNAMIC_SPEED_MARKER_HELPER,
             "Panel Variant final dynamic speed marker helper",
-            (_fill(0x00, len(FINAL_DYNAMIC_SPEED_MARKER_HELPER)),),
+            (
+                _fill(0x00, len(FINAL_DYNAMIC_SPEED_MARKER_HELPER)),
+                PREVIOUS_DYNAMIC_SPEED_MARKER_HELPER + PREVIOUS_SHARED_AI_WRAPPER[:0x03],
+            ),
         ),
         (
             OFF_FINAL_PARENT_FIELD_CLEAR_HELPER,
@@ -1209,7 +1202,10 @@ def _validate_final_split_signatures(
             OFF_FINAL_SHARED_AI_WRAPPER,
             FINAL_SHARED_AI_WRAPPER,
             "Panel Variant final shared AI wrapper",
-            (ORIG_FINAL_SHARED_AI_WRAPPER,),
+            (
+                ORIG_FINAL_SHARED_AI_WRAPPER_SHIFTED,
+                PREVIOUS_SHARED_AI_WRAPPER_SHIFTED,
+            ),
         ),
         (
             OFF_FINAL_FIRE_MARKER_TABLE,
@@ -1336,7 +1332,6 @@ def apply_panel_monster_v2_runtime(
         (OFF_FINAL_STATE0_INTERVAL_HELPER, final_state0_interval_helper, "Panel Variant final interval helper"),
         (OFF_FINAL_GROUP_RAM_OFFSET_HELPER, FINAL_GROUP_RAM_OFFSET_HELPER_WRITE, "Panel Variant final group RAM offset helper"),
         (OFF_FINAL_ABC_GROUP_OFFSET_HELPER, FINAL_ABC_GROUP_OFFSET_HELPER, "Panel Variant final A/B/C-only group offset helper"),
-        (OFF_FINAL_SPEED_SELECT_HELPER, FINAL_SPEED_SELECT_HELPER, "Panel Variant final speed select helper"),
         (OFF_FINAL_STATIC_MARKER_HELPER, FINAL_STATIC_MARKER_HELPER, "Panel Variant final static marker helper"),
         (OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER, FINAL_DYNAMIC_SPEED_MARKER_HELPER, "Panel Variant final dynamic speed marker helper"),
         (OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, FINAL_PARENT_FIELD_CLEAR_HELPER, "Panel Variant final parent field clear helper"),
@@ -2118,7 +2113,6 @@ RESERVED_SPANS = (
     (OFF_FINAL_STATE0_INTERVAL_HELPER, len(FINAL_STATE0_INTERVAL_HELPER)),
     (OFF_FINAL_GROUP_RAM_OFFSET_HELPER, len(FINAL_GROUP_RAM_OFFSET_HELPER)),
     (OFF_FINAL_ABC_GROUP_OFFSET_HELPER, len(FINAL_ABC_GROUP_OFFSET_HELPER)),
-    (OFF_FINAL_SPEED_SELECT_HELPER, len(FINAL_SPEED_SELECT_HELPER)),
     (OFF_FINAL_STATIC_MARKER_HELPER, len(FINAL_STATIC_MARKER_HELPER)),
     (OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER, len(FINAL_DYNAMIC_SPEED_MARKER_HELPER)),
     (OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, len(FINAL_PARENT_FIELD_CLEAR_HELPER)),
@@ -2296,7 +2290,7 @@ def panel_monster_v2_settings_contract(common_settings: dict | None = None) -> d
         },
         "runtime_users": {
             "state0_interval_helper": CPU_FINAL_STATE0_INTERVAL_HELPER,
-            "speed_select_helper": CPU_FINAL_SPEED_SELECT_HELPER,
+            "dynamic_speed_marker_helper": CPU_FINAL_DYNAMIC_SPEED_MARKER_HELPER,
             "group_ram_offset_helper": CPU_FINAL_GROUP_RAM_OFFSET_HELPER,
         },
         "entry_values": {

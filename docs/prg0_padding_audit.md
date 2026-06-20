@@ -104,7 +104,8 @@ document, `docs/rom_map_jp_mapper66_current.html`, and implementation constants.
 | `0x67D1-0x681B` | `$E7C1-$E80B` | 75B | emergency reserve | mixed / untouched by saver | Recovered from the old parent speed guard span. Do not use for normal feature work; re-probe/review before emergency use. |
 | `0x681C-0x6832` | `$E80C-$E822` | 23B | `spark_ball_variant.py` | `00` run | Transparent Spark Ball Golem-ID AI wrapper. |
 | `0x6833-0x6882` | `$E823-$E872` | 80B | `panel_monster_stage_variant.py` | `00` run | Panel Monster v2 Bullet speed tables plus shared fast loop. |
-| `0x68AC-0x68C0` | `$E89C-$E8B0` | 21B | `panel_monster_stage_variant.py` | `00` run | Dynamic speed marker helper. |
+| `0x68AC-0x68C3` | `$E89C-$E8B3` | 24B | `panel_monster_stage_variant.py` | `00` run | Dynamic speed marker helper. The old speed select helper is inlined here. |
+| `0x68C4-0x68FE` | `$E8B4-$E8EE` | 59B | `panel_monster_stage_variant.py` | `00` run | Shared AI wrapper for direction normalize. |
 | `0x693C-0x6959` | `$E92C-$E949` | 30B | `panel_monster_stage_variant.py` | `00` / mixed | Panel Variant A/B/C group offset helper. Former emergency candidate band; now used. |
 | `0x696C-0x697E` | `$E95C-$E96E` | 19B | `panel_monster_stage_variant.py` | `00` run | Panel Variant final AI dispatch helper. Former emergency candidate band; now used. |
 | `0x69D4-0x69DF` | `$E9C4-$E9CF` | 12B | `panel_monster_stage_variant.py` | `00` run | Panel Variant final AI dispatch panel tail. Static scan found no original absolute/indexed operand or pointer reference before reservation. |
@@ -137,10 +138,10 @@ Do not allocate here by eye; use `room_flags._verify()` and module
 Current state from `docs/rom_map_jp_mapper66_current.html`:
 
 - Total cave: 1570B.
-- Production-reserved/used: 1527B.
-- Unreserved bank0 cave fragments: 43B total.
+- Production-reserved/used: 1520B.
+- Unreserved bank0 cave fragments: 50B total.
 - PRG0 later-bank emergency reserve newly recovered from Panel Variant parent speed guard: 75B at `0x67D1-0x681B` / `$E7C1-$E80B`.
-- Maximum contiguous fragment: 5B.
+- Maximum contiguous fragment: 7B.
 
 Remaining fragments after current production reservations:
 
@@ -157,6 +158,7 @@ Remaining fragments after current production reservations:
 | `0x3E4D-0x3E4F` | `$BE3D-$BE3F` | 3B | candidate fragment only |
 | `0x3E8E-0x3E8F` | `$BE7E-$BE7F` | 2B | candidate fragment only |
 | `0x3EB7-0x3EBB` | `$BEA7-$BEAB` | 5B | recovered from Panel Variant group helper compression |
+| `0x3ECD-0x3ED3` | `$BEBD-$BEC3` | 7B | recovered from Panel Monster speed select helper removal |
 | `0x3EF9` | `$BEE9` | 1B | candidate fragment only |
 | `0x3FF8-0x3FFC` | `$BFE8-$BFEC` | 5B | candidate fragment only |
 | `0x400F` | `$BFFF` | 1B | candidate fragment only |

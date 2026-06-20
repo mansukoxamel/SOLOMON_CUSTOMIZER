@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK69 (2026-06-20) Panel Monster speed select helperを撤去
+- `speed_select_helper` 7Bをdynamic speed marker helperへ吸収し、dynamic側の増加を3Bに抑えてPRG0予約を差し引き4B削減した。
+- A/B/Cのspeed marker生成は、fire入口でA/B/Cに限定された後だけ走るため、追加の共通判定は増やしていない。
+- shared AI wrapperを3B後ろへ移し、通常再保存の前段署名も新位置へ合わせた。
+
 ## EX-PANEL-V2-BLOCK68 (2026-06-20) Panel Monster fire分類入口を圧縮
 - Panel Monster v2のfire入口で、borrowed 2-way/3-way判定後にA/B/C visual分類へ直接進むようにした。
 - 旧 `stage_dispatch_tail` 3B と `stage_dispatch_helper` 15B を撤去し、fire入口周辺のPRG0予約を49Bから41Bへ減らした。
