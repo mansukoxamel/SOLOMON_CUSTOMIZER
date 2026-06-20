@@ -547,7 +547,7 @@
       <!-- key -->
       <tile no="5" palette_no="3" nes_tiles="300,397,398,399" />
       <!-- bat symbol -->
-      <tile no="6" palette_no="1" nes_tiles="316,317,318,319" />
+      <tile no="6" palette_no="0" nes_tiles="316,317,318,319" />
       <!-- e-bottle -->
       <tile no="7" palette_no="1" nes_tiles="352,353,354,355" />
       <!-- bell -->
@@ -561,17 +561,17 @@
       <!-- scroll bottle, blue -->
       <tile no="12" palette_no="2" nes_tiles="352,357,358,359" />
       <!-- scroll bottle, orange -->
-      <tile no="13" palette_no="3" nes_tiles="352,357,358,359" />
+      <tile no="13" palette_no="1" nes_tiles="352,357,358,359" />
       <!-- blue hourglass -->
       <tile no="14" palette_no="2" nes_tiles="376,377,378,379" />
       <!-- orange hourglass -->
-      <tile no="15" palette_no="3" nes_tiles="380,381,382,383" />
+      <tile no="15" palette_no="1" nes_tiles="380,381,382,383" />
       <!-- warp flag -->
       <tile no="16" palette_no="3" nes_tiles="428,429,430,431" />
       <!-- blue jewel -->
       <tile no="17" palette_no="2" nes_tiles="364,365,366,367" />
       <!-- orange jewel -->
-      <tile no="18" palette_no="3" nes_tiles="364,365,366,367" />
+      <tile no="18" palette_no="1" nes_tiles="364,365,366,367" />
       <!-- opal (blue, orange) -->
       <tile no="19" palette_no="2" nes_tiles="304,305,306,307" />
       <tile no="20" palette_no="1" nes_tiles="304,305,306,307" />
@@ -579,15 +579,15 @@
       <tile no="21" palette_no="0" nes_tiles="308,309,310,311" />
       <tile no="22" palette_no="3" nes_tiles="308,309,310,311" />
       <!-- full time bottle, explosion jar -->
-      <tile no="23" palette_no="2" nes_tiles="332,333,334,335" />
-      <tile no="24" palette_no="3" nes_tiles="332,333,334,335" />
+      <tile no="23" palette_no="0" nes_tiles="332,333,334,335" />
+      <tile no="24" palette_no="1" nes_tiles="332,333,334,335" />
       <!-- shrines -->
       <tile no="25" palette_no="3" nes_tiles="336,337,338,339" />
       <tile no="26" palette_no="3" nes_tiles="340,341,342,343" />
       <tile no="27" palette_no="3" nes_tiles="348,349,350,351" />
       <tile no="28" palette_no="3" nes_tiles="372,373,374,375" />
       <!-- solomon's seal -->
-      <tile no="29" palette_no="2" nes_tiles="360,361,362,363" />
+      <tile no="29" palette_no="0" nes_tiles="360,361,362,363" />
       <!-- egyptian head -->
       <tile no="30" palette_no="3" nes_tiles="392,393,394,395" />
       <!-- demonhead coin -->
@@ -595,7 +595,7 @@
       <!-- double star coin -->
       <tile no="32" palette_no="3" nes_tiles="312,385,314,387" />
       <!-- fire scroll -->
-      <tile no="33" palette_no="3" nes_tiles="300,409,410,411" />
+      <tile no="33" palette_no="1" nes_tiles="300,409,410,411" />
       <!-- double coin (silver, gold) -->
       <tile no="34" palette_no="0" nes_tiles="308,384,310,386" />
       <tile no="35" palette_no="3" nes_tiles="308,384,310,386" />
@@ -686,7 +686,7 @@
       <!-- half-open door -->
       <tile no="82" palette_no="1" nes_tiles="328,325,330,327" />
       <!-- tecmo bunny (white) -->
-      <tile no="83" palette_no="2" nes_tiles="440,441,442,443" />
+      <tile no="83" palette_no="0" nes_tiles="440,441,442,443" />
       <!-- broken brown block -->
       <tile no="84" palette_no="1" nes_tiles="404,405,406,407" />
       <!-- mini-Dana -->
