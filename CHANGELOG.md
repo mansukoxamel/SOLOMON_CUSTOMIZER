@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK42 (2026-06-20) 通常Panel単体の保存checkを追加
+- `tools/panel_monster_v2_runtime_check.py` のmatrixに通常Panel代表ケースを追加した。
+- 通常Panel単体ではv2 runtimeを無理に書かず、保存/再保存が安定することを確認する。
+- ROM挙動は変えず、通常Panelとv2対象Panelの境界確認を強化した。
+
 ## EX-PANEL-V2-BLOCK41 (2026-06-20) 2-way/3-way runtime checkを追加
 - `tools/panel_monster_v2_runtime_check.py` のmatrixに2-way/3-way borrowed-ID代表ケースを追加した。
 - A/B/Cだけでなく、`$52/$56/$5A/$66` でも通常保存経路、guard、配置/予約check、再保存同一性を確認する。

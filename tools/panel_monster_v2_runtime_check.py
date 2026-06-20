@@ -47,6 +47,18 @@ BORROWED_CASES = (
     ("3WAY_U", 0x66),
 )
 
+NORMAL_CASES = (
+    ("NORMAL_R", 0x24),
+)
+
+RUNTIME_IDS = {
+    0x31, 0x33, 0x35, 0x37,
+    0x41, 0x43, 0x45, 0x47,
+    0x49, 0x4B, 0x4D, 0x4F,
+    0x52, 0x53, 0x56, 0x57,
+    0x5A, 0x5B, 0x66, 0x67,
+}
+
 
 def _hex_byte(value: str) -> int:
     value = value.strip()
@@ -114,6 +126,38 @@ def _run_one_case(
     return result
 
 
+def _run_normal_case(source_data: bytes, enemy_id: int) -> dict[str, object]:
+    source_rom = Rom(source_data, "panel_monster_normal_source.nes")
+    levels = load_all_levels(source_rom)
+    for level in levels:
+        level.enemies = [
+            enemy for enemy in getattr(level, "enemies", [])
+            if (int(getattr(enemy, "element_no", -1)) & 0xFF) not in RUNTIME_IDS
+        ]
+        for mirror in getattr(level, "demon_mirrors", []) or []:
+            mirror.enemy_codes = [
+                code for code in getattr(mirror, "enemy_codes", [])
+                if (int(code) & 0xFF) not in RUNTIME_IDS
+            ]
+    levels[0].enemies.append(LevelElement(ElementType.ENEMY, (4, 4), enemy_id))
+
+    saved = saver.build_saved_rom_data(source_rom, levels, dict(DEFAULT_SETTINGS))
+    report = panel_v2.panel_monster_v2_runtime_save_report(saved, dict(DEFAULT_SETTINGS))
+
+    saved_rom = Rom(saved, "panel_monster_normal_check.nes")
+    resaved = saver.build_saved_rom_data(saved_rom, load_all_levels(saved_rom), dict(DEFAULT_SETTINGS))
+    same_output = saved == resaved
+    v2_runtime_absent = not bool(report["all_written"])
+
+    return {
+        "runtime_expected": False,
+        "ok": same_output and v2_runtime_absent,
+        "saved_len": len(saved),
+        "same_output": same_output,
+        "v2_runtime_absent": v2_runtime_absent,
+    }
+
+
 def _matrix_settings(group_speed_key: str, speed: int) -> dict[str, int]:
     settings = dict(DEFAULT_SETTINGS)
     settings[group_speed_key] = speed
@@ -156,6 +200,11 @@ def run_check(args: argparse.Namespace) -> tuple[bool, dict[str, object]]:
         result["case"] = case_name
         result["enemy_id"] = enemy_id
         cases.append(result)
+    for case_name, enemy_id in NORMAL_CASES:
+        result = _run_normal_case(bytes(source_rom.data), enemy_id)
+        result["case"] = case_name
+        result["enemy_id"] = enemy_id
+        cases.append(result)
 
     first = dict(cases[0])
     first["cases"] = cases
@@ -169,13 +218,19 @@ def print_result(result: dict[str, object]) -> None:
         print(f"case_count {result['case_count']}")
         print(f"all_cases_ok {result['ok']}")
         for case in result["cases"]:
-            print(
-                f"  {case['case']}: ok={case['ok']} "
-                f"guards_ok={case['guards_ok']} placement_ok={case['placement_ok']} "
-                f"reserved_ok={case['reserved_ok']} reserved_covers={case['reserved_covers_placement']} "
-                f"all_written={case['all_written']} "
-                f"same_output={case['same_output']} cache_values_ok={case['cache_values_ok']}"
-            )
+            if case.get("runtime_expected", True):
+                print(
+                    f"  {case['case']}: ok={case['ok']} "
+                    f"guards_ok={case['guards_ok']} placement_ok={case['placement_ok']} "
+                    f"reserved_ok={case['reserved_ok']} reserved_covers={case['reserved_covers_placement']} "
+                    f"all_written={case['all_written']} "
+                    f"same_output={case['same_output']} cache_values_ok={case['cache_values_ok']}"
+                )
+            else:
+                print(
+                    f"  {case['case']}: ok={case['ok']} runtime_expected=False "
+                    f"v2_runtime_absent={case['v2_runtime_absent']} same_output={case['same_output']}"
+                )
     print(f"saved_len {result['saved_len']}")
     print(f"apply_path {result['apply_path']}")
     print(f"guards_ok {result['guards_ok']}")
