@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK20 (2026-06-20) 旧speed runtime builderを削除
+- 旧 `bullet_speed_apply` / `extra_helper` / `merged_bullet_hook` を生成する未使用builderを削除した。
+- v2 Bullet hook容量は旧builderの長さではなく、明示的な `FINAL_BULLET_SPEED_HOOK_CAPACITY` で扱うようにした。
+- ROM挙動は変えず、最新v2 speed runtimeだけを生成・検証する形へ寄せた。
+
 ## EX-PANEL-V2-BLOCK19 (2026-06-20) 古いstandalone blob見積もりを削除
 - 未使用になった `PanelVariantBlob` と旧standalone runtime builderを削除した。
 - 旧blob由来のPRG0/PRG1予算見積もり関数を削除し、v2 speed coreと現行split配置reportだけを残した。

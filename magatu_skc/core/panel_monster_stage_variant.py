@@ -384,133 +384,6 @@ SPEED_PRESET_RUNTIME_TABLE = bytes((
 ))
 
 
-def _build_bullet_speed_apply(speed_table_cpu: int) -> bytes:
-    a = _Asm()
-    a.b(0xA0, 0x07, 0xB1, 0x2C, 0xC9, 0x88)
-    a.branch(0x90, "rts")
-    a.b(0xC9, 0x8C)
-    a.branch(0xB0, "rts")
-    a.b(0x38, 0xE9, 0x88, 0x0A, 0xAA)   # A=preset*2; X=velocity table offset
-    a.b(0xA0, 0x03, 0xB1, 0x2E, 0x29, 0x03)
-    a.b(0xA0, 0x05, 0xC9, 0x02)
-    a.branch(0xB0, "vertical")
-    a.b(0xA0, 0x08, 0x4A)
-    a.branch(0x90, "store")
-    a.branch(0xB0, "left_up")
-    a.label("vertical")
-    a.branch(0xF0, "left_up_y")
-    a.branch(0xD0, "store")
-    a.label("left_up")
-    a.label("left_up_y")
-    a.b(0xE8)
-    a.label("store")
-    a.b(0xBD, 0xFF, 0xFF, 0x91, 0x2E)
-    a.label("rts")
-    a.b(0x60)
-    blob = bytearray(a.finish())
-    index = 0
-    for i in range(len(blob) - 2):
-        if blob[i] == 0xBD and blob[i + 1:i + 3] == bytes((0xFF, 0xFF)):
-            blob[i + 1:i + 3] = bytes((speed_table_cpu & 0xFF, speed_table_cpu >> 8))
-            index += 1
-    if index != 1:
-        raise PanelMonsterStageVariantError("bullet speed apply placeholder mismatch")
-    return bytes(blob)
-
-
-def _build_bullet_speed_extra_helper(cpu_base: int, speed_apply_cpu: int) -> bytes:
-    a = _Asm()
-    a.jsr(speed_apply_cpu)
-    a.b(0xA0, 0x07, 0xB1, 0x2C, 0xC9, 0x8A)
-    a.branch(0x90, "rts")
-    a.b(0xC9, 0x8C)
-    a.branch(0xB0, "rts")
-    a.b(0x38, 0xE9, 0x89, 0xAA)  # $8A -> 1 extra step, $8B -> 2 extra steps.
-    a.label("loop")
-    a.b(0x8A, 0x48)
-    substep_cpu = (int(cpu_base) + 0xFFFF) & 0xFFFF
-    substep_call_at = len(a.code)
-    a.jsr(substep_cpu)
-    a.jsr(0xAC39)
-    a.b(0xA5, 0x07)
-    a.branch(0xD0, "collision")
-    a.b(0x68, 0xAA, 0xCA)
-    a.branch(0xD0, "loop")
-    a.label("rts")
-    a.b(0x60)
-    a.label("collision")
-    a.b(0x68, 0x60)
-    a.label("substep")
-    a.b(0xA0, 0x03, 0xB1, 0x2E, 0x29, 0x03, 0xC9, 0x02)
-    a.branch(0xB0, "vertical")
-    a.b(0xA0, 0x08)
-    a.branch(0xD0, "move")
-    a.label("vertical")
-    a.b(0xA0, 0x05)
-    a.label("move")
-    a.b(0xB1, 0x2E, 0x0A, 0x0A, 0xA2, 0x00)
-    a.branch(0x90, "positive")
-    a.b(0xCA)
-    a.label("positive")
-    a.b(0x86, 0x0A, 0x2A, 0x26, 0x0A, 0x18, 0xC8, 0x71, 0x2E, 0x91, 0x2E)
-    a.b(0xC8, 0xA5, 0x0A, 0x71, 0x2E, 0x91, 0x2E, 0x60)
-    blob = bytearray(a.finish())
-    substep_cpu = (int(cpu_base) + a.labels["substep"]) & 0xFFFF
-    blob[substep_call_at + 1:substep_call_at + 3] = _word(substep_cpu)
-    return bytes(blob)
-
-
-def _build_bullet_speed_hook(speed_apply_cpu: int) -> bytes:
-    a = _Asm()
-    a.jsr(0xB201)
-    a.b(0x48, 0xC9, 0x02)
-    a.branch(0xD0, "done")
-    a.b(0x8A, 0x48)
-    a.jsr(speed_apply_cpu)
-    a.b(0x68, 0xAA)
-    a.label("done")
-    a.b(0x68, 0x60)
-    return a.finish()
-
-
-def _build_merged_panel_bullet_hook(speed_apply_cpu: int) -> bytes:
-    a = _Asm()
-    a.jsr(0xB201)
-    a.b(0x48, 0xC9, 0x02)
-    a.branch(0xD0, "done")
-    a.b(0x8A, 0x48)
-    a.jsr(speed_apply_cpu)
-    a.b(0xA0, 0x07, 0xB1, 0x2C)
-    a.branch(0x10, "done_x")
-    a.b(0x29, 0x7F, 0xAA)
-    a.branch(0xF0, "done_x")
-    a.b(0xE0, 0x05)
-    a.branch(0xB0, "done_x")
-    a.b(0xE0, 0x03)
-    a.branch(0x90, "axis")
-    a.b(0xA0, 0x01, 0xB1, 0x2C, 0x29, 0x01)
-    a.branch(0xD0, "done_x")
-    a.label("axis")
-    a.b(0xA0, 0x03, 0xB1, 0x2E, 0x29, 0x02)
-    a.branch(0xF0, "y_axis")
-    a.b(0xA0, 0x0A)
-    a.branch(0xD0, "axis_done")
-    a.label("y_axis")
-    a.b(0xA0, 0x07)
-    a.label("axis_done")
-    a.b(0x8A, 0x29, 0x01)
-    a.branch(0xD0, "plus")
-    a.b(0xB1, 0x2E, 0x38, 0xE9, 0x01, 0x91, 0x2E)
-    a.b(0x68, 0xAA, 0x68, 0x60)
-    a.label("plus")
-    a.b(0xB1, 0x2E, 0x18, 0x69, 0x01, 0x91, 0x2E)
-    a.label("done_x")
-    a.b(0x68, 0xAA)
-    a.label("done")
-    a.b(0x68, 0x60)
-    return a.finish()
-
-
 def _build_final_state0_interval_helper() -> bytes:
     return _build_state0_interval_helper_shared(CPU_FINAL_GROUP_RAM_OFFSET_HELPER)
 
@@ -809,15 +682,7 @@ def _build_stage_anim_hook() -> bytes:
     return a.finish()
 
 
-FINAL_BULLET_SPEED_APPLY = _build_bullet_speed_apply(
-    CPU_FINAL_BULLET_SPEED_APPLY + len(_build_bullet_speed_apply(0))
-)
-FINAL_BULLET_SPEED_TABLE = SPEED_PRESET_RUNTIME_TABLE
-FINAL_BULLET_SPEED_EXTRA_HELPER = _build_bullet_speed_extra_helper(
-    CPU_FINAL_BULLET_SPEED_EXTRA_HELPER,
-    CPU_FINAL_BULLET_SPEED_APPLY,
-)
-FINAL_MERGED_PANEL_BULLET_HOOK = _build_merged_panel_bullet_hook(CPU_FINAL_BULLET_SPEED_EXTRA_HELPER)
+FINAL_BULLET_SPEED_HOOK_CAPACITY = len(panel_monster_variant.CAVE_BULLET_HOOK) + 0x21
 FINAL_STATE0_INTERVAL_HELPER = _build_final_state0_interval_helper()
 FINAL_GROUP_RAM_OFFSET_HELPER = _build_final_group_ram_offset_helper()
 FINAL_ABC_GROUP_OFFSET_HELPER = _build_abc_group_offset_helper()
@@ -858,9 +723,6 @@ FINAL_PANEL_TYPE_CLASSIFIER = _build_panel_type_classifier(CPU_FINAL_PANEL_TYPE_
 FINAL_PANEL_TYPE_CLASSIFIER_TAIL = _build_panel_type_classifier_tail()
 FINAL_STAGE_PROPERTY_HOOK = _build_stage_property_hook()
 FINAL_STAGE_ANIM_HOOK = _build_stage_anim_hook()
-assert len(FINAL_BULLET_SPEED_APPLY) + len(FINAL_BULLET_SPEED_TABLE) <= 0x3A
-assert len(FINAL_BULLET_SPEED_EXTRA_HELPER) <= 0x79
-assert len(FINAL_MERGED_PANEL_BULLET_HOOK) <= len(panel_monster_variant.CAVE_BULLET_HOOK) + 0x21
 assert len(FINAL_FIRE_COMMON) <= len(panel_monster_variant.CAVE_FIRE_3WAY)
 assert len(FINAL_FIRE_DISPATCH) <= len(panel_monster_variant.CAVE_FIRE_DISPATCH)
 assert len(FINAL_STAGE_DISPATCH_TAIL) <= 0x0E
@@ -895,10 +757,10 @@ def panel_variant_bullet_placement_candidate() -> dict[str, int]:
         "v2_speed_tables_and_fast_loop_capacity": 0x79,
         "v2_bullet_speed_hook_off": panel_monster_variant.OFF_BULLET_HOOK,
         "v2_bullet_speed_hook_size": len(v2_speed["bullet_speed_hook"]),
-        "v2_bullet_speed_hook_capacity": len(FINAL_MERGED_PANEL_BULLET_HOOK),
+        "v2_bullet_speed_hook_capacity": FINAL_BULLET_SPEED_HOOK_CAPACITY,
         "existing_bullet_hook_size": len(panel_monster_variant.CAVE_BULLET_HOOK),
         "v2_total_size": sum(len(blob) for blob in v2_speed.values()),
-        "v2_total_capacity": 0x3A + 0x79 + len(FINAL_MERGED_PANEL_BULLET_HOOK),
+        "v2_total_capacity": 0x3A + 0x79 + FINAL_BULLET_SPEED_HOOK_CAPACITY,
     }
 
 
@@ -975,7 +837,7 @@ def panel_variant_split_placement_candidate() -> dict[str, object]:
         ("v2_speed_decode", OFF_FINAL_BULLET_SPEED_APPLY, v2_speed_sizes["speed_decode"], 0x3A),
         ("shared_ai_wrapper", OFF_FINAL_AI_WRAPPER_CANDIDATE, len(FINAL_AI_WRAPPER_CANDIDATE), 0xAB),
         ("fire_marker_table", OFF_FINAL_FIRE_MARKER_TABLE, len(FINAL_FIRE_MARKER_TABLE), 0x0B),
-        ("v2_bullet_speed_hook", panel_monster_variant.OFF_BULLET_HOOK, v2_speed_sizes["bullet_speed_hook"], len(FINAL_MERGED_PANEL_BULLET_HOOK)),
+        ("v2_bullet_speed_hook", panel_monster_variant.OFF_BULLET_HOOK, v2_speed_sizes["bullet_speed_hook"], FINAL_BULLET_SPEED_HOOK_CAPACITY),
     )
     rows = []
     overlaps = []
@@ -1720,7 +1582,7 @@ def panel_monster_v2_split_speed_placement_candidate() -> dict[str, object]:
             "file_start": panel_monster_variant.OFF_BULLET_HOOK,
             "cpu_start": panel_monster_variant.CPU_BULLET_HOOK,
             "size": hook_size,
-            "capacity": len(FINAL_MERGED_PANEL_BULLET_HOOK),
+            "capacity": FINAL_BULLET_SPEED_HOOK_CAPACITY,
         },
     ]
     for row in rows:
