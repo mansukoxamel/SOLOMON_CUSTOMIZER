@@ -1958,6 +1958,26 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
         raise PanelMonsterStageVariantError(
             f"Panel Monster v2 split speed placement does not fit: {placement!r}"
         )
+    split_blobs = panel_monster_v2_split_speed_runtime_blobs()
+    fast_loop = split_blobs["tables_and_fast_loop"]
+    forbidden_fast_loop_patterns = {
+        "stock impact path $AFDF": bytes((0x4C, 0xDF, 0xAF)),
+        "stock impact helper $B016": bytes((0x20, 0x16, 0xB0)),
+    }
+    for name, pattern in forbidden_fast_loop_patterns.items():
+        if pattern in fast_loop:
+            raise PanelMonsterStageVariantError(
+                f"Panel Monster v2 fast loop must not enter {name}."
+            )
+    required_fast_loop_patterns = {
+        "$AC39 collision sample": bytes((0x20, 0x39, 0xAC)),
+        "collision-return tail": bytes((0x68, 0x60)),
+    }
+    for name, pattern in required_fast_loop_patterns.items():
+        if pattern not in fast_loop:
+            raise PanelMonsterStageVariantError(
+                f"Panel Monster v2 fast loop is missing {name}."
+            )
 
 
 def build_panel_variant_blob(base_cpu: int = 0x8000) -> PanelVariantBlob:

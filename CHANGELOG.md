@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK9 (2026-06-20) Panel Monster v2 fast loop衝突契約guard
+- v2 split speed runtimeの保存前検証に、fast loopが`$AFDF` stock impact pathや`$B016` impact helperへ入らないことを確認するguardを追加した。
+- fast loopが`$AC39` collision sampleを呼び、壁衝突時は`PLA; RTS`で戻る契約も保存前に確認する。
+- 挙動変更はなく、Block 7で直した壁衝突エフェクト再発をROM作成前に止めるための検証強化。
+
 ## EX-PANEL-V2-BLOCK8 (2026-06-20) Panel Monster v2 speed配置台帳を現行化
 - 実装内のBullet配置reportを旧speed apply/extra helper表記から、v2 split speed runtimeのdecode / tables+fast loop / hook表記へ更新した。
 - ROM管理簿とPanel Monster設計図の速度runtimeサイズを、Block 7時点の実体 `$C088` 56B、`$E823` 80B、`$BF69` 20Bに合わせた。
