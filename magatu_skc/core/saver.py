@@ -205,18 +205,6 @@ def write_item_data(rom: Rom, levels: list, region: str = None,
         rom.set_byte(table_offset + i + c.LEVEL_COUNT, table_high[i])
 
 
-def _uses_gargoyle_two_shot(levels: list) -> bool:
-    for lv in levels:
-        for enemy in getattr(lv, "enemies", []) or []:
-            if getattr(enemy, "element_no", None) in (0x7A, 0x7B, 0x7E, 0x7F):
-                return True
-        for mirror in getattr(lv, "demon_mirrors", []) or []:
-            for code in getattr(mirror, "enemy_codes", []) or []:
-                if int(code) in (0x7A, 0x7B, 0x7E, 0x7F):
-                    return True
-    return False
-
-
 def _write_standard_level_data(rom: Rom, levels: list):
     region = rom.base_region()
     for i, lv in enumerate(levels):
@@ -268,8 +256,7 @@ def save_levels_to_rom(rom: Rom, levels: list, panel_variant_settings: dict | No
     _run_save_step("Panel Monster variant runtime検証/適用", panel_monster_variant.apply, rom.data)
     _run_save_step("Spark Ball variant runtime検証/適用", spark_ball_variant.apply, rom.data)
     _run_save_step("drop pickup guard検証/適用", drop_pickup_guard.apply, rom.data)
-    if _uses_gargoyle_two_shot(levels):
-        _run_save_step("Gargoyle 2-shot runtime検証/適用", gargoyle_variant.apply, rom.data)
+    _run_save_step("Gargoyle 2-shot runtime検証/適用", gargoyle_variant.apply, rom.data)
     if rom.is_expanded():
         _run_save_step("Solomon Seal block-state検証/適用", solomon_seal_block.apply, rom.data, levels)
     _run_save_step("wide-title trampoline RAM移行", title_screen.migrate_wide_title_trampoline_ram, rom.data)

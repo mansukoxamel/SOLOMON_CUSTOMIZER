@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK49 (2026-06-20) Gargoyle 2-shot runtimeを常時書き込みへ変更
+- ステージ内の強化Gargoyle ID有無で `gargoyle_variant.apply()` を呼ぶ/呼ばない分岐を削除した。
+- Gargoyle 2-shot runtimeはgate付きなので、未使用ステージでも毎回同じROM配置へ書き、通常Gargoyleは原作相当ルートへ戻す。
+- 保存ROMの構造差分を減らすため、Panel Monster v2と同じ「runtime常時書き込み」方針へ揃えた。
+
 ## EX-PANEL-V2-BLOCK48 (2026-06-20) Panel Monster v2 runtimeを常時書き込みへ変更
 - 拡張ROM保存時は、ステージ内のPanel Monster使用有無に関係なくPanel Monster v2 runtimeを毎回同じ配置へ書くようにした。
 - 「未使用だから書かない」方式をやめ、保存ROMの構造差分、重複、巻き込み事故を減らす方針を `AGENTS.md` とROM管理簿へ明記した。
