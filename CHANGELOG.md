@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK47 (2026-06-20) v2 runtime対象IDの静的guardを追加
+- A/B/C IDとborrowed 2-way/3-way IDを合わせた `PANEL_STAGE_RUNTIME_IDS` を定数化した。
+- `has_panel_stage_runtime_ids()` が同じ定数を使うようにし、2-way/3-wayだけのステージでもv2 runtime適用対象から漏れないようにした。
+- runtime check側の除外IDリストも実装定数を参照するようにした。
+
 ## EX-PANEL-V2-BLOCK46 (2026-06-20) fire marker表とBullet entry契約の静的guardを追加
 - 2-way/3-way spread marker `$80-$84` とA/B/C speed marker `$88-$8B` を定数化し、marker範囲のズレを保存前guardで検出する。
 - fire marker tableにspread marker順序とdynamic speed sentinel `$FE` が正しく入っていることを検査する。

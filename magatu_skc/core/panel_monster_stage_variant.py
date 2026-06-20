@@ -75,6 +75,9 @@ PANEL_STAGE_VARIANT_IDS = frozenset((
     0x49, 0x4B, 0x4D, 0x4F,
 ))
 
+BORROWED_PANEL_RUNTIME_IDS = frozenset((0x52, 0x53, 0x56, 0x57, 0x5A, 0x5B, 0x66, 0x67))
+PANEL_STAGE_RUNTIME_IDS = PANEL_STAGE_VARIANT_IDS | BORROWED_PANEL_RUNTIME_IDS
+
 GROUP_C_IDS = frozenset((0x31, 0x33, 0x35, 0x37))
 GROUP_A_IDS = frozenset((0x41, 0x43, 0x45, 0x47))
 GROUP_B_IDS = frozenset((0x49, 0x4B, 0x4D, 0x4F))
@@ -2034,6 +2037,15 @@ def _validate_pmv2_parent_runtime_contract() -> None:
 
 def _validate_pmv2_classifier_runtime_contract() -> None:
     """Guard the Panel Monster type-classification contract."""
+    if PANEL_STAGE_RUNTIME_IDS != PANEL_STAGE_VARIANT_IDS | BORROWED_PANEL_RUNTIME_IDS:
+        raise PanelMonsterStageVariantError(
+            "Panel Monster v2 runtime ID set must include A/B/C and borrowed 2-way/3-way IDs."
+        )
+    expected_borrowed = frozenset((0x52, 0x53, 0x56, 0x57, 0x5A, 0x5B, 0x66, 0x67))
+    if BORROWED_PANEL_RUNTIME_IDS != expected_borrowed:
+        raise PanelMonsterStageVariantError(
+            f"Panel Monster v2 borrowed runtime IDs mismatch: {sorted(BORROWED_PANEL_RUNTIME_IDS)!r}"
+        )
     required_patterns = {
         "A/B/C lower bound $30": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0x18))),
         "C upper split $38": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0x1C))),
@@ -2115,14 +2127,13 @@ def has_panel_stage_runtime_ids(levels: list) -> bool:
     borrowed Panel IDs also use the relocated shared wrapper when this runtime
     is present, so 2-way-only stages must enable it too.
     """
-    runtime_ids = PANEL_STAGE_VARIANT_IDS | {0x52, 0x53, 0x56, 0x57, 0x5A, 0x5B, 0x66, 0x67}
     for lv in levels or []:
         for enemy in getattr(lv, "enemies", []) or []:
-            if (int(getattr(enemy, "element_no", -1)) & 0xFF) in runtime_ids:
+            if (int(getattr(enemy, "element_no", -1)) & 0xFF) in PANEL_STAGE_RUNTIME_IDS:
                 return True
         for mirror in getattr(lv, "demon_mirrors", []) or []:
             for code in getattr(mirror, "enemy_codes", []) or []:
-                if (int(code) & 0xFF) in runtime_ids:
+                if (int(code) & 0xFF) in PANEL_STAGE_RUNTIME_IDS:
                     return True
     return False
 
