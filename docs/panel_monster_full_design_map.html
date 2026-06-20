@@ -172,7 +172,7 @@
 <header>
   <h1>Panel Monster Full Design Map</h1>
   <p class="lead">
-    Planning baseline: commit <code>6df3733</code>。Current runtime checkpoint: <code>a68a1d8</code> / <code>EX-PANEL-V2-BLOCK42</code>。
+    Planning baseline: commit <code>6df3733</code>。Current runtime checkpoint: <code>47820ef</code> / <code>EX-PANEL-V2-BLOCK57</code>。
     この資料は、Panel Monster周辺を再実装する前に、原作処理・既存2-way/3-way・A/B/C Panel Variant・RAM/ROM配置・Bullet衝突契約を一枚で追えるようにするための設計図である。
   </p>
   <p>
@@ -188,7 +188,14 @@
     <h2>0. 先に結論</h2>
     <div class="danger">
       <strong>今の問題は「Panel Monsterの全体像が一つの設計として固定されていない」こと。</strong>
-      実装は動作修正を重ねた層構造になっており、A/B/Cの速度・間隔を消す作業でも、Fire path、AI path、Bullet path、loader/cache、親物理guardのどこへ影響するかを毎回見失いやすい。
+      実装は動作修正を重ねた層構造になっており、A/B/Cの速度・間隔を触る作業でも、Fire path、AI path、Bullet path、loader/settings copy、親物理guardのどこへ影響するかを毎回見失いやすい。
+    </div>
+    <div class="ok">
+      <strong>現在の最優先ルール:</strong>
+      mapper66拡張ROM保存では、Panel Monster v2 runtimeをステージ内容で書いたり書かなかったりしない。
+      使う敵・機能が無くても完成形runtimeは毎回同じROM配置へ書く。
+      A/B/C speed/intervalはPRG1の6B settings tableへ置き、room loadでRAM <code>$0740-$0745</code> へコピーする。
+      <code>tools/panel_monster_v2_runtime_check.py</code> は21ケースで <code>all_written=True</code> / <code>same_output=True</code> / <code>settings_values_ok=True</code> を確認済み。
     </div>
     <ul>
       <li><a href="#scope">1. 対象範囲</a></li>
@@ -226,7 +233,7 @@
     <div class="note">
       <strong>v2 Foundationの目的:</strong>
       Panel Monster周辺を同じ設計へ載せ直す。A/B/Cのspeed/intervalはPRG1 6B tableからloaderでRAMへ置き、
-      PRG0 helperは短いcache読込だけを行う。通常Panel / 2-way / 3-way / A/B/C / Bullet speed / collision / parent driftを
+      PRG0 helperは短いsettings読込だけを行う。通常Panel / 2-way / 3-way / A/B/C / Bullet speed / collision / parent driftを
       同じ契約で扱い、旧prototypeや旧standalone blobは残さない。
     </div>
   </section>
@@ -913,11 +920,11 @@
     <h3>13.1 現在地点の意味</h3>
     <table>
       <tr><th>項目</th><th>状態</th><th>判断</th></tr>
-      <tr><td>Git基準</td><td><code>a68a1d8</code></td><td>v2 runtimeの通常保存経路、guard、20ケース静的check、配置/予約重複check、予約coverage、single保存出力を固定した地点。</td></tr>
-      <tr><td>アプリversion</td><td><code>EX-PANEL-V2-BLOCK42</code></td><td>Panel Monster v2 runtimeは通常の「ROMを作る」経路へ接続済み。</td></tr>
+      <tr><td>Git基準</td><td><code>47820ef</code></td><td>Panel Monster v2 runtimeを常時書き込み契約へ寄せ、settings table表現と21ケースcheckを固定した地点。</td></tr>
+      <tr><td>アプリversion</td><td><code>EX-PANEL-V2-BLOCK57</code></td><td>Panel Monster v2 runtimeは通常の「ROMを作る」経路で毎回同じROM配置へ書かれる。</td></tr>
       <tr><td>設計資料</td><td>このHTMLとIssue #1用の整理がある。</td><td>ここを土台に、旧実装修理ではなくv2 runtimeを小ブロックで固定する。</td></tr>
       <tr><td>既知の失敗</td><td>EX4の連続配置、3x停止案。</td><td>作り直し方針から除外する。再利用しない。</td></tr>
-      <tr><td>次の作業</td><td>Mesen確認が必要な挙動単位まで、保存経路と分類契約を固める。</td><td>あなたを呼ぶのは画面挙動確認が必要な時だけ。</td></tr>
+      <tr><td>次の作業</td><td>保存経路の固定化を保ったまま、分類・Fire path・Bullet pathを小ブロックで進める。</td><td>あなたを呼ぶのは画面挙動確認が必要な時だけ。</td></tr>
     </table>
 
     <h3>13.2 v2で必ず満たす仕様</h3>
