@@ -1815,6 +1815,17 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
     split_blobs = panel_monster_v2_split_speed_runtime_blobs()
     speed_decode = split_blobs["speed_decode"]
     fast_loop = split_blobs["tables_and_fast_loop"]
+    entry_helper = split_blobs["bullet_entry_helper"]
+    entry_tail_helper = split_blobs["bullet_entry_tail_helper"]
+    loop_cpu = CPU_FINAL_BULLET_SPEED_EXTRA_HELPER + len(SPEED_PRESET_RUNTIME_TABLE) + 4
+    if OFF_FINAL_BULLET_ENTRY_HELPER + len(entry_helper) > OFF_FINAL_BULLET_ENTRY_HELPER_END:
+        raise PanelMonsterStageVariantError(
+            "Panel Monster v2 Bullet entry helper overlaps the Spark Ball wrapper."
+        )
+    if OFF_FINAL_BULLET_ENTRY_TAIL_HELPER + len(entry_tail_helper) > OFF_FINAL_AI_DISPATCH_PANEL_HELPER:
+        raise PanelMonsterStageVariantError(
+            "Panel Monster v2 Bullet entry tail helper overlaps the AI panel helper."
+        )
     required_patterns = {
         "$88 lower bound": (speed_decode, bytes((0xC9, 0x88))),
         "$8C upper bound": (speed_decode, bytes((0xC9, 0x8C))),
@@ -1825,12 +1836,32 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
             bytes.fromhex("4c") + _word(CPU_FINAL_BULLET_ENTRY_HELPER),
         ),
         "$80-$84 spread marker path": (
-            split_blobs["bullet_entry_helper"],
+            entry_helper,
             bytes((0xC9, 0x88, 0xB0)),
         ),
+        "spread minus tail jump": (
+            entry_helper,
+            bytes.fromhex("4c") + _word(CPU_FINAL_BULLET_ENTRY_TAIL_HELPER),
+        ),
+        "spread plus tail jump": (
+            entry_helper,
+            bytes.fromhex("4c") + _word(CPU_FINAL_BULLET_ENTRY_TAIL_HELPER + 0x0B),
+        ),
+        "speed tail jump": (
+            entry_helper,
+            bytes.fromhex("4c") + _word(CPU_FINAL_BULLET_ENTRY_TAIL_HELPER + 0x16),
+        ),
         "spread axis adjust": (
-            split_blobs["bullet_entry_tail_helper"],
+            entry_tail_helper,
             bytes((0xB1, 0x2E, 0x38, 0xE9, 0x01, 0x91, 0x2E)),
+        ),
+        "speed tail decode call": (
+            entry_tail_helper,
+            bytes.fromhex("20") + _word(CPU_FINAL_BULLET_SPEED_APPLY),
+        ),
+        "speed tail fast-loop call": (
+            entry_tail_helper,
+            bytes.fromhex("20") + _word(loop_cpu),
         ),
     }
     for name, (blob, pattern) in required_patterns.items():

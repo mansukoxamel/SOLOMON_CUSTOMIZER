@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK45 (2026-06-20) Bullet entry分割の静的guardを強化
+- v2 Bullet entry helperがTransparent Spark Ball wrapper領域へはみ出さないことを保存前guardで確認する。
+- entry tail helperがAI panel helper領域へはみ出さないことを保存前guardで確認する。
+- spread minus/plus/speed tailのJMP先と、speed tailのdecode/fast-loop JSR先をbyte patternで検査する。
+
 ## EX-PANEL-V2-BLOCK44 (2026-06-20) A/B/Cと2-way/3-way混在checkを追加
 - `tools/panel_monster_v2_runtime_check.py` にA/B/C/2-way/3-wayを同じステージへ置く混在ケースを追加した。
 - speed/interval cacheと2-way/3-way spread markerが同じ保存ROM内で衝突しないことを保存/再保存checkで確認する。
