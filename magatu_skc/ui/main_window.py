@@ -7359,7 +7359,8 @@ class MainWindow(QMainWindow):
         flag = mp.pop("active_absorb_flag", mp.get("move_absorb_flag"))
         visible_cells = getattr(lv, "visible_in_block_item_cells", set())
         visible_cells.discard(tile)
-        if flag == c.ITEM_FLAG_CRACKED_IN_BLOCK:
+        restored_tile = mp.pop("restored_absorbed_tile", None)
+        if flag == c.ITEM_FLAG_CRACKED_IN_BLOCK and restored_tile != tile:
             lv.set_block(Wall.NONE, tile)
         lv.key_status = cc.KEY_STATUS_NORMAL
 
@@ -7429,6 +7430,7 @@ class MainWindow(QMainWindow):
         tile = state.get("tile")
         if tile is None:
             return
+        mp["restored_absorbed_tile"] = tile
         x, y = tile
         lv.tiles[y][x] = state.get("wall_type", Wall.NONE)
         self._pop_runtime_markers_at(lv, tile)
@@ -7445,9 +7447,10 @@ class MainWindow(QMainWindow):
         mp["absorbed_block_state"] = {
             "tile": tile,
             "wall_type": lv.tiles[y][x],
-            "runtime_markers": self._runtime_markers_at(lv, tile),
+            "runtime_markers": self._pop_runtime_markers_at(lv, tile),
             "visible_cell": tile in visible_cells,
         }
+        lv.tiles[y][x] = Wall.NONE
 
     def _apply_absorb_flag_to_moving_key(self, lv, mp, tile, flag: int) -> bool:
         if not self._can_apply_absorb_flag_to_moving_key(flag):
