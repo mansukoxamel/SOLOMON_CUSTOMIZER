@@ -240,7 +240,7 @@
     </div>
     <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
     <div class="note">
-      <b>棚卸メモ:</b> 2026-06-20 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約66B。内訳は原作00埋め2B / 原作EA埋め64B、最大連続空き14B。Panel Variant final split runtime と Panel Monster / Variant animation hook はproduction予約として含める。
+      <b>棚卸メモ:</b> 2026-06-20 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約72B。内訳は原作00埋め2B / 原作EA埋め70B、最大連続空き14B。Panel Variant final split runtime と Panel Monster / Variant animation hook はproduction予約として含める。
       実装側の許容スパン上は <code>0x4190-0x420D</code> が expanded table span と key enemy で重複するため、空き計算は重複を二重加算しない union で扱う。
     </div>
     <div class="note">
@@ -253,7 +253,7 @@
       <tr><th>file offset</th><th>CPU</th><th>Size</th><th>扱い</th></tr>
       <tr><td class="num">0x3BEE-0x3BEF</td><td class="num">$BBDE-$BBDF</td><td class="num">2B</td><td>原作00埋め。断片。基本は埋め草用。</td></tr>
       <tr><td class="num">0x3C2E-0x3C2F</td><td class="num">$BC1E-$BC1F</td><td class="num">2B</td><td>原作EA埋め。MAGICGATE直前の断片。</td></tr>
-      <tr><td class="num">0x3C5E-0x3C5F</td><td class="num">$BC4E-$BC4F</td><td class="num">2B</td><td>原作EA埋め。DOORPREDRAW直前の断片。</td></tr>
+      <tr><td class="num">0x3C58-0x3C5F</td><td class="num">$BC48-$BC4F</td><td class="num">8B</td><td>Key/Fairy enemy status writerの予約縮小で回収。DOORPREDRAW直前の短い断片。</td></tr>
       <tr><td class="num">0x3C8F</td><td class="num">$BC7F</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x3D0B-0x3D0E</td><td class="num">$BCFB-$BCFE</td><td class="num">4B</td><td>Panel Monster fire dispatch圧縮で回収。短い非常用候補。</td></tr>
       <tr><td class="num">0x3D28-0x3D35</td><td class="num">$BD18-$BD25</td><td class="num">14B</td><td>Gargoyle 2-shot gateのID判定圧縮で回収。短い非常用候補。</td></tr>
@@ -269,7 +269,7 @@
       <tr><td class="num">0x400F</td><td class="num">$BFFF</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x414F-0x4152</td><td class="num">$C13F-$C142</td><td class="num">4B</td><td>Panel Monster fire marker table移動後の残り。短い非常用候補。</td></tr>
       <tr><td class="num">0x418F</td><td class="num">$C17F</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>66B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。内訳は00埋め2B / EA埋め64B。最大連続は <code>$BD18-$BD25</code> の14B。</td></tr>
+      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>72B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。内訳は00埋め2B / EA埋め70B。最大連続は <code>$BD18-$BD25</code> の14B。</td></tr>
     </table>
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
@@ -277,7 +277,7 @@
       <tr><td>Wide title idle-demo cleanup</td><td class="num">0x3C1E-0x3C26</td><td class="num">$BC0E-$BC16</td><td class="num">9B</td><td>Title timeout-only stub: `JSR $CC18`, then schedules the original action `$18`. Stops stale wide-title nametable from flashing during attract-demo startup without touching the shared action table.</td></tr>
       <tr><td>Key enemy item-tile recorder</td><td class="num">0x3C27-0x3C2D</td><td class="num">$BC17-$BC1D</td><td class="num">7B</td><td>Key enemy runtime helper used by the dropped-key path. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
       <tr><td>MAGICGATE</td><td class="num">0x3C30-0x3C51</td><td class="num">$BC20-$BC41</td><td class="num">34B</td><td>A/B magic gate restrictions.</td></tr>
-      <tr><td>Key/Fairy enemy status writer</td><td class="num">0x3C52-0x3C5D</td><td class="num">$BC42-$BC4D</td><td class="num">12B</td><td>Small writer stub for selected key/fairy enemy status. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
+      <tr><td>Key/Fairy enemy status writer</td><td class="num">0x3C52-0x3C57</td><td class="num">$BC42-$BC47</td><td class="num">6B</td><td>Small writer stub for selected key/fairy enemy status. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
       <tr><td>DOORPREDRAW</td><td class="num">0x3C60-0x3C6A</td><td class="num">$BC50-$BC5A</td><td class="num">11B</td><td>Hidden / brown in-block / white in-block door redraw guard.</td></tr>
       <tr><td>Panel Monster Saramandor-ID AI wrapper</td><td class="num">0x3C6B-0x3C8E</td><td class="num">$BC5B-$BC7E</td><td class="num">36B</td><td>Panel Monster borrowed-ID routing.</td></tr>
       <tr><td>DARK cave</td><td class="num">0x3C90-0x3CC7</td><td class="num">$BC80-$BCB7</td><td class="num">56B</td><td>Dark-room flashing logic.</td></tr>

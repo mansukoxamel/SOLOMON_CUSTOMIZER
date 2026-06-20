@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK73 (2026-06-20) Key enemy status writer予約を縮小
+- Key/Fairy enemy status writerの実処理6Bだけを予約し、後続の埋めEA 6Bを予約から外した。
+- 挙動は変えず、bank0 cave未予約を66Bから72Bへ増やした。
+- Key enemy周辺の古い移行処理には踏み込まず、実際にPRG0が減る場所だけ処理した。
+
 ## EX-PANEL-V2-BLOCK72 (2026-06-20) Gargoyle 2-shot gateを圧縮
 - Gargoyle 2-shot gateのID判定を4比較から`AND #$FA`付きの1比較へ縮めた。
 - 対象IDは従来どおり`$7A/$7B/$7E/$7F`だけで、通常Gargoyleの戻り経路は維持した。

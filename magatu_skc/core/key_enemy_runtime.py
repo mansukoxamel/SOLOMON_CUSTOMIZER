@@ -180,7 +180,6 @@ def _build_enemy_status() -> bytes:
     return (
         bytes((0x20, CPU_ENEMY_STATUS_VALUE & 0xFF, CPU_ENEMY_STATUS_VALUE >> 8))
         + bytes.fromhex("91 04 60")
-        + bytes([0xEA] * 6)
     )
 
 
