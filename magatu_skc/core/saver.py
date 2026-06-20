@@ -245,7 +245,7 @@ def save_levels_to_rom(rom: Rom, levels: list, panel_variant_settings: dict | No
         panel_monster_stage_variant, spark_ball_variant, gargoyle_variant,
         stage_ext, key_enemy_runtime, stage_announcement, title_screen,
         drop_pickup_guard, special_process, solomon_seal_block,
-        final_stage_redirect,
+        final_stage_redirect, enemy_orientation_fix,
     )
     from .element import byte_from_position
     # IMPORTANT: this apply order is part of the ROM layout contract.
@@ -256,6 +256,7 @@ def save_levels_to_rom(rom: Rom, levels: list, panel_variant_settings: dict | No
     _run_save_step("Saramandor variant runtime検証/適用", saramandor_variant.apply, rom.data)
     _run_save_step("Panel Monster variant runtime検証/適用", panel_monster_variant.apply, rom.data)
     _run_save_step("Spark Ball variant runtime検証/適用", spark_ball_variant.apply, rom.data)
+    _run_save_step("原作敵アニメ初期向き補正", enemy_orientation_fix.apply, rom.data)
     _run_save_step("drop pickup guard検証/適用", drop_pickup_guard.apply, rom.data)
     _run_save_step("Gargoyle 2-shot runtime検証/適用", gargoyle_variant.apply, rom.data)
     if rom.is_expanded():
