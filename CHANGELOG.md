@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK25 (2026-06-20) 旧64-room PanelVariantStageTable helperを削除
+- 未使用になっていた `build_table()` / `patch_table()` / `read_table()` を削除した。
+- 旧16B entry画像と旧table header定数を削除し、通常保存経路はglobal 6B cacheだけを見る形へ寄せた。
+- ROM挙動は変えず、PRG1 global cache tableとruntime loaderの現行契約を残した。
+
 ## EX-PANEL-V2-BLOCK24 (2026-06-20) Panel Monster v2適用関数名を現行化
 - 通常保存経路の内部関数名を `apply_final_split_test_candidate()` から `apply_panel_monster_v2_runtime()` へ変更した。
 - `apply` aliasは同じ現行runtime関数を指すため、保存経路の挙動は変わらない。

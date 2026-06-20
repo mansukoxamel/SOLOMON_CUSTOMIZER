@@ -137,12 +137,7 @@ SPEED_PRESET_TABLE_VALUES = {
     },
 }
 
-ROOM_COUNT = 64
-ENTRY_SIZE = 16
-HEADER_SIZE = 16
 TABLE_OFFSET = 0x8A70
-TABLE_LENGTH = HEADER_SIZE + ROOM_COUNT * ENTRY_SIZE
-TABLE_END = TABLE_OFFSET + TABLE_LENGTH
 GLOBAL_CACHE_TABLE_OFFSET = TABLE_OFFSET
 GLOBAL_CACHE_TABLE_LENGTH = 6
 GLOBAL_CACHE_TABLE_END = GLOBAL_CACHE_TABLE_OFFSET + GLOBAL_CACHE_TABLE_LENGTH
@@ -155,9 +150,6 @@ RUNTIME_CACHE_VALUES = (
     RAM_PV_C_SPEED,
     RAM_PV_C_INTERVAL,
 )
-MAGIC = b"PANELVAR"
-FORMAT = 1
-
 CPU_PRG1_RUNTIME_LOADER = 0x8A00
 OFF_PRG1_RUNTIME_LOADER = 0x8A10
 OFF_M66_LOADER_TAIL = 0x80C4
@@ -239,18 +231,6 @@ HOOK_8B05_SPARK_ANIM = (
     + _word(spark_ball_variant.CPU_ANIM_HOOK)
     + bytes([0xEA] * (len(panel_monster_variant.HOOK_8B05) - 3))
 )
-DEFAULT_ENTRY = bytes((
-    DEFAULT_A_SPEED_PRESET,
-    DEFAULT_A_INTERVAL,
-    DEFAULT_B_SPEED_PRESET,
-    DEFAULT_B_INTERVAL,
-    DEFAULT_C_SPEED_PRESET,
-    DEFAULT_C_INTERVAL,
-    0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00,
-))
-
 def _build_group_ram_offset_helper(cpu_base: int) -> bytes:
     a = _Asm()
     a.b(0xA0, 0x01, 0xB1, 0x2E)
@@ -1727,10 +1707,6 @@ def has_panel_stage_runtime_ids(levels: list) -> bool:
     return False
 
 
-def _blank_entry() -> bytes:
-    return build_entry()
-
-
 def init_level_defaults(level) -> None:
     if not hasattr(level, LEVEL_ATTRS["a_speed"]):
         setattr(level, LEVEL_ATTRS["a_speed"], DEFAULT_A_SPEED_PRESET)
@@ -1812,59 +1788,6 @@ def common_entry(settings: dict | None = None) -> bytes:
     )
 
 
-def level_to_entry(level) -> bytes:
-    init_level_defaults(level)
-    return build_entry(
-        getattr(level, LEVEL_ATTRS["a_speed"]),
-        getattr(level, LEVEL_ATTRS["a_interval"]),
-        getattr(level, LEVEL_ATTRS["b_speed"]),
-        getattr(level, LEVEL_ATTRS["b_interval"]),
-        getattr(level, LEVEL_ATTRS["c_speed"]),
-        getattr(level, LEVEL_ATTRS["c_interval"]),
-    )
-
-
-def entry_to_level(entry: bytes, level) -> None:
-    init_level_defaults(level)
-    if len(entry) < 6:
-        return
-    setattr(level, LEVEL_ATTRS["a_speed"], normalize_speed_preset(entry[0]))
-    setattr(level, LEVEL_ATTRS["a_interval"], entry[1] & 0xFF)
-    setattr(level, LEVEL_ATTRS["b_speed"], normalize_speed_preset(entry[2]))
-    setattr(level, LEVEL_ATTRS["b_interval"], entry[3] & 0xFF)
-    setattr(level, LEVEL_ATTRS["c_speed"], normalize_speed_preset(entry[4]))
-    setattr(level, LEVEL_ATTRS["c_interval"], entry[5] & 0xFF)
-
-
-def build_table(levels: list = None, common_settings: dict | None = None) -> bytes:
-    """Build the legacy PRG1 PanelVariantStageTable image.
-
-    Final saves no longer write/read this table.  The helper is kept only for
-    old probe/prototype tooling and uses the fixed global settings image.
-    """
-    table = bytearray([0x00] * TABLE_LENGTH)
-    table[:len(MAGIC)] = MAGIC
-    table[len(MAGIC)] = FORMAT
-    table[len(MAGIC) + 1] = ENTRY_SIZE
-    table[len(MAGIC) + 2] = ROOM_COUNT
-    table[len(MAGIC) + 3] = 0
-    entry = common_entry(common_settings)
-    for i in range(ROOM_COUNT):
-        base = HEADER_SIZE + i * ENTRY_SIZE
-        table[base:base + ENTRY_SIZE] = entry
-    return bytes(table)
-
-
-def patch_table(rom_data: bytearray, levels: list = None, common_settings: dict | None = None) -> bool:
-    if len(rom_data) < TABLE_END:
-        return False
-    table = build_table(levels, common_settings)
-    if bytes(rom_data[TABLE_OFFSET:TABLE_END]) == table:
-        return False
-    rom_data[TABLE_OFFSET:TABLE_END] = table
-    return True
-
-
 def patch_global_cache_table(rom_data: bytearray, common_settings: dict | None = None) -> bool:
     if len(rom_data) < GLOBAL_CACHE_TABLE_END:
         return False
@@ -1873,30 +1796,6 @@ def patch_global_cache_table(rom_data: bytearray, common_settings: dict | None =
         return False
     rom_data[GLOBAL_CACHE_TABLE_OFFSET:GLOBAL_CACHE_TABLE_END] = table
     return True
-
-
-def read_table(rom_data: bytes, levels: list = None) -> list[bytes]:
-    if len(rom_data) < TABLE_END:
-        return []
-    raw = bytes(rom_data[TABLE_OFFSET:TABLE_END])
-    if not raw.startswith(MAGIC):
-        if levels is not None:
-            for level in levels:
-                init_level_defaults(level)
-        return []
-    if raw[len(MAGIC)] != FORMAT or raw[len(MAGIC) + 1] != ENTRY_SIZE:
-        if levels is not None:
-            for level in levels:
-                init_level_defaults(level)
-        return []
-    entries = [
-        raw[HEADER_SIZE + i * ENTRY_SIZE:HEADER_SIZE + (i + 1) * ENTRY_SIZE]
-        for i in range(ROOM_COUNT)
-    ]
-    if levels is not None:
-        for level in levels[:ROOM_COUNT]:
-            init_level_defaults(level)
-    return entries
 
 
 def _runtime_cache_entry(common_settings: dict | None = None) -> bytes:
