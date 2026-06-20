@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK46 (2026-06-20) fire marker表とBullet entry契約の静的guardを追加
+- 2-way/3-way spread marker `$80-$84` とA/B/C speed marker `$88-$8B` を定数化し、marker範囲のズレを保存前guardで検出する。
+- fire marker tableにspread marker順序とdynamic speed sentinel `$FE` が正しく入っていることを検査する。
+- fire commonが共有marker tableを2回読むことをbyte patternで確認する。
+
 ## EX-PANEL-V2-BLOCK45 (2026-06-20) Bullet entry分割の静的guardを強化
 - v2 Bullet entry helperがTransparent Spark Ball wrapper領域へはみ出さないことを保存前guardで確認する。
 - entry tail helperがAI panel helper領域へはみ出さないことを保存前guardで確認する。

@@ -310,6 +310,9 @@ SPEED_PRESET_RUNTIME_TABLE = bytes((
     SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_3X]["left_up"],
 ))
 
+STATIC_SPREAD_MARKERS = bytes((0x83, 0x84, 0x81, 0x80, 0x82))
+DYNAMIC_SPEED_MARKERS = bytes((0x88, 0x89, 0x8A, 0x8B))
+
 
 def _build_final_state0_interval_helper() -> bytes:
     return _build_state0_interval_helper_shared(CPU_FINAL_GROUP_RAM_OFFSET_HELPER)
@@ -1818,6 +1821,10 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
     entry_helper = split_blobs["bullet_entry_helper"]
     entry_tail_helper = split_blobs["bullet_entry_tail_helper"]
     loop_cpu = CPU_FINAL_BULLET_SPEED_EXTRA_HELPER + len(SPEED_PRESET_RUNTIME_TABLE) + 4
+    if tuple(DYNAMIC_SPEED_MARKERS) != tuple(range(0x88, 0x8C)):
+        raise PanelMonsterStageVariantError(
+            f"Panel Monster v2 dynamic speed marker range mismatch: {DYNAMIC_SPEED_MARKERS!r}"
+        )
     if OFF_FINAL_BULLET_ENTRY_HELPER + len(entry_helper) > OFF_FINAL_BULLET_ENTRY_HELPER_END:
         raise PanelMonsterStageVariantError(
             "Panel Monster v2 Bullet entry helper overlaps the Spark Ball wrapper."
@@ -1951,10 +1958,42 @@ def _validate_pmv2_global_cache_runtime_contract() -> None:
 
 def _validate_pmv2_fire_marker_runtime_contract() -> None:
     """Guard the Panel Monster fire path marker contract."""
-    expected_marker_table = bytes((0x83, 0x84, 0xFF, 0x81, 0x80, 0x82, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF))
+    expected_marker_table = bytes((
+        STATIC_SPREAD_MARKERS[0],
+        STATIC_SPREAD_MARKERS[1],
+        0xFF,
+        STATIC_SPREAD_MARKERS[2],
+        STATIC_SPREAD_MARKERS[3],
+        STATIC_SPREAD_MARKERS[4],
+        0xFF,
+        0xFE,
+        0xFF,
+        0xFF,
+        0xFF,
+    ))
     if FINAL_FIRE_MARKER_TABLE != expected_marker_table:
         raise PanelMonsterStageVariantError(
             f"Panel Monster v2 fire marker table mismatch: {FINAL_FIRE_MARKER_TABLE!r}"
+        )
+    static_markers = tuple(value for value in FINAL_FIRE_MARKER_TABLE if 0x80 <= value <= 0x84)
+    if static_markers != tuple(STATIC_SPREAD_MARKERS):
+        raise PanelMonsterStageVariantError(
+            f"Panel Monster v2 spread marker order mismatch: {static_markers!r}"
+        )
+    if FINAL_FIRE_MARKER_TABLE.count(0xFE) != 1:
+        raise PanelMonsterStageVariantError(
+            "Panel Monster v2 fire marker table must contain one dynamic speed sentinel."
+        )
+    marker_table_read = bytes((
+        0xBD,
+        CPU_FINAL_FIRE_MARKER_TABLE & 0xFF,
+        CPU_FINAL_FIRE_MARKER_TABLE >> 8,
+        0xC9,
+        0xFF,
+    ))
+    if FINAL_FIRE_COMMON.count(marker_table_read) != 2:
+        raise PanelMonsterStageVariantError(
+            "Panel Monster v2 fire common must read the shared marker table twice."
         )
     required_patterns = {
         "static child sub+7 write": (FINAL_STATIC_MARKER_HELPER, bytes((0x20, 0x56, 0xB1, 0xA0, 0x07))),
