@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK34 (2026-06-20) loader署名の余分な分岐を削除
+- Panel Monster v2 runtime loader検証から、現行slotと同じ比較を繰り返すだけの `_looks_like_fixed_cache_runtime_loader()` を削除した。
+- 許可するloader状態は、空slot、既存stage loader、現行v2 runtime loaderの明示比較だけにした。
+- ROM挙動は変えず、互換・救済っぽく見える余計な枝を減らした。
+
 ## EX-PANEL-V2-BLOCK33 (2026-06-20) 現行runtime名へ整理
 - Panel Monster v2の現行保存経路で使うAI wrapperと配置確認関数から、旧試作扱いの `candidate` 名を外した。
 - 生成ROMバイトは変えず、最新runtimeだけを追いやすい名前へ寄せた。

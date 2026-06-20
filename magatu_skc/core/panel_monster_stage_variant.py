@@ -864,7 +864,7 @@ def _validate_runtime_loader_signature(rom_data: bytearray) -> None:
         stage_ext.RUNTIME_LOADER + _fill(0x00, 0x60 - len(stage_ext.RUNTIME_LOADER)),
         _runtime_loader_slot(),
     )
-    if cur in accepted or _looks_like_fixed_cache_runtime_loader(cur):
+    if cur in accepted:
         return
     expected = " / ".join(sig[:16].hex(" ") for sig in accepted)
     raise PanelMonsterStageVariantError(
@@ -2053,11 +2053,6 @@ def _runtime_loader_slot() -> bytes:
 
 
 RUNTIME_LOADER_SLOT = _runtime_loader_slot()
-
-
-def _looks_like_fixed_cache_runtime_loader(slot: bytes) -> bool:
-    slot = bytes(slot[:0x60])
-    return slot == _runtime_loader_slot()
 
 
 def apply_runtime_loader(rom_data: bytearray) -> list[str]:
