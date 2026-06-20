@@ -144,11 +144,11 @@ SPEED_PRESET_TABLE_VALUES = {
     },
 }
 
-GLOBAL_CACHE_TABLE_OFFSET = 0x8A70
-GLOBAL_CACHE_TABLE_LENGTH = 6
-GLOBAL_CACHE_TABLE_END = GLOBAL_CACHE_TABLE_OFFSET + GLOBAL_CACHE_TABLE_LENGTH
-CPU_GLOBAL_CACHE_TABLE = GLOBAL_CACHE_TABLE_OFFSET - 0x10
-RUNTIME_CACHE_VALUES = (
+SETTINGS_TABLE_OFFSET = 0x8A70
+SETTINGS_TABLE_LENGTH = 6
+SETTINGS_TABLE_END = SETTINGS_TABLE_OFFSET + SETTINGS_TABLE_LENGTH
+CPU_SETTINGS_TABLE = SETTINGS_TABLE_OFFSET - 0x10
+RUNTIME_SETTINGS_RAM_VALUES = (
     RAM_PV_A_SPEED,
     RAM_PV_A_INTERVAL,
     RAM_PV_B_SPEED,
@@ -1251,7 +1251,7 @@ def apply_panel_monster_v2_runtime(
         OFF_FINAL_GROUP_RAM_OFFSET_HELPER + len(FINAL_GROUP_RAM_OFFSET_HELPER_WRITE),
         OFF_FINAL_SHARED_AI_WRAPPER + len(FINAL_SHARED_AI_WRAPPER),
         OFF_FINAL_STAGE_DISPATCH_HELPER + len(FINAL_STAGE_DISPATCH_HELPER),
-        GLOBAL_CACHE_TABLE_END,
+        SETTINGS_TABLE_END,
         panel_monster_variant.OFF_ANIM_HOOK + len(FINAL_STAGE_ANIM_HOOK),
     )
     if len(rom_data) < min_len:
@@ -1260,13 +1260,13 @@ def apply_panel_monster_v2_runtime(
     final_state0_interval_helper = _final_state0_interval_helper_for_rom(rom_data)
     _validate_final_split_signatures(rom_data, final_state0_interval_helper)
     _validate_pmv2_speed_core_runtime_contract()
-    _validate_pmv2_global_cache_runtime_contract()
+    _validate_pmv2_settings_runtime_contract()
     _validate_pmv2_fire_marker_runtime_contract()
     _validate_pmv2_parent_runtime_contract()
     _validate_pmv2_classifier_runtime_contract()
 
     changed: list[str] = []
-    if patch_global_cache_table(rom_data, common_settings):
+    if patch_settings_table(rom_data, common_settings):
         changed.append("Panel Variant PRG1 settings table")
     changed.extend(apply_runtime_loader(rom_data))
 
@@ -1777,7 +1777,7 @@ def panel_monster_v2_runtime_save_report(
     guard_results = {}
     for name, validator in (
         ("speed", _validate_pmv2_speed_core_runtime_contract),
-        ("settings_table", _validate_pmv2_global_cache_runtime_contract),
+        ("settings_table", _validate_pmv2_settings_runtime_contract),
         ("fire_marker", _validate_pmv2_fire_marker_runtime_contract),
         ("parent_cleanup", _validate_pmv2_parent_runtime_contract),
         ("classifier", _validate_pmv2_classifier_runtime_contract),
@@ -1789,7 +1789,7 @@ def panel_monster_v2_runtime_save_report(
         else:
             guard_results[name] = True
     speed_report = panel_monster_v2_split_speed_save_report(rom_data)
-    settings_report = panel_monster_v2_global_cache_save_report(rom_data, common_settings)
+    settings_report = panel_monster_v2_settings_save_report(rom_data, common_settings)
     placement_report = panel_variant_split_placement_report()
     reserved_report = panel_monster_v2_reserved_span_report()
     coverage_report = _placement_reserved_coverage_report(placement_report, reserved_report)
@@ -1939,25 +1939,25 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
             )
 
 
-def _validate_pmv2_global_cache_runtime_contract() -> None:
+def _validate_pmv2_settings_runtime_contract() -> None:
     """Guard the normal ROM save path against a widened A/B/C settings contract."""
-    if GLOBAL_CACHE_TABLE_LENGTH != len(RUNTIME_CACHE_VALUES):
+    if SETTINGS_TABLE_LENGTH != len(RUNTIME_SETTINGS_RAM_VALUES):
         raise PanelMonsterStageVariantError(
             "Panel Monster v2 settings table length must match runtime RAM fields."
         )
-    if GLOBAL_CACHE_TABLE_END != GLOBAL_CACHE_TABLE_OFFSET + 6:
+    if SETTINGS_TABLE_END != SETTINGS_TABLE_OFFSET + 6:
         raise PanelMonsterStageVariantError(
             "Panel Monster v2 settings table must stay a 6-byte PRG1 image."
         )
-    if tuple(RUNTIME_CACHE_VALUES) != tuple(range(RAM_PV_A_SPEED, RAM_PV_C_INTERVAL + 1)):
+    if tuple(RUNTIME_SETTINGS_RAM_VALUES) != tuple(range(RAM_PV_A_SPEED, RAM_PV_C_INTERVAL + 1)):
         raise PanelMonsterStageVariantError(
             "Panel Monster v2 runtime RAM settings fields must stay contiguous at $0740-$0745."
         )
     loader = _runtime_loader_slot()
     copy_pattern = bytes((
         0xB9,
-        CPU_GLOBAL_CACHE_TABLE & 0xFF,
-        CPU_GLOBAL_CACHE_TABLE >> 8,
+        CPU_SETTINGS_TABLE & 0xFF,
+        CPU_SETTINGS_TABLE >> 8,
         0x99,
         RAM_PV_A_SPEED & 0xFF,
         RAM_PV_A_SPEED >> 8,
@@ -2112,7 +2112,7 @@ RESERVED_SPANS = (
     (OFF_FINAL_FIRE_MARKER_TABLE, len(FINAL_FIRE_MARKER_TABLE)),
     (panel_monster_variant.OFF_BULLET_HOOK, _v2_split_speed_reserved_sizes()["bullet_speed_hook"]),
     (OFF_PRG1_RUNTIME_LOADER, 0x60),
-    (GLOBAL_CACHE_TABLE_OFFSET, GLOBAL_CACHE_TABLE_LENGTH),
+    (SETTINGS_TABLE_OFFSET, SETTINGS_TABLE_LENGTH),
 )
 
 
@@ -2238,35 +2238,35 @@ def common_entry(settings: dict | None = None) -> bytes:
     )
 
 
-def patch_global_cache_table(rom_data: bytearray, common_settings: dict | None = None) -> bool:
-    if len(rom_data) < GLOBAL_CACHE_TABLE_END:
+def patch_settings_table(rom_data: bytearray, common_settings: dict | None = None) -> bool:
+    if len(rom_data) < SETTINGS_TABLE_END:
         return False
-    table = _runtime_cache_entry(common_settings)
-    if bytes(rom_data[GLOBAL_CACHE_TABLE_OFFSET:GLOBAL_CACHE_TABLE_END]) == table:
+    table = _runtime_settings_entry(common_settings)
+    if bytes(rom_data[SETTINGS_TABLE_OFFSET:SETTINGS_TABLE_END]) == table:
         return False
-    rom_data[GLOBAL_CACHE_TABLE_OFFSET:GLOBAL_CACHE_TABLE_END] = table
+    rom_data[SETTINGS_TABLE_OFFSET:SETTINGS_TABLE_END] = table
     return True
 
 
-def _runtime_cache_entry(common_settings: dict | None = None) -> bytes:
+def _runtime_settings_entry(common_settings: dict | None = None) -> bytes:
     entry = common_entry(common_settings)
     return entry[:6]
 
 
-def panel_monster_v2_global_cache_contract(common_settings: dict | None = None) -> dict[str, object]:
+def panel_monster_v2_settings_contract(common_settings: dict | None = None) -> dict[str, object]:
     """Return the A/B/C PRG1 settings-table and room-load RAM-copy contract."""
-    cache_entry = _runtime_cache_entry(common_settings)
+    settings_entry = _runtime_settings_entry(common_settings)
     return {
         "settings_table": {
-            "off": GLOBAL_CACHE_TABLE_OFFSET,
-            "cpu": CPU_GLOBAL_CACHE_TABLE,
-            "size": GLOBAL_CACHE_TABLE_LENGTH,
-            "bytes": cache_entry,
+            "off": SETTINGS_TABLE_OFFSET,
+            "cpu": CPU_SETTINGS_TABLE,
+            "size": SETTINGS_TABLE_LENGTH,
+            "bytes": settings_entry,
         },
         "ram_copy": {
             "start": RAM_PV_A_SPEED,
             "end": RAM_PV_C_INTERVAL,
-            "size": GLOBAL_CACHE_TABLE_LENGTH,
+            "size": SETTINGS_TABLE_LENGTH,
             "fields": {
                 "a_speed": RAM_PV_A_SPEED,
                 "a_interval": RAM_PV_A_INTERVAL,
@@ -2282,26 +2282,26 @@ def panel_monster_v2_global_cache_contract(common_settings: dict | None = None) 
             "group_ram_offset_helper": CPU_FINAL_GROUP_RAM_OFFSET_HELPER,
         },
         "entry_values": {
-            "a_speed": cache_entry[0],
-            "a_interval": cache_entry[1],
-            "b_speed": cache_entry[2],
-            "b_interval": cache_entry[3],
-            "c_speed": cache_entry[4],
-            "c_interval": cache_entry[5],
+            "a_speed": settings_entry[0],
+            "a_interval": settings_entry[1],
+            "b_speed": settings_entry[2],
+            "b_interval": settings_entry[3],
+            "c_speed": settings_entry[4],
+            "c_interval": settings_entry[5],
         },
     }
 
 
-def panel_monster_v2_global_cache_save_report(
+def panel_monster_v2_settings_save_report(
     rom_data: bytes | bytearray,
     common_settings: dict | None = None,
 ) -> dict[str, object]:
     """Report whether saved ROM data carries the current A/B/C settings path."""
     if rom_data is None:
         raise PanelMonsterStageVariantError("ROM is missing.")
-    contract = panel_monster_v2_global_cache_contract(common_settings)
+    contract = panel_monster_v2_settings_contract(common_settings)
     expected_table = contract["settings_table"]["bytes"]
-    actual_table = bytes(rom_data[GLOBAL_CACHE_TABLE_OFFSET:GLOBAL_CACHE_TABLE_END])
+    actual_table = bytes(rom_data[SETTINGS_TABLE_OFFSET:SETTINGS_TABLE_END])
     loader = _runtime_loader_slot()
     actual_loader = bytes(rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(loader)])
     return {
@@ -2333,8 +2333,8 @@ def _build_runtime_loader() -> bytes:
         )
         + bytes((
             0xB9,
-            CPU_GLOBAL_CACHE_TABLE & 0xFF,
-            CPU_GLOBAL_CACHE_TABLE >> 8,
+            CPU_SETTINGS_TABLE & 0xFF,
+            CPU_SETTINGS_TABLE >> 8,
             0x99,
             RAM_PV_A_SPEED & 0xFF,
             RAM_PV_A_SPEED >> 8,

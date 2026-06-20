@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK65 (2026-06-20) Panel Monster v2内部名をsettings tableへ整理
+- `panel_monster_stage_variant.py` 内の古い `global_cache` / `runtime_cache` 名をsettings table表現へ置き換えた。
+- PRG1 6B settings tableとRAM `$0740-$0745` copyの実態に合わせ、次の実装で読み違えない名前へ揃えた。
+- 実行バイトは変更せず、保存経路と検証レポートの意味を明確にした。
+
 ## EX-PANEL-V2-BLOCK64 (2026-06-20) Mesen確認ROMセット出力modeを追加
 - `tools/panel_monster_v2_runtime_check.py --mode mesen-set` を追加した。
 - A/B/C代表、2-way ALT、3-way ALT、通常Panel代表の6本を同じコマンドで出力できるようにした。
