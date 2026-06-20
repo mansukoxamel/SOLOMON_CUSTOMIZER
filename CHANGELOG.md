@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK11 (2026-06-20) Panel Variant group RAM helperの水増し書込を停止
+- `group_ram_offset_helper` は実体8Bで完結しているため、保存時に旧13B長へEA paddingして書く処理をやめた。
+- 旧13B helperで保存されたROMも再保存できるよう、署名検証では先頭8Bを受け付ける。
+- cache経路は維持し、PRG0の不要な5B書込だけを止めて、管理簿上の短い非常用候補と実装を一致させた。
+
 ## EX-PANEL-V2-BLOCK10 (2026-06-20) Panel Monster v2 global cache契約report
 - A/B/Cの全ステージ共通6B cacheについて、PRG1 table、RAM `$0740-$0745`、runtime利用helperを返す `panel_monster_v2_global_cache_contract()` を追加した。
 - 通常保存ROMにglobal cache tableとruntime loaderが書かれているか確認する `panel_monster_v2_global_cache_save_report()` を追加した。
