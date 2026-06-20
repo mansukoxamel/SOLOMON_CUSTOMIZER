@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK5 (2026-06-20) Panel Monster v2 split配置候補
+- v2 speed runtimeを既存枠へ接続するため、`decode`を`$C088`枠、速度テーブル2つとfast loopを`$E823`枠、入口hookを既存Bullet hook枠へ置く分割配置候補を追加した。
+- `panel_monster_v2_split_speed_placement_candidate()` で、各pieceのfile/CPUアドレス、サイズ、容量、残り容量を確認できるようにした。
+- まだROMへの差し替えは行わず、次ブロックでこの配置候補を実際の保存経路へ接続する。
+
 ## EX-PANEL-V2-BLOCK4 (2026-06-20) Panel Monster v2 Bullet入口hook契約
 - 静的v2 speed core blobへ、Bullet state2から `speed_decode` と `bullet_step_loop` を同じ入口で呼ぶ `bullet_speed_hook` を追加した。
 - 入口hookは通常/1/2/1/4/2x/3xを同じdecodeルートへ乗せ、fast markerだけが共有substep loopへ進む形にした。

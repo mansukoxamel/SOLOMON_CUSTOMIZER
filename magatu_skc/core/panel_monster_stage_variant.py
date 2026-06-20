@@ -1810,6 +1810,55 @@ def panel_monster_v2_speed_core_save_report(rom_data: bytes | bytearray) -> dict
     }
 
 
+def panel_monster_v2_split_speed_placement_candidate() -> dict[str, object]:
+    """Return a concrete split placement candidate for wiring v2 speed runtime."""
+    blob = PANEL_MONSTER_V2_SPEED_CORE_BLOB
+    section_sizes = dict(blob.sizes)
+    decode_size = section_sizes["speed_decode"]
+    table_loop_size = (
+        section_sizes["speed_velocity_table"]
+        + section_sizes["speed_extra_count_table"]
+        + section_sizes["bullet_step_loop"]
+        + section_sizes["impact_bridge"]
+    )
+    hook_size = section_sizes["bullet_speed_hook"]
+    rows = [
+        {
+            "name": "v2_speed_decode",
+            "file_start": OFF_FINAL_BULLET_SPEED_APPLY,
+            "cpu_start": CPU_FINAL_BULLET_SPEED_APPLY,
+            "size": decode_size,
+            "capacity": 0x3A,
+        },
+        {
+            "name": "v2_speed_tables_and_fast_loop",
+            "file_start": OFF_FINAL_BULLET_SPEED_EXTRA_HELPER,
+            "cpu_start": CPU_FINAL_BULLET_SPEED_EXTRA_HELPER,
+            "size": table_loop_size,
+            "capacity": 0x79,
+        },
+        {
+            "name": "v2_bullet_speed_hook",
+            "file_start": panel_monster_variant.OFF_BULLET_HOOK,
+            "cpu_start": panel_monster_variant.CPU_BULLET_HOOK,
+            "size": hook_size,
+            "capacity": len(FINAL_MERGED_PANEL_BULLET_HOOK),
+        },
+    ]
+    for row in rows:
+        row["file_end"] = row["file_start"] + row["size"] - 1
+        row["cpu_end"] = (row["cpu_start"] + row["size"] - 1) & 0xFFFF
+        row["remaining"] = row["capacity"] - row["size"]
+    return {
+        "pieces": rows,
+        "fits": all(row["remaining"] >= 0 for row in rows),
+        "total_size": decode_size + table_loop_size + hook_size,
+        "total_capacity": sum(row["capacity"] for row in rows),
+        "static_blob_size": len(blob.data),
+        "layout_rule": "Put decode alone in the $C088 slot; put tables plus fast loop in the $E823 slot.",
+    }
+
+
 def _validate_pmv2_speed_core_runtime_contract() -> None:
     """Guard the normal ROM save path against a broken Panel Monster speed core."""
     extra_counts = {
