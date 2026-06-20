@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK61 (2026-06-20) Panel Monster v2 interval checkを全方向IDへ拡張
+- `tools/panel_monster_v2_runtime_check.py` のinterval checkをA/B/C各4方向IDすべてへ広げた。
+- speedだけでなくintervalも、代表IDだけが通る状態を避ける。
+- A/B/C全方向IDが同じsettings table、同じroom-load copy、同じruntime配置で保存/再保存されることを確認する。
+
 ## EX-PANEL-V2-BLOCK60 (2026-06-20) Bullet marker範囲を定数化
 - Panel Monster v2のdynamic speed marker範囲 `$88-$8B` を `DYNAMIC_SPEED_MARKER_BASE/END` として定数化した。
 - speed decode、Bullet entry helper、dynamic marker writer、guardが同じmarker範囲を参照するようにした。

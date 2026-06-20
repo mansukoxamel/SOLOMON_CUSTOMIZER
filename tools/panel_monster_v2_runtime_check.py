@@ -44,9 +44,18 @@ SPEED_CASES = (
 )
 
 INTERVAL_CASES = (
-    ("C", 0x31, "c_interval", 0x21),
-    ("A", 0x41, "a_interval", 0x7F),
-    ("B", 0x49, "b_interval", 0xE1),
+    ("C_R", 0x31, "c_interval", 0x21),
+    ("C_L", 0x33, "c_interval", 0x21),
+    ("C_U", 0x35, "c_interval", 0x21),
+    ("C_D", 0x37, "c_interval", 0x21),
+    ("A_R", 0x41, "a_interval", 0x7F),
+    ("A_L", 0x43, "a_interval", 0x7F),
+    ("A_U", 0x45, "a_interval", 0x7F),
+    ("A_D", 0x47, "a_interval", 0x7F),
+    ("B_R", 0x49, "b_interval", 0xE1),
+    ("B_L", 0x4B, "b_interval", 0xE1),
+    ("B_U", 0x4D, "b_interval", 0xE1),
+    ("B_D", 0x4F, "b_interval", 0xE1),
 )
 
 BORROWED_CASES = (
