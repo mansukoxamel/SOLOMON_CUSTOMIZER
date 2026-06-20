@@ -1,5 +1,9 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-TODO-ISSUE2-TESTPLAY (2026-06-20) 読み取り専用mapper3 ROMのテストプレイを許可
+- JP/US mapper3 ROMを読み取り専用で開いた場合も、テストプレイボタンを有効化するようにした。
+- 開始ステージ変更は既存の `0x1145/0x1149/0x114B` 書き換えをそのまま使い、ROM保存や編集許可は広げない。
+
 ## EX-PANEL-V2-BLOCK75 (2026-06-20) Panel Monster Bullet hook予約を縮小
 - 旧Panel Monster Bullet hook slotの実処理78Bだけを予約し、末尾の埋めEA 3Bを予約から外した。
 - v2 Bullet speed hookは従来どおり先頭20Bを使うため、v2経路の挙動は変えない。

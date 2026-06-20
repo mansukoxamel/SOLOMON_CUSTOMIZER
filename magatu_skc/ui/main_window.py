@@ -3496,12 +3496,14 @@ class MainWindow(QMainWindow):
             self._log(f"テストプレイ失敗: {type(e).__name__}: {e}")
 
     def _can_readonly_test_play(self) -> bool:
-        return bool(
-            self.rom
-            and self._is_read_only()
-            and self.rom.base_region() == "US"
-            and self.rom.is_expanded()
-            and self.rom.is_skchain_us66()
+        if not self.rom or not self._is_read_only():
+            return False
+        if self.rom.is_skchain_us66():
+            return True
+        return (
+            not self.rom.is_expanded()
+            and self.rom.is_mapper3()
+            and self.rom.base_region() in ("JP", "US")
         )
 
     def _patch_testplay_start_stage(self, stage_no: int):
