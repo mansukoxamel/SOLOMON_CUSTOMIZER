@@ -318,6 +318,8 @@ SPEED_PRESET_RUNTIME_TABLE = bytes((
 
 STATIC_SPREAD_MARKERS = bytes((0x83, 0x84, 0x81, 0x80, 0x82))
 DYNAMIC_SPEED_MARKERS = bytes((0x88, 0x89, 0x8A, 0x8B))
+DYNAMIC_SPEED_MARKER_BASE = DYNAMIC_SPEED_MARKERS[0]
+DYNAMIC_SPEED_MARKER_END = DYNAMIC_SPEED_MARKERS[-1] + 1
 
 
 def _build_final_state0_interval_helper() -> bytes:
@@ -358,14 +360,22 @@ def _build_dynamic_speed_marker_helper(speed_select_cpu: int) -> bytes:
     a = _Asm()
     a.b(0x8A, 0x48)
     a.jsr(speed_select_cpu)
-    a.b(0x09, 0x88, 0x48)
+    a.b(0x09, DYNAMIC_SPEED_MARKER_BASE, 0x48)
     a.b(0xA5, 0x02, 0x20, 0x56, 0xB1, 0xA0, 0x07)
     a.b(0x68, 0x91, 0x00, 0x68, 0xAA, 0x60)
     return a.finish()
 
 
 def _build_final_fire_marker_table() -> bytes:
-    return bytes((0x83, 0x84, 0xFF, 0x81, 0x80, 0x82, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF))
+    return bytes((
+        STATIC_SPREAD_MARKERS[0],
+        STATIC_SPREAD_MARKERS[1],
+        0xFF,
+        STATIC_SPREAD_MARKERS[2],
+        STATIC_SPREAD_MARKERS[3],
+        STATIC_SPREAD_MARKERS[4],
+        0xFF, 0xFE, 0xFF, 0xFF, 0xFF,
+    ))
 
 
 def _build_final_fire_common(
@@ -1367,11 +1377,11 @@ def _build_pmv2_speed_decode(
     a = _Asm()
     a.b(0xA2, 0x00)                    # default extra count = 0
     a.b(0xA0, 0x07, 0xB1, 0x2C)        # marker = child sub[7]
-    a.b(0xC9, 0x88)
+    a.b(0xC9, DYNAMIC_SPEED_MARKER_BASE)
     a.branch(0x90, "rts")
-    a.b(0xC9, 0x8C)
+    a.b(0xC9, DYNAMIC_SPEED_MARKER_END)
     a.branch(0xB0, "rts")
-    a.b(0x38, 0xE9, 0x88, 0x48)        # preset index 0..3
+    a.b(0x38, 0xE9, DYNAMIC_SPEED_MARKER_BASE, 0x48)  # preset index 0..3
     a.b(0x0A, 0xAA)                    # X = preset * 2 for velocity table
     a.b(0xA0, 0x03, 0xB1, 0x2E, 0x29, 0x03)
     a.b(0xA0, 0x05, 0xC9, 0x02)
@@ -1467,7 +1477,7 @@ def _build_pmv2_bullet_entry_helper(minus_tail_cpu: int, plus_tail_cpu: int, spe
     a.b(0x8A, 0x48)                   # Preserve caller-visible X.
     a.b(0xA0, 0x07, 0xB1, 0x2C)        # child sub[7] marker
     a.branch(0x10, "restore_x")
-    a.b(0xC9, 0x88)
+    a.b(0xC9, DYNAMIC_SPEED_MARKER_BASE)
     a.branch(0xB0, "speed")
     a.b(0x29, 0x7F, 0xAA)
     a.branch(0xF0, "restore_x")
@@ -1825,7 +1835,7 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
     entry_helper = split_blobs["bullet_entry_helper"]
     entry_tail_helper = split_blobs["bullet_entry_tail_helper"]
     loop_cpu = CPU_FINAL_BULLET_SPEED_EXTRA_HELPER + len(SPEED_PRESET_RUNTIME_TABLE) + 4
-    if tuple(DYNAMIC_SPEED_MARKERS) != tuple(range(0x88, 0x8C)):
+    if tuple(DYNAMIC_SPEED_MARKERS) != tuple(range(DYNAMIC_SPEED_MARKER_BASE, DYNAMIC_SPEED_MARKER_END)):
         raise PanelMonsterStageVariantError(
             f"Panel Monster v2 dynamic speed marker range mismatch: {DYNAMIC_SPEED_MARKERS!r}"
         )
@@ -1838,9 +1848,9 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
             "Panel Monster v2 Bullet entry tail helper overlaps the AI panel helper."
         )
     required_patterns = {
-        "$88 lower bound": (speed_decode, bytes((0xC9, 0x88))),
-        "$8C upper bound": (speed_decode, bytes((0xC9, 0x8C))),
-        "$88 marker index decode": (speed_decode, bytes((0x38, 0xE9, 0x88))),
+        "$88 lower bound": (speed_decode, bytes((0xC9, DYNAMIC_SPEED_MARKER_BASE))),
+        "$8C upper bound": (speed_decode, bytes((0xC9, DYNAMIC_SPEED_MARKER_END))),
+        "$88 marker index decode": (speed_decode, bytes((0x38, 0xE9, DYNAMIC_SPEED_MARKER_BASE))),
         "$AC39 collision sample": (fast_loop, bytes((0x20, 0x39, 0xAC))),
         "bullet hook jumps to entry helper": (
             split_blobs["bullet_speed_hook"],
@@ -1848,7 +1858,7 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
         ),
         "$80-$84 spread marker path": (
             entry_helper,
-            bytes((0xC9, 0x88, 0xB0)),
+            bytes((0xC9, DYNAMIC_SPEED_MARKER_BASE, 0xB0)),
         ),
         "spread minus tail jump": (
             entry_helper,
@@ -2001,7 +2011,7 @@ def _validate_pmv2_fire_marker_runtime_contract() -> None:
         )
     required_patterns = {
         "static child sub+7 write": (FINAL_STATIC_MARKER_HELPER, bytes((0x20, 0x56, 0xB1, 0xA0, 0x07))),
-        "dynamic speed marker base $88": (FINAL_DYNAMIC_SPEED_MARKER_HELPER, bytes((0x09, 0x88))),
+        "dynamic speed marker base $88": (FINAL_DYNAMIC_SPEED_MARKER_HELPER, bytes((0x09, DYNAMIC_SPEED_MARKER_BASE))),
         "dynamic child sub+7 write": (FINAL_DYNAMIC_SPEED_MARKER_HELPER, bytes((0x20, 0x56, 0xB1, 0xA0, 0x07))),
         "fire common dynamic sentinel $FE": (FINAL_FIRE_COMMON, bytes((0xC9, 0xFE))),
     }

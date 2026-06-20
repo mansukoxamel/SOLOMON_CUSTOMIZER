@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK60 (2026-06-20) Bullet marker範囲を定数化
+- Panel Monster v2のdynamic speed marker範囲 `$88-$8B` を `DYNAMIC_SPEED_MARKER_BASE/END` として定数化した。
+- speed decode、Bullet entry helper、dynamic marker writer、guardが同じmarker範囲を参照するようにした。
+- fire marker tableも `STATIC_SPREAD_MARKERS` から組み立て、spread marker順序の数字ベタ書きを減らした。
+
 ## EX-PANEL-V2-BLOCK59 (2026-06-20) 2-way/3-way Fire dispatch代表IDを定数化
 - Panel Monster v2のFire dispatchで使う代表ID `$52/$56` と `$5A/$66` を定数化した。
 - ALT ID `$53/$57/$5B/$67` は既存通り `AND #$FE` で代表IDへ寄せる契約を維持する。
