@@ -948,8 +948,6 @@ def panel_variant_ai_wrapper_candidate() -> dict[str, int]:
         "left_entry_cpu": FINAL_AI_WRAPPER_ENTRIES["left"],
         "up_entry_cpu": FINAL_AI_WRAPPER_ENTRIES["up"],
         "down_entry_cpu": FINAL_AI_WRAPPER_ENTRIES["down"],
-        "old_separate_ai_wrappers_size": PANEL_VARIANT_BLOB.sizes["ai_wrapper_c"] + PANEL_VARIANT_BLOB.sizes["ai_wrapper_ab"],
-        "candidate_reduction": PANEL_VARIANT_BLOB.sizes["ai_wrapper_c"] + PANEL_VARIANT_BLOB.sizes["ai_wrapper_ab"] - len(FINAL_AI_WRAPPER_CANDIDATE),
     }
 
 
@@ -1000,9 +998,6 @@ def panel_variant_split_placement_candidate() -> dict[str, object]:
         "pieces": rows,
         "overlaps": overlaps,
         "overlap_free": not overlaps,
-        "prg0_growth_without_movable_data": panel_variant_prg0_prg1_budget_estimate()[
-            "merged_bullet_hook_prg0_growth_without_movable_data"
-        ],
     }
 
 

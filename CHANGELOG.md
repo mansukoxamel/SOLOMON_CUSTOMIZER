@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK18 (2026-06-20) 古いPRG0見積もりを配置reportから外す
+- `panel_variant_ai_wrapper_candidate()` から旧AI wrapperとの比較値を外し、現行shared AI wrapperだけを返すようにした。
+- `panel_variant_split_placement_candidate()` から古いstandalone blob由来のPRG0 growth見積もりを外した。
+- ROM挙動は変えず、最新v2配置だけを見て判断できるreportへ寄せた。
+
 ## EX-PANEL-V2-BLOCK17 (2026-06-20) speed core guardを最新v2 runtimeへ合わせる
 - 保存前のspeed契約guardが旧extra helperを見ていたため、最新のv2 `speed_decode` と `tables_and_fast_loop` を直接検証するようにした。
 - marker範囲、marker index decode、`$AC39` collision sample、fast loopの禁止ジャンプをv2実体に対して確認する。
