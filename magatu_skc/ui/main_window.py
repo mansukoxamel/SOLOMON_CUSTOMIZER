@@ -5164,20 +5164,6 @@ class MainWindow(QMainWindow):
     def _on_picker_selection_changed(self, mode, value):
         """ピッカー選択変更時 → カーソル形状を選択中アイコンに"""
         self._update_cursor_from_picker()
-        # 鍵選択時: 現在レベルの key_status を配置フラグに反映
-        if mode == MODE_META and value == "key" and self.levels:
-            from ..core import constants as cc
-            lv = self.levels[self.current_level_no]
-            if lv.fixed_key_pos in getattr(lv, "visible_in_block_item_cells", set()):
-                self.picker.rb_flag_visible_in_block.setChecked(True)
-            elif lv.key_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
-                self.picker.rb_flag_white_in_block.setChecked(True)
-            elif lv.key_status == cc.KEY_STATUS_HIDDEN:
-                self.picker.rb_flag_hidden.setChecked(True)
-            elif lv.key_status == cc.KEY_STATUS_IN_BLOCK:
-                self.picker.rb_flag_in_block.setChecked(True)
-            else:
-                self.picker.rb_flag_normal.setChecked(True)
 
     def _update_cursor_from_picker(self):
         """ピッカーで選択中のアイコンを LevelView のカーソル形状に設定"""
@@ -6327,10 +6313,14 @@ class MainWindow(QMainWindow):
                 self._move_pending["move_absorb_flag"] = (
                     self._detach_key_absorb_state_for_move(lv, tile)
                 )
+                if self._move_pending["move_absorb_flag"] is not None:
+                    self._apply_moving_key_absorb_state(lv, self._move_pending, tile)
             elif sub == "door":
                 self._move_pending["move_absorb_flag"] = (
                     self._detach_door_absorb_state_for_move(lv)
                 )
+                if self._move_pending["move_absorb_flag"] is not None:
+                    self._apply_moving_door_absorb_state(lv, self._move_pending, tile)
             self.statusBar().showMessage(
                 f"{self._move_pending['sub']} を掴み中 → ドラッグで移動", 0
             )
