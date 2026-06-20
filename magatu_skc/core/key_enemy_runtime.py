@@ -437,7 +437,7 @@ def _migrate_old_layout(rom_data, changed: list[str]) -> None:
             changed.append(f"clear {name}")
 
 
-def apply(rom_data, enabled: bool = True) -> list[str]:
+def apply(rom_data) -> list[str]:
     if rom_data is None or len(rom_data) < OFF_KEY_HANDLER + len(KEY_HANDLER):
         raise KeyEnemyRuntimeError("ROM is too short for key enemy runtime patch.")
 

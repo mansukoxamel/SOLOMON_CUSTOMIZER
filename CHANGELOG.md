@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK54 (2026-06-20) Key/Fairy runtime呼び出しを固定書き込み契約へ整理
+- `key_enemy_runtime.apply()` から未使用になった `enabled` 引数を削除した。
+- 保存経路からKey/Fairy enemy使用有無の条件引数を渡さないようにし、runtimeは常に同じROM配置へ書く契約を明確にした。
+- ROMバイトの狙いはBLOCK51と同じで、「未使用だから書かない」分岐が復活しないように呼び出し形を整理した。
+
 ## EX-PANEL-V2-BLOCK53 (2026-06-20) mapper66 Room Flag runtimeを常時書き込みへ変更
 - mapper66拡張ROMではRoom FlagのPRG0 hook/cave/runtime helperを毎回同じ配置へ書くようにした。
 - 拡張ROMのRoom Flag読み戻しはStageExt tableを常に正とし、hook常時ON時に古いPRG0 tableへ落ちないようにした。
