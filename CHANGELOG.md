@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK14 (2026-06-20) Panel Variant split配置reportをv2 speed名へ更新
+- `panel_variant_split_placement_candidate()` のspeed行を、旧speed apply/extra helper名からv2 decode / tables+fast loop / hook名へ更新した。
+- report上のサイズも、実際に保存ROMへ書くv2 runtimeサイズに合わせた。
+- 挙動変更はなく、次のPRG0整理で表記に迷わないようにした。
+
 ## EX-PANEL-V2-BLOCK13 (2026-06-20) Panel Monster v2 speed予約spanを実体サイズへ縮小
 - v2 speed runtimeの予約spanを、古い最大枠ではなく実際に書くサイズへ合わせた。
 - `$C088` は56B、`$E823` は80B、`$BF69` は20Bを予約し、余った枠をPRG0候補として見えるようにした。

@@ -955,6 +955,7 @@ def panel_variant_ai_wrapper_candidate() -> dict[str, int]:
 
 def panel_variant_split_placement_candidate() -> dict[str, object]:
     """Return the current split placement plan without writing ROM data."""
+    v2_speed_sizes = _v2_split_speed_reserved_sizes()
     pieces = (
         ("fire_dispatch", panel_monster_variant.OFF_FIRE_DISPATCH, len(FINAL_FIRE_DISPATCH), len(panel_monster_variant.CAVE_FIRE_DISPATCH)),
         ("ai_dispatch_helper", OFF_FINAL_AI_DISPATCH_HELPER, len(FINAL_AI_DISPATCH_HELPER), 0x18),
@@ -972,11 +973,11 @@ def panel_variant_split_placement_candidate() -> dict[str, object]:
         ("static_fire_marker_helper", OFF_FINAL_STATIC_MARKER_HELPER, len(FINAL_STATIC_MARKER_HELPER), 0x10),
         ("dynamic_speed_marker_helper", OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER, len(FINAL_DYNAMIC_SPEED_MARKER_HELPER), 0x1E),
         ("parent_field_clear_helper", OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, len(FINAL_PARENT_FIELD_CLEAR_HELPER), FINAL_PARENT_FIELD_CLEAR_HELPER_CAPACITY),
-        ("bullet_speed_extra_helper", OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, len(FINAL_BULLET_SPEED_EXTRA_HELPER), 0x79),
-        ("bullet_speed_apply_and_table", OFF_FINAL_BULLET_SPEED_APPLY, len(FINAL_BULLET_SPEED_APPLY) + len(FINAL_BULLET_SPEED_TABLE), 0x3A),
+        ("v2_speed_tables_and_fast_loop", OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, v2_speed_sizes["tables_and_fast_loop"], 0x79),
+        ("v2_speed_decode", OFF_FINAL_BULLET_SPEED_APPLY, v2_speed_sizes["speed_decode"], 0x3A),
         ("shared_ai_wrapper", OFF_FINAL_AI_WRAPPER_CANDIDATE, len(FINAL_AI_WRAPPER_CANDIDATE), 0xAB),
         ("fire_marker_table", OFF_FINAL_FIRE_MARKER_TABLE, len(FINAL_FIRE_MARKER_TABLE), 0x0B),
-        ("merged_panel_bullet_hook", panel_monster_variant.OFF_BULLET_HOOK, len(FINAL_MERGED_PANEL_BULLET_HOOK), len(FINAL_MERGED_PANEL_BULLET_HOOK)),
+        ("v2_bullet_speed_hook", panel_monster_variant.OFF_BULLET_HOOK, v2_speed_sizes["bullet_speed_hook"], len(FINAL_MERGED_PANEL_BULLET_HOOK)),
     )
     rows = []
     overlaps = []
