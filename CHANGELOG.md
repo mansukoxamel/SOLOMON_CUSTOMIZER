@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK31 (2026-06-20) v2 runtime統合reportを追加
+- `panel_monster_v2_runtime_save_report()` を追加し、speed/cache書込と保存前guard結果を一つのreportで見られるようにした。
+- speed、global cache、fire marker、parent cleanup、classifierのguard結果をまとめて返す。
+- ROM挙動は変えず、次ブロック以降の確認口を一本化した。
+
 ## EX-PANEL-V2-BLOCK30 (2026-06-20) classifier契約guardを追加
 - 保存前検証にPanel Monster v2 classifier guardを追加した。
 - A/B/C分類の境界、borrowed Panel tail分類、2-way/3-way fire dispatchの比較値を確認する。

@@ -1568,6 +1568,41 @@ def panel_monster_v2_split_speed_save_report(rom_data: bytes | bytearray) -> dic
     }
 
 
+def panel_monster_v2_runtime_save_report(
+    rom_data: bytes | bytearray,
+    common_settings: dict | None = None,
+) -> dict[str, object]:
+    """Report the current Panel Monster v2 runtime state in one place."""
+    if rom_data is None:
+        raise PanelMonsterStageVariantError("ROM is missing.")
+    guard_results = {}
+    for name, validator in (
+        ("speed", _validate_pmv2_speed_core_runtime_contract),
+        ("global_cache", _validate_pmv2_global_cache_runtime_contract),
+        ("fire_marker", _validate_pmv2_fire_marker_runtime_contract),
+        ("parent_cleanup", _validate_pmv2_parent_runtime_contract),
+        ("classifier", _validate_pmv2_classifier_runtime_contract),
+    ):
+        try:
+            validator()
+        except PanelMonsterStageVariantError as exc:
+            guard_results[name] = str(exc)
+        else:
+            guard_results[name] = True
+    speed_report = panel_monster_v2_split_speed_save_report(rom_data)
+    cache_report = panel_monster_v2_global_cache_save_report(rom_data, common_settings)
+    return {
+        "apply_path": apply_panel_monster_v2_runtime.__name__,
+        "guards": guard_results,
+        "guards_ok": all(result is True for result in guard_results.values()),
+        "speed_all_written": speed_report["all_written"],
+        "cache_all_written": cache_report["all_written"],
+        "all_written": speed_report["all_written"] and cache_report["all_written"],
+        "speed": speed_report,
+        "cache": cache_report,
+    }
+
+
 def _validate_pmv2_speed_core_runtime_contract() -> None:
     """Guard the normal ROM save path against a broken Panel Monster speed core."""
     extra_counts = {
