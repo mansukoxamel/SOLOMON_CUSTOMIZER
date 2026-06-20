@@ -2890,6 +2890,7 @@ class MainWindow(QMainWindow):
             self._auto_expanded = auto_expanded
             self.levels = levels
             self.config = config
+            self._sync_panel_variant_settings_from_loaded_rom(rom)
             self._sync_main_palette_to_config()
             self.tile_renderer = TileRenderer(config, nes_tiles)
             self.level_renderer = LevelRenderer(self.tile_renderer, config)
@@ -3387,6 +3388,39 @@ class MainWindow(QMainWindow):
         )
         self._app_config["panel_variant_settings"] = settings
         return settings
+
+    def _panel_variant_settings_from_rom(self, rom: Rom) -> dict:
+        from ..core import panel_monster_stage_variant as pmv
+        default_settings = normalize_panel_variant_settings({})
+        data = bytes(getattr(rom, "data", b"") or b"")
+        loader_start = pmv.OFF_PRG1_RUNTIME_LOADER
+        loader_end = loader_start + len(pmv.RUNTIME_LOADER_SLOT)
+        if len(data) < max(pmv.SETTINGS_TABLE_END, loader_end):
+            return default_settings
+        if bytes(data[loader_start:loader_end]) != pmv.RUNTIME_LOADER_SLOT:
+            return default_settings
+        table = bytes(data[pmv.SETTINGS_TABLE_OFFSET:pmv.SETTINGS_TABLE_END])
+        try:
+            settings = {
+                "a_speed": table[0],
+                "a_interval": table[1],
+                "b_speed": table[2],
+                "b_interval": table[3],
+                "c_speed": table[4],
+                "c_interval": table[5],
+            }
+            return normalize_panel_variant_settings(settings)
+        except Exception:
+            return default_settings
+
+    def _sync_panel_variant_settings_from_loaded_rom(self, rom: Rom) -> None:
+        settings = self._panel_variant_settings_from_rom(rom)
+        old_settings = normalize_panel_variant_settings(
+            self._app_config.get("panel_variant_settings")
+        )
+        self._app_config["panel_variant_settings"] = settings
+        if settings != old_settings:
+            save_config(self._app_config)
 
     def _on_save_rom(self):
         if not self.rom:
