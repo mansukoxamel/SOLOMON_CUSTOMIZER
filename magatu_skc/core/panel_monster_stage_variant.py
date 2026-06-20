@@ -635,6 +635,8 @@ def _build_stage_anim_hook() -> bytes:
     a.label("panel")
     a.b(0xA9, panel_monster_variant.PANEL_ANIM_META[0], 0x85, 0x0A)
     a.b(0xA9, panel_monster_variant.PANEL_ANIM_META[1], 0x85, 0x0B)
+    a.b(0xA0, 0x01, 0xB1, 0x08)
+    a.b(0x4A, 0x29, 0x03, 0x85, 0x0F)
     a.b(0x60)
     return a.finish()
 
