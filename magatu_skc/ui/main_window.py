@@ -6232,12 +6232,11 @@ class MainWindow(QMainWindow):
         if idx >= 0:
             self._push_undo()
             item = lv.items[idx]
-            if item.is_in_block():
-                lv.set_block(Wall.NONE, tile)
+            move_absorb_flag = self._detach_item_absorb_state_for_move(lv, item, tile)
             self._move_pending = {
                 "kind": "item",
                 "ref": item,
-                "visible_in_block": tile in getattr(lv, "visible_in_block_item_cells", set()),
+                "move_absorb_flag": move_absorb_flag,
                 "current_pos": tile,
             }
             self.statusBar().showMessage(f"アイテムを掴み中 → ドラッグで移動", 0)
@@ -6297,11 +6296,14 @@ class MainWindow(QMainWindow):
             self._move_pending = {
                 "kind": "meta",
                 "sub": "key",
-                "visible_in_block": tile in getattr(lv, "visible_in_block_item_cells", set()),
                 "current_pos": tile,
             }
         elif lv.fixed_door_pos == tile and not lv.is_door_removed():
-            self._move_pending = {"kind": "meta", "sub": "door"}
+            self._move_pending = {
+                "kind": "meta",
+                "sub": "door",
+                "current_pos": tile,
+            }
         elif lv.demon_mirrors[0].position == tile:
             self._move_pending = {"kind": "meta", "sub": "mirror1"}
         elif lv.demon_mirrors[1].position == tile:
@@ -6320,9 +6322,19 @@ class MainWindow(QMainWindow):
 
         if self._move_pending:
             self._push_undo()
+            sub = self._move_pending.get("sub")
+            if sub == "key":
+                self._move_pending["move_absorb_flag"] = (
+                    self._detach_key_absorb_state_for_move(lv, tile)
+                )
+            elif sub == "door":
+                self._move_pending["move_absorb_flag"] = (
+                    self._detach_door_absorb_state_for_move(lv)
+                )
             self.statusBar().showMessage(
                 f"{self._move_pending['sub']} を掴み中 → ドラッグで移動", 0
             )
+            self._refresh_view()
             return
 
         # ブロックを掴む（最後の優先順位、他の要素が無い場合のみ）
@@ -6433,11 +6445,9 @@ class MainWindow(QMainWindow):
                 if not self._apply_absorb_flag_to_moving_item(lv, mp, tile, item_absorb_flag):
                     self._show_block_absorb_rejected_message(tile)
                     return
-            elif kind == "item" and mp.get("visible_in_block"):
-                cells = getattr(lv, "visible_in_block_item_cells", set())
-                cells.discard(mp.get("current_pos"))
-                cells.add(tile)
-                mp["current_pos"] = tile
+            elif kind == "item" and mp.get("move_absorb_flag") is not None:
+                self._clear_moving_item_absorb_state(lv, mp)
+                self._apply_moving_item_absorb_state(lv, mp, tile)
             elif kind == "item":
                 mp["current_pos"] = tile
             mp["ref"].position = tile
@@ -6447,23 +6457,34 @@ class MainWindow(QMainWindow):
                 if lv.get_item_index(tile) >= 0:
                     self._show_key_door_item_overlap_message(tile)
                     return
-                if self._is_blocking_edit_block_cell(lv, tile):
+                target_absorb_flag = self._block_absorb_flag_at_tile(lv, tile)
+                if self._is_blocking_edit_block_cell(lv, tile) and not self._can_apply_absorb_flag_to_moving_key(target_absorb_flag):
                     self._show_block_absorb_rejected_message(tile)
                     return
-                if mp.get("visible_in_block"):
-                    cells = getattr(lv, "visible_in_block_item_cells", set())
-                    cells.discard(mp.get("current_pos"))
-                    cells.add(tile)
-                    mp["current_pos"] = tile
+                self._clear_moving_key_absorb_state(lv, mp)
                 lv.fixed_key_pos = tile
+                if target_absorb_flag is not None:
+                    self._apply_absorb_flag_to_tile(lv, tile, target_absorb_flag)
+                    mp["move_absorb_flag"] = target_absorb_flag
+                elif mp.get("move_absorb_flag") is not None:
+                    self._apply_moving_key_absorb_state(lv, mp, tile)
+                mp["current_pos"] = tile
             elif sub == "door":
                 if lv.get_item_index(tile) >= 0:
                     self._show_key_door_item_overlap_message(tile)
                     return
-                if self._is_blocking_edit_block_cell(lv, tile):
+                target_absorb_flag = self._block_absorb_flag_at_tile(lv, tile)
+                if self._is_blocking_edit_block_cell(lv, tile) and not self._can_apply_absorb_flag_to_moving_door(target_absorb_flag):
                     self._show_block_absorb_rejected_message(tile)
                     return
+                self._clear_moving_door_absorb_state(lv, mp)
                 lv.fixed_door_pos = tile
+                if target_absorb_flag is not None:
+                    self._apply_absorb_flag_to_tile(lv, tile, target_absorb_flag)
+                    mp["move_absorb_flag"] = target_absorb_flag
+                elif mp.get("move_absorb_flag") is not None:
+                    self._apply_moving_door_absorb_state(lv, mp, tile)
+                mp["current_pos"] = tile
             elif sub == "start":
                 if lv.get_enemy_index(tile) >= 0:
                     self._show_start_enemy_overlap_message(tile)
@@ -7151,14 +7172,220 @@ class MainWindow(QMainWindow):
         )
 
     def _can_apply_absorb_flag_to_moving_item(self, item, flag: int) -> bool:
-        if flag is None:
+        if not self._absorb_allowed("item", flag):
             return False
         base = int(getattr(item, "element_no", 0)) & 0x3F
-        if flag in (c.ITEM_FLAG_WHITE_IN_BLOCK, c.ITEM_FLAG_VISIBLE_IN_BLOCK):
+        if self._absorb_requires_low_item_id("item", flag):
             return base <= c.ITEM_WHITE_IN_BLOCK_MAX_BASE
+        return True
+
+    def _absorb_rule_matrix(self):
+        # Placement/move overlap rules for block-contained targets.
+        # Columns are brown, white, visible, cracked in-block flags.
+        return {
+            "item": {
+                c.ITEM_FLAG_IN_BLOCK,
+                c.ITEM_FLAG_WHITE_IN_BLOCK,
+                c.ITEM_FLAG_VISIBLE_IN_BLOCK,
+                c.ITEM_FLAG_CRACKED_IN_BLOCK,
+            },
+            "key": {
+                c.ITEM_FLAG_IN_BLOCK,
+                c.ITEM_FLAG_WHITE_IN_BLOCK,
+                c.ITEM_FLAG_VISIBLE_IN_BLOCK,
+                c.ITEM_FLAG_CRACKED_IN_BLOCK,
+            },
+            "door": {
+                c.ITEM_FLAG_IN_BLOCK,
+                c.ITEM_FLAG_WHITE_IN_BLOCK,
+            },
+        }
+
+    def _absorb_allowed(self, target_kind: str, flag: int | None) -> bool:
+        return flag in self._absorb_rule_matrix().get(target_kind, set())
+
+    def _absorb_requires_low_item_id(self, target_kind: str, flag: int | None) -> bool:
+        return target_kind == "item" and flag in (
+            c.ITEM_FLAG_WHITE_IN_BLOCK,
+            c.ITEM_FLAG_VISIBLE_IN_BLOCK,
+            c.ITEM_FLAG_CRACKED_IN_BLOCK,
+        )
+
+    def _absorb_target_kind_at_tile(self, lv, tile) -> str | None:
+        if not lv.is_key_removed() and lv.fixed_key_pos == tile:
+            return "key"
+        if not lv.is_door_removed() and lv.fixed_door_pos == tile:
+            return "door"
+        if lv.get_item_index(tile) >= 0:
+            return "item"
+        return None
+
+    def _can_absorb_flag_to_target_at_tile(self, lv, tile, flag: int | None) -> bool:
+        target_kind = self._absorb_target_kind_at_tile(lv, tile)
+        if target_kind is None or not self._absorb_allowed(target_kind, flag):
+            return False
+        if target_kind != "item" or not self._absorb_requires_low_item_id(target_kind, flag):
+            return True
+        idx = lv.get_item_index(tile)
+        if idx < 0:
+            return False
+        base = int(lv.items[idx].element_no) & 0x3F
+        return base <= c.ITEM_WHITE_IN_BLOCK_MAX_BASE
+
+    def _item_absorb_flag_for_move(self, lv, item, tile) -> int | None:
+        if item is None:
+            return None
+        if item.is_white_in_block():
+            return c.ITEM_FLAG_WHITE_IN_BLOCK
+        if item.is_in_block():
+            return c.ITEM_FLAG_IN_BLOCK
+        if tile in getattr(lv, "visible_in_block_item_cells", set()):
+            return c.ITEM_FLAG_VISIBLE_IN_BLOCK
+        if (
+            tile in getattr(lv, "cracked_block_cells", set())
+            and self._can_apply_absorb_flag_to_moving_item(item, c.ITEM_FLAG_CRACKED_IN_BLOCK)
+        ):
+            return c.ITEM_FLAG_CRACKED_IN_BLOCK
+        return None
+
+    def _detach_item_absorb_state_for_move(self, lv, item, tile) -> int | None:
+        flag = self._item_absorb_flag_for_move(lv, item, tile)
+        if flag is None:
+            return None
+        base = int(item.element_no) & 0x3F
+        item.element_no = base
+        visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+        visible_cells.discard(tile)
+        if flag in (c.ITEM_FLAG_IN_BLOCK, c.ITEM_FLAG_CRACKED_IN_BLOCK):
+            lv.set_block(Wall.NONE, tile)
+        return flag
+
+    def _clear_moving_item_absorb_state(self, lv, mp):
+        flag = mp.get("move_absorb_flag")
+        if flag is None:
+            return
+        tile = mp.get("current_pos")
+        item = mp.get("ref")
+        if item is not None:
+            item.element_no = int(item.element_no) & 0x3F
+        if tile is None:
+            return
+        visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+        if flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
+            visible_cells.discard(tile)
+        elif flag == c.ITEM_FLAG_CRACKED_IN_BLOCK:
+            lv.set_block(Wall.NONE, tile)
+
+    def _apply_moving_item_absorb_state(self, lv, mp, tile):
+        item = mp.get("ref")
+        if item is None:
+            return
+        flag = mp.get("move_absorb_flag")
+        base = int(item.element_no) & 0x3F
+        visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+        if flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
+            item.element_no = base
+            visible_cells.add(tile)
+        elif flag == c.ITEM_FLAG_CRACKED_IN_BLOCK:
+            item.element_no = base
+            visible_cells.discard(tile)
+            lv.set_block(Wall.BROWN, tile)
+            lv.cracked_block_cells.add(tile)
+        elif flag in (c.ITEM_FLAG_IN_BLOCK, c.ITEM_FLAG_WHITE_IN_BLOCK):
+            item.element_no = base | flag
+            visible_cells.discard(tile)
+        mp["current_pos"] = tile
+
+    def _key_absorb_flag_for_move(self, lv, tile) -> int | None:
+        from ..core import constants as cc
+        if tile in getattr(lv, "visible_in_block_item_cells", set()):
+            return c.ITEM_FLAG_VISIBLE_IN_BLOCK
+        if (
+            tile in getattr(lv, "cracked_block_cells", set())
+            and lv.key_status == cc.KEY_STATUS_HIDDEN
+        ):
+            return c.ITEM_FLAG_CRACKED_IN_BLOCK
+        if lv.key_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
+            return c.ITEM_FLAG_WHITE_IN_BLOCK
+        if lv.key_status == cc.KEY_STATUS_IN_BLOCK:
+            return c.ITEM_FLAG_IN_BLOCK
+        return None
+
+    def _detach_key_absorb_state_for_move(self, lv, tile) -> int | None:
+        from ..core import constants as cc
+        flag = self._key_absorb_flag_for_move(lv, tile)
+        if flag is None:
+            return None
+        visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+        visible_cells.discard(tile)
         if flag == c.ITEM_FLAG_CRACKED_IN_BLOCK:
-            return base <= c.ITEM_WHITE_IN_BLOCK_MAX_BASE
-        return flag == c.ITEM_FLAG_IN_BLOCK
+            lv.set_block(Wall.NONE, tile)
+        lv.key_status = cc.KEY_STATUS_NORMAL
+        return flag
+
+    def _can_apply_absorb_flag_to_moving_key(self, flag: int | None) -> bool:
+        return self._absorb_allowed("key", flag)
+
+    def _clear_moving_key_absorb_state(self, lv, mp):
+        from ..core import constants as cc
+        tile = mp.get("current_pos")
+        if tile is None:
+            return
+        visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+        visible_cells.discard(tile)
+        if mp.get("move_absorb_flag") == c.ITEM_FLAG_CRACKED_IN_BLOCK:
+            lv.set_block(Wall.NONE, tile)
+        lv.key_status = cc.KEY_STATUS_NORMAL
+
+    def _apply_moving_key_absorb_state(self, lv, mp, tile):
+        from ..core import constants as cc
+        flag = mp.get("move_absorb_flag")
+        visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+        if flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
+            lv.key_status = cc.KEY_STATUS_NORMAL
+            visible_cells.add(tile)
+        elif flag == c.ITEM_FLAG_CRACKED_IN_BLOCK:
+            lv.key_status = cc.KEY_STATUS_HIDDEN
+            visible_cells.discard(tile)
+            lv.set_block(Wall.BROWN, tile)
+            lv.cracked_block_cells.add(tile)
+        else:
+            lv.key_status = {
+                c.ITEM_FLAG_IN_BLOCK: cc.KEY_STATUS_IN_BLOCK,
+                c.ITEM_FLAG_WHITE_IN_BLOCK: cc.KEY_STATUS_WHITE_IN_BLOCK,
+            }.get(flag, cc.KEY_STATUS_NORMAL)
+            visible_cells.discard(tile)
+
+    def _door_absorb_flag_for_move(self, lv) -> int | None:
+        from ..core import room_flags as _rf
+        door_state = lv.room_flags & _rf.DOOR_STATE_MASK
+        if door_state == _rf.DOOR_STATE_WHITE_IN_BLOCK:
+            return c.ITEM_FLAG_WHITE_IN_BLOCK
+        if door_state == _rf.DOOR_STATE_IN_BLOCK:
+            return c.ITEM_FLAG_IN_BLOCK
+        return None
+
+    def _detach_door_absorb_state_for_move(self, lv) -> int | None:
+        from ..core import room_flags as _rf
+        flag = self._door_absorb_flag_for_move(lv)
+        lv.room_flags = (lv.room_flags & ~_rf.DOOR_STATE_MASK) | _rf.DOOR_STATE_NORMAL
+        return flag
+
+    def _can_apply_absorb_flag_to_moving_door(self, flag: int | None) -> bool:
+        return self._absorb_allowed("door", flag)
+
+    def _clear_moving_door_absorb_state(self, lv, mp):
+        from ..core import room_flags as _rf
+        lv.room_flags = (lv.room_flags & ~_rf.DOOR_STATE_MASK) | _rf.DOOR_STATE_NORMAL
+
+    def _apply_moving_door_absorb_state(self, lv, mp, tile):
+        from ..core import room_flags as _rf
+        flag = mp.get("move_absorb_flag")
+        door_state = {
+            c.ITEM_FLAG_IN_BLOCK: _rf.DOOR_STATE_IN_BLOCK,
+            c.ITEM_FLAG_WHITE_IN_BLOCK: _rf.DOOR_STATE_WHITE_IN_BLOCK,
+        }.get(flag, _rf.DOOR_STATE_NORMAL)
+        lv.room_flags = (lv.room_flags & ~_rf.DOOR_STATE_MASK) | door_state
 
     def _restore_drag_item_absorbed_block(self, lv, mp):
         state = mp.pop("absorbed_block_state", None)
@@ -7221,25 +7448,18 @@ class MainWindow(QMainWindow):
         )
 
     def _can_apply_absorb_flag_to_tile(self, lv, tile, flag: int) -> bool:
-        if flag is None:
+        if not self._can_absorb_flag_to_target_at_tile(lv, tile, flag):
             return False
         if not lv.is_key_removed() and lv.fixed_key_pos == tile:
-            return flag != c.ITEM_FLAG_CRACKED_IN_BLOCK
+            return True
         if not lv.is_door_removed() and lv.fixed_door_pos == tile:
-            return flag not in (c.ITEM_FLAG_VISIBLE_IN_BLOCK, c.ITEM_FLAG_CRACKED_IN_BLOCK)
+            return True
         idx = lv.get_item_index(tile)
         if idx < 0:
             return False
         item = lv.items[idx]
         if self._is_protected_open_door_item(lv, item):
             return False
-        base = int(item.element_no) & 0x3F
-        if flag in (
-            c.ITEM_FLAG_WHITE_IN_BLOCK,
-            c.ITEM_FLAG_VISIBLE_IN_BLOCK,
-            c.ITEM_FLAG_CRACKED_IN_BLOCK,
-        ):
-            return base <= c.ITEM_WHITE_IN_BLOCK_MAX_BASE
         return True
 
     def _clip_has_start_enemy_overlap(self, lv, clip, ox: int, oy: int) -> bool:
