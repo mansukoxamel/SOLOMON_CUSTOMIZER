@@ -225,9 +225,9 @@
 
     <div class="note">
       <strong>v2 Foundationの目的:</strong>
-      Panel Monster周辺を同じ設計へ載せ直す。A/B/Cの旧cache経路を消すのは単独目的ではなく、
-      通常Panel / 2-way / 3-way / A/B/C / Bullet speed / collision / parent driftを統一するための工程である。
-      PRG1 stage table、PRG1 global cache table、RAM <code>$0740-$0745</code> cache、cache読込helperはv2契約へ吸収・撤去する候補になる。
+      Panel Monster周辺を同じ設計へ載せ直す。A/B/Cのspeed/intervalはPRG1 6B tableからloaderでRAMへ置き、
+      PRG0 helperは短いcache読込だけを行う。通常Panel / 2-way / 3-way / A/B/C / Bullet speed / collision / parent driftを
+      同じ契約で扱い、旧prototypeや旧standalone blobは残さない。
     </div>
   </section>
 
@@ -266,7 +266,7 @@
     <table>
       <tr><th>アドレス</th><th>役割</th><th>v2 Foundationでの扱い</th></tr>
       <tr><td><code>$A54C</code></td><td>Panel Monster AI dispatch。state 0/1へ分岐。</td><td>維持。A/B/Cも最終的にはここへ寄せる。</td></tr>
-      <tr><td><code>$A575</code></td><td>state 0 cooldown。原作比較は <code>CMP #$C0</code>。</td><td>A/B/C interval override hookが入っている。v2 Foundationではcache依存を削る。</td></tr>
+      <tr><td><code>$A575</code></td><td>state 0 cooldown。原作比較は <code>CMP #$C0</code>。</td><td>A/B/C interval override hookが入っている。v2 FoundationではPRG0を太らせないcache契約を維持する。</td></tr>
       <tr><td><code>$A556</code></td><td>state 1 fire。原作pre-shot waitは <code>CMP #$10</code>。</td><td>fire dispatch hookの入口。2-way/3-way/A/B/Cが合流。</td></tr>
       <tr><td><code>$AE76</code></td><td>child Bullet生成。親sub[6]で対象child slotを決める。</td><td>維持。ここを壊すとBullet追跡が崩れる。</td></tr>
       <tr><td><code>$AFBB</code></td><td>Bullet AI dispatch。</td><td>速度presetとextra-stepのhookが合流する。</td></tr>
@@ -341,9 +341,9 @@
     <h3>5.1 ID設計</h3>
     <table>
       <tr><th>Group</th><th>IDs</th><th>方向</th><th>current 6df3733 behavior</th><th>v2 Foundation後</th></tr>
-      <tr><td>C</td><td><code>$31/$33/$35/$37</code></td><td>R/L/U/D</td><td>group offset <code>$04</code> で <code>$0744/$0745</code> を読む。</td><td>敵IDは維持。旧cache経路はv2契約へ吸収する。</td></tr>
-      <tr><td>A</td><td><code>$41/$43/$45/$47</code></td><td>R/L/U/D</td><td>group offset <code>$00</code> で <code>$0740/$0741</code> を読む。</td><td>敵IDは維持。旧cache経路はv2契約へ吸収する。</td></tr>
-      <tr><td>B</td><td><code>$49/$4B/$4D/$4F</code></td><td>R/L/U/D</td><td>group offset <code>$02</code> で <code>$0742/$0743</code> を読む。</td><td>敵IDは維持。旧cache経路はv2契約へ吸収する。</td></tr>
+      <tr><td>C</td><td><code>$31/$33/$35/$37</code></td><td>R/L/U/D</td><td>group offset <code>$04</code> で <code>$0744/$0745</code> を読む。</td><td>敵IDは維持。global cache契約でPRG0を増やさない。</td></tr>
+      <tr><td>A</td><td><code>$41/$43/$45/$47</code></td><td>R/L/U/D</td><td>group offset <code>$00</code> で <code>$0740/$0741</code> を読む。</td><td>敵IDは維持。global cache契約でPRG0を増やさない。</td></tr>
+      <tr><td>B</td><td><code>$49/$4B/$4D/$4F</code></td><td>R/L/U/D</td><td>group offset <code>$02</code> で <code>$0742/$0743</code> を読む。</td><td>敵IDは維持。global cache契約でPRG0を増やさない。</td></tr>
     </table>
 
     <h3>5.2 current 6df3733 data flow</h3>
@@ -381,9 +381,10 @@
     </div>
 
     <div class="warn">
-      <strong>v2 Foundationで切る線:</strong>
+      <strong>v2 Foundationで固定する線:</strong>
       <code>common_settings -> PRG1 global cache table -> loader copy -> $0740-$0745 -> cache helper</code>
-      の旧経路を消す。これはcacheだけを消す作業ではなく、A/B/C敵ID、方向、Bullet marker、2-way/3-way共存をv2契約へ載せ直す工程である。
+      を現行の短い契約として扱う。cacheを直接operandへ置き換えるとPRG0が太るため、今は消さない。
+      A/B/C敵ID、方向、Bullet marker、2-way/3-way共存をv2契約へ載せ直すことが主目的である。
     </div>
 
     <h3>5.3 marker設計</h3>
@@ -411,7 +412,7 @@
       <tr><td>group_ram_offset_helper</td><td class="num">0x3EAF-0x3EB6</td><td class="num">$BE9F-$BEA6</td><td class="num">8B</td><td class="num">23B</td><td>A/B/C group offset helperを呼ぶ。</td></tr>
       <tr><td>speed_select_helper</td><td class="num">0x3ECD-0x3ED3</td><td class="num">$BEBD-$BEC3</td><td class="num">7B</td><td class="num">10B</td><td><code>$0740+$X</code> からspeed presetを読む。</td></tr>
       <tr><td>static_marker_helper</td><td class="num">0x3F50-0x3F5B</td><td class="num">$BF40-$BF4B</td><td class="num">12B</td><td class="num">16B</td><td>child sub-slot marker書込。</td></tr>
-      <tr><td>v2_bullet_speed_hook</td><td class="num">0x3F79-0x3F8C</td><td class="num">$BF69-$BF7C</td><td class="num">20B</td><td class="num">81B</td><td>Bullet state2からv2 decodeとfast loopへ入る入口。slot自体は旧hook互換のため81B予約。</td></tr>
+      <tr><td>v2_bullet_speed_hook</td><td class="num">0x3F79-0x3F8C</td><td class="num">$BF69-$BF7C</td><td class="num">20B</td><td class="num">81B</td><td>Bullet state2からv2 decodeとfast loopへ入る入口。予約容量は既存Bullet hook枠 + 追加33B。</td></tr>
       <tr><td>v2_speed_decode</td><td class="num">0x4098-0x40CF</td><td class="num">$C088-$C0BF</td><td class="num">56B</td><td class="num">58B</td><td>marker <code>$88-$8B</code> をdecodeし、速度presetとextra countを決める。</td></tr>
       <tr><td>v2_speed_tables_and_fast_loop</td><td class="num">0x6833-0x6882</td><td class="num">$E823-$E872</td><td class="num">80B</td><td class="num">121B</td><td>速度table、extra count table、2x/3x共有substep loop。壁衝突時は破壊/撃破effectへ入らず戻る。</td></tr>
       <tr><td>parent_field_clear_helper</td><td class="num">0x67A3-0x67B3</td><td class="num">$E793-$E7A3</td><td class="num">17B</td><td class="num">17B</td><td>親velocity/subpixel clear。</td></tr>
@@ -425,9 +426,9 @@
     <h3>6.2 RAM/PRG1 current cache配置</h3>
     <table>
       <tr><th>場所</th><th>current role</th><th>v2 Foundation role</th></tr>
-      <tr><td><code>PRG1 0x8A70-0x8A75</code></td><td>global cache table 6B。A/B/C speed+interval。</td><td>撤去候補。v2の固定表・直接operand・新契約へ吸収する。</td></tr>
-      <tr><td><code>PRG1 0x8A10-0x8A6F</code></td><td>runtime loader slot 96B。StageExt side effects + cache copy。</td><td>StageExt side effectsは維持。cache copyだけをv2契約に合わせて消す。</td></tr>
-      <tr><td><code>RAM $0740-$0745</code></td><td>A/B/C runtime cache。</td><td>Panel用途から解放候補。実装時は <code>ram_map_current.html</code> と予約説明を同時更新するまで未完了。</td></tr>
+      <tr><td><code>PRG1 0x8A70-0x8A75</code></td><td>global cache table 6B。A/B/C speed+interval。</td><td>維持。ユーザー値をPRG1へ置き、PRG0 helperを短くする。</td></tr>
+      <tr><td><code>PRG1 0x8A10-0x8A6F</code></td><td>runtime loader slot 96B。StageExt side effects + cache copy。</td><td>維持。StageExt side effectsとA/B/C 6B copyを同じloaderで扱う。</td></tr>
+      <tr><td><code>RAM $0740-$0745</code></td><td>A/B/C runtime cache。</td><td>維持。interval/speed helperのPRG0肥大を避けるための受け渡し場所。</td></tr>
       <tr><td><code>RAM $0750-$0767</code></td><td>visible item mask。</td><td>無関係。触らない。</td></tr>
     </table>
   </section>
@@ -465,9 +466,9 @@
     <h2>8. v2 Foundation設計</h2>
     <div class="ok">
       <strong>読み方:</strong>
-      この章は「cacheだけを消す小修理」ではない。
-      旧cache撤去は、Panel Monster v2で分類・fire・Bullet・parent契約を統一するための土台整理である。
-      既存の古い章名で出てくる「Phase 1」という語は、単独撤退作業ではなく <strong>v2 Foundation</strong> を指す。
+      この章は「cacheを消す小修理」ではない。
+      cacheはPRG0を削るために残す。Panel Monster v2で分類・fire・Bullet・parent契約を統一し、
+      旧prototypeと旧standalone計画を消して、最新runtimeだけで判断する土台を作る。
     </div>
 
     <h3>8.1 作業順</h3>
@@ -481,21 +482,21 @@
       </tr>
       <tr>
         <td class="num">2</td>
-        <td>cache経路をv2契約へ吸収する設計を確定。</td>
-        <td>旧PRG1 table/RAM cache依存の削除は、v2 Foundationの一工程。</td>
-        <td><code>$0740-$0745</code> をPanel Variantが読まない。</td>
+        <td>global cache経路をv2契約として固定。</td>
+        <td>直接operand化よりPRG0が短い。</td>
+        <td><code>$0740-$0745</code> をA/B/C helperだけが読む。</td>
       </tr>
       <tr>
         <td class="num">3</td>
-        <td>interval/speed helperを直接値または固定契約へ置換。</td>
-        <td>cache helperを残すとv2 Foundationが完了しない。</td>
-        <td><code>$BE62/$BEBD/$E92C</code> の責務がcache非依存になる。</td>
+        <td>interval/speed helperをcache契約の短いreaderとして維持。</td>
+        <td>ユーザー値をPRG1に置き、PRG0の分岐と即値を増やさない。</td>
+        <td><code>$BE62/$BEBD/$E92C</code> の責務が説明できる。</td>
       </tr>
       <tr>
         <td class="num">4</td>
-        <td>runtime loaderからcache copyだけ削除。</td>
-        <td>StageExt/Seal/visible item side effectsは別機能なので残す。</td>
-        <td>loader再保存互換が維持される。</td>
+        <td>runtime loaderの6B copyを検証対象として固定。</td>
+        <td>StageExt/Seal/visible item side effectsとA/B/C cache copyを混同しない。</td>
+        <td>global cache tableとloaderが保存ROMへ書かれる。</td>
       </tr>
       <tr>
         <td class="num">5</td>
@@ -507,7 +508,7 @@
         <td class="num">6</td>
         <td>Mesen probeで動作確認。</td>
         <td>静的署名だけではBullet/親driftは確定しない。</td>
-        <td>旧cache writeなし、Bullet marker正、A/B/C方向正。</td>
+        <td>global cache copy正、Bullet marker正、A/B/C方向正。</td>
       </tr>
     </table>
 
@@ -515,10 +516,10 @@
     <table>
       <tr><th>項目</th><th>v2 Foundation</th><th>理由</th></tr>
       <tr><td>A/B/C敵ID</td><td class="ok">維持</td><td>ユーザーが配置済みの敵種別を読めなくしてはいけない。</td></tr>
-      <tr><td>A/B/C speed/intervalの旧cache保存</td><td class="danger">撤去</td><td>v2ではcacheではなく固定表・直接operand・新契約から供給する。</td></tr>
+      <tr><td>A/B/C speed/intervalのglobal cache保存</td><td class="ok">維持</td><td>PRG1 table + RAM cacheでPRG0を短くする。</td></tr>
       <tr><td><code>PanelVariantStageTable</code> 64 room table</td><td class="danger">廃止/予約回収</td><td>ステージ別値が不要になる。</td></tr>
-      <tr><td>PRG1 6B global cache table</td><td class="danger">撤去候補</td><td>v2契約へ吸収するなら不要。</td></tr>
-      <tr><td>RAM <code>$0740-$0745</code></td><td class="danger">Panel用途から解放候補</td><td>RAM台帳と予約説明の同時更新まで完了扱いにしない。</td></tr>
+      <tr><td>PRG1 6B global cache table</td><td class="ok">維持</td><td>ユーザー値をPRG1側に置く。</td></tr>
+      <tr><td>RAM <code>$0740-$0745</code></td><td class="ok">維持</td><td>loaderからPRG0 helperへ渡す短いcache。</td></tr>
       <tr><td>2-way/3-way borrowed IDs</td><td class="ok">維持</td><td>既存機能。A/B/C helperに巻き込まない。</td></tr>
       <tr><td>Bullet marker <code>$88-$8B</code></td><td class="ok">維持</td><td>速度preset判定に必要。保存場所はsub+7。</td></tr>
       <tr><td>Bullet extra step + <code>$AC39</code></td><td class="ok">維持</td><td>壁抜け防止の核。</td></tr>
@@ -535,15 +536,15 @@
       <tr><td><code>python -m compileall -q magatu_skc</code></td><td>生成ASM/定数assertが壊れていない。</td><td>通る。</td></tr>
       <tr><td><code>git diff --check</code></td><td>空白/改行事故を防ぐ。</td><td>通る。</td></tr>
       <tr><td><code>room_flags._verify()</code></td><td>ROM/RAM予約重複を防ぐ。</td><td>通る。</td></tr>
-      <tr><td>クリーンJP ROM -> mapper66 -> patch apply</td><td>初回保存互換。</td><td>署名エラーなし。</td></tr>
-      <tr><td>同じROMへ再apply</td><td>再保存互換。</td><td>差分 <code>[]</code>。</td></tr>
-      <tr><td>旧cache runtime ROMへapply</td><td>既存ユーザーROMの移行。</td><td>direct runtimeへ正規化。</td></tr>
+      <tr><td>クリーンJP ROM -> mapper66 -> patch apply</td><td>原作状態から最新v2へ書ける。</td><td>署名エラーなし。</td></tr>
+      <tr><td>同じROMへ再apply</td><td>最新v2状態をもう一度保存できる。</td><td>同一出力。</td></tr>
+      <tr><td>global cache report</td><td>PRG1 6B tableとloaderが書かれている。</td><td><code>all_written=True</code>。</td></tr>
     </table>
 
     <h3>9.2 Mesen probe観測点</h3>
     <table>
       <tr><th>観測</th><th>見る場所</th><th>期待</th></tr>
-      <tr><td>旧cache write</td><td><code>$0740-$074F</code> write callback</td><td>v2 Foundation後はPanel Variant由来のwriteなし。</td></tr>
+      <tr><td>global cache copy</td><td><code>$0740-$0745</code> write callback</td><td>room loaderがA/B/C 6Bをコピーする。</td></tr>
       <tr><td>interval helper</td><td><code>$A575</code>, helper CPU</td><td>A/B/Cと通常Panelの分岐が正しい。</td></tr>
       <tr><td>speed selector</td><td>speed helper / dynamic marker helper</td><td>A/B/Cごとのmarkerが正しい。</td></tr>
       <tr><td>child marker</td><td>child sub-slot <code>+7</code></td><td><code>$88-$8B</code> または <code>$00</code>。</td></tr>
@@ -564,13 +565,13 @@
 
     <div class="note">
       <strong>このPassの目的:</strong>
-      まだROM runtimeは変更しない。まず、以降の作業が「cacheだけ削る」「速度だけ直す」「driftだけ潰す」という局所作業へ戻らないよう、Panel Monster全系統の土台を固定する。
+      まだ新しい大改造へ進まない。まず、以降の作業が「cacheだけ削る」「速度だけ直す」「driftだけ潰す」という局所作業へ戻らないよう、Panel Monster全系統の土台を固定する。
     </div>
 
     <h3>10.1 まず確認する現在地</h3>
     <table>
       <tr><th>確認</th><th>コマンド/見る場所</th><th>期待値</th></tr>
-      <tr><td>基準commit</td><td><code>git rev-parse --short HEAD</code></td><td><code>6df3733</code></td></tr>
+      <tr><td>基準commit</td><td><code>git rev-parse --short HEAD</code></td><td>作業ブランチの最新commit。</td></tr>
       <tr><td>設計図</td><td><code>docs/panel_monster_full_design_map.html</code></td><td>Git管理対象として追加済み。</td></tr>
       <tr><td>Issue</td><td>GitHub Issue #1</td><td>旧段階案を消さず、Foundation Pass方針を追記済み。</td></tr>
       <tr><td>作業開始条件</td><td>このHTML</td><td>どの経路を触るか説明してから着手する。</td></tr>
@@ -580,11 +581,11 @@
     <table>
       <tr><th>不変条件</th><th>理由</th><th>破ると起きる問題</th></tr>
       <tr><td>Panel系IDは失わない。</td><td>既存ステージデータの敵種別互換を守る。</td><td>古いステージでA/B/C敵が消える。</td></tr>
-      <tr><td>旧cache経由のA/B/C speed/interval値は復元しない。</td><td>旧仕様を延命しない。</td><td>cache/table互換が残り、v2 Foundationが終わらない。</td></tr>
+      <tr><td>A/B/C speed/intervalはglobal cache契約で読む。</td><td>PRG0を増やさない。</td><td>直接operand化でPRG0が太る。</td></tr>
       <tr><td>2-way/3-wayをA/B/C cache pathへ巻き込まない。</td><td>既存強化Panel Monsterは維持対象。</td><td>2-way/3-wayの弾数や方向が崩れる。</td></tr>
       <tr><td>Bullet markerはchild sub-slot <code>+7</code>。</td><td>speed preset判定の実体。</td><td>main+7のY座標をmarkerと誤診断する。</td></tr>
       <tr><td>速いBulletはsubstepごとに <code>$AC39</code> を守る。</td><td>壁抜け防止。</td><td>2x/3x Bulletが壁をすり抜ける。</td></tr>
-      <tr><td><code>$0740-$0745</code> はv2 Foundationの最後にPanel用途から外す。</td><td>cache撤去は分類・fire・Bullet契約の固定後に行う。</td><td>loader/RAM/helperだけ先に変えて挙動がずれる。</td></tr>
+      <tr><td><code>$0740-$0745</code> はPanel用途として維持する。</td><td>loader/RAM/helperの契約を固定する。</td><td>値の受け渡し場所がずれてA/B/C設定が壊れる。</td></tr>
     </table>
 
     <h3>10.3 最初にやる実作業</h3>
@@ -592,7 +593,7 @@
       <tr><th>順番</th><th>作業</th><th>成果物</th></tr>
       <tr><td class="num">1</td><td>このHTMLをGit管理へ追加する。</td><td>Foundation Pass 0の基準資料が履歴に残る。</td></tr>
       <tr><td class="num">2</td><td>Issue #1の追記方針とHTMLのPass構成が一致しているか確認する。</td><td>GitHub上の方針とローカル設計図が食い違わない。</td></tr>
-      <tr><td class="num">3</td><td>次の作業対象を「分類」「Fire path」「Bullet path」「cache廃止」に分けて選ぶ。</td><td>コード変更の入口が明確になる。</td></tr>
+      <tr><td class="num">3</td><td>次の作業対象を「分類」「Fire path」「Bullet path」「global cache」に分けて選ぶ。</td><td>コード変更の入口が明確になる。</td></tr>
       <tr><td class="num">4</td><td>コードへ入る前に、触るhook/siteと守る検証を宣言する。</td><td>局所修正の迷走を防ぐ。</td></tr>
     </table>
 
@@ -620,7 +621,7 @@
         <td><code>panel_monster_stage_variant._build_abc_group_offset_helper()</code><br><code>$E92C</code></td>
         <td>A/B/C IDsのみ</td>
         <td><code>$0740-$0745</code> cacheのoffset決定</td>
-        <td>cache廃止後は責務が消える。2-way/3-wayとは別分類。</td>
+        <td>global cache readerとして責務を固定する。2-way/3-wayとは別分類。</td>
       </tr>
       <tr>
         <td>shared Panel type classifier</td>
@@ -720,7 +721,7 @@
         <td>A/B/C parameter helperの責務縮小</td>
         <td>cache offset helperではなくA/B/C group selectorとして定義し直す。</td>
         <td>中</td>
-        <td>Phase 4でcache廃止する時に消すのか、直接operand selectorとして残すのか。</td>
+        <td>global cache readerとして残す。直接operand selectorにはしない。</td>
       </tr>
       <tr>
         <td>parent clear責務の一本化</td>
@@ -794,7 +795,7 @@
       <tr><td>AI entry</td><td>A/B/C entry、borrowed-ID wrapper、parent field clear契約</td><td>既存stock AI <code>$A54C</code></td></tr>
       <tr><td>Fire path</td><td>normal / 2-way / 3-way / A/B/C dispatch、common fire loop、marker write</td><td><code>$AE76</code> child materialize</td></tr>
       <tr><td>Bullet path</td><td>marker decode、speed apply、2x/3x extra-step、collision sample契約</td><td>stock impact path <code>$AFD8/$B016/$9BE3</code></td></tr>
-      <tr><td>Cache廃止</td><td>A/B/C fixed operandまたは固定契約</td><td>旧<code>$0740-$0745</code> cache、旧PRG1 table</td></tr>
+      <tr><td>Global cache固定</td><td>PRG1 6B table + RAM <code>$0740-$0745</code></td><td>直接operand化、旧64-room table</td></tr>
     </table>
 
     <h3>12.4 仮置きから本番配置へ移す手順</h3>
@@ -1010,9 +1011,9 @@
       <tr><th>段階</th><th>作るもの</th><th>まだ触らないもの</th><th>合格条件</th></tr>
       <tr>
         <td class="num">1</td>
-        <td>既存の <code>PANEL_VARIANT_BLOB</code> 系とは混ぜず、v2用blob builderへ分ける。ROMへはまだ書かない。</td>
-        <td>既存hook、ROM配置、RESERVED_SPANS。</td>
-        <td>entry一覧、内部label、サイズ、外部JSR先、共通化で増えた判定byte数が表で出る。</td>
+        <td>旧 <code>PANEL_VARIANT_BLOB</code> 系を削除し、v2 speed core builderだけを残す。</td>
+        <td>既存hookの意味変更。</td>
+        <td>旧blob名がコードに残らず、v2 speed core reportだけが残る。</td>
       </tr>
       <tr>
         <td class="num">2</td>
@@ -1022,9 +1023,9 @@
       </tr>
       <tr>
         <td class="num">3</td>
-        <td>Mesen probe専用ROMでBullet speedだけを差し替える。</td>
-        <td>通常保存経路。</td>
-        <td>1/4、1/2、2x、3xを同一ステージで観察し、壁衝突ログが取れる。</td>
+        <td>通常保存経路へv2 speed runtimeを接続する。</td>
+        <td>interval/cache契約の変更。</td>
+        <td>1/4、1/2、2x、3xが通常の「ROMを作る」で出る。</td>
       </tr>
       <tr>
         <td class="num">4</td>
@@ -1060,13 +1061,13 @@
 
     <h3>13.6 直近の作業単位</h3>
     <div class="ok">
-      <p><strong>次にやること:</strong> <code>panel_monster_stage_variant.py</code> の既存 <code>PANEL_VARIANT_BLOB</code> 系を調べ、現行prototypeと混ざらないv2用blob builderへ分ける。</p>
-      <p>最初のv2 blobには <code>pmv2_speed_decode</code>、<code>pmv2_bullet_step_loop</code>、<code>pmv2_impact_bridge</code> だけを入れる。</p>
-      <p>この段階では既存runtime、保存ROM、UI、管理簿を変えない。既存blob/配置/分類契約の静的出力と、v2 speed coreのASM構造だけを確認する。</p>
+      <p><strong>完了済み:</strong> 旧 <code>PANEL_VARIANT_BLOB</code> 系、旧speed builder、旧interval prototype入口は削除済み。</p>
+      <p>現在のv2 speed runtimeは通常保存経路へ接続済み。2x/3xは同じfast loopでextra countだけが違う。</p>
+      <p>次は分類・fire・global cacheのどれを小ブロックで固めるかを選ぶ。</p>
     </div>
     <div class="danger">
-      <p><strong>この段階でやらないこと:</strong> PRG0配置替え、3x停止、他機能の一時停止、旧runtimeの部分置換。</p>
-      <p>まず2x/3xが同じルートに載った新Bullet speed coreを作り、その後にfire pathへ接続する。</p>
+      <p><strong>この段階でやらないこと:</strong> 直接operand化、他機能の一時停止、旧runtime部分置換。</p>
+      <p>まず最新v2 runtimeを短いブロックで固定し、挙動確認が必要な時だけMesenで見る。</p>
     </div>
   </section>
 </main>
