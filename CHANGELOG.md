@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK32 (2026-06-20) Panel Monster v2 runtime check tool
+- `tools/panel_monster_v2_runtime_check.py` を追加し、通常保存経路のv2 runtime reportをCLIで確認できるようにした。
+- speed/cache書込、guard一式、再保存同一性をまとめて確認する。
+- ROM挙動は変えず、次ブロック以降の内部検証を短くした。
+
 ## EX-PANEL-V2-BLOCK31 (2026-06-20) v2 runtime統合reportを追加
 - `panel_monster_v2_runtime_save_report()` を追加し、speed/cache書込と保存前guard結果を一つのreportで見られるようにした。
 - speed、global cache、fire marker、parent cleanup、classifierのguard結果をまとめて返す。
