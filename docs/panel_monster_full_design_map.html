@@ -172,7 +172,7 @@
 <header>
   <h1>Panel Monster Full Design Map</h1>
   <p class="lead">
-    Planning baseline: commit <code>6df3733</code> / JP mapper66 wide-title編集ROM。
+    Planning baseline: commit <code>6df3733</code>。Current runtime checkpoint: <code>9934152</code> / <code>EX-PANEL-V2-BLOCK35</code>。
     この資料は、Panel Monster周辺を再実装する前に、原作処理・既存2-way/3-way・A/B/C Panel Variant・RAM/ROM配置・Bullet衝突契約を一枚で追えるようにするための設計図である。
   </p>
   <p>
@@ -911,11 +911,11 @@
     <h3>13.1 現在地点の意味</h3>
     <table>
       <tr><th>項目</th><th>状態</th><th>判断</th></tr>
-      <tr><td>Git基準</td><td><code>6df3733</code></td><td>危ないEX probe実装を撤回し、v2 rebuild planを追加した地点。</td></tr>
-      <tr><td>アプリversion</td><td><code>0.8.251</code></td><td>通常アプリ状態。Panel Monster v2は未実装。</td></tr>
-      <tr><td>設計資料</td><td>このHTMLとIssue #1用の整理がある。</td><td>ここを土台に、旧実装修理ではなくv2設計へ進む。</td></tr>
+      <tr><td>Git基準</td><td><code>9934152</code></td><td>v2 runtimeの通常保存経路、guard、12ケース静的checkを固定した地点。</td></tr>
+      <tr><td>アプリversion</td><td><code>EX-PANEL-V2-BLOCK35</code></td><td>Panel Monster v2 runtimeは通常の「ROMを作る」経路へ接続済み。</td></tr>
+      <tr><td>設計資料</td><td>このHTMLとIssue #1用の整理がある。</td><td>ここを土台に、旧実装修理ではなくv2 runtimeを小ブロックで固定する。</td></tr>
       <tr><td>既知の失敗</td><td>EX4の連続配置、3x停止案。</td><td>作り直し方針から除外する。再利用しない。</td></tr>
-      <tr><td>次の作業</td><td>v2仕様と検証順を固定する。</td><td>コード配置を動かす前に、同一ルートの実行契約を固める。</td></tr>
+      <tr><td>次の作業</td><td>Mesen確認が必要な挙動単位まで、保存経路と分類契約を固める。</td><td>あなたを呼ぶのは画面挙動確認が必要な時だけ。</td></tr>
     </table>
 
     <h3>13.2 v2で必ず満たす仕様</h3>
@@ -1063,7 +1063,8 @@
     <div class="ok">
       <p><strong>完了済み:</strong> 旧 <code>PANEL_VARIANT_BLOB</code> 系、旧speed builder、旧interval prototype入口は削除済み。</p>
       <p>現在のv2 speed runtimeは通常保存経路へ接続済み。2x/3xは同じfast loopでextra countだけが違う。</p>
-      <p>次は分類・fire・global cacheのどれを小ブロックで固めるかを選ぶ。</p>
+      <p><code>tools/panel_monster_v2_runtime_check.py</code> で、A/B/C各groupと1/4・1/2・2x・3xの12ケースは保存・guard・再保存同一性を確認済み。</p>
+      <p>次はMesen確認が必要な挙動単位へ進む前に、分類・fire・global cacheの契約を小ブロックで固定する。</p>
     </div>
     <div class="danger">
       <p><strong>この段階でやらないこと:</strong> 直接operand化、他機能の一時停止、旧runtime部分置換。</p>
