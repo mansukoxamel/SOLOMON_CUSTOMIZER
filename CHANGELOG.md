@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK6 (2026-06-20) Panel Monster v2 speed runtimeを保存経路へ接続
+- 通常の「ROMを作る」経路で、v2 split speed runtimeを保存ROMへ書き込むように切り替えた。
+- `speed_decode`は`$C088`枠、速度テーブル2つとfast loopは`$E823`枠、Bullet入口hookは既存`$BF69`枠へ書く。
+- 旧runtimeで保存されたROMも再保存できるよう、署名検証では旧speed helper/旧merged hookとv2 runtimeの両方を許可する。
+
 ## EX-PANEL-V2-BLOCK5 (2026-06-20) Panel Monster v2 split配置候補
 - v2 speed runtimeを既存枠へ接続するため、`decode`を`$C088`枠、速度テーブル2つとfast loopを`$E823`枠、入口hookを既存Bullet hook枠へ置く分割配置候補を追加した。
 - `panel_monster_v2_split_speed_placement_candidate()` で、各pieceのfile/CPUアドレス、サイズ、容量、残り容量を確認できるようにした。

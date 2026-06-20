@@ -1119,6 +1119,7 @@ def _validate_final_split_signatures(
     """Verify every final split writer before mutating ROM bytes."""
     _validate_runtime_loader_signature(rom_data)
     panel_bullet_speed_fix.current_state(rom_data)
+    v2_speed = panel_monster_v2_split_speed_runtime_blobs()
 
     _expect_signature(
         rom_data,
@@ -1310,17 +1311,21 @@ def _validate_final_split_signatures(
         ),
         (
             OFF_FINAL_BULLET_SPEED_EXTRA_HELPER,
-            FINAL_BULLET_SPEED_EXTRA_HELPER,
+            v2_speed["tables_and_fast_loop"],
             "Panel Variant final Bullet speed extra-step helper",
-            (ORIG_FINAL_BULLET_SPEED_EXTRA_HELPER,),
+            (
+                _pad(ORIG_FINAL_BULLET_SPEED_EXTRA_HELPER, len(v2_speed["tables_and_fast_loop"]), 0x00),
+                _pad(FINAL_BULLET_SPEED_EXTRA_HELPER, len(v2_speed["tables_and_fast_loop"])),
+            ),
         ),
         (
             OFF_FINAL_BULLET_SPEED_APPLY,
-            FINAL_BULLET_SPEED_APPLY + FINAL_BULLET_SPEED_TABLE,
+            v2_speed["speed_decode"],
             "Panel Variant final Bullet speed apply/table",
             (
-                _fill(0xEA, len(FINAL_BULLET_SPEED_APPLY) + len(FINAL_BULLET_SPEED_TABLE)),
-                _pad(STATE0_INTERVAL_HELPER, len(FINAL_BULLET_SPEED_APPLY) + len(FINAL_BULLET_SPEED_TABLE)),
+                _pad(FINAL_BULLET_SPEED_APPLY + FINAL_BULLET_SPEED_TABLE, len(v2_speed["speed_decode"])),
+                _fill(0xEA, len(v2_speed["speed_decode"])),
+                _pad(STATE0_INTERVAL_HELPER, len(v2_speed["speed_decode"])),
             ),
         ),
         (
@@ -1337,11 +1342,12 @@ def _validate_final_split_signatures(
         ),
         (
             panel_monster_variant.OFF_BULLET_HOOK,
-            FINAL_MERGED_PANEL_BULLET_HOOK,
+            v2_speed["bullet_speed_hook"],
             "Panel Variant final merged Bullet hook",
             (
-                _fill(0xEA, len(FINAL_MERGED_PANEL_BULLET_HOOK)),
-                _pad(panel_monster_variant.CAVE_BULLET_HOOK, len(FINAL_MERGED_PANEL_BULLET_HOOK)),
+                FINAL_MERGED_PANEL_BULLET_HOOK[:len(v2_speed["bullet_speed_hook"])],
+                _fill(0xEA, len(v2_speed["bullet_speed_hook"])),
+                _pad(panel_monster_variant.CAVE_BULLET_HOOK, len(v2_speed["bullet_speed_hook"])),
             ),
         ),
         (
@@ -1400,6 +1406,7 @@ def apply_final_split_test_candidate(
     final_state0_interval_helper = _final_state0_interval_helper_for_rom(rom_data)
     _validate_final_split_signatures(rom_data, final_state0_interval_helper)
     _validate_pmv2_speed_core_runtime_contract()
+    v2_speed = panel_monster_v2_split_speed_runtime_blobs()
 
     changed: list[str] = []
     if patch_global_cache_table(rom_data, common_settings):
@@ -1457,11 +1464,11 @@ def apply_final_split_test_candidate(
         (OFF_FINAL_STATIC_MARKER_HELPER, FINAL_STATIC_MARKER_HELPER, "Panel Variant final static marker helper"),
         (OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER, FINAL_DYNAMIC_SPEED_MARKER_HELPER, "Panel Variant final dynamic speed marker helper"),
         (OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, FINAL_PARENT_FIELD_CLEAR_HELPER, "Panel Variant final parent field clear helper"),
-        (OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, FINAL_BULLET_SPEED_EXTRA_HELPER, "Panel Variant final Bullet speed extra-step helper"),
-        (OFF_FINAL_BULLET_SPEED_APPLY, FINAL_BULLET_SPEED_APPLY + FINAL_BULLET_SPEED_TABLE, "Panel Variant final Bullet speed apply/table"),
+        (OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, v2_speed["tables_and_fast_loop"], "Panel Variant v2 Bullet speed tables/fast loop"),
+        (OFF_FINAL_BULLET_SPEED_APPLY, v2_speed["speed_decode"], "Panel Variant v2 Bullet speed decode"),
         (OFF_FINAL_AI_WRAPPER_CANDIDATE, FINAL_AI_WRAPPER_CANDIDATE, "Panel Variant final shared AI wrapper"),
         (OFF_FINAL_FIRE_MARKER_TABLE, FINAL_FIRE_MARKER_TABLE, "Panel Variant final fire marker table"),
-        (panel_monster_variant.OFF_BULLET_HOOK, FINAL_MERGED_PANEL_BULLET_HOOK, "Panel Variant final merged Bullet hook"),
+        (panel_monster_variant.OFF_BULLET_HOOK, v2_speed["bullet_speed_hook"], "Panel Variant v2 Bullet speed hook"),
         (OFF_FINAL_STAGE_DISPATCH_HELPER, FINAL_STAGE_DISPATCH_HELPER, "Panel Variant final stage dispatch helper"),
         (panel_monster_variant.OFF_PROPERTY_HOOK, FINAL_STAGE_PROPERTY_HOOK, "Panel Variant final property hook"),
         (panel_monster_variant.OFF_ANIM_HOOK, FINAL_STAGE_ANIM_HOOK, "Panel Variant final animation hook"),
@@ -1859,6 +1866,60 @@ def panel_monster_v2_split_speed_placement_candidate() -> dict[str, object]:
     }
 
 
+def panel_monster_v2_split_speed_runtime_blobs() -> dict[str, bytes]:
+    """Build the v2 speed runtime bytes for the concrete split placement."""
+    velocity_table_cpu = CPU_FINAL_BULLET_SPEED_EXTRA_HELPER
+    extra_count_table_cpu = velocity_table_cpu + len(SPEED_PRESET_RUNTIME_TABLE)
+    loop_cpu = extra_count_table_cpu + 4
+    impact_bridge_cpu = loop_cpu + len(_build_pmv2_bullet_step_loop(loop_cpu, 0))
+    tables_and_fast_loop = (
+        SPEED_PRESET_RUNTIME_TABLE
+        + bytes((
+            SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_QUARTER]["extra_steps"],
+            SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_HALF]["extra_steps"],
+            SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_2X]["extra_steps"],
+            SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_3X]["extra_steps"],
+        ))
+        + _build_pmv2_bullet_step_loop(loop_cpu, impact_bridge_cpu)
+        + _build_pmv2_impact_bridge()
+    )
+    return {
+        "speed_decode": _build_pmv2_speed_decode(velocity_table_cpu, extra_count_table_cpu),
+        "tables_and_fast_loop": tables_and_fast_loop,
+        "bullet_speed_hook": _build_pmv2_bullet_speed_hook(CPU_FINAL_BULLET_SPEED_APPLY, loop_cpu),
+    }
+
+
+def panel_monster_v2_split_speed_save_report(rom_data: bytes | bytearray) -> dict[str, object]:
+    """Report whether the split v2 speed runtime is present in saved ROM data."""
+    if rom_data is None:
+        raise PanelMonsterStageVariantError("ROM is missing.")
+    blobs = panel_monster_v2_split_speed_runtime_blobs()
+    sections = {
+        "speed_decode": (
+            OFF_FINAL_BULLET_SPEED_APPLY,
+            blobs["speed_decode"],
+        ),
+        "tables_and_fast_loop": (
+            OFF_FINAL_BULLET_SPEED_EXTRA_HELPER,
+            blobs["tables_and_fast_loop"],
+        ),
+        "bullet_speed_hook": (
+            panel_monster_variant.OFF_BULLET_HOOK,
+            blobs["bullet_speed_hook"],
+        ),
+    }
+    written = {
+        name: bytes(rom_data[off:off + len(blob)]) == blob
+        for name, (off, blob) in sections.items()
+    }
+    return {
+        "placement": panel_monster_v2_split_speed_placement_candidate(),
+        "written": written,
+        "all_written": all(written.values()),
+    }
+
+
 def _validate_pmv2_speed_core_runtime_contract() -> None:
     """Guard the normal ROM save path against a broken Panel Monster speed core."""
     extra_counts = {
@@ -1911,6 +1972,11 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
     if set(contract["sizes"]) != required_sections:
         raise PanelMonsterStageVariantError(
             f"Panel Monster v2 static speed sections mismatch: {sorted(contract['sizes'])!r}"
+        )
+    placement = panel_monster_v2_split_speed_placement_candidate()
+    if not placement["fits"]:
+        raise PanelMonsterStageVariantError(
+            f"Panel Monster v2 split speed placement does not fit: {placement!r}"
         )
 
 
@@ -2113,8 +2179,8 @@ RESERVED_SPANS = (
     (OFF_FINAL_STATIC_MARKER_HELPER, len(FINAL_STATIC_MARKER_HELPER)),
     (OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER, len(FINAL_DYNAMIC_SPEED_MARKER_HELPER)),
     (OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, len(FINAL_PARENT_FIELD_CLEAR_HELPER)),
-    (OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, len(FINAL_BULLET_SPEED_EXTRA_HELPER)),
-    (OFF_FINAL_BULLET_SPEED_APPLY, len(FINAL_BULLET_SPEED_APPLY) + len(FINAL_BULLET_SPEED_TABLE)),
+    (OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, 0x79),
+    (OFF_FINAL_BULLET_SPEED_APPLY, 0x3A),
     (OFF_FINAL_AI_WRAPPER_CANDIDATE, len(FINAL_AI_WRAPPER_CANDIDATE)),
     (OFF_FINAL_FIRE_MARKER_TABLE, len(FINAL_FIRE_MARKER_TABLE)),
     (panel_monster_variant.OFF_BULLET_HOOK, len(FINAL_MERGED_PANEL_BULLET_HOOK)),
