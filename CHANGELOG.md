@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK35 (2026-06-20) runtime checkをA/B/C速度matrix化
+- `tools/panel_monster_v2_runtime_check.py` の既定動作を、A/B/C各groupと1/4・1/2・2x・3xの12ケース確認へ広げた。
+- 各ケースで通常保存、runtime report、再保存同一性を確認する。
+- ROM挙動は変えず、Mesen確認前に保存経路の組み合わせ崩れを検出しやすくした。
+
 ## EX-PANEL-V2-BLOCK34 (2026-06-20) loader署名の余分な分岐を削除
 - Panel Monster v2 runtime loader検証から、現行slotと同じ比較を繰り返すだけの `_looks_like_fixed_cache_runtime_loader()` を削除した。
 - 許可するloader状態は、空slot、既存stage loader、現行v2 runtime loaderの明示比較だけにした。

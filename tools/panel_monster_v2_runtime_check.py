@@ -28,6 +28,12 @@ DEFAULT_SETTINGS = {
     "c_interval": 0xA0,
 }
 
+MATRIX_CASES = (
+    ("C", 0x31, "c_speed"),
+    ("A", 0x41, "a_speed"),
+    ("B", 0x49, "b_speed"),
+)
+
 
 def _hex_byte(value: str) -> int:
     value = value.strip()
@@ -56,12 +62,15 @@ def _settings_from_args(args: argparse.Namespace) -> dict[str, int]:
     }
 
 
-def run_check(args: argparse.Namespace) -> tuple[bool, dict[str, object]]:
-    source_rom = _load_expanded_rom(args.rom)
+def _run_one_case(
+    source_data: bytes,
+    enemy_id: int,
+    settings: dict[str, int],
+) -> dict[str, object]:
+    source_rom = Rom(source_data, "panel_monster_v2_source.nes")
     levels = load_all_levels(source_rom)
-    levels[0].enemies.append(LevelElement(ElementType.ENEMY, (4, 4), args.enemy_id))
+    levels[0].enemies.append(LevelElement(ElementType.ENEMY, (4, 4), enemy_id))
 
-    settings = _settings_from_args(args)
     saved = saver.build_saved_rom_data(source_rom, levels, settings)
     report = panel_v2.panel_monster_v2_runtime_save_report(saved, settings)
 
@@ -73,10 +82,49 @@ def run_check(args: argparse.Namespace) -> tuple[bool, dict[str, object]]:
     result = dict(report)
     result["saved_len"] = len(saved)
     result["same_output"] = same_output
-    return ok, result
+    result["ok"] = ok
+    return result
+
+
+def _matrix_settings(group_speed_key: str, speed: int) -> dict[str, int]:
+    settings = dict(DEFAULT_SETTINGS)
+    settings[group_speed_key] = speed
+    return settings
+
+
+def run_check(args: argparse.Namespace) -> tuple[bool, dict[str, object]]:
+    source_rom = _load_expanded_rom(args.rom)
+    if args.mode == "single":
+        settings = _settings_from_args(args)
+        result = _run_one_case(bytes(source_rom.data), args.enemy_id, settings)
+        return bool(result["ok"]), result
+
+    cases = []
+    for group_name, enemy_id, speed_key in MATRIX_CASES:
+        for speed in range(4):
+            settings = _matrix_settings(speed_key, speed)
+            result = _run_one_case(bytes(source_rom.data), enemy_id, settings)
+            result["case"] = f"{group_name} speed={speed}"
+            result["enemy_id"] = enemy_id
+            cases.append(result)
+
+    first = dict(cases[0])
+    first["cases"] = cases
+    first["case_count"] = len(cases)
+    first["ok"] = all(bool(case["ok"]) for case in cases)
+    return bool(first["ok"]), first
 
 
 def print_result(result: dict[str, object]) -> None:
+    if "cases" in result:
+        print(f"case_count {result['case_count']}")
+        print(f"all_cases_ok {result['ok']}")
+        for case in result["cases"]:
+            print(
+                f"  {case['case']}: ok={case['ok']} "
+                f"guards_ok={case['guards_ok']} all_written={case['all_written']} "
+                f"same_output={case['same_output']}"
+            )
     print(f"saved_len {result['saved_len']}")
     print(f"apply_path {result['apply_path']}")
     print(f"guards_ok {result['guards_ok']}")
@@ -101,7 +149,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--enemy-id",
         type=_hex_byte,
         default=0x41,
-        help="Panel Monster A enemy id to add to stage 1.",
+        help="Panel Monster enemy id to add to stage 1 in single mode.",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=("matrix", "single"),
+        default="matrix",
+        help="matrix checks A/B/C across all speed presets; single uses the explicit args.",
     )
     parser.add_argument("--a-speed", type=int, choices=range(4), default=0)
     parser.add_argument("--b-speed", type=int, choices=range(4), default=1)
