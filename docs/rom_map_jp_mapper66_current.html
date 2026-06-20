@@ -240,7 +240,7 @@
     </div>
     <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
     <div class="note">
-      <b>棚卸メモ:</b> 2026-06-20 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約50B。内訳は原作00埋め2B / 原作EA埋め48B、最大連続空き7B。Panel Variant final split runtime と Panel Monster / Variant animation hook はproduction予約として含める。
+      <b>棚卸メモ:</b> 2026-06-20 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約56B。内訳は原作00埋め2B / 原作EA埋め54B、最大連続空き7B。Panel Variant final split runtime と Panel Monster / Variant animation hook はproduction予約として含める。
       実装側の許容スパン上は <code>0x4190-0x420D</code> が expanded table span と key enemy で重複するため、空き計算は重複を二重加算しない union で扱う。
     </div>
     <div class="note">
@@ -259,6 +259,7 @@
       <tr><td class="num">0x3D32-0x3D35</td><td class="num">$BD22-$BD25</td><td class="num">4B</td><td>原作EA埋め。Gargoyle 2-shot gate拡張後の短い断片。</td></tr>
       <tr><td class="num">0x3D46-0x3D4A</td><td class="num">$BD36-$BD3A</td><td class="num">5B</td><td>原作EA埋め。Spark Ball fast AI wrapperのID判定圧縮で回収。直後はGargoyle 2-shot body。</td></tr>
       <tr><td class="num">0x3D97</td><td class="num">$BD87</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
+      <tr><td class="num">0x3E0A-0x3E0F</td><td class="num">$BDFA-$BDFF</td><td class="num">6B</td><td>Panel Monster v2 final common fire loopの実予約が114Bであるため回収。短い非常用候補。</td></tr>
       <tr><td class="num">0x3E4D-0x3E4F</td><td class="num">$BE3D-$BE3F</td><td class="num">3B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x3E8E-0x3E8F</td><td class="num">$BE7E-$BE7F</td><td class="num">2B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x3EB7-0x3EBB</td><td class="num">$BEA7-$BEAB</td><td class="num">5B</td><td>Panel Variant group RAM offset helper圧縮で回収。短い非常用候補。</td></tr>
@@ -268,7 +269,7 @@
       <tr><td class="num">0x400F</td><td class="num">$BFFF</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x414F-0x4152</td><td class="num">$C13F-$C142</td><td class="num">4B</td><td>Panel Monster fire marker table移動後の残り。短い非常用候補。</td></tr>
       <tr><td class="num">0x418F</td><td class="num">$C17F</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>50B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。内訳は00埋め2B / EA埋め48B。最大連続は <code>$BEBD-$BEC3</code> の7B。</td></tr>
+      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>56B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。内訳は00埋め2B / EA埋め54B。最大連続は <code>$BEBD-$BEC3</code> の7B。</td></tr>
     </table>
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
@@ -286,7 +287,7 @@
       <tr><td>Gargoyle 2-shot gate</td><td class="num">0x3D0F-0x3D31</td><td class="num">$BCFF-$BD21</td><td class="num">35B</td><td>Conditional `$7A/$7B/$7E/$7F` gate for the accepted `$AE6F` two-Bullet variant.</td></tr>
       <tr><td>Spark Ball fast AI wrapper</td><td class="num">0x3D36-0x3D45</td><td class="num">$BD26-$BD35</td><td class="num">16B</td><td>Relocated out of gap_fix range. ID判定を <code>AND #$FE</code> で圧縮済み。</td></tr>
       <tr><td>Gargoyle 2-shot body</td><td class="num">0x3D4B-0x3D96</td><td class="num">$BD3B-$BD86</td><td class="num">76B</td><td>Accepted `SecondXAhead16_DirVelocity` body.</td></tr>
-      <tr><td>Panel Monster common fire loop</td><td class="num">0x3D98-0x3E0F</td><td class="num">$BD88-$BDFF</td><td class="num">120B</td><td>Shared normal / 2-way / 3-way fire routine. Entry points: normal <code>$BD88</code>, 3-way <code>$BD8C</code>, 2-way <code>$BD90</code>.</td></tr>
+      <tr><td>Panel Monster common fire loop</td><td class="num">0x3D98-0x3E09</td><td class="num">$BD88-$BDF9</td><td class="num">114B</td><td>Panel Monster v2 final shared normal / 2-way / 3-way fire routine. Entry points: normal <code>$BD88</code>, 3-way <code>$BD8C</code>, 2-way <code>$BD90</code>. The former tail <code>$BDFA-$BDFF</code> is tracked as free.</td></tr>
       <tr><td>Saramandor variant caves</td><td class="num">0x3E10-0x3E3E / 0x3E50-0x3E71 / 0x3E90-0x3EA3 / 0x3F10-0x3F4F</td><td class="num">$BE00-$BE2E / $BE40-$BE61 / $BE80-$BE93 / $BF00-$BF3F</td><td class="num">165B</td><td>Spawn, substatus, flame-behavior, and #2-only distance-check helpers. `$5E/$5F/$62/$63` all use normal Bullet speed and X reaction threshold `$60`.</td></tr>
       <tr><td>Key enemy defeat entry</td><td class="num">0x3E3F-0x3E4C</td><td class="num">$BE2F-$BE3C</td><td class="num">14B</td><td>Relocated key-enemy defeat filter. Falls through to split chunks only for the selected key carrier.</td></tr>
       <tr><td>Panel Variant state0 interval helper</td><td class="num">0x3E72-0x3E83</td><td class="num">$BE62-$BE73</td><td class="num">18B</td><td>発射間隔比較。A/B/C-only group offset helperを経由し、A/B/C以外は原作比較へ戻す。</td></tr>
