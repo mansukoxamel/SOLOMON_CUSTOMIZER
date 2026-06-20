@@ -1072,9 +1072,10 @@
     <div class="ok">
       <p><strong>完了済み:</strong> 旧 <code>PANEL_VARIANT_BLOB</code> 系、旧speed builder、旧interval prototype入口は削除済み。</p>
       <p>現在のv2 speed runtimeは通常保存経路へ接続済み。2x/3xは同じfast loopでextra countだけが違う。</p>
-      <p><code>tools/panel_monster_v2_runtime_check.py</code> で、A/B/C各groupと1/4・1/2・2x・3x、A/B/C interval代表値、2-way/3-way代表、通常Panel単体境界の20ケースは保存・guard・配置/予約重複・予約coverage・再保存同一性を確認済み。</p>
-      <p>Mesen確認が必要になった時だけ、同toolの <code>--mode single --out</code> で通常保存後ROMを出す。</p>
-      <p>次はMesen確認が必要な挙動単位へ進む前に、分類・fire・global cacheの契約を小ブロックで固定する。</p>
+      <p><code>tools/panel_monster_v2_runtime_check.py</code> で、A/B/C speed/interval全方向、2-way/3-way全ID、通常Panel全方向、混在ケースの73ケースは保存・guard・配置/予約重複・予約coverage・再保存同一性を確認済み。</p>
+      <p>BLOCK63ではcase matrix coverage guardを追加し、実装定数とcheck caseのID集合がずれた時は保存check前に失敗する。</p>
+      <p>Mesen確認用ROM <code>panel_v2_block63_*.nes</code> 6本は確認OK。A/B/C速度/interval、2-way/3-way ALT、通常Panel、壁ヒット時graphicの代表観点で合格。</p>
+      <p>次はこの固定済み土台から、追加実装時に必要な挙動単位だけMesenへ回す。</p>
     </div>
     <div class="danger">
       <p><strong>この段階でやらないこと:</strong> 直接operand化、他機能の一時停止、旧runtime部分置換。</p>
