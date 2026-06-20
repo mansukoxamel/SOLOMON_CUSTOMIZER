@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK75 (2026-06-20) Panel Monster Bullet hook予約を縮小
+- 旧Panel Monster Bullet hook slotの実処理78Bだけを予約し、末尾の埋めEA 3Bを予約から外した。
+- v2 Bullet speed hookは従来どおり先頭20Bを使うため、v2経路の挙動は変えない。
+- bank0 cave未予約を74Bから77Bへ増やした。
+
 ## EX-PANEL-V2-BLOCK74 (2026-06-20) Key enemy fall handler予約を縮小
 - Key enemy fall-death handlerの実処理22Bだけを予約し、末尾の埋めEA 2Bを予約から外した。
 - 挙動は変えず、bank0 cave未予約を72Bから74Bへ増やした。

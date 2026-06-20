@@ -240,7 +240,7 @@
     </div>
     <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
     <div class="note">
-      <b>棚卸メモ:</b> 2026-06-20 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約74B。内訳は原作00埋め2B / 原作EA埋め72B、最大連続空き14B。Panel Variant final split runtime と Panel Monster / Variant animation hook はproduction予約として含める。
+      <b>棚卸メモ:</b> 2026-06-20 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約77B。内訳は原作00埋め2B / 原作EA埋め75B、最大連続空き14B。Panel Variant final split runtime と Panel Monster / Variant animation hook はproduction予約として含める。
       実装側の許容スパン上は <code>0x4190-0x420D</code> が expanded table span と key enemy で重複するため、空き計算は重複を二重加算しない union で扱う。
     </div>
     <div class="note">
@@ -266,11 +266,12 @@
       <tr><td class="num">0x3EB7-0x3EBB</td><td class="num">$BEA7-$BEAB</td><td class="num">5B</td><td>Panel Variant group RAM offset helper圧縮で回収。短い非常用候補。</td></tr>
       <tr><td class="num">0x3ECD-0x3ED3</td><td class="num">$BEBD-$BEC3</td><td class="num">7B</td><td>Panel Monster speed select helper撤去で回収。短い非常用候補。</td></tr>
       <tr><td class="num">0x3EF9</td><td class="num">$BEE9</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
+      <tr><td class="num">0x3FC7-0x3FC9</td><td class="num">$BFB7-$BFB9</td><td class="num">3B</td><td>旧Panel Monster Bullet hook slotの予約縮小で回収。Panel type classifier直前の断片。</td></tr>
       <tr><td class="num">0x3FF8-0x3FFC</td><td class="num">$BFE8-$BFEC</td><td class="num">5B</td><td>原作EA埋め。Spark Ball slow AI wrapperのID判定圧縮で回収。直後はkey enemy chunk。</td></tr>
       <tr><td class="num">0x400F</td><td class="num">$BFFF</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x414F-0x4152</td><td class="num">$C13F-$C142</td><td class="num">4B</td><td>Panel Monster fire marker table移動後の残り。短い非常用候補。</td></tr>
       <tr><td class="num">0x418F</td><td class="num">$C17F</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>74B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。内訳は00埋め2B / EA埋め72B。最大連続は <code>$BD18-$BD25</code> の14B。</td></tr>
+      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>77B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。内訳は00埋め2B / EA埋め75B。最大連続は <code>$BD18-$BD25</code> の14B。</td></tr>
     </table>
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
@@ -298,7 +299,7 @@
       <tr><td>Panel Variant group RAM offset helper</td><td class="num">0x3EAF-0x3EB6</td><td class="num">$BE9F-$BEA6</td><td class="num">8B</td><td>A/B/C group offset helperを呼び、state0 interval helperとdynamic marker helperへX offsetを渡す。</td></tr>
       <tr><td>Spark Ball OAM hide hook</td><td class="num">0x3ED7-0x3EF8</td><td class="num">$BEC7-$BEE8</td><td class="num">34B</td><td>Transparent Spark Ball OAM post-draw hide hook. This is not free space.</td></tr>
       <tr><td>Key enemy door-light helper</td><td class="num">0x3F60-0x3F78</td><td class="num">$BF50-$BF68</td><td class="num">25B</td><td>Key enemy runtime helper for dropped-key door-light positioning. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
-      <tr><td>Panel Monster / Variant bullet hook slot</td><td class="num">0x3F79-0x3FC9</td><td class="num">$BF69-$BFB9</td><td class="num">81B</td><td>Panel Monster v2 writes a 20B Bullet state2 speed hook at the start of this slot. The hook routes all speed markers through the v2 decode path, then calls the shared 2x/3x fast loop only when extra steps are required.</td></tr>
+      <tr><td>Panel Monster / Variant bullet hook slot</td><td class="num">0x3F79-0x3FC6</td><td class="num">$BF69-$BFB6</td><td class="num">78B</td><td>Legacy Panel Monster diagonal Bullet hook slot. Panel Monster v2 writes a 20B Bullet state2 speed hook at the start of this slot. The hook routes all speed markers through the v2 decode path, then calls the shared 2x/3x fast loop only when extra steps are required.</td></tr>
       <tr><td>Panel Variant type classifier main</td><td class="num">0x3FCA-0x3FE4</td><td class="num">$BFBA-$BFD4</td><td class="num">27B</td><td>Shared visual/property classifier for older enhanced Panel Monster IDs and A/B/C Panel Variant IDs.</td></tr>
       <tr><td>Spark Ball slow AI wrapper</td><td class="num">0x3FE8-0x3FF7</td><td class="num">$BFD8-$BFE7</td><td class="num">16B</td><td>Dragon-ID <code>$6A/$6B</code> routing. ID判定を <code>AND #$FE</code> で圧縮済み。</td></tr>
       <tr><td>gap_fix cave</td><td class="num">0x4010-0x4097</td><td class="num">$C000-$C087</td><td class="num">136B</td><td class="ok">No overlap with Spark Ball variants or key enemies as of v0.6.158.</td></tr>

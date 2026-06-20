@@ -422,10 +422,7 @@ def _build_anim_hook() -> bytes:
 
 CAVE_FIRE_DISPATCH = _build_fire_dispatch()
 CAVE_BULLET_HOOK = _build_bullet_hook()
-CAVE_BULLET_HOOK_SLOT = (
-    CAVE_BULLET_HOOK
-    + bytes([0xEA] * (BULLET_HOOK_SLOT_SIZE - len(CAVE_BULLET_HOOK)))
-)
+CAVE_BULLET_HOOK_SLOT = CAVE_BULLET_HOOK
 
 
 def _build_fire_normal(fire_delay: int) -> bytes:
