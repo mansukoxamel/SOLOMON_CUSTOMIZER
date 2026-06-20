@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK68 (2026-06-20) Panel Monster fire分類入口を圧縮
+- Panel Monster v2のfire入口で、borrowed 2-way/3-way判定後にA/B/C visual分類へ直接進むようにした。
+- 旧 `stage_dispatch_tail` 3B と `stage_dispatch_helper` 15B を撤去し、fire入口周辺のPRG0予約を49Bから41Bへ減らした。
+- fire marker tableは旧helper位置へ移し、弾生成後処理やspeed routeは変更していない。
+
 ## EX-PANEL-V2-BLOCK67 (2026-06-20) Panel Monster runtime常時書き込みcheckを追加
 - Panel Monster系IDがステージに無い場合でも、v2 runtimeが通常保存経路で毎回同じ配置へ書かれることをcheck matrixに追加した。
 - 「使わないものでもruntimeは省略しない」方針を固定する。

@@ -426,7 +426,7 @@ def _verify(rom_data) -> None:
     )
     pmsv_capacity_spans = (
         (_pmsv.OFF_FINAL_PANEL_TYPE_CLASSIFIER, len(_pmsv.FINAL_PANEL_TYPE_CLASSIFIER)),
-        (_pmsv.OFF_FINAL_STAGE_DISPATCH_HELPER, len(_pmsv.FINAL_STAGE_DISPATCH_HELPER)),
+        (_pmsv.OFF_FINAL_FIRE_MARKER_TABLE, len(_pmsv.FINAL_FIRE_MARKER_TABLE)),
         (_pmsv.OFF_FINAL_GROUP_RAM_OFFSET_HELPER, len(_pmsv.FINAL_GROUP_RAM_OFFSET_HELPER)),
         (_pmsv.OFF_FINAL_SPEED_SELECT_HELPER, len(_pmsv.FINAL_SPEED_SELECT_HELPER)),
         (_pmsv.OFF_FINAL_STATIC_MARKER_HELPER, len(_pmsv.FINAL_STATIC_MARKER_HELPER)),

@@ -181,8 +181,6 @@ OFF_FINAL_BULLET_SPEED_APPLY = 0x4098  # CPU $C088, 58B free gap before animatio
 CPU_FINAL_BULLET_SPEED_APPLY = 0xC088
 OFF_FINAL_BULLET_SPEED_EXTRA_HELPER = 0x6833  # CPU $E823, original 00-fill after Spark helper
 CPU_FINAL_BULLET_SPEED_EXTRA_HELPER = _cpu(OFF_FINAL_BULLET_SPEED_EXTRA_HELPER)
-OFF_FINAL_STAGE_DISPATCH_TAIL = 0x3D01  # CPU $BCF1, 3B tail after fire dispatch
-CPU_FINAL_STAGE_DISPATCH_TAIL = _cpu(OFF_FINAL_STAGE_DISPATCH_TAIL)
 OFF_FINAL_STAGE_DISPATCH_HELPER = 0x4144  # CPU $C134, reclaimed runtime tail
 CPU_FINAL_STAGE_DISPATCH_HELPER = _cpu(OFF_FINAL_STAGE_DISPATCH_HELPER)
 OFF_FINAL_STATE0_INTERVAL_HELPER = 0x3E72  # CPU $BE62, 18B former Spark property gap
@@ -192,7 +190,7 @@ OFF_FINAL_GROUP_RAM_OFFSET_HELPER = 0x3EAF  # CPU $BE9F, 23B gap
 CPU_FINAL_GROUP_RAM_OFFSET_HELPER = _cpu(OFF_FINAL_GROUP_RAM_OFFSET_HELPER)
 OFF_FINAL_SPEED_SELECT_HELPER = 0x3ECD  # CPU $BEBD, 10B gap
 CPU_FINAL_SPEED_SELECT_HELPER = _cpu(OFF_FINAL_SPEED_SELECT_HELPER)
-OFF_FINAL_FIRE_MARKER_TABLE = 0x3D04  # CPU $BCF4, 11B reclaimed fire-dispatch tail
+OFF_FINAL_FIRE_MARKER_TABLE = OFF_FINAL_STAGE_DISPATCH_HELPER  # CPU $C134, 11B former stage dispatch helper
 CPU_FINAL_FIRE_MARKER_TABLE = _cpu(OFF_FINAL_FIRE_MARKER_TABLE)
 OFF_FINAL_STATIC_MARKER_HELPER = 0x3F50  # CPU $BF40, 16B gap
 CPU_FINAL_STATIC_MARKER_HELPER = _cpu(OFF_FINAL_STATIC_MARKER_HELPER)
@@ -448,11 +446,11 @@ def _build_final_fire_common(
     return bytes(blob)
 
 
-def _build_final_stage_dispatch_tail(helper_cpu: int) -> bytes:
+def _build_previous_stage_dispatch_tail(helper_cpu: int) -> bytes:
     return bytes.fromhex("4c") + _word(helper_cpu)
 
 
-def _build_final_stage_dispatch_helper(stage_entry_cpu: int, normal_entry_cpu: int) -> bytes:
+def _build_previous_stage_dispatch_helper(stage_entry_cpu: int, normal_entry_cpu: int) -> bytes:
     a = _Asm()
     a.b(0xA0, 0x01, 0xB1, 0x2E)
     a.jsr(CPU_FINAL_PANEL_TYPE_CLASSIFIER)
@@ -550,7 +548,7 @@ def _build_panel_type_classifier_tail() -> bytes:
     return a.finish()
 
 
-def _build_final_fire_dispatch(stage_tail_cpu: int, two_entry_cpu: int, three_entry_cpu: int) -> bytes:
+def _build_previous_fire_dispatch(stage_tail_cpu: int, two_entry_cpu: int, three_entry_cpu: int) -> bytes:
     a = _Asm()
     a.b(0xA0, 0x01, 0xB1, 0x2E, 0x29, 0xFE)
     for enemy_id in BORROWED_FIRE_2WAY_CANONICAL_IDS:
@@ -560,6 +558,33 @@ def _build_final_fire_dispatch(stage_tail_cpu: int, two_entry_cpu: int, three_en
         a.b(0xC9, enemy_id)
         a.branch(0xF0, "three")
     a.jmp(stage_tail_cpu)
+    a.label("two")
+    a.jmp(two_entry_cpu)
+    a.label("three")
+    a.jmp(three_entry_cpu)
+    return a.finish()
+
+
+def _build_final_fire_dispatch(
+    stage_entry_cpu: int,
+    normal_entry_cpu: int,
+    two_entry_cpu: int,
+    three_entry_cpu: int,
+) -> bytes:
+    a = _Asm()
+    a.b(0xA0, 0x01, 0xB1, 0x2E, 0xAA, 0x29, 0xFE)
+    for enemy_id in BORROWED_FIRE_2WAY_CANONICAL_IDS:
+        a.b(0xC9, enemy_id)
+        a.branch(0xF0, "two")
+    for enemy_id in BORROWED_FIRE_3WAY_CANONICAL_IDS:
+        a.b(0xC9, enemy_id)
+        a.branch(0xF0, "three")
+    a.b(0x8A)
+    a.jsr(CPU_FINAL_PANEL_TYPE_CLASSIFIER)
+    a.branch(0xB0, "stage")
+    a.jmp(normal_entry_cpu)
+    a.label("stage")
+    a.jmp(stage_entry_cpu)
     a.label("two")
     a.jmp(two_entry_cpu)
     a.label("three")
@@ -638,8 +663,8 @@ FINAL_STATIC_MARKER_HELPER = _build_static_marker_helper()
 FINAL_DYNAMIC_SPEED_MARKER_HELPER = _build_dynamic_speed_marker_helper(CPU_FINAL_SPEED_SELECT_HELPER)
 FINAL_PARENT_FIELD_CLEAR_HELPER = _build_parent_field_clear_helper()
 FINAL_FIRE_MARKER_TABLE = _build_final_fire_marker_table()
-FINAL_STAGE_DISPATCH_TAIL = _build_final_stage_dispatch_tail(CPU_FINAL_STAGE_DISPATCH_HELPER)
-FINAL_STAGE_DISPATCH_HELPER = _build_final_stage_dispatch_helper(
+PREVIOUS_STAGE_DISPATCH_TAIL = _build_previous_stage_dispatch_tail(CPU_FINAL_STAGE_DISPATCH_HELPER)
+PREVIOUS_STAGE_DISPATCH_HELPER = _build_previous_stage_dispatch_helper(
     panel_monster_variant.CPU_FIRE_3WAY,
     panel_monster_variant.CPU_FIRE_3WAY + 0x04,
 )
@@ -649,8 +674,14 @@ FINAL_FIRE_COMMON = _build_final_fire_common(
     CPU_FINAL_STATIC_MARKER_HELPER,
     CPU_FINAL_DYNAMIC_SPEED_MARKER_HELPER,
 )
+PREVIOUS_FIRE_DISPATCH = _build_previous_fire_dispatch(
+    _cpu(0x3D01),
+    panel_monster_variant.CPU_FIRE_3WAY + 0x0C,
+    panel_monster_variant.CPU_FIRE_3WAY + 0x08,
+)
 FINAL_FIRE_DISPATCH = _build_final_fire_dispatch(
-    CPU_FINAL_STAGE_DISPATCH_TAIL,
+    panel_monster_variant.CPU_FIRE_3WAY,
+    panel_monster_variant.CPU_FIRE_3WAY + 0x04,
     panel_monster_variant.CPU_FIRE_3WAY + 0x0C,
     panel_monster_variant.CPU_FIRE_3WAY + 0x08,
 )
@@ -671,10 +702,9 @@ FINAL_PANEL_TYPE_CLASSIFIER_TAIL = _build_panel_type_classifier_tail()
 FINAL_STAGE_PROPERTY_HOOK = _build_stage_property_hook()
 FINAL_STAGE_ANIM_HOOK = _build_stage_anim_hook()
 assert len(FINAL_FIRE_COMMON) <= len(panel_monster_variant.CAVE_FIRE_3WAY)
-assert len(FINAL_FIRE_DISPATCH) <= len(panel_monster_variant.CAVE_FIRE_DISPATCH)
-assert len(FINAL_STAGE_DISPATCH_TAIL) <= 0x0E
-assert len(FINAL_STAGE_DISPATCH_HELPER) <= STATE1_MOUTH_GATE_SIZE
-assert len(FINAL_STAGE_DISPATCH_HELPER) <= 0x13
+assert len(FINAL_FIRE_DISPATCH) <= len(panel_monster_variant.CAVE_FIRE_DISPATCH) + len(PREVIOUS_STAGE_DISPATCH_TAIL) + 0x07
+assert len(PREVIOUS_STAGE_DISPATCH_HELPER) <= STATE1_MOUTH_GATE_SIZE
+assert len(PREVIOUS_STAGE_DISPATCH_HELPER) <= 0x13
 assert len(FINAL_AI_DISPATCH_HELPER) <= 0x18
 assert len(FINAL_AI_DISPATCH_PANEL_HELPER) <= FINAL_AI_DISPATCH_PANEL_HELPER_CAPACITY
 assert len(FINAL_STATE0_INTERVAL_HELPER) <= 0x12
@@ -721,11 +751,9 @@ def panel_variant_fire_placement_report() -> dict[str, int]:
     return {
         "fire_dispatch_off": panel_monster_variant.OFF_FIRE_DISPATCH,
         "fire_dispatch_size": len(FINAL_FIRE_DISPATCH),
-        "fire_dispatch_capacity": len(panel_monster_variant.CAVE_FIRE_DISPATCH),
-        "stage_dispatch_tail_off": OFF_FINAL_STAGE_DISPATCH_TAIL,
-        "stage_dispatch_tail_size": len(FINAL_STAGE_DISPATCH_TAIL),
-        "stage_dispatch_helper_off": OFF_FINAL_STAGE_DISPATCH_HELPER,
-        "stage_dispatch_helper_size": len(FINAL_STAGE_DISPATCH_HELPER),
+        "fire_dispatch_capacity": len(panel_monster_variant.CAVE_FIRE_DISPATCH) + len(PREVIOUS_STAGE_DISPATCH_TAIL) + 0x07,
+        "removed_stage_dispatch_tail_size": len(PREVIOUS_STAGE_DISPATCH_TAIL),
+        "removed_stage_dispatch_helper_size": len(PREVIOUS_STAGE_DISPATCH_HELPER),
         "fire_common_off": panel_monster_variant.OFF_FIRE_3WAY,
         "fire_common_size": len(FINAL_FIRE_COMMON),
         "fire_common_capacity": len(panel_monster_variant.CAVE_FIRE_3WAY),
@@ -770,14 +798,12 @@ def panel_variant_split_placement_report() -> dict[str, object]:
     """Return the current split placement without writing ROM data."""
     v2_speed_sizes = _v2_split_speed_reserved_sizes()
     pieces = (
-        ("fire_dispatch", panel_monster_variant.OFF_FIRE_DISPATCH, len(FINAL_FIRE_DISPATCH), len(panel_monster_variant.CAVE_FIRE_DISPATCH)),
+        ("fire_dispatch", panel_monster_variant.OFF_FIRE_DISPATCH, len(FINAL_FIRE_DISPATCH), len(panel_monster_variant.CAVE_FIRE_DISPATCH) + len(PREVIOUS_STAGE_DISPATCH_TAIL) + 0x07),
         ("ai_dispatch_helper", OFF_FINAL_AI_DISPATCH_HELPER, len(FINAL_AI_DISPATCH_HELPER), 0x18),
         ("ai_dispatch_panel_helper", OFF_FINAL_AI_DISPATCH_PANEL_HELPER, len(FINAL_AI_DISPATCH_PANEL_HELPER), FINAL_AI_DISPATCH_PANEL_HELPER_CAPACITY),
         ("parent_speed_guard", OFF_FINAL_PARENT_SPEED_GUARD, len(FINAL_PARENT_SPEED_GUARD), FINAL_PARENT_SPEED_GUARD_CAPACITY),
         ("panel_type_classifier", OFF_FINAL_PANEL_TYPE_CLASSIFIER, len(FINAL_PANEL_TYPE_CLASSIFIER), 0x1E),
         ("panel_type_classifier_tail", OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL, len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL), 0x14),
-        ("stage_dispatch_tail", OFF_FINAL_STAGE_DISPATCH_TAIL, len(FINAL_STAGE_DISPATCH_TAIL), 0x03),
-        ("stage_dispatch_helper", OFF_FINAL_STAGE_DISPATCH_HELPER, len(FINAL_STAGE_DISPATCH_HELPER), 0x13),
         ("fire_common", panel_monster_variant.OFF_FIRE_3WAY, len(FINAL_FIRE_COMMON), len(panel_monster_variant.CAVE_FIRE_3WAY)),
         ("state0_interval_helper", OFF_FINAL_STATE0_INTERVAL_HELPER, len(FINAL_STATE0_INTERVAL_HELPER), 0x12),
         ("group_ram_offset_helper", OFF_FINAL_GROUP_RAM_OFFSET_HELPER, len(FINAL_GROUP_RAM_OFFSET_HELPER), 0x17),
@@ -791,7 +817,7 @@ def panel_variant_split_placement_report() -> dict[str, object]:
         ("v2_bullet_entry_tail_helper", OFF_FINAL_BULLET_ENTRY_TAIL_HELPER, v2_speed_sizes["bullet_entry_tail_helper"], FINAL_BULLET_ENTRY_TAIL_HELPER_CAPACITY),
         ("v2_speed_decode", OFF_FINAL_BULLET_SPEED_APPLY, v2_speed_sizes["speed_decode"], 0x3A),
         ("shared_ai_wrapper", OFF_FINAL_SHARED_AI_WRAPPER, len(FINAL_SHARED_AI_WRAPPER), 0xAB),
-        ("fire_marker_table", OFF_FINAL_FIRE_MARKER_TABLE, len(FINAL_FIRE_MARKER_TABLE), 0x0B),
+        ("fire_marker_table", OFF_FINAL_FIRE_MARKER_TABLE, len(FINAL_FIRE_MARKER_TABLE), 0x13),
         ("v2_bullet_speed_hook", panel_monster_variant.OFF_BULLET_HOOK, v2_speed_sizes["bullet_speed_hook"], FINAL_BULLET_SPEED_HOOK_CAPACITY),
     )
     rows = []
@@ -1061,7 +1087,12 @@ def _validate_final_split_signatures(
             panel_monster_variant.OFF_FIRE_DISPATCH,
             FINAL_FIRE_DISPATCH,
             "Panel Variant final fire dispatch",
-            (_fill(0xEA, len(FINAL_FIRE_DISPATCH)), panel_monster_variant.CAVE_FIRE_DISPATCH[:len(FINAL_FIRE_DISPATCH)]),
+            (
+                FINAL_FIRE_DISPATCH,
+                panel_monster_variant.CAVE_FIRE_DISPATCH + _fill(0xEA, len(FINAL_FIRE_DISPATCH) - len(panel_monster_variant.CAVE_FIRE_DISPATCH)),
+                panel_monster_variant.CAVE_FIRE_DISPATCH + FINAL_FIRE_DISPATCH[len(panel_monster_variant.CAVE_FIRE_DISPATCH):],
+                PREVIOUS_FIRE_DISPATCH + PREVIOUS_STAGE_DISPATCH_TAIL + FINAL_FIRE_MARKER_TABLE[:0x07],
+            ),
         ),
         (
             OFF_FINAL_AI_DISPATCH_HELPER,
@@ -1092,12 +1123,6 @@ def _validate_final_split_signatures(
             FINAL_PANEL_TYPE_CLASSIFIER_TAIL,
             "Panel Variant final shared Panel type classifier tail",
             (_fill(0x00, len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL)),),
-        ),
-        (
-            OFF_FINAL_STAGE_DISPATCH_TAIL,
-            FINAL_STAGE_DISPATCH_TAIL,
-            "Panel Variant final stage dispatch tail",
-            (_fill(0xEA, len(FINAL_STAGE_DISPATCH_TAIL)),),
         ),
         (
             panel_monster_variant.OFF_FIRE_3WAY,
@@ -1190,7 +1215,10 @@ def _validate_final_split_signatures(
             OFF_FINAL_FIRE_MARKER_TABLE,
             FINAL_FIRE_MARKER_TABLE,
             "Panel Variant final fire marker table",
-            (_fill(0xEA, len(FINAL_FIRE_MARKER_TABLE)),),
+            (
+                _fill(0xEA, len(FINAL_FIRE_MARKER_TABLE)),
+                PREVIOUS_STAGE_DISPATCH_HELPER[:len(FINAL_FIRE_MARKER_TABLE)],
+            ),
         ),
         (
             panel_monster_variant.OFF_BULLET_HOOK,
@@ -1200,12 +1228,6 @@ def _validate_final_split_signatures(
                 _fill(0xEA, len(v2_speed["bullet_speed_hook"])),
                 _pad(panel_monster_variant.CAVE_BULLET_HOOK, len(v2_speed["bullet_speed_hook"])),
             ),
-        ),
-        (
-            OFF_FINAL_STAGE_DISPATCH_HELPER,
-            FINAL_STAGE_DISPATCH_HELPER,
-            "Panel Variant final stage dispatch helper",
-            (_fill(0xEA, len(FINAL_STAGE_DISPATCH_HELPER)),),
         ),
         (
             panel_monster_variant.OFF_PROPERTY_HOOK,
@@ -1250,7 +1272,7 @@ def apply_panel_monster_v2_runtime(
         OFF_FINAL_PARENT_SPEED_GUARD + len(FINAL_PARENT_SPEED_GUARD_WRITE),
         OFF_FINAL_GROUP_RAM_OFFSET_HELPER + len(FINAL_GROUP_RAM_OFFSET_HELPER_WRITE),
         OFF_FINAL_SHARED_AI_WRAPPER + len(FINAL_SHARED_AI_WRAPPER),
-        OFF_FINAL_STAGE_DISPATCH_HELPER + len(FINAL_STAGE_DISPATCH_HELPER),
+        OFF_FINAL_FIRE_MARKER_TABLE + len(FINAL_FIRE_MARKER_TABLE),
         SETTINGS_TABLE_END,
         panel_monster_variant.OFF_ANIM_HOOK + len(FINAL_STAGE_ANIM_HOOK),
     )
@@ -1310,7 +1332,6 @@ def apply_panel_monster_v2_runtime(
         (OFF_FINAL_PARENT_SPEED_GUARD, FINAL_PARENT_SPEED_GUARD_WRITE, "Panel Variant final parent speed guard"),
         (OFF_FINAL_PANEL_TYPE_CLASSIFIER, FINAL_PANEL_TYPE_CLASSIFIER, "Panel Variant final shared Panel type classifier"),
         (OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL, FINAL_PANEL_TYPE_CLASSIFIER_TAIL, "Panel Variant final shared Panel type classifier tail"),
-        (OFF_FINAL_STAGE_DISPATCH_TAIL, FINAL_STAGE_DISPATCH_TAIL, "Panel Variant final stage dispatch tail"),
         (panel_monster_variant.OFF_FIRE_3WAY, FINAL_FIRE_COMMON, "Panel Variant final common fire loop"),
         (OFF_FINAL_STATE0_INTERVAL_HELPER, final_state0_interval_helper, "Panel Variant final interval helper"),
         (OFF_FINAL_GROUP_RAM_OFFSET_HELPER, FINAL_GROUP_RAM_OFFSET_HELPER_WRITE, "Panel Variant final group RAM offset helper"),
@@ -1326,7 +1347,6 @@ def apply_panel_monster_v2_runtime(
         (OFF_FINAL_SHARED_AI_WRAPPER, FINAL_SHARED_AI_WRAPPER, "Panel Variant final shared AI wrapper"),
         (OFF_FINAL_FIRE_MARKER_TABLE, FINAL_FIRE_MARKER_TABLE, "Panel Variant final fire marker table"),
         (panel_monster_variant.OFF_BULLET_HOOK, v2_speed["bullet_speed_hook"], "Panel Variant v2 Bullet speed hook"),
-        (OFF_FINAL_STAGE_DISPATCH_HELPER, FINAL_STAGE_DISPATCH_HELPER, "Panel Variant final stage dispatch helper"),
         (panel_monster_variant.OFF_PROPERTY_HOOK, FINAL_STAGE_PROPERTY_HOOK, "Panel Variant final property hook"),
         (panel_monster_variant.OFF_ANIM_HOOK, FINAL_STAGE_ANIM_HOOK, "Panel Variant final animation hook"),
     ):
@@ -2094,8 +2114,6 @@ RESERVED_SPANS = (
     (OFF_FINAL_PARENT_SPEED_GUARD, len(FINAL_PARENT_SPEED_GUARD)),
     (OFF_FINAL_PANEL_TYPE_CLASSIFIER, len(FINAL_PANEL_TYPE_CLASSIFIER)),
     (OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL, len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL)),
-    (OFF_FINAL_STAGE_DISPATCH_TAIL, len(FINAL_STAGE_DISPATCH_TAIL)),
-    (OFF_FINAL_STAGE_DISPATCH_HELPER, len(FINAL_STAGE_DISPATCH_HELPER)),
     (panel_monster_variant.OFF_FIRE_3WAY, len(FINAL_FIRE_COMMON)),
     (OFF_FINAL_STATE0_INTERVAL_HELPER, len(FINAL_STATE0_INTERVAL_HELPER)),
     (OFF_FINAL_GROUP_RAM_OFFSET_HELPER, len(FINAL_GROUP_RAM_OFFSET_HELPER)),
