@@ -611,6 +611,7 @@ class MirrorEnemyPanel(QWidget):
     """ミラー敵セットパネル — ミラー1/2 各7体のアイコンスロット（D&D対応）"""
 
     enemies_changed = pyqtSignal()
+    mirror_active_toggle_requested = pyqtSignal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -618,6 +619,7 @@ class MirrorEnemyPanel(QWidget):
         self._config = None
         self._rows = []  # [_MirrorRow, _MirrorRow]
         self._row_labels = []
+        self._toggle_buttons = []
         self._row_effects = []
         self._label_effects = []
         self._build_ui()
@@ -649,6 +651,12 @@ class MirrorEnemyPanel(QWidget):
             row.slot_changed.connect(self.enemies_changed.emit)
             row_layout.addWidget(row, 1)
             self._rows.append(row)
+            btn = QPushButton("OFF")
+            btn.setFixedWidth(42)
+            btn.setMinimumHeight(24)
+            btn.clicked.connect(lambda _, mm=m: self.mirror_active_toggle_requested.emit(mm))
+            row_layout.addWidget(btn, 0)
+            self._toggle_buttons.append(btn)
             layout.addLayout(row_layout)
 
     def set_icon_zoom_owner(self, owner):
@@ -681,6 +689,15 @@ class MirrorEnemyPanel(QWidget):
             tip = "ミラー詳細設定の出現タイミングが全OFFのため、この敵セットは出現しません。"
             row.setToolTip(tip)
             label.setToolTip(tip)
+        btn = self._toggle_buttons[mirror_no]
+        if active:
+            btn.setText("OFF")
+            btn.setToolTip(f"M{mirror_no + 1} の出現タイミングを全OFFにします。")
+            btn.setStyleSheet("")
+        else:
+            btn.setText("ON")
+            btn.setToolTip(f"M{mirror_no + 1} を最大間隔でONにします。")
+            btn.setStyleSheet("font-weight:bold; color:#00ff66;")
 
     def set_mirror_active_states(self, states: list):
         for mirror_no in range(min(2, len(states))):

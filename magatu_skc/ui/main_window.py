@@ -1079,21 +1079,19 @@ class MainWindow(QMainWindow):
         self.picker.bonus_panel.items_changed.connect(self._on_bonus_panel_items_changed)
         # ミラー敵セット変更
         self.picker.mirror_panel.enemies_changed.connect(self._on_mirror_panel_changed)
+        self.picker.mirror_panel.mirror_active_toggle_requested.connect(
+            self._on_toggle_mirror_schedule
+        )
         self.btn_mirror = QPushButton("ミラー詳細設定")
         self.btn_mirror.setToolTip(
             "現在ステージの2つのミラーについて、出現タイミング(64ビット)とTTLを編集"
         )
         self.btn_mirror.clicked.connect(self._on_show_mirror)
-        self.btn_mirror_off = QPushButton("OFF")
-        self.btn_mirror_off.setToolTip("現在ステージのミラー1/2の出現タイミングをすべてOFFにする")
-        self.btn_mirror_off.setFixedWidth(48)
-        self.btn_mirror_off.clicked.connect(self._on_clear_mirror_schedules)
         mirror_button_row = QWidget()
         mirror_button_layout = QHBoxLayout(mirror_button_row)
         mirror_button_layout.setContentsMargins(0, 0, 0, 0)
         mirror_button_layout.setSpacing(4)
         mirror_button_layout.addWidget(self.btn_mirror, 1)
-        mirror_button_layout.addWidget(self.btn_mirror_off, 0)
         self.picker.set_mirror_detail_button(mirror_button_row)
         self.picker.set_extra_panel_widget(self._build_panel_variant_panel())
 
@@ -10038,6 +10036,73 @@ class MainWindow(QMainWindow):
         self._set_dirty(True)
         self._log(f"ミラー出現OFF: L{ln + 1} のミラー1/2を全OFF")
         self.statusBar().showMessage("ミラー1/2の出現タイミングを全OFFにしました", 3000)
+
+    def _mirror_schedule_offset(self, level_no: int, mirror_no: int) -> int:
+        from ..core import m66
+        return m66.OFFSET_M66_DROP_SCHED_DATA + (level_no * 2 + mirror_no) * 8
+
+    def _mirror_schedule_bytes_for_gap(self, gap: int = 6) -> list[int]:
+        period = max(1, int(gap) + 1)
+        bits = [
+            i >= 2 and ((i - 2) % period == 0)
+            for i in range(64)
+        ]
+        out = []
+        for byte_index in range(8):
+            byte = 0
+            for shift in range(7, -1, -1):
+                if bits[byte_index * 8 + (7 - shift)]:
+                    byte |= (1 << shift)
+            out.append(byte)
+        return out
+
+    def _mirror_schedule_is_active(self, level_no: int, mirror_no: int) -> bool:
+        off = self._mirror_schedule_offset(level_no, mirror_no)
+        for i in range(8):
+            byte = self.rom.data[off + i]
+            if i == 0:
+                byte &= 0x3F
+            if byte:
+                return True
+        return False
+
+    def _set_mirror_schedule_bytes(self, level_no: int, mirror_no: int, values: list[int]):
+        off = self._mirror_schedule_offset(level_no, mirror_no)
+        lv = self.levels[level_no]
+        values = [(int(v) & 0xFF) for v in list(values)[:8]]
+        while len(values) < 8:
+            values.append(0)
+        for i, value in enumerate(values):
+            self.rom.data[off + i] = value
+        if mirror_no < len(lv.demon_mirrors):
+            lv.demon_mirrors[mirror_no].schedule_data = list(values)
+
+    def _on_toggle_mirror_schedule(self, mirror_no: int):
+        if not self.rom or not self.levels:
+            return
+        if self._reject_read_only_edit():
+            return
+        if not self.rom.is_expanded():
+            self.statusBar().showMessage("拡張ROMを読み込んだ状態で使用できます。", 3000)
+            return
+        if mirror_no not in (0, 1):
+            return
+        ln = self.current_level_no
+        self._push_undo()
+        if self._mirror_schedule_is_active(ln, mirror_no):
+            self._set_mirror_schedule_bytes(ln, mirror_no, [0] * 8)
+            state_text = "OFF"
+        else:
+            self._set_mirror_schedule_bytes(ln, mirror_no, self._mirror_schedule_bytes_for_gap(6))
+            state_text = "ON（6空け）"
+        self._sync_mirror_panel()
+        self._refresh_view()
+        self._set_dirty(True)
+        self._log(f"ミラー出現切替: L{ln + 1} M{mirror_no + 1} -> {state_text}")
+        self.statusBar().showMessage(
+            f"ミラー{mirror_no + 1}の出現タイミングを{state_text}にしました",
+            3000,
+        )
 
     def _on_mirror_changed(self):
         """ミラーダイアログの Apply からコールバック"""
