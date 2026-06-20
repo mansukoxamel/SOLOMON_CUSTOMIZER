@@ -240,7 +240,7 @@
     </div>
     <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
     <div class="note">
-      <b>棚卸メモ:</b> 2026-06-20 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約77B。内訳は原作00埋め2B / 原作EA埋め75B、最大連続空き14B。Panel Variant final split runtime と Panel Monster / Variant animation hook はproduction予約として含める。
+      <b>棚卸メモ:</b> 2026-06-20 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約64B。Final-stage redirect runtimeで13B使用後の断片合計。Panel Variant final split runtime と Panel Monster / Variant animation hook はproduction予約として含める。
       実装側の許容スパン上は <code>0x4190-0x420D</code> が expanded table span と key enemy で重複するため、空き計算は重複を二重加算しない union で扱う。
     </div>
     <div class="note">
@@ -257,7 +257,7 @@
       <tr><td class="num">0x3C8F</td><td class="num">$BC7F</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x3CDE-0x3CDF</td><td class="num">$BCCE-$BCCF</td><td class="num">2B</td><td>Key enemy fall-death handlerの予約縮小で回収。Dark tempo直前の断片。</td></tr>
       <tr><td class="num">0x3D0B-0x3D0E</td><td class="num">$BCFB-$BCFE</td><td class="num">4B</td><td>Panel Monster fire dispatch圧縮で回収。短い非常用候補。</td></tr>
-      <tr><td class="num">0x3D28-0x3D35</td><td class="num">$BD18-$BD25</td><td class="num">14B</td><td>Gargoyle 2-shot gateのID判定圧縮で回収。短い非常用候補。</td></tr>
+      <tr><td class="num">0x3D35</td><td class="num">$BD25</td><td class="num">1B</td><td>Final-stage redirect runtime配置後の残り断片。</td></tr>
       <tr><td class="num">0x3D46-0x3D4A</td><td class="num">$BD36-$BD3A</td><td class="num">5B</td><td>原作EA埋め。Spark Ball fast AI wrapperのID判定圧縮で回収。直後はGargoyle 2-shot body。</td></tr>
       <tr><td class="num">0x3D97</td><td class="num">$BD87</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x3E0A-0x3E0F</td><td class="num">$BDFA-$BDFF</td><td class="num">6B</td><td>Panel Monster v2 final common fire loopの実予約が114Bであるため回収。短い非常用候補。</td></tr>
@@ -271,7 +271,7 @@
       <tr><td class="num">0x400F</td><td class="num">$BFFF</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x414F-0x4152</td><td class="num">$C13F-$C142</td><td class="num">4B</td><td>Panel Monster fire marker table移動後の残り。短い非常用候補。</td></tr>
       <tr><td class="num">0x418F</td><td class="num">$C17F</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>77B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。内訳は00埋め2B / EA埋め75B。最大連続は <code>$BD18-$BD25</code> の14B。</td></tr>
+      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>64B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。Final-stage redirect runtimeで13B使用後の断片合計。</td></tr>
     </table>
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
@@ -287,6 +287,7 @@
       <tr><td>Dark tempo bytes</td><td class="num">0x3CE0-0x3CE1</td><td class="num">$BCD0-$BCD1</td><td class="num">2B</td><td>Global dark-room tempo bytes `[LIGHT, PERIOD]`. Reserved by `room_flags.TEMPO`.</td></tr>
       <tr><td>Panel Monster fire dispatch</td><td class="num">0x3CE2-0x3D0A</td><td class="num">$BCD2-$BCFA</td><td class="num">41B</td><td>Normal / 2-way / 3-way / A/B/C fire dispatch. Absorbs the old 3B stage tail and 15B stage helper, reducing reserved PRG0 bytes by 8B.</td></tr>
       <tr><td>Gargoyle 2-shot gate</td><td class="num">0x3D0F-0x3D27</td><td class="num">$BCFF-$BD17</td><td class="num">25B</td><td>Conditional `$7A/$7B/$7E/$7F` gate for the accepted `$AE6F` two-Bullet variant. ID判定を <code>AND #$FA</code> で圧縮済み。</td></tr>
+      <tr><td>Final-stage redirect</td><td class="num">0x3D28-0x3D34</td><td class="num">$BD18-$BD24</td><td class="num">13B</td><td>StageExt byte0 bit4を部屋ロード時に <code>$077A</code> bit7へコピーし、クリア処理で立っていれば次ステージ番号 <code>$0428</code> を原作最終面 <code>$31</code> へ差し替える。Reserved through <code>final_stage_redirect.RESERVED_SPANS</code>.</td></tr>
       <tr><td>Spark Ball fast AI wrapper</td><td class="num">0x3D36-0x3D45</td><td class="num">$BD26-$BD35</td><td class="num">16B</td><td>Relocated out of gap_fix range. ID判定を <code>AND #$FE</code> で圧縮済み。</td></tr>
       <tr><td>Gargoyle 2-shot body</td><td class="num">0x3D4B-0x3D96</td><td class="num">$BD3B-$BD86</td><td class="num">76B</td><td>Accepted `SecondXAhead16_DirVelocity` body.</td></tr>
       <tr><td>Panel Monster common fire loop</td><td class="num">0x3D98-0x3E09</td><td class="num">$BD88-$BDF9</td><td class="num">114B</td><td>Panel Monster v2 final shared normal / 2-way / 3-way fire routine. Entry points: normal <code>$BD88</code>, 3-way <code>$BD8C</code>, 2-way <code>$BD90</code>. The former tail <code>$BDFA-$BDFF</code> is tracked as free.</td></tr>
@@ -349,8 +350,8 @@
       <tr><td>mapper66 loader tail hook</td><td class="num">0x80C4-0x80C6</td><td class="num">$80B4-$80B6</td><td class="num">3B</td><td>StageExt / Panel Variant runtime hook (<code>JMP $8A00</code>). Visible item mask code must not occupy this tail.</td></tr>
       <tr><td>loader guard</td><td class="num">0x80C7-0x80CF</td><td class="num">$80B7-$80BF</td><td class="num">9B</td><td>Guard bytes.</td></tr>
       <tr><td>wide title decoder/data</td><td class="num">0x80D0-0x87FF</td><td class="num">$80C0-$87EF</td><td class="num">1,840B</td><td>Wide title decoder + blockA/blockB streams. Confirmed imported title uses 589B.</td></tr>
-      <tr><td>StageExtTable</td><td class="num">0x8800-0x8A0F</td><td class="num">$87F0-$89FF</td><td class="num">528B</td><td>Per-stage extension settings: 16B header + 64 rooms x 8B. byte2=key enemy initial slot, byte3=fall-death fairy enemy initial slot. Also carries mapper66 runtime room flags and door-cell bytes copied to `$0778/$077C`; the room-load runtime clears legacy `$077A` for compatibility.</td></tr>
-      <tr><td>Panel Variant combined runtime loader</td><td class="num">0x8A10-0x8A6F</td><td class="num">$8A00-$8A5F</td><td class="num">96B</td><td>Mapper66 room-load helper. Preserves StageExt runtime copies, clears legacy `$077A`, copies the Solomon Seal block-state byte to `$077D`, copies the 6B global A/B/C Panel Variant settings table to <code>$0740-$0745</code>, then jumps directly to the Transparent Seal suppress guard.</td></tr>
+      <tr><td>StageExtTable</td><td class="num">0x8800-0x8A0F</td><td class="num">$87F0-$89FF</td><td class="num">528B</td><td>Per-stage extension settings: 16B header + 64 rooms x 8B. byte0 bit4=clear後に原作最終面へ送る、byte2=key enemy initial slot, byte3=fall-death fairy enemy initial slot. Also carries mapper66 runtime room flags and door-cell bytes copied to <code>$0778/$077C</code>; the room-load runtime copies byte0 bit4 to <code>$077A</code> bit7.</td></tr>
+      <tr><td>Panel Variant combined runtime loader</td><td class="num">0x8A10-0x8A6F</td><td class="num">$8A00-$8A5F</td><td class="num">96B</td><td>Mapper66 room-load helper. Preserves StageExt runtime copies, copies StageExt byte0 bit4 to <code>$077A</code> bit7, copies the Solomon Seal block-state byte to <code>$077D</code>, copies the 6B global A/B/C Panel Variant settings table to <code>$0740-$0745</code>, then jumps directly to the Transparent Seal suppress guard.</td></tr>
       <tr><td>Panel Variant settings table</td><td class="num">0x8A70-0x8A75</td><td class="num">$8A60-$8A65</td><td class="num">6B</td><td>All-stage common A/B/C settings image: A speed/interval, B speed/interval, C speed/interval. Copied to RAM <code>$0740-$0745</code> by the runtime loader.</td></tr>
       <tr><td>PanelVariant PRG1 reserve</td><td class="num">0x8A76-0x8E7F</td><td class="num">$8A66-$8E6F</td><td class="num">1,034B</td><td>PRG1 reserve after the 6B global A/B/C settings image. Current runtime does not reference this area.</td></tr>
       <tr><td>Transparent/cracked item side-data copy helper</td><td class="num">0x8E80-0x8EAA</td><td class="num">$8E70-$8E9A</td><td class="num">43B</td><td>Copies the current room's 32B side slot from the PRG1 table to RAM <code>$0750-$076F</code> with page-crossing carry preserved. The first 24B are the visible-item mask; the last 8B are cracked in-block cell positions.</td></tr>

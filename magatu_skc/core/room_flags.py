@@ -90,8 +90,9 @@ verbatim コピーするため file offset 不変):
 #   $0770-$0777 ENTITY_TAIL_CANDIDATE 補助候補8B          要probe
 #   $0778       ROOMFLAGS       room flag table cache         予約済(使用中)
 #   $0779       DARK_PHASE      暗闇 明滅フェーズカウンタ      予約済(使用中)
-#   $077A       BLOCK_OVERRIDE_LEGACY mapper66 loaderが互換目的でクリア 予約済(互換)
-#                               ・現行の特殊セル変換は変換済みフラグを読まない。
+#   $077A       FINAL_STAGE_REDIRECT  current room final-stage redirect bit7,
+#                                     copied by mapper66 room-load runtime
+#                               ・bit7=この面クリア後に次ステージを最終面へ差し替え。
 #   $077B       BLOCK_OVERRIDE_WORK 旧一時値候補              予約済(互換)
 #   $077C       RUNTIME_DOOR_CELL 現在部屋の扉セル            予約済(使用中)
 #   $077D       SEAL_BLOCK_VALUE Solomon's Seal block-state value 予約済(使用中)
@@ -166,7 +167,7 @@ verbatim コピーするため file offset 不変):
 #   $0770-$0777 ENTITY_TAIL_CANDIDATE  secondary 8-byte candidate, probe before use
 #   $0778       ROOMFLAGS              room flag table cache, reserved in use
 #   $0779       DARK_PHASE             dark-room phase counter, reserved in use
-#   $077A       BLOCK_OVERRIDE_LEGACY  cleared by mapper66 room-load runtime, no current reader
+#   $077A       FINAL_STAGE_REDIRECT   bit7 redirects next stage to final room after clear
 #   $077B       BLOCK_OVERRIDE_WORK    legacy temporary candidate, reserved for compatibility
 #   $077C       RUNTIME_DOOR_CELL      current room door cell, reserved in use
 #   $077D       SEAL_BLOCK_VALUE       Solomon's Seal block-state value from PRG1 table
@@ -419,6 +420,7 @@ def _verify(rom_data) -> None:
     from . import saramandor_variant as _sv
     from . import spark_ball_variant as _sbv
     from . import key_enemy_runtime as _ker
+    from . import final_stage_redirect as _fsr
     expanded = len(rom_data) == 0x18010
     table_spans = ((OFF_DOORTAB, ROOM_COUNT * 2),) if expanded else (
         (OFF_DOORTAB, ROOM_COUNT),
@@ -452,6 +454,7 @@ def _verify(rom_data) -> None:
         *pmsv_capacity_spans,                # Panel Variant legacy tail compatibility
         *_sbv.RESERVED_SPANS,                # Spark Ball Dragon-ID variants
         *_ker.RESERVED_SPANS,                # Key-carrying initial enemy runtime
+        *_fsr.RESERVED_SPANS,                # Clear this room, then load final room
     )
     for i in range(OFF_CAVE_FREE0, OFF_CAVE_FREE1):
         if rom_data[i] in (0xEA, 0x00):

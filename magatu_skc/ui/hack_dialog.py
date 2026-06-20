@@ -43,6 +43,7 @@ from ..core import time_decrease_hack
 from ..core import wall_color_hack
 from ..core import stage_frame
 from ..core import solomon_seal_stage
+from ..core import stage_ext
 from ..core import constants as c
 from ..core.config import normalize_panel_variant_settings
 from ..core.element import Wall
@@ -102,6 +103,7 @@ class HackDialog(QDialog):
         view_mode: str = "game",
         tile_renderer=None,
         config=None,
+        levels=None,
     ):
         super().__init__(parent)
         if parent is not None:
@@ -114,6 +116,7 @@ class HackDialog(QDialog):
         self._initial_level_no = initial_level_no
         self.tile_renderer = tile_renderer
         self.config = config
+        self.levels = levels
 
         # 縦長で画面に入らないため: グループ群は 2列グリッド + 縦スクロール、
         # 補助ボタン/OK等は下に固定。呼び出し側(layout.addWidget/addLayout)は
@@ -165,6 +168,24 @@ class HackDialog(QDialog):
         self.spin_continue.setValue(cur + 1)
         cf.addRow("コンティニュー上限:", self.spin_continue)
         layout.addWidget(cont_group)
+
+        # ====== 最終面への移行 ======
+        final_group = QGroupBox("最終面への移行")
+        final_group.setProperty("settings_category", "基本")
+        ff = QFormLayout(final_group)
+        self.combo_final_stage_redirect = QComboBox()
+        self.combo_final_stage_redirect.addItem("なし", -1)
+        for stage_no in range(1, 54):
+            self.combo_final_stage_redirect.addItem(f"{stage_no}面をクリアした後", stage_no - 1)
+        current_final_redirect = self._current_final_stage_redirect_level_no()
+        idx = self.combo_final_stage_redirect.findData(current_final_redirect)
+        self.combo_final_stage_redirect.setCurrentIndex(idx if idx >= 0 else 0)
+        self.combo_final_stage_redirect.setToolTip(
+            "選んだ面をクリアした後、次の面を原作最終面に差し替えます。"
+            "内部保存はステージ拡張フラグですが、PNG/ステージデータには持ち出しません。"
+        )
+        ff.addRow("移行条件:", self.combo_final_stage_redirect)
+        layout.addWidget(final_group)
 
         # ====== ワープ羽 ======
         wftr_group = QGroupBox("ワープ羽")
@@ -1574,6 +1595,25 @@ class HackDialog(QDialog):
         finally:
             self._seal_stage_loading = False
 
+    def _current_final_stage_redirect_level_no(self) -> int:
+        for i, level in enumerate(self.levels or []):
+            if stage_ext.final_stage_redirect_enabled(level):
+                return i
+        return -1
+
+    def _apply_final_stage_redirect_setting(self) -> bool:
+        if not self.levels:
+            return False
+        selected = int(self.combo_final_stage_redirect.currentData())
+        changed = False
+        for i, level in enumerate(self.levels):
+            want = i == selected
+            old = stage_ext.final_stage_redirect_enabled(level)
+            if old != want:
+                stage_ext.set_final_stage_redirect_enabled(level, want)
+                changed = True
+        return changed
+
     def _collect_global_settings(self) -> dict:
         """現在の画面値をROM非依存のJSON設定として集める。"""
         settings = {
@@ -2032,6 +2072,14 @@ class HackDialog(QDialog):
         if self._continue_offset < len(d) and d[self._continue_offset] != new_cont:
             d[self._continue_offset] = new_cont
             applied.append(f"コンティニュー上限 → {self.spin_continue.value()}")
+
+        if self._apply_final_stage_redirect_setting():
+            selected = int(self.combo_final_stage_redirect.currentData())
+            if selected < 0:
+                applied.append("最終面への移行 → なし")
+            else:
+                applied.append(f"最終面への移行 → {selected + 1}面をクリアした後")
+            self._mark_parent_dirty("最終面への移行設定を変更")
 
         # ワープ羽
         if getattr(self, "_warp_feather_ok", False):

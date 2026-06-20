@@ -6461,11 +6461,11 @@ class MainWindow(QMainWindow):
                 if self._is_blocking_edit_block_cell(lv, tile) and not self._can_apply_absorb_flag_to_moving_key(target_absorb_flag):
                     self._show_block_absorb_rejected_message(tile)
                     return
+                self._restore_drag_meta_absorbed_block(lv, mp)
                 self._clear_moving_key_absorb_state(lv, mp)
                 lv.fixed_key_pos = tile
                 if target_absorb_flag is not None:
-                    self._apply_absorb_flag_to_tile(lv, tile, target_absorb_flag)
-                    mp["move_absorb_flag"] = target_absorb_flag
+                    self._apply_absorb_flag_to_moving_key(lv, mp, tile, target_absorb_flag)
                 elif mp.get("move_absorb_flag") is not None:
                     self._apply_moving_key_absorb_state(lv, mp, tile)
                 mp["current_pos"] = tile
@@ -6477,11 +6477,11 @@ class MainWindow(QMainWindow):
                 if self._is_blocking_edit_block_cell(lv, tile) and not self._can_apply_absorb_flag_to_moving_door(target_absorb_flag):
                     self._show_block_absorb_rejected_message(tile)
                     return
+                self._restore_drag_meta_absorbed_block(lv, mp)
                 self._clear_moving_door_absorb_state(lv, mp)
                 lv.fixed_door_pos = tile
                 if target_absorb_flag is not None:
-                    self._apply_absorb_flag_to_tile(lv, tile, target_absorb_flag)
-                    mp["move_absorb_flag"] = target_absorb_flag
+                    self._apply_absorb_flag_to_moving_door(lv, mp, tile, target_absorb_flag)
                 elif mp.get("move_absorb_flag") is not None:
                     self._apply_moving_door_absorb_state(lv, mp, tile)
                 mp["current_pos"] = tile
@@ -6645,10 +6645,45 @@ class MainWindow(QMainWindow):
                     lv.set_block(Wall.NONE, item.position)
                 self.statusBar().showMessage("アイテム移動完了", 2000)
                 self._refresh_thumbnails_after_edit()
+            elif kind == "meta" and self._move_pending.get("sub") in ("key", "door"):
+                self._finish_key_door_drag_absorb_state()
+                self.statusBar().showMessage("移動完了", 2000)
+                self._refresh_thumbnails_after_edit()
             else:
                 self.statusBar().showMessage("移動完了", 2000)
                 self._refresh_thumbnails_after_edit()
         self._move_pending = None
+
+    def _finish_key_door_drag_absorb_state(self):
+        if not self.levels or self._move_pending is None:
+            return
+        mp = self._move_pending
+        if mp.get("kind") != "meta":
+            return
+        sub = mp.get("sub")
+        if sub not in ("key", "door"):
+            return
+        lv = self.levels[self.current_level_no]
+        tile = mp.get("current_pos")
+        if tile is None:
+            return
+        target_absorb_flag = self._block_absorb_flag_at_tile(lv, tile)
+        if sub == "key":
+            state = mp.get("absorbed_block_state")
+            if state and state.get("tile") == tile:
+                mp.pop("absorbed_block_state", None)
+            if mp.get("active_absorb_flag") is None and target_absorb_flag is not None:
+                self._apply_absorb_flag_to_moving_key(lv, mp, tile, target_absorb_flag)
+            elif mp.get("active_absorb_flag") is None and mp.get("move_absorb_flag") is not None:
+                self._apply_moving_key_absorb_state(lv, mp, tile)
+        else:
+            state = mp.get("absorbed_block_state")
+            if state and state.get("tile") == tile:
+                mp.pop("absorbed_block_state", None)
+            if mp.get("active_absorb_flag") is None and target_absorb_flag is not None:
+                self._apply_absorb_flag_to_moving_door(lv, mp, tile, target_absorb_flag)
+            elif mp.get("active_absorb_flag") is None and mp.get("move_absorb_flag") is not None:
+                self._apply_moving_door_absorb_state(lv, mp, tile)
 
     def _on_tile_right_clicked(self, tile: tuple):
         """右クリック: そのタイルの全要素を削除（編集モード非依存）
@@ -7331,15 +7366,17 @@ class MainWindow(QMainWindow):
         tile = mp.get("current_pos")
         if tile is None:
             return
+        flag = mp.pop("active_absorb_flag", mp.get("move_absorb_flag"))
         visible_cells = getattr(lv, "visible_in_block_item_cells", set())
         visible_cells.discard(tile)
-        if mp.get("move_absorb_flag") == c.ITEM_FLAG_CRACKED_IN_BLOCK:
+        if flag == c.ITEM_FLAG_CRACKED_IN_BLOCK:
             lv.set_block(Wall.NONE, tile)
         lv.key_status = cc.KEY_STATUS_NORMAL
 
-    def _apply_moving_key_absorb_state(self, lv, mp, tile):
+    def _apply_moving_key_absorb_state(self, lv, mp, tile, flag=None):
         from ..core import constants as cc
-        flag = mp.get("move_absorb_flag")
+        if flag is None:
+            flag = mp.get("move_absorb_flag")
         visible_cells = getattr(lv, "visible_in_block_item_cells", set())
         if flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
             lv.key_status = cc.KEY_STATUS_NORMAL
@@ -7355,6 +7392,9 @@ class MainWindow(QMainWindow):
                 c.ITEM_FLAG_WHITE_IN_BLOCK: cc.KEY_STATUS_WHITE_IN_BLOCK,
             }.get(flag, cc.KEY_STATUS_NORMAL)
             visible_cells.discard(tile)
+        if flag is not None:
+            mp["active_absorb_flag"] = flag
+        mp["current_pos"] = tile
 
     def _door_absorb_flag_for_move(self, lv) -> int | None:
         from ..core import room_flags as _rf
@@ -7377,15 +7417,61 @@ class MainWindow(QMainWindow):
     def _clear_moving_door_absorb_state(self, lv, mp):
         from ..core import room_flags as _rf
         lv.room_flags = (lv.room_flags & ~_rf.DOOR_STATE_MASK) | _rf.DOOR_STATE_NORMAL
+        mp.pop("active_absorb_flag", None)
 
-    def _apply_moving_door_absorb_state(self, lv, mp, tile):
+    def _apply_moving_door_absorb_state(self, lv, mp, tile, flag=None):
         from ..core import room_flags as _rf
-        flag = mp.get("move_absorb_flag")
+        if flag is None:
+            flag = mp.get("move_absorb_flag")
         door_state = {
             c.ITEM_FLAG_IN_BLOCK: _rf.DOOR_STATE_IN_BLOCK,
             c.ITEM_FLAG_WHITE_IN_BLOCK: _rf.DOOR_STATE_WHITE_IN_BLOCK,
         }.get(flag, _rf.DOOR_STATE_NORMAL)
         lv.room_flags = (lv.room_flags & ~_rf.DOOR_STATE_MASK) | door_state
+        if flag is not None:
+            mp["active_absorb_flag"] = flag
+        mp["current_pos"] = tile
+
+    def _restore_drag_meta_absorbed_block(self, lv, mp):
+        state = mp.pop("absorbed_block_state", None)
+        if not state:
+            return
+        tile = state.get("tile")
+        if tile is None:
+            return
+        x, y = tile
+        lv.tiles[y][x] = state.get("wall_type", Wall.NONE)
+        self._pop_runtime_markers_at(lv, tile)
+        self._restore_runtime_markers_at(lv, tile, state.get("runtime_markers", set()))
+        visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+        if state.get("visible_cell"):
+            visible_cells.add(tile)
+        else:
+            visible_cells.discard(tile)
+
+    def _save_drag_meta_absorbed_block(self, lv, mp, tile):
+        x, y = tile
+        visible_cells = getattr(lv, "visible_in_block_item_cells", set())
+        mp["absorbed_block_state"] = {
+            "tile": tile,
+            "wall_type": lv.tiles[y][x],
+            "runtime_markers": self._runtime_markers_at(lv, tile),
+            "visible_cell": tile in visible_cells,
+        }
+
+    def _apply_absorb_flag_to_moving_key(self, lv, mp, tile, flag: int) -> bool:
+        if not self._can_apply_absorb_flag_to_moving_key(flag):
+            return False
+        self._save_drag_meta_absorbed_block(lv, mp, tile)
+        self._apply_moving_key_absorb_state(lv, mp, tile, flag)
+        return True
+
+    def _apply_absorb_flag_to_moving_door(self, lv, mp, tile, flag: int) -> bool:
+        if not self._can_apply_absorb_flag_to_moving_door(flag):
+            return False
+        self._save_drag_meta_absorbed_block(lv, mp, tile)
+        self._apply_moving_door_absorb_state(lv, mp, tile, flag)
+        return True
 
     def _restore_drag_item_absorbed_block(self, lv, mp):
         state = mp.pop("absorbed_block_state", None)
@@ -7581,6 +7667,14 @@ class MainWindow(QMainWindow):
             cells = getattr(level, name, set())
             if pos in cells:
                 cells.discard(pos)
+                names.add(name)
+        return names
+
+    def _runtime_markers_at(self, level, pos) -> set:
+        names = set()
+        for name in self._runtime_marker_names():
+            cells = getattr(level, name, set())
+            if pos in cells:
                 names.add(name)
         return names
 
@@ -9939,6 +10033,7 @@ class MainWindow(QMainWindow):
             initial_level_no=self.current_level_no,
             tile_renderer=self.tile_renderer,
             config=self.config,
+            levels=self.levels,
         )
         dlg.exec_()
         # 変更があれば未保存マーク
