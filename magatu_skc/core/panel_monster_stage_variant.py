@@ -1158,6 +1158,7 @@ def apply_panel_monster_v2_runtime(
     final_state0_interval_helper = _final_state0_interval_helper_for_rom(rom_data)
     _validate_final_split_signatures(rom_data, final_state0_interval_helper)
     _validate_pmv2_speed_core_runtime_contract()
+    _validate_pmv2_global_cache_runtime_contract()
 
     changed: list[str] = []
     if patch_global_cache_table(rom_data, common_settings):
@@ -1641,6 +1642,38 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
             raise PanelMonsterStageVariantError(
                 f"Panel Monster v2 fast loop is missing {name}."
             )
+
+
+def _validate_pmv2_global_cache_runtime_contract() -> None:
+    """Guard the normal ROM save path against a widened A/B/C cache contract."""
+    if GLOBAL_CACHE_TABLE_LENGTH != len(RUNTIME_CACHE_VALUES):
+        raise PanelMonsterStageVariantError(
+            "Panel Monster v2 global cache length must match runtime RAM fields."
+        )
+    if GLOBAL_CACHE_TABLE_END != GLOBAL_CACHE_TABLE_OFFSET + 6:
+        raise PanelMonsterStageVariantError(
+            "Panel Monster v2 global cache must stay a 6-byte PRG1 image."
+        )
+    if tuple(RUNTIME_CACHE_VALUES) != tuple(range(RAM_PV_A_SPEED, RAM_PV_C_INTERVAL + 1)):
+        raise PanelMonsterStageVariantError(
+            "Panel Monster v2 RAM cache fields must stay contiguous at $0740-$0745."
+        )
+    loader = _runtime_loader_slot()
+    copy_pattern = bytes((
+        0xB9,
+        CPU_GLOBAL_CACHE_TABLE & 0xFF,
+        CPU_GLOBAL_CACHE_TABLE >> 8,
+        0x99,
+        RAM_PV_A_SPEED & 0xFF,
+        RAM_PV_A_SPEED >> 8,
+        0x88,
+        0x10,
+        0xF7,
+    ))
+    if copy_pattern not in loader:
+        raise PanelMonsterStageVariantError(
+            "Panel Monster v2 runtime loader no longer copies the 6-byte global cache."
+        )
 
 
 RESERVED_SPANS = (

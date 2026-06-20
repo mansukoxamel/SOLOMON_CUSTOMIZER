@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK27 (2026-06-20) global cache契約guardを追加
+- 保存前検証に `Panel Monster v2 global cache` の6B固定guardを追加した。
+- PRG1 global cache imageが6Bであること、RAM cacheが `$0740-$0745` に連続していること、loaderが6B copyを持つことを確認する。
+- ROM挙動は変えず、global cache契約がずれたROM作成を止めるようにした。
+
 ## EX-PANEL-V2-BLOCK26 (2026-06-20) global cache名へ整理
 - `TABLE_OFFSET` の旧table名をやめ、`GLOBAL_CACHE_TABLE_OFFSET = 0x8A70` として直接定義した。
 - 設計図とROM管理簿の64-room table説明を、現行global 6B cacheとPRG1 reserveの説明へ寄せた。
