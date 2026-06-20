@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK4 (2026-06-20) Panel Monster v2 Bullet入口hook契約
+- 静的v2 speed core blobへ、Bullet state2から `speed_decode` と `bullet_step_loop` を同じ入口で呼ぶ `bullet_speed_hook` を追加した。
+- 入口hookは通常/1/2/1/4/2x/3xを同じdecodeルートへ乗せ、fast markerだけが共有substep loopへ進む形にした。
+- まだROMへは接続せず、通常保存経路ではBlock 3までの現行runtimeを書き続ける。
+
 ## EX-PANEL-V2-BLOCK3 (2026-06-20) Panel Monster v2 speed core保存結果report
 - 通常のROM保存結果に、現行speed apply、velocity table、extra helperが実際に書かれているか確認する `panel_monster_v2_speed_core_save_report()` を追加した。
 - 実保存レイアウトを `panel_monster_v2_current_speed_runtime_layout()` で取得できるようにし、次ブロック以降の配置変更と比較できる基準を固定した。

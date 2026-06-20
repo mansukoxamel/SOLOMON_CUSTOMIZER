@@ -1628,6 +1628,21 @@ def _build_pmv2_impact_bridge(stock_impact_cpu: int = 0xAFDF) -> bytes:
     return bytes((0x4C, stock_impact_cpu & 0xFF, stock_impact_cpu >> 8))
 
 
+def _build_pmv2_bullet_speed_hook(speed_decode_cpu: int, bullet_step_loop_cpu: int) -> bytes:
+    """Build the v2 Bullet state2 entry that routes all speed markers alike."""
+    a = _Asm()
+    a.jsr(0xB201)
+    a.b(0x48, 0xC9, 0x02)
+    a.branch(0xD0, "done")
+    a.b(0x8A, 0x48)
+    a.jsr(speed_decode_cpu)
+    a.jsr(bullet_step_loop_cpu)
+    a.b(0x68, 0xAA)
+    a.label("done")
+    a.b(0x68, 0x60)
+    return a.finish()
+
+
 def build_panel_monster_v2_speed_core_blob(base_cpu: int = 0x8000) -> PanelMonsterV2Blob:
     """Build the first Panel Monster v2 planning blob without ROM writes."""
     base_cpu = int(base_cpu) & 0xFFFF
@@ -1677,6 +1692,17 @@ def build_panel_monster_v2_speed_core_blob(base_cpu: int = 0x8000) -> PanelMonst
         "impact_bridge",
         _build_pmv2_impact_bridge(),
     )
+    _append_blob_section(
+        out,
+        entries,
+        sizes,
+        base_cpu,
+        "bullet_speed_hook",
+        _build_pmv2_bullet_speed_hook(
+            entries["speed_decode"],
+            entries["bullet_step_loop"],
+        ),
+    )
     return PanelMonsterV2Blob(
         base_cpu=base_cpu,
         data=bytes(out),
@@ -1687,7 +1713,7 @@ def build_panel_monster_v2_speed_core_blob(base_cpu: int = 0x8000) -> PanelMonst
             "stock_bullet_impact_after_collision": 0xAFDF,
         },
         notes={
-            "scope": "Block 1 static v2 speed core only; no ROM writer uses this blob.",
+            "scope": "Static v2 speed core and Bullet entry only; no ROM writer uses this blob.",
             "entry_policy": "Keep normal, 2-way/3-way, and A/B/C entries separate if that is smaller.",
             "shared_policy": "Share Bullet marker decode and 2x/3x substep loop only.",
         },
@@ -1824,6 +1850,18 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
     if contract["extra_counts"] != {"1/4": 0, "1/2": 0, "2x": 1, "3x": 2}:
         raise PanelMonsterStageVariantError(
             f"Panel Monster v2 static speed contract mismatch: {contract['extra_counts']!r}"
+        )
+    required_sections = {
+        "speed_velocity_table",
+        "speed_extra_count_table",
+        "speed_decode",
+        "bullet_step_loop",
+        "impact_bridge",
+        "bullet_speed_hook",
+    }
+    if set(contract["sizes"]) != required_sections:
+        raise PanelMonsterStageVariantError(
+            f"Panel Monster v2 static speed sections mismatch: {sorted(contract['sizes'])!r}"
         )
 
 
