@@ -172,7 +172,7 @@
 <header>
   <h1>Panel Monster Full Design Map</h1>
   <p class="lead">
-    Planning baseline: commit <code>6df3733</code>。Current runtime checkpoint: <code>989c3e2</code> / <code>EX-PANEL-V2-BLOCK60</code>。
+    Planning baseline: commit <code>6df3733</code>。Current runtime checkpoint: <code>7b11015</code> / <code>EX-PANEL-V2-BLOCK62</code>。
     この資料は、Panel Monster周辺を再実装する前に、原作処理・既存2-way/3-way・A/B/C Panel Variant・RAM/ROM配置・Bullet衝突契約を一枚で追えるようにするための設計図である。
   </p>
   <p>
@@ -195,7 +195,7 @@
       mapper66拡張ROM保存では、Panel Monster v2 runtimeをステージ内容で書いたり書かなかったりしない。
       使う敵・機能が無くても完成形runtimeは毎回同じROM配置へ書く。
       A/B/C speed/intervalはPRG1の6B settings tableへ置き、room loadでRAM <code>$0740-$0745</code> へコピーする。
-      <code>tools/panel_monster_v2_runtime_check.py</code> は61ケースで <code>all_written=True</code> / <code>same_output=True</code> / <code>settings_values_ok=True</code> を確認済み。
+      <code>tools/panel_monster_v2_runtime_check.py</code> は73ケースで <code>all_written=True</code> / <code>same_output=True</code> / <code>settings_values_ok=True</code> を確認済み。
     </div>
     <ul>
       <li><a href="#scope">1. 対象範囲</a></li>
@@ -920,8 +920,8 @@
     <h3>13.1 現在地点の意味</h3>
     <table>
       <tr><th>項目</th><th>状態</th><th>判断</th></tr>
-      <tr><td>Git基準</td><td><code>989c3e2</code></td><td>分類ID、Fire dispatch代表ID、Bullet marker範囲を定数化し、61ケースcheckを固定した地点。</td></tr>
-      <tr><td>アプリversion</td><td><code>EX-PANEL-V2-BLOCK60</code></td><td>Panel Monster v2 runtimeは通常の「ROMを作る」経路で毎回同じROM配置へ書かれる。</td></tr>
+      <tr><td>Git基準</td><td><code>7b11015</code></td><td>A/B/C speed/interval全方向、2-way/3-way全ID、通常Panel全方向の73ケースcheckを固定した地点。</td></tr>
+      <tr><td>アプリversion</td><td><code>EX-PANEL-V2-BLOCK62</code></td><td>Panel Monster v2 runtimeは通常の「ROMを作る」経路で毎回同じROM配置へ書かれる。</td></tr>
       <tr><td>設計資料</td><td>このHTMLとIssue #1用の整理がある。</td><td>ここを土台に、旧実装修理ではなくv2 runtimeを小ブロックで固定する。</td></tr>
       <tr><td>既知の失敗</td><td>EX4の連続配置、3x停止案。</td><td>作り直し方針から除外する。再利用しない。</td></tr>
       <tr><td>次の作業</td><td>保存経路の固定化を保ったまま、分類・Fire path・Bullet pathを小ブロックで進める。</td><td>あなたを呼ぶのは画面挙動確認が必要な時だけ。</td></tr>
