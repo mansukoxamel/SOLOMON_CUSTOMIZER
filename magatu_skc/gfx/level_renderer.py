@@ -573,7 +573,7 @@ class LevelRenderer:
                     self._draw_marker_layer(painter, img_w, img_h, draw_item_overlay)
 
             # 7.5 ボーナスステージ出現スポット（ステージ51専用、位置マーカーのみ）
-            if draw_editor_markers and bonus_items:
+            if draw_editor_markers and show_secret_elements and bonus_items:
                 from PyQt5.QtCore import QPoint
                 for bpos, _bitem_no in bonus_items:
                     bx, by = bpos
@@ -599,10 +599,10 @@ class LevelRenderer:
             key_enemy_number = stage_ext.get_key_enemy_number(level)
             fairy_enemy_number = stage_ext.get_fairy_enemy_number(level)
             key_enemy_img = None
-            if key_enemy_number > 0:
+            if show_secret_elements and key_enemy_number > 0:
                 key_enemy_img = self._key_enemy_overlay_image(tw)
             fairy_enemy_img = None
-            if fairy_enemy_number > 0:
+            if show_secret_elements and fairy_enemy_number > 0:
                 try:
                     fairy_enemy_img = self.tr.get_tile_image(
                         self.get_enemy_animation(0x1C), ts_no, transparent=True, bg_main_color=wall_color)
