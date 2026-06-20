@@ -97,6 +97,10 @@ NORMAL_CASES = (
     ("NORMAL_D", 0x27),
 )
 
+EMPTY_STAGE_CASES = (
+    "NO_PANEL_RUNTIME_IDS",
+)
+
 MESEN_SET_CASES = (
     (
         "A_D_3x_interval7f",
@@ -227,7 +231,7 @@ def _run_multi_case(
     return result
 
 
-def _run_normal_case(source_data: bytes, enemy_id: int) -> dict[str, object]:
+def _run_normal_case(source_data: bytes, enemy_id: int | None) -> dict[str, object]:
     source_rom = Rom(source_data, "panel_monster_normal_source.nes")
     levels = load_all_levels(source_rom)
     for level in levels:
@@ -240,7 +244,8 @@ def _run_normal_case(source_data: bytes, enemy_id: int) -> dict[str, object]:
                 code for code in getattr(mirror, "enemy_codes", [])
                 if (int(code) & 0xFF) not in RUNTIME_IDS
             ]
-    levels[0].enemies.append(LevelElement(ElementType.ENEMY, (4, 4), enemy_id))
+    if enemy_id is not None:
+        levels[0].enemies.append(LevelElement(ElementType.ENEMY, (4, 4), enemy_id))
 
     saved = saver.build_saved_rom_data(source_rom, levels, dict(DEFAULT_SETTINGS))
     report = panel_v2.panel_monster_v2_runtime_save_report(saved, dict(DEFAULT_SETTINGS))
@@ -338,6 +343,12 @@ def run_check(args: argparse.Namespace) -> tuple[bool, dict[str, object]]:
         result = _run_normal_case(bytes(source_rom.data), enemy_id)
         result["case"] = case_name
         result["enemy_id"] = enemy_id
+        cases.append(result)
+    for case_name in EMPTY_STAGE_CASES:
+        result = _run_normal_case(bytes(source_rom.data), None)
+        result["case"] = case_name
+        result["enemy_id"] = None
+        result["runtime_required_by_stage"] = False
         cases.append(result)
 
     first = dict(cases[0])

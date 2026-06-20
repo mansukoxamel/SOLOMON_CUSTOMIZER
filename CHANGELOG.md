@@ -1,5 +1,9 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK67 (2026-06-20) Panel Monster runtime常時書き込みcheckを追加
+- Panel Monster系IDがステージに無い場合でも、v2 runtimeが通常保存経路で毎回同じ配置へ書かれることをcheck matrixに追加した。
+- 「使わないものでもruntimeは省略しない」方針を固定する。
+
 ## EX-PANEL-V2-BLOCK66 (2026-06-20) Panel Monster settings台帳名を統一
 - RAM/ROM管理簿と `room_flags.py` の予約メモを、`PANEL_VARIANT_CACHE` ではなく `PANEL_VARIANT_SETTINGS` / settings table表現へ揃えた。
 - 実行バイトは変更せず、PRG1 6B settings tableとRAM `$0740-$0745` copyの契約を読み間違えないようにした。
