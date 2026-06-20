@@ -802,11 +802,33 @@
       <tr><th>順番</th><th>作業</th><th>完了条件</th></tr>
       <tr><td class="num">1</td><td>Pythonで一体staging blobを生成する。base CPUは仮でよい。</td><td>全entry pointと内部labelが解決する。</td></tr>
       <tr><td class="num">2</td><td>現行runtimeのentry契約とstaging blobのentry契約を表で比較する。</td><td>A/X/Y/stack/zero page副作用が説明できる。</td></tr>
-      <tr><td class="num">3</td><td>staging blobのサイズを測る。</td><td>現行分散runtimeより小さくなる見込みがある。</td></tr>
+      <tr><td class="num">3</td><td>staging blobのサイズを測る。</td><td>共通化で増えた判定コストと、削れた重複処理を分けて説明できる。</td></tr>
       <tr><td class="num">4</td><td>ROM-side probe stagingへ一時配置するか判断する。</td><td>静的確認だけで足りない挙動がある時だけ使う。</td></tr>
       <tr><td class="num">5</td><td>Mesenで通常Panel、2-way、3-way、A/B/C、Bullet衝突を確認する。</td><td>壁抜け、親drift、marker誤書込がない。</td></tr>
       <tr><td class="num">6</td><td>本番配置へ分解する。</td><td><code>RESERVED_SPANS</code> とROM/RAM管理簿を同じ変更で更新する。</td></tr>
     </table>
+
+    <h3>12.4.1 共通化の採否ルール</h3>
+    <div class="danger">
+      <p><strong>禁止:</strong> 「統合すれば必ず小さくなる」という前提で進める。</p>
+      <p>共通化のために入口判定が増えすぎる場合、きれいに見えてもROMサイズは増える。サイズが増える共通化は採用しない。</p>
+    </div>
+    <table>
+      <tr><th>対象</th><th>方針</th><th>理由</th></tr>
+      <tr><td>通常Panel入口</td><td>専用入口のまま残してよい。</td><td>共通入口で毎回Panel種別判定を増やすより短い可能性が高い。</td></tr>
+      <tr><td>2-way / 3-way入口</td><td>専用入口のまま残してよい。</td><td>発射数とmarker列が決まっているため、入口で決め打ちした方が短い場合がある。</td></tr>
+      <tr><td>A/B/C入口</td><td>専用入口のまま残してよい。</td><td>A/B/C group判定、interval決定、親drift消しを毎回共通分類器へ戻さない。</td></tr>
+      <tr><td>child Bullet生成後のmarker書込</td><td>共通化候補。</td><td>処理が同じで、分岐を増やさず共有できる。</td></tr>
+      <tr><td>Bullet marker decode</td><td>共通化する。</td><td><code>$88-$8B</code> を同じ表とdecoderへ通す必要がある。</td></tr>
+      <tr><td>2x/3x substep collision loop</td><td>共通化する。</td><td>同じloopでextra countだけ変えるのが正しい契約。</td></tr>
+      <tr><td>Panel見た目分類</td><td>共通化候補。ただし呼び出し回数を制限する。</td><td>property/animationには有効だが、hot pathで何度も呼ぶと太る。</td></tr>
+    </table>
+    <div class="ok">
+      <strong>採用基準:</strong>
+      共通化は「同じ処理をまとめる」ためにだけ行う。
+      分岐や判定が増えてサイズが大きくなる場所は、専用ルートとして分けたままにする。
+      判定はできるだけ入口で1回だけ行い、その後は決め打ちのrouteで進む。
+    </div>
 
     <h3>12.5 仮置き場の候補と禁止</h3>
     <div class="danger">
@@ -931,11 +953,17 @@
     </table>
 
     <h3>13.3 v2 runtimeの部品分割</h3>
+    <div class="warn">
+      <strong>サイズ方針:</strong>
+      v2は「全部を1本の巨大dispatcherへまとめる」設計ではない。
+      入口判定が多い箇所は専用routeを残し、Bullet後処理のように本当に同じ処理だけをまとめる。
+      重い分類器をhot pathで何度も呼ばない。
+    </div>
     <table>
       <tr><th>部品</th><th>責務</th><th>入力</th><th>出力/副作用</th><th>完了条件</th></tr>
       <tr>
         <td><code>pmv2_type_classifier</code></td>
-        <td>通常Panel、旧強化Panel、A/B/C Panelを分類する。</td>
+        <td>通常Panel、旧強化Panel、A/B/C Panelを分類する。hot pathで何度も呼ばない。</td>
         <td>entity type</td>
         <td>Panelならcarry/flagまたはXに分類結果。</td>
         <td>property、animation、AI dispatchが同じ分類を使う。</td>
@@ -949,7 +977,7 @@
       </tr>
       <tr>
         <td><code>pmv2_fire_dispatch</code></td>
-        <td>normal / 2-way / 3-way / A/B/C の発射数とmarker列を選ぶ。</td>
+        <td>normal / 2-way / 3-way / A/B/C の発射数とmarker列を選ぶ。入口判定が太るなら専用routeを残す。</td>
         <td>parent type、stage/group setting</td>
         <td>child sub-slot <code>+7</code> にmarkerを書く。</td>
         <td>通常Panelはmarker <code>$00</code>、強化Bulletは必ず <code>$80-$8B</code>。</td>
@@ -984,7 +1012,7 @@
         <td class="num">1</td>
         <td>既存の <code>PANEL_VARIANT_BLOB</code> 系とは混ぜず、v2用blob builderへ分ける。ROMへはまだ書かない。</td>
         <td>既存hook、ROM配置、RESERVED_SPANS。</td>
-        <td>entry一覧、内部label、サイズ、外部JSR先が表で出る。</td>
+        <td>entry一覧、内部label、サイズ、外部JSR先、共通化で増えた判定byte数が表で出る。</td>
       </tr>
       <tr>
         <td class="num">2</td>
