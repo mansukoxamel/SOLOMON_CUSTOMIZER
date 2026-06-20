@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK24 (2026-06-20) Panel Monster v2適用関数名を現行化
+- 通常保存経路の内部関数名を `apply_final_split_test_candidate()` から `apply_panel_monster_v2_runtime()` へ変更した。
+- `apply` aliasは同じ現行runtime関数を指すため、保存経路の挙動は変わらない。
+- エラー文から `test candidate` 表記を外し、最新v2 runtimeとして扱う表記へ直した。
+
 ## EX-PANEL-V2-BLOCK22 (2026-06-20) speed init署名を原作/最新へ絞る
 - `$866D` speed init hookの許可署名から、旧中間hook先を削除した。
 - 2-way/3-way Panel AI入口の変数名を、旧名から現行entry名へ直した。

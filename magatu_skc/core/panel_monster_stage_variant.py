@@ -1150,12 +1150,12 @@ def _validate_final_split_signatures(
         _expect_signature(rom_data, off, name, (*signatures, blob))
 
 
-def apply_final_split_test_candidate(
+def apply_panel_monster_v2_runtime(
     rom_data: bytearray,
     levels: list = None,
     common_settings: dict | None = None,
 ) -> list[str]:
-    """Apply the accepted split Panel Variant runtime."""
+    """Apply the current Panel Monster v2 runtime."""
     if rom_data is None:
         raise PanelMonsterStageVariantError("ROM is missing.")
     v2_speed = panel_monster_v2_split_speed_runtime_blobs()
@@ -1174,7 +1174,7 @@ def apply_final_split_test_candidate(
         panel_monster_variant.OFF_ANIM_HOOK + len(FINAL_STAGE_ANIM_HOOK),
     )
     if len(rom_data) < min_len:
-        raise PanelMonsterStageVariantError("ROM is too short for final split Panel Variant test candidate.")
+        raise PanelMonsterStageVariantError("ROM is too short for Panel Monster v2 runtime.")
 
     final_state0_interval_helper = _final_state0_interval_helper_for_rom(rom_data)
     _validate_final_split_signatures(rom_data, final_state0_interval_helper)
@@ -2045,4 +2045,4 @@ def _write_blob(rom_data, off: int, blob: bytes, changed: list[str], name: str) 
         changed.append(name)
 
 
-apply = apply_final_split_test_candidate
+apply = apply_panel_monster_v2_runtime
