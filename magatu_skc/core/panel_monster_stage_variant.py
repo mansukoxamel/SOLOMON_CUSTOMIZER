@@ -1591,7 +1591,7 @@ def _build_pmv2_speed_decode(
     return bytes(blob)
 
 
-def _build_pmv2_bullet_step_loop(cpu_base: int, impact_bridge_cpu: int) -> bytes:
+def _build_pmv2_bullet_step_loop(cpu_base: int) -> bytes:
     """Build the shared v2 fast-Bullet loop."""
     a = _Asm()
     a.b(0xE0, 0x00)
@@ -1609,8 +1609,7 @@ def _build_pmv2_bullet_step_loop(cpu_base: int, impact_bridge_cpu: int) -> bytes
     a.label("rts")
     a.b(0x60)
     a.label("collision")
-    a.b(0x68)
-    a.jmp(impact_bridge_cpu)
+    a.b(0x68, 0x60)
     a.label("substep")
     a.b(0xA0, 0x03, 0xB1, 0x2E, 0x29, 0x03, 0xC9, 0x02)
     a.branch(0xB0, "vertical")
@@ -1629,10 +1628,6 @@ def _build_pmv2_bullet_step_loop(cpu_base: int, impact_bridge_cpu: int) -> bytes
     substep_cpu = (int(cpu_base) + a.labels["substep"]) & 0xFFFF
     blob[substep_call_at + 1:substep_call_at + 3] = _word(substep_cpu)
     return bytes(blob)
-
-
-def _build_pmv2_impact_bridge(stock_impact_cpu: int = 0xAFDF) -> bytes:
-    return bytes((0x4C, stock_impact_cpu & 0xFF, stock_impact_cpu >> 8))
 
 
 def _build_pmv2_bullet_speed_hook(speed_decode_cpu: int, bullet_step_loop_cpu: int) -> bytes:
@@ -1682,22 +1677,13 @@ def build_panel_monster_v2_speed_core_blob(base_cpu: int = 0x8000) -> PanelMonst
         ),
     )
     loop_base = (base_cpu + len(out)) & 0xFFFF
-    impact_bridge_cpu = (loop_base + len(_build_pmv2_bullet_step_loop(loop_base, 0))) & 0xFFFF
     _append_blob_section(
         out,
         entries,
         sizes,
         base_cpu,
         "bullet_step_loop",
-        _build_pmv2_bullet_step_loop(loop_base, impact_bridge_cpu),
-    )
-    _append_blob_section(
-        out,
-        entries,
-        sizes,
-        base_cpu,
-        "impact_bridge",
-        _build_pmv2_impact_bridge(),
+        _build_pmv2_bullet_step_loop(loop_base),
     )
     _append_blob_section(
         out,
@@ -1717,7 +1703,6 @@ def build_panel_monster_v2_speed_core_blob(base_cpu: int = 0x8000) -> PanelMonst
         sizes=sizes,
         external_targets={
             "stock_bullet_collision_sampler": 0xAC39,
-            "stock_bullet_impact_after_collision": 0xAFDF,
         },
         notes={
             "scope": "Static v2 speed core and Bullet entry only; no ROM writer uses this blob.",
@@ -1826,7 +1811,6 @@ def panel_monster_v2_split_speed_placement_candidate() -> dict[str, object]:
         section_sizes["speed_velocity_table"]
         + section_sizes["speed_extra_count_table"]
         + section_sizes["bullet_step_loop"]
-        + section_sizes["impact_bridge"]
     )
     hook_size = section_sizes["bullet_speed_hook"]
     rows = [
@@ -1871,7 +1855,6 @@ def panel_monster_v2_split_speed_runtime_blobs() -> dict[str, bytes]:
     velocity_table_cpu = CPU_FINAL_BULLET_SPEED_EXTRA_HELPER
     extra_count_table_cpu = velocity_table_cpu + len(SPEED_PRESET_RUNTIME_TABLE)
     loop_cpu = extra_count_table_cpu + 4
-    impact_bridge_cpu = loop_cpu + len(_build_pmv2_bullet_step_loop(loop_cpu, 0))
     tables_and_fast_loop = (
         SPEED_PRESET_RUNTIME_TABLE
         + bytes((
@@ -1880,8 +1863,7 @@ def panel_monster_v2_split_speed_runtime_blobs() -> dict[str, bytes]:
             SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_2X]["extra_steps"],
             SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_3X]["extra_steps"],
         ))
-        + _build_pmv2_bullet_step_loop(loop_cpu, impact_bridge_cpu)
-        + _build_pmv2_impact_bridge()
+        + _build_pmv2_bullet_step_loop(loop_cpu)
     )
     return {
         "speed_decode": _build_pmv2_speed_decode(velocity_table_cpu, extra_count_table_cpu),
@@ -1966,7 +1948,6 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
         "speed_extra_count_table",
         "speed_decode",
         "bullet_step_loop",
-        "impact_bridge",
         "bullet_speed_hook",
     }
     if set(contract["sizes"]) != required_sections:

@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK7 (2026-06-20) Panel Monster v2 fast弾の壁衝突エフェクト抑止
+- v2 fast loopの追加substepで壁衝突した時に、破壊/撃破系の後処理 `$AFDF` へ飛ばさないよう修正した。
+- 旧extra helperと同じく、`$AC39`で衝突を確認したら追加stepを打ち切って戻るだけにした。
+- 未使用になったimpact bridgeをv2 speed core契約から外し、壁衝突時に余計なグラフィックが出ない経路へ戻した。
+
 ## EX-PANEL-V2-BLOCK6 (2026-06-20) Panel Monster v2 speed runtimeを保存経路へ接続
 - 通常の「ROMを作る」経路で、v2 split speed runtimeを保存ROMへ書き込むように切り替えた。
 - `speed_decode`は`$C088`枠、速度テーブル2つとfast loopは`$E823`枠、Bullet入口hookは既存`$BF69`枠へ書く。
