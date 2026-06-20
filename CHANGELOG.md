@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK37 (2026-06-20) runtime reportに配置重複checkを統合
+- `panel_monster_v2_runtime_save_report()` に `placement_ok` とsplit placement reportを追加した。
+- `tools/panel_monster_v2_runtime_check.py` で15ケースすべて、guard/cache/再保存に加えて配置重複なしも確認する。
+- ROM挙動は変えず、次の実装ブロックで配置事故を早く検出できるようにした。
+
 ## EX-PANEL-V2-BLOCK36 (2026-06-20) interval cache値checkを追加
 - `tools/panel_monster_v2_runtime_check.py` にA/B/C interval代表値の保存ケースを追加した。
 - runtime reportのcache entry valuesが設定値そのものと一致することを `cache_values_ok` として確認する。

@@ -1591,15 +1591,18 @@ def panel_monster_v2_runtime_save_report(
             guard_results[name] = True
     speed_report = panel_monster_v2_split_speed_save_report(rom_data)
     cache_report = panel_monster_v2_global_cache_save_report(rom_data, common_settings)
+    placement_report = panel_variant_split_placement_report()
     return {
         "apply_path": apply_panel_monster_v2_runtime.__name__,
         "guards": guard_results,
         "guards_ok": all(result is True for result in guard_results.values()),
+        "placement_ok": placement_report["overlap_free"],
         "speed_all_written": speed_report["all_written"],
         "cache_all_written": cache_report["all_written"],
         "all_written": speed_report["all_written"] and cache_report["all_written"],
         "speed": speed_report,
         "cache": cache_report,
+        "placement": placement_report,
     }
 
 

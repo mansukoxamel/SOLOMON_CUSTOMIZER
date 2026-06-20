@@ -86,7 +86,13 @@ def _run_one_case(
     resaved = saver.build_saved_rom_data(saved_rom, load_all_levels(saved_rom), settings)
     same_output = saved == resaved
 
-    ok = bool(report["guards_ok"] and report["all_written"] and same_output and cache_values_ok)
+    ok = bool(
+        report["guards_ok"]
+        and report["placement_ok"]
+        and report["all_written"]
+        and same_output
+        and cache_values_ok
+    )
     result = dict(report)
     result["saved_len"] = len(saved)
     result["same_output"] = same_output
@@ -144,12 +150,14 @@ def print_result(result: dict[str, object]) -> None:
         for case in result["cases"]:
             print(
                 f"  {case['case']}: ok={case['ok']} "
-                f"guards_ok={case['guards_ok']} all_written={case['all_written']} "
+                f"guards_ok={case['guards_ok']} placement_ok={case['placement_ok']} "
+                f"all_written={case['all_written']} "
                 f"same_output={case['same_output']} cache_values_ok={case['cache_values_ok']}"
             )
     print(f"saved_len {result['saved_len']}")
     print(f"apply_path {result['apply_path']}")
     print(f"guards_ok {result['guards_ok']}")
+    print(f"placement_ok {result['placement_ok']}")
     print(f"all_written {result['all_written']}")
     print(f"same_output {result['same_output']}")
     print(f"cache_values_ok {result['cache_values_ok']}")
