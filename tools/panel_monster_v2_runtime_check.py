@@ -47,6 +47,27 @@ BORROWED_CASES = (
     ("3WAY_U", 0x66),
 )
 
+MIXED_CASES = (
+    (
+        "MIXED_ABC_BORROWED",
+        (
+            (0x31, (3, 4)),  # C
+            (0x41, (5, 4)),  # A
+            (0x49, (7, 4)),  # B
+            (0x52, (9, 4)),  # 2-way
+            (0x66, (11, 4)), # 3-way
+        ),
+        {
+            "a_speed": 3,
+            "a_interval": 0x7F,
+            "b_speed": 2,
+            "b_interval": 0xE1,
+            "c_speed": 1,
+            "c_interval": 0x21,
+        },
+    ),
+)
+
 NORMAL_CASES = (
     ("NORMAL_R", 0x24),
 )
@@ -93,9 +114,24 @@ def _run_one_case(
     settings: dict[str, int],
     keep_saved: bool = False,
 ) -> dict[str, object]:
+    return _run_multi_case(
+        source_data,
+        ((enemy_id, (4, 4)),),
+        settings,
+        keep_saved=keep_saved,
+    )
+
+
+def _run_multi_case(
+    source_data: bytes,
+    enemy_specs: tuple[tuple[int, tuple[int, int]], ...],
+    settings: dict[str, int],
+    keep_saved: bool = False,
+) -> dict[str, object]:
     source_rom = Rom(source_data, "panel_monster_v2_source.nes")
     levels = load_all_levels(source_rom)
-    levels[0].enemies.append(LevelElement(ElementType.ENEMY, (4, 4), enemy_id))
+    for enemy_id, pos in enemy_specs:
+        levels[0].enemies.append(LevelElement(ElementType.ENEMY, pos, enemy_id))
 
     saved = saver.build_saved_rom_data(source_rom, levels, settings)
     report = panel_v2.panel_monster_v2_runtime_save_report(saved, settings)
@@ -199,6 +235,11 @@ def run_check(args: argparse.Namespace) -> tuple[bool, dict[str, object]]:
         result = _run_one_case(bytes(source_rom.data), enemy_id, dict(DEFAULT_SETTINGS))
         result["case"] = case_name
         result["enemy_id"] = enemy_id
+        cases.append(result)
+    for case_name, enemy_specs, settings in MIXED_CASES:
+        result = _run_multi_case(bytes(source_rom.data), enemy_specs, dict(settings))
+        result["case"] = case_name
+        result["enemy_ids"] = [enemy_id for enemy_id, _pos in enemy_specs]
         cases.append(result)
     for case_name, enemy_id in NORMAL_CASES:
         result = _run_normal_case(bytes(source_rom.data), enemy_id)

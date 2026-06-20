@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK44 (2026-06-20) A/B/Cと2-way/3-way混在checkを追加
+- `tools/panel_monster_v2_runtime_check.py` にA/B/C/2-way/3-wayを同じステージへ置く混在ケースを追加した。
+- speed/interval cacheと2-way/3-way spread markerが同じ保存ROM内で衝突しないことを保存/再保存checkで確認する。
+- ROM挙動は変えず、Mesen確認済みの2-way/3-way復元を継続監視する。
+
 ## EX-PANEL-V2-BLOCK43 (2026-06-20) 2-way/3-way spread marker処理を復元
 - v2 Bullet hookに旧2-way/3-wayの `$80-$84` spread marker処理を戻し、`$88-$8B` speed marker処理と同居させた。
 - 2-way/3-wayが複数発を同じ位置へ重ねて1発に見える状態を直す。
