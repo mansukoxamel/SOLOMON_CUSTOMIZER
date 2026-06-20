@@ -72,6 +72,7 @@ def _run_one_case(
     source_data: bytes,
     enemy_id: int,
     settings: dict[str, int],
+    keep_saved: bool = False,
 ) -> dict[str, object]:
     source_rom = Rom(source_data, "panel_monster_v2_source.nes")
     levels = load_all_levels(source_rom)
@@ -100,6 +101,8 @@ def _run_one_case(
     result["cache_values_ok"] = cache_values_ok
     result["cache_values"] = cache_values
     result["ok"] = ok
+    if keep_saved:
+        result["saved_data"] = saved
     return result
 
 
@@ -119,7 +122,11 @@ def run_check(args: argparse.Namespace) -> tuple[bool, dict[str, object]]:
     source_rom = _load_expanded_rom(args.rom)
     if args.mode == "single":
         settings = _settings_from_args(args)
-        result = _run_one_case(bytes(source_rom.data), args.enemy_id, settings)
+        result = _run_one_case(bytes(source_rom.data), args.enemy_id, settings, keep_saved=args.out is not None)
+        if args.out is not None:
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            args.out.write_bytes(bytes(result["saved_data"]))
+            result["wrote_rom"] = str(args.out)
         return bool(result["ok"]), result
 
     cases = []
@@ -164,6 +171,8 @@ def print_result(result: dict[str, object]) -> None:
     print(f"all_written {result['all_written']}")
     print(f"same_output {result['same_output']}")
     print(f"cache_values_ok {result['cache_values_ok']}")
+    if "wrote_rom" in result:
+        print(f"wrote_rom {result['wrote_rom']}")
     print("guards")
     for name, status in dict(result["guards"]).items():
         print(f"  {name}: {status}")
@@ -197,11 +206,19 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--a-interval", type=_hex_byte, default=0xC0)
     parser.add_argument("--b-interval", type=_hex_byte, default=0xB0)
     parser.add_argument("--c-interval", type=_hex_byte, default=0xA0)
+    parser.add_argument(
+        "--out",
+        type=Path,
+        help="Write the single-mode saved ROM to this path after checks pass.",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
+    if args.out is not None and args.mode != "single":
+        print("--out is only valid with --mode single")
+        return 2
     ok, result = run_check(args)
     print_result(result)
     return 0 if ok else 1

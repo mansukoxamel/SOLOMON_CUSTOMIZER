@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK39 (2026-06-20) runtime checkにsingle保存出力を追加
+- `tools/panel_monster_v2_runtime_check.py --mode single --out ...` で、通常保存経路を通したROMを必要時だけ書き出せるようにした。
+- 既定のmatrix checkはこれまで通りROMを書かず、15ケースの保存/guard/cache/配置/予約/再保存だけを確認する。
+- ROM挙動は変えず、Mesen確認が必要になった時の準備を短くした。
+
 ## EX-PANEL-V2-BLOCK38 (2026-06-20) RESERVED_SPANS重複checkを統合
 - `panel_monster_v2_reserved_span_report()` を追加し、Panel Monster v2の実装予約span同士の重複を確認できるようにした。
 - `panel_monster_v2_runtime_save_report()` とCLI checkに `reserved_ok` を追加した。
