@@ -1256,7 +1256,7 @@ def apply_panel_monster_v2_runtime(
 
     changed: list[str] = []
     if patch_global_cache_table(rom_data, common_settings):
-        changed.append("Panel Variant global cache table")
+        changed.append("Panel Variant PRG1 settings table")
     changed.extend(apply_runtime_loader(rom_data))
 
     _write_blob(rom_data, panel_monster_variant.OFF_HOOK_PANEL_FIRE, HOOK_PANEL_FIRE_WITH_SPARK_PROPERTY, changed, "$A556 Panel Variant fire hook / Spark property hook")
@@ -1929,18 +1929,18 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
 
 
 def _validate_pmv2_global_cache_runtime_contract() -> None:
-    """Guard the normal ROM save path against a widened A/B/C cache contract."""
+    """Guard the normal ROM save path against a widened A/B/C settings contract."""
     if GLOBAL_CACHE_TABLE_LENGTH != len(RUNTIME_CACHE_VALUES):
         raise PanelMonsterStageVariantError(
-            "Panel Monster v2 global cache length must match runtime RAM fields."
+            "Panel Monster v2 settings table length must match runtime RAM fields."
         )
     if GLOBAL_CACHE_TABLE_END != GLOBAL_CACHE_TABLE_OFFSET + 6:
         raise PanelMonsterStageVariantError(
-            "Panel Monster v2 global cache must stay a 6-byte PRG1 image."
+            "Panel Monster v2 settings table must stay a 6-byte PRG1 image."
         )
     if tuple(RUNTIME_CACHE_VALUES) != tuple(range(RAM_PV_A_SPEED, RAM_PV_C_INTERVAL + 1)):
         raise PanelMonsterStageVariantError(
-            "Panel Monster v2 RAM cache fields must stay contiguous at $0740-$0745."
+            "Panel Monster v2 runtime RAM settings fields must stay contiguous at $0740-$0745."
         )
     loader = _runtime_loader_slot()
     copy_pattern = bytes((
@@ -1956,7 +1956,7 @@ def _validate_pmv2_global_cache_runtime_contract() -> None:
     ))
     if copy_pattern not in loader:
         raise PanelMonsterStageVariantError(
-            "Panel Monster v2 runtime loader no longer copies the 6-byte global cache."
+            "Panel Monster v2 runtime loader no longer copies the 6-byte settings table."
         )
 
 
@@ -2240,13 +2240,13 @@ def panel_monster_v2_global_cache_contract(common_settings: dict | None = None) 
     """Return the A/B/C PRG1 settings-table and room-load RAM-copy contract."""
     cache_entry = _runtime_cache_entry(common_settings)
     return {
-        "global_cache_table": {
+        "settings_table": {
             "off": GLOBAL_CACHE_TABLE_OFFSET,
             "cpu": CPU_GLOBAL_CACHE_TABLE,
             "size": GLOBAL_CACHE_TABLE_LENGTH,
             "bytes": cache_entry,
         },
-        "ram_cache": {
+        "ram_copy": {
             "start": RAM_PV_A_SPEED,
             "end": RAM_PV_C_INTERVAL,
             "size": GLOBAL_CACHE_TABLE_LENGTH,
@@ -2279,17 +2279,17 @@ def panel_monster_v2_global_cache_save_report(
     rom_data: bytes | bytearray,
     common_settings: dict | None = None,
 ) -> dict[str, object]:
-    """Report whether saved ROM data carries the current A/B/C global cache path."""
+    """Report whether saved ROM data carries the current A/B/C settings path."""
     if rom_data is None:
         raise PanelMonsterStageVariantError("ROM is missing.")
     contract = panel_monster_v2_global_cache_contract(common_settings)
-    expected_table = contract["global_cache_table"]["bytes"]
+    expected_table = contract["settings_table"]["bytes"]
     actual_table = bytes(rom_data[GLOBAL_CACHE_TABLE_OFFSET:GLOBAL_CACHE_TABLE_END])
     loader = _runtime_loader_slot()
     actual_loader = bytes(rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(loader)])
     return {
         "contract": contract,
-        "global_cache_table_written": actual_table == expected_table,
+        "settings_table_written": actual_table == expected_table,
         "runtime_loader_written": actual_loader == loader,
         "all_written": actual_table == expected_table and actual_loader == loader,
     }
@@ -2359,7 +2359,7 @@ def apply_runtime_loader(rom_data: bytearray) -> list[str]:
     changed: list[str] = []
     if bytes(rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(slot)]) != slot:
         rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(slot)] = slot
-        changed.append("Panel Variant global-cache PRG1 runtime loader")
+        changed.append("Panel Variant settings PRG1 runtime loader")
     if cur != HOOK_M66_LOADER_TAIL:
         rom_data[OFF_M66_LOADER_TAIL:OFF_M66_LOADER_TAIL + len(HOOK_M66_LOADER_TAIL)] = HOOK_M66_LOADER_TAIL
         changed.append("mapper66 loader Panel stage-variant hook")

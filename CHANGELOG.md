@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK57 (2026-06-20) Panel Monster v2設定レポートのcache表現を削減
+- Panel Monster v2の保存レポートキーを `settings_table` / `ram_copy` / `settings_table_written` へ変更した。
+- 保存時の変更名とguardエラー文を「global cache」ではなく「settings table」表現へ揃えた。
+- 実行バイトは変更せず、PRG1設定テーブルを毎回書く設計が読み取れる名前へ整理した。
+
 ## EX-PANEL-V2-BLOCK56 (2026-06-20) Panel Monster v2検証表示をsettings名へ整理
 - `panel_monster_v2_runtime_save_report()` の公開レポート名を `settings_*` へ寄せ、古いcache表現を減らした。
 - `tools/panel_monster_v2_runtime_check.py` の表示を `settings_values_ok` に変更し、PRG1設定テーブルの確認だと分かるようにした。
