@@ -2402,6 +2402,65 @@ def _runtime_cache_entry(common_settings: dict | None = None) -> bytes:
     return entry[:6]
 
 
+def panel_monster_v2_global_cache_contract(common_settings: dict | None = None) -> dict[str, object]:
+    """Return the current A/B/C global cache contract before changing it."""
+    cache_entry = _runtime_cache_entry(common_settings)
+    return {
+        "global_cache_table": {
+            "off": GLOBAL_CACHE_TABLE_OFFSET,
+            "cpu": CPU_GLOBAL_CACHE_TABLE,
+            "size": GLOBAL_CACHE_TABLE_LENGTH,
+            "bytes": cache_entry,
+        },
+        "ram_cache": {
+            "start": RAM_PV_A_SPEED,
+            "end": RAM_PV_C_INTERVAL,
+            "size": GLOBAL_CACHE_TABLE_LENGTH,
+            "fields": {
+                "a_speed": RAM_PV_A_SPEED,
+                "a_interval": RAM_PV_A_INTERVAL,
+                "b_speed": RAM_PV_B_SPEED,
+                "b_interval": RAM_PV_B_INTERVAL,
+                "c_speed": RAM_PV_C_SPEED,
+                "c_interval": RAM_PV_C_INTERVAL,
+            },
+        },
+        "runtime_users": {
+            "state0_interval_helper": CPU_FINAL_STATE0_INTERVAL_HELPER,
+            "speed_select_helper": CPU_FINAL_SPEED_SELECT_HELPER,
+            "group_ram_offset_helper": CPU_FINAL_GROUP_RAM_OFFSET_HELPER,
+        },
+        "entry_values": {
+            "a_speed": cache_entry[0],
+            "a_interval": cache_entry[1],
+            "b_speed": cache_entry[2],
+            "b_interval": cache_entry[3],
+            "c_speed": cache_entry[4],
+            "c_interval": cache_entry[5],
+        },
+    }
+
+
+def panel_monster_v2_global_cache_save_report(
+    rom_data: bytes | bytearray,
+    common_settings: dict | None = None,
+) -> dict[str, object]:
+    """Report whether saved ROM data carries the current A/B/C global cache path."""
+    if rom_data is None:
+        raise PanelMonsterStageVariantError("ROM is missing.")
+    contract = panel_monster_v2_global_cache_contract(common_settings)
+    expected_table = contract["global_cache_table"]["bytes"]
+    actual_table = bytes(rom_data[GLOBAL_CACHE_TABLE_OFFSET:GLOBAL_CACHE_TABLE_END])
+    loader = _runtime_loader_slot()
+    actual_loader = bytes(rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(loader)])
+    return {
+        "contract": contract,
+        "global_cache_table_written": actual_table == expected_table,
+        "runtime_loader_written": actual_loader == loader,
+        "all_written": actual_table == expected_table and actual_loader == loader,
+    }
+
+
 def _build_runtime_loader() -> bytes:
     # This supersedes stage_ext.RUNTIME_LOADER while preserving its side effects.
     # StageExt pointer starts at entry byte0: bank1 CPU $8800 + room*8.

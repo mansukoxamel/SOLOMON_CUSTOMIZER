@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK10 (2026-06-20) Panel Monster v2 global cache契約report
+- A/B/Cの全ステージ共通6B cacheについて、PRG1 table、RAM `$0740-$0745`、runtime利用helperを返す `panel_monster_v2_global_cache_contract()` を追加した。
+- 通常保存ROMにglobal cache tableとruntime loaderが書かれているか確認する `panel_monster_v2_global_cache_save_report()` を追加した。
+- 挙動変更はなく、次にcache/interval経路を整理するための現状固定reportとした。
+
 ## EX-PANEL-V2-BLOCK9 (2026-06-20) Panel Monster v2 fast loop衝突契約guard
 - v2 split speed runtimeの保存前検証に、fast loopが`$AFDF` stock impact pathや`$B016` impact helperへ入らないことを確認するguardを追加した。
 - fast loopが`$AC39` collision sampleを呼び、壁衝突時は`PLA; RTS`で戻る契約も保存前に確認する。
