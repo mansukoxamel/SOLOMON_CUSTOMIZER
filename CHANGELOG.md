@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK29 (2026-06-20) parent drift契約guardを追加
+- 保存前検証にPanel Monster v2 parent cleanup guardを追加した。
+- `$866D` hookがparent speed guardへ入ること、親main `+5/+6/+8/+9` とA/B/C entry側の同フィールドを0化する命令列を確認する。
+- ROM挙動は変えず、親drift対策がずれたROM作成を止めるようにした。
+
 ## EX-PANEL-V2-BLOCK28 (2026-06-20) fire marker契約guardを追加
 - 保存前検証にPanel Monster v2 fire marker tableの固定guardを追加した。
 - static/dynamic marker helperがchild sub-slot `+7` を書くこと、dynamic speed markerが `$88` 起点であることを確認する。

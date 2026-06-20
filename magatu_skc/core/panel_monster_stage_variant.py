@@ -1160,6 +1160,7 @@ def apply_panel_monster_v2_runtime(
     _validate_pmv2_speed_core_runtime_contract()
     _validate_pmv2_global_cache_runtime_contract()
     _validate_pmv2_fire_marker_runtime_contract()
+    _validate_pmv2_parent_runtime_contract()
 
     changed: list[str] = []
     if patch_global_cache_table(rom_data, common_settings):
@@ -1694,6 +1695,30 @@ def _validate_pmv2_fire_marker_runtime_contract() -> None:
         if pattern not in blob:
             raise PanelMonsterStageVariantError(
                 f"Panel Monster v2 fire marker path is missing {name}."
+            )
+
+
+def _validate_pmv2_parent_runtime_contract() -> None:
+    """Guard the Panel Monster parent-drift cleanup contract."""
+    if HOOK_SPEED_INIT_CALL != bytes.fromhex("20") + _word(CPU_FINAL_PARENT_SPEED_GUARD):
+        raise PanelMonsterStageVariantError(
+            "Panel Monster v2 speed-init hook no longer enters the parent speed guard."
+        )
+    required_patterns = {
+        "stock speed init call": (FINAL_PARENT_SPEED_GUARD, bytes((0x20, 0xC0, 0x8A))),
+        "panel type classifier call": (
+            FINAL_PARENT_SPEED_GUARD,
+            bytes((0x20, CPU_FINAL_PANEL_TYPE_CLASSIFIER & 0xFF, CPU_FINAL_PANEL_TYPE_CLASSIFIER >> 8)),
+        ),
+        "main +9/+8 clear": (FINAL_PARENT_SPEED_GUARD, bytes((0xA0, 0x09, 0x91, 0x08, 0x88, 0x91, 0x08))),
+        "main +6/+5 clear": (FINAL_PARENT_SPEED_GUARD, bytes((0xA0, 0x06, 0x91, 0x08, 0x88, 0x91, 0x08))),
+        "A/B/C entry +9/+8 clear": (FINAL_PARENT_FIELD_CLEAR_HELPER, bytes((0xA0, 0x09, 0x91, 0x2E, 0x88, 0x91, 0x2E))),
+        "A/B/C entry +6/+5 clear": (FINAL_PARENT_FIELD_CLEAR_HELPER, bytes((0xA0, 0x06, 0x91, 0x2E, 0x88, 0x91, 0x2E))),
+    }
+    for name, (blob, pattern) in required_patterns.items():
+        if pattern not in blob:
+            raise PanelMonsterStageVariantError(
+                f"Panel Monster v2 parent cleanup is missing {name}."
             )
 
 
