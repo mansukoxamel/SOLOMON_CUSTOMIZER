@@ -1,5 +1,9 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK74 (2026-06-20) Key enemy fall handler予約を縮小
+- Key enemy fall-death handlerの実処理22Bだけを予約し、末尾の埋めEA 2Bを予約から外した。
+- 挙動は変えず、bank0 cave未予約を72Bから74Bへ増やした。
+
 ## EX-PANEL-V2-BLOCK73 (2026-06-20) Key enemy status writer予約を縮小
 - Key/Fairy enemy status writerの実処理6Bだけを予約し、後続の埋めEA 6Bを予約から外した。
 - 挙動は変えず、bank0 cave未予約を66Bから72Bへ増やした。

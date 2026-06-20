@@ -307,7 +307,6 @@ def _build_fall_key_handler() -> bytes:
     blob += bytes((0x20, (CPU_ENEMY_DEFEAT + 3) & 0xFF, (CPU_ENEMY_DEFEAT + 3) >> 8))
     blob += bytes.fromhex("4c 76 b3")
     blob += bytes.fromhex("a0 03 b9 11 af 91 2e 88 10 f8 60")
-    blob += bytes([0xEA] * (24 - len(blob)))
     return bytes(blob)
 
 
