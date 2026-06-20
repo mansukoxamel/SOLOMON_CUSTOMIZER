@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK56 (2026-06-20) Panel Monster v2検証表示をsettings名へ整理
+- `panel_monster_v2_runtime_save_report()` の公開レポート名を `settings_*` へ寄せ、古いcache表現を減らした。
+- `tools/panel_monster_v2_runtime_check.py` の表示を `settings_values_ok` に変更し、PRG1設定テーブルの確認だと分かるようにした。
+- 保存runtimeのバイト配置は変更せず、検証結果の読み違いを減らす整理だけを行った。
+
 ## EX-PANEL-V2-BLOCK55 (2026-06-20) Panel Monster v2設定テーブルの説明を固定書き込み契約へ整理
 - Panel Monster v2の冒頭説明を、PRG1固定設定テーブルを毎回書き、room loadで `$0740-$0745` へコピーする実態に合わせた。
 - `has_panel_stage_runtime_ids()` の説明へ、拡張ROM保存経路ではruntimeを常時書き込むことを明記した。

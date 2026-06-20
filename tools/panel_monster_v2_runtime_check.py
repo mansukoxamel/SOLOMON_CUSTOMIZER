@@ -129,8 +129,8 @@ def _run_multi_case(
 
     saved = saver.build_saved_rom_data(source_rom, levels, settings)
     report = panel_v2.panel_monster_v2_runtime_save_report(saved, settings)
-    cache_values = dict(report["cache"]["contract"]["entry_values"])
-    cache_values_ok = cache_values == settings
+    settings_values = dict(report["settings"]["contract"]["entry_values"])
+    settings_values_ok = settings_values == settings
 
     saved_rom = Rom(saved, "panel_monster_v2_check.nes")
     resaved = saver.build_saved_rom_data(saved_rom, load_all_levels(saved_rom), settings)
@@ -143,13 +143,13 @@ def _run_multi_case(
         and report["reserved_covers_placement"]
         and report["all_written"]
         and same_output
-        and cache_values_ok
+        and settings_values_ok
     )
     result = dict(report)
     result["saved_len"] = len(saved)
     result["same_output"] = same_output
-    result["cache_values_ok"] = cache_values_ok
-    result["cache_values"] = cache_values
+    result["settings_values_ok"] = settings_values_ok
+    result["settings_values"] = settings_values
     result["ok"] = ok
     if keep_saved:
         result["saved_data"] = saved
@@ -188,7 +188,7 @@ def _run_normal_case(source_data: bytes, enemy_id: int) -> dict[str, object]:
         "reserved_ok": report["reserved_ok"],
         "reserved_covers_placement": report["reserved_covers_placement"],
         "all_written": report["all_written"],
-        "cache_values_ok": True,
+        "settings_values_ok": True,
         "same_output": same_output,
         "v2_runtime_written": v2_runtime_written,
     }
@@ -265,7 +265,7 @@ def print_result(result: dict[str, object]) -> None:
                     f"guards_ok={case['guards_ok']} placement_ok={case['placement_ok']} "
                     f"reserved_ok={case['reserved_ok']} reserved_covers={case['reserved_covers_placement']} "
                     f"all_written={case['all_written']} "
-                    f"same_output={case['same_output']} cache_values_ok={case['cache_values_ok']}"
+                    f"same_output={case['same_output']} settings_values_ok={case['settings_values_ok']}"
                 )
             else:
                 print(
@@ -280,7 +280,7 @@ def print_result(result: dict[str, object]) -> None:
     print(f"reserved_covers_placement {result['reserved_covers_placement']}")
     print(f"all_written {result['all_written']}")
     print(f"same_output {result['same_output']}")
-    print(f"cache_values_ok {result['cache_values_ok']}")
+    print(f"settings_values_ok {result['settings_values_ok']}")
     if "wrote_rom" in result:
         print(f"wrote_rom {result['wrote_rom']}")
     print("guards")

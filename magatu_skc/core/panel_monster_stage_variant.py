@@ -1766,7 +1766,7 @@ def panel_monster_v2_runtime_save_report(
     guard_results = {}
     for name, validator in (
         ("speed", _validate_pmv2_speed_core_runtime_contract),
-        ("global_cache", _validate_pmv2_global_cache_runtime_contract),
+        ("settings_table", _validate_pmv2_global_cache_runtime_contract),
         ("fire_marker", _validate_pmv2_fire_marker_runtime_contract),
         ("parent_cleanup", _validate_pmv2_parent_runtime_contract),
         ("classifier", _validate_pmv2_classifier_runtime_contract),
@@ -1778,7 +1778,7 @@ def panel_monster_v2_runtime_save_report(
         else:
             guard_results[name] = True
     speed_report = panel_monster_v2_split_speed_save_report(rom_data)
-    cache_report = panel_monster_v2_global_cache_save_report(rom_data, common_settings)
+    settings_report = panel_monster_v2_global_cache_save_report(rom_data, common_settings)
     placement_report = panel_variant_split_placement_report()
     reserved_report = panel_monster_v2_reserved_span_report()
     coverage_report = _placement_reserved_coverage_report(placement_report, reserved_report)
@@ -1790,10 +1790,10 @@ def panel_monster_v2_runtime_save_report(
         "reserved_ok": reserved_report["overlap_free"],
         "reserved_covers_placement": coverage_report["all_placement_reserved"],
         "speed_all_written": speed_report["all_written"],
-        "cache_all_written": cache_report["all_written"],
-        "all_written": speed_report["all_written"] and cache_report["all_written"],
+        "settings_all_written": settings_report["all_written"],
+        "all_written": speed_report["all_written"] and settings_report["all_written"],
         "speed": speed_report,
-        "cache": cache_report,
+        "settings": settings_report,
         "placement": placement_report,
         "reserved": reserved_report,
         "reserved_coverage": coverage_report,
