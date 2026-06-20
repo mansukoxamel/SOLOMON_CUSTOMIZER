@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK1 (2026-06-20) Panel Monster v2 speed core静的blob
+- ROMへ接続しない `PanelMonsterV2Blob` と `build_panel_monster_v2_speed_core_blob()` を追加した。
+- 2x/3xは同じ `bullet_step_loop` を使い、extra countだけが 1/2 で変わる静的契約として出力できるようにした。
+- 既存 `PANEL_VARIANT_BLOB` や保存ROM生成経路にはまだ接続していない。
+
 ## v0.8.251 (2026-06-19) Panel Variant PRG0小ヘルパーを圧縮
 - Panel VariantのA/B/C cache offset helperから不要な分岐を削り、13Bから8Bへ縮小した。
 - 親速度guardを既存のPanel type classifier呼び出しへ統合し、A/B/Cと2方向/3方向借用IDの判定を同じ分類器に寄せて67Bから29Bへ縮小した。

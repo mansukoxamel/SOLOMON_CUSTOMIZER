@@ -1507,6 +1507,22 @@ class PanelVariantBlob:
     external_targets: dict[str, int]
 
 
+@dataclass(frozen=True)
+class PanelMonsterV2Blob:
+    """Placement-independent Panel Monster v2 runtime block.
+
+    This is a build-time planning artifact.  It is intentionally not wired to
+    ROM writes, save paths, or concrete PRG0 placement.
+    """
+
+    base_cpu: int
+    data: bytes
+    entries: dict[str, int]
+    sizes: dict[str, int]
+    external_targets: dict[str, int]
+    notes: dict[str, str]
+
+
 def _append_blob_section(
     out: bytearray,
     entries: dict[str, int],
@@ -1518,6 +1534,192 @@ def _append_blob_section(
     entries[name] = (base_cpu + len(out)) & 0xFFFF
     sizes[name] = len(blob)
     out.extend(blob)
+
+
+def _build_pmv2_speed_decode(
+    velocity_table_cpu: int,
+    extra_count_table_cpu: int,
+) -> bytes:
+    """Decode `$88-$8B` speed markers through one shared v2 route."""
+    a = _Asm()
+    a.b(0xA2, 0x00)                    # default extra count = 0
+    a.b(0xA0, 0x07, 0xB1, 0x2C)        # marker = child sub[7]
+    a.b(0xC9, 0x88)
+    a.branch(0x90, "rts")
+    a.b(0xC9, 0x8C)
+    a.branch(0xB0, "rts")
+    a.b(0x38, 0xE9, 0x88, 0x48)        # preset index 0..3
+    a.b(0x0A, 0xAA)                    # X = preset * 2 for velocity table
+    a.b(0xA0, 0x03, 0xB1, 0x2E, 0x29, 0x03)
+    a.b(0xA0, 0x05, 0xC9, 0x02)
+    a.branch(0xB0, "vertical")
+    a.b(0xA0, 0x08, 0x4A)
+    a.branch(0x90, "store_velocity")
+    a.branch(0xB0, "left_up")
+    a.label("vertical")
+    a.branch(0xF0, "left_up_y")
+    a.branch(0xD0, "store_velocity")
+    a.label("left_up")
+    a.label("left_up_y")
+    a.b(0xE8)
+    a.label("store_velocity")
+    a.b(0xBD, 0xFF, 0xFF, 0x91, 0x2E)  # write velocity
+    a.b(0x68, 0xAA)                    # X = preset index
+    a.b(0xBD, 0xFE, 0xFF, 0xAA)        # X = extra count
+    a.label("rts")
+    a.b(0x60)
+    blob = bytearray(a.finish())
+    velocity_refs = 0
+    extra_refs = 0
+    for i in range(len(blob) - 2):
+        if blob[i] == 0xBD and blob[i + 1:i + 3] == bytes((0xFF, 0xFF)):
+            blob[i + 1:i + 3] = _word(velocity_table_cpu)
+            velocity_refs += 1
+        elif blob[i] == 0xBD and blob[i + 1:i + 3] == bytes((0xFE, 0xFF)):
+            blob[i + 1:i + 3] = _word(extra_count_table_cpu)
+            extra_refs += 1
+    if velocity_refs != 1 or extra_refs != 1:
+        raise PanelMonsterStageVariantError("pmv2 speed decode placeholder mismatch")
+    return bytes(blob)
+
+
+def _build_pmv2_bullet_step_loop(cpu_base: int, impact_bridge_cpu: int) -> bytes:
+    """Build the shared v2 fast-Bullet loop."""
+    a = _Asm()
+    a.b(0xE0, 0x00)
+    a.branch(0xF0, "rts")
+    a.label("loop")
+    a.b(0x8A, 0x48)
+    substep_cpu = (int(cpu_base) + 0xFFFF) & 0xFFFF
+    substep_call_at = len(a.code)
+    a.jsr(substep_cpu)
+    a.jsr(0xAC39)
+    a.b(0xA5, 0x07)
+    a.branch(0xD0, "collision")
+    a.b(0x68, 0xAA, 0xCA)
+    a.branch(0xD0, "loop")
+    a.label("rts")
+    a.b(0x60)
+    a.label("collision")
+    a.b(0x68)
+    a.jmp(impact_bridge_cpu)
+    a.label("substep")
+    a.b(0xA0, 0x03, 0xB1, 0x2E, 0x29, 0x03, 0xC9, 0x02)
+    a.branch(0xB0, "vertical")
+    a.b(0xA0, 0x08)
+    a.branch(0xD0, "move")
+    a.label("vertical")
+    a.b(0xA0, 0x05)
+    a.label("move")
+    a.b(0xB1, 0x2E, 0x0A, 0x0A, 0xA2, 0x00)
+    a.branch(0x90, "positive")
+    a.b(0xCA)
+    a.label("positive")
+    a.b(0x86, 0x0A, 0x2A, 0x26, 0x0A, 0x18, 0xC8, 0x71, 0x2E, 0x91, 0x2E)
+    a.b(0xC8, 0xA5, 0x0A, 0x71, 0x2E, 0x91, 0x2E, 0x60)
+    blob = bytearray(a.finish())
+    substep_cpu = (int(cpu_base) + a.labels["substep"]) & 0xFFFF
+    blob[substep_call_at + 1:substep_call_at + 3] = _word(substep_cpu)
+    return bytes(blob)
+
+
+def _build_pmv2_impact_bridge(stock_impact_cpu: int = 0xAFDF) -> bytes:
+    return bytes((0x4C, stock_impact_cpu & 0xFF, stock_impact_cpu >> 8))
+
+
+def build_panel_monster_v2_speed_core_blob(base_cpu: int = 0x8000) -> PanelMonsterV2Blob:
+    """Build the first Panel Monster v2 planning blob without ROM writes."""
+    base_cpu = int(base_cpu) & 0xFFFF
+    out = bytearray()
+    entries: dict[str, int] = {}
+    sizes: dict[str, int] = {}
+    _append_blob_section(out, entries, sizes, base_cpu, "speed_velocity_table", SPEED_PRESET_RUNTIME_TABLE)
+    _append_blob_section(
+        out,
+        entries,
+        sizes,
+        base_cpu,
+        "speed_extra_count_table",
+        bytes((
+            SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_QUARTER]["extra_steps"],
+            SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_HALF]["extra_steps"],
+            SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_2X]["extra_steps"],
+            SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_3X]["extra_steps"],
+        )),
+    )
+    _append_blob_section(
+        out,
+        entries,
+        sizes,
+        base_cpu,
+        "speed_decode",
+        _build_pmv2_speed_decode(
+            entries["speed_velocity_table"],
+            entries["speed_extra_count_table"],
+        ),
+    )
+    loop_base = (base_cpu + len(out)) & 0xFFFF
+    impact_bridge_cpu = (loop_base + len(_build_pmv2_bullet_step_loop(loop_base, 0))) & 0xFFFF
+    _append_blob_section(
+        out,
+        entries,
+        sizes,
+        base_cpu,
+        "bullet_step_loop",
+        _build_pmv2_bullet_step_loop(loop_base, impact_bridge_cpu),
+    )
+    _append_blob_section(
+        out,
+        entries,
+        sizes,
+        base_cpu,
+        "impact_bridge",
+        _build_pmv2_impact_bridge(),
+    )
+    return PanelMonsterV2Blob(
+        base_cpu=base_cpu,
+        data=bytes(out),
+        entries=entries,
+        sizes=sizes,
+        external_targets={
+            "stock_bullet_collision_sampler": 0xAC39,
+            "stock_bullet_impact_after_collision": 0xAFDF,
+        },
+        notes={
+            "scope": "Block 1 static v2 speed core only; no ROM writer uses this blob.",
+            "entry_policy": "Keep normal, 2-way/3-way, and A/B/C entries separate if that is smaller.",
+            "shared_policy": "Share Bullet marker decode and 2x/3x substep loop only.",
+        },
+    )
+
+
+PANEL_MONSTER_V2_SPEED_CORE_BLOB = build_panel_monster_v2_speed_core_blob()
+
+
+def panel_monster_v2_speed_core_contract() -> dict[str, object]:
+    """Return the current static contract for the v2 speed-core block."""
+    blob = PANEL_MONSTER_V2_SPEED_CORE_BLOB
+    current_speed_core = (
+        len(FINAL_BULLET_SPEED_APPLY)
+        + len(FINAL_BULLET_SPEED_TABLE)
+        + len(FINAL_BULLET_SPEED_EXTRA_HELPER)
+    )
+    return {
+        "base_cpu": blob.base_cpu,
+        "total_size": len(blob.data),
+        "entries": dict(blob.entries),
+        "sizes": dict(blob.sizes),
+        "external_targets": dict(blob.external_targets),
+        "notes": dict(blob.notes),
+        "extra_counts": {
+            "1/4": SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_QUARTER]["extra_steps"],
+            "1/2": SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_HALF]["extra_steps"],
+            "2x": SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_2X]["extra_steps"],
+            "3x": SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_3X]["extra_steps"],
+        },
+        "current_speed_core_size": current_speed_core,
+        "judgement": "static planning only; not a production placement result",
+    }
 
 
 def build_panel_variant_blob(base_cpu: int = 0x8000) -> PanelVariantBlob:
