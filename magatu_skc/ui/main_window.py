@@ -5648,7 +5648,8 @@ class MainWindow(QMainWindow):
                 and value != BLOCK_NONE
             ):
                 self.statusBar().showMessage(
-                    "扉削除中のOpen Doorにはブロックを置けません", 2000
+                    self._protected_open_door_message(lv, action="block"),
+                    3500,
                 )
                 restore_rejected_click_edit()
                 return
@@ -5909,7 +5910,8 @@ class MainWindow(QMainWindow):
             if existing >= 0:
                 if self._is_protected_open_door_item(lv, lv.items[existing]):
                     self.statusBar().showMessage(
-                        "扉削除中のOpen Doorは削除できません", 2000
+                        self._protected_open_door_message(lv, action="replace"),
+                        3500,
                     )
                     restore_rejected_click_edit()
                     return
@@ -6731,6 +6733,10 @@ class MainWindow(QMainWindow):
             if idx < 0:
                 break
             if self._is_protected_open_door_item(lv, lv.items[idx]):
+                self.statusBar().showMessage(
+                    self._protected_open_door_message(lv, action="delete"),
+                    3500,
+                )
                 break
             lv.delete_item(idx)
             deleted.append("item")
@@ -6853,6 +6859,21 @@ class MainWindow(QMainWindow):
                 )
             )
         )
+
+    def _protected_open_door_message(self, lv, action: str = "edit") -> str:
+        if lv.is_door_removed():
+            reason = "扉削除中"
+        elif lv.is_key_removed() and stage_ext.get_key_enemy_number(lv) <= 0:
+            reason = "鍵が無い"
+        else:
+            reason = "ステージ成立条件保護中"
+        if action == "delete":
+            return f"{reason}のOpen Doorは削除できません"
+        if action == "replace":
+            return f"{reason}のOpen Doorは他アイテムで上書きできません"
+        if action == "block":
+            return f"{reason}のOpen Doorにはブロックを置けません"
+        return f"{reason}のOpen Doorは編集できません"
 
     def _can_delete_key_meta(self, lv) -> bool:
         return bool(self._level_has_open_door_item(lv) or stage_ext.get_key_enemy_number(lv) > 0)
