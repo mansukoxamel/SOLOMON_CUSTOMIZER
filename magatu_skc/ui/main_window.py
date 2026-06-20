@@ -5856,6 +5856,7 @@ class MainWindow(QMainWindow):
                 lv.invisible_solid_cells.discard(tile)
                 lv.passable_brown_cells.discard(tile)
                 lv.solid_brown_cells.discard(tile)
+            self._warn_demon_mirror_real_block_enemy_fall(lv, tile, value)
         elif mode == MODE_ITEM:
             tx, ty = tile
 
@@ -6147,10 +6148,12 @@ class MainWindow(QMainWindow):
                 lv.room_flags = (lv.room_flags & ~_rf.DOOR_STATE_MASK) | door_state
             elif value == "mirror1":
                 lv.demon_mirrors[0].position = tile
-                self._apply_mirror_block_flag_to_tile(lv, tile, self.picker.get_item_flag())
+                block_kind = self._apply_mirror_block_flag_to_tile(lv, tile, self.picker.get_item_flag())
+                self._warn_demon_mirror_real_block_enemy_fall(lv, tile, block_kind)
             elif value == "mirror2":
                 lv.demon_mirrors[1].position = tile
-                self._apply_mirror_block_flag_to_tile(lv, tile, self.picker.get_item_flag())
+                block_kind = self._apply_mirror_block_flag_to_tile(lv, tile, self.picker.get_item_flag())
+                self._warn_demon_mirror_real_block_enemy_fall(lv, tile, block_kind)
 
         self._refresh_view()
         self._refresh_thumbnails_after_edit()
@@ -7097,15 +7100,36 @@ class MainWindow(QMainWindow):
     def _apply_mirror_block_flag_to_tile(self, lv, tile, flag: int):
         flag = int(flag)
         if flag == c.ITEM_FLAG_IN_BLOCK:
-            self._set_block_replace_kind(lv, tile, BLOCK_BROWN)
+            block_kind = BLOCK_BROWN
         elif flag == c.ITEM_FLAG_WHITE_IN_BLOCK:
-            self._set_block_replace_kind(lv, tile, BLOCK_BREAKABLE_WHITE)
+            block_kind = BLOCK_BREAKABLE_WHITE
         elif flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
-            self._set_block_replace_kind(lv, tile, BLOCK_INVISIBLE_BREAKABLE)
+            block_kind = BLOCK_INVISIBLE_BREAKABLE
         elif flag == c.ITEM_FLAG_CRACKED_IN_BLOCK:
-            self._set_block_replace_kind(lv, tile, BLOCK_CRACKED)
+            block_kind = BLOCK_CRACKED
         else:
-            self._set_block_replace_kind(lv, tile, BLOCK_NONE)
+            block_kind = BLOCK_NONE
+        self._set_block_replace_kind(lv, tile, block_kind)
+        return block_kind
+
+    def _warn_demon_mirror_real_block_enemy_fall(self, lv, tile, block_kind):
+        if block_kind not in (
+            BLOCK_BROWN,
+            BLOCK_BROWN_WHITE,
+            BLOCK_BREAKABLE_WHITE,
+            BLOCK_CRACKED,
+            BLOCK_WHITE,
+            BLOCK_INVISIBLE_BREAKABLE,
+            BLOCK_INVISIBLE_SOLID,
+            BLOCK_SOLID_BROWN,
+        ):
+            return
+        if not any(tuple(m.position) == tile for m in lv.demon_mirrors):
+            return
+        self.statusBar().showMessage(
+            "警告: ミラー上の実体ブロック配置はドラゴン/ガーゴイル/ゴーレムが落下して死にます",
+            5000,
+        )
 
     def _can_apply_absorb_flag_to_moving_item(self, item, flag: int) -> bool:
         if flag is None:
