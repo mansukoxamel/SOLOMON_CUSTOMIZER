@@ -436,16 +436,16 @@
     <h2>7. 現在の問題点</h2>
 
     <div class="lane remove">
-      <strong>問題1: A/B/C速度・間隔の保存経路が過剰</strong><br>
-      current 6df3733では、全ステージ共通の6B値をPRG1へ置き、loaderでRAMへコピーし、PRG0 helperがRAMから読む。
-      v2 Foundationでは、この旧cache経路をPanel Monster統合契約の一部として撤去する。
-      speed/intervalの供給はcacheではなく、v2の固定表・直接operand・または明示した新契約から行う。
+      <strong>方針1: cacheは残す。PRG0を削る。</strong><br>
+      全ステージ共通の6B値はPRG1へ置き、loaderでRAMへコピーし、PRG0 helperがRAMから読む。
+      PRG1とRAMは荷物置き場、PRG0は狭い通路として扱う。
+      直接operand化でPRG0が太る変更は、まともに動くROMができるまで入れない。
     </div>
 
     <div class="lane remove">
-      <strong>問題2: cache helperが設計の中心に残っている</strong><br>
+      <strong>方針2: cache helperはPRG0節約の部品として扱う</strong><br>
       <code>$BE62</code> interval helper、<code>$BE9F</code> group RAM offset helper、<code>$BEBD</code> speed selectorがcache前提。
-      これを残したまま「見た目だけtableを消す」と、再保存互換やMesen検証でズレる。
+      ここは撤去候補ではなく、短く保つ対象として見る。
     </div>
 
     <div class="lane remove">

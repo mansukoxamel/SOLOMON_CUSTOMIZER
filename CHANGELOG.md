@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-DOCS (2026-06-20) Panel Monster v2 cache方針を資料へ反映
+- Panel Monster設計図のcache方針を、撤去候補ではなく「cacheは残す。PRG0を削る。」へ更新した。
+- ROM管理簿にPanel Variant shared AI wrapperの現行59B配置を追記した。
+- 実装変更はなく、作業方針と台帳のズレを減らした。
+
 ## EX-PANEL-V2-BLOCK14 (2026-06-20) Panel Variant split配置reportをv2 speed名へ更新
 - `panel_variant_split_placement_candidate()` のspeed行を、旧speed apply/extra helper名からv2 decode / tables+fast loop / hook名へ更新した。
 - report上のサイズも、実際に保存ROMへ書くv2 runtimeサイズに合わせた。

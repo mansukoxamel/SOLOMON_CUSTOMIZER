@@ -146,6 +146,7 @@
       <tr><td class="num">0x681C-0x6832</td><td>Transparent Spark Ball Golem-ID AI wrapper</td><td>原作00埋め領域を利用。`$A35C/$A35E` から呼ばれる透明Spark Ball用Golem-ID wrapper。</td></tr>
       <tr><td class="num">0x6833-0x6882</td><td>Panel Monster v2 Bullet speed tables + fast loop</td><td>Velocity table, extra-step count table, and shared 2x/3x substep loop. Samples <code>$AC39</code> after each extra step and returns on wall collision without entering the stock impact/destruction path.</td></tr>
       <tr><td class="num">0x68AC-0x68C0</td><td>Panel Variant dynamic speed marker helper</td><td>Panel Variant Bullet speed marker helper relocated from the post-Bullet-hook gap.</td></tr>
+      <tr><td class="num">0x68C1-0x68FB</td><td>Panel Variant shared AI wrapper</td><td>A/B/Cとborrowed Panel IDのdirection normalize。現行実体59B。</td></tr>
       <tr><td class="num">0x6FD4-0x7004</td><td>Spark Ball pause hook</td><td>PRG0後半のEA埋め領域を利用。49B。</td></tr>
       <tr><td class="num">0x7005-0x700F</td><td>Solomon Seal block helper</td><td>`$BB90` の紋章セル書き込みから呼ぶ11Bヘルパ。StageExt loader がコピーした `$077D` を見て、原作 `$60` / 茶ブロック内 `$A0` / 白ブロック内 `$E0` を書く。</td></tr>
     </table>
