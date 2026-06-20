@@ -662,9 +662,14 @@ class MainWindow(QMainWindow):
 
         if not lv.is_key_removed() and lv.fixed_key_pos == tile:
             from ..core import constants as cc
-            allowed = self._item_flag_cycle_order(allow_cracked=False)
+            allowed = self._item_flag_cycle_order()
             if tile in getattr(lv, "visible_in_block_item_cells", set()):
                 current = c.ITEM_FLAG_VISIBLE_IN_BLOCK
+            elif (
+                tile in getattr(lv, "cracked_block_cells", set())
+                and lv.key_status == cc.KEY_STATUS_HIDDEN
+            ):
+                current = c.ITEM_FLAG_CRACKED_IN_BLOCK
             else:
                 current = {
                     cc.KEY_STATUS_NORMAL: c.ITEM_FLAG_NORMAL,
@@ -5348,6 +5353,11 @@ class MainWindow(QMainWindow):
     def _key_state_label(self, lv):
         if lv.fixed_key_pos in getattr(lv, "visible_in_block_item_cells", set()):
             return "透明ブロック内"
+        if (
+            lv.fixed_key_pos in getattr(lv, "cracked_block_cells", set())
+            and lv.is_key_hidden()
+        ):
+            return "ひび割れブロック内"
         if lv.is_key_white_in_block():
             return "白ブロック内"
         if lv.is_key_in_block():
@@ -6040,6 +6050,7 @@ class MainWindow(QMainWindow):
         elif mode == MODE_META:
             tx, ty = tile
             target_is_white_in_block = tile in getattr(lv, "breakable_white_cells", set())
+            target_is_cracked_in_block = tile in getattr(lv, "cracked_block_cells", set())
             target_is_brown_in_block = lv.tiles[ty][tx] in (Wall.BROWN, Wall.BROWN_WHITE)
             if value == "start":
                 if lv.get_enemy_index(tile) >= 0:
@@ -6062,21 +6073,36 @@ class MainWindow(QMainWindow):
                     )
                     restore_rejected_click_edit()
                     return
+                from ..core import constants as cc
                 old_key_pos = tuple(lv.fixed_key_pos)
+                old_key_was_cracked = (
+                    old_key_pos in getattr(lv, "cracked_block_cells", set())
+                    and lv.key_status == cc.KEY_STATUS_HIDDEN
+                )
                 lv.fixed_key_pos = tile
                 if old_key_pos != tile:
                     lv.visible_in_block_item_cells.discard(old_key_pos)
+                    if old_key_was_cracked:
+                        lv.set_block(Wall.NONE, old_key_pos)
+                    else:
+                        lv.cracked_block_cells.discard(old_key_pos)
                 # 配置フラグを key_status に反映
-                from ..core import constants as cc
                 picker_flag = self.picker.get_item_flag()
                 if target_is_white_in_block:
                     lv.key_status = cc.KEY_STATUS_WHITE_IN_BLOCK
                     lv.set_block(Wall.NONE, tile)
                     lv.visible_in_block_item_cells.discard(tile)
+                    lv.cracked_block_cells.discard(tile)
+                elif target_is_cracked_in_block or picker_flag == c.ITEM_FLAG_CRACKED_IN_BLOCK:
+                    lv.key_status = cc.KEY_STATUS_HIDDEN
+                    lv.set_block(Wall.BROWN, tile)
+                    lv.cracked_block_cells.add(tile)
+                    lv.visible_in_block_item_cells.discard(tile)
                 elif target_is_brown_in_block:
                     lv.key_status = cc.KEY_STATUS_IN_BLOCK
                     lv.set_block(Wall.NONE, tile)
                     lv.visible_in_block_item_cells.discard(tile)
+                    lv.cracked_block_cells.discard(tile)
                 else:
                     flag_map = {
                         0x00: cc.KEY_STATUS_NORMAL,
@@ -6087,9 +6113,11 @@ class MainWindow(QMainWindow):
                     if picker_flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
                         lv.key_status = cc.KEY_STATUS_NORMAL
                         lv.visible_in_block_item_cells.add(tile)
+                        lv.cracked_block_cells.discard(tile)
                     else:
                         lv.key_status = flag_map.get(picker_flag, cc.KEY_STATUS_NORMAL)
                         lv.visible_in_block_item_cells.discard(tile)
+                        lv.cracked_block_cells.discard(tile)
                     if lv.key_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
                         lv.set_block(Wall.NONE, tile)
             elif value == "door":
@@ -7001,17 +7029,32 @@ class MainWindow(QMainWindow):
         visible_cells = getattr(lv, "visible_in_block_item_cells", set())
         if not lv.is_key_removed() and lv.fixed_key_pos == tile:
             from ..core import constants as cc
-            if flag == c.ITEM_FLAG_CRACKED_IN_BLOCK:
-                return False
+            old_cracked = (
+                tile in getattr(lv, "cracked_block_cells", set())
+                and lv.key_status == cc.KEY_STATUS_HIDDEN
+            )
             if flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
                 lv.key_status = cc.KEY_STATUS_NORMAL
                 visible_cells.add(tile)
+                if old_cracked:
+                    lv.set_block(Wall.NONE, tile)
+                else:
+                    lv.cracked_block_cells.discard(tile)
+            elif flag == c.ITEM_FLAG_CRACKED_IN_BLOCK:
+                lv.key_status = cc.KEY_STATUS_HIDDEN
+                visible_cells.discard(tile)
+                lv.set_block(Wall.BROWN, tile)
+                lv.cracked_block_cells.add(tile)
             else:
                 lv.key_status = {
                     c.ITEM_FLAG_IN_BLOCK: cc.KEY_STATUS_IN_BLOCK,
                     c.ITEM_FLAG_WHITE_IN_BLOCK: cc.KEY_STATUS_WHITE_IN_BLOCK,
                 }.get(flag, cc.KEY_STATUS_NORMAL)
                 visible_cells.discard(tile)
+                if old_cracked:
+                    lv.set_block(Wall.NONE, tile)
+                else:
+                    lv.cracked_block_cells.discard(tile)
             return True
         if not lv.is_door_removed() and lv.fixed_door_pos == tile:
             if flag in (c.ITEM_FLAG_VISIBLE_IN_BLOCK, c.ITEM_FLAG_CRACKED_IN_BLOCK):
@@ -8366,13 +8409,12 @@ class MainWindow(QMainWindow):
             if not lv.is_key_removed() and lv.fixed_key_pos == self._hover_tile:
                 if self._reject_read_only_edit():
                     return
-                if flag == c.ITEM_FLAG_CRACKED_IN_BLOCK:
-                    self.statusBar().showMessage(
-                        "鍵はひび割れブロック内状態にできません", 1500
-                    )
-                    return
                 from ..core import constants as cc
                 old_visible = self._hover_tile in getattr(lv, "visible_in_block_item_cells", set())
+                old_cracked = (
+                    self._hover_tile in getattr(lv, "cracked_block_cells", set())
+                    and lv.key_status == cc.KEY_STATUS_HIDDEN
+                )
                 key_flag_map = {
                     0x00: cc.KEY_STATUS_NORMAL,
                     0x40: cc.KEY_STATUS_HIDDEN,
@@ -8380,8 +8422,17 @@ class MainWindow(QMainWindow):
                     0xC0: cc.KEY_STATUS_WHITE_IN_BLOCK,
                 }
                 new_visible = flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK
-                new_status = cc.KEY_STATUS_NORMAL if new_visible else key_flag_map[flag]
-                if new_status == lv.key_status and new_visible == old_visible:
+                new_cracked = flag == c.ITEM_FLAG_CRACKED_IN_BLOCK
+                new_status = (
+                    cc.KEY_STATUS_NORMAL if new_visible
+                    else cc.KEY_STATUS_HIDDEN if new_cracked
+                    else key_flag_map[flag]
+                )
+                if (
+                    new_status == lv.key_status
+                    and new_visible == old_visible
+                    and new_cracked == old_cracked
+                ):
                     self.statusBar().showMessage(
                         f"ホバー位置の鍵状態: {label}", 1500
                     )
@@ -8394,6 +8445,13 @@ class MainWindow(QMainWindow):
                     visible_cells.add(self._hover_tile)
                 else:
                     visible_cells.discard(self._hover_tile)
+                if new_cracked:
+                    lv.set_block(Wall.BROWN, self._hover_tile)
+                    lv.cracked_block_cells.add(self._hover_tile)
+                elif old_cracked:
+                    lv.set_block(Wall.NONE, self._hover_tile)
+                else:
+                    lv.cracked_block_cells.discard(self._hover_tile)
                 if new_status == cc.KEY_STATUS_WHITE_IN_BLOCK:
                     lv.set_block(Wall.NONE, self._hover_tile)
                 elif old_was_white:

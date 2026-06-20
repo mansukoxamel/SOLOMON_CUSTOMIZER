@@ -324,8 +324,25 @@ def _cracked_in_block_item_cells(level) -> set:
     return cracked & item_positions
 
 
+def _cracked_in_block_key_cells(level) -> set:
+    cracked = cracked_block_cells(level)
+    if not cracked or level.is_key_removed():
+        return set()
+    key_pos = tuple(getattr(level, "fixed_key_pos", (-1, -1)))
+    if (
+        key_pos in cracked
+        and getattr(level, "key_status", c.KEY_STATUS_NORMAL) == c.KEY_STATUS_HIDDEN
+    ):
+        return {key_pos}
+    return set()
+
+
+def _cracked_in_block_cells(level) -> set:
+    return _cracked_in_block_item_cells(level) | _cracked_in_block_key_cells(level)
+
+
 def cracked_in_block_item_cells(level) -> set:
-    return _cracked_in_block_item_cells(level)
+    return _cracked_in_block_cells(level)
 
 
 def cracked_block_cells(level) -> set:
@@ -541,7 +558,7 @@ def visible_in_block_items_needed(levels: list) -> bool:
 
 
 def cracked_in_block_items_needed(levels: list) -> bool:
-    return any(bool(_cracked_in_block_item_cells(level)) for level in levels or [])
+    return any(bool(_cracked_in_block_cells(level)) for level in levels or [])
 
 
 def validate_visible_in_block_items(levels: list) -> None:
@@ -580,7 +597,7 @@ def validate_visible_in_block_items(levels: list) -> None:
 
 def validate_cracked_in_block_items(levels: list) -> None:
     for room_no, level in enumerate(levels or []):
-        cells = _cracked_in_block_item_cells(level)
+        cells = _cracked_in_block_cells(level)
         if not cells:
             continue
         visible_cells = set(getattr(level, "visible_in_block_item_cells", set()) or [])
@@ -596,8 +613,10 @@ def validate_cracked_in_block_items(levels: list) -> None:
                 )
             item = item_by_pos.get(pos)
             if item is None:
+                if pos in _cracked_in_block_key_cells(level):
+                    continue
                 raise ValueError(
-                    f"Stage {room_no + 1}: ひび割れブロック内マーカー {pos} にアイテムがありません"
+                    f"Stage {room_no + 1}: ひび割れブロック内マーカー {pos} にアイテム/鍵がありません"
                 )
             base = int(item.element_no) & 0x3F
             if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
@@ -623,7 +642,7 @@ def build_breakable_white_data(levels: list) -> bytearray:
     data = bytearray([0x00] * (COUNT_M66_LEVELS * LENGTH_M66_BREAKABLE_WHITE_ROOM_DATA))
     for room_no, level in enumerate((levels or [])[:COUNT_M66_LEVELS]):
         base = _visible_in_block_table_offset(room_no) - OFFSET_M66_BREAKABLE_WHITE_DATA
-        cracked_cells = sorted(_cracked_in_block_item_cells(level))
+        cracked_cells = sorted(_cracked_in_block_cells(level))
         for i in range(LENGTH_M66_CRACKED_IN_BLOCK_LIST_BYTES):
             data[base + LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_MASK_BYTES + i] = 0xFF
         for i, pos in enumerate(cracked_cells[:LENGTH_M66_CRACKED_IN_BLOCK_LIST_BYTES]):

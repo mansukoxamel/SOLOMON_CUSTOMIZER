@@ -493,7 +493,19 @@ class LevelRenderer:
                     key_anim, ts_no, transparent=None, bg_main_color=wall_color)
                 kx, ky = level.fixed_key_pos
                 if 0 <= kx < c.LEVEL_W and 0 <= ky < c.LEVEL_H:
-                    if level.is_key_in_block() or level.is_key_white_in_block():
+                    key_is_cracked = (
+                        level.is_key_hidden()
+                        and level.fixed_key_pos in cracked_cells
+                        and cracked_img is not None
+                    )
+                    if key_is_cracked:
+                        painter.drawImage(kx * tw, ky * tw, cracked_img)
+                        if show_secret_elements:
+                            painter.drawImage(kx * tw, ky * tw, key_img)
+                            painter.setOpacity(0.5)
+                            painter.drawImage(kx * tw, ky * tw, cracked_img)
+                            painter.setOpacity(1.0)
+                    elif level.is_key_in_block() or level.is_key_white_in_block():
                         # ブロック内: アイテム → 半透明ブロックの順
                         block_img = white_img if level.is_key_white_in_block() else brown_img
                         painter.drawImage(kx * tw, ky * tw, block_img)
