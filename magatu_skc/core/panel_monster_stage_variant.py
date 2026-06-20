@@ -223,8 +223,6 @@ CPU_FINAL_ABC_GROUP_OFFSET_HELPER = _cpu(OFF_FINAL_ABC_GROUP_OFFSET_HELPER)
 
 ORIG_STATE0_INTERVAL_HOOK = bytes.fromhex("a0 02 b1 2c c9 c0")
 ORIG_SPEED_INIT_CALL = bytes.fromhex("20 c0 8a")
-PREV_HOOK_SPEED_INIT_CALL = bytes.fromhex("20 40 bd")
-PREV_HOOK_SPEED_INIT_CALL_E876 = bytes.fromhex("20 76 e8")
 HOOK_SPEED_INIT_CALL = bytes.fromhex("20") + _word(CPU_FINAL_PARENT_SPEED_GUARD)
 HOOK_PANEL_FIRE_WITH_SPARK_PROPERTY = (
     panel_monster_variant.HOOK_PANEL_FIRE_HEAD
@@ -962,14 +960,12 @@ def _validate_final_split_signatures(
         "$866D speed init hook site",
         (
             ORIG_SPEED_INIT_CALL,
-            PREV_HOOK_SPEED_INIT_CALL,
-            PREV_HOOK_SPEED_INIT_CALL_E876,
             HOOK_SPEED_INIT_CALL,
         ),
     )
 
     ai_entry = _word(FINAL_AI_DISPATCH_ENTRIES["entry"])
-    old_panel_entry = _word(CPU_FINAL_AI_WRAPPER_CANDIDATE)
+    panel_ai_entry = _word(CPU_FINAL_AI_WRAPPER_CANDIDATE)
     for off, name in (
         (panel_monster_variant.OFF_AI_DEMON_52_53, "$A34C Panel Monster 2-way borrowed AI"),
         (panel_monster_variant.OFF_AI_DEMON_56_57, "$A34E Panel Monster 2-way borrowed AI"),
@@ -982,7 +978,7 @@ def _validate_final_split_signatures(
             (
                 panel_monster_variant.ORIG_AI_DEMON,
                 _word(panel_monster_variant.CPU_AI_DEMON_WRAPPER),
-                old_panel_entry,
+                panel_ai_entry,
             ),
         )
     for off, name in (
@@ -1197,8 +1193,6 @@ def apply_final_split_test_candidate(
     cur_speed = bytes(rom_data[OFF_SPEED_INIT_CALL:OFF_SPEED_INIT_CALL + len(ORIG_SPEED_INIT_CALL)])
     if cur_speed not in (
         ORIG_SPEED_INIT_CALL,
-        PREV_HOOK_SPEED_INIT_CALL,
-        PREV_HOOK_SPEED_INIT_CALL_E876,
         HOOK_SPEED_INIT_CALL,
     ):
         raise PanelMonsterStageVariantError(
@@ -1207,13 +1201,13 @@ def apply_final_split_test_candidate(
     _write_blob(rom_data, OFF_SPEED_INIT_CALL, HOOK_SPEED_INIT_CALL, changed, "$866D Panel Variant parent speed guard hook")
 
     ai_entry = _word(FINAL_AI_DISPATCH_ENTRIES["entry"])
-    old_panel_entry = _word(CPU_FINAL_AI_WRAPPER_CANDIDATE)
+    panel_ai_entry = _word(CPU_FINAL_AI_WRAPPER_CANDIDATE)
     for off, name in (
         (panel_monster_variant.OFF_AI_DEMON_52_53, "$A34C Panel Monster 2-way borrowed AI"),
         (panel_monster_variant.OFF_AI_DEMON_56_57, "$A34E Panel Monster 2-way borrowed AI"),
         (panel_monster_variant.OFF_AI_DEMON_5A_5B, "$A350 Panel Monster 3-way borrowed AI"),
     ):
-        _write_blob(rom_data, off, old_panel_entry, changed, name)
+        _write_blob(rom_data, off, panel_ai_entry, changed, name)
     for off, name in (
         (OFF_AI_RANGE_30_33, "$A33C Panel Variant C AI"),
         (OFF_AI_RANGE_34_37, "$A33E Panel Variant C AI"),

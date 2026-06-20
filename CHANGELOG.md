@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK22 (2026-06-20) speed init署名を原作/最新へ絞る
+- `$866D` speed init hookの許可署名から、旧中間hook先を削除した。
+- 2-way/3-way Panel AI入口の変数名を、旧名から現行entry名へ直した。
+- 通常ROM作成は原作状態または最新v2状態だけを受ける形へ寄せた。
+
 ## EX-PANEL-V2-BLOCK21 (2026-06-20) 旧interval prototype入口を削除
 - 無効化済みだった `apply_stage_table_interval_prototype()` と判定関数を削除した。
 - 旧prototype用のAI wrapper/head定数と旧state0 helperを削除した。
