@@ -1696,6 +1696,15 @@ def build_panel_monster_v2_speed_core_blob(base_cpu: int = 0x8000) -> PanelMonst
 PANEL_MONSTER_V2_SPEED_CORE_BLOB = build_panel_monster_v2_speed_core_blob()
 
 
+def _v2_split_speed_reserved_sizes() -> dict[str, int]:
+    blobs = panel_monster_v2_split_speed_runtime_blobs()
+    return {
+        "speed_decode": len(blobs["speed_decode"]),
+        "tables_and_fast_loop": len(blobs["tables_and_fast_loop"]),
+        "bullet_speed_hook": len(blobs["bullet_speed_hook"]),
+    }
+
+
 def panel_monster_v2_speed_core_contract() -> dict[str, object]:
     """Return the current static contract for the v2 speed-core block."""
     blob = PANEL_MONSTER_V2_SPEED_CORE_BLOB
@@ -2161,11 +2170,11 @@ RESERVED_SPANS = (
     (OFF_FINAL_STATIC_MARKER_HELPER, len(FINAL_STATIC_MARKER_HELPER)),
     (OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER, len(FINAL_DYNAMIC_SPEED_MARKER_HELPER)),
     (OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, len(FINAL_PARENT_FIELD_CLEAR_HELPER)),
-    (OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, 0x79),
-    (OFF_FINAL_BULLET_SPEED_APPLY, 0x3A),
+    (OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, _v2_split_speed_reserved_sizes()["tables_and_fast_loop"]),
+    (OFF_FINAL_BULLET_SPEED_APPLY, _v2_split_speed_reserved_sizes()["speed_decode"]),
     (OFF_FINAL_AI_WRAPPER_CANDIDATE, len(FINAL_AI_WRAPPER_CANDIDATE)),
     (OFF_FINAL_FIRE_MARKER_TABLE, len(FINAL_FIRE_MARKER_TABLE)),
-    (panel_monster_variant.OFF_BULLET_HOOK, len(FINAL_MERGED_PANEL_BULLET_HOOK)),
+    (panel_monster_variant.OFF_BULLET_HOOK, _v2_split_speed_reserved_sizes()["bullet_speed_hook"]),
     (OFF_PRG1_RUNTIME_LOADER, 0x60),
     (GLOBAL_CACHE_TABLE_OFFSET, GLOBAL_CACHE_TABLE_LENGTH),
 )

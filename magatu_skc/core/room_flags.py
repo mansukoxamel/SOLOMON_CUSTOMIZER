@@ -424,14 +424,14 @@ def _verify(rom_data) -> None:
         (OFF_TABLE, ROOM_COUNT),
     )
     pmsv_capacity_spans = (
-        (_pmsv.OFF_FINAL_PANEL_TYPE_CLASSIFIER, 0x1E),
-        (_pmsv.OFF_FINAL_STAGE_DISPATCH_HELPER, 0x12),
-        (_pmsv.OFF_FINAL_GROUP_RAM_OFFSET_HELPER, 0x17),
-        (_pmsv.OFF_FINAL_SPEED_SELECT_HELPER, 0x0A),
-        (_pmsv.OFF_FINAL_STATIC_MARKER_HELPER, 0x10),
+        (_pmsv.OFF_FINAL_PANEL_TYPE_CLASSIFIER, len(_pmsv.FINAL_PANEL_TYPE_CLASSIFIER)),
+        (_pmsv.OFF_FINAL_STAGE_DISPATCH_HELPER, len(_pmsv.FINAL_STAGE_DISPATCH_HELPER)),
+        (_pmsv.OFF_FINAL_GROUP_RAM_OFFSET_HELPER, len(_pmsv.FINAL_GROUP_RAM_OFFSET_HELPER)),
+        (_pmsv.OFF_FINAL_SPEED_SELECT_HELPER, len(_pmsv.FINAL_SPEED_SELECT_HELPER)),
+        (_pmsv.OFF_FINAL_STATIC_MARKER_HELPER, len(_pmsv.FINAL_STATIC_MARKER_HELPER)),
         (
             _pmsv.OFF_FINAL_BULLET_SPEED_APPLY,
-            len(_pmsv.FINAL_BULLET_SPEED_APPLY) + len(_pmsv.FINAL_BULLET_SPEED_TABLE) + 0x03,
+            _pmsv._v2_split_speed_reserved_sizes()["speed_decode"],
         ),
     )
     _spans = (

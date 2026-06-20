@@ -1,5 +1,11 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK13 (2026-06-20) Panel Monster v2 speed予約spanを実体サイズへ縮小
+- v2 speed runtimeの予約spanを、古い最大枠ではなく実際に書くサイズへ合わせた。
+- `$C088` は56B、`$E823` は80B、`$BF69` は20Bを予約し、余った枠をPRG0候補として見えるようにした。
+- `room_flags.py` 側のPanel Variant許容spanも実体サイズ参照へ合わせ、古い広い枠を残さないようにした。
+- 挙動変更はなく、最新ROMを成立させるための実体サイズに台帳を寄せた。
+
 ## EX-PANEL-V2-BLOCK12 (2026-06-20) Panel Variant parent speed guardの水増し書込を停止
 - `parent_speed_guard` は実体29Bで完結しているため、保存時に旧67B長へ0 paddingして書く処理をやめた。
 - 署名検証も現行の29B単位へ合わせ、後続領域をguard書込の対象から外した。
