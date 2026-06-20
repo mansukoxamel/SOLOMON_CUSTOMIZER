@@ -1365,9 +1365,10 @@ def apply_final_split_test_candidate(
     """Apply the accepted split Panel Variant runtime."""
     if rom_data is None:
         raise PanelMonsterStageVariantError("ROM is missing.")
+    v2_speed = panel_monster_v2_split_speed_runtime_blobs()
     min_len = max(
-        OFF_FINAL_BULLET_SPEED_APPLY + len(FINAL_BULLET_SPEED_APPLY) + len(FINAL_BULLET_SPEED_TABLE),
-        OFF_FINAL_BULLET_SPEED_EXTRA_HELPER + len(FINAL_BULLET_SPEED_EXTRA_HELPER),
+        OFF_FINAL_BULLET_SPEED_APPLY + len(v2_speed["speed_decode"]),
+        OFF_FINAL_BULLET_SPEED_EXTRA_HELPER + len(v2_speed["tables_and_fast_loop"]),
         OFF_FINAL_AI_DISPATCH_HELPER + len(FINAL_AI_DISPATCH_HELPER),
         OFF_FINAL_AI_DISPATCH_PANEL_HELPER + len(FINAL_AI_DISPATCH_PANEL_HELPER),
         OFF_FINAL_PARENT_FIELD_CLEAR_HELPER + len(FINAL_PARENT_FIELD_CLEAR_HELPER),
@@ -1385,7 +1386,6 @@ def apply_final_split_test_candidate(
     final_state0_interval_helper = _final_state0_interval_helper_for_rom(rom_data)
     _validate_final_split_signatures(rom_data, final_state0_interval_helper)
     _validate_pmv2_speed_core_runtime_contract()
-    v2_speed = panel_monster_v2_split_speed_runtime_blobs()
 
     changed: list[str] = []
     if patch_global_cache_table(rom_data, common_settings):
@@ -1706,11 +1706,7 @@ def _v2_split_speed_reserved_sizes() -> dict[str, int]:
 def panel_monster_v2_speed_core_contract() -> dict[str, object]:
     """Return the current static contract for the v2 speed-core block."""
     blob = PANEL_MONSTER_V2_SPEED_CORE_BLOB
-    current_speed_core = (
-        len(FINAL_BULLET_SPEED_APPLY)
-        + len(FINAL_BULLET_SPEED_TABLE)
-        + len(FINAL_BULLET_SPEED_EXTRA_HELPER)
-    )
+    split_speed_runtime_size = sum(_v2_split_speed_reserved_sizes().values())
     return {
         "base_cpu": blob.base_cpu,
         "total_size": len(blob.data),
@@ -1724,69 +1720,8 @@ def panel_monster_v2_speed_core_contract() -> dict[str, object]:
             "2x": SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_2X]["extra_steps"],
             "3x": SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_3X]["extra_steps"],
         },
-        "current_speed_core_size": current_speed_core,
-        "judgement": "static planning only; not a production placement result",
-    }
-
-
-def panel_monster_v2_current_speed_runtime_layout() -> dict[str, object]:
-    """Return the concrete speed-core pieces written by the normal save path."""
-    return {
-        "speed_apply": {
-            "off": OFF_FINAL_BULLET_SPEED_APPLY,
-            "cpu": CPU_FINAL_BULLET_SPEED_APPLY,
-            "size": len(FINAL_BULLET_SPEED_APPLY),
-        },
-        "speed_velocity_table": {
-            "off": OFF_FINAL_BULLET_SPEED_APPLY + len(FINAL_BULLET_SPEED_APPLY),
-            "cpu": CPU_FINAL_BULLET_SPEED_APPLY + len(FINAL_BULLET_SPEED_APPLY),
-            "size": len(FINAL_BULLET_SPEED_TABLE),
-        },
-        "speed_extra_helper": {
-            "off": OFF_FINAL_BULLET_SPEED_EXTRA_HELPER,
-            "cpu": CPU_FINAL_BULLET_SPEED_EXTRA_HELPER,
-            "size": len(FINAL_BULLET_SPEED_EXTRA_HELPER),
-        },
-        "total_size": (
-            len(FINAL_BULLET_SPEED_APPLY)
-            + len(FINAL_BULLET_SPEED_TABLE)
-            + len(FINAL_BULLET_SPEED_EXTRA_HELPER)
-        ),
-        "extra_counts": {
-            "1/4": SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_QUARTER]["extra_steps"],
-            "1/2": SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_HALF]["extra_steps"],
-            "2x": SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_2X]["extra_steps"],
-            "3x": SPEED_PRESET_TABLE_VALUES[SPEED_PRESET_FAST_3X]["extra_steps"],
-        },
-    }
-
-
-def panel_monster_v2_speed_core_save_report(rom_data: bytes | bytearray) -> dict[str, object]:
-    """Report whether the current speed-core pieces are present in saved ROM data."""
-    if rom_data is None:
-        raise PanelMonsterStageVariantError("ROM is missing.")
-    sections = {
-        "speed_apply": (
-            OFF_FINAL_BULLET_SPEED_APPLY,
-            FINAL_BULLET_SPEED_APPLY,
-        ),
-        "speed_velocity_table": (
-            OFF_FINAL_BULLET_SPEED_APPLY + len(FINAL_BULLET_SPEED_APPLY),
-            FINAL_BULLET_SPEED_TABLE,
-        ),
-        "speed_extra_helper": (
-            OFF_FINAL_BULLET_SPEED_EXTRA_HELPER,
-            FINAL_BULLET_SPEED_EXTRA_HELPER,
-        ),
-    }
-    written = {
-        name: bytes(rom_data[off:off + len(blob)]) == blob
-        for name, (off, blob) in sections.items()
-    }
-    return {
-        "layout": panel_monster_v2_current_speed_runtime_layout(),
-        "written": written,
-        "all_written": all(written.values()),
+        "split_speed_runtime_size": split_speed_runtime_size,
+        "judgement": "v2 split speed runtime is the normal save path",
     }
 
 

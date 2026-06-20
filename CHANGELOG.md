@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK16 (2026-06-20) 旧speed reportを削除してv2経路へ一本化
+- 旧speed apply/table/extra helperを確認するreport関数を削除し、通常保存経路はv2 split speed runtimeを見る形に一本化した。
+- 保存前のROM長チェックも、旧speed helper長ではなくv2 split runtimeの実体長で計算するようにした。
+- 挙動変更はなく、最新ROMだけを見る方針に合わせて古い確認口を減らした。
+
 ## EX-PANEL-V2-DOCS2 (2026-06-20) PRG0 audit資料をv2現状へ追従
 - `prg0_padding_audit.md` のparent guard tail reserveを、saverがゼロ埋めする領域ではなく「触らないreserve」として更新した。
 - v2 speed tables + fast loopの範囲を、現行実体の `0x6833-0x6882` / `$E823-$E872` / 80Bへ更新した。
