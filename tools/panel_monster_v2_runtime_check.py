@@ -92,6 +92,9 @@ MIXED_CASES = (
 
 NORMAL_CASES = (
     ("NORMAL_R", 0x24),
+    ("NORMAL_L", 0x25),
+    ("NORMAL_U", 0x26),
+    ("NORMAL_D", 0x27),
 )
 
 RUNTIME_IDS = panel_v2.PANEL_STAGE_RUNTIME_IDS

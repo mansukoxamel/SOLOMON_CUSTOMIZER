@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK62 (2026-06-20) 通常Panel境界checkを全方向IDへ拡張
+- `tools/panel_monster_v2_runtime_check.py` の通常Panel checkを `$24/$25/$26/$27` 全方向へ広げた。
+- Panel Monster v2 runtimeを常時書いても、通常Panel全方向が保存/再保存経路で安定することを確認する。
+- A/B/C、2-way/3-way、通常Panelの分類境界を同じmatrixで監視する。
+
 ## EX-PANEL-V2-BLOCK61 (2026-06-20) Panel Monster v2 interval checkを全方向IDへ拡張
 - `tools/panel_monster_v2_runtime_check.py` のinterval checkをA/B/C各4方向IDすべてへ広げた。
 - speedだけでなくintervalも、代表IDだけが通る状態を避ける。
