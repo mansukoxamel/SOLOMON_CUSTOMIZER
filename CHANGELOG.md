@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK17 (2026-06-20) speed core guardを最新v2 runtimeへ合わせる
+- 保存前のspeed契約guardが旧extra helperを見ていたため、最新のv2 `speed_decode` と `tables_and_fast_loop` を直接検証するようにした。
+- marker範囲、marker index decode、`$AC39` collision sample、fast loopの禁止ジャンプをv2実体に対して確認する。
+- 挙動変更はなく、検証先を最新ROMで使うruntimeへ合わせた。
+
 ## EX-PANEL-V2-BLOCK16 (2026-06-20) 旧speed reportを削除してv2経路へ一本化
 - 旧speed apply/table/extra helperを確認するreport関数を削除し、通常保存経路はv2 split speed runtimeを見る形に一本化した。
 - 保存前のROM長チェックも、旧speed helper長ではなくv2 split runtimeの実体長で計算するようにした。

@@ -1844,19 +1844,21 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
             f"Panel Monster v2 speed extra-step contract mismatch: {extra_counts!r}"
         )
 
-    helper = FINAL_BULLET_SPEED_EXTRA_HELPER
+    split_blobs = panel_monster_v2_split_speed_runtime_blobs()
+    speed_decode = split_blobs["speed_decode"]
+    fast_loop = split_blobs["tables_and_fast_loop"]
     required_patterns = {
-        "$8A lower bound": bytes((0xC9, 0x8A)),
-        "$8C upper bound": bytes((0xC9, 0x8C)),
-        "$8A/$8B count decode": bytes((0x38, 0xE9, 0x89, 0xAA)),
-        "$AC39 collision sample": bytes((0x20, 0x39, 0xAC)),
+        "$88 lower bound": (speed_decode, bytes((0xC9, 0x88))),
+        "$8C upper bound": (speed_decode, bytes((0xC9, 0x8C))),
+        "$88 marker index decode": (speed_decode, bytes((0x38, 0xE9, 0x88))),
+        "$AC39 collision sample": (fast_loop, bytes((0x20, 0x39, 0xAC))),
     }
-    for name, pattern in required_patterns.items():
-        if pattern not in helper:
+    for name, (blob, pattern) in required_patterns.items():
+        if pattern not in blob:
             raise PanelMonsterStageVariantError(
                 f"Panel Monster v2 speed core is missing {name} pattern."
             )
-    if bytes((0xC9, 0x8B, 0xB0)) in helper:
+    if bytes((0xC9, 0x8B, 0xB0)) in speed_decode:
         raise PanelMonsterStageVariantError(
             "Panel Monster v2 speed core rejects 3x before the shared extra-step loop."
         )
@@ -1882,8 +1884,6 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
         raise PanelMonsterStageVariantError(
             f"Panel Monster v2 split speed placement does not fit: {placement!r}"
         )
-    split_blobs = panel_monster_v2_split_speed_runtime_blobs()
-    fast_loop = split_blobs["tables_and_fast_loop"]
     forbidden_fast_loop_patterns = {
         "stock impact path $AFDF": bytes((0x4C, 0xDF, 0xAF)),
         "stock impact helper $B016": bytes((0x20, 0x16, 0xB0)),
