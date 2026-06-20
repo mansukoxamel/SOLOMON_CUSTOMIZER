@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## EX-PANEL-V2-BLOCK19 (2026-06-20) 古いstandalone blob見積もりを削除
+- 未使用になった `PanelVariantBlob` と旧standalone runtime builderを削除した。
+- 旧blob由来のPRG0/PRG1予算見積もり関数を削除し、v2 speed coreと現行split配置reportだけを残した。
+- ROM挙動は変えず、今使う設計資料だけがコード上に残る形へ整理した。
+
 ## EX-PANEL-V2-BLOCK18 (2026-06-20) 古いPRG0見積もりを配置reportから外す
 - `panel_variant_ai_wrapper_candidate()` から旧AI wrapperとの比較値を外し、現行shared AI wrapperだけを返すようにした。
 - `panel_variant_split_placement_candidate()` から古いstandalone blob由来のPRG0 growth見積もりを外した。
