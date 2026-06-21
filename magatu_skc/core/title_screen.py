@@ -279,6 +279,12 @@ ARCADE_TERM = 0x2F
 ARCADE_TILE_MIN = 0x30
 ARCADE_NT_BASE = 0x2800        # arcade 実測 PPUADDR (cell→$2800+cell)
 
+# New internal wide-title stream.
+# segment = [HI][LO][LEN][TILE...], end = $FF.
+# LEN makes all following bytes tile IDs, so $00-$2F font tiles can be drawn
+# without copying glyphs into CHR bank3 high slots.
+LEN_STREAM_TERM = 0xFF
+
 
 def decode_arcade_stream(rom_data, start_off: int, lim: int = 6000):
     """arcade形式 stream を解析 → [(ppu_addr, tile), ...]。
@@ -346,6 +352,68 @@ def encode_arcade_stream(cells, base: int = ARCADE_NT_BASE) -> bytes:
     return bytes(out)
 
 
+def decode_len_stream(rom_data, start_off: int, lim: int = 6000):
+    """LEN形式 wide stream を解析 → [(ppu_addr, tile), ...]。"""
+    p = int(start_off)
+    out = []
+    g = 0
+    while g < lim:
+        g += 1
+        if p >= len(rom_data):
+            return out
+        hi = rom_data[p]
+        if hi == LEN_STREAM_TERM:
+            return out
+        if p + 2 >= len(rom_data):
+            return out
+        lo = rom_data[p + 1]
+        count = rom_data[p + 2]
+        if count == 0:
+            return out
+        p += 3
+        addr = (hi << 8) | lo
+        if p + count > len(rom_data):
+            return out
+        for i in range(count):
+            out.append((addr + i, rom_data[p + i]))
+        p += count
+    return out
+
+
+def encode_len_stream(cells, base: int = ARCADE_NT_BASE) -> bytes:
+    """中間グリッド(960, tile値 or None=空白) → LEN形式 wide stream。"""
+    if len(cells) != _NT_CELLS:
+        raise TitleScreenError(
+            f"cells 数不正 ({len(cells)} != {_NT_CELLS})。")
+    out = bytearray()
+    i = 0
+    while i < _NT_CELLS:
+        if cells[i] is None:
+            i += 1
+            continue
+        run = i
+        while i < _NT_CELLS and cells[i] is not None:
+            i += 1
+        while run < i:
+            chunk_end = min(i, run + 255)
+            addr = base + run
+            hi = (addr >> 8) & 0xFF
+            lo = addr & 0xFF
+            if hi == LEN_STREAM_TERM:
+                raise TitleScreenError(
+                    f"PPUADDR HI ${hi:02X} はLEN stream終端と衝突します。")
+            out.extend((hi, lo, chunk_end - run))
+            for c in range(run, chunk_end):
+                t = cells[c]
+                if not (0 <= int(t) <= 0xFF):
+                    raise TitleScreenError(
+                        f"タイル値 ${int(t):02X} は $00-$FF 範囲外 (cell {c})。")
+                out.append(int(t) & 0xFF)
+            run = chunk_end
+    out.append(LEN_STREAM_TERM)
+    return bytes(out)
+
+
 # 当方 wide デコーダ ($CC4F) の先頭署名 (LDY#0/LDA($00),Y/CMP#$2F)
 _WA_DEC_SIG = bytes.fromhex("A000B100C92F")
 _US_ARCADE_DEC_OFF = 0x10 + (0xCBA6 - 0x8000)
@@ -387,7 +455,7 @@ def decode_title_grid(rom_data) -> dict:
        {"grid": [tile×960], "chr": chr_bank3_off, "region": base,
         "cells": 実書込セル数, "wide": bool}
     stock: nametable A→B を $CC4F 再現 (addr & $3FF)。
-    wide正規化済: $CEA3 + cave($CCBA/$CCBE)を arcade形式 decode。
+    wide正規化済: bank1 blockA/B streamを decoder形式に合わせてdecode。
     """
     region = _verify(rom_data)
     base = region_mod.base_region(region)
@@ -415,7 +483,8 @@ def decode_title_grid(rom_data) -> dict:
             if 0x8000 <= cave_cpu <= 0xFFFF:
                 starts.append(_wjp_cf(cave_cpu))
         for st in starts:
-            for ad, t in decode_arcade_stream(rom_data, st):
+            decoder = decode_len_stream if _wt_uses_len_stream(rom_data) else decode_arcade_stream
+            for ad, t in decoder(rom_data, st):
                 idx = ad - ARCADE_NT_BASE
                 if 0 <= idx < _NT_CELLS:
                     grid[idx] = t
@@ -840,10 +909,10 @@ def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b):
         raise TitleScreenError(
             "target uses the old in-place wide-title test format. "
             "Reopen a clean JP ROM and use the mapper66 wide-normalized ROM.")
-    stream_a = encode_arcade_stream(grid_a)
-    stream_b = encode_arcade_stream(grid_b)
-    decoder_len = len(_wt_build_trampoline(_WT_DEC_CPU)[1])
-    a_file = _WT_DEC_FILE + decoder_len
+    stream_a = encode_len_stream(grid_a)
+    stream_b = encode_len_stream(grid_b)
+    boot, decoder = _wt_build_trampoline(_WT_DEC_CPU)
+    a_file = _WT_DEC_FILE + len(decoder)
     b_file = a_file + len(stream_a)
     end_file = b_file + len(stream_b)
     if end_file > _WT_WIDE_END:
@@ -856,6 +925,8 @@ def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b):
             raise TitleScreenError(
                 f"internal error: title stream write 0x{off:X}+{ln}B "
                 "overlaps the Room Flag bank0 cave band.")
+    target_rom[_wjp_cf(0xCC4F):_wjp_cf(0xCC4F) + len(boot)] = boot
+    target_rom[_WT_DEC_FILE:_WT_DEC_FILE + len(decoder)] = decoder
     for i in range(a_file, _WT_WIDE_END):
         target_rom[i] = 0
     target_rom[a_file:a_file + len(stream_a)] = stream_a
@@ -941,7 +1012,8 @@ def _wide_title_grids_for_edit(rom_data):
         if not (0x8000 <= cpu <= 0xFFFF):
             raise TitleScreenError(f"wide-title stream pointer ${cpu:04X} is invalid.")
         g = [None] * _NT_CELLS
-        for ad, t in decode_arcade_stream(rom_data, _wjp_b1f(cpu)):
+        decoder = decode_len_stream if _wt_uses_len_stream(rom_data) else decode_arcade_stream
+        for ad, t in decoder(rom_data, _wjp_b1f(cpu)):
             idx = ad - ARCADE_NT_BASE
             if 0 <= idx < _NT_CELLS and t != 0x24:
                 g[idx] = t
@@ -1036,12 +1108,11 @@ def apply_title_top_layout(rom_data, meta: dict) -> list:
 def add_title_text_line(rom_data, text: str, row: int = _TITLE_TEXT_ROW) -> list:
     """Draw one centered custom text line through the internal wide-title stream.
 
-    The original title text routine is left untouched. Since the wide stream
-    reserves tile values $00-$2F for control bytes, this copies the ROM font
-    tiles (0-9, A-Z, space) into unused tile IDs >= $30 and places those copies
-    in block A. Comma, period, and double quote are generated as small synthetic
-    8x8 glyphs. The whole target row is filled with copied space tiles first so
-    applying a shorter line clears the previous one.
+    The original title text routine and CHR bank3 are left untouched. The
+    internal LEN stream can write tile values $00-$2F directly, so the overlay
+    uses the existing font tiles instead of copying glyphs into high CHR slots.
+    The whole target row is filled with space tiles first so applying a shorter
+    line clears the previous one.
     """
     dst_region = _verify(rom_data)
     if region_mod.base_region(dst_region) != "JP":
@@ -1068,51 +1139,15 @@ def add_title_text_line(rom_data, text: str, row: int = _TITLE_TEXT_ROW) -> list
         grid_a[row0 + x] = None
         grid_b[row0 + x] = None
 
-    needed_src = []
-    for ch in set(raw + " "):
-        src = ch
-        if src not in needed_src:
-            needed_src.append(src)
-
-    used = {t for t in grid_a + grid_b if t is not None}
-    chr_off = chr_bank3_offset(rom_data)
-    src_to_dst = {}
-    next_tile = ARCADE_TILE_MIN
-    for src in needed_src:
-        src_bytes = _title_char_tile_bytes(rom_data, src)
-
-        # Reuse an existing high-tile copy if one is already available and not
-        # part of the title art. This keeps repeated edits stable.
-        found = None
-        for t in range(ARCADE_TILE_MIN, 0x100):
-            if t in used:
-                continue
-            pos = chr_off + (_BG_BASE + t) * NES_GFX_TILE_BYTE_SIZE
-            if bytes(rom_data[pos:pos + NES_GFX_TILE_BYTE_SIZE]) == src_bytes:
-                found = t
-                break
-        if found is None:
-            while next_tile < 0x100 and next_tile in used:
-                next_tile += 1
-            if next_tile >= 0x100:
-                raise TitleScreenError(
-                    "not enough unused title CHR tile slots for text overlay.")
-            found = next_tile
-            dst_pos = chr_off + (_BG_BASE + found) * NES_GFX_TILE_BYTE_SIZE
-            rom_data[dst_pos:dst_pos + NES_GFX_TILE_BYTE_SIZE] = src_bytes
-            next_tile += 1
-        src_to_dst[src] = found
-        used.add(found)
-
     line = raw.center(32)
     for x, ch in enumerate(line):
-        grid_a[row0 + x] = src_to_dst[ch]
+        grid_a[row0 + x] = _title_char_src_tile(ch)
 
     len_a, len_b = _write_wide_title_streams_for_import(rom_data, grid_a, grid_b)
     return [
         f"title text overlay added at row {row}: {raw!r}",
         f"bank1 streams rewritten: A={len_a}B / B={len_b}B",
-        "original PUSH START / TECMO text routine is untouched.",
+        "original PUSH START / TECMO text routine and CHR bank3 are untouched.",
     ]
 
 
@@ -1313,13 +1348,15 @@ def patched_rom_from_ips(base_rom, ips_bytes: bytes) -> bytearray:
 _WA_SZ = {"LDYi": 2, "CMPi": 2, "ADCi": 2, "LDAz": 2, "STAz": 2,
           "INCz": 2, "LDAiy": 2, "ADCz": 2, "LDAa": 3, "STAa": 3,
           "LDXa": 3, "JMP": 3, "JMPABS": 3, "BEQ": 2, "BNE": 2,
-          "BCC": 2, "INY": 1, "CLC": 1, "TYA": 1, "RTS": 1}
+          "BCC": 2, "INY": 1, "CLC": 1, "TYA": 1, "TAX": 1,
+          "DEX": 1, "RTS": 1}
 _WA_OPC = {"LDYi": 0xA0, "CMPi": 0xC9, "ADCi": 0x69, "LDAz": 0xA5,
            "STAz": 0x85, "INCz": 0xE6, "LDAiy": 0xB1, "ADCz": 0x65,
            "LDAa": 0xAD, "STAa": 0x8D, "LDXa": 0xAE, "JMP": 0x4C,
            "JMPABS": 0x4C, "BEQ": 0xF0, "BNE": 0xD0, "BCC": 0x90,
-           "INY": 0xC8, "CLC": 0x18, "TYA": 0x98, "RTS": 0x60}
-_WA_PROG = [
+           "INY": 0xC8, "CLC": 0x18, "TYA": 0x98, "TAX": 0xAA,
+           "DEX": 0xCA, "RTS": 0x60}
+_WA_ARCADE_PROG = [
     ("LDYi", 0), ("CMD",), ("LDAiy", 0), ("CMPi", 0x2F),
     ("BEQ", "DONE"), ("STAz", 3), ("INY",), ("LDAiy", 0),
     ("STAz", 2), ("LDAz", 0), ("CLC",), ("ADCi", 2),
@@ -1332,6 +1369,20 @@ _WA_PROG = [
     ("STAz", 0), ("BCC", "E1"), ("INCz", 1), ("E1",),
     ("LDYi", 0), ("JMP", "CMD"), ("DONE",), ("LDXa", 0x2002),
     ("RTS",)]
+_WA_LEN_PROG = [
+    ("LDYi", 0), ("CMD",), ("LDAiy", 0), ("CMPi", LEN_STREAM_TERM),
+    ("BEQ", "DONE"), ("STAz", 3), ("INY",), ("LDAiy", 0),
+    ("STAz", 2), ("INY",), ("LDAiy", 0), ("TAX",), ("INY",),
+    ("LDAz", 0), ("CLC",), ("ADCi", 3), ("STAz", 0),
+    ("BCC", "H1"), ("INCz", 1), ("H1",), ("LDAa", 0x2002),
+    ("LDAz", 3), ("STAa", 0x2006), ("LDAz", 2), ("STAa", 0x2006),
+    ("LDAa", 0x0300), ("STAa", 0x2000), ("LDYi", 0),
+    ("RUN",), ("LDAiy", 0), ("STAa", 0x2007), ("INY",),
+    ("DEX",), ("BNE", "RUN"), ("TYA",), ("CLC",), ("ADCz", 0),
+    ("STAz", 0), ("BCC", "E1"), ("INCz", 1), ("E1",),
+    ("LDYi", 0), ("JMP", "CMD"), ("DONE",), ("LDXa", 0x2002),
+    ("RTS",)]
+_WA_PROG = _WA_LEN_PROG
 _WJP_SIG = {
     0xCC4F: bytes.fromhex("AC0220A0008402840388C8B10030"),
     0xCCB6: bytes.fromhex("207396A9088500A9CE8501"),
@@ -1514,8 +1565,21 @@ def _wt_build_trampoline(decoder_cpu):
     return boot_bytes, decoder_bytes
 
 
+def _wt_current_decoder_bytes() -> bytes:
+    _boot, decoder = _wt_build_trampoline(_WT_DEC_CPU)
+    return decoder
+
+
+def _wt_uses_len_stream(rom_data) -> bool:
+    """True when the installed bank1 decoder is the LEN-stream decoder."""
+    if not _wt_has_current_ram_bootstrap(rom_data):
+        return False
+    dec = _wt_current_decoder_bytes()
+    return bytes(rom_data[_WT_DEC_FILE:_WT_DEC_FILE + len(dec)]) == dec
+
+
 def _assemble_wa_decoder(base_cpu=0xCC4F, prog=None):
-    """arcade wide デコーダを base_cpu 基準でアセンブル。
+    """wide デコーダを base_cpu 基準でアセンブル。
     prog=None なら _WA_PROG (末尾 RTS = in-place/legacy)。
     prog 指定で末尾を JMPABS に差替えた版 (bank1 trampoline) を生成。
     JMPABS = ("JMPABS", 絶対CPUアドレス) — ラベルでなく即値 JMP。
@@ -1751,8 +1815,8 @@ def normalize_title_to_wide(rom) -> list:
             orig[c] = gA[c]
         if gB[c] is not None:
             orig[c] = gB[c]
-    blkA = encode_arcade_stream(gA)
-    blkB = encode_arcade_stream(gB)
+    blkA = encode_len_stream(gA)
+    blkB = encode_len_stream(gB)
 
     # --- (3) bootstrap / bank1 decoder 生成 + bank1 レイアウト ---
     boot, decoder = _wt_build_trampoline(_WT_DEC_CPU)
@@ -1814,7 +1878,7 @@ def normalize_title_to_wide(rom) -> list:
     # --- (7) round-trip 自己検証: bank1 stream 再decode == 元 stock ---
     rt = {}
     for st in (blkA_file, blkB_file):
-        for ad, t in decode_arcade_stream(out, st):
+        for ad, t in decode_len_stream(out, st):
             c = ad - ARCADE_NT_BASE
             if 0 <= c < _NT_CELLS:
                 rt[c] = t
