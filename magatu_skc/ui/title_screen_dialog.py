@@ -50,6 +50,14 @@ _TITLE_ATTR_EXTRA_JP_OFF = 0x10 + (0xCDF5 - 0x8000)
 _BG_BASE = 256
 
 
+class TitlePngColorGuardError(ValueError):
+    def __init__(self, message, bad_blocks=None, image=None, display_top_y=None):
+        super().__init__(message)
+        self.bad_blocks = list(bad_blocks or [])
+        self.image = image.copy() if image is not None else None
+        self.display_top_y = display_top_y
+
+
 def _ppu_pixel_to_display(x, y):
     return ((int(x) + _DISPLAY_SCROLL_X) % _IMG_W,
             (int(y) + _DISPLAY_SCROLL_Y) % _IMG_H)
@@ -274,6 +282,44 @@ class TitlePaletteDialog(QDialog):
         self.reject()
 
 
+class TitlePngColorGuardDialog(QDialog):
+    def __init__(self, error, parent=None):
+        super().__init__(parent)
+        if parent is not None:
+            self.setFont(parent.font())
+        self.setWindowTitle("PNG取り込み不可")
+        root = QVBoxLayout(self)
+        msg = QLabel(str(error))
+        msg.setWordWrap(True)
+        root.addWidget(msg)
+
+        grid = QGridLayout()
+        image = error.image
+        for i, block in enumerate(error.bad_blocks[:12]):
+            bx, by, n, sx, sy = block
+            cell = QVBoxLayout()
+            title = QLabel(f"attr ({bx},{by}) / {n}色")
+            cell.addWidget(title)
+            preview = QLabel()
+            preview.setFixedSize(96, 96)
+            preview.setAlignment(Qt.AlignCenter)
+            preview.setStyleSheet("background:#111; border:1px solid #555;")
+            if image is not None:
+                tile = image.copy(sx, sy, 16, 16)
+                pm = QPixmap.fromImage(tile).scaled(
+                    96, 96, Qt.KeepAspectRatio, Qt.FastTransformation)
+                preview.setPixmap(pm)
+            cell.addWidget(preview)
+            wrap = QWidget()
+            wrap.setLayout(cell)
+            grid.addWidget(wrap, i // 4, i % 4)
+        root.addLayout(grid)
+
+        bb = QDialogButtonBox(QDialogButtonBox.Ok)
+        bb.accepted.connect(self.accept)
+        root.addWidget(bb)
+
+
 class TitleScreenDialog(QDialog):
     def __init__(self, rom_data: bytearray, parent=None, app_config=None):
         super().__init__(parent)
@@ -324,6 +370,30 @@ class TitleScreenDialog(QDialog):
         self._highlight_tile.setToolTip("指定したCHR bank3内タイルをタイトルプレビュー上でピンク表示")
         self._highlight_tile.valueChanged.connect(self._refresh)
         zr.addWidget(self._highlight_tile)
+        zr.addSpacing(16)
+        zr.addWidget(QLabel("色G表示:"))
+        self._group_overlay = QComboBox()
+        self._group_overlay.addItem("なし", -1)
+        for i in range(4):
+            self._group_overlay.addItem(str(i), i)
+        self._group_overlay.setToolTip("選択した色グループに属する16x16区画をプレビュー上で表示")
+        self._group_overlay.currentIndexChanged.connect(self._refresh)
+        zr.addWidget(self._group_overlay)
+        zr.addSpacing(10)
+        self._group_from = QComboBox()
+        self._group_to = QComboBox()
+        for i in range(4):
+            self._group_from.addItem(str(i), i)
+            self._group_to.addItem(str(i), i)
+        self._group_from.setToolTip("一括置換元の色グループ")
+        self._group_to.setToolTip("一括置換先の色グループ")
+        zr.addWidget(self._group_from)
+        zr.addWidget(QLabel("→"))
+        zr.addWidget(self._group_to)
+        b_group_replace = QPushButton("色G置換")
+        b_group_replace.setToolTip("選択した色グループを使う16x16区画を、別の色グループへ一括変更")
+        b_group_replace.clicked.connect(self._on_replace_attr_group)
+        zr.addWidget(b_group_replace)
         zr.addStretch()
         root.addLayout(zr)
 
@@ -559,6 +629,8 @@ class TitleScreenDialog(QDialog):
         count = self._draw_preview_highlight(pm, z, grid, highlight_tile)
         self._draw_preview_grid(pm, z)
         self._draw_preview_attr_grid(pm, z)
+        self._draw_preview_group_overlay(
+            pm, z, self._title_attributes(), self._group_overlay.currentData())
         self._canvas.setPixmap(pm)
         self._canvas.setFixedSize(pm.size())
         self._canvas.set_title_context(z, grid, off)
@@ -618,6 +690,54 @@ class TitleScreenDialog(QDialog):
             painter.drawLine(0, sy, _IMG_W * zoom, sy)
         painter.end()
 
+    @staticmethod
+    def _draw_wrapped_rect(painter, x, y, w, h, zoom):
+        xs = [x]
+        ys = [y]
+        if x + w > _IMG_W:
+            xs.append(x - _IMG_W)
+        if y + h > _IMG_H:
+            ys.append(y - _IMG_H)
+        for yy in ys:
+            for xx in xs:
+                painter.drawRect(
+                    xx * zoom,
+                    yy * zoom,
+                    max(0, w * zoom - 1),
+                    max(0, h * zoom - 1),
+                )
+
+    def _draw_preview_group_overlay(self, pm, zoom, attr, group):
+        if group is None or int(group) < 0:
+            return
+        group = int(group) & 0x03
+        colors = [
+            QColor(255, 64, 64, 70),
+            QColor(64, 255, 64, 70),
+            QColor(64, 128, 255, 70),
+            QColor(255, 64, 220, 70),
+        ]
+        border = [
+            QColor(255, 64, 64, 210),
+            QColor(64, 255, 64, 210),
+            QColor(64, 128, 255, 210),
+            QColor(255, 64, 220, 210),
+        ]
+        painter = QPainter(pm)
+        painter.setBrush(colors[group])
+        pen = QPen(border[group])
+        pen.setWidth(max(1, zoom))
+        painter.setPen(pen)
+        for by in range(_IMG_H // 16):
+            row = by * 2
+            for bx in range(_IMG_W // 16):
+                col = bx * 2
+                if self._attr_palette_no(attr, row, col) != group:
+                    continue
+                dx, dy = _ppu_pixel_to_display(col * 8, row * 8)
+                self._draw_wrapped_rect(painter, dx, dy, 16, 16, zoom)
+        painter.end()
+
     def _restore_preview_status(self):
         self._preview_status.setText(getattr(self, "_preview_status_text", ""))
 
@@ -653,6 +773,10 @@ class TitleScreenDialog(QDialog):
                 pending["image"], row, col)
             chg = TS.apply_title_stamp_cells(
                 self._rom, patterns, row, col, tile_w, tile_h)
+        except TitlePngColorGuardError as e:
+            self._rom[:] = snap
+            TitlePngColorGuardDialog(e, self).exec_()
+            return
         except (TS.TitleScreenError, ValueError) as e:
             self._rom[:] = snap
             QMessageBox.critical(self, "貼り付け失敗", str(e))
@@ -706,6 +830,38 @@ class TitleScreenDialog(QDialog):
         self._refresh()
         self._preview_status.setText(
             f"16x16色変更: x={col}, y={row} / パレット {current} -> {pal_no}")
+
+    def _on_replace_attr_group(self):
+        src = int(self._group_from.currentData()) & 0x03
+        dst = int(self._group_to.currentData()) & 0x03
+        if src == dst:
+            QMessageBox.information(
+                self, "色グループ置換",
+                "置換元と置換先が同じです。変更はありません。")
+            return
+        attr = self._title_attributes()
+        changed_blocks = 0
+        for by in range(_IMG_H // 16):
+            row = by * 2
+            for bx in range(_IMG_W // 16):
+                col = bx * 2
+                if self._attr_palette_no(attr, row, col) != src:
+                    continue
+                for rr in (row, row + 1):
+                    for cc in (col, col + 1):
+                        self._set_title_attr_palette_no(attr, rr, cc, dst)
+                changed_blocks += 1
+        if changed_blocks == 0:
+            QMessageBox.information(
+                self, "色グループ置換",
+                f"色グループ {src} を使う16x16区画はありません。")
+            return
+        self._write_title_attributes(attr)
+        self._changed = True
+        self._group_overlay.setCurrentIndex(dst + 1)
+        self._refresh()
+        self._preview_status.setText(
+            f"色グループ置換: {src} -> {dst} / {changed_blocks}区画")
 
     # --- 操作 ---
     def _apply_title_palette_colors(self, colors):
@@ -813,21 +969,31 @@ class TitleScreenDialog(QDialog):
                                   display_top_y=None):
         """Reject imports that would need five or more colors in one attr block."""
         blocks = {}
+        rects = {}
         for y in range(img.height()):
             for x in range(img.width()):
                 if display_top_y is None:
                     row = start_row + (y // 8)
                     col = start_col + (x // 8)
+                    sx = ((col // 2) * 16) - start_col * 8
+                    sy = ((row // 2) * 16) - start_row * 8
                 else:
                     ppu_x, ppu_y = _display_pixel_to_ppu(x, display_top_y + y)
                     row = ppu_y // 8
                     col = ppu_x // 8
-                colors = blocks.setdefault((col // 2, row // 2), set())
+                    dx, dy = _ppu_pixel_to_display((col // 2) * 16, (row // 2) * 16)
+                    sx = dx
+                    sy = dy - display_top_y
+                key = (col // 2, row // 2)
+                colors = blocks.setdefault(key, set())
                 colors.add(self._pixel_rgb(img, x, y))
+                rects.setdefault(key, (sx, sy))
         bad = [
-            (bx, by, len(colors))
+            (bx, by, len(colors), rects[(bx, by)][0], rects[(bx, by)][1])
             for (bx, by), colors in sorted(blocks.items())
-            if len(colors) > 4
+            if len(colors) > 4 and
+            0 <= rects[(bx, by)][0] <= img.width() - 16 and
+            0 <= rects[(bx, by)][1] <= img.height() - 16
         ]
         if not bad:
             return
@@ -838,13 +1004,15 @@ class TitleScreenDialog(QDialog):
             "",
             "問題の16x16ブロック:",
         ]
-        for bx, by, n in bad[:16]:
+        for bx, by, n, _sx, _sy in bad[:16]:
             dx, dy = _ppu_pixel_to_display(bx * 16, by * 16)
             lines.append(
                 f"- attr ({bx},{by}) / 表示px ({dx},{dy}) / {n}色")
         if len(bad) > 16:
             lines.append(f"...ほか {len(bad) - 16} ブロック")
-        raise ValueError("\n".join(lines))
+        raise TitlePngColorGuardError(
+            "\n".join(lines), bad_blocks=bad, image=img,
+            display_top_y=display_top_y)
 
     def _on_import_png(self):
         QMessageBox.information(
@@ -1160,6 +1328,10 @@ class TitleScreenDialog(QDialog):
                 ]
             chg = TS.apply_title_top_image_from_png(
                 self._rom, cells)
+        except TitlePngColorGuardError as e:
+            self._rom[:] = snap
+            TitlePngColorGuardDialog(e, self).exec_()
+            return
         except (TS.TitleScreenError, ValueError) as e:
             self._rom[:] = snap
             QMessageBox.critical(self, "Import failed", str(e))
