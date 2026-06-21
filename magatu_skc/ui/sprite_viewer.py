@@ -66,6 +66,52 @@ class RomFrameImageLabel(QLabel):
         super().mouseDoubleClickEvent(event)
 
 
+class RawChrImageLabel(QLabel):
+    tile_hovered = pyqtSignal(int)
+    tile_left = pyqtSignal()
+
+    def __init__(self, first_tile, tile_count, cols, cell, gap, parent=None):
+        super().__init__(parent)
+        self._first_tile = int(first_tile)
+        self._tile_count = int(tile_count)
+        self._cols = int(cols)
+        self._cell = int(cell)
+        self._gap = int(gap)
+        self.setMouseTracking(True)
+
+    def mouseMoveEvent(self, event):
+        stride = self._cell + self._gap
+        if self._cols <= 0 or self._cell <= 0 or stride <= 0:
+            self.tile_left.emit()
+            super().mouseMoveEvent(event)
+            return
+        x = event.pos().x() - self._gap
+        y = event.pos().y() - self._gap
+        if x < 0 or y < 0:
+            self.tile_left.emit()
+            super().mouseMoveEvent(event)
+            return
+        col = x // stride
+        row = y // stride
+        local_x = x % stride
+        local_y = y % stride
+        idx = int(row * self._cols + col)
+        if (
+            col < 0 or col >= self._cols
+            or local_x >= self._cell or local_y >= self._cell
+            or idx < 0 or idx >= self._tile_count
+        ):
+            self.tile_left.emit()
+            super().mouseMoveEvent(event)
+            return
+        self.tile_hovered.emit(self._first_tile + idx)
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event):
+        self.tile_left.emit()
+        super().leaveEvent(event)
+
+
 class SpriteViewer(QDialog):
     """スプライト/キャラクタービューア"""
 
@@ -472,15 +518,32 @@ class SpriteViewer(QDialog):
                         for dx in range(zoom):
                             img.setPixel(px0 + dx, py0 + dy, color)
 
-        lbl = QLabel()
+        lbl = RawChrImageLabel(first, n, BANK_COLS, cell, gap)
         lbl.setPixmap(QPixmap.fromImage(img))
         lbl.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        lbl.tile_hovered.connect(self._on_raw_chr_tile_hovered)
+        lbl.tile_left.connect(self._restore_raw_chr_status)
         old = self.scroll.takeWidget()
         if old:
             old.deleteLater()
         self.scroll.setWidget(lbl)
-        self.hover_label.setText(
+        self._raw_chr_status_text = (
             f"Bank {bank}: タイル {first}-{last-1} / CHR開始 0x{self.chr_start:X}")
+        self._restore_raw_chr_status()
+
+    def _restore_raw_chr_status(self):
+        self.hover_label.setText(getattr(self, "_raw_chr_status_text", ""))
+
+    def _on_raw_chr_tile_hovered(self, tile_no):
+        bank = int(tile_no) // TILES_PER_BANK
+        bank_tile = int(tile_no) % TILES_PER_BANK
+        chr_offset = int(tile_no) * NES_GFX_TILE_BYTE_SIZE
+        file_start = self.chr_start + chr_offset
+        file_end = file_start + NES_GFX_TILE_BYTE_SIZE - 1
+        self.hover_label.setText(
+            f"Bank {bank}: タイル {tile_no} (0x{tile_no:03X}) / "
+            f"bank内 {bank_tile} (0x{bank_tile:03X}) / "
+            f"CHR+0x{chr_offset:04X} / ROM 0x{file_start:X}-0x{file_end:X}")
 
     # ---- ★ROMフレームデータモード ($D0E8 機構、16x16 8x16スプライト) ----
     def _cf(self, cpu):
