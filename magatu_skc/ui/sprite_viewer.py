@@ -13,7 +13,7 @@ from PyQt5.QtWidgets import (
     QScrollArea, QWidget, QGridLayout, QDialogButtonBox, QCheckBox
 )
 from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QImage, QPixmap, QColor
+from PyQt5.QtGui import QImage, QPixmap, QColor, QPainter
 
 from ..nes.tile import NesTile, NES_TILE_W, NES_GFX_TILE_BYTE_SIZE
 from ..nes import palette as pal
@@ -26,6 +26,11 @@ PALETTE_LABELS = [
 ]
 TILES_PER_BANK = 512
 BANK_COLS = 16
+RAW_CHR_PINK_RANGES = (
+    (0x12C, 0x139),
+    (0x13C, 0x14F),
+    (0x154, 0x17F),
+)
 
 
 class RomFrameImageLabel(QLabel):
@@ -478,6 +483,11 @@ class SpriteViewer(QDialog):
     def _sprite_palette_rgb(self, sprite_palette_no: int):
         return self._display_palette_rgb(4 + (int(sprite_palette_no) & 3))
 
+    @staticmethod
+    def _is_raw_chr_pink_marked(bank_tile):
+        bank_tile = int(bank_tile)
+        return any(start <= bank_tile <= end for start, end in RAW_CHR_PINK_RANGES)
+
     def _render_raw(self):
         bank = self.bank_combo.currentIndex()
         zoom = self.zoom_spin.value()
@@ -517,6 +527,18 @@ class SpriteViewer(QDialog):
                     for dy in range(zoom):
                         for dx in range(zoom):
                             img.setPixel(px0 + dx, py0 + dy, color)
+
+        painter = QPainter(img)
+        painter.setBrush(QColor(255, 0, 180, 70))
+        painter.setPen(QColor(255, 70, 210))
+        for ti in range(n):
+            bank_tile = (first + ti) % TILES_PER_BANK
+            if not self._is_raw_chr_pink_marked(bank_tile):
+                continue
+            ox = gap + (ti % BANK_COLS) * (cell + gap)
+            oy = gap + (ti // BANK_COLS) * (cell + gap)
+            painter.drawRect(ox, oy, max(0, cell - 1), max(0, cell - 1))
+        painter.end()
 
         lbl = RawChrImageLabel(first, n, BANK_COLS, cell, gap)
         lbl.setPixmap(QPixmap.fromImage(img))
