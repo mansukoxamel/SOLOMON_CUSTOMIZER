@@ -278,6 +278,24 @@ _BG_BASE = 256
 ARCADE_TERM = 0x2F
 ARCADE_TILE_MIN = 0x30
 ARCADE_NT_BASE = 0x2800        # arcade 実測 PPUADDR (cell→$2800+cell)
+WIDE_TITLE_FREE_BANK_TILE_RANGES = (
+    (0x12C, 0x139),
+    (0x13C, 0x14F),
+    (0x154, 0x17F),
+    (0x180, 0x18F),
+    (0x190, 0x197),
+    (0x199, 0x19F),
+    (0x1A9, 0x1A9),
+    (0x1AC, 0x1AF),
+    (0x1B8, 0x1BF),
+    (0x1E0, 0x1FF),
+)
+WIDE_TITLE_FREE_STREAM_TILES = tuple(
+    bank_tile - _BG_BASE
+    for start, end in WIDE_TITLE_FREE_BANK_TILE_RANGES
+    for bank_tile in range(start, end + 1)
+)
+TITLE_BLANK_STREAM_TILE = 0x24
 
 # New internal wide-title stream.
 # segment = [HI][LO][LEN][TILE...], end = $FF.
@@ -554,8 +572,7 @@ def _encode_2bpp(pix) -> bytes:
     return bytes(p0) + bytes(p1)
 
 
-def apply_title_image(rom_data, cells, split_conflicts: bool = False,
-                      split_cells=None) -> list:
+def apply_title_image(rom_data, cells) -> list:
     """★PNG等から取り込み (export の逆): 画像から CHR bank3 を再構築。
     nametable(配置) は ROM のまま=圧縮再エンコード不要・枠超過の
     危険なし・往復厳密一致。
@@ -572,8 +589,6 @@ def apply_title_image(rom_data, cells, split_conflicts: bool = False,
         raise TitleScreenError(
             f"画像セル数不正 ({len(cells)} != {_NT_CELLS})。")
     info = decode_title_grid(rom_data)        # _verify 済
-    if split_conflicts and is_wide_normalized(rom_data):
-        return _apply_title_image_split_wide(rom_data, cells, info, split_cells)
     grid = info["grid"]
     chr_off = info["chr"]
     # nametable タイル番号 → そのタイルを使う全マスのパターン
@@ -612,100 +627,98 @@ def apply_title_image(rom_data, cells, split_conflicts: bool = False,
     return msg
 
 
-def _apply_title_image_split_wide(rom_data, cells, info, split_cells=None) -> list:
-    """Wide title用: 同一タイル番号の食い違いを空きタイルへ分裂して保存。"""
+def apply_title_stamp_cells(rom_data, patterns, start_row: int, start_col: int,
+                            tile_w: int, tile_h: int) -> list:
+    """Place an 8x8-tile image on the wide title using only free CHR slots."""
+    if tile_w <= 0 or tile_h <= 0:
+        raise TitleScreenError("貼り付け画像のタイル数が不正です。")
+    if len(patterns) != tile_w * tile_h:
+        raise TitleScreenError(
+            f"貼り付け画像のセル数不正 ({len(patterns)} != {tile_w * tile_h})。")
+    start_row = int(start_row)
+    start_col = int(start_col)
+    if start_row < 0 or start_col < 0 or \
+            start_row + tile_h > 30 or start_col + tile_w > 32:
+        raise TitleScreenError(
+            f"貼り付け先が画面外です: x={start_col}, y={start_row}, "
+            f"size={tile_w}x{tile_h} tiles。")
+
     grid_a, grid_b = _wide_title_grids_for_edit(rom_data)
-    chr_off = info["chr"]
-    if split_cells is None:
-        target_cells = set(range(_NT_CELLS))
-    else:
-        target_cells = {int(c) for c in split_cells if 0 <= int(c) < _NT_CELLS}
+    replace_cells = {
+        (start_row + y) * 32 + (start_col + x)
+        for y in range(tile_h)
+        for x in range(tile_w)
+    }
     used = {
         int(t) & 0xFF
-        for g in (grid_a, grid_b)
-        for t in g
+        for ci in range(_NT_CELLS)
+        if ci not in replace_cells
+        for t in (grid_a[ci], grid_b[ci])
         if t is not None
     }
-    free = [t for t in range(ARCADE_TILE_MIN, 0x100) if t not in used]
-    next_free = 0
-    assigned = {}
-    tile_patterns = {}
-    splits = 0
+    available = [
+        int(t) & 0xFF
+        for t in WIDE_TITLE_FREE_STREAM_TILES
+        if (int(t) & 0xFF) not in used
+    ]
 
-    def alloc_tile():
-        nonlocal next_free
-        if next_free >= len(free):
-            raise TitleScreenError(
-                "タイトル用の空きCHRタイルが足りません。"
-                "同一タイル分裂をこれ以上行えません。")
-        t = free[next_free]
-        next_free += 1
-        used.add(t)
-        return t
-
-    for ci in sorted(target_cells):
-        pat = tuple(int(v) & 3 for v in cells[ci])
-        if len(pat) != 64:
-            raise TitleScreenError(
-                f"マス {ci} の画素数不正 ({len(pat)} != 64)。")
-
-        in_b = grid_b[ci] is not None
-        in_a = grid_a[ci] is not None
-        t = grid_b[ci] if in_b else grid_a[ci]
-        if t is None:
+    pat_to_tile = {}
+    next_tile = 0
+    placed = 0
+    blank = 0
+    for y in range(tile_h):
+        for x in range(tile_w):
+            ci = (start_row + y) * 32 + (start_col + x)
+            pat = tuple(int(v) & 3 for v in patterns[y * tile_w + x])
+            if len(pat) != 64:
+                raise TitleScreenError(
+                    f"貼り付けマス ({x},{y}) の画素数不正 ({len(pat)} != 64)。")
             if all(v == 0 for v in pat):
+                blank += 1
+                grid_a[ci] = TITLE_BLANK_STREAM_TILE
+                grid_b[ci] = None
                 continue
-            t = alloc_tile()
-            grid_a[ci] = t
-            assigned[(t, pat)] = t
-            tile_patterns[t] = pat
-            splits += 1
-            continue
+            if pat not in pat_to_tile:
+                if next_tile >= len(available):
+                    raise TitleScreenError(
+                        "自由CHR枠の空きが足りません。"
+                        f"必要 {len(pat_to_tile) + 1} / 使用可能 {len(available)}。")
+                pat_to_tile[pat] = available[next_tile]
+                next_tile += 1
+            grid_a[ci] = pat_to_tile[pat]
+            grid_b[ci] = None
+            placed += 1
 
-        key = (int(t) & 0xFF, pat)
-        if key in assigned:
-            nt = assigned[key]
-            if in_b:
-                grid_b[ci] = nt
-            else:
-                grid_a[ci] = nt
-            continue
-
-        if t not in tile_patterns:
-            tile_patterns[t] = pat
-            assigned[key] = t
-            continue
-
-        if tile_patterns[t] == pat:
-            assigned[key] = t
-            continue
-
-        nt = alloc_tile()
-        tile_patterns[nt] = pat
-        assigned[key] = nt
-        if in_b:
-            grid_b[ci] = nt
-        else:
-            grid_a[ci] = nt
-        splits += 1
-
+    chr_off = chr_bank3_offset(rom_data)
     written = 0
-    for t, pat in tile_patterns.items():
+    for pat, t in pat_to_tile.items():
         ti = (_BG_BASE + t) & 0x1FF
-        pos = chr_off + ti * 16
-        if pos + 16 > len(rom_data):
+        pos = chr_off + ti * NES_GFX_TILE_BYTE_SIZE
+        if pos + NES_GFX_TILE_BYTE_SIZE > len(rom_data):
             raise TitleScreenError(
                 f"CHR タイル {ti} が ROM 範囲外。中止。")
         enc = _encode_2bpp(pat)
-        if bytes(rom_data[pos:pos + 16]) != enc:
-            rom_data[pos:pos + 16] = enc
+        if bytes(rom_data[pos:pos + NES_GFX_TILE_BYTE_SIZE]) != enc:
+            rom_data[pos:pos + NES_GFX_TILE_BYTE_SIZE] = enc
             written += 1
 
     len_a, len_b = _write_wide_title_streams_for_import(
         rom_data, grid_a, grid_b)
+    free_set = {int(t) & 0xFF for t in WIDE_TITLE_FREE_STREAM_TILES}
+    used_free = {
+        int(t) & 0xFF
+        for ci in range(_NT_CELLS)
+        for t in (grid_a[ci], grid_b[ci])
+        if t is not None and (int(t) & 0xFF) in free_set
+    }
+    total_free = len(WIDE_TITLE_FREE_STREAM_TILES)
+    used_free_count = len(used_free)
     return [
-        f"画像から CHR bank3 を再構築: {len(tile_patterns)} タイル中 {written} 更新。",
-        f"同一タイルの食い違いを空きタイルへ分裂: {splits} タイル追加。",
+        f"貼り付け先: x={start_col}, y={start_row}, size={tile_w}x{tile_h} tiles",
+        f"drawn cells: {placed} / blank cells: {blank}",
+        f"unique tiles: {len(pat_to_tile)} / available free slots {len(available)}",
+        f"自由CHR154枠: {used_free_count}/{total_free} 使用、残り {total_free - used_free_count}",
+        f"CHR bank3 updated: {written} tiles",
         f"bank1 streams rewritten: A={len_a}B / B={len_b}B",
     ]
 
@@ -721,80 +734,26 @@ def apply_title_top_image_from_png(rom_data, cells) -> list:
     if len(cells) != _NT_CELLS:
         raise TitleScreenError(
             f"画像セル数不正 ({len(cells)} != {_NT_CELLS})。")
-    info = decode_title_grid(rom_data)
     if not is_wide_normalized(rom_data):
         raise TitleScreenError(
             "target ROM is not in the internal wide-title format. "
             "Open a JP ROM first so it is expanded and normalized.")
 
-    grid_a, grid_b = _wide_title_grids_for_edit(rom_data)
     top_start = _TITLE_TOP_ROW0 * 32
     top_end = (_TITLE_TOP_ROW0 + _TITLE_TOP_ROWS) * 32
-    top_cells = set(range(top_start, top_end))
-
-    used_outside = {
-        int(t) & 0xFF
-        for ci in range(_NT_CELLS)
-        if ci not in top_cells
-        for t in (grid_a[ci], grid_b[ci])
-        if t is not None
-    }
-    available = [
-        t for t in range(ARCADE_TILE_MIN, 0x100)
-        if t not in used_outside
-    ]
-
-    # Clear the editable top band.  It will be rebuilt from the PNG alone.
-    for ci in top_cells:
-        grid_a[ci] = None
-        grid_b[ci] = None
-
-    pat_to_tile = {}
-    next_tile = 0
-    nonblank_cells = 0
-    blank_cells = 0
+    patterns = []
     for ci in range(top_start, top_end):
         pat = tuple(int(v) & 3 for v in cells[ci])
         if len(pat) != 64:
             raise TitleScreenError(
                 f"マス {ci} の画素数不正 ({len(pat)} != 64)。")
-        if all(v == 0 for v in pat):
-            blank_cells += 1
-            continue
-        nonblank_cells += 1
-        if pat not in pat_to_tile:
-            if next_tile >= len(available):
-                raise TitleScreenError(
-                    "Top PNG のユニーク8x8タイル数が多すぎます。"
-                    f"必要 {len(pat_to_tile) + 1} / 使用可能 {len(available)}。"
-                    "画像を単純化するか、編集範囲を狭めてください。")
-            pat_to_tile[pat] = available[next_tile]
-            next_tile += 1
-        grid_a[ci] = pat_to_tile[pat]
-
-    chr_off = info["chr"]
-    written = 0
-    for pat, t in pat_to_tile.items():
-        ti = (_BG_BASE + t) & 0x1FF
-        pos = chr_off + ti * NES_GFX_TILE_BYTE_SIZE
-        if pos + NES_GFX_TILE_BYTE_SIZE > len(rom_data):
-            raise TitleScreenError(
-                f"CHR タイル {ti} が ROM 範囲外。中止。")
-        enc = _encode_2bpp(pat)
-        if bytes(rom_data[pos:pos + NES_GFX_TILE_BYTE_SIZE]) != enc:
-            rom_data[pos:pos + NES_GFX_TILE_BYTE_SIZE] = enc
-            written += 1
-
-    len_a, len_b = _write_wide_title_streams_for_import(
-        rom_data, grid_a, grid_b)
+        patterns.append(pat)
+    msgs = apply_title_stamp_cells(
+        rom_data, patterns, _TITLE_TOP_ROW0, 0, 32, _TITLE_TOP_ROWS)
     return [
         "Top PNG imported without JSON sidecar layout.",
         "PNG pixels are the source of truth; identical 8x8 tiles were shared.",
-        f"top cells: {nonblank_cells} drawn / {blank_cells} blank",
-        f"top unique tiles: {len(pat_to_tile)} / available {len(available)}",
-        f"CHR bank3 updated: {written} tiles",
-        f"bank1 streams rewritten: A={len_a}B / B={len_b}B",
-    ]
+    ] + msgs
 
 
 def transcode_title(target_rom, source_rom) -> list:

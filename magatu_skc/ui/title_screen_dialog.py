@@ -50,6 +50,8 @@ _BG_BASE = 256
 class TitlePreviewLabel(QLabel):
     tile_hovered = pyqtSignal(int, int, int, int, int, int)
     tile_left = pyqtSignal()
+    tile_clicked = pyqtSignal(int, int)
+    attr_block_clicked = pyqtSignal(int, int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -95,6 +97,22 @@ class TitlePreviewLabel(QLabel):
     def leaveEvent(self, event):
         self.tile_left.emit()
         super().leaveEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() in (Qt.LeftButton, Qt.RightButton) and self._grid:
+            px = event.pos().x() // self._zoom
+            py = event.pos().y() // self._zoom
+            if 0 <= px < _IMG_W and 0 <= py < _IMG_H:
+                src_x = (int(px) - 8) % _IMG_W
+                src_y = (int(py) - 1) % _IMG_H
+                row = src_y // 8
+                col = src_x // 8
+                if event.button() == Qt.RightButton:
+                    self.attr_block_clicked.emit((row // 2) * 2, (col // 2) * 2)
+                else:
+                    self.tile_clicked.emit(row, col)
+                return
+        super().mousePressEvent(event)
 
 
 class HexSpinBox(QSpinBox):
@@ -273,6 +291,8 @@ class TitleScreenDialog(QDialog):
         self._canvas.setStyleSheet("background:#444;")
         self._canvas.tile_hovered.connect(self._on_preview_tile_hovered)
         self._canvas.tile_left.connect(self._restore_preview_status)
+        self._canvas.tile_clicked.connect(self._on_preview_tile_clicked)
+        self._canvas.attr_block_clicked.connect(self._on_attr_block_clicked)
         sa = QScrollArea()
         sa.setWidgetResizable(True)
         wrap = QWidget()
@@ -282,6 +302,7 @@ class TitleScreenDialog(QDialog):
         root.addWidget(sa, 1)
         self._preview_status = QLabel("")
         root.addWidget(self._preview_status)
+        self._pending_stamp = None
 
         # 操作ボタン
         br = QHBoxLayout()
@@ -495,6 +516,7 @@ class TitleScreenDialog(QDialog):
         highlight_tile = self._highlight_tile.value()
         count = self._draw_preview_highlight(pm, z, grid, highlight_tile)
         self._draw_preview_grid(pm, z)
+        self._draw_preview_attr_grid(pm, z)
         self._canvas.setPixmap(pm)
         self._canvas.setFixedSize(pm.size())
         self._canvas.set_title_context(z, grid, off)
@@ -543,13 +565,98 @@ class TitleScreenDialog(QDialog):
             painter.drawLine(0, sy, _IMG_W * zoom, sy)
         painter.end()
 
+    @staticmethod
+    def _draw_preview_attr_grid(pm, zoom):
+        painter = QPainter(pm)
+        pen = QPen(QColor(255, 220, 60, 150))
+        pen.setWidth(max(1, zoom // 2))
+        painter.setPen(pen)
+        for x in range(0, _IMG_W + 1, 16):
+            sx = x * zoom
+            painter.drawLine(sx, 0, sx, _IMG_H * zoom)
+        for y in range(0, _IMG_H + 1, 16):
+            sy = y * zoom
+            painter.drawLine(0, sy, _IMG_W * zoom, sy)
+        painter.end()
+
     def _restore_preview_status(self):
         self._preview_status.setText(getattr(self, "_preview_status_text", ""))
 
     def _on_preview_tile_hovered(self, row, col, stream, bank_tile, file_start, file_end):
+        pending = getattr(self, "_pending_stamp", None)
+        if pending:
+            self._preview_status.setText(
+                f"貼り付け待ち: {pending['width']}x{pending['height']}px "
+                f"({pending['tile_w']}x{pending['tile_h']} tiles) / "
+                f"クリック位置 ({col}, {row})")
+            return
         self._preview_status.setText(
             f"cell ({col}, {row}) / stream 0x{stream:02X} / "
             f"bank内 0x{bank_tile:03X} / ROM 0x{file_start:X}-0x{file_end:X}")
+
+    def _on_preview_tile_clicked(self, row, col):
+        pending = getattr(self, "_pending_stamp", None)
+        if not pending:
+            return
+        if row + pending["tile_h"] > (_IMG_H // 8) or \
+                col + pending["tile_w"] > _NT_W:
+            QMessageBox.warning(
+                self, "貼り付け不可",
+                "貼り付け先が画面外にはみ出します。\n"
+                f"クリック位置: x={col}, y={row}\n"
+                f"画像サイズ: {pending['tile_w']}x{pending['tile_h']} tiles")
+            return
+        snap = bytes(self._rom)
+        try:
+            patterns, tile_w, tile_h = self._tile_patterns_from_image_at(
+                pending["image"], row, col)
+            chg = TS.apply_title_stamp_cells(
+                self._rom, patterns, row, col, tile_w, tile_h)
+        except (TS.TitleScreenError, ValueError) as e:
+            self._rom[:] = snap
+            QMessageBox.critical(self, "貼り付け失敗", str(e))
+            return
+        except Exception as e:
+            self._rom[:] = snap
+            QMessageBox.critical(
+                self, "貼り付け失敗", f"{type(e).__name__}: {e}")
+            return
+        self._pending_stamp = None
+        self._changed = True
+        self._refresh()
+        QMessageBox.information(self, "Top PNG貼り付け完了", "\n".join(chg))
+
+    def _on_attr_block_clicked(self, row, col):
+        if row < 0 or col < 0 or row + 1 >= (_IMG_H // 8) or col + 1 >= _NT_W:
+            return
+        attr = self._title_attributes()
+        current = self._attr_palette_no(attr, row, col)
+        labels = [f"パレット {i}" for i in range(4)]
+        item, ok = QInputDialog.getItem(
+            self,
+            "16x16色変更",
+            f"16x16ブロック x={col}, y={row} に使う4色:",
+            labels,
+            current,
+            False)
+        if not ok:
+            return
+        pal_no = labels.index(item)
+        snap = bytes(self._rom)
+        try:
+            for rr in (row, row + 1):
+                for cc in (col, col + 1):
+                    self._set_title_attr_palette_no(attr, rr, cc, pal_no)
+            self._write_title_attributes(attr)
+        except Exception as e:
+            self._rom[:] = snap
+            QMessageBox.critical(
+                self, "16x16色変更失敗", f"{type(e).__name__}: {e}")
+            return
+        self._changed = True
+        self._refresh()
+        self._preview_status.setText(
+            f"16x16色変更: x={col}, y={row} / パレット {current} -> {pal_no}")
 
     # --- 操作 ---
     def _apply_title_palette_colors(self, colors):
@@ -699,6 +806,42 @@ class TitleScreenDialog(QDialog):
             cells.append(pat)
         return cells
 
+    def _tile_patterns_from_image_at(self, img, start_row, start_col):
+        tile_w = img.width() // 8
+        tile_h = img.height() // 8
+        pal = self._title_palette()
+        attr = self._title_attributes()
+        patterns = []
+        for ty in range(tile_h):
+            for tx in range(tile_w):
+                row = start_row + ty
+                col = start_col + tx
+                pal_no = self._attr_palette_no(attr, row, col)
+                nes_choices = [
+                    pal[0],
+                    pal[pal_no * 4 + 1],
+                    pal[pal_no * 4 + 2],
+                    pal[pal_no * 4 + 3],
+                ]
+                rgb_choices = [NES_COLORS[c & 0x3F] for c in nes_choices]
+                pat = []
+                for y in range(8):
+                    for x in range(8):
+                        rgb = img.pixel(tx * 8 + x, ty * 8 + y)
+                        r = (rgb >> 16) & 0xFF
+                        gg = (rgb >> 8) & 0xFF
+                        b = rgb & 0xFF
+                        best, bd = 0, 1 << 60
+                        for pi, (rr, rg, rb) in enumerate(rgb_choices):
+                            d = ((int(r) - rr) * (int(r) - rr) +
+                                 (int(gg) - rg) * (int(gg) - rg) +
+                                 (int(b) - rb) * (int(b) - rb))
+                            if d < bd:
+                                best, bd = pi, d
+                        pat.append(best)
+                patterns.append(pat)
+        return patterns, tile_w, tile_h
+
     @staticmethod
     def _pixel_rgb(img, x, y):
         rgb = img.pixel(x, y)
@@ -736,23 +879,21 @@ class TitleScreenDialog(QDialog):
             self._rom[off + 20 - i] = attr[9 + i] & 0xFF
 
     def _top_png_cells_from_indexed_image(self, top, color_to_index):
-        src_w = top.width()
-        src_h = top.height()
         cells = [[0] * 64 for _ in range(_NT_W * (_IMG_H // 8))]
         top_start = 6 * _NT_W
         top_end = 14 * _NT_W
         for ci in range(top_start, top_end):
             row, col = divmod(ci, _NT_W)
             ox, oy = col * 8, row * 8
-            src_oy = oy - (_TOP_Y - 1)
-            if ox >= src_w or src_oy < 0 or src_oy + 8 > src_h:
-                continue
             pat = []
             for y in range(8):
-                sy = src_oy + y
+                sy = oy + y + 1 - _TOP_Y
                 for x in range(8):
-                    sx = ox + x
-                    pat.append(color_to_index[self._pixel_rgb(top, sx, sy)])
+                    sx = (ox + x + 8) % _IMG_W
+                    if 0 <= sy < _TOP_H:
+                        pat.append(color_to_index[self._pixel_rgb(top, sx, sy)])
+                    else:
+                        pat.append(0)
             cells[ci] = pat
         return cells
 
@@ -876,6 +1017,23 @@ class TitleScreenDialog(QDialog):
                 f"指定画像: {top.width()}x{top.height()}")
             return
         top = top.convertToFormat(QImage.Format_RGB32)
+        if top.width() != _IMG_W or top.height() != _TOP_H:
+            self._pending_stamp = {
+                "image": top.copy(),
+                "width": top.width(),
+                "height": top.height(),
+                "tile_w": top.width() // 8,
+                "tile_h": top.height() // 8,
+            }
+            self._preview_status.setText(
+                f"貼り付け待ち: {top.width()}x{top.height()}px "
+                f"({top.width() // 8}x{top.height() // 8} tiles) / "
+                "プレビュー上の貼り付け開始位置をクリック")
+            QMessageBox.information(
+                self, "貼り付け位置を指定",
+                "読み込んだ画像は256x64より小さいため、まだROMへ適用していません。\n"
+                "タイトルプレビュー上で貼り付け開始位置をクリックしてください。")
+            return
         snap = bytes(self._rom)
         try:
             cells, pre_msgs = self._try_top_png_4color_cells(top)
