@@ -197,7 +197,7 @@ DEFAULT_CONFIG = {
     "settings_dialog_w": 700,
     "settings_dialog_h": 780,
     "settings_dialog_tab": 0,
-    "splitter_sizes": [280, 700, 250, 220],  # [LEFT, CENTER, PICKER, LEVEL_SELECT]
+    "splitter_sizes": [240, 740, 250, 220],  # [LEFT, CENTER, PICKER, LEVEL_SELECT]
     "stage_thumbnail_width": 160,
     "picker_icon_size": 36,
     "enemy_count_meter_slot_size": 18,

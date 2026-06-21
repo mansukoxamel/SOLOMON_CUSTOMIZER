@@ -1159,7 +1159,6 @@ class MainWindow(QMainWindow):
         mirror_button_layout.setSpacing(4)
         mirror_button_layout.addWidget(self.btn_mirror, 1)
         self.picker.set_mirror_detail_button(mirror_button_row)
-        self.picker.set_extra_panel_widget(self._build_panel_variant_panel())
 
         # 中央: レベルビュー
         self.level_view = LevelView(self)
@@ -1258,11 +1257,11 @@ class MainWindow(QMainWindow):
         self.splitter.setStretchFactor(2, 0)
         self.splitter.setStretchFactor(3, 0)
         # 保存されたサイズを復元（無ければデフォルト）
-        saved_sizes = self._app_config.get("splitter_sizes", [280, 700, 250, 220])
+        saved_sizes = self._app_config.get("splitter_sizes", [240, 740, 250, 220])
         if isinstance(saved_sizes, list) and len(saved_sizes) == 4 and all(isinstance(s, int) and s >= 0 for s in saved_sizes):
             self.splitter.setSizes(saved_sizes)
         else:
-            self.splitter.setSizes([280, 700, 250, 220])
+            self.splitter.setSizes([240, 740, 250, 220])
         self._stage_selector_last_width = max(
             int(self._app_config.get("stage_selector_last_width", 220) or 220),
             160,
@@ -1347,7 +1346,12 @@ class MainWindow(QMainWindow):
         button_w = 26
         gap = 4
         text_w = label.fontMetrics().horizontalAdvance(label.text()) + 10
-        label_w = min(max(120, text_w), max(60, right_limit - x - (button_w * 2) - (gap * 2)))
+        min_label_w = min(max(120, text_w), max(80, viewport.width() - (button_w * 2) - (gap * 4) - 16))
+        total_w = button_w + gap + min_label_w + gap + button_w
+        if x + total_w > right_limit:
+            x = max(8, right_limit - total_w)
+        available_w = max(60, right_limit - x - (button_w * 2) - (gap * 2))
+        label_w = min(max(120, text_w), available_w)
         label.resize(label_w, h)
         label.move(x + button_w + gap, y)
         label.raise_()
@@ -1484,6 +1488,8 @@ class MainWindow(QMainWindow):
 
     def _build_left_panel(self) -> QWidget:
         left_widget = QWidget()
+        left_widget.setMinimumWidth(190)
+        left_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         left_layout = QVBoxLayout(left_widget)
 
         # ファイル操作
@@ -1895,37 +1901,18 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(meta_group)
 
         left_layout.addStretch()
+        self._relax_left_panel_minimum_width(left_widget)
         return left_widget
 
-    def _build_panel_variant_panel(self) -> QWidget:
-        wrap = QWidget()
-        wrap_layout = QVBoxLayout(wrap)
-        wrap_layout.setContentsMargins(0, 0, 0, 0)
-        wrap_layout.setSpacing(4)
-
-        group = QGroupBox("強化パネルモンスター")
-        group.setToolTip(
-            "A/B/Cパネルモンスターは全ステージ共通設定です。敵設定画面で変更します。"
-        )
-        layout = QVBoxLayout(group)
-        layout.setContentsMargins(6, 4, 6, 4)
-        layout.setSpacing(2)
-
-        notice = QLabel(
-            "ステージごとのA/B/C速度・間隔設定は廃止しました。"
-            "PRG0の保守余力確保のため、A/B/Cは敵設定画面の共通固定値を使います。"
-        )
-        notice.setWordWrap(True)
-        notice.setStyleSheet("color: #a06000;")
-        layout.addWidget(notice)
-
-        self._panel_variant_controls = {}
-        self.panel_variant_group = group
-        wrap_layout.addWidget(group)
-
-        self.btn_test_play_right = self._create_test_play_button("▶ テストプレイ")
-        wrap_layout.addWidget(self.btn_test_play_right)
-        return wrap
+    def _relax_left_panel_minimum_width(self, root: QWidget):
+        for widget in root.findChildren(QWidget):
+            if isinstance(widget, QGroupBox):
+                widget.setMinimumWidth(0)
+            if isinstance(widget, (QLabel, QPushButton, QToolButton, QCheckBox, QRadioButton)):
+                widget.setMinimumWidth(0)
+                policy = widget.sizePolicy()
+                policy.setHorizontalPolicy(QSizePolicy.Ignored)
+                widget.setSizePolicy(policy)
 
     def _create_test_play_button(self, text: str) -> QPushButton:
         button = QPushButton(text)
@@ -3063,7 +3050,6 @@ class MainWindow(QMainWindow):
             self.btn_item_replace.setEnabled(edit_enabled)
             test_play_enabled = edit_enabled or self._can_readonly_test_play()
             self.btn_test_play.setEnabled(test_play_enabled)
-            self.btn_test_play_right.setEnabled(test_play_enabled)
             self.meta_group.setEnabled(edit_enabled)
             self.picker.setEnabled(edit_enabled)
             self.chk_edit_col15.setEnabled(edit_enabled)

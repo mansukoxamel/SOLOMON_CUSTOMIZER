@@ -1147,12 +1147,14 @@ class ElementPicker(QWidget):
     def _build_ui(self):
         # 親ウィジェットでもドロップを許可しないと子へ伝播しない場合がある
         self.setAcceptDrops(True)
+        self.setMinimumWidth(160)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         layout = QVBoxLayout(self)
 
         # 配置フラグ（常時表示）
         self.flag_group = QGroupBox("アイテム状態")
         fl = QHBoxLayout(self.flag_group)
-        fl.setContentsMargins(0, 0, 0, 0)
+        fl.setContentsMargins(0, 12, 0, 0)
         fl.setSpacing(0)
         self.flag_btns = QButtonGroup(self)
         self.rb_flag_normal = FullWidthRadioButton("通常")
@@ -1182,7 +1184,7 @@ class ElementPicker(QWidget):
         # 敵スピード（常時表示、敵モード時のみ意味あり）
         self.speed_group = QGroupBox("敵スピード")
         sl = QHBoxLayout(self.speed_group)
-        sl.setContentsMargins(0, 0, 0, 0)
+        sl.setContentsMargins(0, 12, 0, 0)
         sl.setSpacing(0)
         self.speed_btns = QButtonGroup(self)
         self.rb_sp1 = FullWidthRadioButton("SP1")
@@ -1219,6 +1221,8 @@ class ElementPicker(QWidget):
         for cat_idx, cat_name in enumerate(categories):
             lbl = QLabel(f"<small><b>{cat_name}</b></small>")
             lbl.setContentsMargins(2, 2, 0, 0)
+            lbl.setMinimumWidth(0)
+            lbl.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
             picker_layout.addWidget(lbl)
             self._category_labels.append(lbl)
 
@@ -1241,6 +1245,7 @@ class ElementPicker(QWidget):
             lst.setDragDropMode(QAbstractItemView.DragOnly)
             # 高さはコンテンツに合わせる（固定スクロールなし）
             lst.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+            lst.setMinimumWidth(0)
             picker_layout.addWidget(lst)
             self._picker_lists.append(lst)
             if cat_idx == 1:
@@ -1273,6 +1278,8 @@ class ElementPicker(QWidget):
         fav_lay.setContentsMargins(0, 0, 0, 0)
         fav_label = QLabel("<small>お気に入り</small>")
         fav_label.setToolTip("D&Dで登録 / 1〜0キーで選択 / Delで削除")
+        fav_label.setMinimumWidth(0)
+        fav_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         fav_lay.addWidget(fav_label)
         self.favorites = FavoritesBar()
         self.favorites._icon_zoom_owner = self
@@ -1285,6 +1292,8 @@ class ElementPicker(QWidget):
         bonus_lay = QVBoxLayout(bonus_page)
         bonus_lay.setContentsMargins(0, 0, 0, 0)
         bonus_label = QLabel("<small>ボーナスステージ アイテム16種 (ピッカーからD&Dで入替)</small>")
+        bonus_label.setMinimumWidth(0)
+        bonus_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         bonus_lay.addWidget(bonus_label)
         self.bonus_panel = BonusItemPanel()
         self.bonus_panel._icon_zoom_owner = self
@@ -1302,6 +1311,17 @@ class ElementPicker(QWidget):
 
         # 初期ポピュレート（tile_renderer 未設定なので空アイコンになる）
         self._populate_all()
+        self._relax_picker_minimum_widths()
+
+    def _relax_picker_minimum_widths(self):
+        for widget in self.findChildren(QWidget):
+            if isinstance(widget, QGroupBox):
+                widget.setMinimumWidth(0)
+            if isinstance(widget, (QLabel, QPushButton, QRadioButton)):
+                widget.setMinimumWidth(0)
+                policy = widget.sizePolicy()
+                policy.setHorizontalPolicy(QSizePolicy.Ignored)
+                widget.setSizePolicy(policy)
 
     def set_icon_size_value(self, size: int, emit_signal: bool = False):
         new_size = clamp_picker_icon_size(size)
@@ -1745,11 +1765,16 @@ class ElementPicker(QWidget):
             lst.setFixedHeight(0)
             return
         grid_h = self._icon_size + GRID_PAD * 2
-        # 幅からおおよその列数を推定（初期値として8列想定）
-        cols = max(1, 8)
+        grid_w = max(1, self._icon_size + GRID_PAD * 2)
+        cols = max(1, lst.viewport().width() // grid_w)
         rows = (count + cols - 1) // cols
         lst.setMinimumHeight(rows * grid_h + 4)
         lst.setMaximumHeight(rows * grid_h + 4)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        for lst in getattr(self, "_picker_lists", []):
+            self._adjust_list_height(lst)
 
     def _on_block_ctrl_reorder(self, src_row: int, dst_row: int):
         if src_row == dst_row:
