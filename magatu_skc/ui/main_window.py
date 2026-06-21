@@ -1533,7 +1533,7 @@ class MainWindow(QMainWindow):
         fl.addLayout(rom_info_row)
 
         # 保存系は横2列に (改造ROM保存 / IPSパッチ出力)
-        self.btn_save_rom = QPushButton("別名でROM保存")
+        self.btn_save_rom = QPushButton("ROM保存")
         self.btn_save_rom.setToolTip("現在の編集内容をROMとして保存します。(Ctrl+S)")
         self.btn_save_rom.clicked.connect(self._on_save_rom)
         self.btn_save_rom.setEnabled(False)
@@ -1743,12 +1743,11 @@ class MainWindow(QMainWindow):
         self.btn_sprite_viewer.setEnabled(False)
         el.addWidget(self.btn_sprite_viewer, 2, 1)
 
-        self.btn_title_screen = QPushButton("タイトル画面移植 (US↔JP)")
+        self.btn_title_screen = QPushButton("タイトル画面編集")
         self.btn_title_screen.setToolTip(
-            "別ROMのタイトルを移植: 配置(nametable)+色区分(attribute)"
-            "+絵(CHR bank3)をピース単位コピー。コード非改変・JP/US"
-            "自動判定・CRC不要・双方向。データはツールに埋め込まず"
-            "所有ROMから移植(著作権配慮)")
+            "タイトル画面を編集/移植: 配置(nametable)+色区分(attribute)"
+            "+絵(CHR bank3)をピース単位で扱います。コード非改変・JP/US"
+            "自動判定・CRC不要・双方向。")
         self.btn_title_screen.clicked.connect(self._on_show_title_screen)
         self.btn_title_screen.setEnabled(False)
         el.addWidget(self.btn_title_screen, 3, 0)
