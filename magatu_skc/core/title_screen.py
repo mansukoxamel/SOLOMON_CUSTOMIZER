@@ -463,6 +463,8 @@ def decode_title_grid(rom_data) -> dict:
     # --- wide 正規化済ならそちらを decode (load時 自動正規化対応) ---
     if is_wide_normalized(rom_data):
         grid = [0x24] * _NT_CELLS
+        fixed_live = [False] * _NT_CELLS
+        _apply_wide_title_live_background_fill(grid, fixed_live)
         cells = 0
         o = _wjp_cf(0xCC4F)
         is_new = _wt_has_ram_bootstrap(rom_data)
@@ -488,6 +490,7 @@ def decode_title_grid(rom_data) -> dict:
                 idx = ad - ARCADE_NT_BASE
                 if 0 <= idx < _NT_CELLS:
                     grid[idx] = t
+                    fixed_live[idx] = False
                     cells += 1
         return {"grid": grid, "chr": chr_bank3_offset(rom_data),
                 "region": base, "cells": cells, "wide": True}
@@ -511,6 +514,23 @@ def decode_title_grid(rom_data) -> dict:
         p = end
     return {"grid": grid, "chr": chr_bank3_offset(rom_data),
             "region": base, "cells": cells, "wide": False}
+
+
+def _apply_wide_title_live_background_fill(grid, fixed_live=None):
+    """Fill cells that the live title PPU leaves populated outside streams.
+
+    Mesen live PPU logging confirmed NT $2800 row 28 is not blank: it uses
+    $DF/$DE alternation for the orange floor band.  The wide-title stream does
+    not explicitly write those cells, so a plain decoded stream grid otherwise
+    shows $24 there and diverges from the emulator.
+    """
+    row = 28
+    base = row * 32
+    for col in range(32):
+        idx = base + col
+        grid[idx] = 0xDF if (col % 2) == 0 else 0xDE
+        if fixed_live is not None:
+            fixed_live[idx] = True
 
 
 def _encode_2bpp(pix) -> bytes:

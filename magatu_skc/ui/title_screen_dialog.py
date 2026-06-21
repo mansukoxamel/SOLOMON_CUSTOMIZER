@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QDialogButtonBox, QMessageBox, QScrollArea, QWidget, QComboBox,
     QFileDialog, QInputDialog, QGridLayout, QGroupBox, QLineEdit,
+    QSpinBox,
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QColor, QPen
@@ -94,6 +95,21 @@ class TitlePreviewLabel(QLabel):
     def leaveEvent(self, event):
         self.tile_left.emit()
         super().leaveEvent(event)
+
+
+class HexSpinBox(QSpinBox):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setDisplayIntegerBase(16)
+
+    def textFromValue(self, value):
+        return f"0x{int(value):03X}"
+
+    def valueFromText(self, text):
+        s = str(text).strip().lower()
+        if s.startswith("0x"):
+            s = s[2:]
+        return int(s or "0", 16)
 
 
 class TitlePaletteDialog(QDialog):
@@ -239,6 +255,15 @@ class TitleScreenDialog(QDialog):
         self._zoom.setCurrentIndex(1)   # x2 (デフォルト)
         self._zoom.currentIndexChanged.connect(self._refresh)
         zr.addWidget(self._zoom)
+        zr.addSpacing(16)
+        zr.addWidget(QLabel("bank内:"))
+        self._highlight_tile = HexSpinBox()
+        self._highlight_tile.setRange(0x100, 0x1FF)
+        self._highlight_tile.setSingleStep(1)
+        self._highlight_tile.setValue(0x130)
+        self._highlight_tile.setToolTip("指定したCHR bank3内タイルをタイトルプレビュー上でピンク表示")
+        self._highlight_tile.valueChanged.connect(self._refresh)
+        zr.addWidget(self._highlight_tile)
         zr.addStretch()
         root.addLayout(zr)
 
@@ -467,13 +492,42 @@ class TitleScreenDialog(QDialog):
         pm = QPixmap.fromImage(img).scaled(
             _IMG_W * z, _IMG_H * z, Qt.KeepAspectRatio,
             Qt.FastTransformation)
+        highlight_tile = self._highlight_tile.value()
+        count = self._draw_preview_highlight(pm, z, grid, highlight_tile)
         self._draw_preview_grid(pm, z)
         self._canvas.setPixmap(pm)
         self._canvas.setFixedSize(pm.size())
         self._canvas.set_title_context(z, grid, off)
         self._preview_status_text = (
-            f"グリッド: 32x30 / CHR bank3開始 0x{off:X}")
+            f"グリッド: 32x30 / CHR bank3開始 0x{off:X} / "
+            f"bank内 0x{highlight_tile:03X}: {count}箇所")
         self._restore_preview_status()
+
+    @staticmethod
+    def _draw_preview_highlight(pm, zoom, grid, target_bank_tile):
+        target_stream = (int(target_bank_tile) - _BG_BASE) & 0xFF
+        painter = QPainter(pm)
+        painter.setBrush(QColor(255, 0, 180, 82))
+        painter.setPen(QPen(QColor(255, 70, 210), 2))
+        count = 0
+        for cell, stream in enumerate(grid):
+            if (int(stream) & 0xFF) != target_stream:
+                continue
+            row = cell // _NT_W
+            col = cell % _NT_W
+            # Match the preview's display correction: rendered tile appears at
+            # x+8, y+1 with wrap.
+            dx = ((col * 8) + 8) % _IMG_W
+            dy = ((row * 8) + 1) % _IMG_H
+            painter.drawRect(
+                dx * zoom,
+                dy * zoom,
+                max(0, 8 * zoom - 1),
+                max(0, 8 * zoom - 1),
+            )
+            count += 1
+        painter.end()
+        return count
 
     @staticmethod
     def _draw_preview_grid(pm, zoom):
