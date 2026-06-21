@@ -451,7 +451,7 @@ class MainWindow(QMainWindow):
         self.shortcut_stage_compare_edit_start.setContext(Qt.WindowShortcut)
         self.shortcut_stage_compare_edit_start.setAutoRepeat(False)
         self.shortcut_stage_compare_edit_start.activated.connect(
-            self.start_stage_compare_edit_from_snapshot
+            self._toggle_stage_compare_edit_from_snapshot
         )
         self.shortcut_stage_compare_orientation = QShortcut(
             self._shortcut_sequence("stage_compare_edit_orientation"), self
@@ -582,7 +582,7 @@ class MainWindow(QMainWindow):
             self._toggle_stage_compare_view()
             return True
         if action == "stage_compare_edit_start":
-            self.start_stage_compare_edit_from_snapshot()
+            self._toggle_stage_compare_edit_from_snapshot()
             return True
         if action == "stage_compare_edit_orientation":
             self._toggle_stage_compare_edit_orientation()
@@ -1623,7 +1623,7 @@ class MainWindow(QMainWindow):
             "現在ステージのスナップショットを横に表示して比較編集モードを開始します。(Ctrl+Q)"
         )
         self.btn_stage_compare_edit_start.clicked.connect(
-            self.start_stage_compare_edit_from_snapshot
+            self._toggle_stage_compare_edit_from_snapshot
         )
         compare_tool_row.addWidget(self.btn_stage_compare_edit_start)
         fl.addLayout(compare_tool_row)
@@ -4295,7 +4295,17 @@ class MainWindow(QMainWindow):
             orientation_btn.setVisible(bool(visible and self._stage_compare_edit_mode))
         end_btn = getattr(self, "btn_stage_compare_edit_end", None)
         if end_btn is not None:
-            end_btn.setVisible(bool(visible and self._stage_compare_edit_mode))
+            end_btn.setVisible(False)
+        edit_btn = getattr(self, "btn_stage_compare_edit_start", None)
+        if edit_btn is not None:
+            if visible and self._stage_compare_edit_mode:
+                edit_btn.setText("比較編集終了")
+                edit_btn.setToolTip("比較編集モードを終了して通常表示に戻します。(Ctrl+Q)")
+            else:
+                edit_btn.setText("比較編集")
+                edit_btn.setToolTip(
+                    "現在ステージのスナップショットを横に表示して比較編集モードを開始します。(Ctrl+Q)"
+                )
         orientation_shortcut = getattr(self, "shortcut_stage_compare_orientation", None)
         if orientation_shortcut is not None:
             orientation_shortcut.setEnabled(bool(visible and self._stage_compare_edit_mode))
@@ -4591,6 +4601,12 @@ class MainWindow(QMainWindow):
             )
             return
         self.start_stage_compare_edit_from_png(str(snapshot_path))
+
+    def _toggle_stage_compare_edit_from_snapshot(self):
+        if self._is_stage_compare_edit_view():
+            self._clear_stage_compare()
+            return
+        self.start_stage_compare_edit_from_snapshot()
 
     def _compare_edit_snapshot_dir(self) -> Path:
         return Path(__file__).parent.parent.parent / "autosave" / "compare_snapshots"
@@ -8814,7 +8830,7 @@ class MainWindow(QMainWindow):
             event.accept()
             return
         if self._event_matches_shortcut(event, "stage_compare_edit_start"):
-            self.start_stage_compare_edit_from_snapshot()
+            self._toggle_stage_compare_edit_from_snapshot()
             event.accept()
             return
         if (
