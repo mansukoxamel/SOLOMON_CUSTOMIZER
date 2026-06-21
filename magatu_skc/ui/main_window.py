@@ -10391,6 +10391,11 @@ class MainWindow(QMainWindow):
             return
         if self._reject_read_only_edit():
             return
+        dlg = getattr(self, "_title_screen_dialog", None)
+        if dlg is not None and dlg.isVisible():
+            dlg.raise_()
+            dlg.activateWindow()
+            return
         from .title_screen_dialog import TitleScreenDialog
         from ..core import title_screen as _ts
         before = bytes(self.rom.data)
@@ -10403,10 +10408,18 @@ class MainWindow(QMainWindow):
         except _ts.TitleScreenError as e:
             QMessageBox.critical(self, "タイトル画面 操作不可", str(e))
             return
-        dlg.exec_()
-        if bytes(self.rom.data) != before:
-            self._set_dirty(True)
-            self._log("タイトル画面 (CHR bank3 / 描画領域) 書換")
+        self._title_screen_dialog = dlg
+
+        def on_finished(_result, before=before):
+            self._title_screen_dialog = None
+            if bytes(self.rom.data) != before:
+                self._set_dirty(True)
+                self._log("タイトル画面 (CHR bank3 / 描画領域) 書換")
+
+        dlg.finished.connect(on_finished)
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
 
     def _on_show_special_process(self):
         """特殊処理ビューア (Phase 1, 読込専用)"""
@@ -10477,6 +10490,11 @@ class MainWindow(QMainWindow):
             return
         if self._reject_read_only_edit():
             return
+        dlg = getattr(self, "_sprite_viewer_dialog", None)
+        if dlg is not None and dlg.isVisible():
+            dlg.raise_()
+            dlg.activateWindow()
+            return
         from .sprite_viewer import SpriteViewer
         before = bytes(self.rom.data)
         self._sprite_viewer_rom_changed_seen = False
@@ -10484,10 +10502,18 @@ class MainWindow(QMainWindow):
                            config=self.config, app_config=self._app_config,
                            parent=self)
         dlg.rom_changed.connect(self._on_sprite_viewer_rom_changed)
-        dlg.exec_()
-        if bytes(self.rom.data) != before and not self._sprite_viewer_rom_changed_seen:
-            self._on_sprite_viewer_rom_changed()
-        self._sprite_viewer_rom_changed_seen = False
+        self._sprite_viewer_dialog = dlg
+
+        def on_finished(_result, before=before):
+            self._sprite_viewer_dialog = None
+            if bytes(self.rom.data) != before and not self._sprite_viewer_rom_changed_seen:
+                self._on_sprite_viewer_rom_changed()
+            self._sprite_viewer_rom_changed_seen = False
+
+        dlg.finished.connect(on_finished)
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
 
     def _on_sprite_viewer_rom_changed(self):
         if self._reject_read_only_edit():

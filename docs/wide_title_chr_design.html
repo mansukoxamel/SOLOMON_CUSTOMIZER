@@ -67,7 +67,14 @@
 <tr class="freeok"><td><span class="ok">自由使用可</span></td><td class="num">0x12C-0x139</td><td class="num">0x2C-0x39</td><td class="num">0x172D0-0x173AF</td><td class="num">14</td><td>ユーザー指定。ワイドタイトル用の自由CHR。</td></tr>
 <tr class="freeok"><td><span class="ok">自由使用可</span></td><td class="num">0x13C-0x14F</td><td class="num">0x3C-0x4F</td><td class="num">0x173D0-0x1750F</td><td class="num">20</td><td>ユーザー指定。ワイドタイトル用の自由CHR。</td></tr>
 <tr class="freeok"><td><span class="ok">自由使用可</span></td><td class="num">0x154-0x17F</td><td class="num">0x54-0x7F</td><td class="num">0x17550-0x1780F</td><td class="num">44</td><td>ユーザー指定。ワイドタイトル用の自由CHR。</td></tr>
-<tr><td><b>合計</b></td><td class="num">-</td><td class="num">-</td><td class="num">-</td><td class="num">78</td><td>2026-06-21 初回確定分。</td></tr>
+<tr class="freeok"><td><span class="ok">自由使用可</span></td><td class="num">0x180-0x18F</td><td class="num">0x80-0x8F</td><td class="num">0x17810-0x1790F</td><td class="num">16</td><td>ユーザー指定。ワイドタイトル用の自由CHR。</td></tr>
+<tr class="freeok"><td><span class="ok">自由使用可</span></td><td class="num">0x190-0x197</td><td class="num">0x90-0x97</td><td class="num">0x17910-0x1798F</td><td class="num">8</td><td>ユーザー指定。ワイドタイトル用の自由CHR。</td></tr>
+<tr class="freeok"><td><span class="ok">自由使用可</span></td><td class="num">0x199-0x19F</td><td class="num">0x99-0x9F</td><td class="num">0x179A0-0x17A0F</td><td class="num">7</td><td>ユーザー指定。<code>0x198</code> は含めない。</td></tr>
+<tr class="freeok"><td><span class="ok">自由使用可</span></td><td class="num">0x1A9</td><td class="num">0xA9</td><td class="num">0x17AA0-0x17AAF</td><td class="num">1</td><td>ユーザー指定。ワイドタイトル用の自由CHR。</td></tr>
+<tr class="freeok"><td><span class="ok">自由使用可</span></td><td class="num">0x1AC-0x1AF</td><td class="num">0xAC-0xAF</td><td class="num">0x17AD0-0x17B0F</td><td class="num">4</td><td>ユーザー指定。<code>0x1AA-0x1AB</code> は含めない。</td></tr>
+<tr class="freeok"><td><span class="ok">自由使用可</span></td><td class="num">0x1B8-0x1BF</td><td class="num">0xB8-0xBF</td><td class="num">0x17B90-0x17C0F</td><td class="num">8</td><td>ユーザー指定。<code>0x1B0-0x1B7</code> は含めない。</td></tr>
+<tr class="freeok"><td><span class="ok">自由使用可</span></td><td class="num">0x1E0-0x1FF</td><td class="num">0xE0-0xFF</td><td class="num">0x17E10-0x1800F</td><td class="num">32</td><td>ユーザー指定。ワイドタイトル用の自由CHR。</td></tr>
+<tr><td><b>合計</b></td><td class="num">-</td><td class="num">-</td><td class="num">-</td><td class="num">154</td><td>2026-06-21 確定分。</td></tr>
 </table>
 
 <div class="note">
@@ -134,7 +141,7 @@
 <h2>8. 修正方針メモ</h2>
 <table>
 <tr><th>論点</th><th>現状</th><th>修正時に決めること</th></tr>
-<tr><td>自由CHR範囲</td><td><code>bank内 0x12C-0x139</code>, <code>0x13C-0x14F</code>, <code>0x154-0x17F</code> を確定済み。</td><td>実装側のPNG取り込みやBUILD文字割当を、このマスター表基準へ移す。</td></tr>
+<tr><td>自由CHR範囲</td><td>上の「自由に使えるCHR範囲マスター」を確定済み範囲として扱う。</td><td>実装側のPNG取り込みやBUILD文字割当を、このマスター表と同じ定数へ移す。</td></tr>
 <tr><td>保護CHR範囲</td><td><code>bank内 0x100-0x12F</code> は候補外。上部以外で使う <code>0x1A8, 0x1C0-0x1D0, 0x1D2-0x1DD</code> も実行時に除外。</td><td>BUILD文字、下部タイトル、固定部品、将来予約を所有者別に分ける。</td></tr>
 <tr><td>PNG取り込み</td><td>上部PNGの必要タイルを、候補poolから割り当ててCHRへ書く。</td><td>固定poolだけへ書くのか、既存上部だけを再利用するのか、原作/US/ワイドタイトルごとに扱いを分けるのか決める。</td></tr>
 <tr><td>会話上の基準</td><td>スプライトビューアに <code>bank内</code> 表示を追加済み。</td><td>今後は <code>bank内 0x...</code> で場所を指定して照合する。</td></tr>
