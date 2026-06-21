@@ -64,7 +64,7 @@ from .element_picker import (
     BLOCK_PASSABLE_BROWN, BLOCK_SOLID_BROWN,
     BLOCK_PICKER_LABELS, DEFAULT_BLOCK_PICKER_ORDER,
     ENEMY_SPEED_TABLE, apply_enemy_speed, base_code_from_actual,
-    ENEMIES_LIST, ITEMS_LIST, item_name,
+    ENEMIES_LIST, ITEMS_LIST, item_name, enemy_enhance_variant,
 )
 from .rom_validation_dialog import RomValidationDialog
 
@@ -452,6 +452,7 @@ class MainWindow(QMainWindow):
             "hover_enemy_up",
             "hover_enemy_down",
             "hover_enemy_speed",
+            "hover_enemy_enhance",
             "hover_info",
             "hover_item_normal",
             "hover_item_hidden",
@@ -591,6 +592,8 @@ class MainWindow(QMainWindow):
             return self._set_hover_enemy_direction(direction)
         if action == "hover_enemy_speed":
             return self._cycle_hover_enemy_speed()
+        if action == "hover_enemy_enhance":
+            return self._cycle_hover_enemy_enhancement()
         if action == "hover_info":
             self._toggle_hover_info_popup()
             return True
@@ -8782,6 +8785,7 @@ class MainWindow(QMainWindow):
             "hover_enemy_up",
             "hover_enemy_down",
             "hover_enemy_speed",
+            "hover_enemy_enhance",
             "hover_info",
             "hover_item_normal",
             "hover_item_hidden",
@@ -9106,6 +9110,53 @@ class MainWindow(QMainWindow):
         )
         self.statusBar().showMessage(
             f"ホバー位置の敵スピードをSP{next_speed}へ変更: {new_desc}", 1500
+        )
+        return True
+
+    def _cycle_hover_enemy_enhancement(self) -> bool:
+        """K shortcut: cycle the hovered enemy through enhanced/alternate forms."""
+        if self._hover_tile is None or not self.levels:
+            return False
+        lv = self.levels[self.current_level_no]
+        idx = lv.get_enemy_index(self._hover_tile)
+        if idx < 0:
+            return False
+        if self._reject_read_only_edit():
+            return True
+
+        enemy = lv.enemies[idx]
+        old_no = int(enemy.element_no) & 0xFF
+        new_no = enemy_enhance_variant(old_no)
+        if new_no is None:
+            self.statusBar().showMessage(
+                "この敵は強化/別版切替に対応していません", 1500
+            )
+            return True
+        if new_no == old_no:
+            self.statusBar().showMessage("この敵はこれ以上切り替えできません", 1500)
+            return True
+
+        self._push_undo()
+        enemy.element_no = new_no
+        self._refresh_view()
+        self._refresh_thumbnails_after_edit()
+        self._set_dirty(True)
+        self._update_hover_info(self._hover_tile)
+        self._update_hover_info_popup(self._hover_tile)
+        old_desc = (
+            self.config.enemy_desc.get(old_no, f"0x{old_no:02X}")
+            if self.config else f"0x{old_no:02X}"
+        )
+        new_desc = (
+            self.config.enemy_desc.get(new_no, f"0x{new_no:02X}")
+            if self.config else f"0x{new_no:02X}"
+        )
+        self._log(
+            f"敵強化切替: L{self.current_level_no + 1} {self._hover_tile} "
+            f"0x{old_no:02X}->0x{new_no:02X} {old_desc}->{new_desc}"
+        )
+        self.statusBar().showMessage(
+            f"ホバー位置の敵を切替: {new_desc}", 1500
         )
         return True
 

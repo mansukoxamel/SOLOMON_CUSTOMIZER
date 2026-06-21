@@ -68,6 +68,7 @@ SHORTCUT_DEFINITIONS = [
     ("hover_enemy_up", "ホバー敵を上向きに変更", "Up"),
     ("hover_enemy_down", "ホバー敵を下向きに変更", "Down"),
     ("hover_enemy_speed", "ホバー敵スピード循環", "S"),
+    ("hover_enemy_enhance", "ホバー敵の強化/別版切替", "K"),
     ("hover_info", "ホバー情報表示切替", "I"),
     ("hover_item_normal", "ホバー位置を通常に変更", "N"),
     ("hover_item_hidden", "ホバー位置を隠しに変更", "H"),
