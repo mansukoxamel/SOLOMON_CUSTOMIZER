@@ -1872,7 +1872,7 @@ class MainWindow(QMainWindow):
         self.spin_fairy_enemy.setSpecialValueText("(なし)")
         self.spin_fairy_enemy.setToolTip("0=なし。1から15は、このステージの初期配置敵リスト順です。鍵持ち敵と同じ番号は指定できません。")
         self.spin_fairy_enemy.valueChanged.connect(self._on_meta_fairy_enemy_changed)
-        form.addRow("落下死で妖精化する敵 (#):", self.spin_fairy_enemy)
+        form.addRow("妖精化敵 (#):", self.spin_fairy_enemy)
 
         self.combo_const = QComboBox()
         self.combo_const.addItem("(なし)", -1)
@@ -1894,6 +1894,22 @@ class MainWindow(QMainWindow):
         const_pos_row.addWidget(self.spin_const_y)
         form.addRow(const_pos_row)
 
+        for field in (
+            tileset_row,
+            self.spin_time_dr,
+            self.chk_no_bfire,
+            self.spin_key_enemy,
+            self.spin_fairy_enemy,
+            self.combo_const,
+        ):
+            label = form.labelForField(field)
+            if label is not None:
+                label.setObjectName("leftFormLabel")
+                label.setMinimumWidth(72)
+                policy = label.sizePolicy()
+                policy.setHorizontalPolicy(QSizePolicy.Minimum)
+                label.setSizePolicy(policy)
+
         ml.addLayout(form)
         # フラグ: スピンボックス変更を編集モードに紐づけるためのガード
         self._meta_loading = False
@@ -1910,6 +1926,8 @@ class MainWindow(QMainWindow):
             if isinstance(widget, QGroupBox):
                 widget.setMinimumWidth(0)
             if isinstance(widget, (QLabel, QPushButton, QToolButton, QCheckBox, QRadioButton)):
+                if widget.objectName() == "leftFormLabel":
+                    continue
                 widget.setMinimumWidth(0)
                 policy = widget.sizePolicy()
                 policy.setHorizontalPolicy(QSizePolicy.Ignored)

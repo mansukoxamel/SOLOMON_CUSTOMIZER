@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QListView, QAbstractItemView, QStackedWidget, QScrollArea, QSizePolicy,
     QGraphicsOpacityEffect, QGraphicsScene
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QSize, QMimeData, QRectF
+from PyQt5.QtCore import Qt, pyqtSignal, QSize, QMimeData, QRectF, QTimer
 from PyQt5.QtGui import QPixmap, QIcon, QImage, QDrag, QColor
 
 # 選択モード
@@ -527,6 +527,10 @@ class _MirrorRow(QListWidget):
         self.setSpacing(0)
         self.setGridSize(_picker_cell_size(self._icon_size))
         self.setUniformItemSizes(True)
+        self.setMinimumWidth(0)
+        self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setAcceptDrops(True)
         self.setDragDropMode(QAbstractItemView.DropOnly)
         self.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -673,6 +677,7 @@ class MirrorEnemyPanel(QWidget):
             row_layout.setContentsMargins(0, 0, 0, 0)
             row_layout.setSpacing(2)
             row_lbl = QLabel(f"<small>M{m + 1}</small>")
+            row_lbl.setObjectName("mirrorRowLabel")
             row_lbl.setStyleSheet(MIRROR_ROW_LABEL_STYLES[m])
             row_lbl.setFixedWidth(18)
             row_layout.addWidget(row_lbl)
@@ -689,7 +694,9 @@ class MirrorEnemyPanel(QWidget):
             row_layout.addWidget(row, 1)
             self._rows.append(row)
             btn = QPushButton("OFF")
-            btn.setFixedWidth(42)
+            btn.setObjectName("mirrorActiveToggleButton")
+            btn.setMinimumWidth(max(48, btn.sizeHint().width()))
+            btn.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
             btn.setMinimumHeight(24)
             btn.clicked.connect(lambda _, mm=m: self.mirror_active_toggle_requested.emit(mm))
             row_layout.addWidget(btn, 0)
@@ -704,6 +711,7 @@ class MirrorEnemyPanel(QWidget):
     def set_icon_size_value(self, size: int):
         for row in self._rows:
             row.set_icon_size_value(size)
+        self._refresh_icons()
 
     def set_mirror_active(self, mirror_no: int, active: bool):
         if not (0 <= mirror_no < len(self._rows)):
@@ -763,6 +771,15 @@ class MirrorEnemyPanel(QWidget):
             return QIcon(QPixmap.fromImage(bg))
         except Exception:
             return QIcon()
+
+    def _refresh_icons(self):
+        if self._tile_renderer is None or self._config is None:
+            return
+        for row in self._rows:
+            for idx, code in enumerate(row.get_codes()):
+                it = row.item(idx)
+                if it is not None and code:
+                    it.setIcon(self._make_enemy_icon(code))
 
     def load_enemies(self, codes_m1: list, codes_m2: list):
         """ROM から読み出した敵コードリスト(各7要素)をセット"""
@@ -1156,6 +1173,7 @@ class ElementPicker(QWidget):
         fl = QHBoxLayout(self.flag_group)
         fl.setContentsMargins(0, 12, 0, 0)
         fl.setSpacing(0)
+        self.flag_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         self.flag_btns = QButtonGroup(self)
         self.rb_flag_normal = FullWidthRadioButton("通常")
         self.rb_flag_hidden = FullWidthRadioButton("隠し")
@@ -1173,9 +1191,8 @@ class ElementPicker(QWidget):
         ]:
             self.flag_btns.addButton(rb)
             rb.setToolTip(tooltip)
-            rb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            rb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             rb.setMinimumWidth(0)
-            rb.setMinimumHeight(40)
             fl.addWidget(rb, 1)
             rb.toggled.connect(lambda checked, f=flag: self._on_flag_changed(f) if checked else None)
         self.rb_flag_normal.setChecked(True)
@@ -1186,6 +1203,7 @@ class ElementPicker(QWidget):
         sl = QHBoxLayout(self.speed_group)
         sl.setContentsMargins(0, 12, 0, 0)
         sl.setSpacing(0)
+        self.speed_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         self.speed_btns = QButtonGroup(self)
         self.rb_sp1 = FullWidthRadioButton("SP1")
         self.rb_sp2 = FullWidthRadioButton("SP2")
@@ -1196,8 +1214,7 @@ class ElementPicker(QWidget):
             (self.rb_sp3, 3),
         ]:
             self.speed_btns.addButton(rb)
-            rb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-            rb.setMinimumHeight(40)
+            rb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             sl.addWidget(rb, 1)
             rb.toggled.connect(
                 lambda checked, s=sp: self._on_speed_changed(s) if checked else None
@@ -1238,13 +1255,15 @@ class ElementPicker(QWidget):
             lst.setSpacing(0)
             lst.setGridSize(_picker_cell_size(self._icon_size))
             lst.setUniformItemSizes(True)
+            lst.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            lst.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             lst.itemSelectionChanged.connect(self._on_item_selected)
             if cat_idx == 0:
                 lst.ctrl_reorder_requested.connect(self._on_block_ctrl_reorder)
             lst.setDragEnabled(True)
             lst.setDragDropMode(QAbstractItemView.DragOnly)
             # 高さはコンテンツに合わせる（固定スクロールなし）
-            lst.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+            lst.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
             lst.setMinimumWidth(0)
             picker_layout.addWidget(lst)
             self._picker_lists.append(lst)
@@ -1318,6 +1337,8 @@ class ElementPicker(QWidget):
             if isinstance(widget, QGroupBox):
                 widget.setMinimumWidth(0)
             if isinstance(widget, (QLabel, QPushButton, QRadioButton)):
+                if widget.objectName() in {"mirrorActiveToggleButton", "mirrorRowLabel"}:
+                    continue
                 widget.setMinimumWidth(0)
                 policy = widget.sizePolicy()
                 policy.setHorizontalPolicy(QSizePolicy.Ignored)
@@ -1701,6 +1722,7 @@ class ElementPicker(QWidget):
             # 各リストの高さをコンテンツに合わせる
             for lst in self._picker_lists:
                 self._adjust_list_height(lst)
+            self._schedule_adjust_list_heights()
 
             if not self._select_data_silently(restore_data):
                 default_row = (
@@ -1766,15 +1788,25 @@ class ElementPicker(QWidget):
             return
         grid_h = self._icon_size + GRID_PAD * 2
         grid_w = max(1, self._icon_size + GRID_PAD * 2)
-        cols = max(1, lst.viewport().width() // grid_w)
+        frame = int(getattr(lst, "frameWidth", lambda: 0)() or 0)
+        width = max(lst.viewport().width(), lst.width() - frame * 2)
+        if width <= grid_w and lst.parentWidget() is not None:
+            width = max(width, lst.parentWidget().width() - frame * 2)
+        cols = max(1, width // grid_w)
         rows = (count + cols - 1) // cols
-        lst.setMinimumHeight(rows * grid_h + 4)
-        lst.setMaximumHeight(rows * grid_h + 4)
+        lst.setFixedHeight(rows * grid_h + frame * 2 + 6)
+
+    def _schedule_adjust_list_heights(self):
+        QTimer.singleShot(0, self._adjust_all_list_heights)
+
+    def _adjust_all_list_heights(self):
+        for lst in getattr(self, "_picker_lists", []):
+            self._adjust_list_height(lst)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        for lst in getattr(self, "_picker_lists", []):
-            self._adjust_list_height(lst)
+        self._adjust_all_list_heights()
+        self._schedule_adjust_list_heights()
 
     def _on_block_ctrl_reorder(self, src_row: int, dst_row: int):
         if src_row == dst_row:
