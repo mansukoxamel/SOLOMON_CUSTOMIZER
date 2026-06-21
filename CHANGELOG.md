@@ -1,5 +1,12 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.283 (2026-06-21) 主要操作ショートカットを追加
+- Ctrl+OでROMを開く、Ctrl+SでROM保存、Ctrl+Eで現在ステージPNG保存を実行できるようにした。
+- Ctrl+Lでステージ番号ジャンプ、Ctrl+Iで全ステージ統計を開けるようにした。
+
+## v0.8.282 (2026-06-21) 比較編集ショートカットを追加
+- Ctrl+Qで比較編集を開始し、比較編集中のQで縦横表示を切り替えるショートカットを設定とキーボードMAPへ追加した。
+
 ## v0.8.281 (2026-06-21) ホバー敵の強化/別版切替を追加
 - Kキーでホバー位置の敵を同じ向き・同じ速度の強化/別版へ切り替えるようにした。
 - Flameの赤/白、Neul/Ghostのnoslow、Saramandor #2、Gargoyle 2-shot、Panel Monster系、上下Spark Ball系の循環に対応した。

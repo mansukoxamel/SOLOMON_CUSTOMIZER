@@ -407,6 +407,30 @@ class MainWindow(QMainWindow):
         self._app_config["gamepad_shortcuts"] = normalize_gamepad_shortcuts(
             self._app_config.get("gamepad_shortcuts")
         )
+        self.shortcut_open_rom = QShortcut(self._shortcut_sequence("open_rom"), self)
+        self.shortcut_open_rom.setContext(Qt.WindowShortcut)
+        self.shortcut_open_rom.setAutoRepeat(False)
+        self.shortcut_open_rom.activated.connect(self._on_open_rom)
+        self.shortcut_save_rom = QShortcut(self._shortcut_sequence("save_rom"), self)
+        self.shortcut_save_rom.setContext(Qt.WindowShortcut)
+        self.shortcut_save_rom.setAutoRepeat(False)
+        self.shortcut_save_rom.activated.connect(self._on_save_rom)
+        self.shortcut_save_stage_png = QShortcut(
+            self._shortcut_sequence("save_stage_png"), self
+        )
+        self.shortcut_save_stage_png.setContext(Qt.WindowShortcut)
+        self.shortcut_save_stage_png.setAutoRepeat(False)
+        self.shortcut_save_stage_png.activated.connect(
+            self._on_save_current_stage_png_shortcut
+        )
+        self.shortcut_stage_jump = QShortcut(self._shortcut_sequence("stage_jump"), self)
+        self.shortcut_stage_jump.setContext(Qt.WindowShortcut)
+        self.shortcut_stage_jump.setAutoRepeat(False)
+        self.shortcut_stage_jump.activated.connect(self._on_stage_jump)
+        self.shortcut_show_stats = QShortcut(self._shortcut_sequence("show_stats"), self)
+        self.shortcut_show_stats.setContext(Qt.WindowShortcut)
+        self.shortcut_show_stats.setAutoRepeat(False)
+        self.shortcut_show_stats.activated.connect(self._on_show_stats)
         self.shortcut_test_play = QShortcut(self._shortcut_sequence("test_play"), self)
         self.shortcut_test_play.setContext(Qt.WindowShortcut)
         self.shortcut_test_play.setAutoRepeat(False)
@@ -421,7 +445,17 @@ class MainWindow(QMainWindow):
         self.shortcut_stage_compare_toggle.setContext(Qt.WindowShortcut)
         self.shortcut_stage_compare_toggle.activated.connect(self._toggle_stage_compare_view)
         self.shortcut_stage_compare_toggle.setEnabled(False)
-        self.shortcut_stage_compare_orientation = QShortcut(QKeySequence("Q"), self)
+        self.shortcut_stage_compare_edit_start = QShortcut(
+            self._shortcut_sequence("stage_compare_edit_start"), self
+        )
+        self.shortcut_stage_compare_edit_start.setContext(Qt.WindowShortcut)
+        self.shortcut_stage_compare_edit_start.setAutoRepeat(False)
+        self.shortcut_stage_compare_edit_start.activated.connect(
+            self.start_stage_compare_edit_from_snapshot
+        )
+        self.shortcut_stage_compare_orientation = QShortcut(
+            self._shortcut_sequence("stage_compare_edit_orientation"), self
+        )
         self.shortcut_stage_compare_orientation.setContext(Qt.WindowShortcut)
         self.shortcut_stage_compare_orientation.activated.connect(
             self._toggle_stage_compare_edit_orientation
@@ -494,10 +528,17 @@ class MainWindow(QMainWindow):
             self._app_config.get("gamepad_shortcuts")
         )
         mapping = {
+            "open_rom": "shortcut_open_rom",
+            "save_rom": "shortcut_save_rom",
+            "save_stage_png": "shortcut_save_stage_png",
+            "stage_jump": "shortcut_stage_jump",
+            "show_stats": "shortcut_show_stats",
             "test_play": "shortcut_test_play",
             "stage_prev": "shortcut_stage_prev",
             "stage_next": "shortcut_stage_next",
             "stage_compare": "shortcut_stage_compare_toggle",
+            "stage_compare_edit_start": "shortcut_stage_compare_edit_start",
+            "stage_compare_edit_orientation": "shortcut_stage_compare_orientation",
             "item_replace": "shortcut_item_replace",
             "item_flag_toggle": "shortcut_item_flag_toggle",
             "item_flag_toggle_reverse": "shortcut_item_flag_toggle_reverse",
@@ -513,6 +554,21 @@ class MainWindow(QMainWindow):
         if action == "help":
             self._show_keymap()
             return True
+        if action == "open_rom":
+            self._on_open_rom()
+            return True
+        if action == "save_rom":
+            self._on_save_rom()
+            return True
+        if action == "save_stage_png":
+            self._on_save_current_stage_png_shortcut()
+            return True
+        if action == "stage_jump":
+            self._on_stage_jump()
+            return True
+        if action == "show_stats":
+            self._on_show_stats()
+            return True
         if action == "test_play":
             self._on_test_play()
             return True
@@ -524,6 +580,12 @@ class MainWindow(QMainWindow):
             return True
         if action == "stage_compare" and self._stage_compare_png_image is not None:
             self._toggle_stage_compare_view()
+            return True
+        if action == "stage_compare_edit_start":
+            self.start_stage_compare_edit_from_snapshot()
+            return True
+        if action == "stage_compare_edit_orientation":
+            self._toggle_stage_compare_edit_orientation()
             return True
         if action == "settings":
             self._show_settings()
@@ -1428,6 +1490,7 @@ class MainWindow(QMainWindow):
         file_group = QGroupBox("ファイル")
         fl = QVBoxLayout(file_group)
         self.btn_open = QPushButton("ROMを開く")
+        self.btn_open.setToolTip("ROMを開きます。(Ctrl+O)")
         self.btn_open.clicked.connect(self._on_open_rom)
         fl.addWidget(self.btn_open)
 
@@ -1463,6 +1526,7 @@ class MainWindow(QMainWindow):
 
         # 保存系は横2列に (改造ROM保存 / IPSパッチ出力)
         self.btn_save_rom = QPushButton("別名でROM保存")
+        self.btn_save_rom.setToolTip("現在の編集内容をROMとして保存します。(Ctrl+S)")
         self.btn_save_rom.clicked.connect(self._on_save_rom)
         self.btn_save_rom.setEnabled(False)
         self.btn_save_ips = QPushButton("IPSパッチ出力")
@@ -1504,6 +1568,9 @@ class MainWindow(QMainWindow):
         stage_btn_row.addWidget(self.btn_stage_load)
 
         self.btn_stage_save = QPushButton("ステージデータ保存")
+        self.btn_stage_save.setToolTip(
+            "選択した範囲のステージデータPNGを保存します。Ctrl+Eは現在ステージを保存します。"
+        )
         self.btn_stage_save.clicked.connect(self._on_stage_data_save)
         self.btn_stage_save.setEnabled(False)
         stage_btn_row.addWidget(self.btn_stage_save)
@@ -1532,7 +1599,7 @@ class MainWindow(QMainWindow):
         stage_compare_edit_row.addWidget(self.lbl_stage_compare_mode, 1)
         self.btn_stage_compare_orientation = QPushButton("縦横(Q)")
         self.btn_stage_compare_orientation.setToolTip(
-            "比較しながら編集の表示方向を横並び/縦並びで切り替えます。"
+            "比較しながら編集の表示方向を横並び/縦並びで切り替えます。(Q)"
         )
         self.btn_stage_compare_orientation.clicked.connect(
             self._toggle_stage_compare_edit_orientation
@@ -1553,7 +1620,7 @@ class MainWindow(QMainWindow):
         compare_tool_row.addWidget(self.btn_rom_diff)
         self.btn_stage_compare_edit_start = QPushButton("比較編集")
         self.btn_stage_compare_edit_start.setToolTip(
-            "現在ステージのスナップショットを横に表示して比較編集モードを開始します。"
+            "現在ステージのスナップショットを横に表示して比較編集モードを開始します。(Ctrl+Q)"
         )
         self.btn_stage_compare_edit_start.clicked.connect(
             self.start_stage_compare_edit_from_snapshot
@@ -1634,7 +1701,7 @@ class MainWindow(QMainWindow):
 
         # 全レベル統計
         self.btn_stats = QPushButton("全ステージ統計")
-        self.btn_stats.setToolTip("53ステージのアイテム/敵/隠し配置を一覧表示")
+        self.btn_stats.setToolTip("53ステージのアイテム/敵/隠し配置を一覧表示します。(Ctrl+I)")
         self.btn_stats.clicked.connect(self._on_show_stats)
         self.btn_stats.setEnabled(False)
         el.addWidget(self.btn_stats, 0, 1)
@@ -4185,6 +4252,33 @@ class MainWindow(QMainWindow):
             self._on_export_current()
         else:
             self._on_export_all()
+
+    def _on_save_current_stage_png_shortcut(self):
+        if not self.levels:
+            return
+        self._on_export_current()
+
+    def _on_stage_jump(self):
+        if not self.levels:
+            return
+        from PyQt5.QtWidgets import QInputDialog
+        current_stage = self.current_level_no + 1
+        stage_no, ok = QInputDialog.getInt(
+            self,
+            "ステージ番号ジャンプ",
+            "ステージ番号:",
+            current_stage,
+            1,
+            len(self.levels),
+            1,
+        )
+        if not ok:
+            return
+        target = int(stage_no) - 1
+        if target == self.current_level_no:
+            return
+        self._play_button_sound()
+        self.spin_level.setValue(target + 1)
 
     def _set_stage_compare_controls_visible(self, visible: bool):
         for attr in ("btn_stage_compare_current", "btn_stage_compare_diff"):
@@ -8719,6 +8813,28 @@ class MainWindow(QMainWindow):
             self._toggle_stage_compare_view()
             event.accept()
             return
+        if self._event_matches_shortcut(event, "stage_compare_edit_start"):
+            self.start_stage_compare_edit_from_snapshot()
+            event.accept()
+            return
+        if (
+            self._event_matches_shortcut(event, "stage_compare_edit_orientation")
+            and self._is_stage_compare_edit_view()
+        ):
+            self._toggle_stage_compare_edit_orientation()
+            event.accept()
+            return
+        for action in (
+            "open_rom",
+            "save_rom",
+            "save_stage_png",
+            "stage_jump",
+            "show_stats",
+        ):
+            if self._event_matches_shortcut(event, action):
+                if self._trigger_shortcut_action(action):
+                    event.accept()
+                    return
         # Undo / Redo / 選択範囲操作
         if self._event_matches_shortcut(event, "redo_alt"):
             self._on_redo()
@@ -11095,11 +11211,18 @@ Tab/Shift+Tab系は、ホバー位置のアイテム/鍵/扉状態を順送り/�
 
     @staticmethod
     def _keyboard_map_category(action: str) -> str:
-        if action in {"stage_prev", "stage_next"} or action.startswith("hover_enemy_"):
+        if action in {"stage_prev", "stage_next", "stage_jump"} or action.startswith("hover_enemy_"):
             return "navigation"
-        if action in {"grid", "stage_compare", "hover_info"}:
+        if action in {
+            "grid",
+            "stage_compare",
+            "stage_compare_edit_start",
+            "stage_compare_edit_orientation",
+            "show_stats",
+            "hover_info",
+        }:
             return "display"
-        if action in {"help", "settings"}:
+        if action in {"help", "settings", "open_rom", "save_rom", "save_stage_png"}:
             return "system"
         if action.startswith("favorite_") or action.startswith("hover_item_"):
             return "ui"

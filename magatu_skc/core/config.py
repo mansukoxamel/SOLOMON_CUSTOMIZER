@@ -31,10 +31,17 @@ DEFAULT_PANEL_VARIANT_SETTINGS = {
 
 SHORTCUT_DEFINITIONS = [
     ("help", "ショートカットヘルプ", "F1"),
+    ("open_rom", "ROMを開く", "Ctrl+O"),
+    ("save_rom", "ROM保存", "Ctrl+S"),
+    ("save_stage_png", "現在ステージのステージデータPNG保存", "Ctrl+E"),
+    ("stage_jump", "ステージ番号ジャンプ", "Ctrl+L"),
+    ("show_stats", "全ステージ統計", "Ctrl+I"),
     ("test_play", "テストプレイ", "P"),
     ("stage_prev", "前のステージ", "PgUp"),
     ("stage_next", "次のステージ", "PgDown"),
     ("stage_compare", "PNG比較表示切替", ""),
+    ("stage_compare_edit_start", "比較編集開始", "Ctrl+Q"),
+    ("stage_compare_edit_orientation", "比較編集の縦横切替", "Q"),
     ("settings", "設定", "F9"),
     ("grid", "グリッド表示切替", "G"),
     ("undo", "Undo", "Ctrl+Z"),
