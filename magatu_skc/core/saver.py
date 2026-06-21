@@ -1,4 +1,7 @@
 """ROM保存機能 - レベルデータをROMバイナリに書き戻す"""
+from datetime import datetime
+import re
+
 from . import constants as c
 from . import rom_map
 from .rom import Rom
@@ -97,19 +100,41 @@ def validate_level_consistency(levels: list):
             )
 
 
-def ensure_default_title_text(rom: Rom):
-    """Stamp date/time into the title overlay when the overlay is still empty."""
-    from datetime import datetime
+_AUTO_BUILD_TITLE_RE = re.compile(r"^BUILD \d{8} \d{6}$")
+
+
+def make_auto_build_title_text() -> str:
+    return "BUILD " + datetime.now().strftime("%Y%m%d %H%M%S")
+
+
+def is_auto_build_title_text(text: str) -> bool:
+    return bool(_AUTO_BUILD_TITLE_RE.fullmatch(str(text or "").strip()))
+
+
+def refresh_auto_build_title_text(
+    rom: Rom,
+    loaded_title_text: str | None = None,
+) -> tuple[str, str] | None:
+    """Insert/update the automatic BUILD title line when it is still app-owned."""
     from . import title_screen
 
     try:
         current = title_screen.read_title_text_line(rom.data)
     except title_screen.TitleScreenError:
-        return
-    if current.strip():
-        return
-    stamp = "BUILD " + datetime.now().strftime("%Y%m%d %H%M%S")
+        return None
+    current = str(current or "").strip()
+    loaded = None if loaded_title_text is None else str(loaded_title_text or "").strip()
+    if current:
+        if loaded is None or current != loaded or not is_auto_build_title_text(current):
+            return None
+    stamp = make_auto_build_title_text()
     title_screen.add_title_text_line(rom.data, stamp)
+    return current, stamp
+
+
+def ensure_default_title_text(rom: Rom, loaded_title_text: str | None = None):
+    """Stamp date/time into the title overlay when the app-owned text needs it."""
+    refresh_auto_build_title_text(rom, loaded_title_text)
 
 
 def write_block_data(rom: Rom, level: Level, level_no: int):
@@ -213,7 +238,12 @@ def _write_standard_level_data(rom: Rom, levels: list):
     write_item_data(rom, levels, region)
 
 
-def save_levels_to_rom(rom: Rom, levels: list, panel_variant_settings: dict | None = None):
+def save_levels_to_rom(
+    rom: Rom,
+    levels: list,
+    panel_variant_settings: dict | None = None,
+    loaded_title_text: str | None = None,
+):
     """全レベルをROMに書き戻す（標準ROM/拡張ROM両対応）
 
     Args:
@@ -262,7 +292,12 @@ def save_levels_to_rom(rom: Rom, levels: list, panel_variant_settings: dict | No
         _run_save_step("Solomon Seal block-state検証/適用", solomon_seal_block.apply, rom.data, levels)
     _run_save_step("wide-title trampoline RAM移行", title_screen.migrate_wide_title_trampoline_ram, rom.data)
     _run_save_step("wide-title idle demo cleanup検証/適用", title_screen.apply_wide_title_idle_demo_cleanup, rom.data)
-    _run_save_step("タイトル初期テキスト確認/適用", ensure_default_title_text, rom)
+    _run_save_step(
+        "タイトル初期テキスト確認/適用",
+        ensure_default_title_text,
+        rom,
+        loaded_title_text,
+    )
     breakable_runtime_cells = []
     for lv in levels:
         breakable = set(getattr(lv, "breakable_white_cells", set()) or [])
@@ -334,11 +369,16 @@ def save_levels_to_rom(rom: Rom, levels: list, panel_variant_settings: dict | No
         _run_save_step("Customizer metadata書き込み", rom_metadata.write_metadata, rom.data)
 
 
-def build_saved_rom_data(rom: Rom, levels: list, panel_variant_settings: dict | None = None) -> bytes:
+def build_saved_rom_data(
+    rom: Rom,
+    levels: list,
+    panel_variant_settings: dict | None = None,
+    loaded_title_text: str | None = None,
+) -> bytes:
     """Validate and build saved ROM bytes without mutating the open ROM."""
     work = Rom(bytes(rom.data), rom.path)
     work.display_name = rom.display_name
-    save_levels_to_rom(work, levels, panel_variant_settings)
+    save_levels_to_rom(work, levels, panel_variant_settings, loaded_title_text)
     return bytes(work.data)
 
 

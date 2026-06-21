@@ -367,6 +367,7 @@ class MainWindow(QMainWindow):
         self._loaded_source_path: str = ""
         self._loaded_workstate_path: str = ""
         self._loaded_workstate_saved_at: str = ""
+        self._loaded_title_text_line: str | None = None
         self._history: list = self._load_history()
         # Undo/Redo: 編集前スナップショットのスタック、上限は設定で変更可能
         self._undo_stack: list = []
@@ -2967,6 +2968,7 @@ class MainWindow(QMainWindow):
             self._auto_expanded = auto_expanded
             self.levels = levels
             self.config = config
+            self._loaded_title_text_line = self._read_current_title_text_line(bytes(rom.data))
             self._sync_panel_variant_settings_from_loaded_rom(rom)
             self._sync_main_palette_to_config()
             self.tile_renderer = TileRenderer(config, nes_tiles)
@@ -3498,6 +3500,39 @@ class MainWindow(QMainWindow):
         if settings != old_settings:
             save_config(self._app_config)
 
+    def _read_current_title_text_line(self, rom_data=None) -> str | None:
+        try:
+            from ..core import title_screen
+            data = self.rom.data if rom_data is None and self.rom else rom_data
+            if data is None:
+                return None
+            return title_screen.read_title_text_line(data)
+        except Exception:
+            return None
+
+    def _title_build_update_message(self, before: str | None, after: str | None) -> str:
+        before_text = str(before or "").strip()
+        after_text = str(after or "").strip()
+        if not after_text or before_text == after_text:
+            return ""
+        if before_text:
+            return f"BUILD更新: {before_text} → {after_text}"
+        return f"BUILD挿入: {after_text}"
+
+    def _build_saved_rom_data_for_user_action(self) -> tuple[bytes, str]:
+        before = self._read_current_title_text_line()
+        saved_data = saver.build_saved_rom_data(
+            self.rom,
+            self.levels,
+            self._panel_variant_settings_for_save(),
+            self._loaded_title_text_line,
+        )
+        after = self._read_current_title_text_line(saved_data)
+        msg = self._title_build_update_message(before, after)
+        if msg:
+            self._log(msg)
+        return saved_data, msg
+
     def _on_save_rom(self):
         if not self.rom:
             return False
@@ -3522,15 +3557,12 @@ class MainWindow(QMainWindow):
         if not path:
             return False
         try:
-            saved_data = saver.build_saved_rom_data(
-                self.rom,
-                self.levels,
-                self._panel_variant_settings_for_save(),
-            )
+            saved_data, build_msg = self._build_saved_rom_data_for_user_action()
             saver.write_rom_data(saved_data, path)
             self._remember_save_path(path)
             self.rom.data = bytearray(saved_data)
             self.rom._crc32 = None
+            self._loaded_title_text_line = self._read_current_title_text_line(bytes(self.rom.data))
             bundle_msg = ""
             try:
                 bundle_dir = self._save_rom_project_bundle(path, saved_data)
@@ -3544,7 +3576,8 @@ class MainWindow(QMainWindow):
                 self._log(
                     f"制作データ保存失敗: {type(bundle_error).__name__}: {bundle_error}"
                 )
-            self.statusBar().showMessage(f"ROM保存完了: {path}", 5000)
+            suffix = f" / {build_msg}" if build_msg else ""
+            self.statusBar().showMessage(f"ROM保存完了: {path}{suffix}", 5000)
             self._set_dirty(False)
             self._log(f"ROM保存: {path}{bundle_msg}")
             return True
@@ -3575,16 +3608,23 @@ class MainWindow(QMainWindow):
         original_data = bytearray(self.rom.data)
         tmp_rom = None
         stage_no = self.current_level_no + 1
+        build_msg = ""
 
         try:
             try:
                 if not self._is_read_only():
+                    before_title = self._read_current_title_text_line()
                     # レベルを反映
                     saver.save_levels_to_rom(
                         self.rom,
                         self.levels,
                         self._panel_variant_settings_for_save(),
+                        self._loaded_title_text_line,
                     )
+                    after_title = self._read_current_title_text_line()
+                    build_msg = self._title_build_update_message(before_title, after_title)
+                    if build_msg:
+                        self._log(build_msg)
                 # ステージ選択: 現在レベルから開始
                 self._patch_testplay_start_stage(stage_no)
                 if not self._is_read_only():
@@ -3610,8 +3650,9 @@ class MainWindow(QMainWindow):
 
         try:
             subprocess.Popen([emu_path, str(tmp_rom)])
+            suffix = f" / {build_msg}" if build_msg else ""
             self.statusBar().showMessage(
-                f"テストプレイ起動: Stage {stage_no} / {tmp_rom}", 5000
+                f"テストプレイ起動: Stage {stage_no} / {tmp_rom}{suffix}", 5000
             )
             visible_cells = sorted(
                 getattr(self.levels[self.current_level_no], "visible_in_block_item_cells", set()) or []
@@ -3696,11 +3737,7 @@ class MainWindow(QMainWindow):
 
         # 2. 現在の編集状態を保存用ROMデータに反映
         try:
-            modified_data = saver.build_saved_rom_data(
-                self.rom,
-                self.levels,
-                self._panel_variant_settings_for_save(),
-            )
+            modified_data, build_msg = self._build_saved_rom_data_for_user_action()
         except Exception as e:
             self._show_save_failure("IPS生成失敗", e, "IPS保存失敗")
             return
@@ -3723,7 +3760,8 @@ class MainWindow(QMainWindow):
         try:
             ips.save_ips_patch(base_data, modified_data, path)
             self._remember_save_path(path)
-            self.statusBar().showMessage(f"IPS保存完了: {path}", 5000)
+            suffix = f" / {build_msg}" if build_msg else ""
+            self.statusBar().showMessage(f"IPS保存完了: {path}{suffix}", 5000)
             self._log(f"IPS保存: {path} (原本: {base_path})")
         except Exception as e:
             QMessageBox.critical(self, "IPS生成失敗", f"{type(e).__name__}: {e}")
