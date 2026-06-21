@@ -1,5 +1,9 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.281 (2026-06-21) ホバー敵の強化/別版切替を追加
+- Kキーでホバー位置の敵を同じ向き・同じ速度の強化/別版へ切り替えるようにした。
+- Flameの赤/白、Neul/Ghostのnoslow、Saramandor #2、Gargoyle 2-shot、Panel Monster系、上下Spark Ball系の循環に対応した。
+
 ## v0.8.280 (2026-06-21) キーボードMAPの位置とサイズを復元
 - キーボードMAPダイアログの位置とサイズを設定JSONへ保存し、次回表示時に復元するようにした。
 
