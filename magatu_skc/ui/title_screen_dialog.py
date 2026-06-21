@@ -16,8 +16,8 @@ from PyQt5.QtWidgets import (
     QDialogButtonBox, QMessageBox, QScrollArea, QWidget, QComboBox,
     QFileDialog, QInputDialog, QGridLayout, QGroupBox, QLineEdit,
 )
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QImage, QPixmap, QPainter, QColor, QPen
 from ..core import title_screen as TS
 from ..core import rom as _rommod
 from ..nes.palette import NES_COLORS
@@ -44,6 +44,56 @@ _TITLE_ATTR_US_OFF = 0x4CBF
 _TITLE_ATTR_EXTRA_JP_OFF = 0x10 + (0xCDF5 - 0x8000)
 # bg パターンテーブル = CHR bank3 上位 4KB (tiles 256-511、ロゴ域 R196)
 _BG_BASE = 256
+
+
+class TitlePreviewLabel(QLabel):
+    tile_hovered = pyqtSignal(int, int, int, int, int, int)
+    tile_left = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._zoom = 1
+        self._grid = []
+        self._chr_start = 0
+        self.setMouseTracking(True)
+
+    def set_title_context(self, zoom, grid, chr_start):
+        self._zoom = max(1, int(zoom or 1))
+        self._grid = list(grid or [])
+        self._chr_start = int(chr_start or 0)
+
+    def mouseMoveEvent(self, event):
+        if not self._grid:
+            self.tile_left.emit()
+            super().mouseMoveEvent(event)
+            return
+        px = event.pos().x() // self._zoom
+        py = event.pos().y() // self._zoom
+        if px < 0 or py < 0 or px >= _IMG_W or py >= _IMG_H:
+            self.tile_left.emit()
+            super().mouseMoveEvent(event)
+            return
+
+        # Preview pixels are display-corrected: result(x,y)=rendered((x-8)%W,(y-1)%H).
+        src_x = (int(px) - 8) % _IMG_W
+        src_y = (int(py) - 1) % _IMG_H
+        col = src_x // 8
+        row = src_y // 8
+        cell = row * _NT_W + col
+        if not (0 <= cell < len(self._grid)):
+            self.tile_left.emit()
+            super().mouseMoveEvent(event)
+            return
+        stream = int(self._grid[cell]) & 0xFF
+        bank_tile = (_BG_BASE + stream) & 0x1FF
+        file_start = self._chr_start + bank_tile * 0x10
+        file_end = file_start + 0x0F
+        self.tile_hovered.emit(row, col, stream, bank_tile, file_start, file_end)
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event):
+        self.tile_left.emit()
+        super().leaveEvent(event)
 
 
 class TitlePaletteDialog(QDialog):
@@ -193,9 +243,11 @@ class TitleScreenDialog(QDialog):
         root.addLayout(zr)
 
         # プレビュー (スクロール)
-        self._canvas = QLabel()
+        self._canvas = TitlePreviewLabel()
         self._canvas.setAlignment(Qt.AlignCenter)
         self._canvas.setStyleSheet("background:#444;")
+        self._canvas.tile_hovered.connect(self._on_preview_tile_hovered)
+        self._canvas.tile_left.connect(self._restore_preview_status)
         sa = QScrollArea()
         sa.setWidgetResizable(True)
         wrap = QWidget()
@@ -203,6 +255,8 @@ class TitleScreenDialog(QDialog):
         wl.addWidget(self._canvas)
         sa.setWidget(wrap)
         root.addWidget(sa, 1)
+        self._preview_status = QLabel("")
+        root.addWidget(self._preview_status)
 
         # 操作ボタン
         br = QHBoxLayout()
@@ -399,6 +453,9 @@ class TitleScreenDialog(QDialog):
 
     def _refresh(self, *_):
         off = TS.chr_bank3_offset(self._rom)
+        d = TS.decode_title_grid(self._rom)
+        self._last_cells = d["cells"]
+        grid = d["grid"]
         img = self._build_image(color=True)
         self._info.setText(
             f"region: <b>{self._region}</b>  /  実タイトル合成 "
@@ -410,8 +467,35 @@ class TitleScreenDialog(QDialog):
         pm = QPixmap.fromImage(img).scaled(
             _IMG_W * z, _IMG_H * z, Qt.KeepAspectRatio,
             Qt.FastTransformation)
+        self._draw_preview_grid(pm, z)
         self._canvas.setPixmap(pm)
         self._canvas.setFixedSize(pm.size())
+        self._canvas.set_title_context(z, grid, off)
+        self._preview_status_text = (
+            f"グリッド: 32x30 / CHR bank3開始 0x{off:X}")
+        self._restore_preview_status()
+
+    @staticmethod
+    def _draw_preview_grid(pm, zoom):
+        painter = QPainter(pm)
+        pen = QPen(QColor(255, 255, 255, 85))
+        pen.setWidth(1)
+        painter.setPen(pen)
+        for x in range(0, _IMG_W + 1, 8):
+            sx = x * zoom
+            painter.drawLine(sx, 0, sx, _IMG_H * zoom)
+        for y in range(0, _IMG_H + 1, 8):
+            sy = y * zoom
+            painter.drawLine(0, sy, _IMG_W * zoom, sy)
+        painter.end()
+
+    def _restore_preview_status(self):
+        self._preview_status.setText(getattr(self, "_preview_status_text", ""))
+
+    def _on_preview_tile_hovered(self, row, col, stream, bank_tile, file_start, file_end):
+        self._preview_status.setText(
+            f"cell ({col}, {row}) / stream 0x{stream:02X} / "
+            f"bank内 0x{bank_tile:03X} / ROM 0x{file_start:X}-0x{file_end:X}")
 
     # --- 操作 ---
     def _apply_title_palette_colors(self, colors):
