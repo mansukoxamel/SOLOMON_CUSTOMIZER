@@ -290,7 +290,7 @@ class TitleScreenDialog(QDialog):
         b_save_top.clicked.connect(self._on_save_top_image)
         br.addWidget(b_save_top)
         b_png_top = QPushButton("Top PNG読込...")
-        b_png_top.setToolTip("最大256x64の上部ロゴ領域PNGを読み込み、下半分は触らない")
+        b_png_top.setToolTip("最大256x64、幅/高さ8の倍数の上部ロゴ領域PNGを読み込み、下半分は触らない")
         b_png_top.clicked.connect(self._on_import_top_png)
         br.addWidget(b_png_top)
         b_imp = QPushButton("別ROMからタイトルを移植...")
@@ -736,21 +736,23 @@ class TitleScreenDialog(QDialog):
             self._rom[off + 20 - i] = attr[9 + i] & 0xFF
 
     def _top_png_cells_from_indexed_image(self, top, color_to_index):
+        src_w = top.width()
+        src_h = top.height()
         cells = [[0] * 64 for _ in range(_NT_W * (_IMG_H // 8))]
         top_start = 6 * _NT_W
         top_end = 14 * _NT_W
         for ci in range(top_start, top_end):
             row, col = divmod(ci, _NT_W)
             ox, oy = col * 8, row * 8
+            src_oy = oy - (_TOP_Y - 1)
+            if ox >= src_w or src_oy < 0 or src_oy + 8 > src_h:
+                continue
             pat = []
             for y in range(8):
-                sy = oy + y + 1 - _TOP_Y
+                sy = src_oy + y
                 for x in range(8):
-                    sx = (ox + x + 8) % _IMG_W
-                    if 0 <= sy < _TOP_H:
-                        pat.append(color_to_index[self._pixel_rgb(top, sx, sy)])
-                    else:
-                        pat.append(0)
+                    sx = ox + x
+                    pat.append(color_to_index[self._pixel_rgb(top, sx, sy)])
             cells[ci] = pat
         return cells
 
@@ -776,8 +778,8 @@ class TitleScreenDialog(QDialog):
     def _try_top_png_4color_cells(self, top):
         counts = Counter(
             self._pixel_rgb(top, x, y)
-            for y in range(_TOP_H)
-            for x in range(_IMG_W)
+            for y in range(top.height())
+            for x in range(top.width())
         )
         if len(counts) > 4:
             return None, []
@@ -808,6 +810,7 @@ class TitleScreenDialog(QDialog):
         cells = self._top_png_cells_from_indexed_image(top, color_to_index)
         msg = [
             f"4-color top PNG path: {len(counts)} colors, palette #{pal_no} updated",
+            f"source image kept at original size: {top.width()}x{top.height()}",
             "universal background color kept; only top title attributes were retargeted",
         ]
         return cells, msg
@@ -865,19 +868,30 @@ class TitleScreenDialog(QDialog):
                 f"指定画像: {top.width()}x{top.height()}\n\n"
                 "全体PNG取り込みは現在停止しています。")
             return
-        top = top.convertToFormat(QImage.Format_RGB32).scaled(
-            _IMG_W, _TOP_H, Qt.IgnoreAspectRatio,
-            Qt.FastTransformation)
+        if top.width() <= 0 or top.height() <= 0 or \
+                top.width() % 8 != 0 or top.height() % 8 != 0:
+            QMessageBox.critical(
+                self, "Import failed",
+                "Top PNGとして読み込める画像は、幅と高さが8の倍数である必要があります。\n"
+                f"指定画像: {top.width()}x{top.height()}")
+            return
+        top = top.convertToFormat(QImage.Format_RGB32)
         snap = bytes(self._rom)
         try:
             cells, pre_msgs = self._try_top_png_4color_cells(top)
             if cells is None:
-                full = self._build_image(color=True).convertToFormat(QImage.Format_RGB32)
-                for y in range(_TOP_H):
-                    for x in range(_IMG_W):
+                full = QImage(_IMG_W, _IMG_H, QImage.Format_RGB32)
+                pal = self._title_palette()
+                bg = NES_COLORS[pal[0] & 0x3F]
+                full.fill(QColor(*bg))
+                for y in range(top.height()):
+                    for x in range(top.width()):
                         full.setPixel(x, _TOP_Y + y, top.pixel(x, y))
                 cells = self._cells_from_display_image(full)
-                pre_msgs = ["multi-color top PNG path: existing title palette used"]
+                pre_msgs = [
+                    "multi-color top PNG path: existing title palette used",
+                    f"source image kept at original size: {top.width()}x{top.height()}",
+                ]
             chg = TS.apply_title_top_image_from_png(
                 self._rom, cells)
         except (TS.TitleScreenError, ValueError) as e:
