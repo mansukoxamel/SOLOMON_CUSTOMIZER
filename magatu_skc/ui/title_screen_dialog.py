@@ -35,6 +35,8 @@ _GRAY = (0x10, 0x68, 0xB0, 0xF8)
 _NT_W = 32
 _IMG_W = 256                        # 32*8
 _IMG_H = 240                        # 30*8
+_DISPLAY_SCROLL_X = 8               # rendered -> preview display correction
+_DISPLAY_SCROLL_Y = 1
 _TOP_Y = 6 * 8 + 1                  # display-corrected title logo/banner band
 _TOP_H = 8 * 8                      # rows 6..13, 256x64
 _TOP_SIDE_FORMAT = "solomon_customizer_title_top_sidecar"
@@ -45,6 +47,16 @@ _TITLE_ATTR_US_OFF = 0x4CBF
 _TITLE_ATTR_EXTRA_JP_OFF = 0x10 + (0xCDF5 - 0x8000)
 # bg パターンテーブル = CHR bank3 上位 4KB (tiles 256-511、ロゴ域 R196)
 _BG_BASE = 256
+
+
+def _ppu_pixel_to_display(x, y):
+    return ((int(x) + _DISPLAY_SCROLL_X) % _IMG_W,
+            (int(y) + _DISPLAY_SCROLL_Y) % _IMG_H)
+
+
+def _display_pixel_to_ppu(x, y):
+    return ((int(x) - _DISPLAY_SCROLL_X) % _IMG_W,
+            (int(y) - _DISPLAY_SCROLL_Y) % _IMG_H)
 
 
 class TitlePreviewLabel(QLabel):
@@ -77,9 +89,7 @@ class TitlePreviewLabel(QLabel):
             super().mouseMoveEvent(event)
             return
 
-        # Preview pixels are display-corrected: result(x,y)=rendered((x-8)%W,(y-1)%H).
-        src_x = (int(px) - 8) % _IMG_W
-        src_y = (int(py) - 1) % _IMG_H
+        src_x, src_y = _display_pixel_to_ppu(px, py)
         col = src_x // 8
         row = src_y // 8
         cell = row * _NT_W + col
@@ -103,8 +113,7 @@ class TitlePreviewLabel(QLabel):
             px = event.pos().x() // self._zoom
             py = event.pos().y() // self._zoom
             if 0 <= px < _IMG_W and 0 <= py < _IMG_H:
-                src_x = (int(px) - 8) % _IMG_W
-                src_y = (int(py) - 1) % _IMG_H
+                src_x, src_y = _display_pixel_to_ppu(px, py)
                 row = src_y // 8
                 col = src_x // 8
                 if event.button() == Qt.RightButton:
@@ -569,10 +578,7 @@ class TitleScreenDialog(QDialog):
                 continue
             row = cell // _NT_W
             col = cell % _NT_W
-            # Match the preview's display correction: rendered tile appears at
-            # x+8, y+1 with wrap.
-            dx = ((col * 8) + 8) % _IMG_W
-            dy = ((row * 8) + 1) % _IMG_H
+            dx, dy = _ppu_pixel_to_display(col * 8, row * 8)
             painter.drawRect(
                 dx * zoom,
                 dy * zoom,
@@ -590,10 +596,10 @@ class TitleScreenDialog(QDialog):
         pen.setWidth(1)
         painter.setPen(pen)
         for x in range(0, _IMG_W + 1, 8):
-            sx = x * zoom
+            sx = _ppu_pixel_to_display(x, 0)[0] * zoom
             painter.drawLine(sx, 0, sx, _IMG_H * zoom)
         for y in range(0, _IMG_H + 1, 8):
-            sy = y * zoom
+            sy = _ppu_pixel_to_display(0, y)[1] * zoom
             painter.drawLine(0, sy, _IMG_W * zoom, sy)
         painter.end()
 
@@ -604,10 +610,10 @@ class TitleScreenDialog(QDialog):
         pen.setWidth(max(1, zoom // 2))
         painter.setPen(pen)
         for x in range(0, _IMG_W + 1, 16):
-            sx = x * zoom
+            sx = _ppu_pixel_to_display(x, 0)[0] * zoom
             painter.drawLine(sx, 0, sx, _IMG_H * zoom)
         for y in range(0, _IMG_H + 1, 16):
-            sy = y * zoom
+            sy = _ppu_pixel_to_display(0, y)[1] * zoom
             painter.drawLine(0, sy, _IMG_W * zoom, sy)
         painter.end()
 
@@ -828,9 +834,8 @@ class TitleScreenDialog(QDialog):
             ox, oy = col * 8, row * 8
             pat = []
             for y in range(8):
-                sy = (oy + y + 1) % H
                 for x in range(8):
-                    sx = (ox + x + 8) % W
+                    sx, sy = _ppu_pixel_to_display(ox + x, oy + y)
                     rgb = img.pixel(sx, sy)
                     r = (rgb >> 16) & 0xFF
                     gg = (rgb >> 8) & 0xFF
@@ -927,9 +932,9 @@ class TitleScreenDialog(QDialog):
             ox, oy = col * 8, row * 8
             pat = []
             for y in range(8):
-                sy = oy + y + 1 - _TOP_Y
                 for x in range(8):
-                    sx = (ox + x + 8) % _IMG_W
+                    sx, display_y = _ppu_pixel_to_display(ox + x, oy + y)
+                    sy = display_y - _TOP_Y
                     if 0 <= sy < _TOP_H:
                         pat.append(color_to_index[self._pixel_rgb(top, sx, sy)])
                     else:
