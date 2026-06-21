@@ -24,6 +24,7 @@ from ..core import rom as _rommod
 from ..nes.palette import NES_COLORS
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 from collections import Counter
+from itertools import permutations
 import json
 import os
 import re
@@ -646,6 +647,8 @@ class TitleScreenDialog(QDialog):
             return
         snap = bytes(self._rom)
         try:
+            self._guard_image_16x16_colors(
+                pending["image"], start_row=row, start_col=col)
             patterns, tile_w, tile_h = self._tile_patterns_from_image_at(
                 pending["image"], row, col)
             chg = TS.apply_title_stamp_cells(
@@ -806,6 +809,43 @@ class TitleScreenDialog(QDialog):
                 bd, best = d, i
         return best
 
+    def _guard_image_16x16_colors(self, img, start_row=0, start_col=0,
+                                  display_top_y=None):
+        """Reject imports that would need five or more colors in one attr block."""
+        blocks = {}
+        for y in range(img.height()):
+            for x in range(img.width()):
+                if display_top_y is None:
+                    row = start_row + (y // 8)
+                    col = start_col + (x // 8)
+                else:
+                    ppu_x, ppu_y = _display_pixel_to_ppu(x, display_top_y + y)
+                    row = ppu_y // 8
+                    col = ppu_x // 8
+                colors = blocks.setdefault((col // 2, row // 2), set())
+                colors.add(self._pixel_rgb(img, x, y))
+        bad = [
+            (bx, by, len(colors))
+            for (bx, by), colors in sorted(blocks.items())
+            if len(colors) > 4
+        ]
+        if not bad:
+            return
+        lines = [
+            "PPU基準の16x16内に5色以上あるため取り込めません。",
+            "NES背景attributeは16x16ごとに4色までです。",
+            "このまま1色を潰すと絵柄が変わるため中止します。",
+            "",
+            "問題の16x16ブロック:",
+        ]
+        for bx, by, n in bad[:16]:
+            dx, dy = _ppu_pixel_to_display(bx * 16, by * 16)
+            lines.append(
+                f"- attr ({bx},{by}) / 表示px ({dx},{dy}) / {n}色")
+        if len(bad) > 16:
+            lines.append(f"...ほか {len(bad) - 16} ブロック")
+        raise ValueError("\n".join(lines))
+
     def _on_import_png(self):
         QMessageBox.information(
             self, "PNG取り込み",
@@ -820,34 +860,36 @@ class TitleScreenDialog(QDialog):
         W, H = _IMG_W, _IMG_H
         pal = self._title_palette()
         attr = self._title_attributes()
+        attr_color_counts = {}
+        for cell in range(_NT_W * (H // 8)):
+            row, col = divmod(cell, _NT_W)
+            counts = attr_color_counts.setdefault((col // 2, row // 2), Counter())
+            ox, oy = col * 8, row * 8
+            for y in range(8):
+                for x in range(8):
+                    sx, sy = _ppu_pixel_to_display(ox + x, oy + y)
+                    counts[self._pixel_rgb(img, sx, sy)] += 1
+        attr_color_maps = {}
+        for (bx, by), counts in attr_color_counts.items():
+            pal_no = self._attr_palette_no(attr, by * 2, bx * 2)
+            rgb_choices = [
+                NES_COLORS[pal[0] & 0x3F],
+                NES_COLORS[pal[pal_no * 4 + 1] & 0x3F],
+                NES_COLORS[pal[pal_no * 4 + 2] & 0x3F],
+                NES_COLORS[pal[pal_no * 4 + 3] & 0x3F],
+            ]
+            attr_color_maps[(bx, by)] = self._distinct_palette_index_map(
+                counts, rgb_choices)
         cells = []
         for cell in range(_NT_W * (H // 8)):
             row, col = divmod(cell, _NT_W)
-            pal_no = self._attr_palette_no(attr, row, col)
-            nes_choices = [
-                pal[0],
-                pal[pal_no * 4 + 1],
-                pal[pal_no * 4 + 2],
-                pal[pal_no * 4 + 3],
-            ]
-            rgb_choices = [NES_COLORS[c & 0x3F] for c in nes_choices]
+            color_map = attr_color_maps[(col // 2, row // 2)]
             ox, oy = col * 8, row * 8
             pat = []
             for y in range(8):
                 for x in range(8):
                     sx, sy = _ppu_pixel_to_display(ox + x, oy + y)
-                    rgb = img.pixel(sx, sy)
-                    r = (rgb >> 16) & 0xFF
-                    gg = (rgb >> 8) & 0xFF
-                    b = rgb & 0xFF
-                    best, bd = 0, 1 << 60
-                    for pi, (rr, rg, rb) in enumerate(rgb_choices):
-                        d = ((int(r) - rr) * (int(r) - rr) +
-                             (int(gg) - rg) * (int(gg) - rg) +
-                             (int(b) - rb) * (int(b) - rb))
-                        if d < bd:
-                            best, bd = pi, d
-                    pat.append(best)
+                    pat.append(color_map[self._pixel_rgb(img, sx, sy)])
             cells.append(pat)
         return cells
 
@@ -856,34 +898,37 @@ class TitleScreenDialog(QDialog):
         tile_h = img.height() // 8
         pal = self._title_palette()
         attr = self._title_attributes()
+        attr_color_counts = {}
+        for ty in range(tile_h):
+            for tx in range(tile_w):
+                row = start_row + ty
+                col = start_col + tx
+                counts = attr_color_counts.setdefault((col // 2, row // 2), Counter())
+                for y in range(8):
+                    for x in range(8):
+                        counts[self._pixel_rgb(img, tx * 8 + x, ty * 8 + y)] += 1
+        attr_color_maps = {}
+        for (bx, by), counts in attr_color_counts.items():
+            pal_no = self._attr_palette_no(attr, by * 2, bx * 2)
+            rgb_choices = [
+                NES_COLORS[pal[0] & 0x3F],
+                NES_COLORS[pal[pal_no * 4 + 1] & 0x3F],
+                NES_COLORS[pal[pal_no * 4 + 2] & 0x3F],
+                NES_COLORS[pal[pal_no * 4 + 3] & 0x3F],
+            ]
+            attr_color_maps[(bx, by)] = self._distinct_palette_index_map(
+                counts, rgb_choices)
         patterns = []
         for ty in range(tile_h):
             for tx in range(tile_w):
                 row = start_row + ty
                 col = start_col + tx
-                pal_no = self._attr_palette_no(attr, row, col)
-                nes_choices = [
-                    pal[0],
-                    pal[pal_no * 4 + 1],
-                    pal[pal_no * 4 + 2],
-                    pal[pal_no * 4 + 3],
-                ]
-                rgb_choices = [NES_COLORS[c & 0x3F] for c in nes_choices]
+                color_map = attr_color_maps[(col // 2, row // 2)]
                 pat = []
                 for y in range(8):
                     for x in range(8):
-                        rgb = img.pixel(tx * 8 + x, ty * 8 + y)
-                        r = (rgb >> 16) & 0xFF
-                        gg = (rgb >> 8) & 0xFF
-                        b = rgb & 0xFF
-                        best, bd = 0, 1 << 60
-                        for pi, (rr, rg, rb) in enumerate(rgb_choices):
-                            d = ((int(r) - rr) * (int(r) - rr) +
-                                 (int(gg) - rg) * (int(gg) - rg) +
-                                 (int(b) - rb) * (int(b) - rb))
-                            if d < bd:
-                                best, bd = pi, d
-                        pat.append(best)
+                        rgb = self._pixel_rgb(img, tx * 8 + x, ty * 8 + y)
+                        pat.append(color_map[rgb])
                 patterns.append(pat)
         return patterns, tile_w, tile_h
 
@@ -946,6 +991,23 @@ class TitleScreenDialog(QDialog):
     def _rgb_dist(a, b):
         return sum((int(x) - int(y)) * (int(x) - int(y))
                    for x, y in zip(a, b))
+
+    @staticmethod
+    def _distinct_palette_index_map(color_counts, rgb_choices):
+        colors = list(color_counts.keys())
+        if len(colors) > 4:
+            raise ValueError("internal error: 16x16 color guard was not applied")
+        best_map = {}
+        best_score = None
+        for perm in permutations(range(4), len(colors)):
+            score = 0
+            for rgb, pi in zip(colors, perm):
+                score += color_counts[rgb] * TitleScreenDialog._rgb_dist(
+                    rgb, rgb_choices[pi])
+            if best_score is None or score < best_score:
+                best_score = score
+                best_map = {rgb: pi for rgb, pi in zip(colors, perm)}
+        return best_map
 
     def _unused_title_palette_no_outside_top(self, attr):
         counts = [0, 0, 0, 0]
@@ -1081,6 +1143,7 @@ class TitleScreenDialog(QDialog):
             return
         snap = bytes(self._rom)
         try:
+            self._guard_image_16x16_colors(top, display_top_y=_TOP_Y)
             cells, pre_msgs = self._try_top_png_4color_cells(top)
             if cells is None:
                 full = QImage(_IMG_W, _IMG_H, QImage.Format_RGB32)

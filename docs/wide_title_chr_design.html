@@ -106,7 +106,35 @@
   <code>x=6..23, y=6..13</code> は、現在想定しているタイトルロゴ差し替えの中心範囲。自由配置154箇所の考え方自体は、この範囲に限定しない。
 </div>
 
-<h2>5. タイトル移植の対象と保証範囲</h2>
+<h2>5. 表示スクロールとattribute境界</h2>
+<p>ワイドタイトル版の見た目を理解するときは、「画面に見えている画像」と「PPU内部のnametable/attribute座標」を分けて扱う。実画面ではタイトル背景がスクロール設定でずれて表示されるため、スクリーンショットを左上から16px単位で切ると、attribute境界をまたいで5色以上あるように見えることがある。</p>
+<table>
+<tr><th>項目</th><th>確定内容</th></tr>
+<tr><td>スクロール設定</td><td>US arcade wide titleでは <code>$1E=$F8</code>, <code>$1F=$00</code> をタイトル中に設定し、NMI側で <code>$2005</code> へ書き込む。</td></tr>
+<tr><td>実際の書き込み</td><td class="num">$8BD1: LDA $1E / $8BD3: STA $2005<br>$8BD6: LDA $1F / $8BD8: STA $2005</td></tr>
+<tr><td>見た目の補正</td><td><code>$F8</code> は横方向の -8px 相当として働く。カスタマイザーのプレビューでは、実測に合わせて <code>display(x,y) = ppu(x+8, y+1)</code> の見え方として扱う。</td></tr>
+<tr><td>attribute境界</td><td>色グループの16x16境界はスクリーン左上基準ではなく、PPUのnametable/attribute座標基準。見た目上は <code>x=8, y=1</code> ずれた位置から16px区切りになる。</td></tr>
+<tr><td>5色以上に見える理由</td><td>スクリーンショットを左上 <code>x=0,y=0</code> から16x16で切ると、複数のattributeブロックをまたぐため、5色以上のブロックが出る。<code>x=8,y=1</code> を基準に切ると全ブロックが4色以内に収まる。</td></tr>
+<tr><td>編集UIの扱い</td><td>絵柄は実際の表示位置で見せる。一方、8x8グリッド、16x16色グリッド、ホバー表示、貼り付け位置、色グループ変更、PNG取り込みの判定は、表示座標をPPU座標へ戻して処理する。</td></tr>
+<tr><td>実装上の注意</td><td>見た目座標をそのままattribute判定に使わない。必ず表示補正 <code>x+8/y+1</code> と逆変換を通し、PPU座標でattribute 16x16を決める。</td></tr>
+</table>
+
+<div class="note">
+  つまり、絵柄そのものは表示画面基準で見せるが、色の16x16区切りはPPU基準で管理する。ワイドタイトル版はNESの4色制限を破っているのではなく、表示スクロールによってスクリーン左上とattribute境界が一致していない。
+</div>
+
+<h3>5.1 PNG取り込み時の色方針</h3>
+<table>
+<tr><th>項目</th><th>方針</th></tr>
+<tr><td>基本姿勢</td><td>PNG取り込みは絵柄登録を優先する。色をNESパレットへ推測して仮合わせすること自体は構わないが、PNG上で別々だった色を同じCHR pixel indexへ潰して、線や模様などの絵柄を変えてはいけない。</td></tr>
+<tr><td>登録方法</td><td>各16x16 attributeブロック内で、PNGに出た別々の色を別々のCHR pixel index <code>0,1,2,3</code> へ登録する。ここで守るべきものは最終表示色ではなく、別色として描かれていた部分が別indexとして残ること。</td></tr>
+<tr><td>ユーザー調整</td><td>取り込み後の見た目の色合わせは、タイトル色編集と16x16色グループ変更でユーザーが行う。ツール側が仮に近いNES色を当てる場合も、別色を同じindexへまとめない。</td></tr>
+<tr><td>表現不能条件</td><td>PPU基準の1つの16x16 attributeブロック内に5色以上ある場合は、NES背景attributeの制限上そのまま表現できない。この場合だけ取り込みを止め、問題の16x16ブロック座標をユーザーへ示す。</td></tr>
+<tr><td>今後必要な機能</td><td>PNG色がCHR index <code>0,1,2,3</code> のどこに割り当たるかが、ユーザーの意図と逆転・ずれを起こす場合がある。そのため、16x16ブロック単位でindex <code>0/1/2/3</code> を入れ替える機能が必要。</td></tr>
+<tr><td>index入れ替えの注意</td><td>CHRタイルは複数箇所で共有されることがある。index入れ替えを実装する時は、共有CHRを直接壊すのではなく、必要なら自由CHR枠へ複製してから対象ブロックだけ入れ替える設計にする。</td></tr>
+</table>
+
+<h2>6. タイトル移植の対象と保証範囲</h2>
 <p>別ROMからタイトルを移植する機能は、元ROM側のタイトルデータを読み取り、このアプリのワイドタイトル方式へ移すためのもの。</p>
 <table>
 <tr><th>項目</th><th>方針</th></tr>
@@ -118,7 +146,7 @@
 <tr><td>保証しない範囲</td><td>移植元の拡張ROM自体が誤った作りになっている場合は保証しない。座標、配置、属性、CHR参照などが元ROM側で壊れている場合、その壊れ方までは救済対象にしない。</td></tr>
 </table>
 
-<h2>6. 現在コードのPNG取り込み判断</h2>
+<h2>7. 現在コードのPNG取り込み判断</h2>
 <p>対象: <code>magatu_skc/core/title_screen.py</code> の <code>apply_title_top_image_from_png()</code>。</p>
 <table>
 <tr><th>処理</th><th>現在の内容</th></tr>
@@ -132,7 +160,7 @@
   <b>問題になりそうな点:</b> 「今のワイドタイトル画面で上部以外に使っていない」ことと、「自由に上書きしてよいCHRタイルである」ことを同一視している。修正時は、上のマスター表を基準にした固定のCHR所有権表へ寄せる。
 </div>
 
-<h2>7. 現在のワイドタイトルstream使用状況</h2>
+<h2>8. 現在のワイドタイトルstream使用状況</h2>
 <table>
 <tr><th>区分</th><th>使用stream値</th><th>対応するbank内タイル</th></tr>
 <tr><td>タイトル上部で使用</td><td class="num">0x80-0x8F, 0x99-0x9F, 0xA9, 0xAC-0xAF, 0xB8-0xBF, 0xD1, 0xE0-0xFF</td><td class="num">0x180-0x18F, 0x199-0x19F, 0x1A9, 0x1AC-0x1AF, 0x1B8-0x1BF, 0x1D1, 0x1E0-0x1FF</td></tr>
@@ -140,7 +168,7 @@
 <tr><td>現在コードが上部PNG候補から除外する値</td><td class="num">0xA8, 0xC0-0xD0, 0xD2-0xDD</td><td class="num">0x1A8, 0x1C0-0x1D0, 0x1D2-0x1DD</td></tr>
 </table>
 
-<h2>8. ワイドタイトルPRG/RAM配置</h2>
+<h2>9. ワイドタイトルPRG/RAM配置</h2>
 <div class="grid">
 <div>
 <h3>PRG1: decoder / stream</h3>
@@ -166,7 +194,7 @@
 </div>
 </div>
 
-<h2>9. タイトル側ポインタ/フック</h2>
+<h2>10. タイトル側ポインタ/フック</h2>
 <table>
 <tr><th>用途</th><th>CPUアドレス</th><th>ROMファイル位置</th><th>備考</th></tr>
 <tr><td>title pointer A low/high</td><td class="num">$CCBA / $CCBE</td><td class="num">0x4CCA / 0x4CCE</td><td>bank1 stream A へ向ける。</td></tr>
@@ -175,7 +203,7 @@
 <tr><td>idle demo clear stub</td><td class="num">$BC0E</td><td class="num">0x3C1E</td><td>9 bytes。</td></tr>
 </table>
 
-<h2>10. 修正方針メモ</h2>
+<h2>11. 修正方針メモ</h2>
 <table>
 <tr><th>論点</th><th>現状</th><th>修正時に決めること</th></tr>
 <tr><td>自由CHR範囲</td><td>上の「自由に使えるCHR範囲マスター」を確定済み範囲として扱う。</td><td>実装側のPNG取り込みやBUILD文字割当を、このマスター表と同じ定数へ移す。</td></tr>
