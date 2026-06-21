@@ -41,6 +41,7 @@ from ..core.config import (
     DEFAULT_GAMEPAD_SHORTCUTS,
     GAMEPAD_BUTTON_OPTIONS,
     DEFAULT_SHORTCUTS,
+    SHORTCUT_DEFINITIONS,
     normalize_int_setting,
     normalize_gamepad_shortcuts,
     normalize_panel_variant_settings,
@@ -10953,9 +10954,45 @@ class MainWindow(QMainWindow):
         return focus_level_no, self._undo_entry_label(level_nos)
 
     def _show_keymap(self):
-        def sc(action: str) -> str:
-            return escape(self._shortcut_text(action))
+        from .keyboard_map import KeyboardMapDialog
+        KeyboardMapDialog.show_from_dict(
+            self,
+            self._keyboard_map_bindings(),
+            title=f"{APP_DISPLAY_NAME} v{__version__} ショートカットMAP",
+            app_name=APP_DISPLAY_NAME,
+            notes_html=self._keyboard_map_notes_html(),
+            geometry_state=self._keyboard_map_geometry_state(),
+            geometry_changed=self._save_keyboard_map_geometry_state,
+        )
 
+    def _keyboard_map_geometry_state(self) -> dict:
+        return {
+            "x": self._app_config.get("keyboard_map_dlg_x", -1),
+            "y": self._app_config.get("keyboard_map_dlg_y", -1),
+            "w": self._app_config.get("keyboard_map_dlg_w", -1),
+            "h": self._app_config.get("keyboard_map_dlg_h", -1),
+        }
+
+    def _save_keyboard_map_geometry_state(self, state: dict):
+        mapping = {
+            "x": "keyboard_map_dlg_x",
+            "y": "keyboard_map_dlg_y",
+            "w": "keyboard_map_dlg_w",
+            "h": "keyboard_map_dlg_h",
+        }
+        changed = False
+        for source_key, config_key in mapping.items():
+            try:
+                value = int(state.get(source_key, -1))
+            except Exception:
+                value = -1
+            if self._app_config.get(config_key) != value:
+                self._app_config[config_key] = value
+                changed = True
+        if changed:
+            save_config(self._app_config)
+
+    def _keyboard_map_notes_html(self) -> str:
         gamepad_labels = dict(GAMEPAD_BUTTON_OPTIONS)
 
         def pad(action: str) -> str:
@@ -10965,16 +11002,7 @@ class MainWindow(QMainWindow):
             button = shortcuts.get(action, DEFAULT_GAMEPAD_SHORTCUTS.get(action, ""))
             return escape(gamepad_labels.get(button, "未割当"))
 
-        msg = f"""<b>基本</b><br>
-{sc("help")}: このヘルプ<br>
-{sc("settings")}: 設定画面<br>
-{sc("test_play")} / パッド {pad("test_play")}: テストプレイ<br>
-{sc("stage_prev")} / {sc("stage_next")} / パッド {pad("stage_prev")} / {pad("stage_next")}: ステージ切替<br>
-{sc("grid")}: グリッド表示切替<br>
-{sc("undo")}: Undo<br>
-{sc("redo")} / {sc("redo_alt")}: Redo<br>
-<br>
-<b>マウス操作</b><br>
+        return f"""<b>マウス操作</b><br>
 左クリック: 選択中の要素を配置<br>
 右クリック: そのマスの要素を削除<br>
 左ドラッグ: 連続配置<br>
@@ -10983,42 +11011,67 @@ Ctrl+左ドラッグ: 既存要素を移動<br>
 Shift+左ドラッグ: 範囲選択<br>
 Alt+左クリック: スポイト（そのマスの要素をピッカーに取り込む）<br>
 <br>
-<b>ホバー位置のクイック操作</b><br>
-{sc("delete_hover_or_selection")} / {sc("delete_hover_or_selection_alt")}: ホバー位置を削除<br>
-{sc("hover_enemy_left")} / {sc("hover_enemy_right")} / {sc("hover_enemy_up")} / {sc("hover_enemy_down")}: ホバー位置の敵を対応する向きに変更<br>
-{sc("hover_enemy_speed")}: ホバー位置の敵スピードを循環変更<br>
-{sc("hover_info")}: ホバー情報ポップアップの表示/非表示<br>
-<br>
-<b>アイテムフラグ</b><br>
-{sc("item_flag_toggle")}: ホバー位置のアイテム/鍵/扉状態を順に切替<br>
-{sc("item_flag_toggle_reverse")}: ホバー位置のアイテム/鍵/扉状態を逆順に切替<br>
-{sc("hover_item_normal")}: ホバー位置のアイテム/鍵/扉を通常に変更<br>
-{sc("hover_item_hidden")}: ホバー位置のアイテム/鍵/扉を隠しに変更（デーモンミラー上では隠しアイテム0x48を配置）<br>
-{sc("hover_item_in_block")}: ホバー位置のアイテム/鍵/扉をブロック内に変更<br>
-{sc("hover_item_white_in_block")}: ホバー位置のアイテム/鍵/扉を白ブロック内に変更<br>
-{sc("hover_item_visible_in_block")}: ホバー位置のアイテム/鍵を透明ブロック内に変更<br>
-{sc("hover_item_cracked_in_block")}: ホバー位置のアイテムをひび割れブロック内に変更<br>
-<br>
 <b>範囲編集</b><br>
-{sc("select_all")}: 編集エリア全体を選択（0,0）-（14,11）<br>
-{sc("copy_selection")}: コピー<br>
-{sc("clear_selection")}: 選択解除<br>
-{sc("paste_selection")}: ペースト（選択範囲またはホバー位置を起点）<br>
-{sc("cut_selection")}: 切り取り<br>
-{sc("item_replace")}: オブジェクト一括置換<br>
-{sc("delete_hover_or_selection")} / {sc("delete_hover_or_selection_alt")}: 範囲内を削除<br>
-{sc("flip_horizontal")}: 左右反転<br>
-{sc("flip_vertical")}: 上下反転<br>
-{sc("clear_selection_escape")}: 選択解除<br>
-{sc("favorite_1")}〜{sc("favorite_9")} / {sc("favorite_0")}: お気に入りスロット選択<br>
-<br>
+ペーストは、選択範囲またはホバー位置を起点にします。<br>
+Delete/Backspaceは、選択範囲がある場合は範囲内削除、なければホバー位置削除です。<br>
 左右反転は、地形・アイテム・敵・敵の左右向き・スタート・鍵・扉・星座パネル・ミラー・六芒星などのメタ項目も反転します。<br>
 <br>
+<b>アイテム状態</b><br>
+Tab/Shift+Tab系は、ホバー位置のアイテム/鍵/扉状態を順送り/逆送りします。<br>
+隠しに変更した時、デーモンミラー上では隠しアイテム0x48を配置します。<br>
+<br>
 <b>ファイル読込</b><br>
-.nes / .zip をウィンドウにドラッグ&ドロップできます。<br>
+.nes / .zip はウィンドウへドラッグ&ドロップで読込できます。<br>
 コマンドライン例: python SOLOMON_CUSTOMIZER.py path/to/rom.nes<br>
+<br>
+<b>ゲームパッド</b><br>
+テストプレイ: {pad("test_play")}<br>
+前/次ステージ: {pad("stage_prev")} / {pad("stage_next")}<br>
 """
-        QMessageBox.information(self, "ショートカット", msg)
+
+    def _keyboard_map_bindings(self) -> dict:
+        shortcuts = normalize_shortcuts(self._app_config.get("shortcuts"))
+        bindings = {}
+        for action, label, default in SHORTCUT_DEFINITIONS:
+            key_text = str(shortcuts.get(action, default) or "").strip()
+            if not key_text:
+                continue
+            bindings[key_text] = {
+                "description": label,
+                "category": self._keyboard_map_category(action),
+            }
+        return bindings
+
+    @staticmethod
+    def _keyboard_map_category(action: str) -> str:
+        if action in {"stage_prev", "stage_next"} or action.startswith("hover_enemy_"):
+            return "navigation"
+        if action in {"grid", "stage_compare", "hover_info"}:
+            return "display"
+        if action in {"help", "settings"}:
+            return "system"
+        if action.startswith("favorite_") or action.startswith("hover_item_"):
+            return "ui"
+        if action in {
+            "undo",
+            "redo",
+            "redo_alt",
+            "select_all",
+            "clear_selection",
+            "copy_selection",
+            "paste_selection",
+            "cut_selection",
+            "item_replace",
+            "item_flag_toggle",
+            "item_flag_toggle_reverse",
+            "delete_hover_or_selection",
+            "delete_hover_or_selection_alt",
+            "clear_selection_escape",
+            "flip_horizontal",
+            "flip_vertical",
+        }:
+            return "file_op"
+        return "other"
 
     # ====== Drag & Drop ======
 
