@@ -290,7 +290,7 @@ class TitleScreenDialog(QDialog):
         b_save_top.clicked.connect(self._on_save_top_image)
         br.addWidget(b_save_top)
         b_png_top = QPushButton("Top PNG読込...")
-        b_png_top.setToolTip("256x64の上部ロゴ領域PNGを読み込み、下半分は触らない")
+        b_png_top.setToolTip("最大256x64の上部ロゴ領域PNGを読み込み、下半分は触らない")
         b_png_top.clicked.connect(self._on_import_top_png)
         br.addWidget(b_png_top)
         b_imp = QPushButton("別ROMからタイトルを移植...")
@@ -654,52 +654,11 @@ class TitleScreenDialog(QDialog):
         return best
 
     def _on_import_png(self):
-        path = self._pick_open(
-            "取り込む画像を選択 (PNG/BMP)", "*.png;*.bmp")
-        if not path:
-            return
-        img = QImage(path)
-        if img.isNull():
-            QMessageBox.critical(self, "取り込み不可",
-                                 f"画像を読み込めません:\n{path}")
-            return
-        # 256x240 / 4階調へ正規化
-        img = img.convertToFormat(QImage.Format_RGB32).scaled(
-            _IMG_W, _IMG_H, Qt.IgnoreAspectRatio,
-            Qt.SmoothTransformation)
-        # ★出力時補正の逆 (画像I/Oのみ): rendered(u,v) =
-        #   imported((u+8)%W, (v+1)%H)。これで export→import が厳密一致
-        W, H = _IMG_W, _IMG_H
-        cells = []
-        for cell in range(_NT_W * (H // 8)):         # 32*30=960
-            row, col = divmod(cell, _NT_W)
-            ox, oy = col * 8, row * 8
-            pat = []
-            for y in range(8):
-                sy = (oy + y + 1) % H
-                for x in range(8):
-                    sx = (ox + x + 8) % W
-                    rgb = img.pixel(sx, sy)
-                    r = (rgb >> 16) & 0xFF
-                    gg = (rgb >> 8) & 0xFF
-                    b = rgb & 0xFF
-                    g = (r * 299 + gg * 587 + b * 114) // 1000
-                    pat.append(self._nearest_idx(g))
-            cells.append(pat)
-        try:
-            chg = TS.apply_title_image(self._rom, cells)
-        except (TS.TitleScreenError, ValueError) as e:
-            QMessageBox.critical(self, "取り込み不可", str(e))
-            return
-        except Exception as e:
-            QMessageBox.critical(self, "取り込み失敗",
-                                 f"{type(e).__name__}: {e}")
-            return
-        self._changed = True
-        self._refresh()
         QMessageBox.information(
-            self, "PNG取り込み完了",
-            "\n".join(chg) + "\n\n(実機/エミュで要確認)")
+            self, "PNG取り込み",
+            "全体PNG取り込みは現在停止しています。\n"
+            "タイトル画像の読み込みは「Top PNG読込...」から、"
+            "最大256x64の画像を指定してください。")
 
     def _cells_from_display_image(self, img):
         img = img.convertToFormat(QImage.Format_RGB32).scaled(
@@ -890,7 +849,7 @@ class TitleScreenDialog(QDialog):
 
     def _on_import_top_png(self):
         path = self._pick_open(
-            "Open Top PNG (PNG/BMP, 256x64 recommended)", "*.png;*.bmp")
+            "Open Top PNG (PNG/BMP, max 256x64)", "*.png;*.bmp")
         if not path:
             return
         top = QImage(path)
@@ -898,6 +857,13 @@ class TitleScreenDialog(QDialog):
             QMessageBox.critical(
                 self, "Open failed",
                 f"Could not open image:\n{path}")
+            return
+        if top.width() > _IMG_W or top.height() > _TOP_H:
+            QMessageBox.critical(
+                self, "Import failed",
+                "Top PNGとして読み込める画像は最大256x64です。\n"
+                f"指定画像: {top.width()}x{top.height()}\n\n"
+                "全体PNG取り込みは現在停止しています。")
             return
         top = top.convertToFormat(QImage.Format_RGB32).scaled(
             _IMG_W, _TOP_H, Qt.IgnoreAspectRatio,
