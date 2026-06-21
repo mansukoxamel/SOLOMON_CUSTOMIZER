@@ -1595,22 +1595,6 @@ class MainWindow(QMainWindow):
         self.lbl_stage_compare_mode = QLabel("")
         self.lbl_stage_compare_mode.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         self.lbl_stage_compare_mode.setMinimumWidth(0)
-        stage_compare_edit_row = QHBoxLayout()
-        stage_compare_edit_row.addWidget(self.lbl_stage_compare_mode, 1)
-        self.btn_stage_compare_orientation = QPushButton("縦横(Q)")
-        self.btn_stage_compare_orientation.setToolTip(
-            "比較しながら編集の表示方向を横並び/縦並びで切り替えます。(Q)"
-        )
-        self.btn_stage_compare_orientation.clicked.connect(
-            self._toggle_stage_compare_edit_orientation
-        )
-        stage_compare_edit_row.addWidget(self.btn_stage_compare_orientation)
-        self.btn_stage_compare_edit_end = QPushButton("終了")
-        self.btn_stage_compare_edit_end.setToolTip("比較編集モードを終了して通常表示に戻します。")
-        self.btn_stage_compare_edit_end.clicked.connect(lambda: self._clear_stage_compare())
-        stage_compare_edit_row.addWidget(self.btn_stage_compare_edit_end)
-        fl.addLayout(stage_compare_edit_row)
-
         compare_tool_row = QHBoxLayout()
         self.btn_rom_diff = QPushButton("ROM比較")
         self.btn_rom_diff.setToolTip(
@@ -1627,6 +1611,22 @@ class MainWindow(QMainWindow):
         )
         compare_tool_row.addWidget(self.btn_stage_compare_edit_start)
         fl.addLayout(compare_tool_row)
+
+        stage_compare_edit_row = QHBoxLayout()
+        stage_compare_edit_row.addWidget(self.lbl_stage_compare_mode, 1)
+        self.btn_stage_compare_orientation = QPushButton("縦横(Q)")
+        self.btn_stage_compare_orientation.setToolTip(
+            "比較しながら編集の表示方向を横並び/縦並びで切り替えます。(Q)"
+        )
+        self.btn_stage_compare_orientation.clicked.connect(
+            self._toggle_stage_compare_edit_orientation
+        )
+        stage_compare_edit_row.addWidget(self.btn_stage_compare_orientation)
+        self.btn_stage_compare_edit_end = QPushButton("終了")
+        self.btn_stage_compare_edit_end.setToolTip("比較編集モードを終了して通常表示に戻します。")
+        self.btn_stage_compare_edit_end.clicked.connect(lambda: self._clear_stage_compare())
+        stage_compare_edit_row.addWidget(self.btn_stage_compare_edit_end)
+        fl.addLayout(stage_compare_edit_row)
         self._set_stage_compare_controls_visible(False)
         left_layout.addWidget(file_group)
 
