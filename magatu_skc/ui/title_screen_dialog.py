@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QDialogButtonBox, QMessageBox, QScrollArea, QWidget, QComboBox,
     QFileDialog, QInputDialog, QGridLayout, QGroupBox, QLineEdit,
-    QSpinBox,
+    QSpinBox, QRadioButton,
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QColor, QPen
@@ -131,15 +131,23 @@ class HexSpinBox(QSpinBox):
 
 
 class TitlePaletteDialog(QDialog):
-    def __init__(self, colors, parent=None, apply_callback=None):
+    def __init__(self, colors, parent=None, apply_callback=None,
+                 group_select_enabled=False, current_group=0,
+                 group_callback=None, live_apply=False):
         super().__init__(parent)
         self.setWindowTitle("タイトル色編集")
         self._initial_colors = [c & 0x3F for c in colors]
         self._colors = [c & 0x3F for c in colors]
         self._apply_callback = apply_callback
+        self._group_select_enabled = bool(group_select_enabled)
+        self._group_callback = group_callback
+        self._live_apply = bool(live_apply)
+        self._current_group = int(current_group) & 0x03
+        self._initial_group = self._current_group
         self._sel = 0
         self._swatches = []
         self._color_buttons = []
+        self._group_radios = []
 
         root = QVBoxLayout(self)
         note = QLabel(
@@ -156,13 +164,20 @@ class TitlePaletteDialog(QDialog):
             "$3F08", "$3F09", "$3F0A", "$3F0B",
             "$3F0C", "$3F0D", "$3F0E", "$3F0F",
         ]
+        for group in range(4):
+            rb = QRadioButton(f"パレット {group}")
+            rb.setChecked(group == self._current_group)
+            rb.setEnabled(self._group_select_enabled)
+            rb.toggled.connect(lambda checked, idx=group: self._select_group(idx, checked))
+            self._group_radios.append(rb)
+            gl.addWidget(rb, group * 2, 0)
         for i in range(16):
-            gl.addWidget(QLabel(labels[i]), (i // 4) * 2, i % 4)
+            gl.addWidget(QLabel(labels[i]), (i // 4) * 2, (i % 4) + 1)
             b = QPushButton()
             b.setFixedSize(72, 30)
             b.clicked.connect(lambda _, idx=i: self._select_slot(idx))
             self._swatches.append(b)
-            gl.addWidget(b, (i // 4) * 2 + 1, i % 4)
+            gl.addWidget(b, (i // 4) * 2 + 1, (i % 4) + 1)
         root.addWidget(g)
 
         picker = QGroupBox("NES 64色")
@@ -187,6 +202,9 @@ class TitlePaletteDialog(QDialog):
     def colors(self):
         return list(self._colors)
 
+    def selected_group(self):
+        return self._current_group
+
     @staticmethod
     def _button_style(nes_idx, selected=False):
         r, g, b = NES_COLORS[nes_idx & 0x3F]
@@ -201,9 +219,18 @@ class TitlePaletteDialog(QDialog):
         self._sel = idx
         self._refresh_all()
 
+    def _select_group(self, group, checked):
+        if not checked:
+            return
+        self._current_group = int(group) & 0x03
+        if self._group_callback is not None:
+            self._group_callback(self._current_group)
+
     def _set_selected_color(self, nes_idx):
         self._colors[self._sel] = nes_idx & 0x3F
         self._refresh_all()
+        if self._live_apply:
+            self._on_apply()
 
     def _refresh_all(self):
         for i, b in enumerate(self._swatches):
@@ -227,6 +254,11 @@ class TitlePaletteDialog(QDialog):
         if self._apply_callback is not None:
             try:
                 self._apply_callback(list(self._initial_colors))
+            except Exception:
+                pass
+        if self._group_callback is not None:
+            try:
+                self._group_callback(self._initial_group)
             except Exception:
                 pass
         self.reject()
@@ -629,30 +661,38 @@ class TitleScreenDialog(QDialog):
     def _on_attr_block_clicked(self, row, col):
         if row < 0 or col < 0 or row + 1 >= (_IMG_H // 8) or col + 1 >= _NT_W:
             return
-        attr = self._title_attributes()
-        current = self._attr_palette_no(attr, row, col)
-        labels = [f"パレット {i}" for i in range(4)]
-        item, ok = QInputDialog.getItem(
-            self,
-            "16x16色変更",
-            f"16x16ブロック x={col}, y={row} に使う4色:",
-            labels,
-            current,
-            False)
-        if not ok:
-            return
-        pal_no = labels.index(item)
         snap = bytes(self._rom)
-        try:
+        current = self._attr_palette_no(self._title_attributes(), row, col)
+
+        def apply_group_preview(pal_no):
+            attr = self._title_attributes()
             for rr in (row, row + 1):
                 for cc in (col, col + 1):
                     self._set_title_attr_palette_no(attr, rr, cc, pal_no)
             self._write_title_attributes(attr)
-        except Exception as e:
+            self._refresh()
+            self._preview_status.setText(
+                f"16x16色プレビュー: x={col}, y={row} / パレット {pal_no}")
+
+        def apply_colors_preview(colors):
+            self._set_title_palette(colors)
+            self._refresh()
+
+        dlg = TitlePaletteDialog(
+            self._title_palette(),
+            self,
+            apply_callback=apply_colors_preview,
+            group_select_enabled=True,
+            current_group=current,
+            group_callback=apply_group_preview,
+            live_apply=True)
+        if dlg.exec_() != QDialog.Accepted:
             self._rom[:] = snap
-            QMessageBox.critical(
-                self, "16x16色変更失敗", f"{type(e).__name__}: {e}")
+            self._refresh()
             return
+        pal_no = dlg.selected_group()
+        self._set_title_palette(dlg.colors())
+        apply_group_preview(pal_no)
         self._changed = True
         self._refresh()
         self._preview_status.setText(
