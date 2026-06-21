@@ -1290,6 +1290,15 @@ class MainWindow(QMainWindow):
             self._position_stage_compare_diff_label()
         if (hasattr(self, "level_view") and
                 obj is self.level_view.viewport() and
+                event.type() == QEvent.Wheel and
+                event.modifiers() & Qt.ControlModifier):
+            delta = event.angleDelta().y()
+            if delta:
+                self._change_stage_relative(-1 if delta > 0 else 1, play_sound=True)
+                event.accept()
+                return True
+        if (hasattr(self, "level_view") and
+                obj is self.level_view.viewport() and
                 event.type() in (
                     QEvent.Enter,
                     QEvent.Leave,
@@ -11177,6 +11186,7 @@ class MainWindow(QMainWindow):
 左ドラッグ: 連続配置<br>
 右ドラッグ: 連続削除<br>
 Ctrl+左ドラッグ: 既存要素を移動<br>
+Ctrl+ホイール: 前/次ステージへ移動<br>
 Shift+左ドラッグ: 範囲選択<br>
 Alt+左クリック: スポイト（そのマスの要素をピッカーに取り込む）<br>
 <br>
