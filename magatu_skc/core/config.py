@@ -39,7 +39,6 @@ SHORTCUT_DEFINITIONS = [
     ("test_play", "テストプレイ", "P"),
     ("stage_prev", "前のステージ", "PgUp"),
     ("stage_next", "次のステージ", "PgDown"),
-    ("stage_compare", "PNG比較表示切替", ""),
     ("stage_compare_edit_start", "比較編集開始", "Ctrl+Q"),
     ("stage_compare_edit_orientation", "比較編集の縦横切替", "Q"),
     ("settings", "設定", "F9"),
@@ -129,11 +128,6 @@ def normalize_shortcuts(value) -> dict:
             if raw is None:
                 raw = default
             shortcuts[key] = str(raw).strip()
-        if (
-            shortcuts.get("stage_compare") == "Tab"
-            and shortcuts.get("item_flag_toggle") == "Tab"
-        ):
-            shortcuts["stage_compare"] = ""
     return shortcuts
 
 

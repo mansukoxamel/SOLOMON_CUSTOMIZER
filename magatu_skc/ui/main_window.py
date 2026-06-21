@@ -441,10 +441,6 @@ class MainWindow(QMainWindow):
         self.shortcut_stage_next = QShortcut(self._shortcut_sequence("stage_next"), self)
         self.shortcut_stage_next.setContext(Qt.WindowShortcut)
         self.shortcut_stage_next.activated.connect(lambda: self._change_stage_relative(1))
-        self.shortcut_stage_compare_toggle = QShortcut(self._shortcut_sequence("stage_compare"), self)
-        self.shortcut_stage_compare_toggle.setContext(Qt.WindowShortcut)
-        self.shortcut_stage_compare_toggle.activated.connect(self._toggle_stage_compare_view)
-        self.shortcut_stage_compare_toggle.setEnabled(False)
         self.shortcut_stage_compare_edit_start = QShortcut(
             self._shortcut_sequence("stage_compare_edit_start"), self
         )
@@ -536,7 +532,6 @@ class MainWindow(QMainWindow):
             "test_play": "shortcut_test_play",
             "stage_prev": "shortcut_stage_prev",
             "stage_next": "shortcut_stage_next",
-            "stage_compare": "shortcut_stage_compare_toggle",
             "stage_compare_edit_start": "shortcut_stage_compare_edit_start",
             "stage_compare_edit_orientation": "shortcut_stage_compare_orientation",
             "item_replace": "shortcut_item_replace",
@@ -577,9 +572,6 @@ class MainWindow(QMainWindow):
             return True
         if action == "stage_next":
             self._change_stage_relative(1, play_sound=True)
-            return True
-        if action == "stage_compare" and self._stage_compare_png_image is not None:
-            self._toggle_stage_compare_view()
             return True
         if action == "stage_compare_edit_start":
             self._toggle_stage_compare_edit_from_snapshot()
@@ -4304,9 +4296,6 @@ class MainWindow(QMainWindow):
         orientation_shortcut = getattr(self, "shortcut_stage_compare_orientation", None)
         if orientation_shortcut is not None:
             orientation_shortcut.setEnabled(bool(visible and self._stage_compare_edit_mode))
-        shortcut = getattr(self, "shortcut_stage_compare_toggle", None)
-        if shortcut is not None:
-            shortcut.setEnabled(bool(visible))
 
     def _is_stage_compare_diff_view(self) -> bool:
         return bool(
@@ -8820,10 +8809,6 @@ class MainWindow(QMainWindow):
 
     def keyPressEvent(self, event):
         key = event.key()
-        if self._event_matches_shortcut(event, "stage_compare") and self._stage_compare_png_image is not None:
-            self._toggle_stage_compare_view()
-            event.accept()
-            return
         if self._event_matches_shortcut(event, "stage_compare_edit_start"):
             self._toggle_stage_compare_edit_from_snapshot()
             event.accept()
@@ -11227,7 +11212,6 @@ Tab/Shift+Tab系は、ホバー位置のアイテム/鍵/扉状態を順送り/�
             return "navigation"
         if action in {
             "grid",
-            "stage_compare",
             "stage_compare_edit_start",
             "stage_compare_edit_orientation",
             "show_stats",
