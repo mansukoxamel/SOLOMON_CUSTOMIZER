@@ -22,6 +22,7 @@ from PyQt5.QtGui import QImage, QPixmap, QPainter, QColor, QPen
 from ..core import title_screen as TS
 from ..core import rom as _rommod
 from ..nes.palette import NES_COLORS
+from ..nes.tile import NesTile, NES_GFX_TILE_BYTE_SIZE
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 from collections import Counter
 from itertools import permutations
@@ -46,6 +47,7 @@ _TITLE_PALETTE_SCRIPT_OFF = 0x10 + (0x958A - 0x8000)
 _TITLE_ATTR_JP_OFF = 0x4D68
 _TITLE_ATTR_US_OFF = 0x4CBF
 _TITLE_ATTR_EXTRA_JP_OFF = 0x10 + (0xCDF5 - 0x8000)
+_SPRITE_PALETTE_OFFSET = 0xED4
 # bg パターンテーブル = CHR bank3 上位 4KB (tiles 256-511、ロゴ域 R196)
 _BG_BASE = 256
 
@@ -523,6 +525,179 @@ class TitlePaletteDialog(QDialog):
         self.reject()
 
 
+class TitleCharacterPickerDialog(QDialog):
+    def __init__(self, rom_data, parent=None):
+        super().__init__(parent)
+        if parent is not None:
+            self.setFont(parent.font())
+        self._rom = rom_data
+        self._items = self._dedupe_romframe_items(self._romframe_items())
+        self.setWindowTitle("タイトルキャラクター追加")
+        self.resize(520, 160)
+
+        root = QVBoxLayout(self)
+        row = QHBoxLayout()
+        row.addWidget(QLabel("キャラ:"))
+        self._combo = QComboBox()
+        for g, s, fi, t1, t2, attr in self._items:
+            self._combo.addItem(
+                f"g{g:02X} s{s:02X} f{fi} / tile ${t1:02X},${t2:02X} attr ${attr:02X}",
+                (g, s, fi, t1, t2, attr))
+        self._combo.currentIndexChanged.connect(self._refresh_preview)
+        row.addWidget(self._combo, 1)
+        root.addLayout(row)
+
+        prow = QHBoxLayout()
+        prow.addWidget(QLabel("色:"))
+        self._palette = QComboBox()
+        for i in range(4):
+            self._palette.addItem(f"SPR {i}", i)
+        self._palette.currentIndexChanged.connect(self._refresh_preview)
+        prow.addWidget(self._palette)
+        prow.addStretch()
+        root.addLayout(prow)
+
+        self._preview = QLabel()
+        self._preview.setFixedSize(96, 96)
+        self._preview.setAlignment(Qt.AlignCenter)
+        self._preview.setStyleSheet("background:#202020; border:1px solid #555;")
+        root.addWidget(self._preview, 0, Qt.AlignHCenter)
+
+        note = QLabel(
+            f"OK後、タイトルプレビューをクリックして配置します。最大 {TS.title_character_max()} 体。")
+        note.setWordWrap(True)
+        root.addWidget(note)
+
+        bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        root.addWidget(bb)
+        self._refresh_preview()
+
+    def selected_character(self):
+        if not self._items:
+            raise ValueError("ROMフレームが見つかりません。")
+        data = self._combo.currentData()
+        if data is None:
+            data = self._items[0]
+        g, s, fi, t1, t2, attr = data
+        return {
+            "group": g,
+            "state": s,
+            "frame": fi,
+            "tile1": t1,
+            "tile2": t2,
+            "attr": attr,
+            "palette": int(self._palette.currentData()) & 0x03,
+        }
+
+    def _sprite_palette_qcolors(self, sprite_palette_no):
+        off = _SPRITE_PALETTE_OFFSET + (4 + (int(sprite_palette_no) & 3)) * 4
+        vals = [0x00, 0x10, 0x30]
+        if off + 3 <= len(self._rom):
+            vals = [self._rom[off + i] & 0x3F for i in range(3)]
+        return [None] + [QColor(*NES_COLORS[v & 0x3F]) for v in vals]
+
+    def _draw_8x16(self, painter, zoom, ox, oy, tile_byte, oam_attr):
+        pal = self._sprite_palette_qcolors(oam_attr & 0x03)
+        hflip = bool(oam_attr & 0x40)
+        vflip = bool(oam_attr & 0x80)
+        half = 256 if (int(tile_byte) & 1) else 0
+        top = half + (int(tile_byte) & 0xFE)
+        chr_off = TS.chr_bank3_offset(self._rom)
+        for sub, tile_no in ((0, top), (1, top + 1)):
+            pos = chr_off + tile_no * NES_GFX_TILE_BYTE_SIZE
+            if pos + NES_GFX_TILE_BYTE_SIZE > len(self._rom):
+                continue
+            tile = NesTile(bytes(self._rom[pos:pos + NES_GFX_TILE_BYTE_SIZE]))
+            for py in range(8):
+                for px in range(8):
+                    pi = tile.pixels[py][px] & 0x03
+                    color = pal[pi]
+                    if color is None:
+                        continue
+                    dx = 7 - px if hflip else px
+                    sy = sub * 8 + py
+                    dy = 15 - sy if vflip else sy
+                    painter.fillRect(
+                        ox + dx * zoom, oy + dy * zoom,
+                        zoom, zoom, color)
+
+    def _refresh_preview(self, *_):
+        if not self._items:
+            self._preview.setText("なし")
+            return
+        ch = self.selected_character()
+        entry = TS.title_character_entry(
+            0, 0, ch["tile1"], ch["tile2"], ch["attr"], ch["palette"])
+        attr1, attr2 = TS.title_character_oam_attrs(entry[5])
+        img = QImage(96, 96, QImage.Format_ARGB32)
+        img.fill(QColor(32, 32, 32))
+        painter = QPainter(img)
+        zoom = 4
+        ox = (96 - 16 * zoom) // 2
+        oy = (96 - 16 * zoom) // 2
+        self._draw_8x16(painter, zoom, ox, oy, entry[3], attr1)
+        self._draw_8x16(painter, zoom, ox + 8 * zoom, oy, entry[4], attr2)
+        painter.end()
+        self._preview.setPixmap(QPixmap.fromImage(img))
+
+    @staticmethod
+    def _cf(cpu):
+        return 0x10 + (cpu - 0x8000)
+
+    def _romframe_items(self):
+        rom = self._rom
+        cf = self._cf
+        if len(rom) <= cf(0xDA00):
+            return []
+        gptrs = [
+            rom[cf(0xD0E8 + i * 2)] | (rom[cf(0xD0E8 + i * 2 + 1)] << 8)
+            for i in range(32)
+        ]
+        uniq = sorted(set(gptrs))
+        bound = {}
+        for i, p in enumerate(uniq):
+            bound[p] = uniq[i + 1] if i + 1 < len(uniq) else 0xD600
+        items = []
+        for g in range(32):
+            base = gptrs[g]
+            nstates = min(max(0, (bound.get(base, base + 4) - base) // 4), 64)
+            for s in range(nstates):
+                e = base + s * 4
+                phase = rom[cf(e)]
+                ri = rom[cf(e + 1)]
+                ptr = rom[cf(e + 2)] | (rom[cf(e + 3)] << 8)
+                frames = (phase & 0x0F) + 1
+                if ri & 1:
+                    if not (0xD000 <= ptr <= 0xD600):
+                        continue
+                    final = rom[cf(ptr)] | (rom[cf(ptr + 1)] << 8)
+                else:
+                    final = ptr
+                if not (0xD600 <= final < 0xDA00):
+                    continue
+                for fi in range(min(frames, 8)):
+                    a = final + fi * 3
+                    if not (0xD600 <= a < 0xDA00):
+                        break
+                    items.append((g, s, fi, rom[cf(a)],
+                                  rom[cf(a + 1)], rom[cf(a + 2)]))
+        return items
+
+    @staticmethod
+    def _dedupe_romframe_items(items):
+        seen = set()
+        out = []
+        for item in items:
+            key = item[3], item[4], item[5]
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(item)
+        return out
+
+
 class TitlePngColorGuardDialog(QDialog):
     def __init__(self, error, parent=None):
         super().__init__(parent)
@@ -658,6 +833,7 @@ class TitleScreenDialog(QDialog):
         self._preview_status = QLabel("")
         root.addWidget(self._preview_status)
         self._pending_stamp = None
+        self._pending_title_character = None
 
         # 操作ボタン
         br = QHBoxLayout()
@@ -683,6 +859,15 @@ class TitleScreenDialog(QDialog):
             "既存文字ルーチンは変更しません。")
         b_text.clicked.connect(self._on_add_title_text)
         br.addWidget(b_text)
+        b_char = QPushButton("キャラクター追加...")
+        b_char.setToolTip(
+            f"$D0E8由来の16x16キャラを選び、タイトル上へ最大{TS.title_character_max()}体配置します。")
+        b_char.clicked.connect(self._on_pick_title_character)
+        br.addWidget(b_char)
+        b_char_clear = QPushButton("キャラ全削除")
+        b_char_clear.setToolTip("タイトル上に配置した静止キャラを全て消します。")
+        b_char_clear.clicked.connect(self._on_clear_title_characters)
+        br.addWidget(b_char_clear)
         b_pal = QPushButton("タイトル色...")
         b_pal.setToolTip("タイトル画面のBGパレット16色($3F00-$3F0F)を編集します。")
         b_pal.clicked.connect(self._on_edit_title_palette)
@@ -870,6 +1055,7 @@ class TitleScreenDialog(QDialog):
             Qt.FastTransformation)
         highlight_tile = self._highlight_tile.value()
         count = self._draw_preview_highlight(pm, z, grid, highlight_tile)
+        self._draw_title_character_overlay(pm, z)
         self._draw_preview_grid(pm, z)
         self._draw_preview_attr_grid(pm, z)
         self._draw_preview_group_overlay(
@@ -981,6 +1167,68 @@ class TitleScreenDialog(QDialog):
                 self._draw_wrapped_rect(painter, dx, dy, 16, 16, zoom)
         painter.end()
 
+    def _sprite_palette_qcolors(self, sprite_palette_no):
+        off = _SPRITE_PALETTE_OFFSET + (4 + (int(sprite_palette_no) & 3)) * 4
+        vals = [0x00, 0x10, 0x30]
+        if off + 3 <= len(self._rom):
+            vals = [self._rom[off + i] & 0x3F for i in range(3)]
+        return [None] + [QColor(*NES_COLORS[v & 0x3F]) for v in vals]
+
+    def _draw_8x16_oam_sprite(self, painter, zoom, x, y, tile_byte, oam_attr):
+        pal = self._sprite_palette_qcolors(oam_attr & 0x03)
+        hflip = bool(oam_attr & 0x40)
+        vflip = bool(oam_attr & 0x80)
+        half = 256 if (int(tile_byte) & 1) else 0
+        top = half + (int(tile_byte) & 0xFE)
+        chr_off = TS.chr_bank3_offset(self._rom)
+        for sub, tile_no in ((0, top), (1, top + 1)):
+            pos = chr_off + tile_no * NES_GFX_TILE_BYTE_SIZE
+            if pos + NES_GFX_TILE_BYTE_SIZE > len(self._rom):
+                continue
+            tile = NesTile(bytes(self._rom[pos:pos + NES_GFX_TILE_BYTE_SIZE]))
+            for py in range(8):
+                for px in range(8):
+                    pi = tile.pixels[py][px] & 0x03
+                    color = pal[pi]
+                    if color is None:
+                        continue
+                    dx = 7 - px if hflip else px
+                    sy = sub * 8 + py
+                    dy = 15 - sy if vflip else sy
+                    painter.fillRect(
+                        (int(x) + dx) * zoom,
+                        (int(y) + dy) * zoom,
+                        zoom,
+                        zoom,
+                        color,
+                    )
+
+    def _draw_title_character_overlay(self, pm, zoom):
+        try:
+            chars = TS.read_title_characters(self._rom)
+        except Exception:
+            return
+        painter = QPainter(pm)
+        for ch in chars:
+            if not ch.get("active"):
+                continue
+            x = int(ch.get("x", 0))
+            y = int(ch.get("y", 0))
+            self._draw_8x16_oam_sprite(
+                painter, zoom, x, y,
+                int(ch.get("tile1", 0)), int(ch.get("attr1", 0)))
+            self._draw_8x16_oam_sprite(
+                painter, zoom, x + 8, y,
+                int(ch.get("tile2", 0)), int(ch.get("attr2", 0)))
+            pen = QPen(QColor(255, 255, 255, 180))
+            pen.setWidth(max(1, zoom))
+            painter.setPen(pen)
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRect(
+                x * zoom, y * zoom, max(0, 16 * zoom - 1),
+                max(0, 16 * zoom - 1))
+        painter.end()
+
     def _restore_preview_status(self):
         self._preview_status.setText(getattr(self, "_preview_status_text", ""))
 
@@ -992,11 +1240,43 @@ class TitleScreenDialog(QDialog):
                 f"({pending['tile_w']}x{pending['tile_h']} tiles) / "
                 f"クリック位置 ({col}, {row})")
             return
+        pending_ch = getattr(self, "_pending_title_character", None)
+        if pending_ch:
+            dx, dy = _ppu_pixel_to_display(col * 8, row * 8)
+            self._preview_status.setText(
+                f"キャラ配置待ち: g{pending_ch['group']:02X} "
+                f"s{pending_ch['state']:02X} f{pending_ch['frame']} / "
+                f"x={dx}, y={dy}")
+            return
         self._preview_status.setText(
             f"cell ({col}, {row}) / stream 0x{stream:02X} / "
             f"bank内 0x{bank_tile:03X} / ROM 0x{file_start:X}-0x{file_end:X}")
 
     def _on_preview_tile_clicked(self, row, col):
+        pending_ch = getattr(self, "_pending_title_character", None)
+        if pending_ch:
+            dx, dy = _ppu_pixel_to_display(col * 8, row * 8)
+            snap = bytes(self._rom)
+            try:
+                chg = TS.add_title_character(
+                    self._rom, dx, dy, pending_ch["tile1"], pending_ch["tile2"],
+                    pending_ch["attr"], pending_ch["palette"])
+            except (TS.TitleScreenError, ValueError) as e:
+                self._rom[:] = snap
+                QMessageBox.critical(self, "キャラクター配置不可", str(e))
+                return
+            except Exception as e:
+                self._rom[:] = snap
+                QMessageBox.critical(
+                    self, "キャラクター配置失敗",
+                    f"{type(e).__name__}: {e}")
+                return
+            self._pending_title_character = None
+            self._changed = True
+            self._refresh()
+            QMessageBox.information(
+                self, "キャラクター配置完了", "\n".join(chg))
+            return
         pending = getattr(self, "_pending_stamp", None)
         if not pending:
             self._on_edit_title_tile(row, col)
@@ -1727,6 +2007,50 @@ class TitleScreenDialog(QDialog):
         QMessageBox.information(
             self, "タイトル移植完了",
             "\n".join(chg) + "\n\n(実機/エミュで要確認)")
+
+    def _on_pick_title_character(self):
+        try:
+            dlg = TitleCharacterPickerDialog(self._rom, self)
+        except Exception as e:
+            QMessageBox.critical(
+                self, "キャラクター選択不可",
+                f"{type(e).__name__}: {e}")
+            return
+        if dlg.exec_() != QDialog.Accepted:
+            return
+        try:
+            self._pending_title_character = dlg.selected_character()
+        except Exception as e:
+            QMessageBox.critical(
+                self, "キャラクター選択不可",
+                f"{type(e).__name__}: {e}")
+            return
+        ch = self._pending_title_character
+        self._preview_status.setText(
+            f"キャラ配置待ち: g{ch['group']:02X} s{ch['state']:02X} "
+            f"f{ch['frame']} / 配置したい場所をクリック")
+
+    def _on_clear_title_characters(self):
+        if QMessageBox.question(
+                self, "キャラ全削除",
+                "タイトル上に配置した静止キャラを全て消します。") != QMessageBox.Yes:
+            return
+        snap = bytes(self._rom)
+        try:
+            chg = TS.clear_title_characters(self._rom)
+        except (TS.TitleScreenError, ValueError) as e:
+            self._rom[:] = snap
+            QMessageBox.critical(self, "キャラ削除不可", str(e))
+            return
+        except Exception as e:
+            self._rom[:] = snap
+            QMessageBox.critical(
+                self, "キャラ削除失敗", f"{type(e).__name__}: {e}")
+            return
+        self._pending_title_character = None
+        self._changed = True
+        self._refresh()
+        QMessageBox.information(self, "キャラ全削除完了", "\n".join(chg))
 
     def _on_add_title_text(self):
         try:
