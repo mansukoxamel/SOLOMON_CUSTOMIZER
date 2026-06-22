@@ -45,21 +45,19 @@ _TOP_H = 8 * 8                      # rows 6..13, 256x64
 _TOP_SIDE_FORMAT = "solomon_customizer_title_top_sidecar"
 _STAMP_RE = re.compile(r"\d{8}_\d{6}")
 _TITLE_PALETTE_SCRIPT_OFF = 0x10 + (0x958A - 0x8000)
+_TITLE_FIXED_TEXT_PALETTE_OFF = 0x10 + (0x94C7 - 0x8000)
 _TITLE_ATTR_JP_OFF = 0x4D68
 _TITLE_ATTR_US_OFF = 0x4CBF
 _TITLE_ATTR_EXTRA_JP_OFF = 0x10 + (0xCDF5 - 0x8000)
 _SPRITE_PALETTE_OFFSET = 0xED4
 # bg パターンテーブル = CHR bank3 上位 4KB (tiles 256-511、ロゴ域 R196)
 _BG_BASE = 256
-_TITLE_FIXED_TEXT_LINES = (
-    (32, 24, "SCORE"),
-    (96, 24, "HI SCORE"),
-    (184, 24, "HI GDV"),
-    (64, 32, "0"),
-    (112, 32, "100000"),
-    (208, 32, "07"),
-    (56, 128, "PUSH START BUTTON"),
-    (48, 152, "TECMO,LTD.1986"),
+_TITLE_FIXED_TEXT_SCRIPT_CPU = (0x953F, 0x955C, 0x9571)
+_TITLE_FIXED_PUSH_TEXT_CPU = 0x955C
+_TITLE_FIXED_VALUE_LINES = (
+    (0x2880, "       0"),
+    (0x288B, "  100000"),
+    (0x2898, "47"),
 )
 
 
@@ -1032,6 +1030,11 @@ class TitleScreenDialog(QDialog):
             "既存文字ルーチンは変更しません。")
         b_text.clicked.connect(self._on_add_title_text)
         br.addWidget(b_text)
+        b_push_text = QPushButton("PUSH文字...")
+        b_push_text.setToolTip(
+            "中央のPUSH START BUTTON固定文字を17文字以内で変更します。")
+        b_push_text.clicked.connect(self._on_edit_push_start_text)
+        br.addWidget(b_push_text)
         b_char = QPushButton("キャラクター追加...")
         b_char.setToolTip(
             f"$D0E8由来の16x16キャラを選び、タイトル上へ最大{TS.title_character_max()}体配置します。")
@@ -1070,13 +1073,11 @@ class TitleScreenDialog(QDialog):
     def _build_image(self, color: bool = True) -> QImage:
         if color:
             try:
-                return self._draw_title_fixed_text_overlay(
-                    self._build_color_image(), color=True)
+                return self._build_color_image()
             except Exception:
                 # 色情報が読めない改造ROMでも、従来の4階調表示へ戻す。
                 pass
-        return self._draw_title_fixed_text_overlay(
-            self._build_gray_image(), color=False)
+        return self._build_gray_image()
 
     def _draw_title_fixed_text_overlay(self, img: QImage, color: bool) -> QImage:
         """Draw original title routine text for collision/layout preview only."""
@@ -1087,43 +1088,14 @@ class TitleScreenDialog(QDialog):
             pal = self._title_palette() if color else None
             attr = self._title_attributes() if color else None
             painter = QPainter(out)
-            for x0, y0, text in _TITLE_FIXED_TEXT_LINES:
-                x = int(x0)
-                for ch in text:
-                    if ch == " ":
-                        x += 8
-                        continue
-                    try:
-                        stream = TS._title_char_src_tile(ch)
-                    except Exception:
-                        x += 8
-                        continue
-                    pos = chr_off + ((_BG_BASE + stream) & 0x1FF) * \
-                        NES_GFX_TILE_BYTE_SIZE
-                    if pos + NES_GFX_TILE_BYTE_SIZE > len(self._rom):
-                        x += 8
-                        continue
-                    tile = NesTile(bytes(self._rom[pos:pos + NES_GFX_TILE_BYTE_SIZE]))
-                    for py in range(8):
-                        for px in range(8):
-                            pi = tile.pixels[py][px] & 0x03
-                            if pi == 0:
-                                continue
-                            dx = x + px
-                            dy = int(y0) + py
-                            if not (0 <= dx < _IMG_W and 0 <= dy < _IMG_H):
-                                continue
-                            if color:
-                                sx, sy = _display_pixel_to_ppu(dx, dy)
-                                pal_no = self._attr_palette_no(
-                                    attr, sy // 8, sx // 8)
-                                nes_idx = pal[pal_no * 4 + pi]
-                                qcolor = QColor(*NES_COLORS[nes_idx & 0x3F])
-                            else:
-                                v = _GRAY[pi]
-                                qcolor = QColor(v, v, v)
-                            painter.fillRect(dx, dy, 1, 1, qcolor)
-                    x += 8
+            for x0, y0, stream, role in self._title_fixed_text_tiles():
+                pos = chr_off + ((_BG_BASE + stream) & 0x1FF) * \
+                    NES_GFX_TILE_BYTE_SIZE
+                if pos + NES_GFX_TILE_BYTE_SIZE > len(self._rom):
+                    continue
+                tile = NesTile(bytes(self._rom[pos:pos + NES_GFX_TILE_BYTE_SIZE]))
+                self._draw_title_fixed_text_tile(
+                    painter, tile, int(x0), int(y0), color, pal, attr)
         except Exception:
             return img
         finally:
@@ -1131,13 +1103,153 @@ class TitleScreenDialog(QDialog):
                 painter.end()
         return out
 
+    def _title_fixed_text_palette(self):
+        off = _TITLE_FIXED_TEXT_PALETTE_OFF
+        if off + 19 <= len(self._rom):
+            if self._rom[off] == 0x3F and self._rom[off + 1] == 0x00:
+                ctrl = self._rom[off + 2]
+                if ctrl & 0x40:
+                    n = (ctrl & 0x3F) + 1
+                    if n >= 16 and off + 3 + 16 <= len(self._rom):
+                        return [self._rom[off + 3 + i] & 0x3F
+                                for i in range(16)]
+        return [
+            0x0F, 0x0F, 0x10, 0x30,
+            0x0F, 0x0F, 0x27, 0x30,
+            0x0F, 0x0F, 0x16, 0x30,
+            0x0F, 0x0F, 0x27, 0x38,
+        ]
+
+    def _title_fixed_text_tiles(self):
+        out = []
+        for cpu in _TITLE_FIXED_TEXT_SCRIPT_CPU:
+            out.extend(self._title_script_tiles(cpu))
+        for ppu_addr, text in _TITLE_FIXED_VALUE_LINES:
+            x, y = self._title_ppu_addr_to_display_xy(ppu_addr)
+            for ch in text:
+                if ch != " ":
+                    try:
+                        out.append((x, y, TS._title_char_src_tile(ch), "value"))
+                    except Exception:
+                        pass
+                x += 8
+        return out
+
+    def _title_grid_with_fixed_text(self, grid):
+        out = list(grid or [])
+        if len(out) < _NT_W * (_IMG_H // 8):
+            return out
+        for cell, stream in self._title_fixed_text_cells():
+            if 0 <= cell < len(out):
+                out[cell] = int(stream) & 0xFF
+        return out
+
+    def _title_fixed_text_cells(self):
+        out = []
+        for cpu in _TITLE_FIXED_TEXT_SCRIPT_CPU:
+            out.extend(self._title_script_cells(cpu))
+        for ppu_addr, text in _TITLE_FIXED_VALUE_LINES:
+            cell = self._title_ppu_addr_to_cell(ppu_addr)
+            for ch in text:
+                if ch != " ":
+                    try:
+                        out.append((cell, TS._title_char_src_tile(ch)))
+                    except Exception:
+                        pass
+                cell += 1
+        return out
+
+    def _title_script_cells(self, cpu):
+        pos = 0x10 + (int(cpu) - 0x8000)
+        if pos < 0 or pos + 3 > len(self._rom):
+            return []
+        out = []
+        while pos + 3 <= len(self._rom):
+            addr = (self._rom[pos] << 8) | self._rom[pos + 1]
+            ctrl = self._rom[pos + 2] & 0xFF
+            pos += 3
+            count = (ctrl & 0x3F) + 1
+            if not (0x2000 <= addr <= 0x2FFF) or pos + count > len(self._rom):
+                break
+            cell = self._title_ppu_addr_to_cell(addr)
+            step = _NT_W if ctrl & 0x80 else 1
+            if ctrl & 0x40:
+                for i in range(count):
+                    stream = self._rom[pos + i] & 0xFF
+                    if stream != 0x24:
+                        out.append((cell, stream))
+                    cell += step
+            pos += count
+            if pos >= len(self._rom) or self._rom[pos] == 0:
+                break
+        return out
+
+    def _title_script_tiles(self, cpu):
+        pos = 0x10 + (int(cpu) - 0x8000)
+        if pos < 0 or pos + 3 > len(self._rom):
+            return []
+        out = []
+        role = "push" if int(cpu) == _TITLE_FIXED_PUSH_TEXT_CPU else "fixed"
+        while pos + 3 <= len(self._rom):
+            addr = (self._rom[pos] << 8) | self._rom[pos + 1]
+            ctrl = self._rom[pos + 2] & 0xFF
+            pos += 3
+            count = (ctrl & 0x3F) + 1
+            if not (0x2000 <= addr <= 0x2FFF) or pos + count > len(self._rom):
+                break
+            x, y = self._title_ppu_addr_to_display_xy(addr)
+            if ctrl & 0x40:
+                for i in range(count):
+                    stream = self._rom[pos + i] & 0xFF
+                    if stream != 0x24:
+                        out.append((x, y, stream, role))
+                    if ctrl & 0x80:
+                        y += 8
+                    else:
+                        x += 8
+            pos += count
+            if pos >= len(self._rom) or self._rom[pos] == 0:
+                break
+        return out
+
+    @staticmethod
+    def _title_ppu_addr_to_display_xy(ppu_addr):
+        idx = (int(ppu_addr) - 0x2000) & 0x03FF
+        x = (idx % _NT_W) * 8
+        y = (idx // _NT_W) * 8
+        return _ppu_pixel_to_display(x, y)
+
+    @staticmethod
+    def _title_ppu_addr_to_cell(ppu_addr):
+        return (int(ppu_addr) - 0x2000) & 0x03FF
+
+    def _draw_title_fixed_text_tile(self, painter, tile, x0, y0, color, pal, attr):
+        for py in range(8):
+            for px in range(8):
+                pi = tile.pixels[py][px] & 0x03
+                if pi == 0:
+                    continue
+                dx = int(x0) + px
+                dy = int(y0) + py
+                if not (0 <= dx < _IMG_W and 0 <= dy < _IMG_H):
+                    continue
+                if color:
+                    px0, py0 = _display_pixel_to_ppu(dx, dy)
+                    pal_no = self._attr_palette_no(attr, py0 // 8, px0 // 8)
+                    nes_idx = pal[pal_no * 4 + pi]
+                    qcolor = QColor(*NES_COLORS[nes_idx & 0x3F])
+                else:
+                    v = _GRAY[pi]
+                    qcolor = QColor(v, v, v)
+                painter.fillRect(dx, dy, 1, 1, qcolor)
+
     def _build_gray_image(self) -> QImage:
         """nametable をデコードし CHR bank3 で実タイトルを合成。
         色は未確定ゆえ暗背景4階調 (形状確認用)。"""
         d = TS.decode_title_grid(self._rom)
         self._last_cells = d["cells"]
         tiles = TS.get_chr_bank3_tiles(self._rom)   # 512 NesTile
-        grid = d["grid"]
+        grid = self._title_grid_with_fixed_text(d["grid"])
         buf = bytearray(_IMG_W * _IMG_H)
         for cell in range(len(grid)):
             row = cell // _NT_W
@@ -1235,7 +1347,7 @@ class TitleScreenDialog(QDialog):
         d = TS.decode_title_grid(self._rom)
         self._last_cells = d["cells"]
         tiles = TS.get_chr_bank3_tiles(self._rom)
-        grid = d["grid"]
+        grid = self._title_grid_with_fixed_text(d["grid"])
         pal = self._title_palette()
         attr = self._title_attributes()
         buf = bytearray(_IMG_W * _IMG_H * 3)
@@ -2605,6 +2717,40 @@ class TitleScreenDialog(QDialog):
         QMessageBox.information(
             self, "追加文字完了",
             "\n".join(chg) + "\n\n既存の文字描画ルーチンは変更していません。")
+
+    def _on_edit_push_start_text(self):
+        try:
+            cur = TS.read_title_push_start_text(self._rom)
+        except (TS.TitleScreenError, ValueError) as e:
+            QMessageBox.critical(self, "PUSH文字不可", str(e))
+            return
+        except Exception as e:
+            QMessageBox.critical(
+                self, "PUSH文字読込失敗", f"{type(e).__name__}: {e}")
+            return
+        text, ok = QInputDialog.getText(
+            self,
+            "PUSH文字",
+            "PUSH START BUTTON位置の固定文字 "
+            "(A-Z / 0-9 / スペース / , . \"、最大17文字):",
+            text=cur)
+        if not ok:
+            return
+        snap = bytes(self._rom)
+        try:
+            chg = TS.set_title_push_start_text(self._rom, text)
+        except (TS.TitleScreenError, ValueError) as e:
+            self._rom[:] = snap
+            QMessageBox.critical(self, "PUSH文字不可", str(e))
+            return
+        except Exception as e:
+            self._rom[:] = snap
+            QMessageBox.critical(
+                self, "PUSH文字変更失敗", f"{type(e).__name__}: {e}")
+            return
+        self._changed = True
+        self._refresh()
+        self._preview_status.setText(" / ".join(chg))
 
     def _on_revert(self):
         if bytes(self._rom) == self._snap:

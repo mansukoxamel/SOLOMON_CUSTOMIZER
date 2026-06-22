@@ -1082,6 +1082,8 @@ def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b,
 
 _TITLE_TEXT_SUPPORTED = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ,.\""
 _TITLE_TEXT_ROW = 14
+_TITLE_PUSH_TEXT_CPU = 0x955C
+_TITLE_PUSH_TEXT_LEN = 17
 _TITLE_PUNCT_TILE = {
     ",": 0x25,
     "\"": 0x28,
@@ -1109,6 +1111,56 @@ def _title_char_tile_bytes(rom_data, ch: str) -> bytes:
     chr_off = chr_bank3_offset(rom_data)
     src_pos = chr_off + (_BG_BASE + src) * NES_GFX_TILE_BYTE_SIZE
     return bytes(rom_data[src_pos:src_pos + NES_GFX_TILE_BYTE_SIZE])
+
+
+def _title_char_from_src_tile(tile: int) -> str:
+    tile = int(tile) & 0xFF
+    if tile == 0x24:
+        return " "
+    for ch, val in _TITLE_PUNCT_TILE.items():
+        if tile == val:
+            return ch
+    if 0x00 <= tile <= 0x09:
+        return chr(ord("0") + tile)
+    if 0x0A <= tile <= 0x23:
+        return chr(ord("A") + tile - 0x0A)
+    return " "
+
+
+def read_title_push_start_text(rom_data) -> str:
+    """Read the fixed 17-tile PUSH START BUTTON title script text."""
+    pos = _wjp_cf(_TITLE_PUSH_TEXT_CPU)
+    if pos + 3 + _TITLE_PUSH_TEXT_LEN > len(rom_data):
+        raise TitleScreenError("title PUSH START script is outside ROM.")
+    if bytes(rom_data[pos:pos + 3]) != bytes((0x29, 0xE6, 0x50)):
+        raise TitleScreenError("title PUSH START script signature mismatch.")
+    return "".join(
+        _title_char_from_src_tile(rom_data[pos + 3 + i])
+        for i in range(_TITLE_PUSH_TEXT_LEN)
+    ).rstrip()
+
+
+def set_title_push_start_text(rom_data, text: str) -> list:
+    """Replace the fixed PUSH START BUTTON script text in-place."""
+    pos = _wjp_cf(_TITLE_PUSH_TEXT_CPU)
+    if pos + 3 + _TITLE_PUSH_TEXT_LEN > len(rom_data):
+        raise TitleScreenError("title PUSH START script is outside ROM.")
+    if bytes(rom_data[pos:pos + 3]) != bytes((0x29, 0xE6, 0x50)):
+        raise TitleScreenError("title PUSH START script signature mismatch.")
+    raw = (text or "").upper()
+    for ch in raw:
+        if ch not in _TITLE_TEXT_SUPPORTED:
+            raise TitleScreenError(
+                f"unsupported title text character {ch!r}; "
+                "use A-Z, 0-9, space, comma, period, and double quote.")
+    raw = " ".join(raw.split())
+    if len(raw) > _TITLE_PUSH_TEXT_LEN:
+        raise TitleScreenError(
+            f"PUSH START text is too long; maximum is {_TITLE_PUSH_TEXT_LEN} characters.")
+    line = raw.ljust(_TITLE_PUSH_TEXT_LEN)
+    for i, ch in enumerate(line):
+        rom_data[pos + 3 + i] = _title_char_src_tile(ch)
+    return [f"title PUSH START text set: {raw!r}"]
 
 
 def read_title_text_line(rom_data, row: int = _TITLE_TEXT_ROW) -> str:
