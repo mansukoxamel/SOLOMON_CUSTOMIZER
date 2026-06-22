@@ -15,12 +15,13 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QDialogButtonBox, QMessageBox, QScrollArea, QWidget, QComboBox,
     QFileDialog, QInputDialog, QGridLayout, QGroupBox, QLineEdit,
-    QSpinBox, QRadioButton, QButtonGroup,
+    QSpinBox, QRadioButton, QButtonGroup, QSizePolicy,
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QColor, QPen
 from ..core import title_screen as TS
 from ..core import rom as _rommod
+from ..core.config import save_config
 from ..nes.palette import NES_COLORS
 from ..nes.tile import NesTile, NES_GFX_TILE_BYTE_SIZE
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
@@ -73,14 +74,20 @@ def _display_pixel_to_ppu(x, y):
 class TitlePreviewLabel(QLabel):
     tile_hovered = pyqtSignal(int, int, int, int, int, int)
     tile_left = pyqtSignal()
-    tile_clicked = pyqtSignal(int, int)
+    tile_clicked = pyqtSignal(int, int, int)
     attr_block_clicked = pyqtSignal(int, int)
+    zoom_wheel = pyqtSignal(int)
+    character_drag_start = pyqtSignal(int, int, int)
+    character_drag_move = pyqtSignal(int, int)
+    character_drag_end = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._zoom = 1
         self._grid = []
         self._chr_start = 0
+        self._dragging_character = False
+        self._last_drag_cell = None
         self.setMouseTracking(True)
 
     def set_title_context(self, zoom, grid, chr_start):
@@ -108,6 +115,18 @@ class TitlePreviewLabel(QLabel):
             self.tile_left.emit()
             super().mouseMoveEvent(event)
             return
+        if self._dragging_character:
+            if event.modifiers() & Qt.ControlModifier:
+                cell = (row, col)
+                if cell != self._last_drag_cell:
+                    self._last_drag_cell = cell
+                    self.character_drag_move.emit(row, col)
+            else:
+                self._dragging_character = False
+                self._last_drag_cell = None
+                self.character_drag_end.emit()
+            super().mouseMoveEvent(event)
+            return
         stream = int(self._grid[cell]) & 0xFF
         bank_tile = (_BG_BASE + stream) & 0x1FF
         file_start = self._chr_start + bank_tile * 0x10
@@ -129,10 +148,30 @@ class TitlePreviewLabel(QLabel):
                 col = src_x // 8
                 if event.button() == Qt.RightButton:
                     self.attr_block_clicked.emit((row // 2) * 2, (col // 2) * 2)
+                elif event.modifiers() & Qt.ControlModifier:
+                    self._dragging_character = True
+                    self._last_drag_cell = (row, col)
+                    self.character_drag_start.emit(row, col, int(event.modifiers()))
                 else:
-                    self.tile_clicked.emit(row, col)
+                    self.tile_clicked.emit(row, col, int(event.modifiers()))
                 return
         super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if self._dragging_character:
+            self._dragging_character = False
+            self._last_drag_cell = None
+            self.character_drag_end.emit()
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+    def wheelEvent(self, event):
+        if event.modifiers() & Qt.ControlModifier:
+            self.zoom_wheel.emit(1 if event.angleDelta().y() > 0 else -1)
+            event.accept()
+            return
+        super().wheelEvent(event)
 
 
 class HexSpinBox(QSpinBox):
@@ -525,6 +564,55 @@ class TitlePaletteDialog(QDialog):
         self.reject()
 
 
+class TitleCharacterGridLabel(QLabel):
+    frame_clicked = pyqtSignal(int)
+    frame_double_clicked = pyqtSignal(int)
+
+    def __init__(self, item_count, cols, cell_w, cell_h, gap, parent=None):
+        super().__init__(parent)
+        self._item_count = int(item_count)
+        self._cols = int(cols)
+        self._cell_w = int(cell_w)
+        self._cell_h = int(cell_h)
+        self._gap = int(gap)
+
+    def _index_at(self, pos):
+        stride_w = self._cell_w + self._gap
+        stride_h = self._cell_h + self._gap
+        x = pos.x() - self._gap
+        y = pos.y() - self._gap
+        if x < 0 or y < 0 or stride_w <= 0 or stride_h <= 0:
+            return None
+        col = x // stride_w
+        row = y // stride_h
+        local_x = x % stride_w
+        local_y = y % stride_h
+        if col >= self._cols or local_x >= self._cell_w or local_y >= self._cell_h:
+            return None
+        idx = int(row * self._cols + col)
+        if 0 <= idx < self._item_count:
+            return idx
+        return None
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            idx = self._index_at(event.pos())
+            if idx is not None:
+                self.frame_clicked.emit(idx)
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            idx = self._index_at(event.pos())
+            if idx is not None:
+                self.frame_double_clicked.emit(idx)
+                event.accept()
+                return
+        super().mouseDoubleClickEvent(event)
+
+
 class TitleCharacterPickerDialog(QDialog):
     def __init__(self, rom_data, parent=None):
         super().__init__(parent)
@@ -532,39 +620,29 @@ class TitleCharacterPickerDialog(QDialog):
             self.setFont(parent.font())
         self._rom = rom_data
         self._items = self._dedupe_romframe_items(self._romframe_items())
+        self._selected_index = 0
         self.setWindowTitle("タイトルキャラクター追加")
-        self.resize(520, 160)
+        self.resize(760, 560)
 
         root = QVBoxLayout(self)
-        row = QHBoxLayout()
-        row.addWidget(QLabel("キャラ:"))
-        self._combo = QComboBox()
-        for g, s, fi, t1, t2, attr in self._items:
-            self._combo.addItem(
-                f"g{g:02X} s{s:02X} f{fi} / tile ${t1:02X},${t2:02X} attr ${attr:02X}",
-                (g, s, fi, t1, t2, attr))
-        self._combo.currentIndexChanged.connect(self._refresh_preview)
-        row.addWidget(self._combo, 1)
-        root.addLayout(row)
-
         prow = QHBoxLayout()
         prow.addWidget(QLabel("色:"))
         self._palette = QComboBox()
         for i in range(4):
             self._palette.addItem(f"SPR {i}", i)
-        self._palette.currentIndexChanged.connect(self._refresh_preview)
+        self._palette.currentIndexChanged.connect(self._refresh_all)
         prow.addWidget(self._palette)
+        self._selection_label = QLabel("")
+        prow.addWidget(self._selection_label, 1)
         prow.addStretch()
         root.addLayout(prow)
 
-        self._preview = QLabel()
-        self._preview.setFixedSize(96, 96)
-        self._preview.setAlignment(Qt.AlignCenter)
-        self._preview.setStyleSheet("background:#202020; border:1px solid #555;")
-        root.addWidget(self._preview, 0, Qt.AlignHCenter)
+        self._scroll = QScrollArea()
+        self._scroll.setWidgetResizable(False)
+        root.addWidget(self._scroll, 1)
 
         note = QLabel(
-            f"OK後、タイトルプレビューをクリックして配置します。最大 {TS.title_character_max()} 体。")
+            f"一覧をクリックして選択、ダブルクリックで確定。OK後、タイトルプレビューをクリックして配置します。最大 {TS.title_character_max()} 体。")
         note.setWordWrap(True)
         root.addWidget(note)
 
@@ -572,15 +650,13 @@ class TitleCharacterPickerDialog(QDialog):
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self.reject)
         root.addWidget(bb)
-        self._refresh_preview()
+        self._refresh_all()
 
     def selected_character(self):
         if not self._items:
             raise ValueError("ROMフレームが見つかりません。")
-        data = self._combo.currentData()
-        if data is None:
-            data = self._items[0]
-        g, s, fi, t1, t2, attr = data
+        idx = max(0, min(len(self._items) - 1, int(self._selected_index)))
+        g, s, fi, t1, t2, attr = self._items[idx]
         return {
             "group": g,
             "state": s,
@@ -623,32 +699,87 @@ class TitleCharacterPickerDialog(QDialog):
                         ox + dx * zoom, oy + dy * zoom,
                         zoom, zoom, color)
 
-    def _refresh_preview(self, *_):
-        if not self._items:
-            self._preview.setText("なし")
-            return
-        ch = self.selected_character()
-        entry = TS.title_character_entry(
-            0, 0, ch["tile1"], ch["tile2"], ch["attr"], ch["palette"])
+    def _draw_frame_to_image(self, img, zoom, ox, oy, tile1, tile2, frame_attr,
+                             palette):
+        entry = TS.title_character_entry(0, 0, tile1, tile2, frame_attr, palette)
         attr1, attr2 = TS.title_character_oam_attrs(entry[5])
-        img = QImage(96, 96, QImage.Format_ARGB32)
-        img.fill(QColor(32, 32, 32))
         painter = QPainter(img)
-        zoom = 4
-        ox = (96 - 16 * zoom) // 2
-        oy = (96 - 16 * zoom) // 2
         self._draw_8x16(painter, zoom, ox, oy, entry[3], attr1)
         self._draw_8x16(painter, zoom, ox + 8 * zoom, oy, entry[4], attr2)
         painter.end()
-        self._preview.setPixmap(QPixmap.fromImage(img))
+
+    def _refresh_all(self, *_):
+        old_v = self._scroll.verticalScrollBar().value() \
+            if getattr(self, "_scroll", None) is not None else 0
+        old_h = self._scroll.horizontalScrollBar().value() \
+            if getattr(self, "_scroll", None) is not None else 0
+        if not self._items:
+            lbl = QLabel("ROMフレームが見つかりません。")
+            lbl.setAlignment(Qt.AlignCenter)
+            self._scroll.setWidget(lbl)
+            return
+        cols = 10
+        zoom = 3
+        cell_w = 16 * zoom + 12
+        cell_h = 16 * zoom + 18
+        gap = 6
+        rows = (len(self._items) + cols - 1) // cols
+        img = QImage(cols * (cell_w + gap) + gap,
+                     rows * (cell_h + gap) + gap,
+                     QImage.Format_ARGB32)
+        img.fill(QColor(28, 28, 28))
+        pal = int(self._palette.currentData()) & 0x03
+        for i, (g, s, fi, t1, t2, attr) in enumerate(self._items):
+            ox = gap + (i % cols) * (cell_w + gap) + 6
+            oy = gap + (i // cols) * (cell_h + gap) + 4
+            self._draw_frame_to_image(img, zoom, ox, oy, t1, t2, attr, pal)
+        painter = QPainter(img)
+        painter.setPen(QColor(190, 190, 190))
+        for i, (g, s, fi, _t1, _t2, _attr) in enumerate(self._items):
+            x = gap + (i % cols) * (cell_w + gap)
+            y = gap + (i // cols) * (cell_h + gap)
+            painter.drawText(x + 3, y + cell_h - 4, f"g{g:02X}s{s:02X}f{fi}")
+            if i == self._selected_index:
+                pen = QPen(QColor(255, 230, 60), 3)
+                painter.setPen(pen)
+                painter.setBrush(Qt.NoBrush)
+                painter.drawRect(x, y, cell_w - 1, cell_h - 1)
+                painter.setPen(QColor(190, 190, 190))
+        painter.end()
+        lbl = TitleCharacterGridLabel(len(self._items), cols, cell_w, cell_h, gap)
+        lbl.setPixmap(QPixmap.fromImage(img))
+        lbl.frame_clicked.connect(self._select_index)
+        lbl.frame_double_clicked.connect(self._accept_index)
+        self._scroll.setWidget(lbl)
+        self._scroll.verticalScrollBar().setValue(old_v)
+        self._scroll.horizontalScrollBar().setValue(old_h)
+        self._refresh_selection_label()
+
+    def _refresh_selection_label(self):
+        if not self._items:
+            self._selection_label.setText("")
+            return
+        g, s, fi, t1, t2, attr = self._items[self._selected_index]
+        self._selection_label.setText(
+            f"選択: g{g:02X} s{s:02X} f{fi} / tile ${t1:02X},${t2:02X} attr ${attr:02X}")
+
+    def _select_index(self, index):
+        if not (0 <= int(index) < len(self._items)):
+            return
+        self._selected_index = int(index)
+        self._refresh_all()
+
+    def _accept_index(self, index):
+        self._select_index(index)
+        self.accept()
 
     @staticmethod
     def _cf(cpu):
         return 0x10 + (cpu - 0x8000)
 
-    def _romframe_items(self):
-        rom = self._rom
-        cf = self._cf
+    @staticmethod
+    def _romframe_items_for_rom(rom):
+        cf = TitleCharacterPickerDialog._cf
         if len(rom) <= cf(0xDA00):
             return []
         gptrs = [
@@ -684,6 +815,9 @@ class TitleCharacterPickerDialog(QDialog):
                     items.append((g, s, fi, rom[cf(a)],
                                   rom[cf(a + 1)], rom[cf(a + 2)]))
         return items
+
+    def _romframe_items(self):
+        return self._romframe_items_for_rom(self._rom)
 
     @staticmethod
     def _dedupe_romframe_items(items):
@@ -772,9 +906,17 @@ class TitleScreenDialog(QDialog):
         zr = QHBoxLayout()
         zr.addWidget(QLabel("表示倍率:"))
         self._zoom = QComboBox()
-        for z in (1, 2, 3, 4, 6, 8):
+        for z in (1, 2, 3, 4, 5, 6, 7, 8):
             self._zoom.addItem(f"x{z}", z)
-        self._zoom.setCurrentIndex(1)   # x2 (デフォルト)
+        self._zoom.setMinimumWidth(88)
+        self._zoom.setMinimumHeight(26)
+        saved_zoom = 2
+        if isinstance(self._app_config, dict):
+            try:
+                saved_zoom = int(self._app_config.get("title_screen_dlg_zoom", 2))
+            except Exception:
+                saved_zoom = 2
+        self._zoom.setCurrentIndex(max(0, self._zoom.findData(saved_zoom)))
         self._zoom.currentIndexChanged.connect(self._refresh)
         zr.addWidget(self._zoom)
         zr.addSpacing(16)
@@ -783,6 +925,8 @@ class TitleScreenDialog(QDialog):
         self._highlight_tile.setRange(0x100, 0x1FF)
         self._highlight_tile.setSingleStep(1)
         self._highlight_tile.setValue(0x130)
+        self._highlight_tile.setMinimumWidth(98)
+        self._highlight_tile.setMinimumHeight(26)
         self._highlight_tile.setToolTip("指定したCHR bank3内タイルをタイトルプレビュー上でピンク表示")
         self._highlight_tile.valueChanged.connect(self._refresh)
         zr.addWidget(self._highlight_tile)
@@ -792,6 +936,8 @@ class TitleScreenDialog(QDialog):
         self._group_overlay.addItem("なし", -1)
         for i in range(4):
             self._group_overlay.addItem(str(i), i)
+        self._group_overlay.setMinimumWidth(86)
+        self._group_overlay.setMinimumHeight(26)
         self._group_overlay.setToolTip("選択した色グループに属する16x16区画をプレビュー上で表示")
         self._group_overlay.currentIndexChanged.connect(self._refresh)
         zr.addWidget(self._group_overlay)
@@ -801,12 +947,17 @@ class TitleScreenDialog(QDialog):
         for i in range(4):
             self._group_from.addItem(str(i), i)
             self._group_to.addItem(str(i), i)
+        self._group_from.setMinimumWidth(54)
+        self._group_to.setMinimumWidth(54)
+        self._group_from.setMinimumHeight(26)
+        self._group_to.setMinimumHeight(26)
         self._group_from.setToolTip("一括置換元の色グループ")
         self._group_to.setToolTip("一括置換先の色グループ")
         zr.addWidget(self._group_from)
         zr.addWidget(QLabel("→"))
         zr.addWidget(self._group_to)
         b_group_replace = QPushButton("色G置換")
+        b_group_replace.setMinimumHeight(26)
         b_group_replace.setToolTip("選択した色グループを使う16x16区画を、別の色グループへ一括変更")
         b_group_replace.clicked.connect(self._on_replace_attr_group)
         zr.addWidget(b_group_replace)
@@ -823,17 +974,29 @@ class TitleScreenDialog(QDialog):
         self._canvas.tile_left.connect(self._restore_preview_status)
         self._canvas.tile_clicked.connect(self._on_preview_tile_clicked)
         self._canvas.attr_block_clicked.connect(self._on_attr_block_clicked)
+        self._canvas.zoom_wheel.connect(self._on_canvas_zoom_wheel)
+        self._canvas.character_drag_start.connect(self._on_title_character_drag_start)
+        self._canvas.character_drag_move.connect(self._on_title_character_drag_move)
+        self._canvas.character_drag_end.connect(self._on_title_character_drag_end)
         sa = QScrollArea()
         sa.setWidgetResizable(True)
         wrap = QWidget()
-        wl = QVBoxLayout(wrap)
-        wl.addWidget(self._canvas)
+        wl = QHBoxLayout(wrap)
+        wl.addWidget(self._canvas, 0, Qt.AlignTop | Qt.AlignLeft)
+        self._side_panel = QWidget()
+        self._side_panel.setMinimumWidth(420)
+        self._side_panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self._side_panel.setVisible(False)
+        self._side_layout = QVBoxLayout(self._side_panel)
+        wl.addWidget(self._side_panel, 1)
         sa.setWidget(wrap)
         root.addWidget(sa, 1)
         self._preview_status = QLabel("")
         root.addWidget(self._preview_status)
         self._pending_stamp = None
         self._pending_title_character = None
+        self._selected_title_character_slot = None
+        self._drag_title_character_slot = None
 
         # 操作ボタン
         br = QHBoxLayout()
@@ -868,6 +1031,10 @@ class TitleScreenDialog(QDialog):
         b_char_clear.setToolTip("タイトル上に配置した静止キャラを全て消します。")
         b_char_clear.clicked.connect(self._on_clear_title_characters)
         br.addWidget(b_char_clear)
+        b_char_del = QPushButton("選択キャラ削除")
+        b_char_del.setToolTip("選択中のタイトル静止キャラを消します。")
+        b_char_del.clicked.connect(self._on_remove_selected_title_character)
+        br.addWidget(b_char_del)
         b_pal = QPushButton("タイトル色...")
         b_pal.setToolTip("タイトル画面のBGパレット16色($3F00-$3F0F)を編集します。")
         b_pal.clicked.connect(self._on_edit_title_palette)
@@ -1066,6 +1233,9 @@ class TitleScreenDialog(QDialog):
         self._preview_status_text = (
             f"グリッド: 32x30 / CHR bank3開始 0x{off:X} / "
             f"bank内 0x{highlight_tile:03X}: {count}箇所")
+        sel = getattr(self, "_selected_title_character_slot", None)
+        if sel is not None:
+            self._preview_status_text += f" / 選択キャラ slot {int(sel) + 1}"
         self._restore_preview_status()
 
     @staticmethod
@@ -1203,12 +1373,24 @@ class TitleScreenDialog(QDialog):
                         color,
                     )
 
+    def _draw_title_picker_frame(self, img, zoom, ox, oy, tile1, tile2,
+                                 frame_attr, palette):
+        entry = TS.title_character_entry(0, 0, tile1, tile2, frame_attr, palette)
+        attr1, attr2 = TS.title_character_oam_attrs(entry[5])
+        painter = QPainter(img)
+        self._draw_8x16_oam_sprite(painter, zoom, ox // zoom, oy // zoom,
+                                   entry[3], attr1)
+        self._draw_8x16_oam_sprite(painter, zoom, (ox // zoom) + 8, oy // zoom,
+                                   entry[4], attr2)
+        painter.end()
+
     def _draw_title_character_overlay(self, pm, zoom):
         try:
             chars = TS.read_title_characters(self._rom)
         except Exception:
             return
         painter = QPainter(pm)
+        selected = getattr(self, "_selected_title_character_slot", None)
         for ch in chars:
             if not ch.get("active"):
                 continue
@@ -1220,8 +1402,10 @@ class TitleScreenDialog(QDialog):
             self._draw_8x16_oam_sprite(
                 painter, zoom, x + 8, y,
                 int(ch.get("tile2", 0)), int(ch.get("attr2", 0)))
-            pen = QPen(QColor(255, 255, 255, 180))
-            pen.setWidth(max(1, zoom))
+            is_selected = selected is not None and int(selected) == int(ch.get("slot", -1))
+            pen = QPen(
+                QColor(255, 230, 60, 230) if is_selected else QColor(255, 255, 255, 180))
+            pen.setWidth(max(2, zoom) if is_selected else max(1, zoom))
             painter.setPen(pen)
             painter.setBrush(Qt.NoBrush)
             painter.drawRect(
@@ -1229,8 +1413,242 @@ class TitleScreenDialog(QDialog):
                 max(0, 16 * zoom - 1))
         painter.end()
 
+    def _title_character_at_display(self, x, y):
+        try:
+            chars = TS.read_title_characters(self._rom)
+        except Exception:
+            return None
+        for ch in reversed(chars):
+            if not ch.get("active"):
+                continue
+            cx = int(ch.get("x", 0))
+            cy = int(ch.get("y", 0))
+            if cx <= int(x) < cx + 16 and cy <= int(y) < cy + 16:
+                return int(ch.get("slot", -1))
+        return None
+
+    def _active_title_character_slots(self):
+        try:
+            chars = TS.read_title_characters(self._rom)
+        except Exception:
+            return []
+        return [int(ch.get("slot", -1)) for ch in chars if ch.get("active")]
+
+    def _select_title_character_slot(self, slot):
+        if slot is None or int(slot) < 0:
+            self._selected_title_character_slot = None
+        else:
+            self._selected_title_character_slot = int(slot)
+        self._refresh()
+
+    @staticmethod
+    def _title_frame_key(item):
+        return int(item[3]) & 0xFF, int(item[4]) & 0xFF
+
+    def _title_picker_items(self):
+        items = getattr(self, "_title_picker_items_cache", None)
+        if items is not None:
+            return items
+        try:
+            raw = TitleCharacterPickerDialog._romframe_items_for_rom(self._rom)
+            items = TitleCharacterPickerDialog._dedupe_romframe_items(raw)
+        except Exception:
+            items = []
+        self._title_picker_items_cache = items
+        return items
+
+    def _cycle_hover_title_character(self):
+        slot = getattr(self, "_hover_title_character_slot", None)
+        if slot is None:
+            return False
+        try:
+            chars = TS.read_title_characters(self._rom)
+            ch = next((c for c in chars if int(c.get("slot", -1)) == int(slot)), None)
+        except Exception:
+            ch = None
+        if not ch or not ch.get("active"):
+            return False
+        items = self._title_picker_items()
+        if not items:
+            return False
+        key = (int(ch.get("tile1", 0)) & 0xFF, int(ch.get("tile2", 0)) & 0xFF)
+        idx = 0
+        for i, item in enumerate(items):
+            if self._title_frame_key(item) == key:
+                idx = (i + 1) % len(items)
+                break
+        _g, _s, _fi, t1, t2, attr = items[idx]
+        palette = (int(ch.get("attr", 0)) >> 6) & 0x03
+        snap = bytes(self._rom)
+        try:
+            TS.set_title_character_slot(
+                self._rom, int(slot), int(ch.get("x", 0)), int(ch.get("y", 0)),
+                t1, t2, attr, palette)
+        except Exception as e:
+            self._rom[:] = snap
+            QMessageBox.critical(
+                self, "キャラ変更失敗", f"{type(e).__name__}: {e}")
+            return False
+        self._changed = True
+        self._refresh()
+        return True
+
+    def _clear_side_panel(self):
+        while self._side_layout.count():
+            item = self._side_layout.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+
+    def _show_title_character_picker_panel(self):
+        self._clear_side_panel()
+        title = QLabel("キャラクター")
+        title.setStyleSheet("font-weight:bold;")
+        self._side_layout.addWidget(title)
+        row = QHBoxLayout()
+        row.addWidget(QLabel("色:"))
+        self._picker_palette = QComboBox()
+        for i in range(4):
+            self._picker_palette.addItem(f"SPR {i}", i)
+        self._picker_palette.setMinimumWidth(110)
+        self._picker_palette.setMinimumHeight(26)
+        self._picker_palette.currentIndexChanged.connect(self._refresh_picker_grid)
+        row.addWidget(self._picker_palette)
+        row.addStretch()
+        self._side_layout.addLayout(row)
+        self._picker_status = QLabel("")
+        self._picker_status.setWordWrap(True)
+        self._side_layout.addWidget(self._picker_status)
+        self._picker_scroll = QScrollArea()
+        self._picker_scroll.setWidgetResizable(False)
+        self._picker_scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self._picker_scroll.setMinimumHeight(260)
+        self._side_layout.addWidget(self._picker_scroll, 1)
+        self._side_panel.setVisible(True)
+        self._refresh_picker_grid()
+
+    def _refresh_picker_grid(self, *_):
+        if not hasattr(self, "_picker_scroll"):
+            return
+        old_v = self._picker_scroll.verticalScrollBar().value()
+        items = self._title_picker_items()
+        if not items:
+            self._picker_scroll.setWidget(QLabel("ROMフレームが見つかりません。"))
+            return
+        zoom = 3
+        cell_w = 16 * zoom + 24
+        cell_h = 16 * zoom + 20
+        gap = 6
+        viewport_w = max(1, self._picker_scroll.viewport().width())
+        cols = max(3, min(12, (viewport_w - gap) // (cell_w + gap)))
+        rows = (len(items) + cols - 1) // cols
+        img = QImage(cols * (cell_w + gap) + gap,
+                     rows * (cell_h + gap) + gap,
+                     QImage.Format_ARGB32)
+        img.fill(QColor(28, 28, 28))
+        pal = int(self._picker_palette.currentData()) & 0x03
+        for i, (g, s, fi, t1, t2, attr) in enumerate(items):
+            ox = gap + (i % cols) * (cell_w + gap) + 6
+            oy = gap + (i // cols) * (cell_h + gap) + 4
+            self._draw_title_picker_frame(img, zoom, ox, oy, t1, t2, attr, pal)
+        painter = QPainter(img)
+        painter.setPen(QColor(190, 190, 190))
+        selected_key = None
+        pending = getattr(self, "_pending_title_character", None)
+        if pending:
+            selected_key = (pending.get("tile1"), pending.get("tile2"), pending.get("attr"))
+        for i, (g, s, fi, t1, t2, attr) in enumerate(items):
+            x = gap + (i % cols) * (cell_w + gap)
+            y = gap + (i // cols) * (cell_h + gap)
+            painter.drawText(x + 3, y + cell_h - 4, f"g{g:02X}s{s:02X}f{fi}")
+            if selected_key == (t1, t2, attr):
+                pen = QPen(QColor(255, 230, 60), 3)
+                painter.setPen(pen)
+                painter.setBrush(Qt.NoBrush)
+                painter.drawRect(x, y, cell_w - 1, cell_h - 1)
+                painter.setPen(QColor(190, 190, 190))
+        painter.end()
+        lbl = TitleCharacterGridLabel(len(items), cols, cell_w, cell_h, gap)
+        lbl.setPixmap(QPixmap.fromImage(img))
+        lbl.frame_clicked.connect(self._pick_title_character_index)
+        self._picker_scroll.setWidget(lbl)
+        self._picker_scroll.verticalScrollBar().setValue(old_v)
+
+    def _pick_title_character_index(self, index):
+        items = self._title_picker_items()
+        if not (0 <= int(index) < len(items)):
+            return
+        g, s, fi, t1, t2, attr = items[int(index)]
+        self._pending_title_character = {
+            "group": g,
+            "state": s,
+            "frame": fi,
+            "tile1": t1,
+            "tile2": t2,
+            "attr": attr,
+            "palette": int(self._picker_palette.currentData()) & 0x03,
+        }
+        self._picker_status.setText(
+            f"選択: g{g:02X} s{s:02X} f{fi} / キャンバスをクリックして配置")
+        self._refresh_picker_grid()
+
     def _restore_preview_status(self):
+        self._hover_title_character_slot = None
         self._preview_status.setText(getattr(self, "_preview_status_text", ""))
+
+    def _on_canvas_zoom_wheel(self, step):
+        idx = self._zoom.currentIndex()
+        next_idx = max(0, min(self._zoom.count() - 1, idx + int(step)))
+        if next_idx != idx:
+            self._zoom.setCurrentIndex(next_idx)
+
+    def _on_title_character_drag_start(self, row, col, modifiers=0):
+        dx, dy = _ppu_pixel_to_display(int(col) * 8, int(row) * 8)
+        slot = self._title_character_at_display(dx, dy)
+        if slot is None:
+            self._drag_title_character_slot = None
+            return
+        self._drag_title_character_slot = int(slot)
+        self._selected_title_character_slot = int(slot)
+        self._preview_status.setText(
+            f"キャラ slot {int(slot) + 1} を移動中")
+        self._refresh()
+
+    def _on_title_character_drag_move(self, row, col):
+        slot = getattr(self, "_drag_title_character_slot", None)
+        if slot is None:
+            return
+        dx, dy = _ppu_pixel_to_display(int(col) * 8, int(row) * 8)
+        snap = bytes(self._rom)
+        try:
+            TS.move_title_character(self._rom, int(slot), dx, dy)
+        except Exception as e:
+            self._rom[:] = snap
+            self._drag_title_character_slot = None
+            QMessageBox.critical(
+                self, "キャラクター移動失敗",
+                f"{type(e).__name__}: {e}")
+            return
+        self._changed = True
+        self._selected_title_character_slot = int(slot)
+        self._refresh()
+
+    def _on_title_character_drag_end(self):
+        if getattr(self, "_drag_title_character_slot", None) is not None:
+            self._preview_status.setText(
+                f"キャラ slot {int(self._drag_title_character_slot) + 1} を移動しました")
+        self._drag_title_character_slot = None
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Tab:
+            if self._cycle_hover_title_character():
+                event.accept()
+                return
+        if event.key() == Qt.Key_Delete:
+            self._on_remove_selected_title_character()
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
     def _on_preview_tile_hovered(self, row, col, stream, bank_tile, file_start, file_end):
         pending = getattr(self, "_pending_stamp", None)
@@ -1240,22 +1658,28 @@ class TitleScreenDialog(QDialog):
                 f"({pending['tile_w']}x{pending['tile_h']} tiles) / "
                 f"クリック位置 ({col}, {row})")
             return
+        dx, dy = _ppu_pixel_to_display(col * 8, row * 8)
+        hit = self._title_character_at_display(dx, dy)
+        self._hover_title_character_slot = hit
         pending_ch = getattr(self, "_pending_title_character", None)
         if pending_ch:
-            dx, dy = _ppu_pixel_to_display(col * 8, row * 8)
             self._preview_status.setText(
                 f"キャラ配置待ち: g{pending_ch['group']:02X} "
                 f"s{pending_ch['state']:02X} f{pending_ch['frame']} / "
                 f"x={dx}, y={dy}")
             return
+        if hit is not None:
+            self._preview_status.setText(
+                f"キャラ slot {hit + 1}/{TS.title_character_max()} / x={dx}, y={dy}")
+            return
         self._preview_status.setText(
             f"cell ({col}, {row}) / stream 0x{stream:02X} / "
             f"bank内 0x{bank_tile:03X} / ROM 0x{file_start:X}-0x{file_end:X}")
 
-    def _on_preview_tile_clicked(self, row, col):
+    def _on_preview_tile_clicked(self, row, col, modifiers=0):
+        dx, dy = _ppu_pixel_to_display(col * 8, row * 8)
         pending_ch = getattr(self, "_pending_title_character", None)
         if pending_ch:
-            dx, dy = _ppu_pixel_to_display(col * 8, row * 8)
             snap = bytes(self._rom)
             try:
                 chg = TS.add_title_character(
@@ -1273,9 +1697,13 @@ class TitleScreenDialog(QDialog):
                 return
             self._pending_title_character = None
             self._changed = True
+            self._selected_title_character_slot = self._title_character_at_display(dx, dy)
             self._refresh()
-            QMessageBox.information(
-                self, "キャラクター配置完了", "\n".join(chg))
+            self._preview_status.setText(" / ".join(chg))
+            return
+        hit = self._title_character_at_display(dx, dy)
+        if hit is not None:
+            self._select_title_character_slot(hit)
             return
         pending = getattr(self, "_pending_stamp", None)
         if not pending:
@@ -2009,26 +2437,7 @@ class TitleScreenDialog(QDialog):
             "\n".join(chg) + "\n\n(実機/エミュで要確認)")
 
     def _on_pick_title_character(self):
-        try:
-            dlg = TitleCharacterPickerDialog(self._rom, self)
-        except Exception as e:
-            QMessageBox.critical(
-                self, "キャラクター選択不可",
-                f"{type(e).__name__}: {e}")
-            return
-        if dlg.exec_() != QDialog.Accepted:
-            return
-        try:
-            self._pending_title_character = dlg.selected_character()
-        except Exception as e:
-            QMessageBox.critical(
-                self, "キャラクター選択不可",
-                f"{type(e).__name__}: {e}")
-            return
-        ch = self._pending_title_character
-        self._preview_status.setText(
-            f"キャラ配置待ち: g{ch['group']:02X} s{ch['state']:02X} "
-            f"f{ch['frame']} / 配置したい場所をクリック")
+        self._show_title_character_picker_panel()
 
     def _on_clear_title_characters(self):
         if QMessageBox.question(
@@ -2048,9 +2457,31 @@ class TitleScreenDialog(QDialog):
                 self, "キャラ削除失敗", f"{type(e).__name__}: {e}")
             return
         self._pending_title_character = None
+        self._selected_title_character_slot = None
         self._changed = True
         self._refresh()
-        QMessageBox.information(self, "キャラ全削除完了", "\n".join(chg))
+        self._preview_status.setText(" / ".join(chg))
+
+    def _on_remove_selected_title_character(self):
+        slot = getattr(self, "_selected_title_character_slot", None)
+        if slot is None:
+            return
+        snap = bytes(self._rom)
+        try:
+            TS.remove_title_character(self._rom, int(slot))
+        except (TS.TitleScreenError, ValueError) as e:
+            self._rom[:] = snap
+            QMessageBox.critical(self, "キャラ削除不可", str(e))
+            return
+        except Exception as e:
+            self._rom[:] = snap
+            QMessageBox.critical(
+                self, "キャラ削除失敗", f"{type(e).__name__}: {e}")
+            return
+        slots = self._active_title_character_slots()
+        self._selected_title_character_slot = slots[0] if slots else None
+        self._changed = True
+        self._refresh()
 
     def _on_add_title_text(self):
         try:
@@ -2108,5 +2539,11 @@ class TitleScreenDialog(QDialog):
         self.reject()
 
     def done(self, r):
+        if isinstance(self._app_config, dict):
+            try:
+                self._app_config["title_screen_dlg_zoom"] = int(self._zoom.currentData())
+                save_config(self._app_config)
+            except Exception:
+                pass
         save_dialog_geometry(self, self._app_config, "title_screen_dlg")
         super().done(r)

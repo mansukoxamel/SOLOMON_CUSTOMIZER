@@ -961,9 +961,21 @@ def _write_title_oam_table_with_streams(rom_data, table: bytes) -> list:
     ]
 
 
+def _title_character_table_for_edit(rom_data) -> bytearray:
+    return bytearray(_wt_read_title_oam_table_or_default(rom_data))
+
+
+def _title_character_slot_pos(slot: int) -> int:
+    slot = int(slot)
+    if not (0 <= slot < _WT_TITLE_CHARACTER_MAX):
+        raise TitleScreenError(
+            f"title character slot must be 0..{_WT_TITLE_CHARACTER_MAX - 1}.")
+    return slot * _WT_TITLE_SLOT_ENTRY_BYTES
+
+
 def add_title_character(rom_data, x: int, y: int, tile1: int, tile2: int,
                         frame_attr: int, palette: int) -> list:
-    table = bytearray(_wt_read_title_oam_table_or_default(rom_data))
+    table = _title_character_table_for_edit(rom_data)
     slot = None
     for i in range(_WT_TITLE_CHARACTER_MAX):
         pos = i * _WT_TITLE_SLOT_ENTRY_BYTES
@@ -979,6 +991,40 @@ def add_title_character(rom_data, x: int, y: int, tile1: int, tile2: int,
         title_character_entry(x, y, tile1, tile2, frame_attr, palette)
     msgs = _write_title_oam_table_with_streams(rom_data, bytes(table))
     msgs.insert(0, f"title character placed: slot {slot + 1}/{_WT_TITLE_CHARACTER_MAX}")
+    return msgs
+
+
+def set_title_character_slot(rom_data, slot: int, x: int, y: int,
+                             tile1: int, tile2: int, frame_attr: int,
+                             palette: int) -> list:
+    table = _title_character_table_for_edit(rom_data)
+    pos = _title_character_slot_pos(slot)
+    table[pos:pos + _WT_TITLE_SLOT_ENTRY_BYTES] = \
+        title_character_entry(x, y, tile1, tile2, frame_attr, palette)
+    msgs = _write_title_oam_table_with_streams(rom_data, bytes(table))
+    msgs.insert(0, f"title character slot {int(slot) + 1} updated")
+    return msgs
+
+
+def move_title_character(rom_data, slot: int, x: int, y: int) -> list:
+    table = _title_character_table_for_edit(rom_data)
+    pos = _title_character_slot_pos(slot)
+    entry = bytes(table[pos:pos + _WT_TITLE_SLOT_ENTRY_BYTES])
+    if not _wt_title_oam_is_active(entry):
+        raise TitleScreenError(f"title character slot {int(slot) + 1} is empty.")
+    table[pos + 1] = max(0, min(0xEF, int(y))) & 0xFF
+    table[pos + 2] = max(0, min(0xFF, int(x))) & 0xFF
+    msgs = _write_title_oam_table_with_streams(rom_data, bytes(table))
+    msgs.insert(0, f"title character slot {int(slot) + 1} moved")
+    return msgs
+
+
+def remove_title_character(rom_data, slot: int) -> list:
+    table = _title_character_table_for_edit(rom_data)
+    pos = _title_character_slot_pos(slot)
+    table[pos:pos + _WT_TITLE_SLOT_ENTRY_BYTES] = _WT_TITLE_SLOT_HIDDEN_ENTRY
+    msgs = _write_title_oam_table_with_streams(rom_data, bytes(table))
+    msgs.insert(0, f"title character slot {int(slot) + 1} removed")
     return msgs
 
 
@@ -1532,8 +1578,8 @@ _WT_RAM_OUT     = 0x0734               # RAM trampoline OUT (6B、IN直後)
 _WT_RAM_END     = 0x0739               # 予約 $072C-$0739 (14B)
 _WT_DEC_FILE    = 0x80D0               # bank1 decoder 配置 file (m66 loader直後)
 _WT_DEC_CPU     = 0x8000 + (_WT_DEC_FILE - 0x8010)   # = $80C0
-_WT_TITLE_CHARACTER_MAX = 15
-_WT_TITLE_SLOT0_BASE = 0x05CF
+_WT_TITLE_CHARACTER_MAX = 20
+_WT_TITLE_SLOT0_BASE = 0x057F
 _WT_TITLE_SLOT_STRIDE = 20
 _WT_TITLE_SLOT_ENTRY_BYTES = 6
 _WT_TITLE_SLOT_TABLE_BYTES = _WT_TITLE_CHARACTER_MAX * _WT_TITLE_SLOT_ENTRY_BYTES
