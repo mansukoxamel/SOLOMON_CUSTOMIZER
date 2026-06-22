@@ -1023,32 +1023,19 @@ class TitleScreenDialog(QDialog):
             "コピー。JP/US 自動判定・CRC不要・US↔JP両方向・コード非改変")
         b_imp.clicked.connect(self._on_transcode_title)
         br.addWidget(b_imp)
-        b_text = QPushButton("追加文字...")
+        b_text = QPushButton("文字編集...")
         b_text.setToolTip(
-            "タイトル中央付近に1行の文字を追加します。"
+            "タイトル中央付近の追加文字とPUSH START位置の固定文字を編集します。"
             "A-Z / 0-9 / スペース / , . \" が使えます。"
-            "既存文字ルーチンは変更しません。")
-        b_text.clicked.connect(self._on_add_title_text)
+            "PUSH位置は17文字までです。")
+        b_text.clicked.connect(self._on_edit_title_texts)
         br.addWidget(b_text)
-        b_push_text = QPushButton("PUSH文字...")
-        b_push_text.setToolTip(
-            "中央のPUSH START BUTTON固定文字を17文字以内で変更します。")
-        b_push_text.clicked.connect(self._on_edit_push_start_text)
-        br.addWidget(b_push_text)
-        b_char = QPushButton("キャラクター追加...")
+        b_char = QPushButton("キャラクター...")
         b_char.setToolTip(
             f"$D0E8由来の16x16キャラを選び、タイトル上へ最大{TS.title_character_max()}体配置します。")
         b_char.clicked.connect(self._on_pick_title_character)
         br.addWidget(b_char)
-        b_char_clear = QPushButton("キャラ全削除")
-        b_char_clear.setToolTip("タイトル上に配置した静止キャラを全て消します。")
-        b_char_clear.clicked.connect(self._on_clear_title_characters)
-        br.addWidget(b_char_clear)
-        b_char_del = QPushButton("選択キャラ削除")
-        b_char_del.setToolTip("選択中のタイトル静止キャラを消します。")
-        b_char_del.clicked.connect(self._on_remove_selected_title_character)
-        br.addWidget(b_char_del)
-        b_pal = QPushButton("タイトル色...")
+        b_pal = QPushButton("パレット変更...")
         b_pal.setToolTip("タイトル画面のBGパレット16色($3F00-$3F0F)を編集します。")
         b_pal.clicked.connect(self._on_edit_title_palette)
         br.addWidget(b_pal)
@@ -1685,10 +1672,20 @@ class TitleScreenDialog(QDialog):
     def _clear_side_panel(self):
         while self._side_layout.count():
             item = self._side_layout.takeAt(0)
-            w = item.widget()
-            if w is not None:
-                w.deleteLater()
+            self._delete_layout_item(item)
         self._title_character_count_label = None
+
+    def _delete_layout_item(self, item):
+        w = item.widget()
+        if w is not None:
+            w.deleteLater()
+            return
+        lay = item.layout()
+        if lay is None:
+            return
+        while lay.count():
+            self._delete_layout_item(lay.takeAt(0))
+        lay.deleteLater()
 
     def _show_title_character_picker_panel(self):
         self._clear_side_panel()
@@ -1711,6 +1708,10 @@ class TitleScreenDialog(QDialog):
         self._picker_palette.currentIndexChanged.connect(self._refresh_picker_grid)
         row.addWidget(self._picker_palette)
         row.addStretch()
+        b_clear = QPushButton("全削除")
+        b_clear.setToolTip("タイトル上に配置した静止キャラを全て消します。")
+        b_clear.clicked.connect(self._on_clear_title_characters)
+        row.addWidget(b_clear)
         self._side_layout.addLayout(row)
         self._picker_status = QLabel("")
         self._picker_status.setWordWrap(True)
@@ -1723,6 +1724,73 @@ class TitleScreenDialog(QDialog):
         self._side_panel.setVisible(True)
         self._update_title_character_count_labels()
         self._refresh_picker_grid()
+
+    def _show_title_palette_panel(self):
+        self._clear_side_panel()
+        self._palette_panel_sel = 0
+        self._palette_slot_buttons = []
+        self._palette_color_buttons = []
+        title = QLabel("パレット変更")
+        title.setStyleSheet("font-weight:bold;")
+        self._side_layout.addWidget(title)
+
+        g = QGroupBox("タイトルパレット $3F00-$3F0F")
+        gl = QGridLayout(g)
+        for i in range(16):
+            gl.addWidget(QLabel(f"${0x3F00 + i:04X}"), (i // 4) * 2,
+                         i % 4)
+            b = QPushButton()
+            b.setMinimumSize(72, 30)
+            b.clicked.connect(lambda _, idx=i: self._select_title_palette_slot(idx))
+            self._palette_slot_buttons.append(b)
+            gl.addWidget(b, (i // 4) * 2 + 1, i % 4)
+        self._side_layout.addWidget(g)
+
+        picker = QGroupBox("NES 64色")
+        pg = QGridLayout(picker)
+        for i in range(64):
+            b = QPushButton(f"{i:02X}")
+            b.setMinimumSize(34, 26)
+            b.clicked.connect(lambda _, idx=i: self._set_title_palette_slot_color(idx))
+            self._palette_color_buttons.append(b)
+            pg.addWidget(b, i // 8, i % 8)
+        self._side_layout.addWidget(picker)
+        self._side_layout.addStretch()
+        self._side_panel.setVisible(True)
+        self._refresh_title_palette_panel()
+
+    def _refresh_title_palette_panel(self):
+        if not hasattr(self, "_palette_slot_buttons"):
+            return
+        colors = self._title_palette()
+        sel = int(getattr(self, "_palette_panel_sel", 0)) & 0x0F
+        for i, b in enumerate(self._palette_slot_buttons):
+            val = colors[i] & 0x3F
+            b.setText(f"${val:02X}")
+            b.setToolTip(f"slot {i} = ${val:02X}")
+            b.setStyleSheet(TitlePaletteDialog._button_style(val, i == sel))
+        for i, b in enumerate(self._palette_color_buttons):
+            b.setStyleSheet(
+                TitlePaletteDialog._button_style(i, (colors[sel] & 0x3F) == i))
+
+    def _select_title_palette_slot(self, idx):
+        self._palette_panel_sel = int(idx) & 0x0F
+        self._refresh_title_palette_panel()
+
+    def _set_title_palette_slot_color(self, nes_idx):
+        colors = self._title_palette()
+        sel = int(getattr(self, "_palette_panel_sel", 0)) & 0x0F
+        colors[sel] = int(nes_idx) & 0x3F
+        try:
+            self._apply_title_palette_colors(colors)
+        except Exception as e:
+            QMessageBox.critical(
+                self, "パレット変更不可",
+                f"タイトルパレットを書き換えられませんでした:\n{type(e).__name__}: {e}")
+            return
+        self._refresh_title_palette_panel()
+        self._preview_status.setText(
+            f"パレット変更: slot {sel} = ${colors[sel] & 0x3F:02X}")
 
     def _refresh_picker_grid(self, *_):
         if not hasattr(self, "_picker_scroll"):
@@ -2107,25 +2175,7 @@ class TitleScreenDialog(QDialog):
         self._refresh()
 
     def _on_edit_title_palette(self):
-        colors = self._title_palette()
-        old_changed = self._changed
-        dlg = TitlePaletteDialog(
-            colors, self, apply_callback=self._apply_title_palette_colors)
-        if dlg.exec_() != QDialog.Accepted:
-            try:
-                self._set_title_palette(colors)
-                self._changed = old_changed
-                self._refresh()
-            except Exception:
-                pass
-            return
-        try:
-            self._apply_title_palette_colors(dlg.colors())
-        except Exception as e:
-            QMessageBox.critical(
-                self, "タイトル色変更不可",
-                f"タイトルパレットを書き換えられませんでした:\n{type(e).__name__}: {e}")
-            return
+        self._show_title_palette_panel()
 
     def _on_save_image(self):
         path, _ = QFileDialog.getSaveFileName(
@@ -2685,38 +2735,64 @@ class TitleScreenDialog(QDialog):
         self._preview_status.setText(
             f"選択キャラを削除しました / {self._title_character_count_text()}")
 
-    def _on_add_title_text(self):
+    def _on_edit_title_texts(self):
         try:
-            cur = TS.read_title_text_line(self._rom)
+            cur_extra = TS.read_title_text_line(self._rom)
         except Exception:
-            cur = ""
-        dlg = QInputDialog(self)
-        dlg.setWindowTitle("タイトル追加文字")
-        dlg.setLabelText(
-            "タイトル中央付近に出す文字 "
-            "(A-Z / 0-9 / スペース / , . \"、最大32文字):")
-        dlg.setInputMode(QInputDialog.TextInput)
-        dlg.setTextValue(cur[:32])
-        line = dlg.findChild(QLineEdit)
-        if line is not None:
-            line.setMaxLength(32)
-        if dlg.exec_() != QDialog.Accepted:
-            return
-        text = dlg.textValue()
+            cur_extra = ""
         try:
-            chg = TS.add_title_text_line(self._rom, text, row=14)
+            cur_push = TS.read_title_push_start_text(self._rom)
         except (TS.TitleScreenError, ValueError) as e:
-            QMessageBox.critical(self, "追加文字不可", str(e))
+            QMessageBox.critical(self, "文字編集不可", str(e))
             return
         except Exception as e:
-            QMessageBox.critical(self, "追加文字失敗",
+            QMessageBox.critical(
+                self, "PUSH文字読込失敗", f"{type(e).__name__}: {e}")
+            return
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("タイトル文字編集")
+        lay = QVBoxLayout(dlg)
+        lay.addWidget(QLabel(
+            "追加文字 (A-Z / 0-9 / スペース / , . \"、最大32文字)"))
+        extra_edit = QLineEdit(cur_extra[:32])
+        extra_edit.setMaxLength(32)
+        lay.addWidget(extra_edit)
+        lay.addWidget(QLabel(
+            "PUSH START位置の固定文字 (最大17文字)"))
+        push_edit = QLineEdit(cur_push[:17])
+        push_edit.setMaxLength(17)
+        lay.addWidget(push_edit)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        lay.addWidget(buttons)
+        if dlg.exec_() != QDialog.Accepted:
+            return
+
+        snap = bytes(self._rom)
+        try:
+            changes = []
+            changes.extend(TS.add_title_text_line(
+                self._rom, extra_edit.text(), row=14))
+            changes.extend(TS.set_title_push_start_text(
+                self._rom, push_edit.text()))
+        except (TS.TitleScreenError, ValueError) as e:
+            self._rom[:] = snap
+            QMessageBox.critical(self, "文字編集不可", str(e))
+            return
+        except Exception as e:
+            self._rom[:] = snap
+            QMessageBox.critical(self, "文字編集失敗",
                                  f"{type(e).__name__}: {e}")
             return
         self._changed = True
         self._refresh()
-        QMessageBox.information(
-            self, "追加文字完了",
-            "\n".join(chg) + "\n\n既存の文字描画ルーチンは変更していません。")
+        self._preview_status.setText(" / ".join(changes))
+
+    def _on_add_title_text(self):
+        self._on_edit_title_texts()
 
     def _on_edit_push_start_text(self):
         try:
