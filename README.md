@@ -37,7 +37,7 @@
 - **タイトル画面の詳細編集**  
   タイトルロゴ、配置タイル、16x16色区分、パレット、タイトル上のキャラクター配置を編集できます。
 
-  <img src="docs/images/readme_custom_title_screen.png" alt="カスタマイズしたタイトル画面の例" width="720">
+  <img src="docs/images/readme_custom_title_screen.png" alt="カスタマイズしたタイトル画面の例" width="480">
 
 - **改造ROM差分比較ツール**  
   2つのROM/ZIPを読み込み、面ごとの差分量と詳細差分を確認できます。
@@ -120,7 +120,7 @@ SOLOMON_CUSTOMIZER is a customizer for the Famicom version of *Solomon's Key*, c
 - **Detailed title screen editing**  
   Edit the title logo, background tiles, 16x16 color attributes, palettes, and title-screen character placement.
 
-  <img src="docs/images/readme_custom_title_screen.png" alt="Example customized title screen" width="720">
+  <img src="docs/images/readme_custom_title_screen.png" alt="Example customized title screen" width="480">
 
 - **Modified ROM comparison tool**  
   Load two ROM/ZIP files and compare per-stage difference counts and detailed changes.
