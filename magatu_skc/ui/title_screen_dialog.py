@@ -51,6 +51,16 @@ _TITLE_ATTR_EXTRA_JP_OFF = 0x10 + (0xCDF5 - 0x8000)
 _SPRITE_PALETTE_OFFSET = 0xED4
 # bg パターンテーブル = CHR bank3 上位 4KB (tiles 256-511、ロゴ域 R196)
 _BG_BASE = 256
+_TITLE_FIXED_TEXT_LINES = (
+    (32, 24, "SCORE"),
+    (96, 24, "HI SCORE"),
+    (184, 24, "HI GDV"),
+    (64, 32, "0"),
+    (112, 32, "100000"),
+    (208, 32, "07"),
+    (56, 128, "PUSH START BUTTON"),
+    (48, 152, "TECMO,LTD.1986"),
+)
 
 
 class TitlePngColorGuardError(ValueError):
@@ -1060,11 +1070,66 @@ class TitleScreenDialog(QDialog):
     def _build_image(self, color: bool = True) -> QImage:
         if color:
             try:
-                return self._build_color_image()
+                return self._draw_title_fixed_text_overlay(
+                    self._build_color_image(), color=True)
             except Exception:
                 # 色情報が読めない改造ROMでも、従来の4階調表示へ戻す。
                 pass
-        return self._build_gray_image()
+        return self._draw_title_fixed_text_overlay(
+            self._build_gray_image(), color=False)
+
+    def _draw_title_fixed_text_overlay(self, img: QImage, color: bool) -> QImage:
+        """Draw original title routine text for collision/layout preview only."""
+        out = img.convertToFormat(QImage.Format_RGB32) if color else img.copy()
+        painter = None
+        try:
+            chr_off = TS.chr_bank3_offset(self._rom)
+            pal = self._title_palette() if color else None
+            attr = self._title_attributes() if color else None
+            painter = QPainter(out)
+            for x0, y0, text in _TITLE_FIXED_TEXT_LINES:
+                x = int(x0)
+                for ch in text:
+                    if ch == " ":
+                        x += 8
+                        continue
+                    try:
+                        stream = TS._title_char_src_tile(ch)
+                    except Exception:
+                        x += 8
+                        continue
+                    pos = chr_off + ((_BG_BASE + stream) & 0x1FF) * \
+                        NES_GFX_TILE_BYTE_SIZE
+                    if pos + NES_GFX_TILE_BYTE_SIZE > len(self._rom):
+                        x += 8
+                        continue
+                    tile = NesTile(bytes(self._rom[pos:pos + NES_GFX_TILE_BYTE_SIZE]))
+                    for py in range(8):
+                        for px in range(8):
+                            pi = tile.pixels[py][px] & 0x03
+                            if pi == 0:
+                                continue
+                            dx = x + px
+                            dy = int(y0) + py
+                            if not (0 <= dx < _IMG_W and 0 <= dy < _IMG_H):
+                                continue
+                            if color:
+                                sx, sy = _display_pixel_to_ppu(dx, dy)
+                                pal_no = self._attr_palette_no(
+                                    attr, sy // 8, sx // 8)
+                                nes_idx = pal[pal_no * 4 + pi]
+                                qcolor = QColor(*NES_COLORS[nes_idx & 0x3F])
+                            else:
+                                v = _GRAY[pi]
+                                qcolor = QColor(v, v, v)
+                            painter.fillRect(dx, dy, 1, 1, qcolor)
+                    x += 8
+        except Exception:
+            return img
+        finally:
+            if painter is not None:
+                painter.end()
+        return out
 
     def _build_gray_image(self) -> QImage:
         """nametable をデコードし CHR bank3 で実タイトルを合成。
@@ -1232,7 +1297,8 @@ class TitleScreenDialog(QDialog):
         self._canvas.set_title_context(z, grid, off)
         self._preview_status_text = (
             f"グリッド: 32x30 / CHR bank3開始 0x{off:X} / "
-            f"bank内 0x{highlight_tile:03X}: {count}箇所")
+            f"bank内 0x{highlight_tile:03X}: {count}箇所 / "
+            f"{self._update_title_character_count_labels()}")
         sel = getattr(self, "_selected_title_character_slot", None)
         if sel is not None:
             self._preview_status_text += f" / 選択キャラ slot {int(sel) + 1}"
@@ -1434,6 +1500,17 @@ class TitleScreenDialog(QDialog):
             return []
         return [int(ch.get("slot", -1)) for ch in chars if ch.get("active")]
 
+    def _title_character_count_text(self):
+        count = len(self._active_title_character_slots())
+        return f"キャラ {count}/{TS.title_character_max()}"
+
+    def _update_title_character_count_labels(self):
+        text = self._title_character_count_text()
+        label = getattr(self, "_title_character_count_label", None)
+        if label is not None:
+            label.setText(f"配置: {text.split(' ', 1)[1]}")
+        return text
+
     def _select_title_character_slot(self, slot):
         if slot is None or int(slot) < 0:
             self._selected_title_character_slot = None
@@ -1499,12 +1576,19 @@ class TitleScreenDialog(QDialog):
             w = item.widget()
             if w is not None:
                 w.deleteLater()
+        self._title_character_count_label = None
 
     def _show_title_character_picker_panel(self):
         self._clear_side_panel()
         title = QLabel("キャラクター")
         title.setStyleSheet("font-weight:bold;")
-        self._side_layout.addWidget(title)
+        head = QHBoxLayout()
+        head.addWidget(title)
+        self._title_character_count_label = QLabel("")
+        self._title_character_count_label.setMinimumWidth(90)
+        head.addStretch()
+        head.addWidget(self._title_character_count_label)
+        self._side_layout.addLayout(head)
         row = QHBoxLayout()
         row.addWidget(QLabel("色:"))
         self._picker_palette = QComboBox()
@@ -1525,6 +1609,7 @@ class TitleScreenDialog(QDialog):
         self._picker_scroll.setMinimumHeight(260)
         self._side_layout.addWidget(self._picker_scroll, 1)
         self._side_panel.setVisible(True)
+        self._update_title_character_count_labels()
         self._refresh_picker_grid()
 
     def _refresh_picker_grid(self, *_):
@@ -1589,7 +1674,8 @@ class TitleScreenDialog(QDialog):
             "palette": int(self._picker_palette.currentData()) & 0x03,
         }
         self._picker_status.setText(
-            f"選択: g{g:02X} s{s:02X} f{fi} / キャンバスをクリックして配置")
+            f"選択: g{g:02X} s{s:02X} f{fi} / "
+            f"{self._title_character_count_text()} / キャンバスをクリックして配置")
         self._refresh_picker_grid()
 
     def _restore_preview_status(self):
@@ -1699,7 +1785,8 @@ class TitleScreenDialog(QDialog):
             self._changed = True
             self._selected_title_character_slot = self._title_character_at_display(dx, dy)
             self._refresh()
-            self._preview_status.setText(" / ".join(chg))
+            self._preview_status.setText(
+                f"{' / '.join(chg)} / {self._title_character_count_text()}")
             return
         hit = self._title_character_at_display(dx, dy)
         if hit is not None:
@@ -2460,7 +2547,8 @@ class TitleScreenDialog(QDialog):
         self._selected_title_character_slot = None
         self._changed = True
         self._refresh()
-        self._preview_status.setText(" / ".join(chg))
+        self._preview_status.setText(
+            f"{' / '.join(chg)} / {self._title_character_count_text()}")
 
     def _on_remove_selected_title_character(self):
         slot = getattr(self, "_selected_title_character_slot", None)
@@ -2482,6 +2570,8 @@ class TitleScreenDialog(QDialog):
         self._selected_title_character_slot = slots[0] if slots else None
         self._changed = True
         self._refresh()
+        self._preview_status.setText(
+            f"選択キャラを削除しました / {self._title_character_count_text()}")
 
     def _on_add_title_text(self):
         try:

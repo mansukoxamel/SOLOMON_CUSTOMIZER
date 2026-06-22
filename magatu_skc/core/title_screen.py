@@ -901,7 +901,7 @@ def _wt_read_title_oam_table_or_default(rom_data) -> bytes:
 
 def title_character_oam_attrs(frame_attr: int) -> tuple[int, int]:
     attr = int(frame_attr) & 0xFF
-    p1 = (attr >> 6) & 0x03
+    p1 = ((attr >> 7) & 0x01) | (((attr >> 6) & 0x01) << 1)
     p2 = (attr >> 2) & 0x03
     h1, v1 = (attr >> 4) & 1, (attr >> 5) & 1
     h2, v2 = (attr >> 1) & 1, (attr >> 0) & 1
@@ -940,7 +940,8 @@ def title_character_entry(x: int, y: int, tile1: int, tile2: int,
     attr = int(frame_attr) & 0xFF
     h1, v1 = (attr >> 4) & 1, (attr >> 5) & 1
     h2, v2 = (attr >> 1) & 1, (attr >> 0) & 1
-    slot_attr = ((pal & 3) << 6) | (v1 << 5) | (h1 << 4) | \
+    slot_attr = ((pal & 1) << 7) | ((pal & 2) << 5) | \
+        (v1 << 5) | (h1 << 4) | \
         ((pal & 3) << 2) | (h2 << 1) | v2
     return bytes((0x80, y & 0xFF, x & 0xFF,
                   int(tile1) & 0xFF, int(tile2) & 0xFF, slot_attr & 0xFF))
