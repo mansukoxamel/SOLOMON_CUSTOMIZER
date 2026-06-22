@@ -1861,6 +1861,8 @@ def _expanded_attr_from_table(table: bytes | bytearray) -> list[int]:
 
 def _pack_expanded_attr_table(attr) -> bytes:
     out = bytearray(_WT_TITLE_ATTR_TABLE_BYTES)
+    for ai in range(56, 64):
+        out[ai] = 0xF0
     for br in range(_WT_TITLE_ATTR_BLOCK_H):
         for bc in range(_WT_TITLE_ATTR_BLOCK_W):
             pal = _attr_palette_no_from_expanded(attr, br * 2, bc * 2)
@@ -1882,6 +1884,7 @@ def _legacy_title_attr_expanded(rom_data) -> list[int]:
             for i in range(min(21, ln)):
                 attr[9 + i] = src[20 - i]
     if base == "JP":
+        attr[0x2A] = 0xCF
         off2 = 0x10 + (0xCDF5 - 0x8000)
         if off2 + 7 <= len(rom_data):
             src = bytes(rom_data[off2:off2 + 7])
@@ -2283,7 +2286,9 @@ def normalize_title_to_wide(rom) -> list:
     blkB = encode_len_stream(gB)
 
     # --- (3) bootstrap / bank1 decoder 生成 + bank1 レイアウト ---
-    boot, decoder = _wt_build_trampoline(_WT_DEC_CPU)
+    title_attr_table = _wt_attr_table_default(rom)
+    boot, decoder = _wt_build_trampoline(
+        _WT_DEC_CPU, title_attr_table=title_attr_table)
     if len(boot) > _wjp_cf(0xCCB6) - _wjp_cf(0xCC4F):
         raise TitleScreenError("内部エラー: bootstrap 枠超過。")
     dec_file = _WT_DEC_FILE

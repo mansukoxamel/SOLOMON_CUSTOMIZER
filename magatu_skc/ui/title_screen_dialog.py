@@ -883,7 +883,7 @@ class TitleScreenDialog(QDialog):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("タイトル移植 (配置+色区分+絵・US↔JP)")
+        self.setWindowTitle("タイトル画面編集")
         self._rom = rom_data
         self._app_config = app_config
         # 開いた時点の ROM 全体を退避 (キャンセル復元用)
