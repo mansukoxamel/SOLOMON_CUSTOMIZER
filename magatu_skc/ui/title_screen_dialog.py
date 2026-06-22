@@ -1731,47 +1731,13 @@ class TitleScreenDialog(QDialog):
         self._title_picker_items_cache = items
         return items
 
-    def _cycle_hover_title_character(self):
-        slot = getattr(self, "_hover_title_character_slot", None)
-        if slot is None:
-            return False
-        try:
-            chars = TS.read_title_characters(self._rom)
-            ch = next((c for c in chars if int(c.get("slot", -1)) == int(slot)), None)
-        except Exception:
-            ch = None
-        if not ch or not ch.get("active"):
-            return False
-        items = self._title_picker_items()
-        if not items:
-            return False
-        key = (int(ch.get("tile1", 0)) & 0xFF, int(ch.get("tile2", 0)) & 0xFF)
-        idx = 0
-        for i, item in enumerate(items):
-            if self._title_frame_key(item) == key:
-                idx = (i + 1) % len(items)
-                break
-        _g, _s, _fi, t1, t2, attr = items[idx]
-        palette = (int(ch.get("attr", 0)) >> 6) & 0x03
-        snap = bytes(self._rom)
-        try:
-            TS.set_title_character_slot(
-                self._rom, int(slot), int(ch.get("x", 0)), int(ch.get("y", 0)),
-                t1, t2, attr, palette)
-        except Exception as e:
-            self._rom[:] = snap
-            QMessageBox.critical(
-                self, "キャラ変更失敗", f"{type(e).__name__}: {e}")
-            return False
-        self._changed = True
-        self._refresh()
-        return True
-
     def _clear_side_panel(self):
         while self._side_layout.count():
             item = self._side_layout.takeAt(0)
             self._delete_layout_item(item)
         self._palette_context_block = None
+        self._palette_extra = None
+        self._palette_extra_layout = None
         self._title_tile_editor_canvas = None
         self._title_tile_editor_state = None
         self._title_character_count_label = None
@@ -2028,8 +1994,12 @@ class TitleScreenDialog(QDialog):
         lay = getattr(self, "_palette_extra_layout", None)
         if lay is None:
             return
-        while lay.count():
-            self._delete_layout_item(lay.takeAt(0))
+        try:
+            while lay.count():
+                self._delete_layout_item(lay.takeAt(0))
+        except RuntimeError:
+            self._palette_extra = None
+            self._palette_extra_layout = None
         self._title_tile_editor_canvas = None
         self._title_tile_editor_state = None
 
@@ -2044,7 +2014,7 @@ class TitleScreenDialog(QDialog):
 
     def _show_title_tile_editor_panel(self, row, col, grid, stream, bank_tile,
                                       pos, pixels, pal_no, ref_count):
-        if not hasattr(self, "_palette_extra_layout"):
+        if getattr(self, "_palette_extra_layout", None) is None:
             self._show_title_palette_panel()
         self._clear_palette_extra_panel()
         initial = [list(r) for r in pixels]
@@ -2281,7 +2251,6 @@ class TitleScreenDialog(QDialog):
         self._refresh_picker_grid()
 
     def _restore_preview_status(self):
-        self._hover_title_character_slot = None
         self._preview_status.setText(getattr(self, "_preview_status_text", ""))
 
     def _on_canvas_zoom_wheel(self, step):
@@ -2330,10 +2299,6 @@ class TitleScreenDialog(QDialog):
         self._drag_title_character_slot = None
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Tab:
-            if self._cycle_hover_title_character():
-                event.accept()
-                return
         if event.key() == Qt.Key_Delete:
             self._on_remove_selected_title_character()
             event.accept()
@@ -2350,7 +2315,6 @@ class TitleScreenDialog(QDialog):
             return
         dx, dy = _ppu_pixel_to_display(col * 8, row * 8)
         hit = self._title_character_at_display(dx, dy)
-        self._hover_title_character_slot = hit
         pending_ch = getattr(self, "_pending_title_character", None)
         if pending_ch:
             self._preview_status.setText(
