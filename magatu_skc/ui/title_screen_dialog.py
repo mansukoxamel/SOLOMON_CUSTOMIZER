@@ -1054,6 +1054,7 @@ class TitleScreenDialog(QDialog):
         root.addWidget(bb)
 
         self._refresh()
+        self._show_title_palette_panel()
         restore_dialog_geometry(self, self._app_config, "title_screen_dlg")
 
     # --- 描画 (実タイトル画面を合成) ---
@@ -1673,6 +1674,7 @@ class TitleScreenDialog(QDialog):
         while self._side_layout.count():
             item = self._side_layout.takeAt(0)
             self._delete_layout_item(item)
+        self._palette_context_block = None
         self._title_character_count_label = None
 
     def _delete_layout_item(self, item):
@@ -1725,35 +1727,62 @@ class TitleScreenDialog(QDialog):
         self._update_title_character_count_labels()
         self._refresh_picker_grid()
 
-    def _show_title_palette_panel(self):
+    def _show_title_palette_panel(self, block_row=None, block_col=None):
         self._clear_side_panel()
-        self._palette_panel_sel = 0
+        has_block = block_row is not None and block_col is not None
+        self._palette_context_block = (
+            (int(block_row), int(block_col)) if has_block else None)
+        if has_block:
+            current = self._attr_palette_no(
+                self._title_attributes(), int(block_row), int(block_col))
+            self._palette_panel_sel = current * 4 + 1
+        else:
+            current = None
+            self._palette_panel_sel = 0
         self._palette_slot_buttons = []
         self._palette_color_buttons = []
+        self._palette_group_radios = []
         title = QLabel("パレット変更")
         title.setStyleSheet("font-weight:bold;")
         self._side_layout.addWidget(title)
+        status = QLabel(
+            f"対象: x={int(block_col)}, y={int(block_row)} の16x16区画"
+            if has_block else
+            "対象区画なし: 色番号だけ変更できます。パレット番号の割当はキャンバスを右クリック。")
+        status.setWordWrap(True)
+        self._palette_context_label = status
+        self._side_layout.addWidget(status)
 
         g = QGroupBox("タイトルパレット $3F00-$3F0F")
         gl = QGridLayout(g)
-        for i in range(16):
-            gl.addWidget(QLabel(f"${0x3F00 + i:04X}"), (i // 4) * 2,
-                         i % 4)
-            b = QPushButton()
-            b.setMinimumSize(72, 30)
-            b.clicked.connect(lambda _, idx=i: self._select_title_palette_slot(idx))
-            self._palette_slot_buttons.append(b)
-            gl.addWidget(b, (i // 4) * 2 + 1, i % 4)
+        for group in range(4):
+            rb = QRadioButton(f"パレット {group + 1}")
+            rb.setEnabled(has_block)
+            rb.setChecked(current == group)
+            rb.toggled.connect(
+                lambda checked, idx=group: self._select_title_attr_group(idx, checked))
+            self._palette_group_radios.append(rb)
+            gl.addWidget(rb, group * 2, 0)
+            for sub in range(4):
+                i = group * 4 + sub
+                gl.addWidget(QLabel(f"${0x3F00 + i:04X}"),
+                             group * 2, sub + 1)
+                b = QPushButton()
+                b.setMinimumSize(72, 30)
+                b.clicked.connect(
+                    lambda _, idx=i: self._select_title_palette_slot(idx))
+                self._palette_slot_buttons.append(b)
+                gl.addWidget(b, group * 2 + 1, sub + 1)
         self._side_layout.addWidget(g)
 
         picker = QGroupBox("NES 64色")
         pg = QGridLayout(picker)
         for i in range(64):
             b = QPushButton(f"{i:02X}")
-            b.setMinimumSize(34, 26)
+            b.setMinimumSize(30, 24)
             b.clicked.connect(lambda _, idx=i: self._set_title_palette_slot_color(idx))
             self._palette_color_buttons.append(b)
-            pg.addWidget(b, i // 8, i % 8)
+            pg.addWidget(b, i // 16, i % 16)
         self._side_layout.addWidget(picker)
         self._side_layout.addStretch()
         self._side_panel.setVisible(True)
@@ -1764,18 +1793,59 @@ class TitleScreenDialog(QDialog):
             return
         colors = self._title_palette()
         sel = int(getattr(self, "_palette_panel_sel", 0)) & 0x0F
+        block = getattr(self, "_palette_context_block", None)
+        current_group = None
+        if block is not None:
+            current_group = self._attr_palette_no(
+                self._title_attributes(), block[0], block[1])
+        for i, rb in enumerate(getattr(self, "_palette_group_radios", [])):
+            rb.blockSignals(True)
+            rb.setEnabled(block is not None)
+            rb.setChecked(current_group == i)
+            rb.blockSignals(False)
         for i, b in enumerate(self._palette_slot_buttons):
             val = colors[i] & 0x3F
             b.setText(f"${val:02X}")
-            b.setToolTip(f"slot {i} = ${val:02X}")
+            b.setToolTip(f"パレット {i // 4 + 1} / slot {i % 4} = ${val:02X}")
             b.setStyleSheet(TitlePaletteDialog._button_style(val, i == sel))
         for i, b in enumerate(self._palette_color_buttons):
             b.setStyleSheet(
                 TitlePaletteDialog._button_style(i, (colors[sel] & 0x3F) == i))
 
+    def _cancel_palette_block_context(self):
+        if getattr(self, "_palette_context_block", None) is None:
+            return
+        self._palette_context_block = None
+        label = getattr(self, "_palette_context_label", None)
+        if label is not None:
+            label.setText(
+                "対象区画なし: 色番号だけ変更できます。パレット番号の割当はキャンバスを右クリック。")
+        self._refresh_title_palette_panel()
+
     def _select_title_palette_slot(self, idx):
         self._palette_panel_sel = int(idx) & 0x0F
         self._refresh_title_palette_panel()
+
+    def _select_title_attr_group(self, group, checked):
+        if not checked:
+            return
+        block = getattr(self, "_palette_context_block", None)
+        if block is None:
+            return
+        row, col = block
+        pal_no = int(group) & 0x03
+        attr = self._title_attributes()
+        for rr in (row, row + 1):
+            for cc in (col, col + 1):
+                self._set_title_attr_palette_no(attr, rr, cc, pal_no)
+        self._write_title_attributes(attr)
+        self._changed = True
+        self._group_overlay.setCurrentIndex(pal_no + 1)
+        self._palette_panel_sel = pal_no * 4 + 1
+        self._refresh()
+        self._refresh_title_palette_panel()
+        self._preview_status.setText(
+            f"16x16色変更: x={col}, y={row} / パレット {pal_no + 1}")
 
     def _set_title_palette_slot_color(self, nes_idx):
         colors = self._title_palette()
@@ -1790,7 +1860,7 @@ class TitleScreenDialog(QDialog):
             return
         self._refresh_title_palette_panel()
         self._preview_status.setText(
-            f"パレット変更: slot {sel} = ${colors[sel] & 0x3F:02X}")
+            f"パレット変更: パレット {sel // 4 + 1} / slot {sel % 4} = ${colors[sel] & 0x3F:02X}")
 
     def _refresh_picker_grid(self, *_):
         if not hasattr(self, "_picker_scroll"):
@@ -1863,12 +1933,14 @@ class TitleScreenDialog(QDialog):
         self._preview_status.setText(getattr(self, "_preview_status_text", ""))
 
     def _on_canvas_zoom_wheel(self, step):
+        self._cancel_palette_block_context()
         idx = self._zoom.currentIndex()
         next_idx = max(0, min(self._zoom.count() - 1, idx + int(step)))
         if next_idx != idx:
             self._zoom.setCurrentIndex(next_idx)
 
     def _on_title_character_drag_start(self, row, col, modifiers=0):
+        self._cancel_palette_block_context()
         dx, dy = _ppu_pixel_to_display(int(col) * 8, int(row) * 8)
         slot = self._title_character_at_display(dx, dy)
         if slot is None:
@@ -1943,6 +2015,7 @@ class TitleScreenDialog(QDialog):
             f"bank内 0x{bank_tile:03X} / ROM 0x{file_start:X}-0x{file_end:X}")
 
     def _on_preview_tile_clicked(self, row, col, modifiers=0):
+        self._cancel_palette_block_context()
         dx, dy = _ppu_pixel_to_display(col * 8, row * 8)
         pending_ch = getattr(self, "_pending_title_character", None)
         if pending_ch:
@@ -2099,44 +2172,14 @@ class TitleScreenDialog(QDialog):
     def _on_attr_block_clicked(self, row, col):
         if row < 0 or col < 0 or row + 1 >= (_IMG_H // 8) or col + 1 >= _NT_W:
             return
-        snap = bytes(self._rom)
+        self._show_title_palette_panel(row, col)
         current = self._attr_palette_no(self._title_attributes(), row, col)
-
-        def apply_group_preview(pal_no):
-            attr = self._title_attributes()
-            for rr in (row, row + 1):
-                for cc in (col, col + 1):
-                    self._set_title_attr_palette_no(attr, rr, cc, pal_no)
-            self._write_title_attributes(attr)
-            self._refresh()
-            self._preview_status.setText(
-                f"16x16色プレビュー: x={col}, y={row} / パレット {pal_no}")
-
-        def apply_colors_preview(colors):
-            self._set_title_palette(colors)
-            self._refresh()
-
-        dlg = TitlePaletteDialog(
-            self._title_palette(),
-            self,
-            apply_callback=apply_colors_preview,
-            group_select_enabled=True,
-            current_group=current,
-            group_callback=apply_group_preview,
-            live_apply=True)
-        if dlg.exec_() != QDialog.Accepted:
-            self._rom[:] = snap
-            self._refresh()
-            return
-        pal_no = dlg.selected_group()
-        self._set_title_palette(dlg.colors())
-        apply_group_preview(pal_no)
-        self._changed = True
-        self._refresh()
+        self._group_overlay.setCurrentIndex(current + 1)
         self._preview_status.setText(
-            f"16x16色変更: x={col}, y={row} / パレット {current} -> {pal_no}")
+            f"16x16色対象: x={col}, y={row} / パレット {current + 1}")
 
     def _on_replace_attr_group(self):
+        self._cancel_palette_block_context()
         src = int(self._group_from.currentData()) & 0x03
         dst = int(self._group_to.currentData()) & 0x03
         if src == dst:
@@ -2209,6 +2252,7 @@ class TitleScreenDialog(QDialog):
             f"タイトル上部画像 ({_IMG_W}x{_TOP_H}, 4階調) を保存:\n{path}")
 
     def _on_save_top_image(self):
+        self._cancel_palette_block_context()
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         path, _ = QFileDialog.getSaveFileName(
             self, "Save Top PNG", f"title_top_256x64_{stamp}.png",
@@ -2554,6 +2598,7 @@ class TitleScreenDialog(QDialog):
             "\n\n対象: x=0..255, y=49..112。下半分の山/神殿側は触りません。")
 
     def _on_import_top_png(self):
+        self._cancel_palette_block_context()
         path = self._pick_open(
             "Open Top PNG (PNG/BMP, max 256x64)", "*.png;*.bmp")
         if not path:
@@ -2664,6 +2709,7 @@ class TitleScreenDialog(QDialog):
         return get_file(self, title=title, filter=filt)
 
     def _on_transcode_title(self):
+        self._cancel_palette_block_context()
         path = self._pick_open(
             "タイトルの移植元 ROM を選択 (所有 .nes/.zip)",
             "*.nes;*.zip")
@@ -2686,9 +2732,11 @@ class TitleScreenDialog(QDialog):
             "\n".join(chg) + "\n\n(実機/エミュで要確認)")
 
     def _on_pick_title_character(self):
+        self._cancel_palette_block_context()
         self._show_title_character_picker_panel()
 
     def _on_clear_title_characters(self):
+        self._cancel_palette_block_context()
         if QMessageBox.question(
                 self, "キャラ全削除",
                 "タイトル上に配置した静止キャラを全て消します。") != QMessageBox.Yes:
@@ -2713,6 +2761,7 @@ class TitleScreenDialog(QDialog):
             f"{' / '.join(chg)} / {self._title_character_count_text()}")
 
     def _on_remove_selected_title_character(self):
+        self._cancel_palette_block_context()
         slot = getattr(self, "_selected_title_character_slot", None)
         if slot is None:
             return
@@ -2736,6 +2785,7 @@ class TitleScreenDialog(QDialog):
             f"選択キャラを削除しました / {self._title_character_count_text()}")
 
     def _on_edit_title_texts(self):
+        self._cancel_palette_block_context()
         try:
             cur_extra = TS.read_title_text_line(self._rom)
         except Exception:
