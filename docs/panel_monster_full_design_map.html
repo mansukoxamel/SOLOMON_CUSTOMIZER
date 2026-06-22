@@ -417,7 +417,7 @@
       <tr><td>state0_interval_helper</td><td class="num">0x3E72-0x3E83</td><td class="num">$BE62-$BE73</td><td class="num">18B</td><td class="num">18B</td><td>A/B/C group offsetからRAM intervalを読む。</td></tr>
       <tr><td>group_ram_offset_helper</td><td class="num">0x3EAF-0x3EB6</td><td class="num">$BE9F-$BEA6</td><td class="num">8B</td><td class="num">23B</td><td>A/B/C group offset helperを呼ぶ。</td></tr>
       <tr><td>static_marker_helper</td><td class="num">0x3F50-0x3F5B</td><td class="num">$BF40-$BF4B</td><td class="num">12B</td><td class="num">16B</td><td>child sub-slot marker書込。</td></tr>
-      <tr><td>v2_bullet_speed_hook</td><td class="num">0x3F79-0x3F7B</td><td class="num">$BF69-$BF6B</td><td class="num">3B</td><td class="num">78B</td><td>Bullet state2から<code>$E7C1</code> entry helperへJMPする小入口。分類器を踏まない。</td></tr>
+      <tr><td>v2_bullet_speed_hook</td><td class="num">0x3F79-0x3F7B</td><td class="num">$BF69-$BF6B</td><td class="num">3B</td><td class="num">3B</td><td>Bullet state2から<code>$E7C1</code> entry helperへJMPする小入口。旧78B hook slotの残り75Bは空き。</td></tr>
       <tr><td>v2_speed_decode</td><td class="num">0x4098-0x40CF</td><td class="num">$C088-$C0BF</td><td class="num">56B</td><td class="num">58B</td><td>marker <code>$88-$8B</code> をdecodeし、速度presetとextra countを決める。</td></tr>
       <tr><td>v2_speed_tables_and_fast_loop</td><td class="num">0x6833-0x6882</td><td class="num">$E823-$E872</td><td class="num">80B</td><td class="num">121B</td><td>速度table、extra count table、2x/3x共有substep loop。壁衝突時は破壊/撃破effectへ入らず戻る。</td></tr>
       <tr><td>parent_field_clear_helper</td><td class="num">0x67A3-0x67B3</td><td class="num">$E793-$E7A3</td><td class="num">17B</td><td class="num">17B</td><td>親velocity/subpixel clear。</td></tr>

@@ -60,7 +60,8 @@
 
   <h2>0. 運用ルール</h2>
   <div class="note">
-    <b>この台帳と実装側予約スパンを同時に正とする。</b><br>
+    <b>このHTMLをROM台帳の唯一のマスターとし、実装側予約スパンと同時に正とする。</b><br>
+    PRG0専用台帳、監査表、候補表などでROM予約を二重管理しない。空き候補・非常用候補もこのHTMLに集約する。<br>
     新しいROM領域を使う前に、このHTML、<code>docs/ram_map_current.html</code>、実装側の
     <code>RESERVED_SPANS</code> / <code>OFF_*</code> / <code>CPU_*</code> 定数を確認する。
     予約の追加・移動・解除をしたら同じ変更でこの表も更新する。重複、古い名前、根拠不明の「空き候補」が残っている状態ではリリース不可。
@@ -158,7 +159,7 @@
       <b>原作埋め領域の扱い:</b>
       <code>00</code> / <code>EA</code> 連続領域は「候補」であって未使用保証ではない。
       下表の範囲は実装モジュールが書き込むため、原作では埋め領域に見えても使用済みまたは予約済みとして扱う。
-      PRG0の新規利用前には、<code>docs/prg0_padding_audit.md</code> の専用台帳で <code>00</code> / <code>EA</code> / <code>FF</code> / <code>EF</code> の扱いとNG範囲を確認する。
+      PRG0の新規利用前には、このROM台帳内で <code>00</code> / <code>EA</code> / <code>FF</code> / <code>EF</code> の扱いとNG範囲を確認する。
       原作コード/データを直接パッチする行は、空き容量ではなく既存処理の差し替え。
     </div>
     <table>
@@ -276,7 +277,8 @@
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
       <tr><td>LOADER</td><td class="num">0x3BF0-0x3C1D</td><td class="num">$BBE0-$BC0D</td><td class="num">46B</td><td>Room flag loader. bit0/bit1 の2bit扉状態で扉セルへ $40/$80/$C0 を付与し、bit4 で持ち越しファイヤー `$042E/$042F` を消してHUDを再描画する。この範囲は原作JPの Level 30 Blue Opal bitmap <code>0x3BDA-0x3BF1</code> 末尾2Bと重なるため、mapper66保存時はStage 30のSP2 bitmap配置呼び出しを無効化済みであることが前提。</td></tr>
-      <tr><td>Wide title idle-demo cleanup</td><td class="num">0x3C1E-0x3C26</td><td class="num">$BC0E-$BC16</td><td class="num">9B</td><td>Title timeout-only stub: `JSR $CC18`, then schedules the original action `$18`. Stops stale wide-title nametable from flashing during attract-demo startup without touching the shared action table.</td></tr>
+      <tr><td>Wide title idle-demo cleanup</td><td class="num">0x3C1E-0x3C26</td><td class="num">$BC0E-$BC16</td><td class="num">9B</td><td>Title timeout-only stub: `JSR $CC6B`, then schedules the original action `$18`. Stops stale wide-title nametable/title OAM from flashing during attract-demo startup without touching the shared action table.</td></tr>
+      <tr><td>Wide title OAM clear helper</td><td class="num">0x4C7B-0x4C81</td><td class="num">$CC6B-$CC71</td><td class="num">7B</td><td>Wide-title-owned title-code helper. This is not free cave space: after wide-title normalization, `$CC4F-$CC6A` is replaced by the 28B bootstrap, so the following stock title drawing code body `$CC6B-$CCB5` is dead/owned by wide-title. This helper runs the stock title clear at `$CC18`, then calls the original all-main-slot clear helper `$CB5A`. Manual Start at `$CBB3` and idle-demo cleanup at `$BC0E` call this helper. Generic PRG0 cave, NMI hook, and DARK area usage: 0B.</td></tr>
       <tr><td>Key enemy item-tile recorder</td><td class="num">0x3C27-0x3C2D</td><td class="num">$BC17-$BC1D</td><td class="num">7B</td><td>Key enemy runtime helper used by the dropped-key path. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
       <tr><td>MAGICGATE</td><td class="num">0x3C30-0x3C51</td><td class="num">$BC20-$BC41</td><td class="num">34B</td><td>A/B magic gate restrictions.</td></tr>
       <tr><td>Key/Fairy enemy status writer</td><td class="num">0x3C52-0x3C57</td><td class="num">$BC42-$BC47</td><td class="num">6B</td><td>Small writer stub for selected key/fairy enemy status. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
@@ -300,7 +302,8 @@
       <tr><td>Panel Variant group RAM offset helper</td><td class="num">0x3EAF-0x3EB6</td><td class="num">$BE9F-$BEA6</td><td class="num">8B</td><td>A/B/C group offset helperを呼び、state0 interval helperとdynamic marker helperへX offsetを渡す。</td></tr>
       <tr><td>Spark Ball OAM hide hook</td><td class="num">0x3ED7-0x3EF8</td><td class="num">$BEC7-$BEE8</td><td class="num">34B</td><td>Transparent Spark Ball OAM post-draw hide hook. This is not free space.</td></tr>
       <tr><td>Key enemy door-light helper</td><td class="num">0x3F60-0x3F78</td><td class="num">$BF50-$BF68</td><td class="num">25B</td><td>Key enemy runtime helper for dropped-key door-light positioning. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
-      <tr><td>Panel Monster / Variant bullet hook slot</td><td class="num">0x3F79-0x3FC6</td><td class="num">$BF69-$BFB6</td><td class="num">78B</td><td>Legacy Panel Monster diagonal Bullet hook slot. Panel Monster v2 writes a 20B Bullet state2 speed hook at the start of this slot. The hook routes all speed markers through the v2 decode path, then calls the shared 2x/3x fast loop only when extra steps are required.</td></tr>
+      <tr><td>Panel Monster v2 Bullet hook jump</td><td class="num">0x3F79-0x3F7B</td><td class="num">$BF69-$BF6B</td><td class="num">3B</td><td>Panel Monster v2 writes <code>JMP $E7C1</code> here. The former 78B legacy hook body was split out; only this 3B entry is active.</td></tr>
+      <tr><td>空き</td><td class="num">0x3F7C-0x3FC6</td><td class="num">$BF6C-$BFB6</td><td class="num">75B</td><td>旧Panel Monster diagonal Bullet hook slotの本体部分。現行は先頭3Bの <code>JMP $E7C1</code> だけを使うため、この75Bへ書く実装はない。新規利用可。使う時は同じ変更でこのROM台帳と実装側 <code>RESERVED_SPANS</code> を更新する。</td></tr>
       <tr><td>Panel Variant type classifier main</td><td class="num">0x3FCA-0x3FE4</td><td class="num">$BFBA-$BFD4</td><td class="num">27B</td><td>Shared visual/property classifier for older enhanced Panel Monster IDs and A/B/C Panel Variant IDs.</td></tr>
       <tr><td>Spark Ball slow AI wrapper</td><td class="num">0x3FE8-0x3FF7</td><td class="num">$BFD8-$BFE7</td><td class="num">16B</td><td>Dragon-ID <code>$6A/$6B</code> routing. ID判定を <code>AND #$FE</code> で圧縮済み。</td></tr>
       <tr><td>gap_fix cave</td><td class="num">0x4010-0x4097</td><td class="num">$C000-$C087</td><td class="num">136B</td><td class="ok">No overlap with Spark Ball variants or key enemies as of v0.6.158.</td></tr>
@@ -349,7 +352,7 @@
       <tr><td>l_a2 loader</td><td class="num">0x8010-0x80C3</td><td class="num">$8000-$80B3</td><td class="num">180B</td><td>mapper66 expanded loader. The <code>$C0-$EF</code> direct room cells bypass respawn normalization for white in-block item state, but <code>$F0-$F3</code> one-shot white in-block items enter the PRG1 respawn helper at <code>$9009</code> and become empty breakable white blocks <code>$F9</code> after death. The visible item mask slot at file <code>0x80A2</code> calls the PRG1 helper at <code>$8E70</code>.</td></tr>
       <tr><td>mapper66 loader tail hook</td><td class="num">0x80C4-0x80C6</td><td class="num">$80B4-$80B6</td><td class="num">3B</td><td>StageExt / Panel Variant runtime hook (<code>JMP $8A00</code>). Visible item mask code must not occupy this tail.</td></tr>
       <tr><td>loader guard</td><td class="num">0x80C7-0x80CF</td><td class="num">$80B7-$80BF</td><td class="num">9B</td><td>Guard bytes.</td></tr>
-      <tr><td>wide title decoder/data</td><td class="num">0x80D0-0x87FF</td><td class="num">$80C0-$87EF</td><td class="num">1,840B</td><td>Wide title decoder + blockA/blockB streams. Current internal stream is <code>[HI][LO][LEN][TILE...]</code> with <code>$FF</code> terminator, so title text and BUILD stamps can draw original font tiles <code>$00-$2F</code> without CHR bank3 glyph copies.</td></tr>
+      <tr><td>wide title decoder/data</td><td class="num">0x80D0-0x87FF</td><td class="num">$80C0-$87EF</td><td class="num">1,840B</td><td>Wide title decoder + blockA/blockB streams + 15-slot title character main-slot table. Current internal stream is <code>[HI][LO][LEN][TILE...]</code> with <code>$FF</code> terminator, so title text and BUILD stamps can draw original font tiles <code>$00-$2F</code> without CHR bank3 glyph copies. Decoder tail copies the title-only character table into main entity slots 1-15 in PRG1; the stock per-frame OAM writer draws those slots normally. Slots 16-20 are not written because the wide-title RAM trampoline owns <code>$072C-$0739</code>. Title exit clears through the wide-title-owned helper at <code>$CC6B</code>, which calls the original all-main-slot clear helper <code>$CB5A</code>. No NMI hook, DARK hook, or generic PRG0 cave is used for this title display.</td></tr>
       <tr><td>StageExtTable</td><td class="num">0x8800-0x8A0F</td><td class="num">$87F0-$89FF</td><td class="num">528B</td><td>Per-stage extension settings: 16B header + 64 rooms x 8B. byte0 bit4=clear後に原作最終面へ送る、byte2=key enemy initial slot, byte3=fall-death fairy enemy initial slot. Also carries mapper66 runtime room flags and door-cell bytes copied to <code>$0778/$077C</code>; the room-load runtime copies byte0 bit4 to <code>$077A</code> bit7.</td></tr>
       <tr><td>Panel Variant combined runtime loader</td><td class="num">0x8A10-0x8A6F</td><td class="num">$8A00-$8A5F</td><td class="num">96B</td><td>Mapper66 room-load helper. Preserves StageExt runtime copies, copies StageExt byte0 bit4 to <code>$077A</code> bit7, copies the Solomon Seal block-state byte to <code>$077D</code>, copies the 6B global A/B/C Panel Variant settings table to <code>$0740-$0745</code>, then jumps directly to the Transparent Seal suppress guard.</td></tr>
       <tr><td>Panel Variant settings table</td><td class="num">0x8A70-0x8A75</td><td class="num">$8A60-$8A65</td><td class="num">6B</td><td>All-stage common A/B/C settings image: A speed/interval, B speed/interval, C speed/interval. Copied to RAM <code>$0740-$0745</code> by the runtime loader.</td></tr>

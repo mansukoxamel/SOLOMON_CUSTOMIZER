@@ -15,13 +15,14 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QDialogButtonBox, QMessageBox, QScrollArea, QWidget, QComboBox,
     QFileDialog, QInputDialog, QGridLayout, QGroupBox, QLineEdit,
-    QSpinBox, QRadioButton,
+    QSpinBox, QRadioButton, QButtonGroup,
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QColor, QPen
 from ..core import title_screen as TS
 from ..core import rom as _rommod
 from ..nes.palette import NES_COLORS
+from ..nes.tile import NesTile, NES_GFX_TILE_BYTE_SIZE
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 from collections import Counter
 from itertools import permutations
@@ -46,6 +47,7 @@ _TITLE_PALETTE_SCRIPT_OFF = 0x10 + (0x958A - 0x8000)
 _TITLE_ATTR_JP_OFF = 0x4D68
 _TITLE_ATTR_US_OFF = 0x4CBF
 _TITLE_ATTR_EXTRA_JP_OFF = 0x10 + (0xCDF5 - 0x8000)
+_SPRITE_PALETTE_OFFSET = 0xED4
 # bg パターンテーブル = CHR bank3 上位 4KB (tiles 256-511、ロゴ域 R196)
 _BG_BASE = 256
 
@@ -146,6 +148,247 @@ class HexSpinBox(QSpinBox):
         if s.startswith("0x"):
             s = s[2:]
         return int(s or "0", 16)
+
+
+def _encode_tile_2bpp(pixels) -> bytes:
+    out = bytearray(16)
+    for y in range(8):
+        lo = 0
+        hi = 0
+        row = pixels[y]
+        for x in range(8):
+            bit = 7 - x
+            value = int(row[x]) & 0x03
+            lo |= (value & 1) << bit
+            hi |= ((value >> 1) & 1) << bit
+        out[y] = lo
+        out[y + 8] = hi
+    return bytes(out)
+
+
+class TitleTileCanvas(QWidget):
+    pixel_changed = pyqtSignal(int, int, int)
+    pixel_picked = pyqtSignal(int)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._zoom = 28
+        self._brush = 1
+        self._pixels = [[0 for _ in range(8)] for _ in range(8)]
+        self._colors = [
+            QColor(40, 40, 40),
+            QColor(110, 110, 110),
+            QColor(180, 180, 180),
+            QColor(245, 245, 245),
+        ]
+        self.setMouseTracking(True)
+        self._update_fixed_size()
+
+    def _update_fixed_size(self):
+        size = 8 * self._zoom + 1
+        self.setMinimumSize(size, size)
+        self.setMaximumSize(size, size)
+
+    def set_zoom(self, zoom):
+        self._zoom = max(16, min(48, int(zoom)))
+        self._update_fixed_size()
+        self.update()
+
+    def set_brush(self, value):
+        self._brush = max(0, min(3, int(value)))
+
+    def set_colors(self, colors):
+        qcolors = []
+        for rgb in list(colors or [])[:4]:
+            qcolors.append(QColor(*rgb))
+        while len(qcolors) < 4:
+            qcolors.append(QColor(0, 0, 0))
+        self._colors = qcolors
+        self.update()
+
+    def set_pixels(self, pixels):
+        out = [[0 for _ in range(8)] for _ in range(8)]
+        for y, row in enumerate(list(pixels or [])[:8]):
+            for x, value in enumerate(list(row or [])[:8]):
+                out[y][x] = int(value) & 0x03
+        self._pixels = out
+        self.update()
+
+    def pixels(self):
+        return [list(row) for row in self._pixels]
+
+    def _event_cell(self, event):
+        x = event.pos().x() // self._zoom
+        y = event.pos().y() // self._zoom
+        if 0 <= x < 8 and 0 <= y < 8:
+            return int(x), int(y)
+        return None
+
+    def _paint_at_event(self, event):
+        cell = self._event_cell(event)
+        if cell is None:
+            return
+        x, y = cell
+        if event.buttons() & Qt.RightButton:
+            value = 0
+        elif event.buttons() & Qt.LeftButton:
+            value = self._brush
+        else:
+            return
+        if self._pixels[y][x] == value:
+            return
+        self._pixels[y][x] = value
+        self.pixel_changed.emit(x, y, value)
+        self.update()
+
+    def mousePressEvent(self, event):
+        cell = self._event_cell(event)
+        if cell is None:
+            return
+        x, y = cell
+        if event.button() == Qt.LeftButton and event.modifiers() & Qt.AltModifier:
+            self.pixel_picked.emit(self._pixels[y][x] & 3)
+            event.accept()
+            return
+        if event.button() in (Qt.LeftButton, Qt.RightButton):
+            self._paint_at_event(event)
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() & (Qt.LeftButton | Qt.RightButton):
+            self._paint_at_event(event)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def paintEvent(self, event):
+        del event
+        painter = QPainter(self)
+        cell = self._zoom
+        for y in range(8):
+            for x in range(8):
+                painter.fillRect(
+                    x * cell,
+                    y * cell,
+                    cell,
+                    cell,
+                    self._colors[self._pixels[y][x] & 3],
+                )
+        painter.setPen(QPen(QColor(40, 40, 40), 1))
+        for i in range(9):
+            pos = i * cell
+            painter.drawLine(pos, 0, pos, 8 * cell)
+            painter.drawLine(0, pos, 8 * cell, pos)
+        painter.end()
+
+
+class TitleTileEditorDialog(QDialog):
+    def __init__(self, pixels, colors, title, info_text, parent=None,
+                 live_callback=None):
+        super().__init__(parent)
+        if parent is not None:
+            self.setFont(parent.font())
+        self.setWindowTitle(title)
+        self._pixels = [list(row) for row in pixels]
+        self._initial_pixels = [list(row) for row in pixels]
+        self._live_callback = live_callback
+        self._changed = False
+
+        root = QVBoxLayout(self)
+        info = QLabel(info_text)
+        info.setWordWrap(True)
+        root.addWidget(info)
+
+        top = QHBoxLayout()
+        top.addWidget(QLabel("拡大:"))
+        self._zoom = QSpinBox()
+        self._zoom.setRange(16, 48)
+        self._zoom.setValue(28)
+        self._zoom.setSuffix(" x")
+        top.addWidget(self._zoom)
+        top.addStretch()
+        root.addLayout(top)
+
+        body = QHBoxLayout()
+        self._canvas = TitleTileCanvas(self)
+        self._canvas.set_colors(colors)
+        self._canvas.set_pixels(self._pixels)
+        self._canvas.pixel_changed.connect(self._on_pixel_changed)
+        self._canvas.pixel_picked.connect(self._set_brush)
+        self._zoom.valueChanged.connect(self._canvas.set_zoom)
+        body.addWidget(self._canvas, 0, Qt.AlignTop)
+
+        side = QVBoxLayout()
+        side.addWidget(QLabel("ペン:"))
+        brush_row = QHBoxLayout()
+        self._brush_group = QButtonGroup(self)
+        self._brush_buttons = []
+        for idx in range(4):
+            btn = QPushButton(str(idx))
+            btn.setCheckable(True)
+            btn.setMinimumSize(42, 34)
+            btn.setToolTip(
+                f"パレットインデックス {idx} で描く。Alt+クリックでスポイト。")
+            btn.clicked.connect(lambda _checked=False, value=idx: self._set_brush(value))
+            self._brush_group.addButton(btn, idx)
+            self._brush_buttons.append(btn)
+            brush_row.addWidget(btn)
+        self._brush_buttons[1].setChecked(True)
+        side.addLayout(brush_row)
+
+        clear_btn = QPushButton("クリア")
+        clear_btn.setToolTip("8x8タイルをパレットインデックス0で消去")
+        clear_btn.clicked.connect(self._clear)
+        side.addWidget(clear_btn)
+        reload_btn = QPushButton("開いた時点へ戻す")
+        reload_btn.clicked.connect(self._restore_initial)
+        side.addWidget(reload_btn)
+        side.addStretch()
+        body.addLayout(side, 1)
+        root.addLayout(body)
+
+        bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self._on_cancel)
+        root.addWidget(bb)
+
+    def pixels(self):
+        return [list(row) for row in self._pixels]
+
+    def _set_brush(self, value):
+        value = max(0, min(3, int(value)))
+        self._canvas.set_brush(value)
+        if 0 <= value < len(self._brush_buttons):
+            self._brush_buttons[value].setChecked(True)
+
+    def _apply_live(self):
+        if self._live_callback is not None:
+            self._live_callback(self.pixels())
+
+    def _on_pixel_changed(self, x, y, value):
+        self._pixels[y][x] = int(value) & 0x03
+        self._changed = True
+        self._apply_live()
+
+    def _set_pixels(self, pixels):
+        self._pixels = [list(row) for row in pixels]
+        self._canvas.set_pixels(self._pixels)
+        self._changed = True
+        self._apply_live()
+
+    def _clear(self):
+        self._set_pixels([[0 for _ in range(8)] for _ in range(8)])
+
+    def _restore_initial(self):
+        self._set_pixels([list(row) for row in self._initial_pixels])
+
+    def _on_cancel(self):
+        if self._changed:
+            self._pixels = [list(row) for row in self._initial_pixels]
+            self._apply_live()
+        self.reject()
 
 
 class TitlePaletteDialog(QDialog):
@@ -282,6 +525,179 @@ class TitlePaletteDialog(QDialog):
         self.reject()
 
 
+class TitleCharacterPickerDialog(QDialog):
+    def __init__(self, rom_data, parent=None):
+        super().__init__(parent)
+        if parent is not None:
+            self.setFont(parent.font())
+        self._rom = rom_data
+        self._items = self._dedupe_romframe_items(self._romframe_items())
+        self.setWindowTitle("タイトルキャラクター追加")
+        self.resize(520, 160)
+
+        root = QVBoxLayout(self)
+        row = QHBoxLayout()
+        row.addWidget(QLabel("キャラ:"))
+        self._combo = QComboBox()
+        for g, s, fi, t1, t2, attr in self._items:
+            self._combo.addItem(
+                f"g{g:02X} s{s:02X} f{fi} / tile ${t1:02X},${t2:02X} attr ${attr:02X}",
+                (g, s, fi, t1, t2, attr))
+        self._combo.currentIndexChanged.connect(self._refresh_preview)
+        row.addWidget(self._combo, 1)
+        root.addLayout(row)
+
+        prow = QHBoxLayout()
+        prow.addWidget(QLabel("色:"))
+        self._palette = QComboBox()
+        for i in range(4):
+            self._palette.addItem(f"SPR {i}", i)
+        self._palette.currentIndexChanged.connect(self._refresh_preview)
+        prow.addWidget(self._palette)
+        prow.addStretch()
+        root.addLayout(prow)
+
+        self._preview = QLabel()
+        self._preview.setFixedSize(96, 96)
+        self._preview.setAlignment(Qt.AlignCenter)
+        self._preview.setStyleSheet("background:#202020; border:1px solid #555;")
+        root.addWidget(self._preview, 0, Qt.AlignHCenter)
+
+        note = QLabel(
+            f"OK後、タイトルプレビューをクリックして配置します。最大 {TS.title_character_max()} 体。")
+        note.setWordWrap(True)
+        root.addWidget(note)
+
+        bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        root.addWidget(bb)
+        self._refresh_preview()
+
+    def selected_character(self):
+        if not self._items:
+            raise ValueError("ROMフレームが見つかりません。")
+        data = self._combo.currentData()
+        if data is None:
+            data = self._items[0]
+        g, s, fi, t1, t2, attr = data
+        return {
+            "group": g,
+            "state": s,
+            "frame": fi,
+            "tile1": t1,
+            "tile2": t2,
+            "attr": attr,
+            "palette": int(self._palette.currentData()) & 0x03,
+        }
+
+    def _sprite_palette_qcolors(self, sprite_palette_no):
+        off = _SPRITE_PALETTE_OFFSET + (4 + (int(sprite_palette_no) & 3)) * 4
+        vals = [0x00, 0x10, 0x30]
+        if off + 3 <= len(self._rom):
+            vals = [self._rom[off + i] & 0x3F for i in range(3)]
+        return [None] + [QColor(*NES_COLORS[v & 0x3F]) for v in vals]
+
+    def _draw_8x16(self, painter, zoom, ox, oy, tile_byte, oam_attr):
+        pal = self._sprite_palette_qcolors(oam_attr & 0x03)
+        hflip = bool(oam_attr & 0x40)
+        vflip = bool(oam_attr & 0x80)
+        half = 256 if (int(tile_byte) & 1) else 0
+        top = half + (int(tile_byte) & 0xFE)
+        chr_off = TS.chr_bank3_offset(self._rom)
+        for sub, tile_no in ((0, top), (1, top + 1)):
+            pos = chr_off + tile_no * NES_GFX_TILE_BYTE_SIZE
+            if pos + NES_GFX_TILE_BYTE_SIZE > len(self._rom):
+                continue
+            tile = NesTile(bytes(self._rom[pos:pos + NES_GFX_TILE_BYTE_SIZE]))
+            for py in range(8):
+                for px in range(8):
+                    pi = tile.pixels[py][px] & 0x03
+                    color = pal[pi]
+                    if color is None:
+                        continue
+                    dx = 7 - px if hflip else px
+                    sy = sub * 8 + py
+                    dy = 15 - sy if vflip else sy
+                    painter.fillRect(
+                        ox + dx * zoom, oy + dy * zoom,
+                        zoom, zoom, color)
+
+    def _refresh_preview(self, *_):
+        if not self._items:
+            self._preview.setText("なし")
+            return
+        ch = self.selected_character()
+        entry = TS.title_character_entry(
+            0, 0, ch["tile1"], ch["tile2"], ch["attr"], ch["palette"])
+        attr1, attr2 = TS.title_character_oam_attrs(entry[5])
+        img = QImage(96, 96, QImage.Format_ARGB32)
+        img.fill(QColor(32, 32, 32))
+        painter = QPainter(img)
+        zoom = 4
+        ox = (96 - 16 * zoom) // 2
+        oy = (96 - 16 * zoom) // 2
+        self._draw_8x16(painter, zoom, ox, oy, entry[3], attr1)
+        self._draw_8x16(painter, zoom, ox + 8 * zoom, oy, entry[4], attr2)
+        painter.end()
+        self._preview.setPixmap(QPixmap.fromImage(img))
+
+    @staticmethod
+    def _cf(cpu):
+        return 0x10 + (cpu - 0x8000)
+
+    def _romframe_items(self):
+        rom = self._rom
+        cf = self._cf
+        if len(rom) <= cf(0xDA00):
+            return []
+        gptrs = [
+            rom[cf(0xD0E8 + i * 2)] | (rom[cf(0xD0E8 + i * 2 + 1)] << 8)
+            for i in range(32)
+        ]
+        uniq = sorted(set(gptrs))
+        bound = {}
+        for i, p in enumerate(uniq):
+            bound[p] = uniq[i + 1] if i + 1 < len(uniq) else 0xD600
+        items = []
+        for g in range(32):
+            base = gptrs[g]
+            nstates = min(max(0, (bound.get(base, base + 4) - base) // 4), 64)
+            for s in range(nstates):
+                e = base + s * 4
+                phase = rom[cf(e)]
+                ri = rom[cf(e + 1)]
+                ptr = rom[cf(e + 2)] | (rom[cf(e + 3)] << 8)
+                frames = (phase & 0x0F) + 1
+                if ri & 1:
+                    if not (0xD000 <= ptr <= 0xD600):
+                        continue
+                    final = rom[cf(ptr)] | (rom[cf(ptr + 1)] << 8)
+                else:
+                    final = ptr
+                if not (0xD600 <= final < 0xDA00):
+                    continue
+                for fi in range(min(frames, 8)):
+                    a = final + fi * 3
+                    if not (0xD600 <= a < 0xDA00):
+                        break
+                    items.append((g, s, fi, rom[cf(a)],
+                                  rom[cf(a + 1)], rom[cf(a + 2)]))
+        return items
+
+    @staticmethod
+    def _dedupe_romframe_items(items):
+        seen = set()
+        out = []
+        for item in items:
+            key = item[3], item[4], item[5]
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(item)
+        return out
+
+
 class TitlePngColorGuardDialog(QDialog):
     def __init__(self, error, parent=None):
         super().__init__(parent)
@@ -401,6 +817,8 @@ class TitleScreenDialog(QDialog):
         self._canvas = TitlePreviewLabel()
         self._canvas.setAlignment(Qt.AlignCenter)
         self._canvas.setStyleSheet("background:#444;")
+        self._canvas.setToolTip(
+            "左クリック: 8x8 CHRタイル編集 / 右クリック: 16x16色グループ変更")
         self._canvas.tile_hovered.connect(self._on_preview_tile_hovered)
         self._canvas.tile_left.connect(self._restore_preview_status)
         self._canvas.tile_clicked.connect(self._on_preview_tile_clicked)
@@ -415,6 +833,7 @@ class TitleScreenDialog(QDialog):
         self._preview_status = QLabel("")
         root.addWidget(self._preview_status)
         self._pending_stamp = None
+        self._pending_title_character = None
 
         # 操作ボタン
         br = QHBoxLayout()
@@ -440,6 +859,15 @@ class TitleScreenDialog(QDialog):
             "既存文字ルーチンは変更しません。")
         b_text.clicked.connect(self._on_add_title_text)
         br.addWidget(b_text)
+        b_char = QPushButton("キャラクター追加...")
+        b_char.setToolTip(
+            f"$D0E8由来の16x16キャラを選び、タイトル上へ最大{TS.title_character_max()}体配置します。")
+        b_char.clicked.connect(self._on_pick_title_character)
+        br.addWidget(b_char)
+        b_char_clear = QPushButton("キャラ全削除")
+        b_char_clear.setToolTip("タイトル上に配置した静止キャラを全て消します。")
+        b_char_clear.clicked.connect(self._on_clear_title_characters)
+        br.addWidget(b_char_clear)
         b_pal = QPushButton("タイトル色...")
         b_pal.setToolTip("タイトル画面のBGパレット16色($3F00-$3F0F)を編集します。")
         b_pal.clicked.connect(self._on_edit_title_palette)
@@ -627,6 +1055,7 @@ class TitleScreenDialog(QDialog):
             Qt.FastTransformation)
         highlight_tile = self._highlight_tile.value()
         count = self._draw_preview_highlight(pm, z, grid, highlight_tile)
+        self._draw_title_character_overlay(pm, z)
         self._draw_preview_grid(pm, z)
         self._draw_preview_attr_grid(pm, z)
         self._draw_preview_group_overlay(
@@ -738,6 +1167,68 @@ class TitleScreenDialog(QDialog):
                 self._draw_wrapped_rect(painter, dx, dy, 16, 16, zoom)
         painter.end()
 
+    def _sprite_palette_qcolors(self, sprite_palette_no):
+        off = _SPRITE_PALETTE_OFFSET + (4 + (int(sprite_palette_no) & 3)) * 4
+        vals = [0x00, 0x10, 0x30]
+        if off + 3 <= len(self._rom):
+            vals = [self._rom[off + i] & 0x3F for i in range(3)]
+        return [None] + [QColor(*NES_COLORS[v & 0x3F]) for v in vals]
+
+    def _draw_8x16_oam_sprite(self, painter, zoom, x, y, tile_byte, oam_attr):
+        pal = self._sprite_palette_qcolors(oam_attr & 0x03)
+        hflip = bool(oam_attr & 0x40)
+        vflip = bool(oam_attr & 0x80)
+        half = 256 if (int(tile_byte) & 1) else 0
+        top = half + (int(tile_byte) & 0xFE)
+        chr_off = TS.chr_bank3_offset(self._rom)
+        for sub, tile_no in ((0, top), (1, top + 1)):
+            pos = chr_off + tile_no * NES_GFX_TILE_BYTE_SIZE
+            if pos + NES_GFX_TILE_BYTE_SIZE > len(self._rom):
+                continue
+            tile = NesTile(bytes(self._rom[pos:pos + NES_GFX_TILE_BYTE_SIZE]))
+            for py in range(8):
+                for px in range(8):
+                    pi = tile.pixels[py][px] & 0x03
+                    color = pal[pi]
+                    if color is None:
+                        continue
+                    dx = 7 - px if hflip else px
+                    sy = sub * 8 + py
+                    dy = 15 - sy if vflip else sy
+                    painter.fillRect(
+                        (int(x) + dx) * zoom,
+                        (int(y) + dy) * zoom,
+                        zoom,
+                        zoom,
+                        color,
+                    )
+
+    def _draw_title_character_overlay(self, pm, zoom):
+        try:
+            chars = TS.read_title_characters(self._rom)
+        except Exception:
+            return
+        painter = QPainter(pm)
+        for ch in chars:
+            if not ch.get("active"):
+                continue
+            x = int(ch.get("x", 0))
+            y = int(ch.get("y", 0))
+            self._draw_8x16_oam_sprite(
+                painter, zoom, x, y,
+                int(ch.get("tile1", 0)), int(ch.get("attr1", 0)))
+            self._draw_8x16_oam_sprite(
+                painter, zoom, x + 8, y,
+                int(ch.get("tile2", 0)), int(ch.get("attr2", 0)))
+            pen = QPen(QColor(255, 255, 255, 180))
+            pen.setWidth(max(1, zoom))
+            painter.setPen(pen)
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRect(
+                x * zoom, y * zoom, max(0, 16 * zoom - 1),
+                max(0, 16 * zoom - 1))
+        painter.end()
+
     def _restore_preview_status(self):
         self._preview_status.setText(getattr(self, "_preview_status_text", ""))
 
@@ -749,13 +1240,46 @@ class TitleScreenDialog(QDialog):
                 f"({pending['tile_w']}x{pending['tile_h']} tiles) / "
                 f"クリック位置 ({col}, {row})")
             return
+        pending_ch = getattr(self, "_pending_title_character", None)
+        if pending_ch:
+            dx, dy = _ppu_pixel_to_display(col * 8, row * 8)
+            self._preview_status.setText(
+                f"キャラ配置待ち: g{pending_ch['group']:02X} "
+                f"s{pending_ch['state']:02X} f{pending_ch['frame']} / "
+                f"x={dx}, y={dy}")
+            return
         self._preview_status.setText(
             f"cell ({col}, {row}) / stream 0x{stream:02X} / "
             f"bank内 0x{bank_tile:03X} / ROM 0x{file_start:X}-0x{file_end:X}")
 
     def _on_preview_tile_clicked(self, row, col):
+        pending_ch = getattr(self, "_pending_title_character", None)
+        if pending_ch:
+            dx, dy = _ppu_pixel_to_display(col * 8, row * 8)
+            snap = bytes(self._rom)
+            try:
+                chg = TS.add_title_character(
+                    self._rom, dx, dy, pending_ch["tile1"], pending_ch["tile2"],
+                    pending_ch["attr"], pending_ch["palette"])
+            except (TS.TitleScreenError, ValueError) as e:
+                self._rom[:] = snap
+                QMessageBox.critical(self, "キャラクター配置不可", str(e))
+                return
+            except Exception as e:
+                self._rom[:] = snap
+                QMessageBox.critical(
+                    self, "キャラクター配置失敗",
+                    f"{type(e).__name__}: {e}")
+                return
+            self._pending_title_character = None
+            self._changed = True
+            self._refresh()
+            QMessageBox.information(
+                self, "キャラクター配置完了", "\n".join(chg))
+            return
         pending = getattr(self, "_pending_stamp", None)
         if not pending:
+            self._on_edit_title_tile(row, col)
             return
         if row + pending["tile_h"] > (_IMG_H // 8) or \
                 col + pending["tile_w"] > _NT_W:
@@ -790,6 +1314,92 @@ class TitleScreenDialog(QDialog):
         self._changed = True
         self._refresh()
         QMessageBox.information(self, "Top PNG貼り付け完了", "\n".join(chg))
+
+    def _title_tile_at_cell(self, row, col):
+        d = TS.decode_title_grid(self._rom)
+        grid = d["grid"]
+        cell = int(row) * _NT_W + int(col)
+        if not (0 <= cell < len(grid)):
+            raise ValueError("cell is outside title grid")
+        stream = int(grid[cell]) & 0xFF
+        bank_tile = (_BG_BASE + stream) & 0x1FF
+        off = TS.chr_bank3_offset(self._rom)
+        pos = off + bank_tile * 0x10
+        if pos + 0x10 > len(self._rom):
+            raise ValueError("CHR tile is outside ROM")
+        return grid, stream, bank_tile, off, pos
+
+    def _title_tile_pixels(self, pos):
+        from ..nes.tile import NesTile
+        return [list(row) for row in NesTile(bytes(self._rom[pos:pos + 0x10])).pixels]
+
+    def _write_title_tile_pixels(self, pos, pixels):
+        enc = _encode_tile_2bpp(pixels)
+        if bytes(self._rom[pos:pos + 0x10]) != enc:
+            self._rom[pos:pos + 0x10] = enc
+
+    def _title_tile_palette_colors(self, row, col):
+        pal = self._title_palette()
+        pal_no = self._attr_palette_no(self._title_attributes(), row, col)
+        colors = []
+        for idx in range(4):
+            nes_idx = pal[0] if idx == 0 else pal[pal_no * 4 + idx]
+            colors.append(NES_COLORS[nes_idx & 0x3F])
+        return colors, pal_no
+
+    @staticmethod
+    def _title_tile_ref_count(grid, stream):
+        target = int(stream) & 0xFF
+        return sum(1 for value in grid if (int(value) & 0xFF) == target)
+
+    def _on_edit_title_tile(self, row, col):
+        try:
+            grid, stream, bank_tile, chr_off, pos = self._title_tile_at_cell(row, col)
+            pixels = self._title_tile_pixels(pos)
+            colors, pal_no = self._title_tile_palette_colors(row, col)
+        except Exception as e:
+            QMessageBox.critical(
+                self, "8x8編集不可", f"{type(e).__name__}: {e}")
+            return
+        self._highlight_tile.setValue(bank_tile)
+        initial = [list(r) for r in pixels]
+        old_changed = self._changed
+        ref_count = self._title_tile_ref_count(grid, stream)
+        title = f"8x8 CHR編集 bank内 0x{bank_tile:03X}"
+        info = (
+            f"cell ({col}, {row}) / stream 0x{stream:02X} / "
+            f"bank内 0x{bank_tile:03X} / ROM 0x{pos:X}-0x{pos + 0x0F:X}\n"
+            f"色グループ {pal_no} / このCHRタイルの使用箇所: {ref_count}"
+        )
+
+        def live_apply(new_pixels):
+            self._write_title_tile_pixels(pos, new_pixels)
+            self._changed = True
+            self._refresh()
+            self._preview_status.setText(
+                f"8x8編集中: cell ({col}, {row}) / bank内 0x{bank_tile:03X}")
+
+        dlg = TitleTileEditorDialog(
+            pixels,
+            colors,
+            title,
+            info,
+            self,
+            live_callback=live_apply,
+        )
+        if dlg.exec_() != QDialog.Accepted:
+            self._write_title_tile_pixels(pos, initial)
+            self._changed = old_changed
+            self._refresh()
+            return
+        self._write_title_tile_pixels(pos, dlg.pixels())
+        if dlg.pixels() != initial:
+            self._changed = True
+        else:
+            self._changed = old_changed
+        self._refresh()
+        self._preview_status.setText(
+            f"8x8編集: cell ({col}, {row}) / bank内 0x{bank_tile:03X}")
 
     def _on_attr_block_clicked(self, row, col):
         if row < 0 or col < 0 or row + 1 >= (_IMG_H // 8) or col + 1 >= _NT_W:
@@ -1397,6 +2007,50 @@ class TitleScreenDialog(QDialog):
         QMessageBox.information(
             self, "タイトル移植完了",
             "\n".join(chg) + "\n\n(実機/エミュで要確認)")
+
+    def _on_pick_title_character(self):
+        try:
+            dlg = TitleCharacterPickerDialog(self._rom, self)
+        except Exception as e:
+            QMessageBox.critical(
+                self, "キャラクター選択不可",
+                f"{type(e).__name__}: {e}")
+            return
+        if dlg.exec_() != QDialog.Accepted:
+            return
+        try:
+            self._pending_title_character = dlg.selected_character()
+        except Exception as e:
+            QMessageBox.critical(
+                self, "キャラクター選択不可",
+                f"{type(e).__name__}: {e}")
+            return
+        ch = self._pending_title_character
+        self._preview_status.setText(
+            f"キャラ配置待ち: g{ch['group']:02X} s{ch['state']:02X} "
+            f"f{ch['frame']} / 配置したい場所をクリック")
+
+    def _on_clear_title_characters(self):
+        if QMessageBox.question(
+                self, "キャラ全削除",
+                "タイトル上に配置した静止キャラを全て消します。") != QMessageBox.Yes:
+            return
+        snap = bytes(self._rom)
+        try:
+            chg = TS.clear_title_characters(self._rom)
+        except (TS.TitleScreenError, ValueError) as e:
+            self._rom[:] = snap
+            QMessageBox.critical(self, "キャラ削除不可", str(e))
+            return
+        except Exception as e:
+            self._rom[:] = snap
+            QMessageBox.critical(
+                self, "キャラ削除失敗", f"{type(e).__name__}: {e}")
+            return
+        self._pending_title_character = None
+        self._changed = True
+        self._refresh()
+        QMessageBox.information(self, "キャラ全削除完了", "\n".join(chg))
 
     def _on_add_title_text(self):
         try:

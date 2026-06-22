@@ -110,6 +110,7 @@
     <tr><td class="num">$0456-$04D5</td><td>サウンドドライバ 8ch状態</td><td class="ng">使用禁止</td><td><code>$0456 + $10*N</code>。間接アクセスされるためASM直リテラルだけでは見抜けない。<code>$0460/$0461</code>事故の原因。</td></tr>
     <tr><td class="num">$04F7-$057E</td><td>sub-slot領域</td><td class="ng">使用禁止</td><td>敵弾/生成物/特殊処理など。複数パネル面では枯渇にも注意。</td></tr>
     <tr><td class="num">$057F-$0722</td><td>main entity 21slot</td><td class="ng">使用禁止</td><td>ポインタ表 <code>$B328/$B33D</code> で確定。slot20開始 <code>$070F</code>、終端 <code>$0722</code>。</td></tr>
+    <tr><td class="num">$05E3-$070E</td><td>WIDETITLE_TITLE_CHARS</td><td>タイトル中のみ</td><td>wide title decoder がタイトル静止キャラ用に main entity slot 1-15 の <code>+0/+7/+10/+17/+18/+19</code> へ status/Y/X/tile/attr を投入する。原作OAM writerに描かせるための一時使用で、RAMの新規常駐予約ではない。slot16以降は <code>$072C-$0739</code> のRAM trampolineへ近いため書かない。</td></tr>
     <tr><td class="num">$057F...</td><td>Dana main entity slot</td><td>本編使用</td><td>Dana状態・座標・速度がここに入る。probeでは <code>$0584-$058A</code> 周辺を監視していた。</td></tr>
     <tr><td class="num">$0723-$072B</td><td>KEY_ENEMY_RUNTIME</td><td class="ok">Customizer予約済</td><td>鍵持ち敵のドロップ鍵・取得タイル・退避ポインタ・対象初期敵番号/実行スロット。<code>key_enemy_runtime.py</code> が使用。</td></tr>
     <tr><td class="num">$072C-$0739</td><td>WIDETITLE_TRAMP</td><td class="ok">Customizer予約中</td><td>mapper66 wide title描画時だけ使うRAM実行stub。<code>$072C</code> IN 8B / <code>$0734</code> OUT 6B。block grid外へ退避済み。</td></tr>

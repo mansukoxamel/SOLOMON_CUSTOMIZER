@@ -878,7 +878,117 @@ def _us_arcade_title_streams_for_import(rom_data):
     return grids[0], grids[1]
 
 
-def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b):
+def _wt_title_oam_table_file() -> int:
+    dec = _wt_current_decoder_bytes()
+    return _WT_DEC_FILE + len(dec) - _WT_TITLE_SLOT_TABLE_BYTES
+
+
+def _wt_has_current_title_slot_helper(rom_data) -> bool:
+    dec = _wt_current_decoder_bytes()
+    table_rel = len(dec) - _WT_TITLE_SLOT_TABLE_BYTES
+    if table_rel <= 0:
+        return False
+    return bytes(rom_data[_WT_DEC_FILE:_WT_DEC_FILE + table_rel]) == dec[:table_rel]
+
+
+def _wt_read_title_oam_table_or_default(rom_data) -> bytes:
+    start = _wt_title_oam_table_file()
+    end = start + _WT_TITLE_SLOT_TABLE_BYTES
+    if _wt_has_current_title_slot_helper(rom_data) and end <= len(rom_data):
+        return bytes(rom_data[start:end])
+    return _wt_title_oam_default_table()
+
+
+def title_character_oam_attrs(frame_attr: int) -> tuple[int, int]:
+    attr = int(frame_attr) & 0xFF
+    p1 = (attr >> 6) & 0x03
+    p2 = (attr >> 2) & 0x03
+    h1, v1 = (attr >> 4) & 1, (attr >> 5) & 1
+    h2, v2 = (attr >> 1) & 1, (attr >> 0) & 1
+    return ((v1 << 7) | (h1 << 6) | p1,
+            (v2 << 7) | (h2 << 6) | p2)
+
+
+def read_title_characters(rom_data) -> list:
+    """Read the current 20 title character main-slot entries."""
+    table = _wt_read_title_oam_table_or_default(rom_data)
+    out = []
+    for slot in range(_WT_TITLE_CHARACTER_MAX):
+        pos = slot * _WT_TITLE_SLOT_ENTRY_BYTES
+        entry = bytes(table[pos:pos + _WT_TITLE_SLOT_ENTRY_BYTES])
+        attr1, attr2 = title_character_oam_attrs(entry[5])
+        out.append({
+            "slot": slot,
+            "active": _wt_title_oam_is_active(entry),
+            "y": entry[1],
+            "x": entry[2],
+            "tile1": entry[3],
+            "tile2": entry[4],
+            "attr": entry[5],
+            "attr1": attr1,
+            "attr2": attr2,
+        })
+    return out
+
+
+def title_character_entry(x: int, y: int, tile1: int, tile2: int,
+                          frame_attr: int, palette: int) -> bytes:
+    """Build one title main-slot entry from the ROM-frame pair and palette."""
+    x = max(0, min(0xFF, int(x)))
+    y = max(0, min(0xEF, int(y)))
+    pal = int(palette) & 0x03
+    attr = int(frame_attr) & 0xFF
+    h1, v1 = (attr >> 4) & 1, (attr >> 5) & 1
+    h2, v2 = (attr >> 1) & 1, (attr >> 0) & 1
+    slot_attr = ((pal & 3) << 6) | (v1 << 5) | (h1 << 4) | \
+        ((pal & 3) << 2) | (h2 << 1) | v2
+    return bytes((0x80, y & 0xFF, x & 0xFF,
+                  int(tile1) & 0xFF, int(tile2) & 0xFF, slot_attr & 0xFF))
+
+
+def _write_title_oam_table_with_streams(rom_data, table: bytes) -> list:
+    grid_a, grid_b = _wide_title_grids_for_edit(rom_data)
+    len_a, len_b = _write_wide_title_streams_for_import(
+        rom_data, grid_a, grid_b, title_oam_table=table)
+    active = sum(
+        1 for i in range(_WT_TITLE_CHARACTER_MAX)
+        if _wt_title_oam_is_active(
+            table[i * _WT_TITLE_SLOT_ENTRY_BYTES:
+                  (i + 1) * _WT_TITLE_SLOT_ENTRY_BYTES]))
+    return [
+        f"title characters updated: {active}/{_WT_TITLE_CHARACTER_MAX}",
+        f"bank1 streams rewritten: A={len_a}B / B={len_b}B",
+    ]
+
+
+def add_title_character(rom_data, x: int, y: int, tile1: int, tile2: int,
+                        frame_attr: int, palette: int) -> list:
+    table = bytearray(_wt_read_title_oam_table_or_default(rom_data))
+    slot = None
+    for i in range(_WT_TITLE_CHARACTER_MAX):
+        pos = i * _WT_TITLE_SLOT_ENTRY_BYTES
+        if not _wt_title_oam_is_active(table[pos:pos + _WT_TITLE_SLOT_ENTRY_BYTES]):
+            slot = i
+            break
+    if slot is None:
+        raise TitleScreenError(
+            f"title character slots are full "
+            f"({_WT_TITLE_CHARACTER_MAX}/{_WT_TITLE_CHARACTER_MAX}).")
+    pos = slot * _WT_TITLE_SLOT_ENTRY_BYTES
+    table[pos:pos + _WT_TITLE_SLOT_ENTRY_BYTES] = \
+        title_character_entry(x, y, tile1, tile2, frame_attr, palette)
+    msgs = _write_title_oam_table_with_streams(rom_data, bytes(table))
+    msgs.insert(0, f"title character placed: slot {slot + 1}/{_WT_TITLE_CHARACTER_MAX}")
+    return msgs
+
+
+def clear_title_characters(rom_data) -> list:
+    return _write_title_oam_table_with_streams(
+        rom_data, _wt_title_oam_default_table())
+
+
+def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b,
+                                         title_oam_table: bytes | bytearray | None = None):
     """Replace the bank1 streams of a JP wide-normalized title."""
     if not is_wide_normalized(target_rom):
         raise TitleScreenError(
@@ -890,7 +1000,9 @@ def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b):
             "Reopen a clean JP ROM and use the mapper66 wide-normalized ROM.")
     stream_a = encode_len_stream(grid_a)
     stream_b = encode_len_stream(grid_b)
-    boot, decoder = _wt_build_trampoline(_WT_DEC_CPU)
+    table = _wt_read_title_oam_table_or_default(target_rom) \
+        if title_oam_table is None else bytes(title_oam_table)
+    boot, decoder = _wt_build_trampoline(_WT_DEC_CPU, title_oam_table=table)
     a_file = _WT_DEC_FILE + len(decoder)
     b_file = a_file + len(stream_a)
     end_file = b_file + len(stream_b)
@@ -916,6 +1028,8 @@ def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b):
     target_rom[_wjp_cf(_WT_PTRA_HI)] = (a_cpu >> 8) & 0xFF
     target_rom[_wjp_cf(_WT_PTRB_LO)] = b_cpu & 0xFF
     target_rom[_wjp_cf(_WT_PTRB_HI)] = (b_cpu >> 8) & 0xFF
+    _wt_install_title_oam_clear(target_rom)
+    _wt_install_idle_demo_cleanup(target_rom)
     return len(stream_a), len(stream_b)
 
 
@@ -1391,6 +1505,11 @@ def _wjp_b1f(cpu):
     return 0x8010 + (cpu - 0x8000)
 
 
+def _word(cpu):
+    """6502 absolute operand bytes, little endian."""
+    return bytes((cpu & 0xFF, (cpu >> 8) & 0xFF))
+
+
 # ===== JP wide title : RAM-trampoline 機構 (2026-05-19 確定) =====
 # 設計詳細: docs/wide_title_trampoline_design.html /
 #   memory project_wide_title_trampoline_design.md / Codex_Exchange/
@@ -1413,6 +1532,14 @@ _WT_RAM_OUT     = 0x0734               # RAM trampoline OUT (6B、IN直後)
 _WT_RAM_END     = 0x0739               # 予約 $072C-$0739 (14B)
 _WT_DEC_FILE    = 0x80D0               # bank1 decoder 配置 file (m66 loader直後)
 _WT_DEC_CPU     = 0x8000 + (_WT_DEC_FILE - 0x8010)   # = $80C0
+_WT_TITLE_CHARACTER_MAX = 15
+_WT_TITLE_SLOT0_BASE = 0x05CF
+_WT_TITLE_SLOT_STRIDE = 20
+_WT_TITLE_SLOT_ENTRY_BYTES = 6
+_WT_TITLE_SLOT_TABLE_BYTES = _WT_TITLE_CHARACTER_MAX * _WT_TITLE_SLOT_ENTRY_BYTES
+_WT_TITLE_SLOT_HIDDEN_ENTRY = bytes((0x00, 0xF8, 0x00, 0x00, 0x00, 0x00))
+_WT_TITLE_OAM_CLEAR_CPU = 0xCC6B
+_WT_TITLE_START_CLEAR_CPU = 0xCBB3
 _RF_BAND        = (0x3BEE, 0x4210)     # Room Flag 占有 file 帯 [start,end)
 # 呼出元 stream ポインタ即値 (block A=$CCB6 / block B=$CD76)
 _WT_PTRA_LO, _WT_PTRA_HI = 0xCCBA, 0xCCBE
@@ -1429,7 +1556,10 @@ _WT_IDLE_DEMO_TIMEOUT_CPU = 0xCB9E
 _WT_IDLE_DEMO_CLEAR_STUB_CPU = 0xBC0E
 _WT_IDLE_DEMO_TIMEOUT_ORIG = bytes.fromhex("A918205F8D")
 _WT_IDLE_DEMO_TIMEOUT_HOOK = bytes.fromhex("200EBCEAEA")
-_WT_IDLE_DEMO_CLEAR_STUB = bytes.fromhex("2018CCA918205F8D60")
+_WT_IDLE_DEMO_CLEAR_STUB = (
+    bytes.fromhex("20") + _word(_WT_TITLE_OAM_CLEAR_CPU) +
+    bytes.fromhex("A918205F8D60")
+)
 assert len(_WT_IDLE_DEMO_CLEAR_STUB) == 9
 
 
@@ -1447,6 +1577,18 @@ def _wt_has_legacy_03c0_bootstrap(rom_data) -> bool:
 def _wt_has_ram_bootstrap(rom_data) -> bool:
     return _wt_has_current_ram_bootstrap(rom_data) or \
         _wt_has_legacy_03c0_bootstrap(rom_data)
+
+
+def title_character_max() -> int:
+    return _WT_TITLE_CHARACTER_MAX
+
+
+def _wt_title_oam_default_table() -> bytes:
+    return _WT_TITLE_SLOT_HIDDEN_ENTRY * _WT_TITLE_CHARACTER_MAX
+
+
+def _wt_title_oam_is_active(entry: bytes) -> bool:
+    return len(entry) >= _WT_TITLE_SLOT_ENTRY_BYTES and bool(entry[0] & 0x80)
 
 
 def migrate_wide_title_trampoline_ram(rom_data) -> list:
@@ -1497,18 +1639,78 @@ def _wt_install_idle_demo_cleanup(rom_data) -> bool:
     return changed
 
 
+def _wt_title_oam_clear_helper() -> bytes:
+    """Clear the title-only OAM sprites and run the stock title clear first."""
+    return (
+        bytes.fromhex("20") + _word(0xCC18) +
+        bytes.fromhex("20") + _word(0xCB5A) +
+        bytes((0x60,))
+    )
+
+
+def _wt_install_title_oam_clear(rom_data) -> bool:
+    """Install the title-exit OAM clear hook in wide-title-owned code."""
+    helper = _wt_title_oam_clear_helper()
+    helper_off = _wjp_cf(_WT_TITLE_OAM_CLEAR_CPU)
+    start_off = _wjp_cf(_WT_TITLE_START_CLEAR_CPU)
+    start_orig = bytes.fromhex("2018CC")
+    start_hook = bytes.fromhex("20") + _word(_WT_TITLE_OAM_CLEAR_CPU)
+    cur_helper = bytes(rom_data[helper_off:helper_off + len(helper)])
+    cur_start = bytes(rom_data[start_off:start_off + len(start_orig)])
+    if cur_start not in (start_orig, start_hook):
+        raise TitleScreenError(
+            f"title start clear hook signature mismatch at "
+            f"${_WT_TITLE_START_CLEAR_CPU:04X}: got {cur_start.hex(' ')}")
+    changed = cur_helper != helper or cur_start != start_hook
+    rom_data[helper_off:helper_off + len(helper)] = helper
+    rom_data[start_off:start_off + len(start_hook)] = start_hook
+    return changed
+
+
 def apply_wide_title_idle_demo_cleanup(rom_data) -> list:
     """Install the timeout-only demo clear hook on current wide-title ROMs."""
     if not _wt_has_current_ram_bootstrap(rom_data):
         return []
-    if not _wt_install_idle_demo_cleanup(rom_data):
+    changed = _wt_install_title_oam_clear(rom_data)
+    changed = _wt_install_idle_demo_cleanup(rom_data) or changed
+    if not changed:
         return []
     return [
-        "wide-title idle demo cleanup installed: $CB9E -> $BC0E"
+        "wide-title title/demo OAM cleanup installed"
     ]
 
 
-def _wt_build_trampoline(decoder_cpu):
+def _wt_title_oam_helper(cpu_base: int, return_cpu: int,
+                         table: bytes | bytearray | None = None) -> bytes:
+    """Build the PRG1-only title main-slot writer.
+
+    It copies a fixed 20-slot title character table into main entity slots
+    1-20. The stock per-frame OAM writer then draws those slots normally.
+    """
+    raw = bytes(_wt_title_oam_default_table() if table is None else table)
+    if len(raw) != _WT_TITLE_SLOT_TABLE_BYTES:
+        raise TitleScreenError(
+            f"title character slot table must be {_WT_TITLE_SLOT_TABLE_BYTES}B.")
+    code_len = _WT_TITLE_CHARACTER_MAX * (2 + 6 * 6) + 3
+    table_cpu = (int(cpu_base) + code_len) & 0xFFFF
+    code = bytearray()
+    dst_fields = (0, 7, 10, 17, 18, 19)
+    for slot in range(_WT_TITLE_CHARACTER_MAX):
+        src = slot * _WT_TITLE_SLOT_ENTRY_BYTES
+        dst = _WT_TITLE_SLOT0_BASE + (slot + 1) * _WT_TITLE_SLOT_STRIDE
+        code += bytes((0xA2, src & 0xFF))  # LDX #table entry offset
+        for rel, field in enumerate(dst_fields):
+            addr = (table_cpu + rel) & 0xFFFF
+            code += bytes((0xBD, addr & 0xFF, (addr >> 8) & 0xFF))
+            daddr = (dst + field) & 0xFFFF
+            code += bytes((0x8D, daddr & 0xFF, (daddr >> 8) & 0xFF))
+    code += bytes((0x4C, return_cpu & 0xFF, (return_cpu >> 8) & 0xFF))
+    assert len(code) == code_len
+    return bytes(code) + raw
+
+
+def _wt_build_trampoline(decoder_cpu, *, title_oam: bool = True,
+                         title_oam_table: bytes | bytearray | None = None):
     """bootstrap(bank0 $CC4F) と bank1 decoder バイト列を生成。
 
     戻り: (boot_bytes, decoder_bytes)
@@ -1538,14 +1740,23 @@ def _wt_build_trampoline(decoder_cpu):
     ])
     assert len(boot_code) == 14
     boot_bytes = boot_code + ram_tmpl      # 28B
-    # decoder: _WA_PROG の末尾 RTS を JMPABS RAM_OUT に差替え
-    prog = list(_WA_PROG[:-1]) + [("JMPABS", _WT_RAM_OUT)]
+    # decoder: _WA_PROG の末尾 RTS を RAM_OUT への復帰に差替え
+    prog = list(_WA_PROG[:-1])
     decoder_bytes = _assemble_wa_decoder(decoder_cpu, prog=prog)
+    if title_oam:
+        decoder_bytes += _wt_title_oam_helper(
+            (decoder_cpu + len(decoder_bytes)) & 0xFFFF, _WT_RAM_OUT,
+            title_oam_table)
+    else:
+        decoder_bytes += bytes((
+            0x4C, _WT_RAM_OUT & 0xFF, (_WT_RAM_OUT >> 8) & 0xFF))
     return boot_bytes, decoder_bytes
 
 
-def _wt_current_decoder_bytes() -> bytes:
-    _boot, decoder = _wt_build_trampoline(_WT_DEC_CPU)
+def _wt_current_decoder_bytes(*, title_oam: bool = True,
+                              title_oam_table: bytes | bytearray | None = None) -> bytes:
+    _boot, decoder = _wt_build_trampoline(
+        _WT_DEC_CPU, title_oam=title_oam, title_oam_table=title_oam_table)
     return decoder
 
 
@@ -1554,7 +1765,12 @@ def _wt_uses_len_stream(rom_data) -> bool:
     if not _wt_has_current_ram_bootstrap(rom_data):
         return False
     dec = _wt_current_decoder_bytes()
-    return bytes(rom_data[_WT_DEC_FILE:_WT_DEC_FILE + len(dec)]) == dec
+    cur = bytes(rom_data[_WT_DEC_FILE:_WT_DEC_FILE + len(dec)])
+    if len(cur) != len(dec):
+        return False
+    core_len = len(_assemble_wa_decoder(
+        _WT_DEC_CPU, prog=list(_WA_PROG[:-1])))
+    return cur[:core_len] == dec[:core_len]
 
 
 def _assemble_wa_decoder(base_cpu=0xCC4F, prog=None):
@@ -1850,9 +2066,11 @@ def normalize_title_to_wide(rom) -> list:
     out[_wjp_cf(_WT_PTRA_HI)] = (blkA_cpu >> 8) & 0xFF
     out[_wjp_cf(_WT_PTRB_LO)] = blkB_cpu & 0xFF
     out[_wjp_cf(_WT_PTRB_HI)] = (blkB_cpu >> 8) & 0xFF
+    _wt_install_title_oam_clear(out)
     _wt_install_idle_demo_cleanup(out)
     # ★$CD58 / palette / CHR / 色 は ★非改変 (視覚同一)。
-    # bank0 cave は title-idle demo cleanup の 9B だけを予約使用。
+    # Title OAM clear uses the wide-title-owned title code at $CC6B.
+    # NMI hook / DARK code / generic bank0 cave are not used for this display.
 
     # --- (7) round-trip 自己検証: bank1 stream 再decode == 元 stock ---
     rt = {}
@@ -1872,7 +2090,7 @@ def normalize_title_to_wide(rom) -> list:
         f"bootstrap@$CC4F ({len(boot)}B) / decoder@$"
         f"{_WT_DEC_CPU:04X} / blockA@${blkA_cpu:04X} ({len(blkA)}B) "
         f"/ blockB@${blkB_cpu:04X} ({len(blkB)}B) / SW=$BB86 / "
-        f"RAM $072C。bank0 cave は idle-demo cleanup 9B のみ使用・"
+        f"RAM $072C。title OAM clear $CC6B ({len(_wt_title_oam_clear_helper())}B)・"
         "attribute/palette/CHR 非改変・round-trip "
         f"{len(rt)}セル一致で視覚同一を確認。",
         "※実機で要確認 (タイトルが stock と同一表示か / Room Flag/"
