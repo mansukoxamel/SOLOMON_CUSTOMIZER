@@ -34,8 +34,10 @@
 - **ゲーム挙動編集・バグ修正・移動速度変更**  
   敵の移動速度、弾速、敵ドロップ、合鍵を持つ敵、落下死で妖精化する敵を調整できます。
 
-- **タイトル画面・パレット・スプライト編集**  
-  タイトル移植、キャラクター色、ステージ壁色、16x16ピクセル編集に対応しています。
+- **タイトル画面の詳細編集**  
+  タイトルロゴ、配置タイル、16x16色区分、パレット、タイトル上のキャラクター配置を編集できます。
+
+  ![カスタマイズしたタイトル画面の例](docs/images/readme_custom_title_screen.png)
 
 - **改造ROM差分比較ツール**  
   2つのROM/ZIPを読み込み、面ごとの差分量と詳細差分を確認できます。
@@ -115,8 +117,10 @@ SOLOMON_CUSTOMIZER is a customizer for the Famicom version of *Solomon's Key*, c
 - **Gameplay behavior edits, bug fixes, and movement speed changes**  
   Adjust enemy movement, projectile speed, enemy drops, key-carrying enemies, and falling-death fairy enemies.
 
-- **Title screen, palette, and sprite editing**  
-  Supports title import, character colors, wall colors, and 16x16 pixel editing.
+- **Detailed title screen editing**  
+  Edit the title logo, background tiles, 16x16 color attributes, palettes, and title-screen character placement.
+
+  ![Example customized title screen](docs/images/readme_custom_title_screen.png)
 
 - **Modified ROM comparison tool**  
   Load two ROM/ZIP files and compare per-stage difference counts and detailed changes.
