@@ -1652,7 +1652,7 @@ _WT_TITLE_SLOT_HIDDEN_ENTRY = bytes((0x00, 0xF8, 0x00, 0x00, 0x00, 0x00))
 _WT_TITLE_ATTR_BLOCK_W = 16
 _WT_TITLE_ATTR_BLOCK_H = 15
 _WT_TITLE_ATTR_BLOCK_COUNT = _WT_TITLE_ATTR_BLOCK_W * _WT_TITLE_ATTR_BLOCK_H
-_WT_TITLE_ATTR_TABLE_BYTES = (_WT_TITLE_ATTR_BLOCK_COUNT + 3) // 4
+_WT_TITLE_ATTR_TABLE_BYTES = 64
 _WT_TITLE_ATTR_PPU = 0x2BC0
 _WT_TITLE_ATTR_WRITER_CODE_BYTES = 29
 _WT_TITLE_OAM_CLEAR_CPU = 0xCC6B
@@ -1827,6 +1827,13 @@ def _wt_title_oam_helper(cpu_base: int, return_cpu: int,
 
 
 def _attr_palette_no_from_expanded(attr, row, col) -> int:
+    if len(attr) >= _WT_TITLE_ATTR_BLOCK_COUNT:
+        br = int(row) // 2
+        bc = int(col) // 2
+        bi = br * _WT_TITLE_ATTR_BLOCK_W + bc
+        if 0 <= br < _WT_TITLE_ATTR_BLOCK_H and 0 <= bc < _WT_TITLE_ATTR_BLOCK_W:
+            return int(attr[bi]) & 0x03
+        return 0
     ai = (int(row) // 4) * 8 + (int(col) // 4)
     if not (0 <= ai < len(attr)):
         return 0
@@ -1840,20 +1847,15 @@ def _expanded_attr_from_table(table: bytes | bytearray) -> list[int]:
     if len(raw) != _WT_TITLE_ATTR_TABLE_BYTES:
         raise TitleScreenError(
             f"title attribute table must be {_WT_TITLE_ATTR_TABLE_BYTES}B.")
-    attr = [0] * 64
-    for ay in range(8):
-        for ax in range(8):
-            value = 0
-            for qy in range(2):
-                for qx in range(2):
-                    br = ay * 2 + qy
-                    bc = ax * 2 + qx
-                    pal = 0
-                    if br < _WT_TITLE_ATTR_BLOCK_H:
-                        bi = br * _WT_TITLE_ATTR_BLOCK_W + bc
-                        pal = (raw[bi // 4] >> ((bi % 4) * 2)) & 0x03
-                    value |= (pal & 0x03) << ((qy * 2 + qx) * 2)
-            attr[ay * 8 + ax] = value & 0xFF
+    attr = [0] * _WT_TITLE_ATTR_BLOCK_COUNT
+    for br in range(_WT_TITLE_ATTR_BLOCK_H):
+        for bc in range(_WT_TITLE_ATTR_BLOCK_W):
+            ai = (br // 2) * 8 + (bc // 2)
+            qx = bc & 1
+            qy = br & 1
+            shift = (qy * 2 + qx) * 2
+            attr[br * _WT_TITLE_ATTR_BLOCK_W + bc] = (
+                raw[ai] >> shift) & 0x03
     return attr
 
 
@@ -1861,9 +1863,11 @@ def _pack_expanded_attr_table(attr) -> bytes:
     out = bytearray(_WT_TITLE_ATTR_TABLE_BYTES)
     for br in range(_WT_TITLE_ATTR_BLOCK_H):
         for bc in range(_WT_TITLE_ATTR_BLOCK_W):
-            bi = br * _WT_TITLE_ATTR_BLOCK_W + bc
             pal = _attr_palette_no_from_expanded(attr, br * 2, bc * 2)
-            out[bi // 4] |= (pal & 0x03) << ((bi % 4) * 2)
+            ai = (br // 2) * 8 + (bc // 2)
+            qx = bc & 1
+            qy = br & 1
+            out[ai] |= (pal & 0x03) << ((qy * 2 + qx) * 2)
     return bytes(out)
 
 

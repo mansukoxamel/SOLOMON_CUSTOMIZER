@@ -1306,13 +1306,10 @@ class TitleScreenDialog(QDialog):
 
     @staticmethod
     def _attr_palette_no(attr, row, col):
-        ai = (row // 4) * 8 + (col // 4)
+        ai = (row // 2) * 16 + (col // 2)
         if not (0 <= ai < len(attr)):
             return 0
-        qx = (col % 4) // 2
-        qy = (row % 4) // 2
-        shift = (qy * 2 + qx) * 2
-        return (attr[ai] >> shift) & 0x03
+        return attr[ai] & 0x03
 
     def _build_color_image(self) -> QImage:
         """タイトルプレビュー用。palette/attributeを反映したRGB画像を作る。"""
@@ -2546,14 +2543,10 @@ class TitleScreenDialog(QDialog):
         return best & 0x3F
 
     def _set_title_attr_palette_no(self, attr, row, col, pal_no):
-        ai = (row // 4) * 8 + (col // 4)
+        ai = (row // 2) * 16 + (col // 2)
         if not (0 <= ai < len(attr)):
             return
-        qx = (col % 4) // 2
-        qy = (row % 4) // 2
-        shift = (qy * 2 + qx) * 2
-        attr[ai] = (attr[ai] & ~(0x03 << shift)) | \
-            ((pal_no & 0x03) << shift)
+        attr[ai] = pal_no & 0x03
 
     def _write_title_attributes(self, attr):
         TS.set_title_attribute_expanded(self._rom, attr)
