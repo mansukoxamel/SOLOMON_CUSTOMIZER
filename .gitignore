@@ -20,7 +20,6 @@
 !docs/
 !docs/ram_map_current.html
 !docs/rom_map_jp_mapper66_current.html
-!docs/prg0_padding_audit.md
 !docs/object_overlap_matrix.html
 !docs/original_rom_trivia.md
 !docs/sound_analysis.html

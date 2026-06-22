@@ -60,7 +60,8 @@
 
   <h2>0. 運用ルール</h2>
   <div class="note">
-    <b>この台帳と実装側予約スパンを同時に正とする。</b><br>
+    <b>このHTMLをROM台帳の唯一のマスターとし、実装側予約スパンと同時に正とする。</b><br>
+    PRG0専用台帳、監査表、候補表などでROM予約を二重管理しない。空き候補・非常用候補もこのHTMLに集約する。<br>
     新しいROM領域を使う前に、このHTML、<code>docs/ram_map_current.html</code>、実装側の
     <code>RESERVED_SPANS</code> / <code>OFF_*</code> / <code>CPU_*</code> 定数を確認する。
     予約の追加・移動・解除をしたら同じ変更でこの表も更新する。重複、古い名前、根拠不明の「空き候補」が残っている状態ではリリース不可。
@@ -158,7 +159,7 @@
       <b>原作埋め領域の扱い:</b>
       <code>00</code> / <code>EA</code> 連続領域は「候補」であって未使用保証ではない。
       下表の範囲は実装モジュールが書き込むため、原作では埋め領域に見えても使用済みまたは予約済みとして扱う。
-      PRG0の新規利用前には、<code>docs/prg0_padding_audit.md</code> の専用台帳で <code>00</code> / <code>EA</code> / <code>FF</code> / <code>EF</code> の扱いとNG範囲を確認する。
+      PRG0の新規利用前には、このROM台帳内で <code>00</code> / <code>EA</code> / <code>FF</code> / <code>EF</code> の扱いとNG範囲を確認する。
       原作コード/データを直接パッチする行は、空き容量ではなく既存処理の差し替え。
     </div>
     <table>
@@ -300,7 +301,8 @@
       <tr><td>Panel Variant group RAM offset helper</td><td class="num">0x3EAF-0x3EB6</td><td class="num">$BE9F-$BEA6</td><td class="num">8B</td><td>A/B/C group offset helperを呼び、state0 interval helperとdynamic marker helperへX offsetを渡す。</td></tr>
       <tr><td>Spark Ball OAM hide hook</td><td class="num">0x3ED7-0x3EF8</td><td class="num">$BEC7-$BEE8</td><td class="num">34B</td><td>Transparent Spark Ball OAM post-draw hide hook. This is not free space.</td></tr>
       <tr><td>Key enemy door-light helper</td><td class="num">0x3F60-0x3F78</td><td class="num">$BF50-$BF68</td><td class="num">25B</td><td>Key enemy runtime helper for dropped-key door-light positioning. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
-      <tr><td>Panel Monster / Variant bullet hook slot</td><td class="num">0x3F79-0x3FC6</td><td class="num">$BF69-$BFB6</td><td class="num">78B</td><td>Legacy Panel Monster diagonal Bullet hook slot. Panel Monster v2 writes a 20B Bullet state2 speed hook at the start of this slot. The hook routes all speed markers through the v2 decode path, then calls the shared 2x/3x fast loop only when extra steps are required.</td></tr>
+      <tr><td>Panel Monster v2 Bullet hook jump</td><td class="num">0x3F79-0x3F7B</td><td class="num">$BF69-$BF6B</td><td class="num">3B</td><td>Panel Monster v2 writes <code>JMP $E7C1</code> here. The former 78B legacy hook body was split out; only this 3B entry is active.</td></tr>
+      <tr><td>空き</td><td class="num">0x3F7C-0x3FC6</td><td class="num">$BF6C-$BFB6</td><td class="num">75B</td><td>旧Panel Monster diagonal Bullet hook slotの本体部分。現行は先頭3Bの <code>JMP $E7C1</code> だけを使うため、この75Bへ書く実装はない。新規利用可。使う時は同じ変更でこのROM台帳と実装側 <code>RESERVED_SPANS</code> を更新する。</td></tr>
       <tr><td>Panel Variant type classifier main</td><td class="num">0x3FCA-0x3FE4</td><td class="num">$BFBA-$BFD4</td><td class="num">27B</td><td>Shared visual/property classifier for older enhanced Panel Monster IDs and A/B/C Panel Variant IDs.</td></tr>
       <tr><td>Spark Ball slow AI wrapper</td><td class="num">0x3FE8-0x3FF7</td><td class="num">$BFD8-$BFE7</td><td class="num">16B</td><td>Dragon-ID <code>$6A/$6B</code> routing. ID判定を <code>AND #$FE</code> で圧縮済み。</td></tr>
       <tr><td>gap_fix cave</td><td class="num">0x4010-0x4097</td><td class="num">$C000-$C087</td><td class="num">136B</td><td class="ok">No overlap with Spark Ball variants or key enemies as of v0.6.158.</td></tr>

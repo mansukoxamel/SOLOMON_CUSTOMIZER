@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.315 (2026-06-22) ROM台帳を一本化
+- ROM予約情報のマスターを `docs/rom_map_jp_mapper66_current.html` に一本化し、PRG0専用の重複台帳を削除した。
+- Panel Monster v2 の `$BF69` Bullet hook slot を、3BのJMP使用範囲と残り75Bの空き範囲に分けて記録した。
+- AGENTS.md と .gitignore から、削除したPRG0別台帳への参照を外した。
+
 ## v0.8.314 (2026-06-22) 左パネルのボタン名を整理
 - 左パネルの「別名でROM保存」を「ROM保存」に変更した。
 - 左パネルの「タイトル画面移植 (US↔JP)」を「タイトル画面編集」に変更した。
@@ -250,7 +255,7 @@
 
 ## v0.8.247 (2026-06-18) PRG0空き領域発掘監査を追加
 - 原作PRG0の同一バイトrun、既存予約span、既知NG領域、6502 absolute/indexed operand参照を横断して分類する読み取り専用ツール `tools/prg0_free_space_audit.py` を追加した。
-- `docs/prg0_padding_audit.md` を現状の予約状態に合わせて更新し、PRG0を通常開発用ではなく非常用固定バンク領域として扱う方針を明確化した。
+- 当時のPRG0監査メモを現状の予約状態に合わせて更新し、PRG0を通常開発用ではなく非常用固定バンク領域として扱う方針を明確化した。
 
 ## v0.8.246 (2026-06-18) Panel Variant helperと白ブロック内runtimeの予約重複を修正
 - `panel_monster_stage_variant.py` の final AI dispatch panel helper を `0x678C-$E77C` から `0x69D4-$E9C4` へ移設し、`room_flags.py` の White in-block runtime extension `0x678C-0x6797` と重ならないようにした。

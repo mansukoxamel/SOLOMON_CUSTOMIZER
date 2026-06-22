@@ -54,6 +54,8 @@ D:\chaos\MAGATU_EMULATOR\SOLOMON_CUSTOMIZER\ROM\Solomon no Kagi (J).nes
 D:\chaos\MAGATU_EMULATOR\SOLOMON_CUSTOMIZER\docs\ram_map_current.html
 D:\chaos\MAGATU_EMULATOR\SOLOMON_CUSTOMIZER\docs\rom_map_jp_mapper66_current.html
 
+- ROM台帳は `docs\rom_map_jp_mapper66_current.html` を唯一のマスターとする。PRG0専用台帳、監査表、候補表など、同じROM予約情報を別ファイルへ二重管理しない。
+- RAM台帳は `docs\ram_map_current.html` を唯一のマスターとする。
 - ROM/RAMアドレスを新しく使う前に、必ず上記2つの管理簿と実装側の `RESERVED_SPANS` を確認する。
 - 「空いていそうだから試す」「動いたから採用」は禁止。根拠が管理簿に無いアドレスは未確定として扱う。
 - 新しいROM/RAM予約、既存予約の移動、予約解除をしたら、同じ変更で管理簿も更新する。重複が見つかった状態では実装完了にしない。
