@@ -1108,6 +1108,7 @@ def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b,
     target_rom[_wjp_cf(_WT_PTRB_HI)] = (b_cpu >> 8) & 0xFF
     _wt_install_title_oam_clear(target_rom)
     _wt_install_idle_demo_cleanup(target_rom)
+    _wt_install_legacy_attr_write_suppress(target_rom)
     return len(stream_a), len(stream_b)
 
 
@@ -1683,6 +1684,13 @@ _WT_TITLE_ATTR_BLOCK_COUNT = _WT_TITLE_ATTR_BLOCK_W * _WT_TITLE_ATTR_BLOCK_H
 _WT_TITLE_ATTR_TABLE_BYTES = 64
 _WT_TITLE_ATTR_PPU = 0x2BC0
 _WT_TITLE_ATTR_WRITER_CODE_BYTES = 29
+_WT_LEGACY_ATTR_WRITE_SITES = (
+    (0xCCD8, bytes.fromhex("8D0720")),  # CD58 table loop
+    (0xCDBE, bytes.fromhex("8C0720")),  # bottom fill loop
+    (0xCDD6, bytes.fromhex("8E0720")),  # single $2BEA write
+    (0xCDE9, bytes.fromhex("8D0720")),  # CDF5 table loop
+)
+_WT_LEGACY_ATTR_WRITE_NOP = bytes.fromhex("EAEAEA")
 _WT_TITLE_OAM_CLEAR_CPU = 0xCC6B
 _WT_TITLE_START_CLEAR_CPU = 0xCBB3
 _RF_BAND        = (0x3BEE, 0x4210)     # Room Flag 占有 file 帯 [start,end)
@@ -1784,6 +1792,22 @@ def _wt_install_idle_demo_cleanup(rom_data) -> bool:
     return changed
 
 
+def _wt_install_legacy_attr_write_suppress(rom_data) -> bool:
+    """Keep the bank1 64-byte title attribute table from being overwritten."""
+    changed = False
+    for cpu, orig in _WT_LEGACY_ATTR_WRITE_SITES:
+        off = _wjp_cf(cpu)
+        cur = bytes(rom_data[off:off + len(orig)])
+        if cur not in (orig, _WT_LEGACY_ATTR_WRITE_NOP):
+            raise TitleScreenError(
+                f"title legacy attribute write signature mismatch at "
+                f"${cpu:04X}: got {cur.hex(' ')}")
+        if cur != _WT_LEGACY_ATTR_WRITE_NOP:
+            rom_data[off:off + len(orig)] = _WT_LEGACY_ATTR_WRITE_NOP
+            changed = True
+    return changed
+
+
 def _wt_title_oam_clear_helper() -> bytes:
     """Clear the title-only OAM sprites and run the stock title clear first."""
     return (
@@ -1818,6 +1842,7 @@ def apply_wide_title_idle_demo_cleanup(rom_data) -> list:
         return []
     changed = _wt_install_title_oam_clear(rom_data)
     changed = _wt_install_idle_demo_cleanup(rom_data) or changed
+    changed = _wt_install_legacy_attr_write_suppress(rom_data) or changed
     if not changed:
         return []
     return [
@@ -2370,7 +2395,8 @@ def normalize_title_to_wide(rom) -> list:
     out[_wjp_cf(_WT_PTRB_HI)] = (blkB_cpu >> 8) & 0xFF
     _wt_install_title_oam_clear(out)
     _wt_install_idle_demo_cleanup(out)
-    # ★$CD58 / palette / CHR / 色 は ★非改変 (視覚同一)。
+    _wt_install_legacy_attr_write_suppress(out)
+    # ★palette / CHR / 色 は ★非改変 (視覚同一)。
     # Title OAM clear uses the wide-title-owned title code at $CC6B.
     # NMI hook / DARK code / generic bank0 cave are not used for this display.
 
@@ -2393,7 +2419,7 @@ def normalize_title_to_wide(rom) -> list:
         f"{_WT_DEC_CPU:04X} / blockA@${blkA_cpu:04X} ({len(blkA)}B) "
         f"/ blockB@${blkB_cpu:04X} ({len(blkB)}B) / SW=$BB86 / "
         f"RAM $072C。title OAM clear $CC6B ({len(_wt_title_oam_clear_helper())}B)・"
-        "attribute/palette/CHR 非改変・round-trip "
+        "bank1 attribute table writer有効・palette/CHR 非改変・round-trip "
         f"{len(rt)}セル一致で視覚同一を確認。",
         "※実機で要確認 (タイトルが stock と同一表示か / Room Flag/"
         "暗闇/隠し扉 併用 / テストプレイ / SHRINE-ROOM / デモ / "
