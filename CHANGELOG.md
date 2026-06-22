@@ -1,5 +1,14 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.8.317 (2026-06-22) タイトルOAMの残留を防止
+- タイトルOAM shadowの書き込み先をタイトル用枠へ戻し、ゲーム開始時とデモ開始時に `$F8` を書いて明示的に消すようにした。
+- 表示はPRG1 wide title decoder側、消去はwide-titleが既に所有しているタイトル処理内 `$CC6B` の小ヘルパーで行うようにした。
+- PRG0のNMI hook、DARK処理、汎用caveは使わない方針にした。
+
+## v0.8.316 (2026-06-22) タイトルOAM表示をPRG1側へ追加
+- wide title のPRG1 decoder末尾でタイトル画面用OAM shadowへ2スプライトを書き込むようにした。
+- 既存NMIのOAM DMAをそのまま使い、タイトルOAM表示のためのPRG0追加hookは使わない方針にした。
+
 ## v0.8.315 (2026-06-22) ROM台帳を一本化
 - ROM予約情報のマスターを `docs/rom_map_jp_mapper66_current.html` に一本化し、PRG0専用の重複台帳を削除した。
 - Panel Monster v2 の `$BF69` Bullet hook slot を、3BのJMP使用範囲と残り75Bの空き範囲に分けて記録した。
