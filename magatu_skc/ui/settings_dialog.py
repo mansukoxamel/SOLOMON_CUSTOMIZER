@@ -241,6 +241,32 @@ class SettingsDialog(QDialog):
         lf.addRow("エミュレータ:", emu_wrap)
         general_layout.addWidget(link_group)
 
+        # ====== テストプレイ・PNG出力 ======
+        workflow_group = QGroupBox("テストプレイ・PNG出力")
+        wf = QFormLayout(workflow_group)
+
+        self.chk_test_play_quick_start = QCheckBox("タイトル画面と開始待ちを省略する")
+        self.chk_test_play_quick_start.setChecked(
+            bool(self.config.get("test_play_quick_start", True))
+        )
+        self.chk_test_play_quick_start.setToolTip(
+            "ON: テストプレイ時に現在ステージをすぐ起動します。\n"
+            "OFF: タイトル画面から通常どおり起動します。"
+        )
+        wf.addRow("クイックテストプレイ:", self.chk_test_play_quick_start)
+
+        self.chk_stage_png_show_secrets = QCheckBox("隠し要素や敵バリエーション表示をPNGに含める")
+        self.chk_stage_png_show_secrets.setChecked(
+            bool(self.config.get("stage_png_show_secrets", True))
+        )
+        self.chk_stage_png_show_secrets.setToolTip(
+            "ON: 制作者確認用として隠しアイテムや特殊ブロックを画像にも表示します。\n"
+            "OFF: 友人へ渡すプレイ用として隠し要素を画像から隠します。\n"
+            "PNG内のステージデータXMLはON/OFFに関係なく保持されます。"
+        )
+        wf.addRow("ステージPNGで隠し要素表示:", self.chk_stage_png_show_secrets)
+        general_layout.addWidget(workflow_group)
+
         # ====== 履歴・自動保存 ======
         history_group = QGroupBox("履歴・自動保存")
         hf = QFormLayout(history_group)
@@ -535,6 +561,12 @@ class SettingsDialog(QDialog):
         self.config["theme_gray"] = self.spin_theme_gray.value()
         self.config["marker_overlay_scale"] = int(
             self.cmb_marker_overlay_scale.currentData()
+        )
+        self.config["test_play_quick_start"] = (
+            self.chk_test_play_quick_start.isChecked()
+        )
+        self.config["stage_png_show_secrets"] = (
+            self.chk_stage_png_show_secrets.isChecked()
         )
         self.config["autosave_keep_count"] = self.spin_autosave_keep_count.value()
         self.config["undo_limit"] = self.spin_undo_limit.value()

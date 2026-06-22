@@ -1497,23 +1497,17 @@ class MainWindow(QMainWindow):
         # ファイル操作
         file_group = QGroupBox("ファイル")
         fl = QVBoxLayout(file_group)
-        self.btn_open = QPushButton("ROMを開く")
+        self.btn_open = QPushButton("ROM読込")
         self.btn_open.setToolTip("ROMを開きます。(Ctrl+O)")
         self.btn_open.clicked.connect(self._on_open_rom)
         fl.addWidget(self.btn_open)
 
-        # 再起動・再読込・履歴ボタン（3列）
+        # 再起動・履歴ボタン
         btn_row = QHBoxLayout()
         self.btn_restart = QPushButton("再起動")
         self.btn_restart.setToolTip("アプリを再起動")
         self.btn_restart.clicked.connect(self._on_restart_app)
         btn_row.addWidget(self.btn_restart, 1)
-
-        self.btn_reload = QPushButton("再読込")
-        self.btn_reload.setToolTip("現在のROMを再読み込み（編集を破棄）")
-        self.btn_reload.clicked.connect(self._on_reload_rom)
-        self.btn_reload.setEnabled(False)
-        btn_row.addWidget(self.btn_reload, 1)
 
         self.btn_history = QPushButton("履歴")
         self.btn_history.setToolTip("最近開いたROMから選択")
@@ -1545,9 +1539,7 @@ class MainWindow(QMainWindow):
         _save_row.addWidget(self.btn_save_ips)
         fl.addLayout(_save_row)
 
-        self.btn_test_play = self._create_test_play_button(
-            "▶ テストプレイ (現在ステージ)"
-        )
+        self.btn_test_play = self._create_test_play_button("▶ テストプレイ")
         fl.addWidget(self.btn_test_play)
 
         stage_scope_row = QHBoxLayout()
@@ -1559,14 +1551,6 @@ class MainWindow(QMainWindow):
         self._stage_scope_group.addButton(self.rb_stage_all)
         stage_scope_row.addWidget(self.rb_stage_current)
         stage_scope_row.addWidget(self.rb_stage_all)
-        self.chk_stage_png_secrets = QCheckBox("隠し表示")
-        self.chk_stage_png_secrets.setChecked(True)
-        self.chk_stage_png_secrets.setToolTip(
-            "ON: 制作者確認用として隠しアイテムや特殊ブロックを画像にも表示します。\n"
-            "OFF: 友人へ渡すプレイ用として隠し要素を画像から隠します。\n"
-            "PNG内のステージデータXMLはON/OFFに関係なく保持されます。"
-        )
-        stage_scope_row.addWidget(self.chk_stage_png_secrets)
         fl.addLayout(stage_scope_row)
 
         stage_btn_row = QHBoxLayout()
@@ -3099,12 +3083,11 @@ class MainWindow(QMainWindow):
             status_suffix = " (編集不可)" if read_only_mode else ""
             final_status = status_message or f"読み込み完了: {len(levels)}ステージ{status_suffix}"
             self.statusBar().showMessage(final_status)
-            # 読込成功 → 再読込ボタンを有効化、履歴に追加、Undo履歴クリア、未保存マーククリア
+            # 読込成功 → 履歴に追加、Undo履歴クリア、未保存マーククリア
             self.last_loaded_path = path
             self._loaded_source_path = source_path_override or path
             self._loaded_workstate_path = workstate_path_override
             self._loaded_workstate_saved_at = workstate_saved_at_override
-            self.btn_reload.setEnabled(True)
             if add_history:
                 self._add_to_history(path)
             self._clear_undo_history()
@@ -3180,7 +3163,7 @@ class MainWindow(QMainWindow):
             3000,
         )
 
-    # ====== 再読込・履歴 ======
+    # ====== 履歴 ======
 
     def _history_file(self) -> Path:
         """履歴を保存するJSONファイルパス"""
@@ -3329,16 +3312,6 @@ class MainWindow(QMainWindow):
         if changed:
             self._history = kept
             self._save_history()
-
-    def _on_reload_rom(self):
-        if not self.last_loaded_path:
-            return
-        if not self._confirm_replace_current_work("現在のROMを再読み込みします"):
-            return
-        if self._is_autosave_path(self.last_loaded_path):
-            self._load_autosave_workstate(self.last_loaded_path, add_history=False)
-        else:
-            self.load_rom(self.last_loaded_path)
 
     def _on_restart_app(self):
         if not self._confirm_replace_current_work("アプリを再起動します"):
@@ -3584,6 +3557,12 @@ class MainWindow(QMainWindow):
             self._show_save_failure("保存失敗", e, "ROM保存失敗")
             return False
 
+    def _test_play_quick_start_enabled(self) -> bool:
+        return bool(self._app_config.get("test_play_quick_start", True))
+
+    def _stage_png_show_secrets_enabled(self) -> bool:
+        return bool(self._app_config.get("stage_png_show_secrets", True))
+
     def _on_test_play(self):
         """現在の編集状態 + ステージ選択(現在レベル) で一時ROMを生成しエミュ起動"""
         if not self.rom or not self.levels:
@@ -3626,7 +3605,10 @@ class MainWindow(QMainWindow):
                         self._log(build_msg)
                 # ステージ選択: 現在レベルから開始
                 self._patch_testplay_start_stage(stage_no)
-                if not self._is_read_only():
+                if (
+                    not self._is_read_only()
+                    and self._test_play_quick_start_enabled()
+                ):
                     self._patch_testplay_fast_start()
 
                 # 一時ファイルへ書き出し
@@ -3849,7 +3831,7 @@ class MainWindow(QMainWindow):
                 show_hidden_overlay=self.chk_hidden.isChecked(),
                 show_border=True,
                 bonus_items=bonus,
-                show_enemy_variant_overlays=self.chk_stage_png_secrets.isChecked(),
+                show_enemy_variant_overlays=self._stage_png_show_secrets_enabled(),
             )
             self._sync_enemy_codes_from_rom(i)
             self._save_png_with_xml(img, level, stage_dir / f"level_{i + 1:02d}.png", level_no=i)
@@ -4233,13 +4215,13 @@ class MainWindow(QMainWindow):
             show_grid=self.show_grid,
             show_hidden_overlay=(
                 self.chk_hidden.isChecked()
-                and self.chk_stage_png_secrets.isChecked()
+                and self._stage_png_show_secrets_enabled()
             ),
-            show_secret_elements=self.chk_stage_png_secrets.isChecked(),
+            show_secret_elements=self._stage_png_show_secrets_enabled(),
             special_marks=self._get_special_marks(self.current_level_no),
             show_border=True,
             bonus_items=self._get_bonus_items(),
-            show_enemy_variant_overlays=self.chk_stage_png_secrets.isChecked(),
+            show_enemy_variant_overlays=self._stage_png_show_secrets_enabled(),
         )
         self._sync_enemy_codes_from_rom(self.current_level_no)
         self._save_png_with_xml(img, level, path, level_no=self.current_level_no)
@@ -4259,13 +4241,13 @@ class MainWindow(QMainWindow):
                 show_grid=self.show_grid,
                 show_hidden_overlay=(
                     self.chk_hidden.isChecked()
-                    and self.chk_stage_png_secrets.isChecked()
+                    and self._stage_png_show_secrets_enabled()
                 ),
-                show_secret_elements=self.chk_stage_png_secrets.isChecked(),
+                show_secret_elements=self._stage_png_show_secrets_enabled(),
                 special_marks=self._get_special_marks(i),
                 show_border=True,
                 bonus_items=bonus,
-                show_enemy_variant_overlays=self.chk_stage_png_secrets.isChecked(),
+                show_enemy_variant_overlays=self._stage_png_show_secrets_enabled(),
             )
             self._sync_enemy_codes_from_rom(i)
             self._save_png_with_xml(img, level, path, level_no=i)
@@ -4475,13 +4457,13 @@ class MainWindow(QMainWindow):
             show_grid=self.show_grid,
             show_hidden_overlay=(
                 self.chk_hidden.isChecked()
-                and self.chk_stage_png_secrets.isChecked()
+                and self._stage_png_show_secrets_enabled()
             ),
-            show_secret_elements=self.chk_stage_png_secrets.isChecked(),
+            show_secret_elements=self._stage_png_show_secrets_enabled(),
             special_marks=self._get_special_marks(self.current_level_no),
             show_border=True,
             bonus_items=self._get_bonus_items(),
-            show_enemy_variant_overlays=self.chk_stage_png_secrets.isChecked(),
+            show_enemy_variant_overlays=self._stage_png_show_secrets_enabled(),
         )
 
     def _render_current_stage_for_compare_edit_base(self) -> QImage:

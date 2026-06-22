@@ -885,10 +885,18 @@ def _wt_title_oam_table_file() -> int:
 
 def _wt_has_current_title_slot_helper(rom_data) -> bool:
     dec = _wt_current_decoder_bytes()
-    table_rel = len(dec) - _WT_TITLE_SLOT_TABLE_BYTES
-    if table_rel <= 0:
+    attr_s = _wt_title_attr_table_file()
+    attr_e = attr_s + _WT_TITLE_ATTR_TABLE_BYTES
+    oam_s = _wt_title_oam_table_file()
+    if oam_s <= attr_e:
         return False
-    return bytes(rom_data[_WT_DEC_FILE:_WT_DEC_FILE + table_rel]) == dec[:table_rel]
+    rel_attr_s = attr_s - _WT_DEC_FILE
+    rel_attr_e = attr_e - _WT_DEC_FILE
+    rel_oam_s = oam_s - _WT_DEC_FILE
+    return (
+        bytes(rom_data[_WT_DEC_FILE:attr_s]) == dec[:rel_attr_s] and
+        bytes(rom_data[attr_e:oam_s]) == dec[rel_attr_e:rel_oam_s]
+    )
 
 
 def _wt_read_title_oam_table_or_default(rom_data) -> bytes:
@@ -1035,7 +1043,8 @@ def clear_title_characters(rom_data) -> list:
 
 
 def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b,
-                                         title_oam_table: bytes | bytearray | None = None):
+                                         title_oam_table: bytes | bytearray | None = None,
+                                         title_attr_table: bytes | bytearray | None = None):
     """Replace the bank1 streams of a JP wide-normalized title."""
     if not is_wide_normalized(target_rom):
         raise TitleScreenError(
@@ -1049,7 +1058,10 @@ def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b,
     stream_b = encode_len_stream(grid_b)
     table = _wt_read_title_oam_table_or_default(target_rom) \
         if title_oam_table is None else bytes(title_oam_table)
-    boot, decoder = _wt_build_trampoline(_WT_DEC_CPU, title_oam_table=table)
+    attr_table = _wt_read_title_attr_table_or_default(target_rom) \
+        if title_attr_table is None else bytes(title_attr_table)
+    boot, decoder = _wt_build_trampoline(
+        _WT_DEC_CPU, title_oam_table=table, title_attr_table=attr_table)
     a_file = _WT_DEC_FILE + len(decoder)
     b_file = a_file + len(stream_a)
     end_file = b_file + len(stream_b)
@@ -1637,6 +1649,12 @@ _WT_TITLE_SLOT_STRIDE = 20
 _WT_TITLE_SLOT_ENTRY_BYTES = 6
 _WT_TITLE_SLOT_TABLE_BYTES = _WT_TITLE_CHARACTER_MAX * _WT_TITLE_SLOT_ENTRY_BYTES
 _WT_TITLE_SLOT_HIDDEN_ENTRY = bytes((0x00, 0xF8, 0x00, 0x00, 0x00, 0x00))
+_WT_TITLE_ATTR_BLOCK_W = 16
+_WT_TITLE_ATTR_BLOCK_H = 15
+_WT_TITLE_ATTR_BLOCK_COUNT = _WT_TITLE_ATTR_BLOCK_W * _WT_TITLE_ATTR_BLOCK_H
+_WT_TITLE_ATTR_TABLE_BYTES = (_WT_TITLE_ATTR_BLOCK_COUNT + 3) // 4
+_WT_TITLE_ATTR_PPU = 0x2BC0
+_WT_TITLE_ATTR_WRITER_CODE_BYTES = 29
 _WT_TITLE_OAM_CLEAR_CPU = 0xCC6B
 _WT_TITLE_START_CLEAR_CPU = 0xCBB3
 _RF_BAND        = (0x3BEE, 0x4210)     # Room Flag 占有 file 帯 [start,end)
@@ -1808,8 +1826,145 @@ def _wt_title_oam_helper(cpu_base: int, return_cpu: int,
     return bytes(code) + raw
 
 
+def _attr_palette_no_from_expanded(attr, row, col) -> int:
+    ai = (int(row) // 4) * 8 + (int(col) // 4)
+    if not (0 <= ai < len(attr)):
+        return 0
+    qx = (int(col) % 4) // 2
+    qy = (int(row) % 4) // 2
+    return (int(attr[ai]) >> ((qy * 2 + qx) * 2)) & 0x03
+
+
+def _expanded_attr_from_table(table: bytes | bytearray) -> list[int]:
+    raw = bytes(table)
+    if len(raw) != _WT_TITLE_ATTR_TABLE_BYTES:
+        raise TitleScreenError(
+            f"title attribute table must be {_WT_TITLE_ATTR_TABLE_BYTES}B.")
+    attr = [0] * 64
+    for ay in range(8):
+        for ax in range(8):
+            value = 0
+            for qy in range(2):
+                for qx in range(2):
+                    br = ay * 2 + qy
+                    bc = ax * 2 + qx
+                    pal = 0
+                    if br < _WT_TITLE_ATTR_BLOCK_H:
+                        bi = br * _WT_TITLE_ATTR_BLOCK_W + bc
+                        pal = (raw[bi // 4] >> ((bi % 4) * 2)) & 0x03
+                    value |= (pal & 0x03) << ((qy * 2 + qx) * 2)
+            attr[ay * 8 + ax] = value & 0xFF
+    return attr
+
+
+def _pack_expanded_attr_table(attr) -> bytes:
+    out = bytearray(_WT_TITLE_ATTR_TABLE_BYTES)
+    for br in range(_WT_TITLE_ATTR_BLOCK_H):
+        for bc in range(_WT_TITLE_ATTR_BLOCK_W):
+            bi = br * _WT_TITLE_ATTR_BLOCK_W + bc
+            pal = _attr_palette_no_from_expanded(attr, br * 2, bc * 2)
+            out[bi // 4] |= (pal & 0x03) << ((bi % 4) * 2)
+    return bytes(out)
+
+
+def _legacy_title_attr_expanded(rom_data) -> list[int]:
+    region = _verify(rom_data)
+    base = region_mod.base_region(region)
+    attr = [0xFF] * 64
+    if base in _TITLE_PIECES:
+        off, ln = _TITLE_PIECES[base]["attribute"]
+        if off + ln <= len(rom_data):
+            src = bytes(rom_data[off:off + ln])
+            for i in range(min(21, ln)):
+                attr[9 + i] = src[20 - i]
+    if base == "JP":
+        off2 = 0x10 + (0xCDF5 - 0x8000)
+        if off2 + 7 <= len(rom_data):
+            src = bytes(rom_data[off2:off2 + 7])
+            for i in range(7):
+                attr[48 + i] = src[6 - i]
+        for i in range(8):
+            attr[56 + i] = 0xF5
+    return attr
+
+
+def _wt_attr_table_default(rom_data) -> bytes:
+    return _pack_expanded_attr_table(_legacy_title_attr_expanded(rom_data))
+
+
+def _wt_title_attr_helper(cpu_base: int, next_cpu: int,
+                          table: bytes | bytearray) -> bytes:
+    raw = bytes(table)
+    if len(raw) != _WT_TITLE_ATTR_TABLE_BYTES:
+        raise TitleScreenError(
+            f"title attribute table must be {_WT_TITLE_ATTR_TABLE_BYTES}B.")
+    table_cpu = (int(cpu_base) + _WT_TITLE_ATTR_WRITER_CODE_BYTES) & 0xFFFF
+    ppu = _WT_TITLE_ATTR_PPU
+    code = bytes((
+        0xAD, 0x02, 0x20,                    # LDA $2002
+        0xA9, (ppu >> 8) & 0xFF,             # LDA #>PPU
+        0x8D, 0x06, 0x20,                    # STA $2006
+        0xA9, ppu & 0xFF,                    # LDA #<PPU
+        0x8D, 0x06, 0x20,                    # STA $2006
+        0xA0, 0x00,                          # LDY #0
+        0xB9, table_cpu & 0xFF, (table_cpu >> 8) & 0xFF,
+        0x8D, 0x07, 0x20,                    # STA $2007
+        0xC8,                                # INY
+        0xC0, 0x40,                          # CPY #64
+        0xD0, 0xF5,                          # BNE loop
+        0x4C, next_cpu & 0xFF, (next_cpu >> 8) & 0xFF,
+    ))
+    assert len(code) == _WT_TITLE_ATTR_WRITER_CODE_BYTES
+    return code + raw
+
+
+def _wt_title_attr_table_file() -> int:
+    core = _assemble_wa_decoder(_WT_DEC_CPU, prog=list(_WA_PROG[:-1]))
+    return _WT_DEC_FILE + len(core) + _WT_TITLE_ATTR_WRITER_CODE_BYTES
+
+
+def _wt_has_current_title_attr_helper(rom_data) -> bool:
+    core = _assemble_wa_decoder(_WT_DEC_CPU, prog=list(_WA_PROG[:-1]))
+    attr_cpu = (_WT_DEC_CPU + len(core)) & 0xFFFF
+    next_cpu = (attr_cpu + _WT_TITLE_ATTR_WRITER_CODE_BYTES +
+                _WT_TITLE_ATTR_TABLE_BYTES) & 0xFFFF
+    helper = _wt_title_attr_helper(
+        attr_cpu, next_cpu, bytes(_WT_TITLE_ATTR_TABLE_BYTES))
+    code = helper[:_WT_TITLE_ATTR_WRITER_CODE_BYTES]
+    start = _WT_DEC_FILE + len(core)
+    end = start + len(code)
+    return end <= len(rom_data) and bytes(rom_data[start:end]) == code
+
+
+def _wt_read_title_attr_table_or_default(rom_data) -> bytes:
+    start = _wt_title_attr_table_file()
+    end = start + _WT_TITLE_ATTR_TABLE_BYTES
+    if _wt_has_current_title_attr_helper(rom_data) and end <= len(rom_data):
+        return bytes(rom_data[start:end])
+    return _wt_attr_table_default(rom_data)
+
+
+def read_title_attribute_expanded(rom_data) -> list[int]:
+    if is_wide_normalized(rom_data):
+        return _expanded_attr_from_table(
+            _wt_read_title_attr_table_or_default(rom_data))
+    return _legacy_title_attr_expanded(rom_data)
+
+
+def set_title_attribute_expanded(rom_data, attr) -> list:
+    grid_a, grid_b = _wide_title_grids_for_edit(rom_data)
+    table = _pack_expanded_attr_table(attr)
+    len_a, len_b = _write_wide_title_streams_for_import(
+        rom_data, grid_a, grid_b, title_attr_table=table)
+    return [
+        f"title attribute blocks updated: {_WT_TITLE_ATTR_BLOCK_COUNT}",
+        f"bank1 streams rewritten: A={len_a}B / B={len_b}B",
+    ]
+
+
 def _wt_build_trampoline(decoder_cpu, *, title_oam: bool = True,
-                         title_oam_table: bytes | bytearray | None = None):
+                         title_oam_table: bytes | bytearray | None = None,
+                         title_attr_table: bytes | bytearray | None = None):
     """bootstrap(bank0 $CC4F) と bank1 decoder バイト列を生成。
 
     戻り: (boot_bytes, decoder_bytes)
@@ -1842,6 +1997,15 @@ def _wt_build_trampoline(decoder_cpu, *, title_oam: bool = True,
     # decoder: _WA_PROG の末尾 RTS を RAM_OUT への復帰に差替え
     prog = list(_WA_PROG[:-1])
     decoder_bytes = _assemble_wa_decoder(decoder_cpu, prog=prog)
+    attr_table = bytes(_WT_TITLE_ATTR_TABLE_BYTES
+                       ) if title_attr_table is None else bytes(title_attr_table)
+    if len(attr_table) != _WT_TITLE_ATTR_TABLE_BYTES:
+        raise TitleScreenError(
+            f"title attribute table must be {_WT_TITLE_ATTR_TABLE_BYTES}B.")
+    attr_cpu = (decoder_cpu + len(decoder_bytes)) & 0xFFFF
+    oam_cpu = (attr_cpu + _WT_TITLE_ATTR_WRITER_CODE_BYTES +
+               _WT_TITLE_ATTR_TABLE_BYTES) & 0xFFFF
+    decoder_bytes += _wt_title_attr_helper(attr_cpu, oam_cpu, attr_table)
     if title_oam:
         decoder_bytes += _wt_title_oam_helper(
             (decoder_cpu + len(decoder_bytes)) & 0xFFFF, _WT_RAM_OUT,
@@ -1853,9 +2017,11 @@ def _wt_build_trampoline(decoder_cpu, *, title_oam: bool = True,
 
 
 def _wt_current_decoder_bytes(*, title_oam: bool = True,
-                              title_oam_table: bytes | bytearray | None = None) -> bytes:
+                              title_oam_table: bytes | bytearray | None = None,
+                              title_attr_table: bytes | bytearray | None = None) -> bytes:
     _boot, decoder = _wt_build_trampoline(
-        _WT_DEC_CPU, title_oam=title_oam, title_oam_table=title_oam_table)
+        _WT_DEC_CPU, title_oam=title_oam, title_oam_table=title_oam_table,
+        title_attr_table=title_attr_table)
     return decoder
 
 

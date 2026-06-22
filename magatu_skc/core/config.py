@@ -166,6 +166,8 @@ DEFAULT_CONFIG = {
     "dirty_mark": "●",
     # 外部連携
     "emulator_path": "",
+    "test_play_quick_start": True,
+    "stage_png_show_secrets": True,
     # ピッカーのお気に入り（10スロット, [mode, value] or null）
     "picker_favorites": [None] * 10,
     "picker_block_order": [

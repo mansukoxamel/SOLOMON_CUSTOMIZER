@@ -1301,24 +1301,8 @@ class TitleScreenDialog(QDialog):
                 self._rom[pos] = val
 
     def _title_attributes(self):
-        """タイトルattribute 21Bを実PPU側 $2BC9-$2BDD に展開する。"""
-        reg = (self._region or "").upper()
-        off = _TITLE_ATTR_US_OFF if reg.startswith("US") else _TITLE_ATTR_JP_OFF
-        attr = [0xFF] * 64
-        if off + 21 <= len(self._rom):
-            src = bytes(self._rom[off:off + 21])
-            for i in range(21):
-                attr[9 + i] = src[20 - i]
-        if reg.startswith("JP"):
-            attr[42] = 0xCF
-            off2 = _TITLE_ATTR_EXTRA_JP_OFF
-            if off2 + 7 <= len(self._rom):
-                src = bytes(self._rom[off2:off2 + 7])
-                for i in range(7):
-                    attr[48 + i] = src[6 - i]
-            for i in range(8):
-                attr[56 + i] = 0xF5
-        return attr
+        """タイトルattributeを実PPU側 $2BC0-$2BFF に展開する。"""
+        return TS.read_title_attribute_expanded(self._rom)
 
     @staticmethod
     def _attr_palette_no(attr, row, col):
@@ -1675,6 +1659,8 @@ class TitleScreenDialog(QDialog):
             item = self._side_layout.takeAt(0)
             self._delete_layout_item(item)
         self._palette_context_block = None
+        self._title_tile_editor_canvas = None
+        self._title_tile_editor_state = None
         self._title_character_count_label = None
 
     def _delete_layout_item(self, item):
@@ -1784,6 +1770,10 @@ class TitleScreenDialog(QDialog):
             self._palette_color_buttons.append(b)
             pg.addWidget(b, i // 16, i % 16)
         self._side_layout.addWidget(picker)
+        self._palette_extra = QWidget()
+        self._palette_extra_layout = QVBoxLayout(self._palette_extra)
+        self._palette_extra_layout.setContentsMargins(0, 0, 0, 0)
+        self._side_layout.addWidget(self._palette_extra)
         self._side_layout.addStretch()
         self._side_panel.setVisible(True)
         self._refresh_title_palette_panel()
@@ -1811,6 +1801,147 @@ class TitleScreenDialog(QDialog):
         for i, b in enumerate(self._palette_color_buttons):
             b.setStyleSheet(
                 TitlePaletteDialog._button_style(i, (colors[sel] & 0x3F) == i))
+        self._refresh_title_tile_editor_colors()
+
+    def _clear_palette_extra_panel(self):
+        lay = getattr(self, "_palette_extra_layout", None)
+        if lay is None:
+            return
+        while lay.count():
+            self._delete_layout_item(lay.takeAt(0))
+        self._title_tile_editor_canvas = None
+        self._title_tile_editor_state = None
+
+    def _refresh_title_tile_editor_colors(self):
+        canvas = getattr(self, "_title_tile_editor_canvas", None)
+        state = getattr(self, "_title_tile_editor_state", None)
+        if canvas is None or not state:
+            return
+        colors, _pal_no = self._title_tile_palette_colors(
+            state["row"], state["col"])
+        canvas.set_colors(colors)
+
+    def _show_title_tile_editor_panel(self, row, col, grid, stream, bank_tile,
+                                      pos, pixels, pal_no, ref_count):
+        if not hasattr(self, "_palette_extra_layout"):
+            self._show_title_palette_panel()
+        self._clear_palette_extra_panel()
+        initial = [list(r) for r in pixels]
+        self._title_tile_editor_state = {
+            "row": int(row),
+            "col": int(col),
+            "pos": int(pos),
+            "initial": initial,
+            "old_changed": self._changed,
+            "bank_tile": int(bank_tile),
+        }
+
+        box = QGroupBox(f"8x8 CHR編集 bank内 0x{int(bank_tile):03X}")
+        root = QVBoxLayout(box)
+        info = QLabel(
+            f"cell ({int(col)}, {int(row)}) / stream 0x{int(stream):02X} / "
+            f"ROM 0x{int(pos):X}-0x{int(pos) + 0x0F:X}\n"
+            f"色グループ {int(pal_no) + 1} / 使用箇所: {int(ref_count)}")
+        info.setWordWrap(True)
+        root.addWidget(info)
+
+        top = QHBoxLayout()
+        top.addWidget(QLabel("拡大:"))
+        zoom = QSpinBox()
+        zoom.setRange(16, 48)
+        zoom.setValue(28)
+        zoom.setSuffix(" x")
+        top.addWidget(zoom)
+        top.addStretch()
+        root.addLayout(top)
+
+        body = QHBoxLayout()
+        canvas = TitleTileCanvas(self)
+        colors, _pal_no = self._title_tile_palette_colors(row, col)
+        canvas.set_colors(colors)
+        canvas.set_pixels(pixels)
+        zoom.valueChanged.connect(canvas.set_zoom)
+        canvas.pixel_changed.connect(self._on_title_tile_panel_pixel_changed)
+        canvas.pixel_picked.connect(self._set_title_tile_panel_brush)
+        self._title_tile_editor_canvas = canvas
+        body.addWidget(canvas, 0, Qt.AlignTop)
+
+        side = QVBoxLayout()
+        side.addWidget(QLabel("ペン:"))
+        brush_row = QHBoxLayout()
+        self._title_tile_brush_buttons = []
+        for idx in range(4):
+            btn = QPushButton(str(idx))
+            btn.setCheckable(True)
+            btn.setMinimumSize(38, 30)
+            btn.setToolTip(
+                f"パレットインデックス {idx} で描く。Alt+クリックでスポイト。")
+            btn.clicked.connect(
+                lambda _checked=False, value=idx: self._set_title_tile_panel_brush(value))
+            self._title_tile_brush_buttons.append(btn)
+            brush_row.addWidget(btn)
+        side.addLayout(brush_row)
+        self._set_title_tile_panel_brush(1)
+
+        clear_btn = QPushButton("クリア")
+        clear_btn.setToolTip("8x8タイルをパレットインデックス0で消去")
+        clear_btn.clicked.connect(self._clear_title_tile_panel)
+        side.addWidget(clear_btn)
+        restore_btn = QPushButton("開いた時点へ戻す")
+        restore_btn.clicked.connect(self._restore_title_tile_panel_initial)
+        side.addWidget(restore_btn)
+        side.addStretch()
+        body.addLayout(side, 1)
+        root.addLayout(body)
+
+        self._palette_extra_layout.addWidget(box)
+        self._preview_status.setText(
+            f"8x8編集: cell ({int(col)}, {int(row)}) / bank内 0x{int(bank_tile):03X}")
+
+    def _set_title_tile_panel_brush(self, value):
+        canvas = getattr(self, "_title_tile_editor_canvas", None)
+        if canvas is None:
+            return
+        value = max(0, min(3, int(value)))
+        canvas.set_brush(value)
+        for i, btn in enumerate(getattr(self, "_title_tile_brush_buttons", [])):
+            btn.setChecked(i == value)
+
+    def _on_title_tile_panel_pixel_changed(self, x, y, value):
+        state = getattr(self, "_title_tile_editor_state", None)
+        canvas = getattr(self, "_title_tile_editor_canvas", None)
+        if not state or canvas is None:
+            return
+        pixels = canvas.pixels()
+        self._write_title_tile_pixels(state["pos"], pixels)
+        self._changed = True
+        self._refresh()
+        self._preview_status.setText(
+            f"8x8編集中: cell ({state['col']}, {state['row']}) / "
+            f"bank内 0x{state['bank_tile']:03X}")
+
+    def _set_title_tile_panel_pixels(self, pixels, changed=True):
+        state = getattr(self, "_title_tile_editor_state", None)
+        canvas = getattr(self, "_title_tile_editor_canvas", None)
+        if not state or canvas is None:
+            return
+        canvas.set_pixels(pixels)
+        self._write_title_tile_pixels(state["pos"], canvas.pixels())
+        self._changed = bool(changed)
+        self._refresh()
+
+    def _clear_title_tile_panel(self):
+        self._set_title_tile_panel_pixels(
+            [[0 for _ in range(8)] for _ in range(8)],
+            changed=True)
+
+    def _restore_title_tile_panel_initial(self):
+        state = getattr(self, "_title_tile_editor_state", None)
+        if not state:
+            return
+        self._set_title_tile_panel_pixels(
+            [list(r) for r in state["initial"]],
+            changed=state["old_changed"])
 
     def _cancel_palette_block_context(self):
         if getattr(self, "_palette_context_block", None) is None:
@@ -2130,44 +2261,10 @@ class TitleScreenDialog(QDialog):
                 self, "8x8編集不可", f"{type(e).__name__}: {e}")
             return
         self._highlight_tile.setValue(bank_tile)
-        initial = [list(r) for r in pixels]
-        old_changed = self._changed
         ref_count = self._title_tile_ref_count(grid, stream)
-        title = f"8x8 CHR編集 bank内 0x{bank_tile:03X}"
-        info = (
-            f"cell ({col}, {row}) / stream 0x{stream:02X} / "
-            f"bank内 0x{bank_tile:03X} / ROM 0x{pos:X}-0x{pos + 0x0F:X}\n"
-            f"色グループ {pal_no} / このCHRタイルの使用箇所: {ref_count}"
-        )
-
-        def live_apply(new_pixels):
-            self._write_title_tile_pixels(pos, new_pixels)
-            self._changed = True
-            self._refresh()
-            self._preview_status.setText(
-                f"8x8編集中: cell ({col}, {row}) / bank内 0x{bank_tile:03X}")
-
-        dlg = TitleTileEditorDialog(
-            pixels,
-            colors,
-            title,
-            info,
-            self,
-            live_callback=live_apply,
-        )
-        if dlg.exec_() != QDialog.Accepted:
-            self._write_title_tile_pixels(pos, initial)
-            self._changed = old_changed
-            self._refresh()
-            return
-        self._write_title_tile_pixels(pos, dlg.pixels())
-        if dlg.pixels() != initial:
-            self._changed = True
-        else:
-            self._changed = old_changed
-        self._refresh()
-        self._preview_status.setText(
-            f"8x8編集: cell ({col}, {row}) / bank内 0x{bank_tile:03X}")
+        del colors
+        self._show_title_tile_editor_panel(
+            row, col, grid, stream, bank_tile, pos, pixels, pal_no, ref_count)
 
     def _on_attr_block_clicked(self, row, col):
         if row < 0 or col < 0 or row + 1 >= (_IMG_H // 8) or col + 1 >= _NT_W:
@@ -2459,13 +2556,7 @@ class TitleScreenDialog(QDialog):
             ((pal_no & 0x03) << shift)
 
     def _write_title_attributes(self, attr):
-        """Write the 21-byte stock title attribute block from expanded attrs."""
-        reg = (self._region or "").upper()
-        off = _TITLE_ATTR_US_OFF if reg.startswith("US") else _TITLE_ATTR_JP_OFF
-        if off + 21 > len(self._rom):
-            raise ValueError("title attribute block is outside ROM")
-        for i in range(21):
-            self._rom[off + 20 - i] = attr[9 + i] & 0xFF
+        TS.set_title_attribute_expanded(self._rom, attr)
 
     def _top_png_cells_from_indexed_image(self, top, color_to_index):
         cells = [[0] * 64 for _ in range(_NT_W * (_IMG_H // 8))]
