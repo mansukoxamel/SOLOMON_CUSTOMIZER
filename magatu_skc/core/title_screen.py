@@ -1171,6 +1171,15 @@ def read_title_push_start_text(rom_data) -> str:
     ).rstrip()
 
 
+def _center_title_push_start_text(raw: str) -> str:
+    raw = " ".join((raw or "").split())
+    pad = _TITLE_PUSH_TEXT_LEN - len(raw)
+    if pad <= 0:
+        return raw
+    left = (pad + 1) // 2
+    return (" " * left) + raw + (" " * (pad - left))
+
+
 def set_title_push_start_text(rom_data, text: str) -> list:
     """Replace the fixed PUSH START BUTTON script text in-place."""
     pos = _wjp_cf(_TITLE_PUSH_TEXT_CPU)
@@ -1188,7 +1197,7 @@ def set_title_push_start_text(rom_data, text: str) -> list:
     if len(raw) > _TITLE_PUSH_TEXT_LEN:
         raise TitleScreenError(
             f"PUSH START text is too long; maximum is {_TITLE_PUSH_TEXT_LEN} characters.")
-    line = raw.ljust(_TITLE_PUSH_TEXT_LEN)
+    line = _center_title_push_start_text(raw)
     for i, ch in enumerate(line):
         rom_data[pos + 3 + i] = _title_char_src_tile(ch)
     return [f"title PUSH START text set: {raw!r}"]

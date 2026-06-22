@@ -64,6 +64,13 @@ _TITLE_FIXED_VALUE_LINES = (
     (0x288B, "  100000"),
     (0x2898, "47"),
 )
+_TITLE_PUSH_TEXT_PRESETS = (
+    "PUSH START BUTTON",
+    "SEEK THE KEY",
+    "OPEN THE BOOK",
+    "DO NOT DESPAIR",
+    "TRY YOUR BRAIN",
+)
 
 
 class TitlePngColorGuardError(ValueError):
@@ -3117,9 +3124,14 @@ class TitleScreenDialog(QDialog):
         lay.addWidget(extra_edit)
         lay.addWidget(QLabel(
             "PUSH START位置の固定文字 (最大17文字)"))
-        push_edit = QLineEdit(cur_push[:17])
-        push_edit.setMaxLength(17)
-        lay.addWidget(push_edit)
+        push_combo = QComboBox()
+        push_combo.setEditable(True)
+        for text in _TITLE_PUSH_TEXT_PRESETS:
+            push_combo.addItem(text)
+        if push_combo.lineEdit() is not None:
+            push_combo.lineEdit().setMaxLength(17)
+        push_combo.setCurrentText(cur_push[:17])
+        lay.addWidget(push_combo)
         buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(dlg.accept)
@@ -3134,7 +3146,7 @@ class TitleScreenDialog(QDialog):
             changes.extend(TS.add_title_text_line(
                 self._rom, extra_edit.text(), row=14))
             changes.extend(TS.set_title_push_start_text(
-                self._rom, push_edit.text()))
+                self._rom, push_combo.currentText()))
         except (TS.TitleScreenError, ValueError) as e:
             self._rom[:] = snap
             QMessageBox.critical(self, "文字編集不可", str(e))
