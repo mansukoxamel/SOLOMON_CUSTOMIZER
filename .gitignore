@@ -27,9 +27,13 @@
 !docs/images/dana.png
 !docs/images/dana.ico
 !docs/images/readme_main_window.png
-!docs/images/solomon_logo_SAMPLE1.png
-!docs/images/solomon_logo_SAMPLE2.png
-!docs/images/solomon_logo_SAMPLE4.png
+!docs/images/solomon_logo_SAMPLE01.png
+!docs/images/solomon_logo_SAMPLE02.png
+!docs/images/solomon_logo_SAMPLE03.png
+!docs/images/solomon_logo_SAMPLE04.png
+!docs/images/solomon_logo_SAMPLE05.png
+!docs/images/solomon_logo_SAMPLE06.png
+!docs/images/solomon_logo_SAMPLE07.png
 
 # Always keep generated or sensitive files out.
 BUP/
