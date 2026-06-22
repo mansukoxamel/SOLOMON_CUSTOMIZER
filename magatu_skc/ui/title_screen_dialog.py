@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QDialogButtonBox, QMessageBox, QScrollArea, QWidget, QComboBox,
     QFileDialog, QInputDialog, QGridLayout, QGroupBox, QLineEdit,
-    QSpinBox, QRadioButton, QButtonGroup, QSizePolicy,
+    QSpinBox, QRadioButton, QButtonGroup, QSizePolicy, QCheckBox,
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QColor, QPen
@@ -23,7 +23,7 @@ from ..core import title_screen as TS
 from ..core import rom as _rommod
 from ..core.config import save_config
 from ..nes.palette import NES_COLORS
-from ..nes.tile import NesTile, NES_GFX_TILE_BYTE_SIZE
+from ..nes.tile import NesTile, NES_TILE_W, NES_GFX_TILE_BYTE_SIZE
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 from collections import Counter
 from itertools import permutations
@@ -52,6 +52,11 @@ _TITLE_ATTR_EXTRA_JP_OFF = 0x10 + (0xCDF5 - 0x8000)
 _SPRITE_PALETTE_OFFSET = 0xED4
 # bg パターンテーブル = CHR bank3 上位 4KB (tiles 256-511、ロゴ域 R196)
 _BG_BASE = 256
+_TITLE_TILE_PICKER_COLS = 16
+_TITLE_TILE_PICKER_PALETTE_LABELS = (
+    "BG #0", "BG #1", "BG #2", "BG #3",
+    "SPR #0 主人公", "SPR #1 サラマンダー", "SPR #2 ガーゴイル", "SPR #3 ゴブリン",
+)
 _TITLE_FIXED_TEXT_SCRIPT_CPU = (0x953F, 0x955C, 0x9571)
 _TITLE_FIXED_PUSH_TEXT_CPU = 0x955C
 _TITLE_FIXED_VALUE_LINES = (
@@ -180,6 +185,111 @@ class TitlePreviewLabel(QLabel):
             event.accept()
             return
         super().wheelEvent(event)
+
+
+class TitleChrTilePickerLabel(QLabel):
+    tile_selected = pyqtSignal(int)
+    tile_hovered = pyqtSignal(int)
+    tile_left = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._cell = NES_TILE_W * 4
+        self._gap = 1
+        self._cols = _TITLE_TILE_PICKER_COLS
+        self._selected = 0
+        self.setMouseTracking(True)
+        self.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+
+    def set_tiles(self, rom_data, selected_stream=0, rgb=None, zoom=4, show_grid=True):
+        self._selected = int(selected_stream) & 0xFF
+        zoom = max(1, int(zoom))
+        self._cell = NES_TILE_W * zoom
+        self._gap = 1 if show_grid else 0
+        cell = self._cell
+        gap = self._gap
+        cols = self._cols
+        rows = 16
+        img_w = cols * cell + (cols + 1) * gap
+        img_h = rows * cell + (rows + 1) * gap
+        img = QImage(img_w, img_h, QImage.Format_ARGB32)
+        img.fill(QColor(40, 40, 40) if show_grid else QColor(0, 0, 0))
+        chr_off = TS.chr_bank3_offset(rom_data)
+        colors = rgb or [QColor(v, v, v).rgb() for v in _GRAY]
+        for stream in range(256):
+            tx = stream % cols
+            ty = stream // cols
+            ox = gap + tx * (cell + gap)
+            oy = gap + ty * (cell + gap)
+            pos = chr_off + (_BG_BASE + stream) * NES_GFX_TILE_BYTE_SIZE
+            if pos + NES_GFX_TILE_BYTE_SIZE <= len(rom_data):
+                tile = NesTile(bytes(rom_data[pos:pos + NES_GFX_TILE_BYTE_SIZE]))
+                for py in range(8):
+                    for px in range(8):
+                        color = colors[tile.pixels[py][px] & 0x03]
+                        if color is None:
+                            continue
+                        px0 = ox + px * zoom
+                        py0 = oy + py * zoom
+                        for dy in range(zoom):
+                            for dx in range(zoom):
+                                img.setPixel(px0 + dx, py0 + dy, color)
+        painter = QPainter(img)
+        for stream in range(256):
+            tx = stream % cols
+            ty = stream // cols
+            ox = gap + tx * (cell + gap)
+            oy = gap + ty * (cell + gap)
+            if stream == self._selected:
+                pen = QPen(QColor(255, 40, 40))
+                pen.setWidth(2)
+                painter.setPen(pen)
+                painter.drawRect(ox, oy, max(0, cell - 1), max(0, cell - 1))
+        painter.end()
+        self.setPixmap(QPixmap.fromImage(img))
+        self.setFixedSize(img.size())
+
+    def _stream_at_pos(self, pos):
+        stride = self._cell + self._gap
+        if self._cols <= 0 or self._cell <= 0 or stride <= 0:
+            return None
+        x = int(pos.x()) - self._gap
+        y = int(pos.y()) - self._gap
+        if x < 0 or y < 0:
+            return None
+        col = x // stride
+        row = y // stride
+        local_x = x % stride
+        local_y = y % stride
+        idx = int(row * self._cols + col)
+        if (
+            col < 0 or col >= self._cols
+            or local_x >= self._cell or local_y >= self._cell
+            or idx < 0 or idx >= 256
+        ):
+            return None
+        return idx
+
+    def mouseMoveEvent(self, event):
+        idx = self._stream_at_pos(event.pos())
+        if idx is None:
+            self.tile_left.emit()
+        else:
+            self.tile_hovered.emit(int(idx))
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event):
+        self.tile_left.emit()
+        super().leaveEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            idx = self._stream_at_pos(event.pos())
+            if idx is not None:
+                self.tile_selected.emit(int(idx))
+                event.accept()
+                return
+        super().mousePressEvent(event)
 
 
 class HexSpinBox(QSpinBox):
@@ -1003,6 +1113,7 @@ class TitleScreenDialog(QDialog):
         root.addWidget(self._preview_status)
         self._pending_stamp = None
         self._pending_title_character = None
+        self._pending_title_tile_stream = None
         self._selected_title_character_slot = None
         self._drag_title_character_slot = None
 
@@ -1030,6 +1141,11 @@ class TitleScreenDialog(QDialog):
             "PUSH位置は17文字までです。")
         b_text.clicked.connect(self._on_edit_title_texts)
         br.addWidget(b_text)
+        b_tile_place = QPushButton("タイル配置...")
+        b_tile_place.setToolTip(
+            "CHR bank3の8x8タイルを選び、タイトル背景の32x30マスへ配置します。")
+        b_tile_place.clicked.connect(self._on_show_title_tile_picker)
+        br.addWidget(b_tile_place)
         b_char = QPushButton("キャラクター...")
         b_char.setToolTip(
             f"$D0E8由来の16x16キャラを選び、タイトル上へ最大{TS.title_character_max()}体配置します。")
@@ -1659,6 +1775,12 @@ class TitleScreenDialog(QDialog):
         self._title_tile_editor_canvas = None
         self._title_tile_editor_state = None
         self._title_character_count_label = None
+        self._title_tile_picker = None
+        self._title_tile_picker_status = None
+        self._title_tile_picker_palette = None
+        self._title_tile_picker_zoom = None
+        self._title_tile_picker_grid = None
+        self._pending_title_tile_stream = None
 
     def _delete_layout_item(self, item):
         w = item.widget()
@@ -1709,6 +1831,108 @@ class TitleScreenDialog(QDialog):
         self._side_panel.setVisible(True)
         self._update_title_character_count_labels()
         self._refresh_picker_grid()
+
+    def _show_title_tile_picker_panel(self):
+        self._clear_side_panel()
+        self._pending_title_tile_stream = 0
+        title = QLabel("タイル配置")
+        title.setStyleSheet("font-weight:bold;")
+        self._side_layout.addWidget(title)
+        row = QHBoxLayout()
+        row.addWidget(QLabel("表示モード:"))
+        mode = QLabel("生CHRタイル (8x8素)")
+        mode.setMinimumHeight(26)
+        row.addWidget(mode)
+        row.addWidget(QLabel("パレット:"))
+        pal_combo = QComboBox()
+        for label in _TITLE_TILE_PICKER_PALETTE_LABELS:
+            pal_combo.addItem(label)
+        pal_combo.setCurrentIndex(0)
+        pal_combo.currentIndexChanged.connect(self._refresh_title_tile_picker)
+        self._title_tile_picker_palette = pal_combo
+        row.addWidget(pal_combo)
+        row.addWidget(QLabel("拡大:"))
+        zoom = QSpinBox()
+        zoom.setRange(1, 16)
+        zoom.setValue(4)
+        zoom.setSuffix(" x")
+        zoom.valueChanged.connect(self._refresh_title_tile_picker)
+        self._title_tile_picker_zoom = zoom
+        row.addWidget(zoom)
+        grid = QCheckBox("グリッド線")
+        grid.setChecked(True)
+        grid.stateChanged.connect(self._refresh_title_tile_picker)
+        self._title_tile_picker_grid = grid
+        row.addWidget(grid)
+        row.addStretch()
+        self._side_layout.addLayout(row)
+        status = QLabel("")
+        status.setWordWrap(True)
+        self._title_tile_picker_status = status
+        self._side_layout.addWidget(status)
+        self._title_tile_picker = TitleChrTilePickerLabel()
+        self._title_tile_picker.tile_selected.connect(self._select_title_tile_stream)
+        self._title_tile_picker.tile_hovered.connect(self._on_title_tile_picker_hovered)
+        self._title_tile_picker.tile_left.connect(self._restore_title_tile_picker_status)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(False)
+        scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        scroll.setMinimumHeight(360)
+        scroll.setWidget(self._title_tile_picker)
+        self._side_layout.addWidget(scroll, 1)
+        self._side_panel.setVisible(True)
+        self._refresh_title_tile_picker()
+
+    def _refresh_title_tile_picker(self):
+        picker = getattr(self, "_title_tile_picker", None)
+        if picker is None:
+            return
+        stream = int(getattr(self, "_pending_title_tile_stream", 0) or 0) & 0xFF
+        pal_combo = getattr(self, "_title_tile_picker_palette", None)
+        palette_index = pal_combo.currentIndex() if pal_combo is not None else 0
+        zoom = getattr(self, "_title_tile_picker_zoom", None)
+        zoom_value = zoom.value() if zoom is not None else 4
+        grid = getattr(self, "_title_tile_picker_grid", None)
+        show_grid = grid.isChecked() if grid is not None else True
+        picker.set_tiles(
+            self._rom, stream, self._title_tile_picker_rgb(palette_index),
+            zoom_value, show_grid)
+        self._restore_title_tile_picker_status()
+        self._preview_status.setText(
+            f"タイル配置: stream ${stream:02X} / bank内 0x{(_BG_BASE + stream):03X}")
+
+    def _title_tile_picker_rgb(self, palette_index):
+        idx = int(palette_index) & 7
+        if idx < 4:
+            colors = self._title_palette()
+            base = idx * 4
+            vals = [colors[(base + i) & 0x0F] & 0x3F for i in range(4)]
+            return [QColor(*NES_COLORS[v]).rgb() for v in vals]
+        off = _SPRITE_PALETTE_OFFSET + idx * 4
+        vals = [0x00, 0x10, 0x30]
+        if off + 3 <= len(self._rom):
+            vals = [self._rom[off + i] & 0x3F for i in range(3)]
+        return [None] + [QColor(*NES_COLORS[v & 0x3F]).rgb() for v in vals]
+
+    def _restore_title_tile_picker_status(self):
+        stream = int(getattr(self, "_pending_title_tile_stream", 0) or 0) & 0xFF
+        status = getattr(self, "_title_tile_picker_status", None)
+        if status is not None:
+            status.setText(
+                f"選択: stream ${stream:02X} / bank内 0x{(_BG_BASE + stream):03X}\n"
+                "キャンバス上の8x8マスをクリックすると配置します。")
+
+    def _on_title_tile_picker_hovered(self, stream):
+        stream = int(stream) & 0xFF
+        status = getattr(self, "_title_tile_picker_status", None)
+        if status is not None:
+            status.setText(
+                f"選択: stream ${int(getattr(self, '_pending_title_tile_stream', 0) or 0) & 0xFF:02X}\n"
+                f"カーソル: stream ${stream:02X} / bank内 0x{(_BG_BASE + stream):03X}")
+
+    def _select_title_tile_stream(self, stream):
+        self._pending_title_tile_stream = int(stream) & 0xFF
+        self._refresh_title_tile_picker()
 
     def _show_title_palette_panel(self, block_row=None, block_col=None):
         self._clear_side_panel()
@@ -2134,6 +2358,13 @@ class TitleScreenDialog(QDialog):
                 f"s{pending_ch['state']:02X} f{pending_ch['frame']} / "
                 f"x={dx}, y={dy}")
             return
+        pending_tile = getattr(self, "_pending_title_tile_stream", None)
+        if pending_tile is not None:
+            stream = int(pending_tile) & 0xFF
+            self._preview_status.setText(
+                f"タイル配置待ち: cell ({col}, {row}) / "
+                f"stream ${stream:02X} / bank内 0x{(_BG_BASE + stream):03X}")
+            return
         if hit is not None:
             self._preview_status.setText(
                 f"キャラ slot {hit + 1}/{TS.title_character_max()} / x={dx}, y={dy}")
@@ -2168,6 +2399,10 @@ class TitleScreenDialog(QDialog):
             self._refresh()
             self._preview_status.setText(
                 f"{' / '.join(chg)} / {self._title_character_count_text()}")
+            return
+        pending_tile = getattr(self, "_pending_title_tile_stream", None)
+        if pending_tile is not None:
+            self._place_title_tile(row, col, int(pending_tile) & 0xFF)
             return
         hit = self._title_character_at_display(dx, dy)
         if hit is not None:
@@ -2210,6 +2445,26 @@ class TitleScreenDialog(QDialog):
         self._changed = True
         self._refresh()
         QMessageBox.information(self, "Top PNG貼り付け完了", "\n".join(chg))
+
+    def _place_title_tile(self, row, col, stream):
+        snap = bytes(self._rom)
+        try:
+            chg = TS.set_title_tile_cell(self._rom, row, col, stream)
+        except (TS.TitleScreenError, ValueError) as e:
+            self._rom[:] = snap
+            QMessageBox.critical(self, "タイル配置不可", str(e))
+            return
+        except Exception as e:
+            self._rom[:] = snap
+            QMessageBox.critical(
+                self, "タイル配置失敗", f"{type(e).__name__}: {e}")
+            return
+        self._changed = True
+        self._refresh()
+        self._pending_title_tile_stream = int(stream) & 0xFF
+        self._refresh_title_tile_picker()
+        self._preview_status.setText(
+            f"{' / '.join(chg)} / cell ({int(col)}, {int(row)})")
 
     def _title_tile_at_cell(self, row, col):
         d = TS.decode_title_grid(self._rom)
@@ -2818,6 +3073,10 @@ class TitleScreenDialog(QDialog):
     def _on_pick_title_character(self):
         self._cancel_palette_block_context()
         self._show_title_character_picker_panel()
+
+    def _on_show_title_tile_picker(self):
+        self._cancel_palette_block_context()
+        self._show_title_tile_picker_panel()
 
     def _on_clear_title_characters(self):
         self._cancel_palette_block_context()

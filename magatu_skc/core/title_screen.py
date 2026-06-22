@@ -1042,6 +1042,25 @@ def clear_title_characters(rom_data) -> list:
         rom_data, _wt_title_oam_default_table())
 
 
+def set_title_tile_cell(rom_data, row: int, col: int, stream_tile: int) -> list:
+    """Set one 8x8 title nametable cell in the current wide-title streams."""
+    r = int(row)
+    c = int(col)
+    if not (0 <= r < 30 and 0 <= c < 32):
+        raise TitleScreenError(f"title cell is outside screen: x={c}, y={r}")
+    tile = int(stream_tile) & 0xFF
+    grid_a, grid_b = _wide_title_grids_for_edit(rom_data)
+    cell = r * 32 + c
+    grid_a[cell] = tile
+    grid_b[cell] = None
+    len_a, len_b = _write_wide_title_streams_for_import(
+        rom_data, grid_a, grid_b)
+    return [
+        f"title tile cell updated: x={c}, y={r}, stream ${tile:02X}",
+        f"bank1 streams rewritten: A={len_a}B / B={len_b}B",
+    ]
+
+
 def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b,
                                          title_oam_table: bytes | bytearray | None = None,
                                          title_attr_table: bytes | bytearray | None = None):
