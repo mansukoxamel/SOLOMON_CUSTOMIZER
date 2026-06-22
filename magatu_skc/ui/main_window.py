@@ -1783,7 +1783,18 @@ class MainWindow(QMainWindow):
         form = QFormLayout()
 
         # タイルセット 0-2
-        tileset_row = QHBoxLayout()
+        tileset_line = QWidget()
+        tileset_line_row = QHBoxLayout(tileset_line)
+        tileset_line_row.setContentsMargins(0, 0, 0, 0)
+        tileset_line_row.setSpacing(4)
+        self.lbl_tileset_caption = QLabel("タイルセット:")
+        self.lbl_tileset_caption.setObjectName("leftFormLabel")
+        self.lbl_tileset_caption.setMinimumWidth(72)
+        tileset_line_row.addWidget(self.lbl_tileset_caption)
+        self.tileset_widget = QWidget()
+        tileset_row = QHBoxLayout(self.tileset_widget)
+        tileset_row.setContentsMargins(0, 0, 0, 0)
+        tileset_row.setSpacing(4)
         self.tileset_btns = QButtonGroup(self)
         self.rb_tileset0 = QRadioButton("0")
         self.rb_tileset1 = QRadioButton("1")
@@ -1793,13 +1804,19 @@ class MainWindow(QMainWindow):
             (self.rb_tileset1, 1),
             (self.rb_tileset2, 2),
         ):
+            rb.setObjectName("tilesetRadio")
+            rb.setMinimumWidth(34)
             self.tileset_btns.addButton(rb, val)
             tileset_row.addWidget(rb)
             rb.toggled.connect(
                 lambda checked, v=val: self._on_meta_tileset_changed(v) if checked else None
             )
+        self.lbl_tileset_lock = QLabel("")
+        self.lbl_tileset_lock.setObjectName("tilesetLockLabel")
+        tileset_row.addWidget(self.lbl_tileset_lock)
         tileset_row.addStretch()
-        form.addRow("タイルセット:", tileset_row)
+        tileset_line_row.addWidget(self.tileset_widget, 1)
+        ml.addWidget(tileset_line)
 
         # 制限時間: 0/1/2 はROM内の時間減少テーブルを選ぶ
         self.spin_time_dr = QSpinBox()
@@ -1817,7 +1834,7 @@ class MainWindow(QMainWindow):
             "ROM保存時に bank0 のコードケーブへ注入 (位置+署名 検証付き)"
         )
         self.chk_no_bfire.toggled.connect(self._on_meta_no_bfire_toggled)
-        form.addRow("ステージ設定:", self.chk_no_bfire)
+        form.addRow("制限:", self.chk_no_bfire)
 
         self.chk_no_astone = QCheckBox("Aボタン(換石)禁止")
         self.chk_no_astone.setToolTip(
@@ -1879,7 +1896,6 @@ class MainWindow(QMainWindow):
         form.addRow(const_pos_row)
 
         for field in (
-            tileset_row,
             self.spin_time_dr,
             self.chk_no_bfire,
             self.spin_key_enemy,
@@ -1910,7 +1926,7 @@ class MainWindow(QMainWindow):
             if isinstance(widget, QGroupBox):
                 widget.setMinimumWidth(0)
             if isinstance(widget, (QLabel, QPushButton, QToolButton, QCheckBox, QRadioButton)):
-                if widget.objectName() == "leftFormLabel":
+                if widget.objectName() in ("leftFormLabel", "tilesetRadio", "tilesetLockLabel"):
                     continue
                 widget.setMinimumWidth(0)
                 policy = widget.sizePolicy()
@@ -3270,11 +3286,13 @@ class MainWindow(QMainWindow):
         p = Path(path)
         return f"{p.name}  ({p.parent.name})"
 
+    _ROM_HISTORY_LIMIT = 30
+
     def _load_history(self) -> list:
         try:
             with open(self._history_file(), "r", encoding="utf-8") as f:
                 data = json.load(f)
-            return data.get("history", [])[:15]
+            return data.get("history", [])[:self._ROM_HISTORY_LIMIT]
         except Exception:
             return []
 
@@ -3283,7 +3301,7 @@ class MainWindow(QMainWindow):
             p = self._history_file()
             p.parent.mkdir(parents=True, exist_ok=True)
             with open(p, "w", encoding="utf-8") as f:
-                json.dump({"history": self._history[:15]}, f, ensure_ascii=False, indent=2)
+                json.dump({"history": self._history[:self._ROM_HISTORY_LIMIT]}, f, ensure_ascii=False, indent=2)
         except Exception:
             pass
 
@@ -3294,7 +3312,7 @@ class MainWindow(QMainWindow):
         # 重複除去
         self._history = [p for p in self._history if p != path]
         self._history.insert(0, path)
-        self._history = self._history[:15]
+        self._history = self._history[:self._ROM_HISTORY_LIMIT]
         self._save_history()
 
     def _remember_previous_workstate_history(self, path: str):
@@ -5712,12 +5730,16 @@ class MainWindow(QMainWindow):
         if not self.levels:
             return
         lv = self.levels[self.current_level_no]
-        info = f"""<b>Stage {self.current_level_no + 1}</b><br>
-アイテム: {len(lv.items)}個<br>
-敵: {len(lv.enemies)}体<br>
-ミラー1: {lv.demon_mirrors[0].position}<br>
-ミラー2: {lv.demon_mirrors[1].position}<br>
-"""
+        if hasattr(self, "meta_group"):
+            self.meta_group.setTitle(f"ステージ {self.current_level_no + 1:02d}")
+        key_pos = str(tuple(lv.fixed_key_pos))
+        door_pos = str(tuple(lv.fixed_door_pos))
+        info = (
+            f"アイテム: {len(lv.items)}個 / 敵: {len(lv.enemies)}体<br>"
+            f"鍵: {key_pos} / 扉: {door_pos}<br>"
+            f"ミラー1: {lv.demon_mirrors[0].position} / "
+            f"ミラー2: {lv.demon_mirrors[1].position}<br>"
+        )
         self.lbl_info.setText(info)
 
     # ====== Edit operations ======
@@ -9437,8 +9459,16 @@ class MainWindow(QMainWindow):
         buttons[idx].setChecked(True)
 
     def _set_tileset_enabled(self, enabled: bool):
+        if hasattr(self, "lbl_tileset_caption"):
+            self.lbl_tileset_caption.setEnabled(enabled)
+        if hasattr(self, "tileset_widget"):
+            self.tileset_widget.setEnabled(enabled)
         for rb in (self.rb_tileset0, self.rb_tileset1, self.rb_tileset2):
             rb.setEnabled(enabled)
+            rb.setStyleSheet("")
+        if hasattr(self, "lbl_tileset_lock"):
+            self.lbl_tileset_lock.setText("" if enabled else "星座固定")
+            self.lbl_tileset_lock.setEnabled(enabled)
 
     def _refresh_key_enemy_spin_range(self, warn: bool = False):
         if not self.levels or not hasattr(self, "spin_key_enemy"):
