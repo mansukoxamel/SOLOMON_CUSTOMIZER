@@ -1127,6 +1127,8 @@ def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b,
 
 _TITLE_TEXT_SUPPORTED = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ,.\""
 _TITLE_TEXT_ROW = 14
+_TITLE_PUSH_TEXT_ROW = 15
+_TITLE_PUSH_TEXT_PPU = 0x29E6
 _TITLE_PUSH_TEXT_CPU = 0x955C
 _TITLE_PUSH_TEXT_LEN = 17
 _TITLE_PUNCT_TILE = {
@@ -1173,7 +1175,13 @@ def _title_char_from_src_tile(tile: int) -> str:
 
 
 def read_title_push_start_text(rom_data) -> str:
-    """Read the fixed 17-tile PUSH START BUTTON title script text."""
+    """Read the PUSH START line, preferring the PRG1 wide-title stream."""
+    try:
+        stream_text = read_title_text_line(rom_data, row=_TITLE_PUSH_TEXT_ROW)
+        if stream_text:
+            return stream_text
+    except Exception:
+        pass
     pos = _wjp_cf(_TITLE_PUSH_TEXT_CPU)
     if pos + 3 + _TITLE_PUSH_TEXT_LEN > len(rom_data):
         raise TitleScreenError("title PUSH START script is outside ROM.")
@@ -1194,8 +1202,19 @@ def _center_title_push_start_text(raw: str) -> str:
     return (" " * left) + raw + (" " * (pad - left))
 
 
+def _title_text_line_32(raw: str, *, display_shift_compensate: bool = False) -> str:
+    raw = " ".join((raw or "").split())
+    pad = 32 - len(raw)
+    if pad <= 0:
+        return raw[:32]
+    left = pad // 2
+    if display_shift_compensate and pad > 0 and pad % 2 == 0:
+        left = max(0, left - 1)
+    return (" " * left) + raw + (" " * (pad - left))
+
+
 def set_title_push_start_text(rom_data, text: str) -> list:
-    """Replace the fixed PUSH START BUTTON script text in-place."""
+    """Draw the PUSH START line through the PRG1 wide-title stream."""
     pos = _wjp_cf(_TITLE_PUSH_TEXT_CPU)
     if pos + 3 + _TITLE_PUSH_TEXT_LEN > len(rom_data):
         raise TitleScreenError("title PUSH START script is outside ROM.")
@@ -1208,13 +1227,16 @@ def set_title_push_start_text(rom_data, text: str) -> list:
                 f"unsupported title text character {ch!r}; "
                 "use A-Z, 0-9, space, comma, period, and double quote.")
     raw = " ".join(raw.split())
-    if len(raw) > _TITLE_PUSH_TEXT_LEN:
-        raise TitleScreenError(
-            f"PUSH START text is too long; maximum is {_TITLE_PUSH_TEXT_LEN} characters.")
-    line = _center_title_push_start_text(raw)
-    for i, ch in enumerate(line):
+    if len(raw) > 32:
+        raise TitleScreenError("PUSH START text is too long; maximum is 32 characters.")
+    line = _title_text_line_32(raw, display_shift_compensate=True)
+    original_start_col = (_TITLE_PUSH_TEXT_PPU - 0x2800) % 32
+    for i in range(_TITLE_PUSH_TEXT_LEN):
+        col = original_start_col + i
+        ch = line[col] if 0 <= col < len(line) else " "
         rom_data[pos + 3 + i] = _title_char_src_tile(ch)
-    return [f"title PUSH START text set: {raw!r}"]
+    changes = add_title_text_line(rom_data, raw, row=_TITLE_PUSH_TEXT_ROW)
+    return [f"title PUSH START text set: {raw!r}"] + changes
 
 
 def read_title_text_line(rom_data, row: int = _TITLE_TEXT_ROW) -> str:
@@ -1385,7 +1407,12 @@ def add_title_text_line(rom_data, text: str, row: int = _TITLE_TEXT_ROW) -> list
         grid_a[row0 + x] = None
         grid_b[row0 + x] = None
 
-    line = raw.center(32)
+    line = _title_text_line_32(
+        raw,
+        display_shift_compensate=(
+            int(row) in (_TITLE_TEXT_ROW, _TITLE_PUSH_TEXT_ROW)
+        ),
+    )
     for x, ch in enumerate(line):
         grid_a[row0 + x] = _title_char_src_tile(ch)
 
@@ -1393,7 +1420,7 @@ def add_title_text_line(rom_data, text: str, row: int = _TITLE_TEXT_ROW) -> list
     return [
         f"title text overlay added at row {row}: {raw!r}",
         f"bank1 streams rewritten: A={len_a}B / B={len_b}B",
-        "original PUSH START / TECMO text routine and CHR bank3 are untouched.",
+        "CHR bank3 glyph data is untouched.",
     ]
 
 

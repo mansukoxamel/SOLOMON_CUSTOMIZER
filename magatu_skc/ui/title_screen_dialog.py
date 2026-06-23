@@ -1145,7 +1145,7 @@ class TitleScreenDialog(QDialog):
         b_text.setToolTip(
             "タイトル中央付近の追加文字とPUSH START位置の固定文字を編集します。"
             "A-Z / 0-9 / スペース / , . \" が使えます。"
-            "PUSH位置は17文字までです。")
+            "入力中にプレビューへ反映します。")
         b_text.clicked.connect(self._on_edit_title_texts)
         br.addWidget(b_text)
         b_tile_place = QPushButton("タイル配置...")
@@ -3100,6 +3100,12 @@ class TitleScreenDialog(QDialog):
 
     def _on_edit_title_texts(self):
         self._cancel_palette_block_context()
+        keep_geo = self.geometry()
+
+        def restore_editor_geometry():
+            if not keep_geo.isNull():
+                self.setGeometry(keep_geo)
+
         try:
             cur_extra = TS.read_title_text_line(self._rom)
         except Exception:
@@ -3123,42 +3129,73 @@ class TitleScreenDialog(QDialog):
         extra_edit.setMaxLength(32)
         lay.addWidget(extra_edit)
         lay.addWidget(QLabel(
-            "PUSH START位置の固定文字 (最大17文字)"))
+            "PUSH START位置の固定文字 (A-Z / 0-9 / スペース / , . \"、最大32文字)"))
         push_combo = QComboBox()
         push_combo.setEditable(True)
         for text in _TITLE_PUSH_TEXT_PRESETS:
             push_combo.addItem(text)
         if push_combo.lineEdit() is not None:
-            push_combo.lineEdit().setMaxLength(17)
-        push_combo.setCurrentText(cur_push[:17])
+            push_combo.lineEdit().setMaxLength(32)
+        push_combo.setCurrentText(cur_push[:32])
         lay.addWidget(push_combo)
+        status = QLabel("")
+        lay.addWidget(status)
         buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(dlg.accept)
         buttons.rejected.connect(dlg.reject)
         lay.addWidget(buttons)
-        if dlg.exec_() != QDialog.Accepted:
-            return
 
         snap = bytes(self._rom)
-        try:
-            changes = []
-            changes.extend(TS.add_title_text_line(
-                self._rom, extra_edit.text(), row=14))
-            changes.extend(TS.set_title_push_start_text(
-                self._rom, push_combo.currentText()))
-        except (TS.TitleScreenError, ValueError) as e:
+        preview_changes = []
+
+        def apply_preview():
+            nonlocal preview_changes
             self._rom[:] = snap
-            QMessageBox.critical(self, "文字編集不可", str(e))
+            try:
+                changes = []
+                changes.extend(TS.add_title_text_line(
+                    self._rom, extra_edit.text(), row=14))
+                changes.extend(TS.set_title_push_start_text(
+                    self._rom, push_combo.currentText()))
+            except (TS.TitleScreenError, ValueError) as e:
+                self._rom[:] = snap
+                status.setText(f"入力エラー: {e}")
+                self._refresh()
+                restore_editor_geometry()
+                preview_changes = []
+                return False
+            except Exception as e:
+                self._rom[:] = snap
+                status.setText(f"入力エラー: {type(e).__name__}: {e}")
+                self._refresh()
+                restore_editor_geometry()
+                preview_changes = []
+                return False
+            preview_changes = changes
+            status.setText("プレビュー反映中")
+            self._refresh()
+            restore_editor_geometry()
+            return True
+
+        extra_edit.textChanged.connect(lambda *_: apply_preview())
+        push_combo.currentTextChanged.connect(lambda *_: apply_preview())
+
+        if dlg.exec_() != QDialog.Accepted:
+            self._rom[:] = snap
+            self._refresh()
+            restore_editor_geometry()
             return
-        except Exception as e:
+
+        if not apply_preview():
             self._rom[:] = snap
-            QMessageBox.critical(self, "文字編集失敗",
-                                 f"{type(e).__name__}: {e}")
+            QMessageBox.critical(self, "文字編集不可", status.text())
+            restore_editor_geometry()
             return
         self._changed = True
         self._refresh()
-        self._preview_status.setText(" / ".join(changes))
+        restore_editor_geometry()
+        self._preview_status.setText("タイトル文字を更新しました")
 
     def _on_add_title_text(self):
         self._on_edit_title_texts()
@@ -3177,7 +3214,7 @@ class TitleScreenDialog(QDialog):
             self,
             "PUSH文字",
             "PUSH START BUTTON位置の固定文字 "
-            "(A-Z / 0-9 / スペース / , . \"、最大17文字):",
+            "(A-Z / 0-9 / スペース / , . \"、最大32文字):",
             text=cur)
         if not ok:
             return
