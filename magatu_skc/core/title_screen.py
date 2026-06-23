@@ -661,6 +661,23 @@ def apply_title_stamp_cells(rom_data, patterns, start_row: int, start_col: int,
         for t in WIDE_TITLE_FREE_STREAM_TILES
         if (int(t) & 0xFF) not in used
     ]
+    required_patterns = set()
+    for y in range(tile_h):
+        for x in range(tile_w):
+            pat = tuple(int(v) & 3 for v in patterns[y * tile_w + x])
+            if len(pat) != 64:
+                raise TitleScreenError(
+                    f"貼り付けマス ({x},{y}) の画素数不正 ({len(pat)} != 64)。")
+            if not all(v == 0 for v in pat):
+                required_patterns.add(pat)
+    required = len(required_patterns)
+    capacity = len(available)
+    if required > capacity:
+        shortage = required - capacity
+        raise TitleScreenError(
+            "自由CHR枠の空きが足りません。"
+            f"必要 {required} / 使用可能 {capacity} / 不足 {shortage}。"
+            f"あと {shortage} 個ぶん、使用色や細かい柄を減らしてください。")
 
     pat_to_tile = {}
     next_tile = 0
@@ -679,10 +696,6 @@ def apply_title_stamp_cells(rom_data, patterns, start_row: int, start_col: int,
                 grid_b[ci] = None
                 continue
             if pat not in pat_to_tile:
-                if next_tile >= len(available):
-                    raise TitleScreenError(
-                        "自由CHR枠の空きが足りません。"
-                        f"必要 {len(pat_to_tile) + 1} / 使用可能 {len(available)}。")
                 pat_to_tile[pat] = available[next_tile]
                 next_tile += 1
             grid_a[ci] = pat_to_tile[pat]
