@@ -46,7 +46,7 @@ if errorlevel 1 (
 )
 
 echo Fetching origin/main...
-git fetch --prune origin main
+git -c gc.auto=0 fetch --prune origin main
 if errorlevel 1 (
     echo ERROR: git fetch failed.
     pause

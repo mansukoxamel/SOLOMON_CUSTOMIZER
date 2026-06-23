@@ -2,6 +2,7 @@
 
 ## Unreleased
 - Gitで取得したローカル作業ツリー向けに、`origin/main` を確認してfast-forward更新する `update_from_github.bat` を追加した。
+- `update_from_github.bat` のfetch時はGitの自動GCを無効化し、packファイル削除確認で停止しにくいようにした。
 
 ## v0.8.359 (2026-06-23) タイトル文字編集後のウィンドウサイズ変化を抑制
 - タイトル文字編集で入力プレビューやOK確定を行った後、タイトル画面編集ウィンドウのサイズがレイアウト再計算で変わらないようにした。
