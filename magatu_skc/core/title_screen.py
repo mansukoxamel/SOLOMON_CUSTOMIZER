@@ -1122,6 +1122,7 @@ def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b,
     _wt_install_title_oam_clear(target_rom)
     _wt_install_idle_demo_cleanup(target_rom)
     _wt_install_legacy_attr_write_suppress(target_rom)
+    _wt_install_ending_draw_separation(target_rom)
     return len(stream_a), len(stream_b)
 
 
@@ -1733,6 +1734,11 @@ _WT_LEGACY_ATTR_WRITE_SITES = (
 _WT_LEGACY_ATTR_WRITE_NOP = bytes.fromhex("EAEAEA")
 _WT_TITLE_OAM_CLEAR_CPU = 0xCC6B
 _WT_TITLE_START_CLEAR_CPU = 0xCBB3
+_WT_ENDING_CALL_CPU = 0xB709
+_WT_ENDING_HELPER_CPU = 0xCC72
+_WT_ENDING_DEC_FILE = 0x9090
+_WT_ENDING_DEC_CPU = 0x8000 + (_WT_ENDING_DEC_FILE - 0x8010)  # = $9080
+_WT_ENDING_RESERVED_END = 0x9280
 _RF_BAND        = (0x3BEE, 0x4210)     # Room Flag 占有 file 帯 [start,end)
 # 呼出元 stream ポインタ即値 (block A=$CCB6 / block B=$CD76)
 _WT_PTRA_LO, _WT_PTRA_HI = 0xCCBA, 0xCCBE
@@ -1754,6 +1760,22 @@ _WT_IDLE_DEMO_CLEAR_STUB = (
     bytes.fromhex("A918205F8D60")
 )
 assert len(_WT_IDLE_DEMO_CLEAR_STUB) == 9
+_WT_ENDING_CALL_ORIG = bytes.fromhex("2076CD")
+_WT_ENDING_CALL_HOOK = bytes.fromhex("20") + _word(_WT_ENDING_HELPER_CPU)
+_WT_STOCK_CC4F_DECODER = bytes.fromhex(
+    "AC0220A0008402840388C8B100302DAA9818650085009002E601"
+    "A0008AE0409017E060900FE81004AE022060291F6503850310D6"
+    "850310D2850290CEA6038A1869104A4A292B09208D06208A6A"
+    "6A6A29C005028D0620AD00038D002088C8B10010AD8D072030F6"
+)
+RESERVED_SPANS = (
+    (_wjp_cf(0xCC4F), 28),                         # title RAM bootstrap
+    (_wjp_cf(_WT_TITLE_OAM_CLEAR_CPU), 7),
+    (_wjp_cf(_WT_ENDING_CALL_CPU), 3),
+    (_wjp_cf(_WT_ENDING_HELPER_CPU), 52),
+    (_WT_DEC_FILE, _WT_WIDE_END - _WT_DEC_FILE),
+    (_WT_ENDING_DEC_FILE, _WT_ENDING_RESERVED_END - _WT_ENDING_DEC_FILE),
+)
 
 
 def _wt_has_current_ram_bootstrap(rom_data) -> bool:
@@ -1876,6 +1898,150 @@ def _wt_install_title_oam_clear(rom_data) -> bool:
     return changed
 
 
+def _wt_ending_stock_stream(rom_data) -> bytes:
+    """Return the original JP ending/title block-B stream bytes at $CEA3."""
+    start = _wjp_cf(0xCEA3)
+    _writes, end = _decode_cc4f(bytes(rom_data), start)
+    if end <= start or end > _wjp_cf(0xCF9A):
+        raise TitleScreenError(
+            f"ending stock stream decode failed: 0x{start:X}->0x{end:X}")
+    return bytes(rom_data[start:end])
+
+
+def _wt_ending_attr_tail(cpu_base: int, return_cpu: int) -> bytes:
+    """Clone the stock $CD8E-$CDF2 attribute tail for ending-only drawing."""
+    code = bytearray()
+    helper_patches: list[int] = []
+    table_patches: list[int] = []
+
+    def jsr_helper():
+        helper_patches.append(len(code) + 1)
+        code.extend((0x20, 0x00, 0x00))
+
+    def lda_table_x():
+        table_patches.append(len(code) + 1)
+        code.extend((0xBD, 0x00, 0x00))
+
+    code.extend((0xA9, 0x2B, 0xA2, 0x80))       # $2B80
+    jsr_helper()
+    code.extend(bytes.fromhex(
+        "AD00038D0020A9DFA0DEA20F"
+        "8D07208C0720CA10F7AE0220"
+        "A92BA2F8"))                            # $2BF8
+    jsr_helper()
+    code.extend(bytes.fromhex(
+        "AE00038E0020A0F5A208"
+        "8C0720CAD0FAAE0220"
+        "A92BA2EA"))                            # $2BEA
+    jsr_helper()
+    code.extend(bytes.fromhex(
+        "AE00038E0020A2CF8E0720"
+        "A2F0"))                                # $2BF0
+    jsr_helper()
+    code.extend(bytes.fromhex("AE00038E0020A206"))
+    lda_table_x()
+    code.extend(bytes.fromhex("8D0720CA10F7AE0220"))
+    code.extend((0x4C, return_cpu & 0xFF, (return_cpu >> 8) & 0xFF))
+
+    table = bytes.fromhex("3FCCCC00CCFF3F")
+    table_cpu = (int(cpu_base) + len(code)) & 0xFFFF
+    helper_cpu = (table_cpu + len(table)) & 0xFFFF
+    helper = bytes.fromhex("48AD0220688D06208E062060")
+
+    for pos in helper_patches:
+        code[pos] = helper_cpu & 0xFF
+        code[pos + 1] = (helper_cpu >> 8) & 0xFF
+    for pos in table_patches:
+        code[pos] = table_cpu & 0xFF
+        code[pos + 1] = (table_cpu >> 8) & 0xFF
+    return bytes(code) + table + helper
+
+
+def _wt_ending_decoder_bytes() -> bytes:
+    """Build the PRG1 ending-only clone of the original block-B renderer."""
+    core = bytearray(_WT_STOCK_CC4F_DECODER)
+    done = core.find(bytes.fromhex("AE022060"))
+    if done < 0:
+        raise TitleScreenError("internal error: stock ending decoder DONE not found.")
+    tail_cpu = (_WT_ENDING_DEC_CPU + len(core)) & 0xFFFF
+    core[done:done + 4] = bytes((0x4C, tail_cpu & 0xFF, (tail_cpu >> 8) & 0xFF, 0xEA))
+    return bytes(core) + _wt_ending_attr_tail(tail_cpu, _WT_RAM_OUT)
+
+
+def _wt_ending_helper_bytes(ending_stream_cpu: int) -> bytes:
+    """Build the PRG0 $CC72 helper that jumps to the ending PRG1 renderer."""
+    sw_lo, sw_hi = _WT_SW_CPU & 0xFF, (_WT_SW_CPU >> 8) & 0xFF
+    d_lo, d_hi = _WT_ENDING_DEC_CPU & 0xFF, (_WT_ENDING_DEC_CPU >> 8) & 0xFF
+    ram_tmpl = bytes([
+        0xA9, 0x13, 0x8D, sw_lo, sw_hi, 0x4C, d_lo, d_hi,
+        0xA9, 0x03, 0x8D, sw_lo, sw_hi, 0x60,
+    ])
+    tmpl_cpu = _WT_ENDING_HELPER_CPU + 38
+    t_lo, t_hi = tmpl_cpu & 0xFF, (tmpl_cpu >> 8) & 0xFF
+    ri_lo, ri_hi = _WT_RAM_IN & 0xFF, (_WT_RAM_IN >> 8) & 0xFF
+    helper = bytearray(bytes.fromhex("AD022010FBA905207194207396"))
+    helper.extend((
+        0xA9, ending_stream_cpu & 0xFF,
+        0x85, 0x00,
+        0xA9, (ending_stream_cpu >> 8) & 0xFF,
+        0x85, 0x01,
+        0xA2, 0x0D,
+        0xBD, t_lo, t_hi,
+        0x9D, ri_lo, ri_hi,
+        0xCA,
+        0x10, 0xF7,
+        0x20, ri_lo, ri_hi,
+        0x4C, 0x5F, 0x96,
+    ))
+    assert len(helper) == 38
+    helper.extend(ram_tmpl)
+    assert len(helper) == 52
+    return bytes(helper)
+
+
+def _wt_install_ending_draw_separation(rom_data,
+                                       ending_stream: bytes | None = None) -> bool:
+    """Route ending drawing to an ending-only clone of the stock renderer."""
+    call_off = _wjp_cf(_WT_ENDING_CALL_CPU)
+    cur_call = bytes(rom_data[call_off:call_off + len(_WT_ENDING_CALL_ORIG)])
+    if cur_call not in (_WT_ENDING_CALL_ORIG, _WT_ENDING_CALL_HOOK):
+        raise TitleScreenError(
+            f"ending draw call signature mismatch at "
+            f"${_WT_ENDING_CALL_CPU:04X}: got {cur_call.hex(' ')}")
+    stream = _wt_ending_stock_stream(rom_data) if ending_stream is None \
+        else bytes(ending_stream)
+    decoder = _wt_ending_decoder_bytes()
+    stream_file = _WT_ENDING_DEC_FILE + len(decoder)
+    end_file = stream_file + len(stream)
+    if end_file > _WT_ENDING_RESERVED_END:
+        raise TitleScreenError(
+            f"ending renderer exceeds PRG1 ending reserve "
+            f"({end_file - _WT_ENDING_DEC_FILE}B > "
+            f"{_WT_ENDING_RESERVED_END - _WT_ENDING_DEC_FILE}B).")
+    stream_cpu = 0x8000 + (stream_file - 0x8010)
+    helper = _wt_ending_helper_bytes(stream_cpu)
+    helper_off = _wjp_cf(_WT_ENDING_HELPER_CPU)
+    helper_limit = _wjp_cf(0xCCB6)
+    if helper_off + len(helper) > helper_limit:
+        raise TitleScreenError("internal error: ending helper exceeds $CC72 cave.")
+
+    changed = (
+        cur_call != _WT_ENDING_CALL_HOOK or
+        bytes(rom_data[helper_off:helper_off + len(helper)]) != helper or
+        bytes(rom_data[_WT_ENDING_DEC_FILE:_WT_ENDING_DEC_FILE + len(decoder)]) !=
+        decoder or
+        bytes(rom_data[stream_file:stream_file + len(stream)]) != stream or
+        any(rom_data[end_file:_WT_ENDING_RESERVED_END])
+    )
+    rom_data[call_off:call_off + len(_WT_ENDING_CALL_HOOK)] = _WT_ENDING_CALL_HOOK
+    rom_data[helper_off:helper_off + len(helper)] = helper
+    rom_data[_WT_ENDING_DEC_FILE:_WT_ENDING_DEC_FILE + len(decoder)] = decoder
+    rom_data[stream_file:stream_file + len(stream)] = stream
+    for i in range(end_file, _WT_ENDING_RESERVED_END):
+        rom_data[i] = 0
+    return changed
+
+
 def apply_wide_title_idle_demo_cleanup(rom_data) -> list:
     """Install the timeout-only demo clear hook on current wide-title ROMs."""
     if not _wt_has_current_ram_bootstrap(rom_data):
@@ -1883,10 +2049,11 @@ def apply_wide_title_idle_demo_cleanup(rom_data) -> list:
     changed = _wt_install_title_oam_clear(rom_data)
     changed = _wt_install_idle_demo_cleanup(rom_data) or changed
     changed = _wt_install_legacy_attr_write_suppress(rom_data) or changed
+    changed = _wt_install_ending_draw_separation(rom_data) or changed
     if not changed:
         return []
     return [
-        "wide-title title/demo OAM cleanup installed"
+        "wide-title title/demo OAM cleanup and ending split installed"
     ]
 
 
@@ -2436,6 +2603,7 @@ def normalize_title_to_wide(rom) -> list:
     _wt_install_title_oam_clear(out)
     _wt_install_idle_demo_cleanup(out)
     _wt_install_legacy_attr_write_suppress(out)
+    _wt_install_ending_draw_separation(out, _wt_ending_stock_stream(rom))
     # ★palette / CHR / 色 は ★非改変 (視覚同一)。
     # Title OAM clear uses the wide-title-owned title code at $CC6B.
     # NMI hook / DARK code / generic bank0 cave are not used for this display.
@@ -2459,7 +2627,7 @@ def normalize_title_to_wide(rom) -> list:
         f"{_WT_DEC_CPU:04X} / blockA@${blkA_cpu:04X} ({len(blkA)}B) "
         f"/ blockB@${blkB_cpu:04X} ({len(blkB)}B) / SW=$BB86 / "
         f"RAM $072C。title OAM clear $CC6B ({len(_wt_title_oam_clear_helper())}B)・"
-        "bank1 attribute table writer有効・palette/CHR 非改変・round-trip "
+        "bank1 attribute table writer有効・ending renderer分離・palette/CHR 非改変・round-trip "
         f"{len(rt)}セル一致で視覚同一を確認。",
         "※実機で要確認 (タイトルが stock と同一表示か / Room Flag/"
         "暗闇/隠し扉 併用 / テストプレイ / SHRINE-ROOM / デモ / "

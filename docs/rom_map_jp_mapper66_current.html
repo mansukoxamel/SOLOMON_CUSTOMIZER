@@ -279,6 +279,7 @@
       <tr><td>LOADER</td><td class="num">0x3BF0-0x3C1D</td><td class="num">$BBE0-$BC0D</td><td class="num">46B</td><td>Room flag loader. bit0/bit1 の2bit扉状態で扉セルへ $40/$80/$C0 を付与し、bit4 で持ち越しファイヤー `$042E/$042F` を消してHUDを再描画する。この範囲は原作JPの Level 30 Blue Opal bitmap <code>0x3BDA-0x3BF1</code> 末尾2Bと重なるため、mapper66保存時はStage 30のSP2 bitmap配置呼び出しを無効化済みであることが前提。</td></tr>
       <tr><td>Wide title idle-demo cleanup</td><td class="num">0x3C1E-0x3C26</td><td class="num">$BC0E-$BC16</td><td class="num">9B</td><td>Title timeout-only stub: `JSR $CC6B`, then schedules the original action `$18`. Stops stale wide-title nametable/title OAM from flashing during attract-demo startup without touching the shared action table.</td></tr>
       <tr><td>Wide title OAM clear helper</td><td class="num">0x4C7B-0x4C81</td><td class="num">$CC6B-$CC71</td><td class="num">7B</td><td>Wide-title-owned title-code helper. This is not free cave space: after wide-title normalization, `$CC4F-$CC6A` is replaced by the 28B bootstrap, so the following stock title drawing code body `$CC6B-$CCB5` is dead/owned by wide-title. This helper runs the stock title clear at `$CC18`, then calls the original all-main-slot clear helper `$CB5A`. Manual Start at `$CBB3` and idle-demo cleanup at `$BC0E` call this helper. Generic PRG0 cave, NMI hook, and DARK area usage: 0B.</td></tr>
+      <tr><td>Wide title ending draw hook</td><td class="num">0x3719-0x371B / 0x4C82-0x4CB5</td><td class="num">$B709-$B70B / $CC72-$CCA5</td><td class="num">3B + 52B</td><td>Ending-only split. The original ending call now jumps to a title-independent PRG1 renderer, returns to bank0, then runs the stock `$965F` PPU restore path. Title editable streams and title attribute-table suppression do not affect the ending screen.</td></tr>
       <tr><td>Key enemy item-tile recorder</td><td class="num">0x3C27-0x3C2D</td><td class="num">$BC17-$BC1D</td><td class="num">7B</td><td>Key enemy runtime helper used by the dropped-key path. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
       <tr><td>MAGICGATE</td><td class="num">0x3C30-0x3C51</td><td class="num">$BC20-$BC41</td><td class="num">34B</td><td>A/B magic gate restrictions.</td></tr>
       <tr><td>Key/Fairy enemy status writer</td><td class="num">0x3C52-0x3C57</td><td class="num">$BC42-$BC47</td><td class="num">6B</td><td>Small writer stub for selected key/fairy enemy status. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
@@ -331,7 +332,8 @@
       <div class="seg hook" style="width:.13%"><span class="tiny">mask helper</span></div>
       <div class="seg data" style="width:.20%">seal<br><small>64B</small></div>
       <div class="seg hook" style="width:.57%"><span class="tiny">seal guard</span></div>
-      <div class="seg free" style="width:33.97%">PRG1 general reserve<br><small>11,014B</small></div>
+      <div class="seg hook" style="width:1.51%"><span class="tiny">ending</span></div>
+      <div class="seg free" style="width:32.10%">PRG1 general reserve<br><small>10,518B</small></div>
       <div class="seg meta" style="width:.01%"><span class="tiny">SW</span></div>
       <div class="seg free" style="width:3.49%">reserve<br><small>1,145B</small></div>
       <div class="seg data" style="width:41.41%">level data<br><small>13,568B</small></div>
@@ -344,8 +346,8 @@
     <div class="labels"><span>$8000</span><span>$80C0</span><span>$87F0</span><span>$BB86</span><span>$C000</span><span>$F500</span><span>$FEF0</span><span>$FFFF</span></div>
     <div class="note">
       <b>PRG1 reserve:</b>
-      recovered PanelVariant reserve 1,034B + recovered Seal tail 10B + general reserve 11,014B + bank1 reserve 1,145B + tail reserve 192B =
-      <b>13,395B</b> が現在の候補。既存のwide title / StageExt / visible item mask / level data / drop schedule / metadata / vectorsは踏まない。
+      recovered PanelVariant reserve 1,034B + recovered Seal tail 10B + general reserve 10,518B + bank1 reserve 1,145B + tail reserve 192B =
+      <b>12,899B</b> が現在の候補。既存のwide title / StageExt / wide-title ending / visible item mask / level data / drop schedule / metadata / vectorsは踏まない。
     </div>
     <table>
       <tr><th>用途</th><th>file offset</th><th>bank1 CPU</th><th>Size</th><th>備考</th></tr>
@@ -362,7 +364,8 @@
         <tr><td>Transparent Solomon Seal suppress tables/helpers</td><td class="num">0x8EEB-0x900E</td><td class="num">$8EDB-$8FFE</td><td class="num">292B</td><td>Stage-load-time guard for transparent-breakable Solomon's Seal cells. If the room's Seal bit is already set in <code>$7A</code>, restores the live grid cell to <code>$50</code> and clears the visible-in-block mask bit before the PRG0 converter runs. The old Panel tail copy helper is now a 3B jump only; <code>0x900F-0x9018</code> is recovered PRG1 reserve.</td></tr>
         <tr><td>mapper66 respawn direct-cell copy helper</td><td class="num">0x9019-0x904C</td><td class="num">$9009-$903C</td><td class="num">52B</td><td>Called from the mapper66 l_a2 loader. Preserves SKCHAIN one-shot suppression while mapping custom <code>$F0-$F3</code> white in-block one-shot cells to empty breakable white block <code>$F9</code> after death.</td></tr>
         <tr><td>Cracked in-block one-shot respawn helper</td><td class="num">0x904D-0x908F</td><td class="num">$903D-$907F</td><td class="num">67B</td><td>Called by the mapper66 room loader after copying <code>$0750-$076F</code>. On death respawn only, scans <code>$0768-$076F</code>, restores listed live grid cells from <code>$10</code> to <code>$01</code>, and clears the matching mask bit after converting the runtime position byte to the 192-cell mask index.</td></tr>
-        <tr><td>PRG1 general reserve</td><td class="num">0x9090-0xBB95</td><td class="num">$9080-$BB85</td><td class="num">11,014B</td><td>Recovered from the old oversized wide-title reservation. Candidate area for stage-load-time tables and non-gameplay-screen code/data.</td></tr>
+        <tr><td>Wide title ending renderer</td><td class="num">0x9090-0x927F</td><td class="num">$9080-$926F</td><td class="num">496B</td><td>Ending-only copy of the stock block-B renderer: PRG1 decoder, copied stock ending stream, and original attribute-tail writes. The title route remains editable in the wide-title workspace; the ending route does not read title streams or the title 64B attribute table.</td></tr>
+        <tr><td>PRG1 general reserve</td><td class="num">0x9280-0xBB95</td><td class="num">$9270-$BB85</td><td class="num">10,518B</td><td>Recovered from the old oversized wide-title reservation after reserving the ending renderer. Candidate area for stage-load-time tables and non-gameplay-screen code/data.</td></tr>
       <tr><td>bank switch byte</td><td class="num">0xBB96</td><td class="num">$BB86</td><td class="num">1B</td><td>Reserved bus-conflict-safe byte.</td></tr>
       <tr><td>bank1 reserve</td><td class="num">0xBB97-0xC00F</td><td class="num">$BB87-$BFFF</td><td class="num">1,145B</td><td>Small bank1 reserve.</td></tr>
       <tr><td>expanded level data</td><td class="num">0xC010-0xF50F</td><td class="num">$C000-$F4FF</td><td class="num">13,568B</td><td>53 rooms x 256B.</td></tr>
