@@ -78,6 +78,10 @@ pip install -r requirements.txt
 python SOLOMON_CUSTOMIZER.py
 ```
 
+### Git版の更新
+
+Gitでこのリポジトリを取得している場合は、`update_from_github.bat` を実行すると `origin/main` を確認し、新しい更新があればfast-forwardで取り込みます。ローカル変更がある場合やブランチが分岐している場合は、自動更新せず停止します。
+
 詳細な操作は [MANUAL.md](MANUAL.md) を参照してください。
 
 ## 参考・謝辞
@@ -165,6 +169,10 @@ Requirements:
 pip install -r requirements.txt
 python SOLOMON_CUSTOMIZER.py
 ```
+
+### Update Git checkout
+
+If this repository was cloned with Git, run `update_from_github.bat` to check `origin/main` and fast-forward to new updates. The script stops without updating when local changes exist or the branch has diverged.
 
 For detailed usage, see [MANUAL.en.md](MANUAL.en.md).
 
