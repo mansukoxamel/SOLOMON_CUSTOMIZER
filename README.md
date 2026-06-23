@@ -35,7 +35,7 @@
   敵の移動速度、弾速、敵ドロップ、合鍵を持つ敵、落下死で妖精化する敵を調整できます。
 
 - **タイトル画面の詳細編集**  
-  タイトルロゴ、配置タイル、16x16色区分、パレット、タイトル上の静止キャラクター配置を編集できます。
+  PNG取り込み、タイトルロゴ、配置タイル、16x16色区分、パレット、タイトル上の静止キャラクター配置を編集できます。
 
   <p>
     <img src="docs/images/readme_custom_title_screen1.png" alt="カスタマイズしたタイトル画面の例 1" width="360">
@@ -121,7 +121,7 @@ SOLOMON_CUSTOMIZER is a customizer for the Famicom version of *Solomon's Key*, c
   Adjust enemy movement, projectile speed, enemy drops, key-carrying enemies, and falling-death fairy enemies.
 
 - **Detailed title screen editing**  
-  Edit the title logo, background tiles, 16x16 color attributes, palettes, and static title-screen character placement.
+  Import PNGs and edit the title logo, background tiles, 16x16 color attributes, palettes, and static title-screen character placement.
 
   <p>
     <img src="docs/images/readme_custom_title_screen1.png" alt="Example customized title screen 1" width="360">
