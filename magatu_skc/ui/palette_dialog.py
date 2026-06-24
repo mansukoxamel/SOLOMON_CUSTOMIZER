@@ -19,7 +19,7 @@ from PyQt5.QtGui import QColor, QPixmap, QImage, QPainter, QPen
 
 from .. import __version__
 from ..nes.palette import NES_COLORS
-from ..core import wall_color_hack
+from ..core import stage50_book_color, wall_color_hack
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
@@ -100,6 +100,10 @@ class PaletteDialog(QDialog):
         self._wall_buf = []
         self._wall_initial = []
         self._wall_buttons = []
+        self._book_color_ok = False
+        self._book_color = stage50_book_color.ORIGINAL_COLOR
+        self._book_color_initial = self._book_color
+        self._book_color_button = None
         try:
             self._wall_buf = list(wall_color_hack.current_values(rom_data))
             wall_color_hack.special_values(rom_data)
@@ -108,12 +112,19 @@ class PaletteDialog(QDialog):
         except wall_color_hack.WallColorHackError:
             self._wall_buf = list(wall_color_hack.ORIGINAL_VALUES)
             self._wall_initial = list(self._wall_buf)
+        try:
+            self._book_color = stage50_book_color.current_value(rom_data)
+            self._book_color_initial = self._book_color
+            self._book_color_ok = True
+        except stage50_book_color.Stage50BookColorError:
+            pass
         self._sprite_icons = {}
         self._changed = False
         # 現在選択中のスウォッチ
         self._sel_palette = None
         self._sel_slot = None
         self._sel_wall = None
+        self._sel_book_color = False
 
         self._build_ui()
         restore_dialog_geometry(self, self._app_config, "palette_dlg")
@@ -143,6 +154,18 @@ class PaletteDialog(QDialog):
             wall_layout.addWidget(btn, row, col + 1)
             self._refresh_wall_swatch(i)
         layout.addWidget(wall_group)
+
+        book_group = QGroupBox("Stage 50 ソロモンの書の色")
+        book_layout = QHBoxLayout(book_group)
+        book_layout.addWidget(QLabel("色"))
+        self._book_color_button = QPushButton()
+        self._book_color_button.setFixedSize(self.SWATCH_W, self.SWATCH_H)
+        self._book_color_button.setEnabled(self._book_color_ok)
+        self._book_color_button.clicked.connect(self._on_book_color_swatch_click)
+        book_layout.addWidget(self._book_color_button)
+        book_layout.addStretch()
+        self._refresh_book_color_swatch()
+        layout.addWidget(book_group)
 
         # 背景パレット
         bg_group = QGroupBox("背景パレット")
@@ -267,14 +290,18 @@ class PaletteDialog(QDialog):
         """スウォッチをクリック → 64色グリッドの選択対象にする"""
         old_p, old_s = self._sel_palette, self._sel_slot
         old_wall = self._sel_wall
+        old_book = self._sel_book_color
         self._sel_palette = palette_no
         self._sel_slot = slot
         self._sel_wall = None
+        self._sel_book_color = False
         # 旧選択のボーダーを戻す
         if old_p is not None and old_s is not None:
             self._refresh_swatch(old_p, old_s)
         if old_wall is not None:
             self._refresh_wall_swatch(old_wall)
+        if old_book:
+            self._refresh_book_color_swatch()
         # 新選択のボーダーを強調
         self._refresh_swatch(palette_no, slot)
 
@@ -300,21 +327,56 @@ class PaletteDialog(QDialog):
         )
         btn.setText(f"0x{nes_idx:02X}")
 
+    def _refresh_book_color_swatch(self):
+        if self._book_color_button is None:
+            return
+        nes_idx = self._book_color & 0x3F
+        qc = nes_to_qcolor(nes_idx)
+        r, g, b = NES_COLORS[nes_idx]
+        text_color = "#ffffff" if (r + g + b) < 380 else "#000000"
+        border = "3px solid #00ff00" if self._sel_book_color else "1px solid #888"
+        self._book_color_button.setStyleSheet(
+            f"background-color: {qc.name()}; color: {text_color}; border: {border};"
+        )
+        self._book_color_button.setText(f"0x{nes_idx:02X}")
+
     def _on_wall_swatch_click(self, index: int):
         old_p, old_s = self._sel_palette, self._sel_slot
         old_wall = self._sel_wall
+        old_book = self._sel_book_color
         self._sel_palette = None
         self._sel_slot = None
         self._sel_wall = index
+        self._sel_book_color = False
         if old_p is not None and old_s is not None:
             self._refresh_swatch(old_p, old_s)
         if old_wall is not None:
             self._refresh_wall_swatch(old_wall)
+        if old_book:
+            self._refresh_book_color_swatch()
         self._refresh_wall_swatch(index)
         cur_idx = self._wall_buf[index] & 0x3F
         self._picker_info.setText(
             f"<b>ステージ壁色 {wall_color_hack.stage_range_label(index)}面</b> を編集中 "
             f"(現在: 0x{cur_idx:02X})"
+        )
+        self._update_color_grid_highlight(cur_idx)
+
+    def _on_book_color_swatch_click(self):
+        old_p, old_s = self._sel_palette, self._sel_slot
+        old_wall = self._sel_wall
+        self._sel_palette = None
+        self._sel_slot = None
+        self._sel_wall = None
+        self._sel_book_color = True
+        if old_p is not None and old_s is not None:
+            self._refresh_swatch(old_p, old_s)
+        if old_wall is not None:
+            self._refresh_wall_swatch(old_wall)
+        self._refresh_book_color_swatch()
+        cur_idx = self._book_color & 0x3F
+        self._picker_info.setText(
+            f"<b>Stage 50 ソロモンの書の色</b> を編集中 (現在: 0x{cur_idx:02X})"
         )
         self._update_color_grid_highlight(cur_idx)
 
@@ -344,6 +406,18 @@ class PaletteDialog(QDialog):
             self._picker_info.setText(
                 f"<b>ステージ壁色 {wall_color_hack.stage_range_label(idx)}面</b> を編集中 "
                 f"(現在: 0x{new_idx:02X})"
+            )
+            self._update_color_grid_highlight(new_idx)
+            return
+        if self._sel_book_color:
+            cur = self._book_color & 0x3F
+            new_idx = nes_idx & 0x3F
+            if new_idx != cur:
+                self._book_color = new_idx
+                self._refresh_book_color_swatch()
+                self._changed = True
+            self._picker_info.setText(
+                f"<b>Stage 50 ソロモンの書の色</b> を編集中 (現在: 0x{new_idx:02X})"
             )
             self._update_color_grid_highlight(new_idx)
             return
@@ -427,6 +501,8 @@ class PaletteDialog(QDialog):
         for i, value in enumerate(self._wall_initial):
             self._wall_buf[i] = value
             self._refresh_wall_swatch(i)
+        self._book_color = self._book_color_initial
+        self._refresh_book_color_swatch()
         self._changed = False
         self._refresh_sprite_icons()
         if self._sel_wall is not None:
@@ -434,6 +510,12 @@ class PaletteDialog(QDialog):
             self._picker_info.setText(
                 f"<b>ステージ壁色 {wall_color_hack.stage_range_label(self._sel_wall)}面</b> を編集中 "
                 f"(現在: 0x{cur_idx:02X})"
+            )
+            self._update_color_grid_highlight(cur_idx)
+        elif self._sel_book_color:
+            cur_idx = self._book_color & 0x3F
+            self._picker_info.setText(
+                f"<b>Stage 50 ソロモンの書の色</b> を編集中 (現在: 0x{cur_idx:02X})"
             )
             self._update_color_grid_highlight(cur_idx)
         elif self._sel_palette is not None and self._sel_slot is not None:
@@ -447,6 +529,9 @@ class PaletteDialog(QDialog):
     def _selected_palette_no(self):
         if self._sel_wall is not None:
             QMessageBox.information(self, "対象外", "ステージ壁色は1色なので、この操作の対象外です。")
+            return None
+        if self._sel_book_color:
+            QMessageBox.information(self, "対象外", "Stage 50 ソロモンの書の色は1色なので、この操作の対象外です。")
             return None
         if self._sel_palette is None:
             QMessageBox.information(self, "対象未選択", "先に変更したいパレットの色ボタンを選択してください。")
@@ -498,6 +583,7 @@ class PaletteDialog(QDialog):
             "app_version": __version__,
             "palettes": [],
             "wall_colors": [],
+            "stage50_solomon_book_color": None,
         }
         for p in range(PALETTE_COUNT):
             colors = [self._buf[p][s] & 0x3F for s in range(EDITABLE_COLORS)]
@@ -511,13 +597,20 @@ class PaletteDialog(QDialog):
                     "label": f"{wall_color_hack.stage_range_label(i)}面",
                     "color": value & 0x3F,
                 })
+        if self._book_color_ok:
+            data["stage50_solomon_book_color"] = {
+                "label": "Stage 50 ソロモンの書の色",
+                "color": self._book_color & 0x3F,
+            }
         return data
 
     def _build_palette_png(self, data: dict) -> QImage:
         wall_colors = data.get("wall_colors", [])
         wall_rows = 2 if wall_colors else 0
+        book_color = data.get("stage50_solomon_book_color")
+        book_rows = 1 if isinstance(book_color, dict) else 0
         width = 760
-        height = 58 + PALETTE_COUNT * 42 + 36 + wall_rows * 44 + 22
+        height = 58 + PALETTE_COUNT * 42 + 36 + wall_rows * 44 + book_rows * 44 + 22
         img = QImage(width, height, QImage.Format_ARGB32)
         img.fill(QColor("#101820"))
 
@@ -562,6 +655,16 @@ class PaletteDialog(QDialog):
                     painter.drawRect(x, yy, 36, 24)
                     painter.setPen(QColor("#D7E3EA"))
                     painter.drawText(x + 42, yy + 17, f"{entry.get('label', '')} 0x{nes_idx:02X}")
+                y += wall_rows * 44 + 16
+            if isinstance(book_color, dict):
+                nes_idx = int(book_color.get("color", 0)) & 0x3F
+                painter.setPen(QColor("#E8F1F2"))
+                painter.drawText(18, y - 8, "Stage 50 Solomon book color")
+                painter.fillRect(18, y, 36, 24, nes_to_qcolor(nes_idx))
+                painter.setPen(QPen(QColor("#EEF6F7"), 1))
+                painter.drawRect(18, y, 36, 24)
+                painter.setPen(QColor("#D7E3EA"))
+                painter.drawText(60, y + 17, f"{book_color.get('label', '')} 0x{nes_idx:02X}")
         finally:
             painter.end()
 
@@ -633,10 +736,16 @@ class PaletteDialog(QDialog):
                 value = entry.get("color") if isinstance(entry, dict) else entry
                 self._wall_buf[i] = int(value) & 0x3F
                 self._refresh_wall_swatch(i)
+        book_color = data.get("stage50_solomon_book_color")
+        if isinstance(book_color, dict) and self._book_color_ok:
+            self._book_color = int(book_color.get("color", self._book_color)) & 0x3F
+            self._refresh_book_color_swatch()
         self._changed = True
         self._refresh_sprite_icons()
         if self._sel_wall is not None:
             self._update_color_grid_highlight(self._wall_buf[self._sel_wall] & 0x3F)
+        elif self._sel_book_color:
+            self._update_color_grid_highlight(self._book_color & 0x3F)
         elif self._sel_palette is not None and self._sel_slot is not None:
             self._update_color_grid_highlight(self._buf[self._sel_palette][self._sel_slot] & 0x3F)
         return True
@@ -671,6 +780,9 @@ class PaletteDialog(QDialog):
                     any_change = True
         if self._wall_ok:
             changed = wall_color_hack.apply(self.rom_data, self._wall_buf)
+            any_change = any_change or bool(changed)
+        if self._book_color_ok:
+            changed = stage50_book_color.apply(self.rom_data, self._book_color)
             any_change = any_change or bool(changed)
         self._changed = False
         # 親ウィンドウに通知
