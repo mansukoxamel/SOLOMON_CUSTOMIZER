@@ -240,6 +240,10 @@ class LevelRenderer:
             return c.LEVEL_PALETTES[level_no] * 3 + level_tileset_no
         return level_tileset_no
 
+    @staticmethod
+    def _is_stage50_solomon_book(level: Level, level_no: int) -> bool:
+        return level_no == 49 and not level.is_door_removed() and level.is_key_removed()
+
     def object_labels(self, level: Level, level_no: int = 0,
                       bonus_items: list = None) -> list:
         """キャンバス注釈用の (x, y, text) を返す。
@@ -268,7 +272,7 @@ class LevelRenderer:
             add(level.get_constellation_pos(), f"星座:{name}")
 
         if not level.is_door_removed():
-            add(level.fixed_door_pos, "扉")
+            add(level.fixed_door_pos, "赤い本" if self._is_stage50_solomon_book(level, level_no) else "扉")
         if not level.is_key_removed():
             key_label = "鍵"
             if level.is_key_hidden():
@@ -464,12 +468,27 @@ class LevelRenderer:
                     room_flags.DOOR_STATE_IN_BLOCK,
                     room_flags.DOOR_STATE_WHITE_IN_BLOCK,
                 )
-                door_anim = self.get_metadata_animation(MD_DOOR)
+                is_stage50_solomon_book = self._is_stage50_solomon_book(level, level_no)
+                door_anim = self.get_metadata_animation(
+                    MD_SOLOMONS_KEY if is_stage50_solomon_book else MD_DOOR
+                )
+                door_ts_no = (
+                    c.LEVEL_PALETTES[level_no] * 3
+                    if is_stage50_solomon_book
+                    else ts_no
+                )
                 door_img = self.tr.get_tile_image(
-                    door_anim, ts_no, transparent=None, bg_main_color=wall_color)
+                    door_anim,
+                    door_ts_no,
+                    transparent=None,
+                    bg_main_color=None if is_stage50_solomon_book else wall_color,
+                    palette_no_override=2 if is_stage50_solomon_book else None,
+                )
                 dx, dy = level.fixed_door_pos
                 if 0 <= dx < c.LEVEL_W and 0 <= dy < c.LEVEL_H:
-                    if door_is_in_block:
+                    if is_stage50_solomon_book:
+                        painter.drawImage(dx * tw, dy * tw, door_img)
+                    elif door_is_in_block:
                         block_img = (
                             white_img
                             if door_state == room_flags.DOOR_STATE_WHITE_IN_BLOCK

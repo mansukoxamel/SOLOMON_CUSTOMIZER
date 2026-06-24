@@ -25,7 +25,8 @@ class TileRenderer:
 
     def get_tile_image(self, tile_no: int, tileset_no: int = 0,
                        transparent: bool = None,
-                       bg_main_color: int = None) -> QImage:
+                       bg_main_color: int = None,
+                       palette_no_override: int = None) -> QImage:
         """指定のメタタイルをQImageで取得（キャッシュあり）
 
         Args:
@@ -34,7 +35,10 @@ class TileRenderer:
             transparent: 透明色を残すか（Noneの場合 tile_def の transparent 属性に従う）
         """
         bg_main_color = None if bg_main_color is None else (int(bg_main_color) & 0x3F)
-        cache_key = (tile_no, tileset_no, transparent, bg_main_color)
+        palette_no_override = (
+            None if palette_no_override is None else int(palette_no_override)
+        )
+        cache_key = (tile_no, tileset_no, transparent, bg_main_color, palette_no_override)
         if cache_key in self._cache:
             return self._cache[cache_key]
 
@@ -52,7 +56,12 @@ class TileRenderer:
         ts = self.config.get_tileset(tileset_no)
         # palette_no は TileDef では「タイル定義側の指定」だが
         # tileset_offset を加算して実際のサブパレットを得る
-        actual_palette_no = tile_def.palette_no + ts.palette_offset
+        base_palette_no = (
+            tile_def.palette_no
+            if palette_no_override is None
+            else palette_no_override
+        )
+        actual_palette_no = base_palette_no + ts.palette_offset
         actual_tile_offset = ts.tile_offset
 
         sub_pal = self.config.get_palette(actual_palette_no)
