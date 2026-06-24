@@ -160,6 +160,9 @@ INITIAL_DRAW_WHITE_THRESHOLD_NEW = 0xC0
 KEY_CELL_VALUE_PATCH_OFF = 0x17F5
 KEY_CELL_VALUE_PATCH_OLD = bytes.fromhex("a90624001002a9465002a9869d0403")
 KEY_CELL_VALUE_PATCH_NEW = bytes.fromhex("a5000a29809002094009069d0403ea")
+KEY_CELL_VALUE_NO_KEY_BRANCH_OFF = 0x17ED
+KEY_CELL_VALUE_NO_KEY_BRANCH_OLD = 0x13
+KEY_CELL_VALUE_NO_KEY_BRANCH_NEW = 0x12
 OFFSET_M66_BREAKABLE_WHITE_DATA = (
     OFFSET_M66_DROP_SCHED_DATA
     + COUNT_M66_LEVELS * 2 * 8
@@ -730,6 +733,10 @@ def patch_runtime_block_loader(rom_data: bytearray):
         cur = bytes(rom_data[off:off + ln])
         if cur == KEY_CELL_VALUE_PATCH_OLD:
             rom_data[off:off + ln] = KEY_CELL_VALUE_PATCH_NEW
+        if bytes(rom_data[off:off + ln]) == KEY_CELL_VALUE_PATCH_NEW:
+            branch_off = KEY_CELL_VALUE_NO_KEY_BRANCH_OFF
+            if len(rom_data) > branch_off and rom_data[branch_off] == KEY_CELL_VALUE_NO_KEY_BRANCH_OLD:
+                rom_data[branch_off] = KEY_CELL_VALUE_NO_KEY_BRANCH_NEW
     off = SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF
     if len(rom_data) > off and rom_data[off] == SPECIAL_HIGH_ID_PRESERVE_OLD:
         rom_data[off] = SPECIAL_HIGH_ID_PRESERVE_NEW
