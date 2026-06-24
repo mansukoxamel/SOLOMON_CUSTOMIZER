@@ -330,6 +330,13 @@ def save_levels_to_rom(
         _run_save_step("StageExt table書き込み", stage_ext.patch_table, rom.data, levels, runtime_room_flags, door_cells)
         _run_save_step("StageExt runtime loader検証/適用", stage_ext.apply_runtime_loader, rom.data)
         _run_save_step("Final stage redirect runtime検証/適用", final_stage_redirect.apply, rom.data, levels)
+        _run_save_step(
+            "Stage 50赤い本クリア判定座標書き込み",
+            special_process.patch_stage50_book_clear_trigger,
+            rom.data,
+            rom.base_region(),
+            levels,
+        )
     _run_save_step("開始画面アナウンス検証/適用", stage_announcement.apply, rom.data, levels, runtime_room_flags)
     _run_save_step(
         "Room Flag runtime検証/適用",

@@ -211,6 +211,43 @@ def disable_falling_fairy_subroutine(rom_data: bytearray, region: str) -> list[s
     return ["falling fairy subroutine"]
 
 
+STAGE50_BOOK_CLEAR_TRIGGER_LEVEL = 49
+STAGE50_BOOK_CLEAR_TRIGGER_OFF = 0x3643  # CPU $B633: operand of CMP #$67
+STAGE50_BOOK_CLEAR_TRIGGER_CONTEXT = bytes.fromhex(
+    "20 b4 8d a5 7e c9 67 d0 f7 a9 82"
+)
+STAGE50_BOOK_CLEAR_TRIGGER_CONTEXT_INDEX = 6
+
+
+def patch_stage50_book_clear_trigger(rom_data: bytearray, region: str, levels: list) -> list[str]:
+    """Move Stage 50's final magic clear trigger to the editable book cell."""
+    if region != "JP" or not levels or len(levels) <= STAGE50_BOOK_CLEAR_TRIGGER_LEVEL:
+        return []
+    if len(rom_data) < STAGE50_BOOK_CLEAR_TRIGGER_OFF + 1:
+        return []
+    start = STAGE50_BOOK_CLEAR_TRIGGER_OFF - STAGE50_BOOK_CLEAR_TRIGGER_CONTEXT_INDEX
+    end = start + len(STAGE50_BOOK_CLEAR_TRIGGER_CONTEXT)
+    cur = bytes(rom_data[start:end])
+    expected = bytearray(STAGE50_BOOK_CLEAR_TRIGGER_CONTEXT)
+    current_value = rom_data[STAGE50_BOOK_CLEAR_TRIGGER_OFF]
+    if current_value != 0x67:
+        expected[STAGE50_BOOK_CLEAR_TRIGGER_CONTEXT_INDEX] = current_value
+    if cur != bytes(expected):
+        raise ValueError(
+            "Stage 50 book clear trigger signature mismatch "
+            f"at 0x{start:04X}: got {cur.hex(' ')}"
+        )
+    from .element import byte_from_position
+    level = levels[STAGE50_BOOK_CLEAR_TRIGGER_LEVEL]
+    if level.is_door_removed():
+        return []
+    new_value = byte_from_position(level.fixed_door_pos)
+    if current_value == new_value:
+        return []
+    rom_data[STAGE50_BOOK_CLEAR_TRIGGER_OFF] = new_value
+    return [f"Stage 50 clear trigger ${current_value:02X}->${new_value:02X}"]
+
+
 # ---- 既知のサブルーチン呼び出しパターン (注釈用) ----
 # (region, ROMオフセット差) を考慮するために RAM アドレスベースで持つ
 # RAM addr → 説明
