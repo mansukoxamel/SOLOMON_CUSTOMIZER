@@ -26,7 +26,8 @@ class TileRenderer:
     def get_tile_image(self, tile_no: int, tileset_no: int = 0,
                        transparent: bool = None,
                        bg_main_color: int = None,
-                       palette_no_override: int = None) -> QImage:
+                       palette_no_override: int = None,
+                       pixel_color_overrides: dict = None) -> QImage:
         """指定のメタタイルをQImageで取得（キャッシュあり）
 
         Args:
@@ -38,7 +39,19 @@ class TileRenderer:
         palette_no_override = (
             None if palette_no_override is None else int(palette_no_override)
         )
-        cache_key = (tile_no, tileset_no, transparent, bg_main_color, palette_no_override)
+        pixel_color_overrides = {
+            int(k) & 0x03: int(v) & 0x3F
+            for k, v in (pixel_color_overrides or {}).items()
+        }
+        overrides_key = tuple(sorted(pixel_color_overrides.items()))
+        cache_key = (
+            tile_no,
+            tileset_no,
+            transparent,
+            bg_main_color,
+            palette_no_override,
+            overrides_key,
+        )
         if cache_key in self._cache:
             return self._cache[cache_key]
 
@@ -95,7 +108,10 @@ class TileRenderer:
                     pal_idx = nes_tile.get_palette_index(x, y, flip_v, flip_h)
                     if pal_idx == 0 and transparent:
                         continue  # 透明
-                    rgb = sub_pal.get_rgb(pal_idx)
+                    if pal_idx in pixel_color_overrides:
+                        rgb = pal.get_nes_color(pixel_color_overrides[pal_idx])
+                    else:
+                        rgb = sub_pal.get_rgb(pal_idx)
                     img.setPixel(tx + x, ty + y, QColor(*rgb).rgb())
 
         self._cache[cache_key] = img

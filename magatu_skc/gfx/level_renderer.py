@@ -483,6 +483,7 @@ class LevelRenderer:
                     transparent=None,
                     bg_main_color=None if is_stage50_solomon_book else wall_color,
                     palette_no_override=2 if is_stage50_solomon_book else None,
+                    pixel_color_overrides={2: 0x16} if is_stage50_solomon_book else None,
                 )
                 dx, dy = level.fixed_door_pos
                 if 0 <= dx < c.LEVEL_W and 0 <= dy < c.LEVEL_H:
