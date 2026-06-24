@@ -217,6 +217,13 @@ STAGE50_BOOK_CLEAR_TRIGGER_CONTEXT = bytes.fromhex(
     "20 b4 8d a5 7e c9 67 d0 f7 a9 82"
 )
 STAGE50_BOOK_CLEAR_TRIGGER_CONTEXT_INDEX = 6
+STAGE50_BOOK_OPEN_DISPLAY_PATCHES = (
+    (0x365D, 0x67, 0, bytes.fromhex("a9 67 a2 37 20 ed b9 a9 66 a2"), 1),
+    (0x3664, 0x66, -1, bytes.fromhex("20 ed b9 a9 66 a2 36 20 ed b9"), 4),
+    (0x369C, 0x67, 0, bytes.fromhex("a9 67 85 04 20 a3 91 20 64 c4"), 1),
+    (0x36F9, 0x67, 0, bytes.fromhex("a9 67 a2 35 20 ed b9 a9 66 a2"), 1),
+    (0x3700, 0x66, -1, bytes.fromhex("20 ed b9 a9 66 a2 10 20 ed b9"), 4),
+)
 
 
 def patch_stage50_book_clear_trigger(rom_data: bytearray, region: str, levels: list) -> list[str]:
@@ -246,6 +253,46 @@ def patch_stage50_book_clear_trigger(rom_data: bytearray, region: str, levels: l
         return []
     rom_data[STAGE50_BOOK_CLEAR_TRIGGER_OFF] = new_value
     return [f"Stage 50 clear trigger ${current_value:02X}->${new_value:02X}"]
+
+
+def patch_stage50_book_open_display(rom_data: bytearray, region: str, levels: list) -> list[str]:
+    """Move Stage 50's opened-book drawing and effect anchor to the editable book cell."""
+    if region != "JP" or not levels or len(levels) <= STAGE50_BOOK_CLEAR_TRIGGER_LEVEL:
+        return []
+    level = levels[STAGE50_BOOK_CLEAR_TRIGGER_LEVEL]
+    if level.is_door_removed():
+        return []
+
+    from .element import byte_from_position
+    book_x, _book_y = level.fixed_door_pos
+    if book_x <= 0:
+        raise ValueError("Stage 50 opened book needs one cell to the left of the book position")
+    book_cell = byte_from_position(level.fixed_door_pos)
+    replacements = {0: book_cell, -1: book_cell - 1}
+
+    changed = []
+    for off, original_value, cell_delta, context, context_index in STAGE50_BOOK_OPEN_DISPLAY_PATCHES:
+        if len(rom_data) < off + 1:
+            return changed
+        start = off - context_index
+        end = start + len(context)
+        cur = bytes(rom_data[start:end])
+        current_value = rom_data[off]
+        expected = bytearray(context)
+        for other_off, other_original, _other_delta, _other_context, _other_index in STAGE50_BOOK_OPEN_DISPLAY_PATCHES:
+            if start <= other_off < end and rom_data[other_off] != other_original:
+                expected[other_off - start] = rom_data[other_off]
+        if cur != bytes(expected):
+            raise ValueError(
+                "Stage 50 opened book display signature mismatch "
+                f"at 0x{start:04X}: got {cur.hex(' ')}"
+            )
+        new_value = replacements[cell_delta]
+        if current_value == new_value:
+            continue
+        rom_data[off] = new_value
+        changed.append(f"Stage 50 opened book 0x{off:04X} ${current_value:02X}->${new_value:02X}")
+    return changed
 
 
 # ---- 既知のサブルーチン呼び出しパターン (注釈用) ----

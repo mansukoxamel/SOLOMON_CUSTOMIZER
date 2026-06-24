@@ -337,6 +337,13 @@ def save_levels_to_rom(
             rom.base_region(),
             levels,
         )
+        _run_save_step(
+            "Stage 50赤い本開き表示座標書き込み",
+            special_process.patch_stage50_book_open_display,
+            rom.data,
+            rom.base_region(),
+            levels,
+        )
     _run_save_step("開始画面アナウンス検証/適用", stage_announcement.apply, rom.data, levels, runtime_room_flags)
     _run_save_step(
         "Room Flag runtime検証/適用",
