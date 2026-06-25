@@ -44,6 +44,7 @@ from ..core.config import (
     SHORTCUT_DEFINITIONS,
     normalize_int_setting,
     normalize_gamepad_shortcuts,
+    normalize_emulators,
     normalize_panel_variant_settings,
     normalize_shortcuts,
     resolve_project_path,
@@ -1937,8 +1938,12 @@ class MainWindow(QMainWindow):
         button = QPushButton(text)
         button.setObjectName("testPlayButton")
         button.setMinimumHeight(30)
-        button.setToolTip("現在の編集状態で、現在ステージから始まる一時ROMを作りエミュレータを起動")
+        button.setToolTip("左クリック: 既定エミュレータで起動 / 右クリック: エミュレータを選んで起動")
         button.clicked.connect(self._on_test_play)
+        button.setContextMenuPolicy(Qt.CustomContextMenu)
+        button.customContextMenuRequested.connect(
+            lambda pos, b=button: self._show_test_play_menu(b, pos)
+        )
         button.setEnabled(False)
         return button
 
@@ -3581,18 +3586,75 @@ class MainWindow(QMainWindow):
     def _stage_png_show_secrets_enabled(self) -> bool:
         return bool(self._app_config.get("stage_png_show_secrets", True))
 
-    def _on_test_play(self):
+    def _configured_emulators(self) -> list[dict]:
+        return normalize_emulators(self._app_config.get("emulators"))
+
+    def _default_emulator(self) -> dict | None:
+        emulators = self._configured_emulators()
+        if not emulators:
+            return None
+        default_id = str(self._app_config.get("default_emulator_id", "") or "")
+        for emu in emulators:
+            if emu.get("id") == default_id:
+                return emu
+        return emulators[0]
+
+    def _show_test_play_menu(self, button: QPushButton, pos: QPoint):
+        from PyQt5.QtWidgets import QMenu
+
+        menu = QMenu(self)
+        emulators = self._configured_emulators()
+        default_id = str(self._app_config.get("default_emulator_id", "") or "")
+        if emulators:
+            for emu in emulators:
+                name = emu.get("name", "") or "エミュレータ"
+                label = f"★ {name}" if emu.get("id") == default_id else name
+                action = menu.addAction(label)
+                action.triggered.connect(
+                    lambda _=False, selected=dict(emu): self._on_test_play(selected)
+                )
+            menu.addSeparator()
+            default_menu = menu.addMenu("既定にする")
+            for emu in emulators:
+                action = default_menu.addAction(emu.get("name", "") or "エミュレータ")
+                action.setEnabled(emu.get("id") != default_id)
+                action.triggered.connect(
+                    lambda _=False, selected=dict(emu): self._set_default_emulator(selected)
+                )
+            menu.addSeparator()
+        else:
+            action = menu.addAction("エミュレータ未登録")
+            action.setEnabled(False)
+            menu.addSeparator()
+        settings_action = menu.addAction("エミュレータ設定...")
+        settings_action.triggered.connect(self._show_settings)
+        menu.exec_(button.mapToGlobal(pos))
+
+    def _set_default_emulator(self, emulator: dict):
+        emu_id = str(emulator.get("id", "") or "")
+        if not emu_id:
+            return
+        self._app_config["default_emulator_id"] = emu_id
+        save_config(self._app_config)
+        self.statusBar().showMessage(
+            f"既定エミュレータ: {emulator.get('name', '') or 'エミュレータ'}", 3000
+        )
+
+    def _on_test_play(self, emulator: dict | None = None):
         """現在の編集状態 + ステージ選択(現在レベル) で一時ROMを生成しエミュ起動"""
+        if not isinstance(emulator, dict):
+            emulator = None
         if not self.rom or not self.levels:
             return
         if self._is_read_only() and not self._can_readonly_test_play():
             self._reject_read_only_edit()
             return
-        emu_path = self._app_config.get("emulator_path", "")
+        emulator = emulator or self._default_emulator()
+        emu_path = str((emulator or {}).get("path", "") or "").strip()
         if not emu_path or not os.path.exists(emu_path):
             QMessageBox.warning(
                 self, "エミュレータ未設定",
-                "F9 設定画面で『エミュレータ』のパスを指定してください"
+                "F9 設定画面でテストプレイ用エミュレータを登録し、既定にしてください"
             )
             return
         self._play_button_sound()
@@ -3650,14 +3712,15 @@ class MainWindow(QMainWindow):
         try:
             subprocess.Popen([emu_path, str(tmp_rom)])
             suffix = f" / {build_msg}" if build_msg else ""
+            emu_name = (emulator or {}).get("name", "") or Path(emu_path).stem
             self.statusBar().showMessage(
-                f"テストプレイ起動: Stage {stage_no} / {tmp_rom}{suffix}", 5000
+                f"テストプレイ起動: Stage {stage_no} / {emu_name} / {tmp_rom}{suffix}", 5000
             )
             visible_cells = sorted(
                 getattr(self.levels[self.current_level_no], "visible_in_block_item_cells", set()) or []
             )
             self._log(
-                f"テストプレイ起動: Stage {stage_no} → {tmp_rom} "
+                f"テストプレイ起動: Stage {stage_no} / {emu_name} → {tmp_rom} "
                 f"(透明ブロック内={len(visible_cells)} {visible_cells})"
             )
         except Exception as e:

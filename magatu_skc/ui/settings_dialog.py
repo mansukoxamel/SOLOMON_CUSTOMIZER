@@ -1,4 +1,6 @@
 """設定ダイアログ (F9)"""
+from pathlib import Path
+
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QGroupBox,
     QComboBox, QLabel, QDialogButtonBox, QPushButton, QLineEdit,
@@ -25,6 +27,7 @@ from ..core.config import (
     DEFAULT_SHORTCUTS,
     GAMEPAD_BUTTON_OPTIONS,
     DEFAULT_GAMEPAD_SHORTCUTS,
+    normalize_emulators,
     normalize_int_setting,
     normalize_gamepad_shortcuts,
     normalize_shortcuts,
@@ -81,6 +84,8 @@ class SettingsDialog(QDialog):
         self.config["gamepad_shortcuts"] = normalize_gamepad_shortcuts(
             self.config.get("gamepad_shortcuts")
         )
+        self._emulators = normalize_emulators(self.config.get("emulators"))
+        self._current_emulator_id = None
 
         layout = QVBoxLayout(self)
         self.tabs = QTabWidget()
@@ -229,17 +234,39 @@ class SettingsDialog(QDialog):
         # ====== 連携 ======
         link_group = QGroupBox("外部連携")
         lf = QFormLayout(link_group)
+        emu_select_wrap = QWidget()
+        emu_select_row = QHBoxLayout(emu_select_wrap)
+        emu_select_row.setContentsMargins(0, 0, 0, 0)
+        self.cmb_emulators = QComboBox()
+        self.cmb_emulators.currentIndexChanged.connect(self._on_emulator_selected)
+        emu_select_row.addWidget(self.cmb_emulators, 1)
+        btn_add_emu = QPushButton("追加")
+        btn_add_emu.clicked.connect(self._add_emulator)
+        emu_select_row.addWidget(btn_add_emu)
+        btn_delete_emu = QPushButton("削除")
+        btn_delete_emu.clicked.connect(self._delete_emulator)
+        emu_select_row.addWidget(btn_delete_emu)
+        btn_default_emu = QPushButton("既定にする")
+        btn_default_emu.clicked.connect(self._set_default_emulator)
+        emu_select_row.addWidget(btn_default_emu)
+        lf.addRow("登録:", emu_select_wrap)
+        self.edit_emu_name = QLineEdit()
+        self.edit_emu_name.setPlaceholderText("例: Mesen 0.9.9")
+        self.edit_emu_name.editingFinished.connect(self._update_current_emulator)
+        lf.addRow("表示名:", self.edit_emu_name)
         emu_wrap = QWidget()
         emu_row = QHBoxLayout(emu_wrap)
         emu_row.setContentsMargins(0, 0, 0, 0)
-        self.edit_emu = QLineEdit(self.config.get("emulator_path", ""))
+        self.edit_emu = QLineEdit()
         self.edit_emu.setPlaceholderText("例: D:/emu/fceux/fceux.exe")
+        self.edit_emu.editingFinished.connect(self._update_current_emulator)
         emu_row.addWidget(self.edit_emu, 1)
         btn_browse = QPushButton("参照...")
         btn_browse.clicked.connect(self._browse_emu)
         emu_row.addWidget(btn_browse)
-        lf.addRow("エミュレータ:", emu_wrap)
+        lf.addRow("実行ファイル:", emu_wrap)
         general_layout.addWidget(link_group)
+        self._refresh_emulator_combo()
 
         # ====== テストプレイ・PNG出力 ======
         workflow_group = QGroupBox("テストプレイ・PNG出力")
@@ -527,6 +554,101 @@ class SettingsDialog(QDialog):
         )
         if path:
             self.edit_emu.setText(path)
+            if not self.edit_emu_name.text().strip():
+                self.edit_emu_name.setText(Path(path).stem)
+            self._update_current_emulator()
+
+    def _current_emulator_index(self):
+        emu_id = self.cmb_emulators.currentData()
+        for i, emu in enumerate(self._emulators):
+            if emu.get("id") == emu_id:
+                return i
+        return -1
+
+    def _refresh_emulator_combo(self, select_id=None):
+        if select_id is None:
+            select_id = self._current_emulator_id
+        self.cmb_emulators.blockSignals(True)
+        self.cmb_emulators.clear()
+        default_id = str(self.config.get("default_emulator_id", "") or "")
+        for i, emu in enumerate(self._emulators, 1):
+            name = emu.get("name", "") or f"エミュレータ {i}"
+            mark = "★ " if emu.get("id") == default_id else ""
+            self.cmb_emulators.addItem(f"{mark}{name}", emu.get("id"))
+        idx = self.cmb_emulators.findData(select_id)
+        if idx < 0 and self._emulators:
+            idx = 0
+        self.cmb_emulators.setCurrentIndex(idx)
+        self.cmb_emulators.blockSignals(False)
+        self._load_current_emulator_fields()
+
+    def _load_current_emulator_fields(self):
+        idx = self._current_emulator_index()
+        enabled = idx >= 0
+        self.edit_emu_name.setEnabled(enabled)
+        self.edit_emu.setEnabled(enabled)
+        if not enabled:
+            self._current_emulator_id = None
+            self.edit_emu_name.clear()
+            self.edit_emu.clear()
+            return
+        emu = self._emulators[idx]
+        self._current_emulator_id = emu.get("id")
+        self.edit_emu_name.setText(emu.get("name", ""))
+        self.edit_emu.setText(emu.get("path", ""))
+
+    def _on_emulator_selected(self):
+        self._load_current_emulator_fields()
+
+    def _update_current_emulator(self):
+        idx = self._current_emulator_index()
+        if idx < 0:
+            return
+        name = self.edit_emu_name.text().strip()
+        path = self.edit_emu.text().strip()
+        if not name:
+            name = Path(path).stem if path else f"エミュレータ {idx + 1}"
+            self.edit_emu_name.setText(name)
+        self._emulators[idx]["name"] = name
+        self._emulators[idx]["path"] = path
+        self._refresh_emulator_combo(self._emulators[idx]["id"])
+
+    def _add_emulator(self):
+        self._update_current_emulator()
+        base = len(self._emulators) + 1
+        existing = {emu.get("id") for emu in self._emulators}
+        emu_id = f"emu_{base}"
+        while emu_id in existing:
+            base += 1
+            emu_id = f"emu_{base}"
+        self._emulators.append({
+            "id": emu_id,
+            "name": f"エミュレータ {len(self._emulators) + 1}",
+            "path": "",
+        })
+        if not self.config.get("default_emulator_id"):
+            self.config["default_emulator_id"] = emu_id
+        self._refresh_emulator_combo(emu_id)
+
+    def _delete_emulator(self):
+        idx = self._current_emulator_index()
+        if idx < 0:
+            return
+        emu_id = self._emulators[idx].get("id")
+        del self._emulators[idx]
+        if self.config.get("default_emulator_id") == emu_id:
+            self.config["default_emulator_id"] = (
+                self._emulators[0]["id"] if self._emulators else ""
+            )
+        self._refresh_emulator_combo()
+
+    def _set_default_emulator(self):
+        idx = self._current_emulator_index()
+        if idx < 0:
+            return
+        self._update_current_emulator()
+        self.config["default_emulator_id"] = self._emulators[idx]["id"]
+        self._refresh_emulator_combo(self._emulators[idx]["id"])
 
     def _gather(self):
         """UIから config dict を更新"""
@@ -544,7 +666,14 @@ class SettingsDialog(QDialog):
         if not mark:
             mark = "●"
         self.config["dirty_mark"] = mark
-        self.config["emulator_path"] = self.edit_emu.text().strip()
+        self._update_current_emulator()
+        self.config["emulators"] = normalize_emulators(self._emulators)
+        valid_emu_ids = {emu["id"] for emu in self.config["emulators"]}
+        if self.config.get("default_emulator_id") not in valid_emu_ids:
+            self.config["default_emulator_id"] = (
+                self.config["emulators"][0]["id"]
+                if self.config["emulators"] else ""
+            )
         self.config["font_size"] = self.spin_font_size.value()
         self.config["hover_info_popup_font_size"] = (
             self.spin_hover_popup_font_size.value()

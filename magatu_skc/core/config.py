@@ -28,6 +28,7 @@ DEFAULT_PANEL_VARIANT_SETTINGS = {
     "c_speed": 2,
     "c_interval": 0xC0,
 }
+DEFAULT_EMULATORS = []
 
 SHORTCUT_DEFINITIONS = [
     ("help", "ショートカットヘルプ", "F1"),
@@ -161,11 +162,38 @@ def normalize_panel_variant_settings(value) -> dict:
     return settings
 
 
+def normalize_emulators(value) -> list[dict]:
+    emulators = []
+    seen_ids = set()
+    if isinstance(value, list):
+        for i, raw in enumerate(value, 1):
+            if not isinstance(raw, dict):
+                continue
+            path = str(raw.get("path", "") or "").strip()
+            emu_id = str(raw.get("id", "") or "").strip() or f"emu_{i}"
+            base_id = emu_id
+            suffix = 2
+            while emu_id in seen_ids:
+                emu_id = f"{base_id}_{suffix}"
+                suffix += 1
+            seen_ids.add(emu_id)
+            name = str(raw.get("name", "") or "").strip()
+            if not name:
+                name = Path(path).stem if path else f"エミュレータ {len(emulators) + 1}"
+            emulators.append({
+                "id": emu_id,
+                "name": name,
+                "path": path,
+            })
+    return emulators
+
+
 DEFAULT_CONFIG = {
     # 表示
     "dirty_mark": "●",
     # 外部連携
-    "emulator_path": "",
+    "emulators": DEFAULT_EMULATORS,
+    "default_emulator_id": "",
     "test_play_quick_start": True,
     "stage_png_show_secrets": True,
     # ピッカーのお気に入り（10スロット, [mode, value] or null）
@@ -361,6 +389,12 @@ def load_config() -> dict:
             cfg["gamepad_shortcuts"] = normalize_gamepad_shortcuts(
                 cfg.get("gamepad_shortcuts")
             )
+            cfg["emulators"] = normalize_emulators(cfg.get("emulators"))
+            valid_emu_ids = {emu["id"] for emu in cfg["emulators"]}
+            if cfg.get("default_emulator_id") not in valid_emu_ids:
+                cfg["default_emulator_id"] = (
+                    cfg["emulators"][0]["id"] if cfg["emulators"] else ""
+                )
             cfg["panel_variant_settings"] = normalize_panel_variant_settings(
                 cfg.get("panel_variant_settings")
             )
@@ -372,6 +406,7 @@ def load_config() -> dict:
     cfg["gamepad_shortcuts"] = normalize_gamepad_shortcuts(
         cfg.get("gamepad_shortcuts")
     )
+    cfg["emulators"] = normalize_emulators(cfg.get("emulators"))
     cfg["panel_variant_settings"] = normalize_panel_variant_settings(
         cfg.get("panel_variant_settings")
     )
