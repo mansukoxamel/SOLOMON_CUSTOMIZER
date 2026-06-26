@@ -131,7 +131,7 @@
       <tr><td class="num">0x33D0-0x33DC</td><td>Stage start announcement key gate</td><td>`KEY ENEMY` 用の `$072B` 判定。</td></tr>
       <tr><td class="num">0x3BEE-0x420F</td><td>bank0 cave</td><td>RoomFlag、gap_fix、強化敵系の主戦場。詳細は次節。</td></tr>
       <tr><td class="num">0x4FEE-0x5004</td><td>Spark Ball animation hook</td><td>PRG0後半のEA埋め領域を利用。23B。</td></tr>
-      <tr><td class="num">0x5AC9-0x5ADC</td><td>Panel Variant type classifier tail</td><td>Panel Monster existing variants and A/B/C Panel Variant shared visual classifier tail.</td></tr>
+      <tr><td class="num">0x5AC9-0x5ADC</td><td>Original enemy state-speed data</td><td>`$DAB9-$DACC` は `$D9D3` ポインタ表経由で Saramandor などの敵状態別速度indexとして読まれる。ゼロ埋めに見えても空きではない。</td></tr>
       <tr><td class="num">0x5B71-0x5B84</td><td>Original enemy state-speed data</td><td>`$DB61-$DB74` は `$D9D3` ポインタ表経由で敵状態別の速度indexとして読まれる。ゼロ埋めに見えても空きではない。</td></tr>
       <tr><td class="num">0x5BC5-0x5BEE</td><td>Original enemy speed table</td><td>原作の敵速度テーブル。Golem/Demonhead なども参照するため、Panel Variant 用には上書きしない。</td></tr>
       <tr><td class="num">0x5BEF-0x5C0A</td><td>Panel Monster property selector</td><td>Panel Monster borrowed-ID property selector。Spark Ball property selectorからのフォールスルー先でもある。</td></tr>
@@ -184,7 +184,8 @@
       <tr><td>00埋め上書き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x681C-0x6832</td><td class="num">$E80C-$E822</td><td class="num">23B</td><td>00埋め</td><td>Transparent Spark Ball Golem-ID AI wrapper。旧配置 <code>$8BE2</code> は initial magic / lives と衝突するため使用しない。</td></tr>
       <tr><td>既存tail上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x67D1-0x6817</td><td class="num">$E7C1-$E807</td><td class="num">71B</td><td>原作tail data</td><td>Panel Monster v2 Bullet entry helper。<code>$BF69</code> からJMPし、2-way/3-way spread markerとspeed markerを同じ入口で処理する。</td></tr>
       <tr><td>既存tail上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x697F-0x699E</td><td class="num">$E96F-$E98E</td><td class="num">32B</td><td>原作tail data</td><td>Panel Monster v2 Bullet entry tail helper。minus/plus位置補正とspeed decode/fast loop tail。</td></tr>
-      <tr><td>00埋め上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x69D4-0x69DF</td><td class="num">$E9C4-$E9CF</td><td class="num">12B</td><td>00埋め</td><td>Panel Variant final AI dispatch panel tail。<code>room_flags.py</code> の <code>$E77C</code> White in-block runtime extension との重複回避のため移設。</td></tr>
+        <tr><td>既存tail上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x3F7C-0x3F8F</td><td class="num">$BF6C-$BF7F</td><td class="num">20B</td><td>旧Panel Bullet hook本体跡</td><td>Panel Variant type classifier tail。旧配置 <code>$DAB9</code> はSaramandor state-speed tableと重複していたため使用禁止。</td></tr>
+        <tr><td>00埋め上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x69D4-0x69DF</td><td class="num">$E9C4-$E9CF</td><td class="num">12B</td><td>00埋め</td><td>Panel Variant final AI dispatch panel tail。<code>room_flags.py</code> の <code>$E77C</code> White in-block runtime extension との重複回避のため移設。</td></tr>
       <tr><td>小routine</td><td><code>spark_ball_variant.py</code></td><td class="num">0x6FD4-0x7004</td><td class="num">$EFC4-$EFF4</td><td class="num">49B</td><td>EA埋め</td><td>Spark Ball pause hook。ID判定を圧縮済み。</td></tr>
     </table>
   </div>
@@ -304,7 +305,8 @@
       <tr><td>Spark Ball OAM hide hook</td><td class="num">0x3ED7-0x3EF8</td><td class="num">$BEC7-$BEE8</td><td class="num">34B</td><td>Transparent Spark Ball OAM post-draw hide hook. This is not free space.</td></tr>
       <tr><td>Key enemy door-light helper</td><td class="num">0x3F60-0x3F78</td><td class="num">$BF50-$BF68</td><td class="num">25B</td><td>Key enemy runtime helper for dropped-key door-light positioning. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
       <tr><td>Panel Monster v2 Bullet hook jump</td><td class="num">0x3F79-0x3F7B</td><td class="num">$BF69-$BF6B</td><td class="num">3B</td><td>Panel Monster v2 writes <code>JMP $E7C1</code> here. The former 78B legacy hook body was split out; only this 3B entry is active.</td></tr>
-      <tr><td>空き</td><td class="num">0x3F7C-0x3FC6</td><td class="num">$BF6C-$BFB6</td><td class="num">75B</td><td>旧Panel Monster diagonal Bullet hook slotの本体部分。現行は先頭3Bの <code>JMP $E7C1</code> だけを使うため、この75Bへ書く実装はない。新規利用可。使う時は同じ変更でこのROM台帳と実装側 <code>RESERVED_SPANS</code> を更新する。</td></tr>
+        <tr><td>Panel Variant type classifier tail</td><td class="num">0x3F7C-0x3F8F</td><td class="num">$BF6C-$BF7F</td><td class="num">20B</td><td>旧Panel Monster diagonal Bullet hook slotの本体部分へ移設。<code>$DAB9</code> はSaramandor speed tableなので使用禁止。</td></tr>
+        <tr><td>空き</td><td class="num">0x3F90-0x3FC6</td><td class="num">$BF80-$BFB6</td><td class="num">55B</td><td>旧Panel Monster diagonal Bullet hook slotの残り。現行は先頭3Bの <code>JMP $E7C1</code> と type classifier tail 20B だけを使う。新規利用時は同じ変更でこのROM台帳と実装側 <code>RESERVED_SPANS</code> を更新する。</td></tr>
       <tr><td>Panel Variant type classifier main</td><td class="num">0x3FCA-0x3FE4</td><td class="num">$BFBA-$BFD4</td><td class="num">27B</td><td>Shared visual/property classifier for older enhanced Panel Monster IDs and A/B/C Panel Variant IDs.</td></tr>
       <tr><td>Spark Ball slow AI wrapper</td><td class="num">0x3FE8-0x3FF7</td><td class="num">$BFD8-$BFE7</td><td class="num">16B</td><td>Dragon-ID <code>$6A/$6B</code> routing. ID判定を <code>AND #$FE</code> で圧縮済み。</td></tr>
       <tr><td>gap_fix cave</td><td class="num">0x4010-0x4097</td><td class="num">$C000-$C087</td><td class="num">136B</td><td class="ok">No overlap with Spark Ball variants or key enemies as of v0.6.158.</td></tr>
