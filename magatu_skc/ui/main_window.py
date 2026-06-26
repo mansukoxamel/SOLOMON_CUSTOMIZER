@@ -8284,6 +8284,88 @@ class MainWindow(QMainWindow):
                     if self.rom is not None and 0 <= mi.rom_offset < len(self.rom.data):
                         self.rom.data[mi.rom_offset] = byte_from_position(mi.position)
 
+        def flip_bonus_positions(fn):
+            if self.current_level_no != 50:
+                return False
+            positions = getattr(self, "_bonus_positions", None)
+            if not positions:
+                return False
+            moved = False
+            new_positions = []
+            for pos in positions:
+                px, py = pos
+                if x1 <= px <= x2 and y1 <= py <= y2:
+                    new_pos = fn(px, py)
+                    moved = moved or new_pos != pos
+                    new_positions.append(new_pos)
+                else:
+                    new_positions.append(pos)
+            if not moved:
+                return False
+            self._bonus_positions = new_positions
+            self._rebuild_bonus_items_from_positions()
+            self._write_bonus_positions_to_rom()
+            return True
+
+        def flip_mirror_enemy_codes_horizontal():
+            if self.rom is not None and self.rom.is_expanded():
+                self._sync_enemy_codes_from_rom(self.current_level_no)
+            changed = False
+            for mirror in getattr(lv, "demon_mirrors", []) or []:
+                px, py = mirror.position
+                if not (x1 <= px <= x2 and y1 <= py <= y2):
+                    continue
+                codes = list(getattr(mirror, "enemy_codes", []) or [])
+                if not codes:
+                    continue
+                flipped = [_mirror_enemy_code_horizontal(code) for code in codes]
+                if flipped != codes:
+                    mirror.enemy_codes = flipped
+                    changed = True
+            if changed:
+                self._write_mirror_data_to_rom(self.current_level_no)
+                self._sync_mirror_panel()
+            return changed
+
+        def flip_conditional_breakable_markers(fn):
+            changed_groups = set()
+            skipped_shared = False
+            for group in self._conditional_breakable_groups_for_level(self.current_level_no):
+                positions = self._conditional_breakable_positions(group) or {}
+                for sub, pos in positions.items():
+                    px, py = pos
+                    if not (x1 <= px <= x2 and y1 <= py <= y2):
+                        continue
+                    if group == "stage52_53":
+                        skipped_shared = True
+                        continue
+                    new_pos = fn(px, py)
+                    if new_pos == pos:
+                        continue
+                    if self._move_conditional_breakable_marker(group, sub, new_pos):
+                        changed_groups.add(group)
+            for group in changed_groups:
+                self._refresh_thumbnails_after_conditional_marker_edit(group)
+            return bool(changed_groups), skipped_shared
+
+        def flip_bomb_jack_markers(fn):
+            positions = self._bomb_jack_positions() or {}
+            changed = False
+            for sub in ("spawn",):
+                pos = positions.get(sub)
+                if pos is None:
+                    continue
+                px, py = pos
+                if not (x1 <= px <= x2 and y1 <= py <= y2):
+                    continue
+                new_pos = fn(px, py)
+                if new_pos == pos:
+                    continue
+                changed = self._move_bomb_jack_marker(sub, new_pos) or changed
+            return changed
+
+        conditional_skip_message = None
+
         if horizontal:
             flip_x = lambda cx, cy: (x1 + x2 - cx, cy)
             # ブロック左右反転
@@ -8307,7 +8389,13 @@ class MainWindow(QMainWindow):
             flip_meta_positions(flip_x, horizontal=True)
             for name in self._runtime_marker_names():
                 flip_marker_set(name, flip_x)
-            self.statusBar().showMessage("左右反転", 2000)
+            flip_bonus_positions(flip_x)
+            flip_mirror_enemy_codes_horizontal()
+            _changed, skipped_shared = flip_conditional_breakable_markers(flip_x)
+            flip_bomb_jack_markers(flip_x)
+            if skipped_shared:
+                conditional_skip_message = "左右反転: Stage 52/53共有の条件付き壊せるブロックマーカーは対象外です"
+            self.statusBar().showMessage(conditional_skip_message or "左右反転", 3000 if conditional_skip_message else 2000)
         else:
             flip_y = lambda cx, cy: (cx, y1 + y2 - cy)
             # 上下反転
@@ -8328,7 +8416,12 @@ class MainWindow(QMainWindow):
             flip_meta_positions(flip_y, horizontal=False)
             for name in self._runtime_marker_names():
                 flip_marker_set(name, flip_y)
-            self.statusBar().showMessage("上下反転", 2000)
+            flip_bonus_positions(flip_y)
+            _changed, skipped_shared = flip_conditional_breakable_markers(flip_y)
+            flip_bomb_jack_markers(flip_y)
+            if skipped_shared:
+                conditional_skip_message = "上下反転: Stage 52/53共有の条件付き壊せるブロックマーカーは対象外です"
+            self.statusBar().showMessage(conditional_skip_message or "上下反転", 3000 if conditional_skip_message else 2000)
 
         self._refresh_view()
 
@@ -11284,6 +11377,7 @@ class MainWindow(QMainWindow):
         ):
             self.rom.data = bytearray(entry["rom_data"])
             self._sync_rom_backed_level_meta_positions()
+            self._load_bonus_stage_table(self.rom, allow_mutation=False)
         for level_no in level_nos:
             self.levels[level_no] = copy.deepcopy(levels[level_no])
             self._write_mirror_data_to_rom(level_no)
