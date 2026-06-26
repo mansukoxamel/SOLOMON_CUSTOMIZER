@@ -1529,6 +1529,28 @@ class MainWindow(QMainWindow):
         rom_info_row.addWidget(self.btn_rom_validation, 0, Qt.AlignTop)
         fl.addLayout(rom_info_row)
 
+        self.btn_readonly_migrate = QPushButton("データ移行")
+        self.btn_readonly_migrate.setObjectName("readonlyMigrateButton")
+        self.btn_readonly_migrate.setStyleSheet(
+            "QPushButton#readonlyMigrateButton {"
+            "color:#ff4d4d; font-weight:700; "
+            "background:#2a0f14; border:1px solid #ff4d4d;"
+            "}"
+            "QPushButton#readonlyMigrateButton:hover {"
+            "background:#3a141b;"
+            "}"
+            "QPushButton#readonlyMigrateButton:pressed {"
+            "background:#4a1922;"
+            "}"
+        )
+        self.btn_readonly_migrate.setToolTip(
+            "このROMのステージを編集可能ROMへ移します。"
+            "全てを完全に移行できるとは限りません。"
+        )
+        self.btn_readonly_migrate.setVisible(False)
+        self.btn_readonly_migrate.clicked.connect(self._on_readonly_data_migration)
+        fl.addWidget(self.btn_readonly_migrate)
+
         # 保存系は横2列に (改造ROM保存 / IPSパッチ出力)
         self.btn_save_rom = QPushButton("ROM保存")
         self.btn_save_rom.setToolTip("現在の編集内容をROMとして保存します。(Ctrl+S)")
@@ -2807,6 +2829,139 @@ class MainWindow(QMainWindow):
             return True
         return False
 
+    def _capture_readonly_migration_payload(self) -> dict:
+        if not self.rom or not self.levels or not self._is_read_only():
+            raise ValueError("データ移行は編集不可ROMを読み込んだ状態で実行してください。")
+        if self.rom.is_expanded():
+            for level_no in range(len(self.levels)):
+                self._sync_enemy_codes_from_rom(level_no)
+        payload = {
+            "source_name": self.rom.display_name,
+            "source_path": str(getattr(self, "last_loaded_path", "") or ""),
+            "read_only_reason": str(getattr(self, "_read_only_reason", "") or ""),
+            "levels": copy.deepcopy(self.levels),
+            "level_meta_positions": {},
+            "conditional_breakable_positions": {},
+            "bomb_jack_positions": {},
+            "bonus_positions": copy.deepcopy(getattr(self, "_bonus_positions", []) or []),
+        }
+        for level_no in range(len(self.levels)):
+            payload["level_meta_positions"][level_no] = self._collect_stage_level_meta_positions(level_no)
+            payload["conditional_breakable_positions"][level_no] = self._collect_stage_conditional_breakable_positions(level_no)
+            payload["bomb_jack_positions"][level_no] = self._collect_stage_bomb_jack_positions(level_no)
+        return payload
+
+    def _sidecar_root_for_migration(self, level, meta_positions, conditional_positions, bomb_jack_positions):
+        from ..core.xml_io import level_to_magatu_xml
+        return ET.fromstring(level_to_magatu_xml(
+            level,
+            level_meta_positions=meta_positions,
+            conditional_breakable_positions=conditional_positions,
+            bomb_jack_positions=bomb_jack_positions,
+        ))
+
+    def _apply_readonly_migration_payload(self, payload: dict) -> tuple[int, list[str]]:
+        if not self.rom or not self.levels or self._is_read_only():
+            raise ValueError("移行先の編集可能ROMを準備できませんでした。")
+        source_levels = payload.get("levels") or []
+        count = min(len(self.levels), len(source_levels))
+        warnings = []
+        for level_no in range(count):
+            self.levels[level_no] = copy.deepcopy(source_levels[level_no])
+        for level_no in range(count):
+            try:
+                root = self._sidecar_root_for_migration(
+                    self.levels[level_no],
+                    payload.get("level_meta_positions", {}).get(level_no, []),
+                    payload.get("conditional_breakable_positions", {}).get(level_no, []),
+                    payload.get("bomb_jack_positions", {}).get(level_no, []),
+                )
+                self._apply_stage_level_meta_positions_from_xml(root, level_no)
+                self._apply_stage_conditional_breakable_positions_from_xml(root, level_no)
+                self._apply_stage_bomb_jack_positions_from_xml(root, level_no)
+            except Exception as exc:
+                warnings.append(f"L{level_no + 1}: 補助情報の一部を移行できませんでした ({type(exc).__name__})")
+            self._write_mirror_data_to_rom(level_no)
+        bonus_positions = payload.get("bonus_positions") or []
+        if bonus_positions and len(bonus_positions) >= 32:
+            try:
+                self._bonus_positions = copy.deepcopy(bonus_positions)
+                self._rebuild_bonus_items_from_positions()
+                self._write_bonus_positions_to_rom()
+            except Exception as exc:
+                warnings.append(f"51面ボーナススポットを移行できませんでした ({type(exc).__name__})")
+        self._sync_mirror_panel()
+        self._refresh_view()
+        self._generate_all_thumbnails()
+        self._clear_undo_history()
+        self._set_dirty(True)
+        return count, warnings
+
+    def _on_readonly_data_migration(self):
+        if not self.rom or not self.levels:
+            return
+        if not self._is_read_only():
+            self.statusBar().showMessage("データ移行は編集不可ROMを読み込んだ時だけ使えます", 3000)
+            return
+        try:
+            payload = self._capture_readonly_migration_payload()
+        except Exception as exc:
+            QMessageBox.warning(self, "データ移行", f"移行元データを準備できませんでした。\n{type(exc).__name__}: {exc}")
+            return
+        from .file_dialog_compat import get_file
+        base_path = get_file(
+            self,
+            title="移行先の編集可能ROMを選択",
+            filter="NES ROMs / ZIP (*.nes *.zip);;NES ROMs (*.nes);;ZIP archives (*.zip);;All files (*)",
+        )
+        if not base_path:
+            return
+        try:
+            base_rom = Rom.load(base_path)
+        except Exception as exc:
+            QMessageBox.warning(self, "データ移行", f"移行先ROMを読み込めませんでした。\n{type(exc).__name__}: {exc}")
+            return
+        if not base_rom.is_supported_editor_input():
+            QMessageBox.warning(
+                self,
+                "データ移行",
+                "移行先にできるROMではありません。\n"
+                "確認済みの日本版オリジナルROM、またはこのアプリで保存した編集可能ROMを選んでください。",
+            )
+            return
+        self.load_rom(
+            base_path,
+            add_history=True,
+            status_message="移行先ROMを編集可能形式で準備しました",
+        )
+        if not self.rom or self._is_read_only():
+            QMessageBox.warning(self, "データ移行", "移行先ROMを編集可能状態で開けませんでした。")
+            return
+        try:
+            count, warnings = self._apply_readonly_migration_payload(payload)
+        except Exception as exc:
+            QMessageBox.critical(self, "データ移行失敗", f"{type(exc).__name__}: {exc}")
+            return
+        source_name = payload.get("source_name", "編集不可ROM")
+        warning_text = ""
+        if warnings:
+            preview = "\n".join(warnings[:5])
+            if len(warnings) > 5:
+                preview += f"\n...ほか{len(warnings) - 5}件"
+            warning_text = "\n\n一部補助情報は移行できませんでした:\n" + preview
+        QMessageBox.information(
+            self,
+            "データ移行完了",
+            f"{source_name} から {count}/{len(self.levels)} ステージを移行しました。\n"
+            "移行後のROMはまだ保存されていません。必要ならROM保存してください。"
+            f"{warning_text}",
+        )
+        self.statusBar().showMessage(f"データ移行完了: {count}/{len(self.levels)} ステージ", 6000)
+        self._log(
+            f"データ移行: {source_name} -> {base_path} / "
+            f"{count}/{len(self.levels)}ステージ / 補助警告{len(warnings)}件"
+        )
+
     def load_rom(
         self,
         path: str,
@@ -3061,6 +3216,9 @@ class MainWindow(QMainWindow):
             self._rom_validation_rom = validation_rom
             self._rom_validation_warnings = validation_warnings
             self._update_rom_validation_button()
+            if hasattr(self, "btn_readonly_migrate"):
+                self.btn_readonly_migrate.setVisible(read_only_mode)
+                self.btn_readonly_migrate.setEnabled(read_only_mode and bool(levels))
             self.statusBar().showMessage(f"読み込み完了: {len(levels)}ステージ")
             # ROM読込でアイコンが揃ったので、お気に入りを復元
             saved_favs = self._app_config.get("picker_favorites", [])
