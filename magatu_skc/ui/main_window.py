@@ -8307,6 +8307,26 @@ class MainWindow(QMainWindow):
             self._write_bonus_positions_to_rom()
             return True
 
+        def flip_mirror_enemy_codes_horizontal():
+            if self.rom is not None and self.rom.is_expanded():
+                self._sync_enemy_codes_from_rom(self.current_level_no)
+            changed = False
+            for mirror in getattr(lv, "demon_mirrors", []) or []:
+                px, py = mirror.position
+                if not (x1 <= px <= x2 and y1 <= py <= y2):
+                    continue
+                codes = list(getattr(mirror, "enemy_codes", []) or [])
+                if not codes:
+                    continue
+                flipped = [_mirror_enemy_code_horizontal(code) for code in codes]
+                if flipped != codes:
+                    mirror.enemy_codes = flipped
+                    changed = True
+            if changed:
+                self._write_mirror_data_to_rom(self.current_level_no)
+                self._sync_mirror_panel()
+            return changed
+
         if horizontal:
             flip_x = lambda cx, cy: (x1 + x2 - cx, cy)
             # ブロック左右反転
@@ -8331,6 +8351,7 @@ class MainWindow(QMainWindow):
             for name in self._runtime_marker_names():
                 flip_marker_set(name, flip_x)
             flip_bonus_positions(flip_x)
+            flip_mirror_enemy_codes_horizontal()
             self.statusBar().showMessage("左右反転", 2000)
         else:
             flip_y = lambda cx, cy: (cx, y1 + y2 - cy)
