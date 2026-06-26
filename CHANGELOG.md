@@ -4,6 +4,10 @@
 - Gitで取得したローカル作業ツリー向けに、`origin/main` を確認してfast-forward更新する `update_from_github.bat` を追加した。
 - `update_from_github.bat` のfetch時はGitの自動GCを無効化し、packファイル削除確認で停止しにくいようにした。
 
+## v0.8.373 (2026-06-26) 51面ボーナススポットの範囲反転に対応
+- 51面のボーナススポット位置を、選択範囲の左右反転/上下反転で通常オブジェクトと同じように反転するようにした。
+- Undo/Redo時にROM側のボーナス位置テーブルから表示用ボーナススポットを再同期するようにした。
+
 ## v0.8.372 (2026-06-26) Saramandor speed2のブロック破壊を修正
 - Panel Variant type classifier tail が原作の Saramandor state-speed table `$DAB9` を上書きしていたため、`#1 speed2` が茶ブロック接触後に破壊待ちへ留まれない問題を修正した。
 - classifier tail を旧Panel Bullet hook本体跡の `$BF6C` へ移し、Saramandor `behavior=$0D/$0F` の速度indexが原作通り `0` になるようにした。

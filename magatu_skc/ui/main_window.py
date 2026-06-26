@@ -8284,6 +8284,29 @@ class MainWindow(QMainWindow):
                     if self.rom is not None and 0 <= mi.rom_offset < len(self.rom.data):
                         self.rom.data[mi.rom_offset] = byte_from_position(mi.position)
 
+        def flip_bonus_positions(fn):
+            if self.current_level_no != 50:
+                return False
+            positions = getattr(self, "_bonus_positions", None)
+            if not positions:
+                return False
+            moved = False
+            new_positions = []
+            for pos in positions:
+                px, py = pos
+                if x1 <= px <= x2 and y1 <= py <= y2:
+                    new_pos = fn(px, py)
+                    moved = moved or new_pos != pos
+                    new_positions.append(new_pos)
+                else:
+                    new_positions.append(pos)
+            if not moved:
+                return False
+            self._bonus_positions = new_positions
+            self._rebuild_bonus_items_from_positions()
+            self._write_bonus_positions_to_rom()
+            return True
+
         if horizontal:
             flip_x = lambda cx, cy: (x1 + x2 - cx, cy)
             # ブロック左右反転
@@ -8307,6 +8330,7 @@ class MainWindow(QMainWindow):
             flip_meta_positions(flip_x, horizontal=True)
             for name in self._runtime_marker_names():
                 flip_marker_set(name, flip_x)
+            flip_bonus_positions(flip_x)
             self.statusBar().showMessage("左右反転", 2000)
         else:
             flip_y = lambda cx, cy: (cx, y1 + y2 - cy)
@@ -8328,6 +8352,7 @@ class MainWindow(QMainWindow):
             flip_meta_positions(flip_y, horizontal=False)
             for name in self._runtime_marker_names():
                 flip_marker_set(name, flip_y)
+            flip_bonus_positions(flip_y)
             self.statusBar().showMessage("上下反転", 2000)
 
         self._refresh_view()
@@ -11284,6 +11309,7 @@ class MainWindow(QMainWindow):
         ):
             self.rom.data = bytearray(entry["rom_data"])
             self._sync_rom_backed_level_meta_positions()
+            self._load_bonus_stage_table(self.rom, allow_mutation=False)
         for level_no in level_nos:
             self.levels[level_no] = copy.deepcopy(levels[level_no])
             self._write_mirror_data_to_rom(level_no)
