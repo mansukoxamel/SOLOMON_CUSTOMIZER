@@ -8348,6 +8348,22 @@ class MainWindow(QMainWindow):
                 self._refresh_thumbnails_after_conditional_marker_edit(group)
             return bool(changed_groups), skipped_shared
 
+        def flip_bomb_jack_markers(fn):
+            positions = self._bomb_jack_positions() or {}
+            changed = False
+            for sub in ("spawn",):
+                pos = positions.get(sub)
+                if pos is None:
+                    continue
+                px, py = pos
+                if not (x1 <= px <= x2 and y1 <= py <= y2):
+                    continue
+                new_pos = fn(px, py)
+                if new_pos == pos:
+                    continue
+                changed = self._move_bomb_jack_marker(sub, new_pos) or changed
+            return changed
+
         conditional_skip_message = None
 
         if horizontal:
@@ -8376,6 +8392,7 @@ class MainWindow(QMainWindow):
             flip_bonus_positions(flip_x)
             flip_mirror_enemy_codes_horizontal()
             _changed, skipped_shared = flip_conditional_breakable_markers(flip_x)
+            flip_bomb_jack_markers(flip_x)
             if skipped_shared:
                 conditional_skip_message = "左右反転: Stage 52/53共有の条件付き壊せるブロックマーカーは対象外です"
             self.statusBar().showMessage(conditional_skip_message or "左右反転", 3000 if conditional_skip_message else 2000)
@@ -8401,6 +8418,7 @@ class MainWindow(QMainWindow):
                 flip_marker_set(name, flip_y)
             flip_bonus_positions(flip_y)
             _changed, skipped_shared = flip_conditional_breakable_markers(flip_y)
+            flip_bomb_jack_markers(flip_y)
             if skipped_shared:
                 conditional_skip_message = "上下反転: Stage 52/53共有の条件付き壊せるブロックマーカーは対象外です"
             self.statusBar().showMessage(conditional_skip_message or "上下反転", 3000 if conditional_skip_message else 2000)
