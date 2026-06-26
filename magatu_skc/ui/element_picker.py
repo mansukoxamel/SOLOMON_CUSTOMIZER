@@ -693,7 +693,7 @@ class MirrorEnemyPanel(QWidget):
             row.slot_changed.connect(self.enemies_changed.emit)
             row_layout.addWidget(row, 1)
             self._rows.append(row)
-            btn = QPushButton("OFF")
+            btn = QPushButton("切替")
             btn.setObjectName("mirrorActiveToggleButton")
             btn.setMinimumWidth(max(48, btn.sizeHint().width()))
             btn.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
@@ -735,14 +735,9 @@ class MirrorEnemyPanel(QWidget):
             row.setToolTip(tip)
             label.setToolTip(tip)
         btn = self._toggle_buttons[mirror_no]
-        if active:
-            btn.setText("OFF")
-            btn.setToolTip(f"M{mirror_no + 1} の出現タイミングを全OFFにします。")
-            btn.setStyleSheet("")
-        else:
-            btn.setText("ON")
-            btn.setToolTip(f"M{mirror_no + 1} を最大間隔でONにします。")
-            btn.setStyleSheet("font-weight:bold; color:#00ff66;")
+        btn.setText("切替")
+        btn.setToolTip(f"M{mirror_no + 1} の出現状態を切り替えます。")
+        btn.setStyleSheet("")
 
     def set_mirror_active_states(self, states: list):
         for mirror_no in range(min(2, len(states))):
