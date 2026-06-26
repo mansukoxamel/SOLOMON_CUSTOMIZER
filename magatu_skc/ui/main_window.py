@@ -361,7 +361,6 @@ class MainWindow(QMainWindow):
         self._stats_dialog = None
         self._rom_diff_dialog = None
         self.show_grid = False
-        self.show_object_labels = False
         # Ctrl+クリックでの要素移動: 1回目で掴む、2回目で移動先
         # None または {"kind": "item|enemy|meta", "src": (x,y), "data": ...}
         self._move_pending = None
@@ -1026,8 +1025,8 @@ class MainWindow(QMainWindow):
             elif self._stage_clipboard is None:
                 self.lbl_stage_clipboard.setText("コピー元: なし")
             else:
-                source_no = int(self._stage_clipboard["source_level_no"]) + 1
-                self.lbl_stage_clipboard.setText(f"コピー元: L{source_no:02d}")
+                source_no = int(self._stage_clipboard["source_level_no"])
+                self.lbl_stage_clipboard.setText(f"コピー元: {self._stage_label(source_no)}")
 
     def _restore_window_state(self):
         """設定からウィンドウ位置・サイズ・最大化/フルスクリーン状態を復元"""
@@ -1667,12 +1666,6 @@ class MainWindow(QMainWindow):
         )
         self.chk_special_marks.toggled.connect(self._refresh_view)
         ol.addWidget(self.chk_special_marks)
-        self.chk_object_labels = QCheckBox("キャンバス上のオブジェクト名表示")
-        self.chk_object_labels.setToolTip(
-            "ONにすると、キャンバス上の鍵・扉・アイテム・敵・ミラーなどに"
-            "短い名前ラベルを重ねて表示します。")
-        self.chk_object_labels.toggled.connect(self._on_object_labels_toggled)
-        ol.addWidget(self.chk_object_labels)
         self.chk_stage_selector = QCheckBox("ステージ選択ペイン表示")
         self.chk_stage_selector.setToolTip(
             "右端のサムネイル付きステージ選択ペインを表示/非表示にします。"
@@ -1730,7 +1723,7 @@ class MainWindow(QMainWindow):
         self.btn_hack.setEnabled(False)
         el.addWidget(self.btn_hack, 1, 0)
 
-        self.btn_enemy_hack = QPushButton("敵")
+        self.btn_enemy_hack = QPushButton("敵改造")
         self.btn_enemy_hack.setToolTip("敵AI・敵速度など、敵に関係するROM挙動を編集")
         self.btn_enemy_hack.clicked.connect(self._on_show_enemy_hack)
         self.btn_enemy_hack.setEnabled(False)
@@ -2038,12 +2031,12 @@ class MainWindow(QMainWindow):
         self.spin_stage_swap_target.setMinimumWidth(58)
         self.spin_stage_swap_target.setVisible(False)
         swap_row.addWidget(self.spin_stage_swap_target)
-        v.addLayout(swap_row)
 
         self.lbl_stage_clipboard = QLabel("コピー元: なし")
         self.lbl_stage_clipboard.setObjectName("stageClipboardLabel")
-        self.lbl_stage_clipboard.setWordWrap(True)
-        v.addWidget(self.lbl_stage_clipboard)
+        self.lbl_stage_clipboard.setWordWrap(False)
+        swap_row.addWidget(self.lbl_stage_clipboard)
+        v.addLayout(swap_row)
 
         from PyQt5.QtWidgets import QListView
 
@@ -5141,7 +5134,7 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _stage_label(level_no: int) -> str:
-        return f"L{level_no + 1:02d}"
+        return f"{level_no + 1:02d}"
 
     def _sync_stage_sidecar_to_level(self, level_no: int):
         if 0 <= level_no < len(self.levels):
@@ -5380,10 +5373,6 @@ class MainWindow(QMainWindow):
         self.show_grid = checked
         self._refresh_view()
 
-    def _on_object_labels_toggled(self, checked: bool):
-        self.show_object_labels = checked
-        self._refresh_view()
-
     def _on_stage_selector_toggled(self, checked: bool):
         self._apply_stage_selector_visibility(checked, resize_splitter=True)
         self._app_config["stage_selector_visible"] = bool(checked)
@@ -5414,24 +5403,6 @@ class MainWindow(QMainWindow):
             new_sizes[1] += freed
             new_sizes[3] = 0
         self.splitter.setSizes(new_sizes)
-
-    def _sync_object_labels(self):
-        if self._is_stage_compare_diff_view():
-            self.level_view.set_object_labels([])
-            return
-        if not getattr(self, "show_object_labels", False):
-            self.level_view.set_object_labels([])
-            return
-        if not self.levels or self.level_renderer is None:
-            self.level_view.set_object_labels([])
-            return
-        level = self.levels[self.current_level_no]
-        labels = self.level_renderer.object_labels(
-            level,
-            level_no=self.current_level_no,
-            bonus_items=self._get_bonus_items(),
-        )
-        self.level_view.set_object_labels(labels, with_border=True)
 
     def _refresh_view(self):
         if not self.levels or self.level_renderer is None:
@@ -5489,7 +5460,6 @@ class MainWindow(QMainWindow):
         self._update_enemy_count_indicator()
         self._update_stage_number_label()
         self._update_stage_compare_diff_label()
-        self._sync_object_labels()
         self._update_info()
         self._load_meta_to_ui()
         # タイルセット変更でアイコン色が変わるのでカーソルも更新
@@ -5640,7 +5610,6 @@ class MainWindow(QMainWindow):
                 self._build_editor_overlays(level, sp_marks),
                 with_border=True,
             )
-            self._sync_object_labels()
             self._update_stage_compare_diff_label()
         # ステータスバーのホバー情報を更新
         self._update_hover_info(tile)
@@ -9955,11 +9924,11 @@ class MainWindow(QMainWindow):
                 if seconds is None:
                     seconds_text = "停止"
                 else:
-                    seconds_text = f"約{int(seconds + 0.5)}秒"
+                    seconds_text = f"{int(seconds + 0.5)}秒"
                 parts.append(f"{idx}={seconds_text}")
             self.lbl_time_dr_hint.setText(" / ".join(parts))
         except Exception:
-            self.lbl_time_dr_hint.setText("0=約24秒 / 1=約32秒 / 2=約44秒")
+            self.lbl_time_dr_hint.setText("0=24秒 / 1=32秒 / 2=44秒")
 
     def _on_meta_no_bfire_toggled(self, checked):
         if self._meta_loading or not self.levels:

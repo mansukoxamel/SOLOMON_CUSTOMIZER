@@ -1229,7 +1229,7 @@ class ElementPicker(QWidget):
 
         self._picker_lists = []
         self._category_labels = []
-        categories = ["ブロック", "メタ", "アイテム", "モンスター"]
+        categories = ["ブロック", "メタアイテム", "アイテム", "モンスター"]
         for cat_idx, cat_name in enumerate(categories):
             lbl = QLabel(f"<small><b>{cat_name}</b></small>")
             lbl.setContentsMargins(2, 2, 0, 0)
