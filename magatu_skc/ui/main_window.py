@@ -8327,6 +8327,29 @@ class MainWindow(QMainWindow):
                 self._sync_mirror_panel()
             return changed
 
+        def flip_conditional_breakable_markers(fn):
+            changed_groups = set()
+            skipped_shared = False
+            for group in self._conditional_breakable_groups_for_level(self.current_level_no):
+                positions = self._conditional_breakable_positions(group) or {}
+                for sub, pos in positions.items():
+                    px, py = pos
+                    if not (x1 <= px <= x2 and y1 <= py <= y2):
+                        continue
+                    if group == "stage52_53":
+                        skipped_shared = True
+                        continue
+                    new_pos = fn(px, py)
+                    if new_pos == pos:
+                        continue
+                    if self._move_conditional_breakable_marker(group, sub, new_pos):
+                        changed_groups.add(group)
+            for group in changed_groups:
+                self._refresh_thumbnails_after_conditional_marker_edit(group)
+            return bool(changed_groups), skipped_shared
+
+        conditional_skip_message = None
+
         if horizontal:
             flip_x = lambda cx, cy: (x1 + x2 - cx, cy)
             # ブロック左右反転
@@ -8352,7 +8375,10 @@ class MainWindow(QMainWindow):
                 flip_marker_set(name, flip_x)
             flip_bonus_positions(flip_x)
             flip_mirror_enemy_codes_horizontal()
-            self.statusBar().showMessage("左右反転", 2000)
+            _changed, skipped_shared = flip_conditional_breakable_markers(flip_x)
+            if skipped_shared:
+                conditional_skip_message = "左右反転: Stage 52/53共有の条件付き壊せるブロックマーカーは対象外です"
+            self.statusBar().showMessage(conditional_skip_message or "左右反転", 3000 if conditional_skip_message else 2000)
         else:
             flip_y = lambda cx, cy: (cx, y1 + y2 - cy)
             # 上下反転
@@ -8374,7 +8400,10 @@ class MainWindow(QMainWindow):
             for name in self._runtime_marker_names():
                 flip_marker_set(name, flip_y)
             flip_bonus_positions(flip_y)
-            self.statusBar().showMessage("上下反転", 2000)
+            _changed, skipped_shared = flip_conditional_breakable_markers(flip_y)
+            if skipped_shared:
+                conditional_skip_message = "上下反転: Stage 52/53共有の条件付き壊せるブロックマーカーは対象外です"
+            self.statusBar().showMessage(conditional_skip_message or "上下反転", 3000 if conditional_skip_message else 2000)
 
         self._refresh_view()
 
