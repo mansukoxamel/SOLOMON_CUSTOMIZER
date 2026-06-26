@@ -6,7 +6,7 @@ from PyQt5.QtGui import QImage, QPainter, QPen, QColor, QBrush, QPolygon
 from PyQt5.QtWidgets import QGraphicsScene
 
 from ..core import constants as c
-from ..core import room_flags, stage_ext
+from ..core import room_flags, stage50_book_color, stage_ext
 from ..core.element import Wall, ElementType
 from ..core.level import Level
 from .tile_renderer import TileRenderer
@@ -56,6 +56,7 @@ class LevelRenderer:
         self._key_enemy_overlay_cache = {}
         self._darkened_sprite_cache = {}
         self.wall_color_values = None
+        self.stage50_solomon_book_color = stage50_book_color.ORIGINAL_COLOR
 
     def _draw_marker_layer(self, painter: QPainter, width: int, height: int, draw_func):
         marker = QImage(
@@ -219,6 +220,9 @@ class LevelRenderer:
         if 0 <= idx < len(self.wall_color_values):
             return self.wall_color_values[idx]
         return None
+
+    def set_stage50_solomon_book_color(self, value: int):
+        self.stage50_solomon_book_color = int(value) & 0x3F
 
     def get_metadata_animation(self, byte_no: int) -> int:
         """メタデータ番号 → tile_definitions の no"""
@@ -483,7 +487,10 @@ class LevelRenderer:
                     transparent=None,
                     bg_main_color=None if is_stage50_solomon_book else wall_color,
                     palette_no_override=2 if is_stage50_solomon_book else None,
-                    pixel_color_overrides={2: 0x16} if is_stage50_solomon_book else None,
+                    pixel_color_overrides=(
+                        {2: self.stage50_solomon_book_color}
+                        if is_stage50_solomon_book else None
+                    ),
                 )
                 dx, dy = level.fixed_door_pos
                 if 0 <= dx < c.LEVEL_W and 0 <= dy < c.LEVEL_H:

@@ -51,7 +51,9 @@ from ..core.config import (
     get_config_path,
     save_config,
 )
-from ..core import saver, ips, wall_color_hack, stage_ext, save_validation
+from ..core import (
+    saver, ips, wall_color_hack, stage50_book_color, stage_ext, save_validation,
+)
 from ..gfx.tile_renderer import TileRenderer
 from ..gfx.level_renderer import LevelRenderer
 from ..nes.config_loader import SkcConfig
@@ -2734,12 +2736,27 @@ class MainWindow(QMainWindow):
         except wall_color_hack.WallColorHackError:
             return None
 
+    def _read_stage50_solomon_book_color(self):
+        if self.rom is None:
+            return stage50_book_color.ORIGINAL_COLOR
+        try:
+            return stage50_book_color.current_value(self.rom.data)
+        except stage50_book_color.Stage50BookColorError:
+            return stage50_book_color.ORIGINAL_COLOR
+
     def _sync_wall_color_preview(self):
         if self.level_renderer is None:
             return
         self.level_renderer.set_wall_color_values(self._read_wall_color_values())
         if self.tile_renderer is not None:
             self.tile_renderer.clear_cache()
+
+    def _sync_stage50_solomon_book_color_preview(self):
+        if self.level_renderer is None:
+            return
+        self.level_renderer.set_stage50_solomon_book_color(
+            self._read_stage50_solomon_book_color()
+        )
 
     def _on_hack_dialog_applied(self):
         if self._reject_read_only_edit():
@@ -2979,6 +2996,7 @@ class MainWindow(QMainWindow):
             self.level_renderer = LevelRenderer(self.tile_renderer, config)
             self._apply_renderer_marker_settings()
             self._sync_wall_color_preview()
+            self._sync_stage50_solomon_book_color_preview()
 
             # item_bitmasks are a raw-ROM storage shortcut. Convert them into
             # editable stage data only during raw-ROM auto expansion, then
@@ -10991,6 +11009,7 @@ class MainWindow(QMainWindow):
             return
         self._set_dirty(True)
         self._sync_main_palette_to_config()
+        self._sync_stage50_solomon_book_color_preview()
 
         # tile_renderer のキャッシュをクリアして再描画
         if self.tile_renderer is not None:
