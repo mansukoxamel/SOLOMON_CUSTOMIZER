@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QFont, QTextCursor
 
 from ..core import sound
+from ..core.i18n import t
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
@@ -16,7 +17,7 @@ class SoundViewer(QDialog):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("音楽データ表示")
+        self.setWindowTitle(t("sound_viewer.title", "音楽データ表示"))
         self.resize(920, 760)
         self._app_config = app_config
         self.rom = rom
@@ -25,26 +26,24 @@ class SoundViewer(QDialog):
         layout = QVBoxLayout(self)
 
         ctrl = QHBoxLayout()
-        ctrl.addWidget(QLabel("曲:"))
+        ctrl.addWidget(QLabel(t("sound_viewer.song.label", "曲:")))
         self.song_combo = QComboBox()
         for song in self.songs:
             self.song_combo.addItem(sound.combo_label(song), song.sound_id)
         self.song_combo.currentIndexChanged.connect(self._refresh_text)
         ctrl.addWidget(self.song_combo, 1)
 
-        self.chk_expand_calls = QCheckBox("CALL先を展開")
+        self.chk_expand_calls = QCheckBox(t("sound_viewer.expand_calls", "CALL先を展開"))
         self.chk_expand_calls.setChecked(True)
         self.chk_expand_calls.stateChanged.connect(self._refresh_text)
         ctrl.addWidget(self.chk_expand_calls)
 
-        self.btn_copy = QPushButton("コピー")
+        self.btn_copy = QPushButton(t("sound_viewer.copy", "コピー"))
         self.btn_copy.clicked.connect(self._copy_text)
         ctrl.addWidget(self.btn_copy)
         layout.addLayout(ctrl)
 
-        self.info_label = QLabel(
-            "読取専用。raw byte と ASM解釈を並べて表示します。"
-        )
+        self.info_label = QLabel(t("sound_viewer.info"))
         layout.addWidget(self.info_label)
 
         self.text = QPlainTextEdit()
@@ -56,6 +55,7 @@ class SoundViewer(QDialog):
         bb = QDialogButtonBox(QDialogButtonBox.Close)
         bb.rejected.connect(self.reject)
         bb.accepted.connect(self.accept)
+        bb.button(QDialogButtonBox.Close).setText(t("common.close", "閉じる"))
         layout.addWidget(bb)
 
         self._refresh_text()

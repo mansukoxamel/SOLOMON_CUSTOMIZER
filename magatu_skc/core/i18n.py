@@ -391,6 +391,34 @@ _TRANSLATIONS = {
     "enemy_drop.effect.0D": {"ja": "スコア+500", "en": "Score +500"},
     "enemy_drop.effect.0E": {"ja": "スコア+1000", "en": "Score +1000"},
     "enemy_drop.effect.0F": {"ja": "スコア+2000", "en": "Score +2000"},
+    "sound_viewer.title": {
+        "ja": "音楽データ表示",
+        "en": "Sound Data Viewer",
+    },
+    "sound_viewer.song.label": {
+        "ja": "曲:",
+        "en": "Song:",
+    },
+    "sound_viewer.expand_calls": {
+        "ja": "CALL先を展開",
+        "en": "Expand CALL targets",
+    },
+    "sound_viewer.copy": {
+        "ja": "コピー",
+        "en": "Copy",
+    },
+    "sound_viewer.info": {
+        "ja": "読取専用。raw byte と ASM解釈を並べて表示します。",
+        "en": "Read-only. Shows raw bytes alongside the interpreted ASM.",
+    },
+    "sound_viewer.open_failed": {
+        "ja": "音楽データ表示不可",
+        "en": "Sound Data View Unavailable",
+    },
+    "common.close": {
+        "ja": "閉じる",
+        "en": "Close",
+    },
     "common.ok": {
         "ja": "OK",
         "en": "OK",

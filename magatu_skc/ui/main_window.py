@@ -10855,7 +10855,12 @@ class MainWindow(QMainWindow):
                 app_config=self._app_config,
             )
         except Exception as e:
-            QMessageBox.critical(self, "音楽データ表示不可", f"{type(e).__name__}: {e}")
+            from ..core.i18n import t
+            QMessageBox.critical(
+                self,
+                t("sound_viewer.open_failed", "音楽データ表示不可"),
+                f"{type(e).__name__}: {e}",
+            )
             return
         dlg.exec_()
 
