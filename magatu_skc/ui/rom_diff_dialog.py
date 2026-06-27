@@ -16,6 +16,7 @@ from ..gfx.tile_renderer import TileRenderer
 from ..nes.config_loader import SkcConfig
 from ..nes.tile import load_chr_tiles
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
+from ..core.i18n import t
 
 
 SORT_ROLE = Qt.UserRole + 1
@@ -25,19 +26,19 @@ DIFF_ROLE = Qt.UserRole + 2
 class RomDiffDialog(QDialog):
     COLUMNS = (
         ("stage", "Stage"),
-        ("total", "合計"),
-        ("blocks", "ブロック"),
-        ("items", "アイテム"),
-        ("enemies", "敵"),
-        ("meta", "メタ"),
-        ("summary", "概要"),
+        ("total", "main.compare.summary.total"),
+        ("blocks", "main.replace.block.kind"),
+        ("items", "main.replace.item.kind"),
+        ("enemies", "main.replace.enemy.kind"),
+        ("meta", "rom_diff.column.meta"),
+        ("summary", "rom_diff.column.summary"),
     )
 
     def __init__(self, parent=None, app_config=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("ROM比較")
+        self.setWindowTitle(t("rom_diff.title", "ROM比較"))
         self.resize(1120, 820)
         self.setAcceptDrops(True)
         self._parent_window = parent
@@ -56,13 +57,22 @@ class RomDiffDialog(QDialog):
         restore_dialog_geometry(self, self._app_config, "rom_diff_dlg")
         self._restore_splitter_state()
 
+    @staticmethod
+    def _column_label(key: str, label_key: str) -> str:
+        if key == "stage":
+            return "Stage"
+        return t(label_key, label_key)
+
     def _build_ui(self):
         root = QVBoxLayout(self)
 
         note = QLabel(
-            "ROM/ZIPを2つ選んで、ロード後のステージデータとして比較します。"
-            "バイナリ差分ではなく、面ごとのブロック/アイテム/敵/メタ差分を表示します。"
-            "ファイルはこの画面へドラッグ&ドロップできます。"
+            t(
+                "rom_diff.note",
+                "ROM/ZIPを2つ選んで、ロード後のステージデータとして比較します。"
+                "バイナリ差分ではなく、面ごとのブロック/アイテム/敵/メタ差分を表示します。"
+                "ファイルはこの画面へドラッグ&ドロップできます。",
+            )
         )
         note.setWordWrap(True)
         root.addWidget(note)
@@ -70,25 +80,25 @@ class RomDiffDialog(QDialog):
         file_grid = QGridLayout()
         self.left_path = QLineEdit()
         self.right_path = QLineEdit()
-        self.left_path.setPlaceholderText("比較元 ROM/ZIP")
-        self.right_path.setPlaceholderText("比較先 ROM/ZIP")
+        self.left_path.setPlaceholderText(t("rom_diff.left.placeholder", "比較元 ROM/ZIP"))
+        self.right_path.setPlaceholderText(t("rom_diff.right.placeholder", "比較先 ROM/ZIP"))
         self.left_path.textChanged.connect(self._schedule_auto_compare)
         self.right_path.textChanged.connect(self._schedule_auto_compare)
-        self.btn_left = QPushButton("参照...")
-        self.btn_right = QPushButton("参照...")
+        self.btn_left = QPushButton(t("rom_diff.browse", "参照..."))
+        self.btn_right = QPushButton(t("rom_diff.browse", "参照..."))
         self.btn_left.clicked.connect(lambda: self._browse(self.left_path))
         self.btn_right.clicked.connect(lambda: self._browse(self.right_path))
-        file_grid.addWidget(QLabel("比較元:"), 0, 0)
+        file_grid.addWidget(QLabel(t("rom_diff.left.label", "比較元:")), 0, 0)
         file_grid.addWidget(self.left_path, 0, 1)
         file_grid.addWidget(self.btn_left, 0, 2)
-        file_grid.addWidget(QLabel("比較先:"), 1, 0)
+        file_grid.addWidget(QLabel(t("rom_diff.right.label", "比較先:")), 1, 0)
         file_grid.addWidget(self.right_path, 1, 1)
         file_grid.addWidget(self.btn_right, 1, 2)
         root.addLayout(file_grid)
 
         btn_row = QHBoxLayout()
-        self.btn_compare = QPushButton("再比較")
-        self.btn_compare.setToolTip("同じ2ファイルをもう一度読み直して比較します。")
+        self.btn_compare = QPushButton(t("rom_diff.compare", "再比較"))
+        self.btn_compare.setToolTip(t("rom_diff.compare.tooltip", "同じ2ファイルをもう一度読み直して比較します。"))
         self.btn_compare.clicked.connect(self._compare)
         self.lbl_result = QLabel("-")
         btn_row.addWidget(self.btn_compare)
@@ -99,7 +109,7 @@ class RomDiffDialog(QDialog):
         root.addWidget(self.main_splitter, 1)
 
         self.table = QTableWidget(0, len(self.COLUMNS), self)
-        self.table.setHorizontalHeaderLabels([label for _, label in self.COLUMNS])
+        self.table.setHorizontalHeaderLabels([self._column_label(key, label) for key, label in self.COLUMNS])
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
@@ -113,15 +123,15 @@ class RomDiffDialog(QDialog):
 
         self.details = QPlainTextEdit()
         self.details.setReadOnly(True)
-        self.details.setPlaceholderText("表の行を選択すると、ここに詳細差分を表示します。")
+        self.details.setPlaceholderText(t("rom_diff.details.placeholder", "表の行を選択すると、ここに詳細差分を表示します。"))
         self.main_splitter.addWidget(self.details)
 
-        preview_group = QGroupBox("選択ステージの画像")
+        preview_group = QGroupBox(t("rom_diff.preview.group", "選択ステージの画像"))
         preview_layout = QHBoxLayout(preview_group)
         preview_layout.setContentsMargins(8, 8, 8, 8)
         preview_layout.setSpacing(0)
-        self.left_preview = self._make_preview_panel("比較元")
-        self.right_preview = self._make_preview_panel("比較先")
+        self.left_preview = self._make_preview_panel(t("rom_diff.left.label", "比較元:").rstrip(":"))
+        self.right_preview = self._make_preview_panel(t("rom_diff.right.label", "比較先:").rstrip(":"))
         preview_layout.addWidget(self.left_preview["root"], 1)
         preview_layout.addWidget(self.right_preview["root"], 1)
         self.main_splitter.addWidget(preview_group)
@@ -132,7 +142,7 @@ class RomDiffDialog(QDialog):
 
         close_row = QHBoxLayout()
         close_row.addStretch()
-        close_btn = QPushButton("閉じる")
+        close_btn = QPushButton(t("common.close", "閉じる"))
         close_btn.clicked.connect(self.accept)
         close_row.addWidget(close_btn)
         root.addLayout(close_row)
@@ -144,7 +154,7 @@ class RomDiffDialog(QDialog):
         layout.setSpacing(0)
         label = QLabel(title)
         label.setAlignment(Qt.AlignCenter)
-        image = QLabel("比較後、変更ステージを選択すると表示します")
+        image = QLabel(t("rom_diff.preview.empty", "比較後、変更ステージを選択すると表示します"))
         image.setAlignment(Qt.AlignCenter)
         image.setMinimumSize(420, 315)
         image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -159,7 +169,7 @@ class RomDiffDialog(QDialog):
     def _browse(self, target: QLineEdit):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "比較するROM/ZIPを選択",
+            t("rom_diff.open.title", "比較するROM/ZIPを選択"),
             "",
             "ROM / ZIP (*.nes *.zip);;All files (*.*)",
         )
@@ -216,21 +226,24 @@ class RomDiffDialog(QDialog):
         left = self.left_path.text().strip()
         right = self.right_path.text().strip()
         if not left or not right:
-            QMessageBox.warning(self, "ROM比較", "比較元と比較先を両方選択してください。")
+            QMessageBox.warning(self, t("rom_diff.title", "ROM比較"), t("rom_diff.error.need_both", "比較元と比較先を両方選択してください。"))
             return
         if left == right:
-            QMessageBox.warning(self, "ROM比較", "別々のファイルを選択してください。")
+            QMessageBox.warning(self, t("rom_diff.title", "ROM比較"), t("rom_diff.error.same_file", "別々のファイルを選択してください。"))
             return
         if not (self._is_rom_like(left) and self._is_rom_like(right)):
             QMessageBox.warning(
                 self,
-                "ROM比較",
-                "ROM/ZIP同士を選択してください。PNG比較はメイン画面の比較編集を使ってください。",
+                t("rom_diff.title", "ROM比較"),
+                t(
+                    "rom_diff.error.rom_zip_only",
+                    "ROM/ZIP同士を選択してください。PNG比較はメイン画面の比較編集を使ってください。",
+                ),
             )
             return
 
         self.btn_compare.setEnabled(False)
-        self.lbl_result.setText("比較中...")
+        self.lbl_result.setText(t("rom_diff.status.comparing", "比較中..."))
         self.table.setRowCount(0)
         self.details.clear()
         self._clear_previews()
@@ -243,8 +256,12 @@ class RomDiffDialog(QDialog):
             self._result = None
             self._left_renderer = None
             self._right_renderer = None
-            QMessageBox.critical(self, "ROM比較", f"比較に失敗しました。\n{exc}")
-            self.lbl_result.setText("比較失敗")
+            QMessageBox.critical(
+                self,
+                t("rom_diff.title", "ROM比較"),
+                t("rom_diff.error.failed", "比較に失敗しました。\n{error}").format(error=exc),
+            )
+            self.lbl_result.setText(t("rom_diff.status.failed", "比較失敗"))
             return
         finally:
             self.btn_compare.setEnabled(True)
@@ -276,7 +293,7 @@ class RomDiffDialog(QDialog):
 
         for row, stage in enumerate(changed):
             values = {
-                "stage": "全体" if stage.stage_no == 0 else str(stage.stage_no),
+                "stage": t("rom_diff.stage.all", "全体") if stage.stage_no == 0 else str(stage.stage_no),
                 "total": stage.total_changes,
                 "blocks": stage.block_changes,
                 "items": stage.item_changes,
@@ -298,13 +315,13 @@ class RomDiffDialog(QDialog):
         self.lbl_result.setText(
             f"{result.left_region} {result.left_crc} -> "
             f"{result.right_region} {result.right_crc} / "
-            f"変更ステージ {result.changed_stage_count} / "
-            f"差分 {result.total_changes}"
+            f"{t('rom_diff.result.changed_stages', '変更ステージ')} {result.changed_stage_count} / "
+            f"{t('rom_diff.result.diffs', '差分')} {result.total_changes}"
         )
         if changed:
             self.table.selectRow(0)
         else:
-            self.details.setPlainText("ステージデータ差分はありません。")
+            self.details.setPlainText(t("rom_diff.no_stage_diff", "ステージデータ差分はありません。"))
             self._clear_previews()
 
     def _show_selected_details(self):
@@ -314,13 +331,14 @@ class RomDiffDialog(QDialog):
         stage = items[0].data(DIFF_ROLE)
         if stage is None:
             return
-        title = "全体" if stage.stage_no == 0 else f"Stage {stage.stage_no}"
+        title = t("rom_diff.stage.all", "全体") if stage.stage_no == 0 else f"Stage {stage.stage_no}"
         lines = [
             title,
-            f"合計: {stage.total_changes} / "
-            f"ブロック: {stage.block_changes} / "
-            f"アイテム: {stage.item_changes} / "
-            f"敵: {stage.enemy_changes} / メタ: {stage.meta_changes}",
+            f"{t('main.compare.summary.total', '合計')}: {stage.total_changes} / "
+            f"{t('main.replace.block.kind', 'ブロック')}: {stage.block_changes} / "
+            f"{t('main.replace.item.kind', 'アイテム')}: {stage.item_changes} / "
+            f"{t('main.replace.enemy.kind', '敵')}: {stage.enemy_changes} / "
+            f"{t('rom_diff.column.meta', 'メタ')}: {stage.meta_changes}",
             "",
         ]
         lines.extend(stage.details)
@@ -364,8 +382,8 @@ class RomDiffDialog(QDialog):
             show_col15=True,
             show_border=True,
         )
-        self.left_preview["title"].setText(f"比較元 Stage {stage_no}")
-        self.right_preview["title"].setText(f"比較先 Stage {stage_no}")
+        self.left_preview["title"].setText(f"{t('rom_diff.left.label', '比較元:').rstrip(':')} Stage {stage_no}")
+        self.right_preview["title"].setText(f"{t('rom_diff.right.label', '比較先:').rstrip(':')} Stage {stage_no}")
         self._refresh_preview_labels()
 
     def _refresh_preview_labels(self):
@@ -374,7 +392,7 @@ class RomDiffDialog(QDialog):
 
     def _set_preview_image(self, label: QLabel, image):
         if image is None or image.isNull():
-            label.setText("画像なし")
+            label.setText(t("rom_diff.preview.no_image", "画像なし"))
             label.setPixmap(QPixmap())
             return
         pixmap = QPixmap.fromImage(image).scaled(
@@ -389,12 +407,12 @@ class RomDiffDialog(QDialog):
     def _clear_previews(self):
         self._left_preview_image = None
         self._right_preview_image = None
-        self.left_preview["title"].setText("比較元")
-        self.right_preview["title"].setText("比較先")
+        self.left_preview["title"].setText(t("rom_diff.left.label", "比較元:").rstrip(":"))
+        self.right_preview["title"].setText(t("rom_diff.right.label", "比較先:").rstrip(":"))
         self.left_preview["image"].setPixmap(QPixmap())
         self.right_preview["image"].setPixmap(QPixmap())
-        self.left_preview["image"].setText("比較後、変更ステージを選択すると表示します")
-        self.right_preview["image"].setText("比較後、変更ステージを選択すると表示します")
+        self.left_preview["image"].setText(t("rom_diff.preview.empty", "比較後、変更ステージを選択すると表示します"))
+        self.right_preview["image"].setText(t("rom_diff.preview.empty", "比較後、変更ステージを選択すると表示します"))
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

@@ -19,17 +19,24 @@ from .element_picker import (
     PICKER_MIME,
 )
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
+from ..core.i18n import t
 
 
 ITEM_REPLACE_STATE_OPTIONS = [
-    (c.ITEM_FLAG_NORMAL, "通常"),
-    (c.ITEM_FLAG_HIDDEN, "隠し"),
-    (c.ITEM_FLAG_IN_BLOCK, "ブロック内"),
-    (c.ITEM_FLAG_WHITE_IN_BLOCK, "白ブロック内"),
-    (c.ITEM_FLAG_VISIBLE_IN_BLOCK, "透明ブロック内"),
-    (c.ITEM_FLAG_CRACKED_IN_BLOCK, "ひび割れブロック内"),
+    (c.ITEM_FLAG_NORMAL, "item_replace.state.normal", "通常"),
+    (c.ITEM_FLAG_HIDDEN, "item_replace.state.hidden", "隠し"),
+    (c.ITEM_FLAG_IN_BLOCK, "item_replace.state.in_block", "ブロック内"),
+    (c.ITEM_FLAG_WHITE_IN_BLOCK, "item_replace.state.white_in_block", "白ブロック内"),
+    (c.ITEM_FLAG_VISIBLE_IN_BLOCK, "item_replace.state.visible_in_block", "透明ブロック内"),
+    (c.ITEM_FLAG_CRACKED_IN_BLOCK, "item_replace.state.cracked_in_block", "ひび割れブロック内"),
 ]
-STATE_LABELS = dict(ITEM_REPLACE_STATE_OPTIONS)
+
+
+def _state_label(flag: int) -> str:
+    for state, key, fallback in ITEM_REPLACE_STATE_OPTIONS:
+        if int(state) == int(flag):
+            return t(key, fallback)
+    return f"0x{int(flag):X}"
 
 
 class _ItemSpecDrop(QWidget):
@@ -72,7 +79,7 @@ class _ItemSpecDrop(QWidget):
             "QLabel { border: 1px solid #2f6f3a; background: #07130a; }"
         )
         row.addWidget(self.lbl_icon)
-        self.lbl_value = QLabel("未指定")
+        self.lbl_value = QLabel(t("item_replace.unspecified", "未指定"))
         self.lbl_value.setMinimumHeight(44)
         self.lbl_value.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         self.lbl_value.setStyleSheet(
@@ -82,7 +89,7 @@ class _ItemSpecDrop(QWidget):
         row.addWidget(self.lbl_value, 1)
         layout.addLayout(row)
 
-        hint = QLabel("ピッカーからここへドラッグすると変更できます")
+        hint = QLabel(t("item_replace.drop_hint", "ピッカーからここへドラッグすると変更できます"))
         hint.setStyleSheet("color:#9aa;")
         layout.addWidget(hint)
 
@@ -116,7 +123,7 @@ class _ItemSpecDrop(QWidget):
 
     def _refresh_label(self):
         if self._mode is None or self._value is None:
-            self.lbl_value.setText("未指定")
+            self.lbl_value.setText(t("item_replace.unspecified", "未指定"))
             self.lbl_icon.clear()
             return
         if self._mode == MODE_ITEM:
@@ -132,7 +139,7 @@ class _ItemSpecDrop(QWidget):
             text = name
             icon = self._block_icon_provider(self._value)
         if self._mode == MODE_ITEM and self._show_state:
-            state = STATE_LABELS.get(self._state, f"0x{self._state:X}")
+            state = _state_label(self._state)
             text = f"{text} / {state}"
         self.lbl_value.setText(text)
         pixmap = icon.pixmap(40, 40)
@@ -196,20 +203,23 @@ class ItemReplaceDialog(QDialog):
         super().__init__(parent)
         self._mode = MODE_ITEM
         self._app_config = app_config
-        self.setWindowTitle("オブジェクト一括置換")
+        self.setWindowTitle(t("item_replace.title", "オブジェクト一括置換"))
         self.setMinimumWidth(520)
 
         layout = QVBoxLayout(self)
         note = QLabel(
-            "検索元と置換先は、開いた時点のピッカー状態で初期化されます。"
-            "変更する場合はピッカーからドラッグしてください。"
-            "ブロック、アイテム、モンスターは同じ種別内でのみ置換できます。"
+            t(
+                "item_replace.note",
+                "検索元と置換先は、開いた時点のピッカー状態で初期化されます。"
+                "変更する場合はピッカーからドラッグしてください。"
+                "ブロック、アイテム、モンスターは同じ種別内でのみ置換できます。",
+            )
         )
         note.setWordWrap(True)
         layout.addWidget(note)
 
         self.from_spec = _ItemSpecDrop(
-            "検索する対象",
+            t("item_replace.from", "検索する対象"),
             item_name_resolver,
             item_icon_provider,
             enemy_name_resolver,
@@ -219,7 +229,7 @@ class ItemReplaceDialog(QDialog):
             self,
         )
         self.to_spec = _ItemSpecDrop(
-            "置換後の対象",
+            t("item_replace.to", "置換後の対象"),
             item_name_resolver,
             item_icon_provider,
             enemy_name_resolver,
@@ -231,10 +241,13 @@ class ItemReplaceDialog(QDialog):
         layout.addWidget(self.from_spec)
         layout.addWidget(self.to_spec)
 
-        self.chk_ignore_state = QCheckBox("検索時は状態を無視する")
+        self.chk_ignore_state = QCheckBox(t("item_replace.ignore_state", "検索時は状態を無視する"))
         self.chk_ignore_state.setToolTip(
-            "ONの場合、検索元が隠し/ブロック内などでもアイテム番号だけで検索します。"
-            "置換後は上で指定した状態になります。"
+            t(
+                "item_replace.ignore_state.tooltip",
+                "ONの場合、検索元が隠し/ブロック内などでもアイテム番号だけで検索します。"
+                "置換後は上で指定した状態になります。",
+            )
         )
         self.chk_ignore_state.toggled.connect(self._on_ignore_state_toggled)
         self.chk_ignore_state.stateChanged.connect(
@@ -243,21 +256,21 @@ class ItemReplaceDialog(QDialog):
         layout.addWidget(self.chk_ignore_state)
 
         scope_row = QHBoxLayout()
-        scope_row.addWidget(QLabel("対象範囲:"))
+        scope_row.addWidget(QLabel(t("item_replace.scope.label", "対象範囲:")))
         self.cmb_scope = QComboBox()
         if selection_available:
-            self.cmb_scope.addItem("選択範囲", "selection")
-        self.cmb_scope.addItem("現在ステージ", "current")
-        self.cmb_scope.addItem("全ステージ", "all")
+            self.cmb_scope.addItem(t("main.replace.scope.selection", "選択範囲"), "selection")
+        self.cmb_scope.addItem(t("main.replace.scope.current", "現在ステージ"), "current")
+        self.cmb_scope.addItem(t("main.replace.scope.all", "全ステージ"), "all")
         scope_row.addWidget(self.cmb_scope, 1)
         layout.addLayout(scope_row)
 
         buttons = QHBoxLayout()
         buttons.addStretch()
-        self.btn_replace = QPushButton("置換")
+        self.btn_replace = QPushButton(t("item_replace.replace", "置換"))
         self.btn_replace.clicked.connect(self._request_replace)
         buttons.addWidget(self.btn_replace)
-        self.btn_close = QPushButton("閉じる")
+        self.btn_close = QPushButton(t("common.close", "閉じる"))
         self.btn_close.clicked.connect(self.close)
         buttons.addWidget(self.btn_close)
         layout.addLayout(buttons)
@@ -280,9 +293,9 @@ class ItemReplaceDialog(QDialog):
         self.cmb_scope.blockSignals(True)
         self.cmb_scope.clear()
         if available:
-            self.cmb_scope.addItem("選択範囲", "selection")
-        self.cmb_scope.addItem("現在ステージ", "current")
-        self.cmb_scope.addItem("全ステージ", "all")
+            self.cmb_scope.addItem(t("main.replace.scope.selection", "選択範囲"), "selection")
+        self.cmb_scope.addItem(t("main.replace.scope.current", "現在ステージ"), "current")
+        self.cmb_scope.addItem(t("main.replace.scope.all", "全ステージ"), "all")
         idx = self.cmb_scope.findData(current)
         if idx >= 0:
             self.cmb_scope.setCurrentIndex(idx)

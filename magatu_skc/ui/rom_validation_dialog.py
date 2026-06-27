@@ -19,6 +19,8 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
 )
 
+from ..core.i18n import t
+
 
 STAGE_RE = re.compile(r"Stage\s+(\d+)")
 POS_RE = re.compile(r"\((\d+)\s*,\s*(\d+)\)")
@@ -57,25 +59,31 @@ class RomValidationDialog(QDialog):
         rom,
         warnings: list[str],
         parent=None,
-        title: str = "ROM不整合",
+        title: str | None = None,
         jump_callback=None,
     ) -> None:
         super().__init__(parent)
         self._rom = rom
         self._warnings = list(warnings or [])
         self._jump_callback = jump_callback
-        self.setWindowTitle(title)
+        self.setWindowTitle(title or t("rom_validation.title", "ROM不整合"))
         self.setModal(False)
         self.resize(900, 560)
 
-        status = "問題なし" if not self._warnings else f"不整合 {len(self._warnings)} 件"
+        status = (
+            t("rom_validation.status.ok", "問題なし")
+            if not self._warnings
+            else t("rom_validation.status.warning_count", "不整合 {count} 件").format(
+                count=len(self._warnings)
+            )
+        )
         self.summary = QTextEdit()
         self.summary.setReadOnly(True)
         self.summary.setMaximumHeight(120)
         self.summary.setPlainText(f"{status}\n{support_note(rom)}")
 
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["No", "Stage", "内容"])
+        self.table.setHorizontalHeaderLabels(["No", "Stage", t("rom_validation.column.content", "内容")])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
@@ -84,7 +92,7 @@ class RomValidationDialog(QDialog):
         self.table.cellDoubleClicked.connect(self._on_row_double_clicked)
         self._populate_table()
 
-        copy_btn = QPushButton("結果コピー")
+        copy_btn = QPushButton(t("rom_validation.copy", "結果コピー"))
         copy_btn.clicked.connect(self.copy_results)
         buttons = QDialogButtonBox(QDialogButtonBox.Close)
         buttons.addButton(copy_btn, QDialogButtonBox.ActionRole)
@@ -92,7 +100,7 @@ class RomValidationDialog(QDialog):
 
         layout = QVBoxLayout(self)
         if not self._warnings:
-            label = QLabel("不整合は見つかりませんでした。")
+            label = QLabel(t("rom_validation.no_issues", "不整合は見つかりませんでした。"))
             layout.addWidget(label)
         layout.addWidget(self.summary)
         layout.addWidget(self.table, 1)

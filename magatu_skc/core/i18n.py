@@ -1168,6 +1168,224 @@ _TRANSLATIONS = {
         "ja": "Redo: {label} (履歴 {count} 件)",
         "en": "Redo: {label} ({count} history entries)",
     },
+    "item_replace.state.normal": {
+        "ja": "通常",
+        "en": "Normal",
+    },
+    "item_replace.state.hidden": {
+        "ja": "隠し",
+        "en": "Hidden",
+    },
+    "item_replace.state.in_block": {
+        "ja": "ブロック内",
+        "en": "In Block",
+    },
+    "item_replace.state.white_in_block": {
+        "ja": "白ブロック内",
+        "en": "In White Block",
+    },
+    "item_replace.state.visible_in_block": {
+        "ja": "透明ブロック内",
+        "en": "In Transparent Block",
+    },
+    "item_replace.state.cracked_in_block": {
+        "ja": "ひび割れブロック内",
+        "en": "In Cracked Block",
+    },
+    "item_replace.unspecified": {
+        "ja": "未指定",
+        "en": "Not specified",
+    },
+    "item_replace.drop_hint": {
+        "ja": "ピッカーからここへドラッグすると変更できます",
+        "en": "Drag here from the picker to change this.",
+    },
+    "item_replace.title": {
+        "ja": "オブジェクト一括置換",
+        "en": "Batch Replace Objects",
+    },
+    "item_replace.note": {
+        "ja": (
+            "検索元と置換先は、開いた時点のピッカー状態で初期化されます。"
+            "変更する場合はピッカーからドラッグしてください。"
+            "ブロック、アイテム、モンスターは同じ種別内でのみ置換できます。"
+        ),
+        "en": (
+            "The search target and replacement target are initialized from the picker state when opened. "
+            "Drag from the picker to change them. "
+            "Blocks, items, and monsters can only be replaced within the same type."
+        ),
+    },
+    "item_replace.from": {
+        "ja": "検索する対象",
+        "en": "Search Target",
+    },
+    "item_replace.to": {
+        "ja": "置換後の対象",
+        "en": "Replacement Target",
+    },
+    "item_replace.ignore_state": {
+        "ja": "検索時は状態を無視する",
+        "en": "Ignore state when searching",
+    },
+    "item_replace.ignore_state.tooltip": {
+        "ja": (
+            "ONの場合、検索元が隠し/ブロック内などでもアイテム番号だけで検索します。"
+            "置換後は上で指定した状態になります。"
+        ),
+        "en": (
+            "When enabled, matching uses only the item number even if the source is hidden or in-block. "
+            "The replacement uses the state specified above."
+        ),
+    },
+    "item_replace.scope.label": {
+        "ja": "対象範囲:",
+        "en": "Scope:",
+    },
+    "item_replace.replace": {
+        "ja": "置換",
+        "en": "Replace",
+    },
+    "rom_diff.title": {
+        "ja": "ROM比較",
+        "en": "ROM Compare",
+    },
+    "rom_diff.note": {
+        "ja": (
+            "ROM/ZIPを2つ選んで、ロード後のステージデータとして比較します。"
+            "バイナリ差分ではなく、面ごとのブロック/アイテム/敵/メタ差分を表示します。"
+            "ファイルはこの画面へドラッグ&ドロップできます。"
+        ),
+        "en": (
+            "Select two ROM/ZIP files and compare them as loaded stage data. "
+            "This shows per-stage block/item/enemy/meta differences, not binary differences. "
+            "You can drag and drop files onto this window."
+        ),
+    },
+    "rom_diff.left.placeholder": {
+        "ja": "比較元 ROM/ZIP",
+        "en": "Source ROM/ZIP",
+    },
+    "rom_diff.right.placeholder": {
+        "ja": "比較先 ROM/ZIP",
+        "en": "Target ROM/ZIP",
+    },
+    "rom_diff.browse": {
+        "ja": "参照...",
+        "en": "Browse...",
+    },
+    "rom_diff.left.label": {
+        "ja": "比較元:",
+        "en": "Source:",
+    },
+    "rom_diff.right.label": {
+        "ja": "比較先:",
+        "en": "Target:",
+    },
+    "rom_diff.compare": {
+        "ja": "再比較",
+        "en": "Compare Again",
+    },
+    "rom_diff.compare.tooltip": {
+        "ja": "同じ2ファイルをもう一度読み直して比較します。",
+        "en": "Reload and compare the same two files again.",
+    },
+    "rom_diff.details.placeholder": {
+        "ja": "表の行を選択すると、ここに詳細差分を表示します。",
+        "en": "Select a table row to show detailed differences here.",
+    },
+    "rom_diff.preview.group": {
+        "ja": "選択ステージの画像",
+        "en": "Selected Stage Images",
+    },
+    "rom_diff.preview.empty": {
+        "ja": "比較後、変更ステージを選択すると表示します",
+        "en": "After comparing, select a changed stage to show the preview.",
+    },
+    "rom_diff.open.title": {
+        "ja": "比較するROM/ZIPを選択",
+        "en": "Select ROM/ZIP to Compare",
+    },
+    "rom_diff.error.need_both": {
+        "ja": "比較元と比較先を両方選択してください。",
+        "en": "Select both the source and target files.",
+    },
+    "rom_diff.error.same_file": {
+        "ja": "別々のファイルを選択してください。",
+        "en": "Select two different files.",
+    },
+    "rom_diff.error.rom_zip_only": {
+        "ja": "ROM/ZIP同士を選択してください。PNG比較はメイン画面の比較編集を使ってください。",
+        "en": "Select ROM/ZIP files. Use Compare Edit on the main screen for PNG comparison.",
+    },
+    "rom_diff.status.comparing": {
+        "ja": "比較中...",
+        "en": "Comparing...",
+    },
+    "rom_diff.status.failed": {
+        "ja": "比較失敗",
+        "en": "Compare Failed",
+    },
+    "rom_diff.error.failed": {
+        "ja": "比較に失敗しました。\n{error}",
+        "en": "Comparison failed.\n{error}",
+    },
+    "rom_diff.column.meta": {
+        "ja": "メタ",
+        "en": "Meta",
+    },
+    "rom_diff.column.summary": {
+        "ja": "概要",
+        "en": "Summary",
+    },
+    "rom_diff.stage.all": {
+        "ja": "全体",
+        "en": "Overall",
+    },
+    "rom_diff.result.changed_stages": {
+        "ja": "変更ステージ",
+        "en": "changed stages",
+    },
+    "rom_diff.result.diffs": {
+        "ja": "差分",
+        "en": "differences",
+    },
+    "rom_diff.no_stage_diff": {
+        "ja": "ステージデータ差分はありません。",
+        "en": "No stage data differences were found.",
+    },
+    "rom_diff.preview.no_image": {
+        "ja": "画像なし",
+        "en": "No image",
+    },
+    "main.compare.summary.total": {
+        "ja": "合計",
+        "en": "Total",
+    },
+    "rom_validation.title": {
+        "ja": "ROM不整合",
+        "en": "ROM Inconsistencies",
+    },
+    "rom_validation.status.ok": {
+        "ja": "問題なし",
+        "en": "No issues",
+    },
+    "rom_validation.status.warning_count": {
+        "ja": "不整合 {count} 件",
+        "en": "{count} inconsistencies",
+    },
+    "rom_validation.column.content": {
+        "ja": "内容",
+        "en": "Details",
+    },
+    "rom_validation.copy": {
+        "ja": "結果コピー",
+        "en": "Copy Results",
+    },
+    "rom_validation.no_issues": {
+        "ja": "不整合は見つかりませんでした。",
+        "en": "No inconsistencies were found.",
+    },
     "main.action.restart_app": {
         "ja": "アプリを再起動します",
         "en": "The application will restart",
