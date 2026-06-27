@@ -47,7 +47,7 @@ OPEN_DOOR_ITEM_NO = 0x07
 
 
 def _expected_shrine_item_no(stage_no: int) -> int:
-    return SHRINE_ITEM_MIN + (((stage_no // 4) - 1) % 4)
+    return SHRINE_ITEM_MIN + (((stage_no - 1) // 4) % 4)
 
 
 def _has_open_door_item(level) -> bool:
@@ -79,7 +79,7 @@ def _collect_constellation_warnings(rom, levels: list) -> list[str]:
         return warnings
     missing = []
     mismatched = []
-    for stage_no in range(4, min(len(levels), 48) + 1, 4):
+    for stage_no in range(1, min(len(levels), 48) + 1):
         level = levels[stage_no - 1]
         expected_no = _expected_shrine_item_no(stage_no)
         shrine_items = [
@@ -87,7 +87,8 @@ def _collect_constellation_warnings(rom, levels: list) -> list[str]:
             if SHRINE_ITEM_MIN <= int(item.get_item_no()) <= SHRINE_ITEM_MAX
         ]
         if not shrine_items:
-            missing.append(stage_no)
+            if stage_no % 4 == 0:
+                missing.append(stage_no)
             continue
         actual_nos = sorted({int(item.get_item_no()) for item in shrine_items})
         if expected_no not in actual_nos:
@@ -224,9 +225,18 @@ def _collect_level_warnings(level, stage_index: int) -> list[str]:
         warnings.append(f"{label}: 開始位置に敵が重なっています {_pos_label(level.fixed_start_pos)}。")
 
     check_required_meta = stage_index < 48
+    if stage_index in (48, 49) and not level.is_key_removed():
+        warnings.append(f"{label}: このステージには鍵を配置しない想定です。")
+    if stage_index == 48 and not level.is_door_removed():
+        warnings.append(f"{label}: このステージには扉を配置しない想定です。")
+
     if level.is_key_removed():
         if check_required_meta and not has_open_door_item:
-            warnings.append(f"{label}: 鍵が配置されていません。")
+            warnings.append(f"{label}: 鍵が配置されておらず、Open Doorもありません。")
+        if stage_index != 49 and not level.is_door_removed():
+            warnings.append(f"{label}: 鍵が削除されていますが扉が残っています。")
+        if stage_ext.get_key_enemy_number(level) > 0:
+            warnings.append(f"{label}: 鍵が削除されていますが鍵持ち敵が設定されています。")
     elif not _in_bounds(level.fixed_key_pos):
         warnings.append(f"{label}: 鍵位置が画面外です {_pos_label(level.fixed_key_pos)}。")
     else:
