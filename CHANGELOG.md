@@ -1,12 +1,12 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
-## Unreleased
-- Gitで取得したローカル作業ツリー向けに、`origin/main` を確認してfast-forward更新する `update_from_github.bat` を追加した。
-- `update_from_github.bat` のfetch時はGitの自動GCを無効化し、packファイル削除確認で停止しにくいようにした。
-
 ## v0.9.0 (2026-06-28) 最終段階バージョンへ更新
 - アプリバージョンを 0.9.0 に更新した。
 - 設定画面下部の未実装予定項目リストを表示しないようにした。
+
+## Unreleased
+- Gitで取得したローカル作業ツリー向けに、`origin/main` を確認してfast-forward更新する `update_from_github.bat` を追加した。
+- `update_from_github.bat` のfetch時はGitの自動GCを無効化し、packファイル削除確認で停止しにくいようにした。
 
 ## v0.8.410 (2026-06-28) 表示言語設定を即時反映
 - 設定画面で表示言語を変更してApply/OKした時、再起動なしでメイン画面の主要UIへ反映するようにした。
