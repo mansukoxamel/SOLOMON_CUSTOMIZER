@@ -842,6 +842,46 @@ _TRANSLATIONS = {
         "ja": "位置 X:",
         "en": "Position X:",
     },
+    "main.stage_ops.copy": {
+        "ja": "面コピー",
+        "en": "Copy Stage",
+    },
+    "main.stage_ops.copy.tooltip": {
+        "ja": "現在のステージデータ一式を内部クリップボードへコピー",
+        "en": "Copy all current stage data to the internal clipboard.",
+    },
+    "main.stage_ops.paste": {
+        "ja": "貼り付け",
+        "en": "Paste",
+    },
+    "main.stage_ops.paste.tooltip": {
+        "ja": "コピーしたステージデータ一式で現在のステージを上書き",
+        "en": "Overwrite the current stage with the copied stage data.",
+    },
+    "main.stage_ops.swap": {
+        "ja": "面入れ替え",
+        "en": "Swap Stages",
+    },
+    "main.stage_ops.swap.tooltip": {
+        "ja": "現在のステージと指定ステージのデータ一式を入れ替え",
+        "en": "Swap all data between the current stage and the selected stage.",
+    },
+    "main.stage_ops.swap_execute": {
+        "ja": "入替実行",
+        "en": "Run Swap",
+    },
+    "main.stage_ops.copy_source.none": {
+        "ja": "コピー元: なし",
+        "en": "Copy Source: None",
+    },
+    "main.stage_ops.copy_source": {
+        "ja": "コピー元: {stage}",
+        "en": "Copy Source: {stage}",
+    },
+    "main.stage_ops.swap_source": {
+        "ja": "入れ替え元: {stage}",
+        "en": "Swap Source: {stage}",
+    },
     "common.close": {
         "ja": "閉じる",
         "en": "Close",

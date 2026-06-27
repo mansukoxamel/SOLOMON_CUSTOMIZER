@@ -1017,17 +1017,25 @@ class MainWindow(QMainWindow):
                 self._stage_swap_source_no = None
                 self.spin_stage_swap_target.setVisible(False)
                 if hasattr(self, "btn_stage_swap"):
-                    self.btn_stage_swap.setText("面入れ替え")
+                    self.btn_stage_swap.setText(t("main.stage_ops.swap", "面入れ替え"))
         if hasattr(self, "lbl_stage_clipboard"):
             if self._stage_swap_source_no is not None:
                 self.lbl_stage_clipboard.setText(
-                    f"入れ替え元: {self._stage_label(self._stage_swap_source_no)}"
+                    t("main.stage_ops.swap_source", "入れ替え元: {stage}").format(
+                        stage=self._stage_label(self._stage_swap_source_no)
+                    )
                 )
             elif self._stage_clipboard is None:
-                self.lbl_stage_clipboard.setText("コピー元: なし")
+                self.lbl_stage_clipboard.setText(
+                    t("main.stage_ops.copy_source.none", "コピー元: なし")
+                )
             else:
                 source_no = int(self._stage_clipboard["source_level_no"])
-                self.lbl_stage_clipboard.setText(f"コピー元: {self._stage_label(source_no)}")
+                self.lbl_stage_clipboard.setText(
+                    t("main.stage_ops.copy_source", "コピー元: {stage}").format(
+                        stage=self._stage_label(source_no)
+                    )
+                )
 
     def _restore_window_state(self):
         """設定からウィンドウ位置・サイズ・最大化/フルスクリーン状態を復元"""
@@ -2087,22 +2095,28 @@ class MainWindow(QMainWindow):
         self.spin_level.hide()
 
         stage_ops = QHBoxLayout()
-        self.btn_stage_copy = QPushButton("面コピー")
-        self.btn_stage_copy.setToolTip("現在のステージデータ一式を内部クリップボードへコピー")
+        self.btn_stage_copy = QPushButton(t("main.stage_ops.copy", "面コピー"))
+        self.btn_stage_copy.setToolTip(
+            t("main.stage_ops.copy.tooltip", "現在のステージデータ一式を内部クリップボードへコピー")
+        )
         self.btn_stage_copy.clicked.connect(self._on_stage_copy)
         self.btn_stage_copy.setEnabled(False)
         stage_ops.addWidget(self.btn_stage_copy)
 
-        self.btn_stage_paste = QPushButton("貼り付け")
-        self.btn_stage_paste.setToolTip("コピーしたステージデータ一式で現在のステージを上書き")
+        self.btn_stage_paste = QPushButton(t("main.stage_ops.paste", "貼り付け"))
+        self.btn_stage_paste.setToolTip(
+            t("main.stage_ops.paste.tooltip", "コピーしたステージデータ一式で現在のステージを上書き")
+        )
         self.btn_stage_paste.clicked.connect(self._on_stage_paste)
         self.btn_stage_paste.setEnabled(False)
         stage_ops.addWidget(self.btn_stage_paste)
         v.addLayout(stage_ops)
 
         swap_row = QHBoxLayout()
-        self.btn_stage_swap = QPushButton("面入れ替え")
-        self.btn_stage_swap.setToolTip("現在のステージと指定ステージのデータ一式を入れ替え")
+        self.btn_stage_swap = QPushButton(t("main.stage_ops.swap", "面入れ替え"))
+        self.btn_stage_swap.setToolTip(
+            t("main.stage_ops.swap.tooltip", "現在のステージと指定ステージのデータ一式を入れ替え")
+        )
         self.btn_stage_swap.clicked.connect(self._on_stage_swap)
         self.btn_stage_swap.setEnabled(False)
         swap_row.addWidget(self.btn_stage_swap, 1)
@@ -2115,7 +2129,7 @@ class MainWindow(QMainWindow):
         self.spin_stage_swap_target.setVisible(False)
         swap_row.addWidget(self.spin_stage_swap_target)
 
-        self.lbl_stage_clipboard = QLabel("コピー元: なし")
+        self.lbl_stage_clipboard = QLabel(t("main.stage_ops.copy_source.none", "コピー元: なし"))
         self.lbl_stage_clipboard.setObjectName("stageClipboardLabel")
         self.lbl_stage_clipboard.setWordWrap(False)
         swap_row.addWidget(self.lbl_stage_clipboard)
@@ -3327,7 +3341,7 @@ class MainWindow(QMainWindow):
             if hasattr(self, "spin_stage_swap_target"):
                 self.spin_stage_swap_target.setVisible(False)
             if hasattr(self, "btn_stage_swap"):
-                self.btn_stage_swap.setText("面入れ替え")
+                self.btn_stage_swap.setText(t("main.stage_ops.swap", "面入れ替え"))
             self._update_stage_operation_buttons()
             self.btn_clear.setEnabled(edit_enabled)
             self.btn_stats.setEnabled(True)
@@ -5370,13 +5384,13 @@ class MainWindow(QMainWindow):
         self.spin_stage_swap_target.setVisible(True)
         self.spin_stage_swap_target.setFocus()
         self.spin_stage_swap_target.selectAll()
-        self.btn_stage_swap.setText("入替実行")
+        self.btn_stage_swap.setText(t("main.stage_ops.swap_execute", "入替実行"))
         self._update_stage_operation_buttons()
 
     def _finish_stage_swap(self):
         self._stage_swap_source_no = None
         self.spin_stage_swap_target.setVisible(False)
-        self.btn_stage_swap.setText("面入れ替え")
+        self.btn_stage_swap.setText(t("main.stage_ops.swap", "面入れ替え"))
         self._update_stage_operation_buttons()
 
     def _set_stage_swap_target_from_thumbnail(self, level_no: int):
@@ -5401,8 +5415,8 @@ class MainWindow(QMainWindow):
 
         from PyQt5.QtWidgets import QMenu
         menu = QMenu(self)
-        copy_action = menu.addAction("面コピー")
-        paste_action = menu.addAction("貼り付け")
+        copy_action = menu.addAction(t("main.stage_ops.copy", "面コピー"))
+        paste_action = menu.addAction(t("main.stage_ops.paste", "貼り付け"))
         swap_action = menu.addAction(self.btn_stage_swap.text())
 
         can_edit = not self._is_read_only()
