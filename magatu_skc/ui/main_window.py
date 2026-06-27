@@ -3100,33 +3100,54 @@ class MainWindow(QMainWindow):
             if not editor_input and not read_only_mode:
                 crc_hex = rom.get_crc32_hex()
                 if rom.base_region() != "JP":
-                    msg = (
+                    msg = t(
+                        "main.rom.unsupported.readonly_reject",
                         "このROMは通常編集入口にも、閲覧/ステージ出力専用入口にも該当しません。\n"
                         "読み取り専用で受け入れるのは skchain US66 mapper66 ROM、"
                         "または US/JP mapper3 ROM だけです。\n"
-                        f"Region: {rom.region}\nCRC32: {crc_hex}"
+                        "Region: {region}\nCRC32: {crc}",
+                    ).format(region=rom.region, crc=crc_hex)
+                    QMessageBox.warning(
+                        self,
+                        t("main.rom.unsupported.title", "非対応ROM"),
+                        msg,
                     )
-                    QMessageBox.warning(self, "非対応ROM", msg)
-                    self.statusBar().showMessage("ROM読込を中止: 非対応ROM")
+                    self.statusBar().showMessage(
+                        t("main.rom.load_aborted.unsupported", "ROM読込を中止: 非対応ROM")
+                    )
                     self._log(f"ROM読込拒否: {path} ({rom.region}, CRC32={crc_hex})")
                     return
                 if rom.is_expanded() and not rom.has_customizer_metadata():
-                    msg = (
+                    msg = t(
+                        "main.rom.unsupported.jp66_no_metadata",
                         "日本版 mapper66 拡張ROMは、本アプリで保存したROMだけ読み込めます。\n"
                         "SOLOMON_CUSTOMIZERのメタデータが見つかりません。\n"
-                        f"CRC32: {crc_hex}"
+                        "CRC32: {crc}",
+                    ).format(crc=crc_hex)
+                    QMessageBox.warning(
+                        self,
+                        t("main.rom.unsupported.title", "非対応ROM"),
+                        msg,
                     )
-                    QMessageBox.warning(self, "非対応ROM", msg)
-                    self.statusBar().showMessage("ROM読込を中止: 未確認JP66拡張ROMは非対応")
+                    self.statusBar().showMessage(
+                        t("main.rom.load_aborted.jp66_unknown", "ROM読込を中止: 未確認JP66拡張ROMは非対応")
+                    )
                     self._log(f"ROM読込拒否: {path} ({rom.region}, CRC32={crc_hex}, no metadata)")
                     return
-                msg = (
+                msg = t(
+                    "main.rom.unsupported.editor_target",
                     "このアプリの通常編集対象は日本版 Solomon no Kagi のROM、"
                     "または本アプリで保存した日本版 mapper66 拡張ROMだけです。\n"
-                    f"CRC32: {crc_hex}"
+                    "CRC32: {crc}",
+                ).format(crc=crc_hex)
+                QMessageBox.warning(
+                    self,
+                    t("main.rom.unsupported.title", "非対応ROM"),
+                    msg,
                 )
-                QMessageBox.warning(self, "非対応ROM", msg)
-                self.statusBar().showMessage("ROM読込を中止: 非対応ROM")
+                self.statusBar().showMessage(
+                    t("main.rom.load_aborted.unsupported", "ROM読込を中止: 非対応ROM")
+                )
                 self._log(f"ROM読込拒否: {path} ({rom.region}, CRC32={crc_hex})")
                 return
             levels = load_all_levels(rom)
@@ -3401,7 +3422,11 @@ class MainWindow(QMainWindow):
                 log_suffix = f" (読み取り専用: {read_only_reason})"
             self._log(f"ROM読込: {path}{log_suffix}")
         except Exception as e:
-            QMessageBox.critical(self, "ロード失敗", f"{type(e).__name__}: {e}")
+            QMessageBox.critical(
+                self,
+                t("main.rom.load_failed", "ロード失敗"),
+                f"{type(e).__name__}: {e}",
+            )
 
     def _update_rom_validation_button(self):
         count = len(getattr(self, "_rom_validation_warnings", []) or [])
@@ -3618,7 +3643,9 @@ class MainWindow(QMainWindow):
             self._save_history()
 
     def _on_restart_app(self):
-        if not self._confirm_replace_current_work("アプリを再起動します"):
+        if not self._confirm_replace_current_work(
+            t("main.action.restart_app", "アプリを再起動します")
+        ):
             return
         self._restart_after_close = True
         self.statusBar().showMessage("アプリを再起動します", 2000)
@@ -3827,7 +3854,9 @@ class MainWindow(QMainWindow):
         stem = Path(src_name).stem
         default_name = f"{stem}_{ts}.nes"
         path, _ = QFileDialog.getSaveFileName(
-            self, "改造ROMの保存先", self._default_save_path(default_name),
+            self,
+            t("main.rom.save_dialog.title", "改造ROMの保存先"),
+            self._default_save_path(default_name),
             "NES ROMs (*.nes);;All files (*)"
         )
         if not path:
@@ -3845,20 +3874,33 @@ class MainWindow(QMainWindow):
                 bundle_msg = f" / project data: {bundle_dir}"
             except Exception as bundle_error:
                 QMessageBox.warning(
-                    self, "制作データ保存失敗",
-                    "ROMは保存されましたが、共通設定JSONまたはステージPNGの保存に失敗しました。\n\n"
-                    f"{type(bundle_error).__name__}: {bundle_error}"
+                    self,
+                    t("main.rom.project_save_failed.title", "制作データ保存失敗"),
+                    t(
+                        "main.rom.project_save_failed.body",
+                        "ROMは保存されましたが、共通設定JSONまたはステージPNGの保存に失敗しました。\n\n{error}",
+                    ).format(error=f"{type(bundle_error).__name__}: {bundle_error}")
                 )
                 self._log(
                     f"制作データ保存失敗: {type(bundle_error).__name__}: {bundle_error}"
                 )
             suffix = f" / {build_msg}" if build_msg else ""
-            self.statusBar().showMessage(f"ROM保存完了: {path}{suffix}", 5000)
+            self.statusBar().showMessage(
+                t("main.rom.save_complete", "ROM保存完了: {path}{suffix}").format(
+                    path=path,
+                    suffix=suffix,
+                ),
+                5000,
+            )
             self._set_dirty(False)
             self._log(f"ROM保存: {path}{bundle_msg}")
             return True
         except Exception as e:
-            self._show_save_failure("保存失敗", e, "ROM保存失敗")
+            self._show_save_failure(
+                t("main.rom.save_failed", "保存失敗"),
+                e,
+                t("main.rom.save_failed.log", "ROM保存失敗"),
+            )
             return False
 
     def _test_play_quick_start_enabled(self) -> bool:
@@ -3934,8 +3976,12 @@ class MainWindow(QMainWindow):
         emu_path = str((emulator or {}).get("path", "") or "").strip()
         if not emu_path or not os.path.exists(emu_path):
             QMessageBox.warning(
-                self, "エミュレータ未設定",
-                "F9 設定画面でテストプレイ用エミュレータを登録し、既定にしてください"
+                self,
+                t("main.testplay.emulator_unset.title", "エミュレータ未設定"),
+                t(
+                    "main.testplay.emulator_unset.body",
+                    "F9 設定画面でテストプレイ用エミュレータを登録し、既定にしてください",
+                )
             )
             return
         self._play_button_sound()
@@ -3982,11 +4028,14 @@ class MainWindow(QMainWindow):
                 self.rom.data = original_data
         except Exception as e:
             self._show_save_failure(
-                "テストプレイ準備失敗",
+                t("main.testplay.prepare_failed.title", "テストプレイ準備失敗"),
                 e,
-                "テストプレイ準備失敗",
-                "通常の「改造ROMとして保存」でも同じエラーが出る場合、"
-                "保存前チェックまたはROM容量の制約です。",
+                t("main.testplay.prepare_failed.title", "テストプレイ準備失敗"),
+                t(
+                    "main.testplay.prepare_failed.extra",
+                    "通常の「改造ROMとして保存」でも同じエラーが出る場合、"
+                    "保存前チェックまたはROM容量の制約です。",
+                ),
             )
             return
 
@@ -3995,7 +4044,16 @@ class MainWindow(QMainWindow):
             suffix = f" / {build_msg}" if build_msg else ""
             emu_name = (emulator or {}).get("name", "") or Path(emu_path).stem
             self.statusBar().showMessage(
-                f"テストプレイ起動: Stage {stage_no} / {emu_name} / {tmp_rom}{suffix}", 5000
+                t(
+                    "main.testplay.launched",
+                    "テストプレイ起動: Stage {stage} / {emulator} / {path}{suffix}",
+                ).format(
+                    stage=stage_no,
+                    emulator=emu_name,
+                    path=tmp_rom,
+                    suffix=suffix,
+                ),
+                5000,
             )
             visible_cells = sorted(
                 getattr(self.levels[self.current_level_no], "visible_in_block_item_cells", set()) or []
@@ -4005,7 +4063,11 @@ class MainWindow(QMainWindow):
                 f"(透明ブロック内={len(visible_cells)} {visible_cells})"
             )
         except Exception as e:
-            QMessageBox.critical(self, "エミュ起動失敗", f"{type(e).__name__}: {e}")
+            QMessageBox.critical(
+                self,
+                t("main.testplay.emulator_launch_failed", "エミュ起動失敗"),
+                f"{type(e).__name__}: {e}",
+            )
             self._log(f"テストプレイ失敗: {type(e).__name__}: {e}")
 
     def _can_readonly_test_play(self) -> bool:
@@ -4067,7 +4129,11 @@ class MainWindow(QMainWindow):
 
         # 1. 原本ROM（市販吸出し）を選択
         from .file_dialog_compat import get_file
-        base_path = get_file(self, title="原本ROM（市販吸出し）を選択", filter="*.nes")
+        base_path = get_file(
+            self,
+            title=t("main.ips.base_dialog.title", "原本ROM（市販吸出し）を選択"),
+            filter="*.nes",
+        )
         if not base_path:
             return
 
@@ -4075,14 +4141,22 @@ class MainWindow(QMainWindow):
             with open(base_path, "rb") as f:
                 base_data = f.read()
         except Exception as e:
-            QMessageBox.critical(self, "原本ROM読込失敗", f"{type(e).__name__}: {e}")
+            QMessageBox.critical(
+                self,
+                t("main.ips.base_read_failed", "原本ROM読込失敗"),
+                f"{type(e).__name__}: {e}",
+            )
             return
 
         # 2. 現在の編集状態を保存用ROMデータに反映
         try:
             modified_data, build_msg = self._build_saved_rom_data_for_user_action()
         except Exception as e:
-            self._show_save_failure("IPS生成失敗", e, "IPS保存失敗")
+            self._show_save_failure(
+                t("main.ips.generate_failed", "IPS生成失敗"),
+                e,
+                t("main.ips.save_failed.log", "IPS保存失敗"),
+            )
             return
 
         # 3. IPS保存先を選択
@@ -4094,7 +4168,9 @@ class MainWindow(QMainWindow):
         stem = Path(src_name).stem
         default_name = f"{stem}_{ts}.ips"
         path, _ = QFileDialog.getSaveFileName(
-            self, "IPSパッチ保存", self._default_save_path(default_name),
+            self,
+            t("main.ips.save_dialog.title", "IPSパッチ保存"),
+            self._default_save_path(default_name),
             "IPS Patch (*.ips);;All files (*)"
         )
         if not path:
@@ -4104,10 +4180,20 @@ class MainWindow(QMainWindow):
             ips.save_ips_patch(base_data, modified_data, path)
             self._remember_save_path(path)
             suffix = f" / {build_msg}" if build_msg else ""
-            self.statusBar().showMessage(f"IPS保存完了: {path}{suffix}", 5000)
+            self.statusBar().showMessage(
+                t("main.ips.save_complete", "IPS保存完了: {path}{suffix}").format(
+                    path=path,
+                    suffix=suffix,
+                ),
+                5000,
+            )
             self._log(f"IPS保存: {path} (原本: {base_path})")
         except Exception as e:
-            QMessageBox.critical(self, "IPS生成失敗", f"{type(e).__name__}: {e}")
+            QMessageBox.critical(
+                self,
+                t("main.ips.generate_failed", "IPS生成失敗"),
+                f"{type(e).__name__}: {e}",
+            )
             self._log(f"IPS保存失敗: {type(e).__name__}: {e}")
 
     def _confirm_save_validation_warnings(self) -> bool:

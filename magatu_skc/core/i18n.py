@@ -882,6 +882,141 @@ _TRANSLATIONS = {
         "ja": "入れ替え元: {stage}",
         "en": "Swap Source: {stage}",
     },
+    "main.action.restart_app": {
+        "ja": "アプリを再起動します",
+        "en": "The application will restart",
+    },
+    "main.rom.unsupported.title": {
+        "ja": "非対応ROM",
+        "en": "Unsupported ROM",
+    },
+    "main.rom.unsupported.readonly_reject": {
+        "ja": (
+            "このROMは通常編集入口にも、閲覧/ステージ出力専用入口にも該当しません。\n"
+            "読み取り専用で受け入れるのは skchain US66 mapper66 ROM、"
+            "または US/JP mapper3 ROM だけです。\n"
+            "Region: {region}\nCRC32: {crc}"
+        ),
+        "en": (
+            "This ROM does not match either the normal editing input or the read-only stage export input.\n"
+            "Read-only loading accepts only skchain US66 mapper66 ROMs, or US/JP mapper3 ROMs.\n"
+            "Region: {region}\nCRC32: {crc}"
+        ),
+    },
+    "main.rom.unsupported.jp66_no_metadata": {
+        "ja": (
+            "日本版 mapper66 拡張ROMは、本アプリで保存したROMだけ読み込めます。\n"
+            "SOLOMON_CUSTOMIZERのメタデータが見つかりません。\n"
+            "CRC32: {crc}"
+        ),
+        "en": (
+            "JP mapper66 expanded ROMs can only be loaded if they were saved by this application.\n"
+            "SOLOMON_CUSTOMIZER metadata was not found.\n"
+            "CRC32: {crc}"
+        ),
+    },
+    "main.rom.unsupported.editor_target": {
+        "ja": (
+            "このアプリの通常編集対象は日本版 Solomon no Kagi のROM、"
+            "または本アプリで保存した日本版 mapper66 拡張ROMだけです。\n"
+            "CRC32: {crc}"
+        ),
+        "en": (
+            "This application's normal editing target is the Japanese Solomon no Kagi ROM, "
+            "or a JP mapper66 expanded ROM saved by this application.\n"
+            "CRC32: {crc}"
+        ),
+    },
+    "main.rom.load_aborted.unsupported": {
+        "ja": "ROM読込を中止: 非対応ROM",
+        "en": "ROM load canceled: unsupported ROM",
+    },
+    "main.rom.load_aborted.jp66_unknown": {
+        "ja": "ROM読込を中止: 未確認JP66拡張ROMは非対応",
+        "en": "ROM load canceled: unverified JP66 expanded ROM is unsupported",
+    },
+    "main.rom.load_failed": {
+        "ja": "ロード失敗",
+        "en": "Load Failed",
+    },
+    "main.rom.save_dialog.title": {
+        "ja": "改造ROMの保存先",
+        "en": "Save Modified ROM",
+    },
+    "main.rom.project_save_failed.title": {
+        "ja": "制作データ保存失敗",
+        "en": "Project Data Save Failed",
+    },
+    "main.rom.project_save_failed.body": {
+        "ja": "ROMは保存されましたが、共通設定JSONまたはステージPNGの保存に失敗しました。\n\n{error}",
+        "en": "The ROM was saved, but saving the common settings JSON or stage PNGs failed.\n\n{error}",
+    },
+    "main.rom.save_complete": {
+        "ja": "ROM保存完了: {path}{suffix}",
+        "en": "ROM saved: {path}{suffix}",
+    },
+    "main.rom.save_failed": {
+        "ja": "保存失敗",
+        "en": "Save Failed",
+    },
+    "main.rom.save_failed.log": {
+        "ja": "ROM保存失敗",
+        "en": "ROM save failed",
+    },
+    "main.testplay.emulator_unset.title": {
+        "ja": "エミュレータ未設定",
+        "en": "Emulator Not Configured",
+    },
+    "main.testplay.emulator_unset.body": {
+        "ja": "F9 設定画面でテストプレイ用エミュレータを登録し、既定にしてください",
+        "en": "Register a test-play emulator in Settings (F9) and set it as the default.",
+    },
+    "main.testplay.prepare_failed.title": {
+        "ja": "テストプレイ準備失敗",
+        "en": "Test Play Preparation Failed",
+    },
+    "main.testplay.prepare_failed.extra": {
+        "ja": (
+            "通常の「改造ROMとして保存」でも同じエラーが出る場合、"
+            "保存前チェックまたはROM容量の制約です。"
+        ),
+        "en": (
+            "If the same error also appears when saving as a modified ROM, "
+            "it is caused by pre-save validation or ROM capacity limits."
+        ),
+    },
+    "main.testplay.launched": {
+        "ja": "テストプレイ起動: Stage {stage} / {emulator} / {path}{suffix}",
+        "en": "Test play launched: Stage {stage} / {emulator} / {path}{suffix}",
+    },
+    "main.testplay.emulator_launch_failed": {
+        "ja": "エミュ起動失敗",
+        "en": "Emulator Launch Failed",
+    },
+    "main.ips.base_dialog.title": {
+        "ja": "原本ROM（市販吸出し）を選択",
+        "en": "Select Original Dumped ROM",
+    },
+    "main.ips.base_read_failed": {
+        "ja": "原本ROM読込失敗",
+        "en": "Original ROM Read Failed",
+    },
+    "main.ips.generate_failed": {
+        "ja": "IPS生成失敗",
+        "en": "IPS Generation Failed",
+    },
+    "main.ips.save_failed.log": {
+        "ja": "IPS保存失敗",
+        "en": "IPS save failed",
+    },
+    "main.ips.save_dialog.title": {
+        "ja": "IPSパッチ保存",
+        "en": "Save IPS Patch",
+    },
+    "main.ips.save_complete": {
+        "ja": "IPS保存完了: {path}{suffix}",
+        "en": "IPS saved: {path}{suffix}",
+    },
     "common.close": {
         "ja": "閉じる",
         "en": "Close",
