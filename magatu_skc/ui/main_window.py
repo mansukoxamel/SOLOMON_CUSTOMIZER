@@ -7328,7 +7328,7 @@ class MainWindow(QMainWindow):
         return f"{reason}のOpen Doorは編集できません"
 
     def _can_delete_key_meta(self, lv) -> bool:
-        return bool(self._level_has_open_door_item(lv) or stage_ext.get_key_enemy_number(lv) > 0)
+        return bool(self._level_has_open_door_item(lv))
 
     def _can_delete_door_meta(self, lv) -> bool:
         return bool(self._level_has_open_door_item(lv))

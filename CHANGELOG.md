@@ -4,6 +4,9 @@
 - Gitで取得したローカル作業ツリー向けに、`origin/main` を確認してfast-forward更新する `update_from_github.bat` を追加した。
 - `update_from_github.bat` のfetch時はGitの自動GCを無効化し、packファイル削除確認で停止しにくいようにした。
 
+## v0.8.383 (2026-06-27) 鍵削除の操作ガードを調整
+- 鍵持ち敵がいるだけでは、キャンバス上の鍵メタを削除できないようにした。
+
 ## v0.8.382 (2026-06-27) 強化パネルモンスターの表示向きを修正
 - 2-way/3-way Panel Monster の右向き/上向きが左向き/下向き表示になる問題を修正した。
 - Panel Variant animation direction helper を追加し、旧2-way/3-way IDとA/B/C IDで別の向き計算を使うようにした。
