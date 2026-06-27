@@ -1002,6 +1002,50 @@ _TRANSLATIONS = {
         "ja": "アイテムがある位置には鍵を置けません {tile}",
         "en": "Cannot place the key on an item {tile}",
     },
+    "main.selection.none": {
+        "ja": "選択範囲がありません",
+        "en": "No selection.",
+    },
+    "main.selection.copy_complete": {
+        "ja": "コピー: {width}×{height} 範囲 ({count}要素)",
+        "en": "Copied: {width}x{height} area ({count} elements)",
+    },
+    "main.selection.clipboard_empty": {
+        "ja": "クリップボードが空です",
+        "en": "Clipboard is empty.",
+    },
+    "main.selection.paste_target_missing": {
+        "ja": "ペースト先が不明（選択 or ホバーが必要）",
+        "en": "Paste target is unknown. Select an area or hover a tile.",
+    },
+    "main.selection.paste_complete": {
+        "ja": "ペースト: ({x},{y}) 起点",
+        "en": "Pasted at origin ({x},{y})",
+    },
+    "main.selection.delete_key_enemy_blocked": {
+        "ja": "鍵メタが無いため、鍵持ち敵に影響する敵は範囲削除できません",
+        "en": "Range delete cannot remove enemies that affect the key-carrier enemy because key metadata is missing.",
+    },
+    "main.selection.delete_complete": {
+        "ja": "範囲削除: ({x1},{y1})-({x2},{y2})",
+        "en": "Range deleted: ({x1},{y1})-({x2},{y2})",
+    },
+    "main.selection.flip_horizontal": {
+        "ja": "左右反転",
+        "en": "Flipped horizontally",
+    },
+    "main.selection.flip_vertical": {
+        "ja": "上下反転",
+        "en": "Flipped vertically",
+    },
+    "main.selection.flip_horizontal_skip_shared": {
+        "ja": "左右反転: Stage 52/53共有の条件付き壊せるブロックマーカーは対象外です",
+        "en": "Flipped horizontally: shared Stage 52/53 conditional breakable-block markers were skipped.",
+    },
+    "main.selection.flip_vertical_skip_shared": {
+        "ja": "上下反転: Stage 52/53共有の条件付き壊せるブロックマーカーは対象外です",
+        "en": "Flipped vertically: shared Stage 52/53 conditional breakable-block markers were skipped.",
+    },
     "main.action.restart_app": {
         "ja": "アプリを再起動します",
         "en": "The application will restart",

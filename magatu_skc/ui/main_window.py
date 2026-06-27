@@ -8679,7 +8679,7 @@ class MainWindow(QMainWindow):
         """選択範囲を内部クリップボードへコピー"""
         clip = self._build_clipboard_from_selection()
         if clip is None:
-            self.statusBar().showMessage("選択範囲がありません", 1500)
+            self.statusBar().showMessage(t("main.selection.none", "選択範囲がありません"), 1500)
             return
         self._clipboard = clip
         total = (
@@ -8687,7 +8687,12 @@ class MainWindow(QMainWindow):
             len(clip["enemies"]) + len(clip.get("meta", []))
         )
         self.statusBar().showMessage(
-            f"コピー: {clip['w']}×{clip['h']} 範囲 ({total}要素)", 3000
+            t("main.selection.copy_complete", "コピー: {width}×{height} 範囲 ({count}要素)").format(
+                width=clip["w"],
+                height=clip["h"],
+                count=total,
+            ),
+            3000,
         )
 
     def _paste_clipboard_at(self, clip, ox, oy):
@@ -8754,7 +8759,7 @@ class MainWindow(QMainWindow):
         if self._reject_read_only_edit():
             return
         if self._clipboard is None or not self.levels:
-            self.statusBar().showMessage("クリップボードが空です", 1500)
+            self.statusBar().showMessage(t("main.selection.clipboard_empty", "クリップボードが空です"), 1500)
             return
         bounds = self._get_selection_bounds()
         if bounds is not None:
@@ -8762,7 +8767,10 @@ class MainWindow(QMainWindow):
         elif self._hover_tile is not None:
             ox, oy = self._hover_tile
         else:
-            self.statusBar().showMessage("ペースト先が不明（選択 or ホバーが必要）", 2000)
+            self.statusBar().showMessage(
+                t("main.selection.paste_target_missing", "ペースト先が不明（選択 or ホバーが必要）"),
+                2000,
+            )
             return
 
         if self._clip_has_start_enemy_overlap(self.levels[self.current_level_no], self._clipboard, ox, oy):
@@ -8775,7 +8783,10 @@ class MainWindow(QMainWindow):
         self._paste_clipboard_at(self._clipboard, ox, oy)
         self._refresh_key_enemy_spin_range()
         self._refresh_fairy_enemy_spin_range()
-        self.statusBar().showMessage(f"ペースト: ({ox},{oy}) 起点", 2000)
+        self.statusBar().showMessage(
+            t("main.selection.paste_complete", "ペースト: ({x},{y}) 起点").format(x=ox, y=oy),
+            2000,
+        )
         self._refresh_view()
 
     def _cut_selection(self):
@@ -8791,7 +8802,7 @@ class MainWindow(QMainWindow):
             return
         bounds = self._get_selection_bounds()
         if bounds is None or not self.levels:
-            self.statusBar().showMessage("選択範囲がありません", 1500)
+            self.statusBar().showMessage(t("main.selection.none", "選択範囲がありません"), 1500)
             return
         x1, y1, x2, y2 = bounds
         lv = self.levels[self.current_level_no]
@@ -8801,7 +8812,11 @@ class MainWindow(QMainWindow):
                 ex, ey = enemy.position
                 if idx <= key_enemy_number - 1 and x1 <= ex <= x2 and y1 <= ey <= y2:
                     self.statusBar().showMessage(
-                        "鍵メタが無いため、鍵持ち敵に影響する敵は範囲削除できません", 3000
+                        t(
+                            "main.selection.delete_key_enemy_blocked",
+                            "鍵メタが無いため、鍵持ち敵に影響する敵は範囲削除できません",
+                        ),
+                        3000,
                     )
                     return
         self._push_undo()
@@ -8827,7 +8842,13 @@ class MainWindow(QMainWindow):
             self._refresh_key_enemy_spin_range(warn=True)
             self._refresh_fairy_enemy_spin_range(warn=True)
         self.statusBar().showMessage(
-            f"範囲削除: ({x1},{y1})-({x2},{y2})", 2000
+            t("main.selection.delete_complete", "範囲削除: ({x1},{y1})-({x2},{y2})").format(
+                x1=x1,
+                y1=y1,
+                x2=x2,
+                y2=y2,
+            ),
+            2000,
         )
         self._refresh_view()
 
@@ -8844,7 +8865,7 @@ class MainWindow(QMainWindow):
             return
         bounds = self._get_selection_bounds()
         if bounds is None or not self.levels:
-            self.statusBar().showMessage("選択範囲がありません", 1500)
+            self.statusBar().showMessage(t("main.selection.none", "選択範囲がありません"), 1500)
             return
         x1, y1, x2, y2 = bounds
         self._push_undo()
@@ -9013,8 +9034,14 @@ class MainWindow(QMainWindow):
             _changed, skipped_shared = flip_conditional_breakable_markers(flip_x)
             flip_bomb_jack_markers(flip_x)
             if skipped_shared:
-                conditional_skip_message = "左右反転: Stage 52/53共有の条件付き壊せるブロックマーカーは対象外です"
-            self.statusBar().showMessage(conditional_skip_message or "左右反転", 3000 if conditional_skip_message else 2000)
+                conditional_skip_message = t(
+                    "main.selection.flip_horizontal_skip_shared",
+                    "左右反転: Stage 52/53共有の条件付き壊せるブロックマーカーは対象外です",
+                )
+            self.statusBar().showMessage(
+                conditional_skip_message or t("main.selection.flip_horizontal", "左右反転"),
+                3000 if conditional_skip_message else 2000,
+            )
         else:
             flip_y = lambda cx, cy: (cx, y1 + y2 - cy)
             # 上下反転
@@ -9039,8 +9066,14 @@ class MainWindow(QMainWindow):
             _changed, skipped_shared = flip_conditional_breakable_markers(flip_y)
             flip_bomb_jack_markers(flip_y)
             if skipped_shared:
-                conditional_skip_message = "上下反転: Stage 52/53共有の条件付き壊せるブロックマーカーは対象外です"
-            self.statusBar().showMessage(conditional_skip_message or "上下反転", 3000 if conditional_skip_message else 2000)
+                conditional_skip_message = t(
+                    "main.selection.flip_vertical_skip_shared",
+                    "上下反転: Stage 52/53共有の条件付き壊せるブロックマーカーは対象外です",
+                )
+            self.statusBar().showMessage(
+                conditional_skip_message or t("main.selection.flip_vertical", "上下反転"),
+                3000 if conditional_skip_message else 2000,
+            )
 
         self._refresh_view()
 
