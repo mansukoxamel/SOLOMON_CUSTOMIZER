@@ -593,6 +593,158 @@ _TRANSLATIONS = {
         "ja": "比較編集モードを終了して通常表示に戻します。",
         "en": "End compare-edit mode and return to the normal view.",
     },
+    "main.view.group": {
+        "ja": "表示オプション",
+        "en": "View Options",
+    },
+    "main.view.grid": {
+        "ja": "グリッド表示",
+        "en": "Show Grid",
+    },
+    "main.view.hidden": {
+        "ja": "隠し要素強調 (黄色枠)",
+        "en": "Highlight Hidden Elements (Yellow)",
+    },
+    "main.view.special_marks": {
+        "ja": "特殊処理マーカー表示",
+        "en": "Show Special Process Markers",
+    },
+    "main.view.special_marks.tooltip": {
+        "ja": (
+            "ROMのハードコード特殊処理が動的に配置するマスを枠で表示。\n"
+            "緑=壊せるブロック / 水色=強制クリア\n"
+            "例: Stage 50 SOLOMON の (7,1) (12,7) (3,3) は壊せる隠しブロックとして配置される"
+        ),
+        "en": (
+            "Show cells dynamically placed by hard-coded ROM special processes.\n"
+            "Green = breakable block / Cyan = forced clear\n"
+            "Example: Stage 50 SOLOMON cells (7,1), (12,7), and (3,3) are placed as hidden breakable blocks."
+        ),
+    },
+    "main.view.stage_selector": {
+        "ja": "ステージ選択ペイン表示",
+        "en": "Show Stage Selector",
+    },
+    "main.view.stage_selector.tooltip": {
+        "ja": "右端のサムネイル付きステージ選択ペインを表示/非表示にします。",
+        "en": "Show or hide the thumbnail stage selector pane on the right.",
+    },
+    "main.view.edit_col15": {
+        "ja": "16列目を編集",
+        "en": "Edit Column 16",
+    },
+    "main.view.edit_col15.tooltip": {
+        "ja": "右端列(16列目)はデータ上常に壁。通常は編集不可。\nONにすると編集できる。",
+        "en": "The rightmost column (column 16) is always wall data. It is normally locked.\nTurn this on to edit it.",
+    },
+    "main.tools.group": {
+        "ja": "編集ツール",
+        "en": "Edit Tools",
+    },
+    "main.tools.clear": {
+        "ja": "オブジェクト削除 ▼",
+        "en": "Delete Objects ▼",
+    },
+    "main.tools.clear.tooltip": {
+        "ja": "現在のステージから要素を削除（Undo可能）",
+        "en": "Delete elements from the current stage. Undo is available.",
+    },
+    "main.tools.clear_all": {
+        "ja": "すべて削除（鍵/扉/スタート/ミラーは保持）",
+        "en": "Delete All (Keep Key / Door / Start / Mirrors)",
+    },
+    "main.tools.clear_blocks": {
+        "ja": "ブロックのみ削除",
+        "en": "Delete Blocks Only",
+    },
+    "main.tools.clear_items": {
+        "ja": "アイテムのみ削除",
+        "en": "Delete Items Only",
+    },
+    "main.tools.clear_enemies": {
+        "ja": "モンスターのみ削除",
+        "en": "Delete Monsters Only",
+    },
+    "main.tools.stats": {
+        "ja": "全ステージ統計",
+        "en": "All Stage Stats",
+    },
+    "main.tools.stats.tooltip": {
+        "ja": "53ステージのアイテム/敵/隠し配置を一覧表示します。(Ctrl+I)",
+        "en": "List items, enemies, and hidden placements across all 53 stages. (Ctrl+I)",
+    },
+    "main.tools.game_hack": {
+        "ja": "ゲーム挙動改造",
+        "en": "Game Behavior Mods",
+    },
+    "main.tools.game_hack.tooltip": {
+        "ja": "開始ライフ・開始ステージ等の既知ROMアドレスを書き換え",
+        "en": "Edit known ROM addresses such as starting lives and starting stage.",
+    },
+    "main.tools.enemy_hack": {
+        "ja": "敵改造",
+        "en": "Enemy Mods",
+    },
+    "main.tools.enemy_hack.tooltip": {
+        "ja": "敵AI・敵速度など、敵に関係するROM挙動を編集",
+        "en": "Edit enemy-related ROM behavior such as enemy AI and speed.",
+    },
+    "main.tools.palette": {
+        "ja": "パレット編集",
+        "en": "Palette Editor",
+    },
+    "main.tools.palette.tooltip": {
+        "ja": "背景・スプライトのパレット (8パレット x 3色) を編集",
+        "en": "Edit background and sprite palettes (8 palettes x 3 colors).",
+    },
+    "main.tools.sprite_viewer": {
+        "ja": "スプライトビューア",
+        "en": "Sprite Viewer",
+    },
+    "main.tools.sprite_viewer.tooltip": {
+        "ja": "CHR-ROM の全キャラクタータイル (8x8) を一覧表示。\nバンク・パレット・拡大率を切替可能。読込専用。",
+        "en": "View all CHR-ROM character tiles (8x8).\nBank, palette, and zoom can be changed. Read-only.",
+    },
+    "main.tools.title_screen": {
+        "ja": "タイトル画面編集",
+        "en": "Title Screen Editor",
+    },
+    "main.tools.title_screen.tooltip": {
+        "ja": "タイトル画面を編集/移植: 配置(nametable)+色区分(attribute)+絵(CHR bank3)をピース単位で扱います。コード非改変・JP/US自動判定・CRC不要・双方向。",
+        "en": "Edit or port the title screen: layout (nametable), color groups (attributes), and graphics (CHR bank3) are handled piece by piece. Code is not modified; JP/US is auto-detected; CRC is not required; changes are bidirectional.",
+    },
+    "main.tools.pixel_editor": {
+        "ja": "16x16ピクセル編集",
+        "en": "16x16 Pixel Editor",
+    },
+    "main.tools.pixel_editor.tooltip": {
+        "ja": "ROMフレーム由来の16x16スプライトを1ピクセル単位で編集。16x16画像の取り込みにも対応。",
+        "en": "Edit ROM-frame-based 16x16 sprites pixel by pixel. 16x16 image import is also supported.",
+    },
+    "main.tools.sound_viewer": {
+        "ja": "音楽データ表示",
+        "en": "Sound Data Viewer",
+    },
+    "main.tools.sound_viewer.tooltip": {
+        "ja": "ROM内サウンドデータをC/D/E表記のテキストで表示（読取専用）",
+        "en": "Show ROM sound data as C/D/E-style text. Read-only.",
+    },
+    "main.tools.special_process": {
+        "ja": "特殊処理ビューア",
+        "en": "Special Process Viewer",
+    },
+    "main.tools.special_process.tooltip": {
+        "ja": "各ステージにハードコードされた特殊処理を表示します（読取専用）。",
+        "en": "Show hard-coded special processes for each stage. Read-only.",
+    },
+    "main.tools.batch_replace": {
+        "ja": "オブジェクト一括置換",
+        "en": "Batch Replace Objects",
+    },
+    "main.tools.batch_replace.tooltip": {
+        "ja": "指定したブロック、アイテム、モンスターを同じ種別内で一括置換。選択範囲、現在ステージ、全ステージを対象にできます。",
+        "en": "Batch-replace specified blocks, items, or monsters within the same category. Scope can be the selection, current stage, or all stages.",
+    },
     "common.close": {
         "ja": "閉じる",
         "en": "Close",

@@ -1673,28 +1673,34 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(compare_group)
 
         # 表示オプション
-        opt_group = QGroupBox("表示オプション")
+        opt_group = QGroupBox(t("main.view.group", "表示オプション"))
         ol = QVBoxLayout(opt_group)
-        self.chk_grid = QCheckBox("グリッド表示")
+        self.chk_grid = QCheckBox(t("main.view.grid", "グリッド表示"))
         self.chk_grid.toggled.connect(self._on_grid_toggled)
         ol.addWidget(self.chk_grid)
-        self.chk_hidden = QCheckBox("隠し要素強調 (黄色枠)")
+        self.chk_hidden = QCheckBox(t("main.view.hidden", "隠し要素強調 (黄色枠)"))
         self.chk_hidden.setChecked(False)
         self.chk_hidden.toggled.connect(self._refresh_view)
         ol.addWidget(self.chk_hidden)
         # 特殊処理マーカー表示 (Per-Room Special Process で動的配置されるマス)
-        self.chk_special_marks = QCheckBox("特殊処理マーカー表示")
+        self.chk_special_marks = QCheckBox(t("main.view.special_marks", "特殊処理マーカー表示"))
         self.chk_special_marks.setChecked(True)
         self.chk_special_marks.setToolTip(
-            "ROMのハードコード特殊処理が動的に配置するマスを枠で表示。\n"
-            "緑=壊せるブロック / 水色=強制クリア\n"
-            "例: Stage 50 SOLOMON の (7,1) (12,7) (3,3) は壊せる隠しブロックとして配置される"
+            t(
+                "main.view.special_marks.tooltip",
+                "ROMのハードコード特殊処理が動的に配置するマスを枠で表示。\n"
+                "緑=壊せるブロック / 水色=強制クリア\n"
+                "例: Stage 50 SOLOMON の (7,1) (12,7) (3,3) は壊せる隠しブロックとして配置される",
+            )
         )
         self.chk_special_marks.toggled.connect(self._refresh_view)
         ol.addWidget(self.chk_special_marks)
-        self.chk_stage_selector = QCheckBox("ステージ選択ペイン表示")
+        self.chk_stage_selector = QCheckBox(t("main.view.stage_selector", "ステージ選択ペイン表示"))
         self.chk_stage_selector.setToolTip(
-            "右端のサムネイル付きステージ選択ペインを表示/非表示にします。"
+            t(
+                "main.view.stage_selector.tooltip",
+                "右端のサムネイル付きステージ選択ペインを表示/非表示にします。",
+            )
         )
         self.chk_stage_selector.setChecked(
             bool(self._app_config.get("stage_selector_visible", True))
@@ -1702,11 +1708,14 @@ class MainWindow(QMainWindow):
         self.chk_stage_selector.toggled.connect(self._on_stage_selector_toggled)
         ol.addWidget(self.chk_stage_selector)
         # 16列目（右端）の表示・編集
-        self.chk_edit_col15 = QCheckBox("16列目を編集")
+        self.chk_edit_col15 = QCheckBox(t("main.view.edit_col15", "16列目を編集"))
         self.chk_edit_col15.setChecked(False)
         self.chk_edit_col15.setToolTip(
-            "右端列(16列目)はデータ上常に壁。通常は編集不可。\n"
-            "ONにすると編集できる。"
+            t(
+                "main.view.edit_col15.tooltip",
+                "右端列(16列目)はデータ上常に壁。通常は編集不可。\n"
+                "ONにすると編集できる。",
+            )
         )
         ol.addWidget(self.chk_edit_col15)
         left_layout.addWidget(opt_group)
@@ -1714,19 +1723,21 @@ class MainWindow(QMainWindow):
         # 編集ツール (2列グリッド)
         from PyQt5.QtWidgets import (
             QToolButton, QMenu as _QMenu, QGridLayout as _QGrid)
-        edit_group = QGroupBox("編集ツール")
+        edit_group = QGroupBox(t("main.tools.group", "編集ツール"))
         el = _QGrid(edit_group)
         el.setColumnStretch(0, 1)
         el.setColumnStretch(1, 1)
         self.btn_clear = QToolButton()
-        self.btn_clear.setText("オブジェクト削除 ▼")
-        self.btn_clear.setToolTip("現在のステージから要素を削除（Undo可能）")
+        self.btn_clear.setText(t("main.tools.clear", "オブジェクト削除 ▼"))
+        self.btn_clear.setToolTip(
+            t("main.tools.clear.tooltip", "現在のステージから要素を削除（Undo可能）")
+        )
         self.btn_clear.setPopupMode(QToolButton.InstantPopup)
         clear_menu = _QMenu(self.btn_clear)
-        act_all = clear_menu.addAction("すべて削除（鍵/扉/スタート/ミラーは保持）")
-        act_blocks = clear_menu.addAction("ブロックのみ削除")
-        act_items = clear_menu.addAction("アイテムのみ削除")
-        act_enemies = clear_menu.addAction("モンスターのみ削除")
+        act_all = clear_menu.addAction(t("main.tools.clear_all", "すべて削除（鍵/扉/スタート/ミラーは保持）"))
+        act_blocks = clear_menu.addAction(t("main.tools.clear_blocks", "ブロックのみ削除"))
+        act_items = clear_menu.addAction(t("main.tools.clear_items", "アイテムのみ削除"))
+        act_enemies = clear_menu.addAction(t("main.tools.clear_enemies", "モンスターのみ削除"))
         act_all.triggered.connect(lambda: self._on_clear_level("all"))
         act_blocks.triggered.connect(lambda: self._on_clear_level("blocks"))
         act_items.triggered.connect(lambda: self._on_clear_level("items"))
@@ -1736,79 +1747,100 @@ class MainWindow(QMainWindow):
         el.addWidget(self.btn_clear, 0, 0)
 
         # 全レベル統計
-        self.btn_stats = QPushButton("全ステージ統計")
-        self.btn_stats.setToolTip("53ステージのアイテム/敵/隠し配置を一覧表示します。(Ctrl+I)")
+        self.btn_stats = QPushButton(t("main.tools.stats", "全ステージ統計"))
+        self.btn_stats.setToolTip(
+            t("main.tools.stats.tooltip", "53ステージのアイテム/敵/隠し配置を一覧表示します。(Ctrl+I)")
+        )
         self.btn_stats.clicked.connect(self._on_show_stats)
         self.btn_stats.setEnabled(False)
         el.addWidget(self.btn_stats, 0, 1)
 
         # ゲーム改造（ROMバイト直接書換え）
-        self.btn_hack = QPushButton("ゲーム挙動改造")
-        self.btn_hack.setToolTip("開始ライフ・開始ステージ等の既知ROMアドレスを書き換え")
+        self.btn_hack = QPushButton(t("main.tools.game_hack", "ゲーム挙動改造"))
+        self.btn_hack.setToolTip(
+            t("main.tools.game_hack.tooltip", "開始ライフ・開始ステージ等の既知ROMアドレスを書き換え")
+        )
         self.btn_hack.clicked.connect(self._on_show_hack)
         self.btn_hack.setEnabled(False)
         el.addWidget(self.btn_hack, 1, 0)
 
-        self.btn_enemy_hack = QPushButton("敵改造")
-        self.btn_enemy_hack.setToolTip("敵AI・敵速度など、敵に関係するROM挙動を編集")
+        self.btn_enemy_hack = QPushButton(t("main.tools.enemy_hack", "敵改造"))
+        self.btn_enemy_hack.setToolTip(
+            t("main.tools.enemy_hack.tooltip", "敵AI・敵速度など、敵に関係するROM挙動を編集")
+        )
         self.btn_enemy_hack.clicked.connect(self._on_show_enemy_hack)
         self.btn_enemy_hack.setEnabled(False)
         el.addWidget(self.btn_enemy_hack, 1, 1)
 
-        self.btn_palette = QPushButton("パレット編集")
-        self.btn_palette.setToolTip("背景・スプライトのパレット (8パレット x 3色) を編集")
+        self.btn_palette = QPushButton(t("main.tools.palette", "パレット編集"))
+        self.btn_palette.setToolTip(
+            t("main.tools.palette.tooltip", "背景・スプライトのパレット (8パレット x 3色) を編集")
+        )
         self.btn_palette.clicked.connect(self._on_show_palette)
         self.btn_palette.setEnabled(False)
         el.addWidget(self.btn_palette, 2, 0)
 
         # スプライトビューア (CHR-ROM 全タイル一覧、読込専用)
-        self.btn_sprite_viewer = QPushButton("スプライトビューア")
+        self.btn_sprite_viewer = QPushButton(t("main.tools.sprite_viewer", "スプライトビューア"))
         self.btn_sprite_viewer.setToolTip(
-            "CHR-ROM の全キャラクタータイル (8x8) を一覧表示。\n"
-            "バンク・パレット・拡大率を切替可能。読込専用。"
+            t(
+                "main.tools.sprite_viewer.tooltip",
+                "CHR-ROM の全キャラクタータイル (8x8) を一覧表示。\n"
+                "バンク・パレット・拡大率を切替可能。読込専用。",
+            )
         )
         self.btn_sprite_viewer.clicked.connect(self._on_show_sprite_viewer)
         self.btn_sprite_viewer.setEnabled(False)
         el.addWidget(self.btn_sprite_viewer, 2, 1)
 
-        self.btn_title_screen = QPushButton("タイトル画面編集")
+        self.btn_title_screen = QPushButton(t("main.tools.title_screen", "タイトル画面編集"))
         self.btn_title_screen.setToolTip(
-            "タイトル画面を編集/移植: 配置(nametable)+色区分(attribute)"
-            "+絵(CHR bank3)をピース単位で扱います。コード非改変・JP/US"
-            "自動判定・CRC不要・双方向。")
+            t(
+                "main.tools.title_screen.tooltip",
+                "タイトル画面を編集/移植: 配置(nametable)+色区分(attribute)"
+                "+絵(CHR bank3)をピース単位で扱います。コード非改変・JP/US"
+                "自動判定・CRC不要・双方向。",
+            )
+        )
         self.btn_title_screen.clicked.connect(self._on_show_title_screen)
         self.btn_title_screen.setEnabled(False)
         el.addWidget(self.btn_title_screen, 3, 0)
 
-        self.btn_pixel_editor = QPushButton("16x16ピクセル編集")
+        self.btn_pixel_editor = QPushButton(t("main.tools.pixel_editor", "16x16ピクセル編集"))
         self.btn_pixel_editor.setToolTip(
-            "ROMフレーム由来の16x16スプライトを1ピクセル単位で編集。"
-            "16x16画像の取り込みにも対応。"
+            t(
+                "main.tools.pixel_editor.tooltip",
+                "ROMフレーム由来の16x16スプライトを1ピクセル単位で編集。"
+                "16x16画像の取り込みにも対応。",
+            )
         )
         self.btn_pixel_editor.clicked.connect(self._on_show_pixel_editor)
         self.btn_pixel_editor.setEnabled(False)
         el.addWidget(self.btn_pixel_editor, 3, 1)
 
-        self.btn_sound_viewer = QPushButton("音楽データ表示")
+        self.btn_sound_viewer = QPushButton(t("main.tools.sound_viewer", "音楽データ表示"))
         self.btn_sound_viewer.setToolTip(
-            "ROM内サウンドデータをC/D/E表記のテキストで表示（読取専用）"
+            t("main.tools.sound_viewer.tooltip", "ROM内サウンドデータをC/D/E表記のテキストで表示（読取専用）")
         )
         self.btn_sound_viewer.clicked.connect(self._on_show_sound_viewer)
         self.btn_sound_viewer.setEnabled(False)
         el.addWidget(self.btn_sound_viewer, 4, 0)
 
-        self.btn_special_process = QPushButton("特殊処理ビューア")
+        self.btn_special_process = QPushButton(t("main.tools.special_process", "特殊処理ビューア"))
         self.btn_special_process.setToolTip(
-            "各ステージにハードコードされた特殊処理を表示します（読取専用）。"
+            t("main.tools.special_process.tooltip", "各ステージにハードコードされた特殊処理を表示します（読取専用）。")
         )
         self.btn_special_process.clicked.connect(self._on_show_special_process)
         self.btn_special_process.setEnabled(False)
         el.addWidget(self.btn_special_process, 4, 1)
 
-        self.btn_item_replace = QPushButton("オブジェクト一括置換")
+        self.btn_item_replace = QPushButton(t("main.tools.batch_replace", "オブジェクト一括置換"))
         self.btn_item_replace.setToolTip(
-            "指定したブロック、アイテム、モンスターを同じ種別内で一括置換。"
-            "選択範囲、現在ステージ、全ステージを対象にできます。"
+            t(
+                "main.tools.batch_replace.tooltip",
+                "指定したブロック、アイテム、モンスターを同じ種別内で一括置換。"
+                "選択範囲、現在ステージ、全ステージを対象にできます。",
+            )
         )
         self.btn_item_replace.clicked.connect(self._on_show_item_replace)
         self.btn_item_replace.setEnabled(False)
