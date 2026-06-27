@@ -1518,7 +1518,10 @@ class MainWindow(QMainWindow):
         fl.addLayout(btn_row)
 
         self.lbl_rom = QLabel("(未読込)")
-        self.lbl_rom.setWordWrap(True)
+        self.lbl_rom.setWordWrap(False)
+        self.lbl_rom.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self.lbl_rom.setMinimumWidth(0)
+        self.lbl_rom.setTextInteractionFlags(Qt.TextSelectableByMouse)
         rom_info_row = QHBoxLayout()
         rom_info_row.addWidget(self.lbl_rom, 1)
         self.btn_rom_validation = QPushButton("不整合")
@@ -1592,6 +1595,8 @@ class MainWindow(QMainWindow):
         stage_btn_row.addWidget(self.btn_stage_save)
         fl.addLayout(stage_btn_row)
 
+        compare_group = QGroupBox("比較")
+        compare_layout = QVBoxLayout(compare_group)
         self.btn_stage_compare_current = QPushButton("現在")
         self.btn_stage_compare_current.setCheckable(True)
         self.btn_stage_compare_current.clicked.connect(
@@ -1626,7 +1631,7 @@ class MainWindow(QMainWindow):
             self._toggle_stage_compare_edit_from_snapshot
         )
         compare_tool_row.addWidget(self.btn_stage_compare_edit_start)
-        fl.addLayout(compare_tool_row)
+        compare_layout.addLayout(compare_tool_row)
 
         stage_compare_edit_row = QHBoxLayout()
         stage_compare_edit_row.addWidget(self.lbl_stage_compare_mode, 1)
@@ -1642,9 +1647,10 @@ class MainWindow(QMainWindow):
         self.btn_stage_compare_edit_end.setToolTip("比較編集モードを終了して通常表示に戻します。")
         self.btn_stage_compare_edit_end.clicked.connect(lambda: self._clear_stage_compare())
         stage_compare_edit_row.addWidget(self.btn_stage_compare_edit_end)
-        fl.addLayout(stage_compare_edit_row)
+        compare_layout.addLayout(stage_compare_edit_row)
         self._set_stage_compare_controls_visible(False)
         left_layout.addWidget(file_group)
+        left_layout.addWidget(compare_group)
 
         # 表示オプション
         opt_group = QGroupBox("表示オプション")
@@ -3195,7 +3201,6 @@ class MainWindow(QMainWindow):
                 )
             info_html = (
                 f"<b>{rom.display_name}</b><br>"
-                f"[{rom.region}, {len(rom)/1024:.0f}KB]<br>"
                 f"CRC32: <code>{crc_hex}</code> {verify_mark}"
                 f"{version_note}"
                 f"{expand_note}"

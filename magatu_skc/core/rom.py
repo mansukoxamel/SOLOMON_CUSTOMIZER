@@ -50,10 +50,8 @@ def load_rom_data(path: str) -> tuple:
 
     if p.suffix.lower() == ".zip":
         inner_name, data = extract_nes_from_zip(str(p))
-        # 表示用: "rom.nes (in archive.zip)"
         inner_basename = Path(inner_name).name
-        display_name = f"{inner_basename} (in {p.name})"
-        return (display_name, data)
+        return (inner_basename, data)
 
     # 通常の .nes ファイル
     with open(path, "rb") as f:
