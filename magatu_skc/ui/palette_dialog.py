@@ -20,6 +20,7 @@ from PyQt5.QtGui import QColor, QPixmap, QImage, QPainter, QPen
 from .. import __version__
 from ..nes.palette import NES_COLORS
 from ..core import stage50_book_color, wall_color_hack
+from ..core.i18n import t
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
@@ -83,7 +84,7 @@ class PaletteDialog(QDialog):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("パレット編集")
+        self.setWindowTitle(t("palette.title", "パレット編集"))
         self.rom_data = rom_data
         self._tile_renderer = tile_renderer
         self._app_config = app_config
@@ -133,13 +134,16 @@ class PaletteDialog(QDialog):
         layout = QVBoxLayout(self)
 
         info = QLabel(
-            "<b>主人公の色は SPR #0〜#3 のどれかにあります</b>。"
-            "色ボタンをクリックして選択 → 下の64色パレットで変更。"
+            t(
+                "palette.info",
+                "<b>主人公の色は SPR #0〜#3 のどれかにあります</b>。"
+                "色ボタンをクリックして選択 → 下の64色パレットで変更。",
+            )
         )
         info.setWordWrap(True)
         layout.addWidget(info)
 
-        wall_group = QGroupBox("ステージ壁色 (1-48面)")
+        wall_group = QGroupBox(t("palette.wall_group", "ステージ壁色 (1-48面)"))
         wall_layout = QGridLayout(wall_group)
         for i in range(wall_color_hack.EDIT_COUNT):
             label = QLabel(f"{wall_color_hack.stage_range_label(i)}面")
@@ -155,9 +159,9 @@ class PaletteDialog(QDialog):
             self._refresh_wall_swatch(i)
         layout.addWidget(wall_group)
 
-        book_group = QGroupBox("Stage 50 ソロモンの書の色")
+        book_group = QGroupBox(t("palette.book_group", "Stage 50 ソロモンの書の色"))
         book_layout = QHBoxLayout(book_group)
-        book_layout.addWidget(QLabel("色"))
+        book_layout.addWidget(QLabel(t("palette.color", "色")))
         self._book_color_button = QPushButton()
         self._book_color_button.setFixedSize(self.SWATCH_W, self.SWATCH_H)
         self._book_color_button.setEnabled(self._book_color_ok)
@@ -168,23 +172,23 @@ class PaletteDialog(QDialog):
         layout.addWidget(book_group)
 
         # 背景パレット
-        bg_group = QGroupBox("背景パレット")
+        bg_group = QGroupBox(t("palette.bg_group", "背景パレット"))
         bgl = QVBoxLayout(bg_group)
         for p in range(4):
             bgl.addLayout(self._build_palette_row(p))
         layout.addWidget(bg_group)
 
         # スプライトパレット
-        spr_group = QGroupBox("スプライトパレット (主人公・敵・アイテム)")
+        spr_group = QGroupBox(t("palette.sprite_group", "スプライトパレット (主人公・敵・アイテム)"))
         sprl = QVBoxLayout(spr_group)
         for p in range(4, 8):
             sprl.addLayout(self._build_palette_row(p))
         layout.addWidget(spr_group)
 
         # 64色 NES カラーグリッド（統合表示）
-        picker_group = QGroupBox("NESカラー選択")
+        picker_group = QGroupBox(t("palette.nes_color_group", "NESカラー選択"))
         picker_layout = QVBoxLayout(picker_group)
-        self._picker_info = QLabel("↑ 色ボタンをクリックして編集対象を選択")
+        self._picker_info = QLabel(t("palette.picker_hint", "↑ 色ボタンをクリックして編集対象を選択"))
         picker_layout.addWidget(self._picker_info)
 
         grid = QGridLayout()
@@ -206,24 +210,24 @@ class PaletteDialog(QDialog):
 
         # 操作ボタン
         btnbar = QHBoxLayout()
-        btn_save = QPushButton("設定を画像保存...")
-        btn_save.setToolTip("現在のパレット設定をPNG画像とメタデータとして保存")
+        btn_save = QPushButton(t("palette.save_image", "設定を画像保存..."))
+        btn_save.setToolTip(t("palette.save_image.tooltip", "現在のパレット設定をPNG画像とメタデータとして保存"))
         btn_save.clicked.connect(self._save_palette_png)
         btnbar.addWidget(btn_save)
-        btn_load = QPushButton("画像から読込...")
-        btn_load.setToolTip("PNG画像のメタデータからパレット設定を読み込み")
+        btn_load = QPushButton(t("palette.load_image", "画像から読込..."))
+        btn_load.setToolTip(t("palette.load_image.tooltip", "PNG画像のメタデータからパレット設定を読み込み"))
         btn_load.clicked.connect(self._load_palette_file)
         btnbar.addWidget(btn_load)
-        btn_reset = QPushButton("編集開始時に戻す")
-        btn_reset.setToolTip("このパレット編集を開いた時点の値に戻す")
+        btn_reset = QPushButton(t("palette.reset", "編集開始時に戻す"))
+        btn_reset.setToolTip(t("palette.reset.tooltip", "このパレット編集を開いた時点の値に戻す"))
         btn_reset.clicked.connect(self._reset)
         btnbar.addWidget(btn_reset)
-        btn_random3 = QPushButton("ランダム3色")
-        btn_random3.setToolTip("選択中のパレット3色をランダムなNES色に変更")
+        btn_random3 = QPushButton(t("palette.random3", "ランダム3色"))
+        btn_random3.setToolTip(t("palette.random3.tooltip", "選択中のパレット3色をランダムなNES色に変更"))
         btn_random3.clicked.connect(self._randomize_selected_palette)
         btnbar.addWidget(btn_random3)
-        btn_shift3 = QPushButton("色相ずらし")
-        btn_shift3.setToolTip("選択中パレットの色付き3色だけを同じ明度のまま色相方向へずらす")
+        btn_shift3 = QPushButton(t("palette.shift3", "色相ずらし"))
+        btn_shift3.setToolTip(t("palette.shift3.tooltip", "選択中パレットの色付き3色だけを同じ明度のまま色相方向へずらす"))
         btn_shift3.clicked.connect(self._shift_selected_palette)
         btnbar.addWidget(btn_shift3)
         layout.addLayout(btnbar)
@@ -528,13 +532,28 @@ class PaletteDialog(QDialog):
 
     def _selected_palette_no(self):
         if self._sel_wall is not None:
-            QMessageBox.information(self, "対象外", "ステージ壁色は1色なので、この操作の対象外です。")
+            QMessageBox.information(
+                self,
+                t("palette.not_applicable.title", "対象外"),
+                t("palette.not_applicable.wall", "ステージ壁色は1色なので、この操作の対象外です。"),
+            )
             return None
         if self._sel_book_color:
-            QMessageBox.information(self, "対象外", "Stage 50 ソロモンの書の色は1色なので、この操作の対象外です。")
+            QMessageBox.information(
+                self,
+                t("palette.not_applicable.title", "対象外"),
+                t(
+                    "palette.not_applicable.book",
+                    "Stage 50 ソロモンの書の色は1色なので、この操作の対象外です。",
+                ),
+            )
             return None
         if self._sel_palette is None:
-            QMessageBox.information(self, "対象未選択", "先に変更したいパレットの色ボタンを選択してください。")
+            QMessageBox.information(
+                self,
+                t("palette.no_target.title", "対象未選択"),
+                t("palette.no_target.body", "先に変更したいパレットの色ボタンを選択してください。"),
+            )
             return None
         return self._sel_palette
 
@@ -679,7 +698,7 @@ class PaletteDialog(QDialog):
         from .file_dialog_compat import get_path
         path = get_path(
             parent=self,
-            title="パレット設定を画像保存",
+            title=t("palette.save_dialog.title", "パレット設定を画像保存"),
             filter="PNG Images (*.png);;All files (*)",
             mode="save",
         )
@@ -690,10 +709,14 @@ class PaletteDialog(QDialog):
         try:
             img = self._build_palette_png(self._palette_data())
             if not img.save(path, "PNG"):
-                raise OSError("PNG保存に失敗しました。")
-            QMessageBox.information(self, "保存完了", f"パレット設定画像を保存しました:\n{path}")
+                raise OSError(t("palette.save_failed", "PNG保存に失敗しました。"))
+            QMessageBox.information(
+                self,
+                t("palette.save_complete.title", "保存完了"),
+                t("palette.save_complete.body", "パレット設定画像を保存しました:\n{path}").format(path=path),
+            )
         except Exception as e:
-            QMessageBox.critical(self, "保存失敗", f"{type(e).__name__}: {e}")
+            QMessageBox.critical(self, t("palette.save_failed.title", "保存失敗"), f"{type(e).__name__}: {e}")
 
     def _read_palette_file(self, path: str) -> dict:
         if path.lower().endswith(".json"):
@@ -701,24 +724,41 @@ class PaletteDialog(QDialog):
                 return json.load(f)
         img = QImage(path)
         if img.isNull():
-            raise ValueError("画像として読み込めません。")
+            raise ValueError(t("palette.error.image_load", "画像として読み込めません。"))
         meta = img.text(PALETTE_PNG_METADATA_KEY)
         if not meta:
-            raise ValueError("このPNGにはパレット設定メタデータがありません。")
+            raise ValueError(t("palette.error.no_metadata", "このPNGにはパレット設定メタデータがありません。"))
         return json.loads(meta)
 
     def _apply_palette_data(self, data: dict) -> bool:
         if data.get("format") != PALETTE_DATA_FORMAT:
-            QMessageBox.warning(self, "形式エラー", "このファイルはパレット設定ではありません。")
+            QMessageBox.warning(
+                self,
+                t("palette.format_error", "形式エラー"),
+                t("palette.error.not_palette", "このファイルはパレット設定ではありません。"),
+            )
             return False
         palettes = data.get("palettes", [])
         if len(palettes) != PALETTE_COUNT:
-            QMessageBox.warning(self, "形式エラー", f"パレット数が不正です（{len(palettes)}、期待値: {PALETTE_COUNT}）。")
+            QMessageBox.warning(
+                self,
+                t("palette.format_error", "形式エラー"),
+                t(
+                    "palette.error.palette_count",
+                    "パレット数が不正です（{actual}、期待値: {expected}）。",
+                ).format(actual=len(palettes), expected=PALETTE_COUNT),
+            )
             return False
         for p in range(PALETTE_COUNT):
             colors = palettes[p].get("colors", [])
             if len(colors) != EDITABLE_COLORS:
-                QMessageBox.warning(self, "形式エラー", f"パレット {p} の色数が不正です。")
+                QMessageBox.warning(
+                    self,
+                    t("palette.format_error", "形式エラー"),
+                    t("palette.error.color_count", "パレット {palette} の色数が不正です。").format(
+                        palette=p
+                    ),
+                )
                 return False
             for s in range(EDITABLE_COLORS):
                 self._buf[p][s] = int(colors[s]) & 0x3F
@@ -728,8 +768,12 @@ class PaletteDialog(QDialog):
         if wall_colors is not None and self._wall_ok:
             if len(wall_colors) != wall_color_hack.EDIT_COUNT:
                 QMessageBox.warning(
-                    self, "形式エラー",
-                    f"壁色数が不正です（{len(wall_colors)}、期待値: {wall_color_hack.EDIT_COUNT}）。"
+                    self,
+                    t("palette.format_error", "形式エラー"),
+                    t(
+                        "palette.error.wall_count",
+                        "壁色数が不正です（{actual}、期待値: {expected}）。",
+                    ).format(actual=len(wall_colors), expected=wall_color_hack.EDIT_COUNT),
                 )
                 return False
             for i, entry in enumerate(wall_colors):
@@ -755,7 +799,7 @@ class PaletteDialog(QDialog):
         from .file_dialog_compat import get_file
         path = get_file(
             self,
-            title="パレット設定を読み込み",
+            title=t("palette.load_dialog.title", "パレット設定を読み込み"),
             filter="Palette PNG (*.png);;Legacy JSON (*.json);;All files (*)",
         )
         if not path:
@@ -763,10 +807,16 @@ class PaletteDialog(QDialog):
         try:
             data = self._read_palette_file(path)
         except Exception as e:
-            QMessageBox.critical(self, "読込失敗", f"{type(e).__name__}: {e}")
+            QMessageBox.critical(self, t("palette.load_failed.title", "読込失敗"), f"{type(e).__name__}: {e}")
             return
         if self._apply_palette_data(data):
-            QMessageBox.information(self, "読込完了", f"パレット設定を読み込みました:\n{os.path.basename(path)}")
+            QMessageBox.information(
+                self,
+                t("palette.load_complete.title", "読込完了"),
+                t("palette.load_complete.body", "パレット設定を読み込みました:\n{name}").format(
+                    name=os.path.basename(path)
+                ),
+            )
 
     def _apply(self) -> bool:
         """編集内容を ROM data に書き戻す。実際に変更があった場合 True。"""

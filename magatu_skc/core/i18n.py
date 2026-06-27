@@ -1386,6 +1386,166 @@ _TRANSLATIONS = {
         "ja": "不整合は見つかりませんでした。",
         "en": "No inconsistencies were found.",
     },
+    "palette.title": {
+        "ja": "パレット編集",
+        "en": "Palette Editor",
+    },
+    "palette.info": {
+        "ja": "<b>主人公の色は SPR #0〜#3 のどれかにあります</b>。色ボタンをクリックして選択 → 下の64色パレットで変更。",
+        "en": "<b>The player colors are in one of SPR #0-#3</b>. Click a color button, then change it with the 64-color palette below.",
+    },
+    "palette.wall_group": {
+        "ja": "ステージ壁色 (1-48面)",
+        "en": "Stage Wall Colors (Stages 1-48)",
+    },
+    "palette.book_group": {
+        "ja": "Stage 50 ソロモンの書の色",
+        "en": "Stage 50 Solomon Book Color",
+    },
+    "palette.color": {
+        "ja": "色",
+        "en": "Color",
+    },
+    "palette.bg_group": {
+        "ja": "背景パレット",
+        "en": "Background Palettes",
+    },
+    "palette.sprite_group": {
+        "ja": "スプライトパレット (主人公・敵・アイテム)",
+        "en": "Sprite Palettes (Player / Enemies / Items)",
+    },
+    "palette.nes_color_group": {
+        "ja": "NESカラー選択",
+        "en": "NES Color Picker",
+    },
+    "palette.picker_hint": {
+        "ja": "↑ 色ボタンをクリックして編集対象を選択",
+        "en": "Click a color button above to choose what to edit.",
+    },
+    "palette.save_image": {
+        "ja": "設定を画像保存...",
+        "en": "Save Settings Image...",
+    },
+    "palette.save_image.tooltip": {
+        "ja": "現在のパレット設定をPNG画像とメタデータとして保存",
+        "en": "Save the current palette settings as a PNG image with metadata.",
+    },
+    "palette.load_image": {
+        "ja": "画像から読込...",
+        "en": "Load from Image...",
+    },
+    "palette.load_image.tooltip": {
+        "ja": "PNG画像のメタデータからパレット設定を読み込み",
+        "en": "Load palette settings from PNG metadata.",
+    },
+    "palette.reset": {
+        "ja": "編集開始時に戻す",
+        "en": "Reset to Opened State",
+    },
+    "palette.reset.tooltip": {
+        "ja": "このパレット編集を開いた時点の値に戻す",
+        "en": "Restore the values from when this palette editor was opened.",
+    },
+    "palette.random3": {
+        "ja": "ランダム3色",
+        "en": "Random 3 Colors",
+    },
+    "palette.random3.tooltip": {
+        "ja": "選択中のパレット3色をランダムなNES色に変更",
+        "en": "Change the selected palette's three colors to random NES colors.",
+    },
+    "palette.shift3": {
+        "ja": "色相ずらし",
+        "en": "Shift Hue",
+    },
+    "palette.shift3.tooltip": {
+        "ja": "選択中パレットの色付き3色だけを同じ明度のまま色相方向へずらす",
+        "en": "Shift only the selected palette's three colored entries along the hue direction while keeping brightness.",
+    },
+    "palette.not_applicable.title": {
+        "ja": "対象外",
+        "en": "Not Applicable",
+    },
+    "palette.not_applicable.wall": {
+        "ja": "ステージ壁色は1色なので、この操作の対象外です。",
+        "en": "Stage wall color has only one color, so this operation does not apply.",
+    },
+    "palette.not_applicable.book": {
+        "ja": "Stage 50 ソロモンの書の色は1色なので、この操作の対象外です。",
+        "en": "The Stage 50 Solomon Book color has only one color, so this operation does not apply.",
+    },
+    "palette.no_target.title": {
+        "ja": "対象未選択",
+        "en": "No Target Selected",
+    },
+    "palette.no_target.body": {
+        "ja": "先に変更したいパレットの色ボタンを選択してください。",
+        "en": "Select the palette color button you want to change first.",
+    },
+    "palette.save_dialog.title": {
+        "ja": "パレット設定を画像保存",
+        "en": "Save Palette Settings Image",
+    },
+    "palette.save_failed": {
+        "ja": "PNG保存に失敗しました。",
+        "en": "Failed to save the PNG.",
+    },
+    "palette.save_complete.title": {
+        "ja": "保存完了",
+        "en": "Save Complete",
+    },
+    "palette.save_complete.body": {
+        "ja": "パレット設定画像を保存しました:\n{path}",
+        "en": "Saved the palette settings image:\n{path}",
+    },
+    "palette.save_failed.title": {
+        "ja": "保存失敗",
+        "en": "Save Failed",
+    },
+    "palette.format_error": {
+        "ja": "形式エラー",
+        "en": "Format Error",
+    },
+    "palette.error.not_palette": {
+        "ja": "このファイルはパレット設定ではありません。",
+        "en": "This file is not palette settings data.",
+    },
+    "palette.error.palette_count": {
+        "ja": "パレット数が不正です（{actual}、期待値: {expected}）。",
+        "en": "Invalid palette count ({actual}; expected {expected}).",
+    },
+    "palette.error.color_count": {
+        "ja": "パレット {palette} の色数が不正です。",
+        "en": "Palette {palette} has an invalid color count.",
+    },
+    "palette.error.wall_count": {
+        "ja": "壁色数が不正です（{actual}、期待値: {expected}）。",
+        "en": "Invalid wall color count ({actual}; expected {expected}).",
+    },
+    "palette.load_dialog.title": {
+        "ja": "パレット設定を読み込み",
+        "en": "Load Palette Settings",
+    },
+    "palette.load_failed.title": {
+        "ja": "読込失敗",
+        "en": "Load Failed",
+    },
+    "palette.error.image_load": {
+        "ja": "画像として読み込めません。",
+        "en": "Could not load this as an image.",
+    },
+    "palette.error.no_metadata": {
+        "ja": "このPNGにはパレット設定メタデータがありません。",
+        "en": "This PNG does not contain palette settings metadata.",
+    },
+    "palette.load_complete.title": {
+        "ja": "読込完了",
+        "en": "Load Complete",
+    },
+    "palette.load_complete.body": {
+        "ja": "パレット設定を読み込みました:\n{name}",
+        "en": "Loaded palette settings:\n{name}",
+    },
     "main.action.restart_app": {
         "ja": "アプリを再起動します",
         "en": "The application will restart",
