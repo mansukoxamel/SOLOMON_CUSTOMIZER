@@ -389,7 +389,7 @@ class HackDialog(QDialog):
         layout.addWidget(lives_group)
 
         # ====== ステージ制限時間 ======
-        time_group = QGroupBox("ステージ制限時間")
+        time_group = QGroupBox(t("hack_dialog.group.time_decrease", "ステージ制限時間"))
         time_group.setProperty("settings_category", "敵以外")
         time_f = QFormLayout(time_group)
         self._time_rate_ok = False
@@ -403,7 +403,7 @@ class HackDialog(QDialog):
             sp.setRange(0, 255)
             sp.setDisplayIntegerBase(16)
             sp.setPrefix("$")
-            sp.setToolTip("CPU $9942 のステージ制限時間テーブル値。値が大きいほど短くなります。")
+            sp.setToolTip(t("hack_dialog.time_decrease.tooltip", "CPU $9942 のステージ制限時間テーブル値。値が大きいほど短くなります。"))
             sp.valueChanged.connect(self._update_time_rate_estimates)
         try:
             fast, normal, slow = time_decrease_hack.current_values(rom.data)
@@ -415,7 +415,7 @@ class HackDialog(QDialog):
             for sp in (self.spin_time_fast, self.spin_time_normal, self.spin_time_slow):
                 sp.setValue(0)
                 sp.setEnabled(False)
-            note = QLabel(f"⚠ 検証失敗のため無効: {str(e).splitlines()[0]}")
+            note = QLabel(t("hack_dialog.validation_failed_disabled", "⚠ 検証失敗のため無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             time_f.addRow(note)
@@ -426,10 +426,10 @@ class HackDialog(QDialog):
             row.addStretch()
             return row
 
-        time_f.addRow("0=速い:", time_row(self.spin_time_fast, self.lbl_time_fast_est))
-        time_f.addRow("1=普通:", time_row(self.spin_time_normal, self.lbl_time_normal_est))
-        time_f.addRow("2=遅い:", time_row(self.spin_time_slow, self.lbl_time_slow_est))
-        time_hint = QLabel("原作値は 速い=$2D / 普通=$22 / 遅い=$19。目安は開始LIFE 10000が0になるまでの時間です。")
+        time_f.addRow(t("hack_dialog.time_decrease.fast.label", "0=速い:"), time_row(self.spin_time_fast, self.lbl_time_fast_est))
+        time_f.addRow(t("hack_dialog.time_decrease.normal.label", "1=普通:"), time_row(self.spin_time_normal, self.lbl_time_normal_est))
+        time_f.addRow(t("hack_dialog.time_decrease.slow.label", "2=遅い:"), time_row(self.spin_time_slow, self.lbl_time_slow_est))
+        time_hint = QLabel(t("hack_dialog.time_decrease.hint", "原作値は 速い=$2D / 普通=$22 / 遅い=$19。目安は開始LIFE 10000が0になるまでの時間です。"))
         time_hint.setWordWrap(True)
         time_hint.setStyleSheet("color:#888; font-size:11px;")
         time_f.addRow(time_hint)
@@ -437,7 +437,7 @@ class HackDialog(QDialog):
         layout.addWidget(time_group)
 
         # ====== ステージ壁色 ======
-        wall_group = QGroupBox("ステージ壁色 (1-48面)")
+        wall_group = QGroupBox(t("hack_dialog.group.wall_color", "ステージ壁色 (1-48面)"))
         wall_group.setProperty("settings_category", "画面・演出")
         wall_f = QFormLayout(wall_group)
         self._wall_color_ok = False
@@ -450,25 +450,28 @@ class HackDialog(QDialog):
             self._wall_color_table_ok = True
         except wall_color_hack.WallColorHackError as e:
             cur_wall_colors = wall_color_hack.ORIGINAL_VALUES
-            note = QLabel(f"⚠ 無効: {str(e).splitlines()[0]}")
+            note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             wall_f.addRow(note)
         grid_wall = QGridLayout()
         for i in range(wall_color_hack.EDIT_COUNT):
             combo = self._make_wall_color_combo(cur_wall_colors[i])
-            combo.setToolTip("CPU $9122 の4面単位壁色テーブル値。NESパレット番号です。")
+            combo.setToolTip(t("hack_dialog.wall_color.tooltip", "CPU $9122 の4面単位壁色テーブル値。NESパレット番号です。"))
             if not self._wall_color_ok:
                 combo.setEnabled(False)
             self.combo_wall_colors.append(combo)
             row = i // 4
             col = (i % 4) * 2
-            grid_wall.addWidget(QLabel(f"{wall_color_hack.stage_range_label(i)}面"), row, col)
+            grid_wall.addWidget(QLabel(t("hack_dialog.wall_color.stage_range", "{range}面").format(range=wall_color_hack.stage_range_label(i))), row, col)
             grid_wall.addWidget(combo, row, col + 1)
         wall_f.addRow(grid_wall)
         wall_hint = QLabel(
-            "4面ごとの壁の基調色です。ROM $9122 の先頭12バイトだけを変更します。"
-            "49面以降の特殊値 $80/$80 は触りません。")
+            t(
+                "hack_dialog.wall_color.hint",
+                "4面ごとの壁の基調色です。ROM $9122 の先頭12バイトだけを変更します。"
+                "49面以降の特殊値 $80/$80 は触りません。",
+            ))
         wall_hint.setWordWrap(True)
         wall_hint.setStyleSheet("color:#888; font-size:11px;")
         wall_f.addRow(wall_hint)
@@ -478,7 +481,7 @@ class HackDialog(QDialog):
         self.combo_wall_colors = []
 
         # ====== ダーナ歩行速度 ======
-        ws_group = QGroupBox("ダーナ歩行速度")
+        ws_group = QGroupBox(t("hack_dialog.group.walk_speed", "ダーナ歩行速度"))
         ws_group.setProperty("settings_category", "プレイヤー")
         wf = QFormLayout(ws_group)
         self.combo_walk = QComboBox()
@@ -489,28 +492,31 @@ class HackDialog(QDialog):
         except walk_speed.WalkSpeedError as e:
             cur_mult = None
             self.combo_walk.setEnabled(False)
-            note = QLabel(f"⚠ 検証失敗のため無効: {e}".split("\n")[0])
+            note = QLabel(t("hack_dialog.validation_failed_disabled", "⚠ 検証失敗のため無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             wf.addRow(note)
 
         sel_idx = 1  # デフォルト 1.0x
         for i, (m, _r, _l) in enumerate(walk_speed.PRESETS):
-            label = f"{m:g}x" + ("（原作）" if abs(m - 1.0) < 1e-6 else "")
+            label = f"{m:g}x" + (t("hack_dialog.original_suffix", "（原作）") if abs(m - 1.0) < 1e-6 else "")
             self.combo_walk.addItem(label, m)
             if cur_mult is not None and abs(m - cur_mult) < 0.01:
                 sel_idx = i
         self.combo_walk.setCurrentIndex(sel_idx)
-        wf.addRow("移動速度:", self.combo_walk)
-        hint = QLabel("原作 1.0x = 0.75 px/frame（4コマ歩行アニメと同期した精密値）。"
-                      "地上・空中の左右4方向すべてに適用。JP/US 共通。")
+        wf.addRow(t("hack_dialog.walk_speed.label", "移動速度:"), self.combo_walk)
+        hint = QLabel(t(
+            "hack_dialog.walk_speed.hint",
+            "原作 1.0x = 0.75 px/frame（4コマ歩行アニメと同期した精密値）。"
+            "地上・空中の左右4方向すべてに適用。JP/US 共通。",
+        ))
         hint.setWordWrap(True)
         hint.setStyleSheet("color:#888; font-size:11px;")
         wf.addRow(hint)
         layout.addWidget(ws_group)
 
         # ====== パネルモンスター ======
-        pm_group = QGroupBox("パネルモンスター")
+        pm_group = QGroupBox(t("hack_dialog.group.panel_monster", "パネルモンスター"))
         pm_group.setProperty("settings_category", "敵・AI")
         pmf = QFormLayout(pm_group)
         _setup_enemy_group(self, pm_group, pmf, 10, (0x24, 0x52, 0x5A))
@@ -521,7 +527,7 @@ class HackDialog(QDialog):
             self._pm_ok = True
         except panel_monster_hack.PanelMonsterHackError as e:
             cur_frames = panel_monster_hack.ORIG_THRESHOLD
-            note = QLabel(f"⚠ 無効: {str(e).splitlines()[0]}")
+            note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             pmf.addRow(note)
@@ -533,34 +539,37 @@ class HackDialog(QDialog):
         except panel_bullet_speed_fix.PanelBulletSpeedFixError as e:
             cur_bullet_speed_fix = False
             cur_bullet_speed_value = panel_bullet_speed_fix.SLOW_VALUE
-            note = QLabel(f"⚠ 無効: {str(e).splitlines()[0]}")
+            note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             pmf.addRow(note)
 
-        self.chk_pm_bullet_speed_fix = QCheckBox("弾の左右速度バグ修正")
+        self.chk_pm_bullet_speed_fix = QCheckBox(t("hack_dialog.panel_monster.bullet_fix", "弾の左右速度バグ修正"))
         self.combo_pm_bullet_speed_fix = QComboBox()
-        self.combo_pm_bullet_speed_fix.addItem("$30/$50（右下$30・左上$50）", panel_bullet_speed_fix.SLOW_VALUE)
-        self.combo_pm_bullet_speed_fix.addItem("$3F/$41（右下$3F・左上$41）", panel_bullet_speed_fix.FAST_VALUE)
+        self.combo_pm_bullet_speed_fix.addItem(t("hack_dialog.panel_monster.bullet_speed.slow", "$30/$50（右下$30・左上$50）"), panel_bullet_speed_fix.SLOW_VALUE)
+        self.combo_pm_bullet_speed_fix.addItem(t("hack_dialog.panel_monster.bullet_speed.fast", "$3F/$41（右下$3F・左上$41）"), panel_bullet_speed_fix.FAST_VALUE)
         self.chk_pm_bullet_speed_fix.toggled.connect(self.combo_pm_bullet_speed_fix.setEnabled)
         self.spin_pm = QSpinBox()
         self.spin_pm.setRange(
             panel_monster_hack.MIN_THRESHOLD,
             panel_monster_hack.MAX_THRESHOLD)
-        self.spin_pm.setSuffix(" フレーム")
+        self.spin_pm.setSuffix(t("hack_dialog.frame.suffix", " フレーム"))
         if self._pm_ok:
             self.spin_pm.setValue(cur_frames)
             self.chk_pm_bullet_speed_fix.setChecked(cur_bullet_speed_fix)
             self._set_combo_data(self.combo_pm_bullet_speed_fix, cur_bullet_speed_value)
             self.combo_pm_bullet_speed_fix.setEnabled(cur_bullet_speed_fix and self._pm_bullet_speed_ok)
-            pmf.addRow("クールダウン:", self.spin_pm)
+            pmf.addRow(t("hack_dialog.panel_monster.cooldown.label", "クールダウン:"), self.spin_pm)
             pmf.addRow(self.chk_pm_bullet_speed_fix)
-            pmf.addRow("修正後の速度:", self.combo_pm_bullet_speed_fix)
-            phint = QLabel(f"判定: {pm_region} / 原作 クールダウン192F。"
-                           "値を小さくすると連射化します。下限32F。"
-                           "短すぎる値は複数パネル面で17個のsub-slotを使い切りやすく、"
-                           "発射失敗や弾抜けの原因になります。")
-            phint.setText(phint.text() + " 弾の左右速度バグ修正は共有Bullet速度テーブルを補正するため、バレットを使う敵すべてに影響します。")
+            pmf.addRow(t("hack_dialog.panel_monster.fixed_speed.label", "修正後の速度:"), self.combo_pm_bullet_speed_fix)
+            phint = QLabel(t(
+                "hack_dialog.panel_monster.hint",
+                "判定: {region} / 原作 クールダウン192F。"
+                "値を小さくすると連射化します。下限32F。"
+                "短すぎる値は複数パネル面で17個のsub-slotを使い切りやすく、"
+                "発射失敗や弾抜けの原因になります。"
+                " 弾の左右速度バグ修正は共有Bullet速度テーブルを補正するため、バレットを使う敵すべてに影響します。",
+            ).format(region=pm_region))
             phint.setWordWrap(True)
             phint.setStyleSheet("color:#888; font-size:11px;")
             pmf.addRow(phint)
@@ -571,8 +580,11 @@ class HackDialog(QDialog):
             self.combo_pm_bullet_speed_fix.setEnabled(False)
 
         pv_note = QLabel(
-            "A/B/Cパネルモンスターはステージ別ではなく、全ステージ共通の固定値を使います。"
-            "既存ステージデータ内の旧A/B/C個別値は読み込み互換のみで、保存時には使いません。"
+            t(
+                "hack_dialog.panel_variant.note",
+                "A/B/Cパネルモンスターはステージ別ではなく、全ステージ共通の固定値を使います。"
+                "既存ステージデータ内の旧A/B/C個別値は読み込み互換のみで、保存時には使いません。",
+            )
         )
         pv_note.setWordWrap(True)
         pv_note.setStyleSheet("color:#888; font-size:11px;")
@@ -594,16 +606,16 @@ class HackDialog(QDialog):
             spin.setRange(1, 255)
             spin.setSuffix(" F")
             spin.setValue(pv_settings[f"{key}_interval"])
-            row_layout.addWidget(QLabel("速度"))
+            row_layout.addWidget(QLabel(t("hack_dialog.panel_variant.speed", "速度")))
             row_layout.addWidget(combo, 1)
-            row_layout.addWidget(QLabel("間隔"))
+            row_layout.addWidget(QLabel(t("hack_dialog.panel_variant.interval", "間隔")))
             row_layout.addWidget(spin, 1)
             pmf.addRow(f"Panel {label}:", row)
             self._panel_variant_controls[key] = (combo, spin)
         layout.addWidget(pm_group)
 
         # ====== デモプレイのステージ ======
-        ds_group = QGroupBox("デモプレイのステージ")
+        ds_group = QGroupBox(t("hack_dialog.group.demo_stage", "デモプレイのステージ"))
         ds_group.setProperty("settings_category", "基本")
         dsf = QFormLayout(ds_group)
         self._ds_ok = False
@@ -613,7 +625,7 @@ class HackDialog(QDialog):
             self._ds_ok = True
         except demo_stage_hack.DemoStageHackError as e:
             cur_stage = None
-            note = QLabel(f"⚠ 無効: {str(e).splitlines()[0]}")
+            note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             dsf.addRow(note)
@@ -621,15 +633,17 @@ class HackDialog(QDialog):
         self.spin_ds = QSpinBox()
         self.spin_ds.setRange(demo_stage_hack.MIN_STAGE,
                               demo_stage_hack.MAX_STAGE)
-        self.spin_ds.setSuffix(" 面")
+        self.spin_ds.setSuffix(t("hack_dialog.stage.suffix", " 面"))
         if self._ds_ok:
             self.spin_ds.setValue(cur_stage or 3)
-            dsf.addRow("デモの面:", self.spin_ds)
-            dhint = QLabel(
-                f"判定: {ds_region} / 原作の既定は3面。"
+            dsf.addRow(t("hack_dialog.demo_stage.label", "デモの面:"), self.spin_ds)
+            dhint = QLabel(t(
+                "hack_dialog.demo_stage.hint",
+                "判定: {region} / 原作の既定は3面。"
                 "3面以上のみ(内部のX連鎖制約)。録画入力は3面用なので"
                 "別面ではDanaが録画通り動く=見た目で別面と分かる。"
-                "正規プレイには影響なし。")
+                "正規プレイには影響なし。",
+            ).format(region=ds_region))
             dhint.setWordWrap(True)
             dhint.setStyleSheet("color:#888; font-size:11px;")
             dsf.addRow(dhint)
@@ -638,7 +652,7 @@ class HackDialog(QDialog):
         layout.addWidget(ds_group)
 
         # ====== ゴーレム ======
-        golem_group = QGroupBox("ゴーレム")
+        golem_group = QGroupBox(t("hack_dialog.group.golem", "ゴーレム"))
         golem_group.setProperty("settings_category", "敵・AI")
         glf = QFormLayout(golem_group)
         _setup_enemy_group(self, golem_group, glf, 50, (0x70, 0x74))
@@ -647,13 +661,13 @@ class HackDialog(QDialog):
             golem_hack.detect_region(rom.data)
             self._golem_ok = True
         except golem_hack.GolemHackError as e:
-            note = QLabel(f"⚠ 無効: {str(e).splitlines()[0]}")
+            note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             glf.addRow(note)
 
         self.chk_golem_snappy = QCheckBox(
-            "キビキビ動作（視認→即反応・方向転換・移動再開、隙を最小化）")
+            t("hack_dialog.golem.snappy", "キビキビ動作（視認→即反応・方向転換・移動再開、隙を最小化）"))
         if self._golem_ok:
             self.chk_golem_snappy.setChecked(golem_hack.is_snappy(rom.data))
             glf.addRow(self.chk_golem_snappy)
@@ -662,7 +676,7 @@ class HackDialog(QDialog):
         layout.addWidget(golem_group)
 
         # ====== 共通歩行速度 ======
-        shared_speed_group = QGroupBox("ゴーレム/ドラゴン/ガーゴイル歩行速度")
+        shared_speed_group = QGroupBox(t("hack_dialog.group.shared_walk", "ゴーレム/ドラゴン/ガーゴイル歩行速度"))
         shared_speed_group.setProperty("settings_category", "敵・AI")
         ssf = QFormLayout(shared_speed_group)
         _setup_enemy_group(self, shared_speed_group, ssf, 55, (0x70, 0x68, 0x78))
@@ -672,12 +686,12 @@ class HackDialog(QDialog):
             golem_speed.verify(rom.data)
             self._golem_spd_ok = True
         except golem_speed.GolemSpeedError as e:
-            note = QLabel(f"⚠ 無効: {str(e).splitlines()[0]}")
+            note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             ssf.addRow(note)
         for m in golem_speed.MULTIPLIERS:
-            lab = f"{m:g}x" + ("（原作）" if abs(m - 1.0) < 1e-6 else "")
+            lab = f"{m:g}x" + (t("hack_dialog.original_suffix", "（原作）") if abs(m - 1.0) < 1e-6 else "")
             self.combo_shared_walk.addItem(lab, m)
 
         if self._golem_spd_ok:
@@ -686,9 +700,12 @@ class HackDialog(QDialog):
                 if abs(self.combo_shared_walk.itemData(i) - csw) < 0.01:
                     self.combo_shared_walk.setCurrentIndex(i)
                     break
-            ssf.addRow("歩行速度:", self.combo_shared_walk)
-            sshint = QLabel("Golem/Dragon/Gargoyle の s0 通常歩行が同じ速度で連動します。"
-                            "ゴーレム専用の歩行速度・突進速度は混乱を避けるため一旦表示しません。")
+            ssf.addRow(t("hack_dialog.shared_walk.label", "歩行速度:"), self.combo_shared_walk)
+            sshint = QLabel(t(
+                "hack_dialog.shared_walk.hint",
+                "Golem/Dragon/Gargoyle の s0 通常歩行が同じ速度で連動します。"
+                "ゴーレム専用の歩行速度・突進速度は混乱を避けるため一旦表示しません。",
+            ))
             sshint.setWordWrap(True)
             sshint.setStyleSheet("color:#888; font-size:11px;")
             ssf.addRow(sshint)
@@ -697,7 +714,7 @@ class HackDialog(QDialog):
         layout.addWidget(shared_speed_group)
 
         # ====== ゴースト＆ヌエル移動速度 ======
-        ng_speed_group = QGroupBox("ゴースト＆ヌエル移動速度")
+        ng_speed_group = QGroupBox(t("hack_dialog.group.neul_ghost_speed", "ゴースト＆ヌエル移動速度"))
         ng_speed_group.setProperty("settings_category", "敵・AI")
         ngf = QFormLayout(ng_speed_group)
         _setup_enemy_group(self, ng_speed_group, ngf, 30, (0x34, 0x30))
@@ -707,12 +724,12 @@ class HackDialog(QDialog):
             neul_ghost_speed.verify(rom.data)
             self._neul_ghost_spd_ok = True
         except neul_ghost_speed.NeulGhostSpeedError as e:
-            note = QLabel(f"⚠ 無効: {str(e).splitlines()[0]}")
+            note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             ngf.addRow(note)
         for m in neul_ghost_speed.MULTIPLIERS:
-            lab = f"{m:g}x" + ("（原作）" if abs(m - 1.0) < 1e-6 else "")
+            lab = f"{m:g}x" + (t("hack_dialog.original_suffix", "（原作）") if abs(m - 1.0) < 1e-6 else "")
             self.combo_neul_ghost_speed.addItem(lab, m)
         if self._neul_ghost_spd_ok:
             cur_ng = neul_ghost_speed.current_multiplier(rom.data)
@@ -720,10 +737,13 @@ class HackDialog(QDialog):
                 if abs(self.combo_neul_ghost_speed.itemData(i) - cur_ng) < 0.01:
                     self.combo_neul_ghost_speed.setCurrentIndex(i)
                     break
-            ngf.addRow("移動速度:", self.combo_neul_ghost_speed)
+            ngf.addRow(t("hack_dialog.move_speed.label", "移動速度:"), self.combo_neul_ghost_speed)
             nghint = QLabel(
-                "GhostはX方向、NeulはY方向の速度を変更します。"
-                "SP1/SP2と通常/noslow版がまとめて同じ倍率で変わります。")
+                t(
+                    "hack_dialog.neul_ghost_speed.hint",
+                    "GhostはX方向、NeulはY方向の速度を変更します。"
+                    "SP1/SP2と通常/noslow版がまとめて同じ倍率で変わります。",
+                ))
             nghint.setWordWrap(True)
             nghint.setStyleSheet("color:#888; font-size:11px;")
             ngf.addRow(nghint)
@@ -732,7 +752,7 @@ class HackDialog(QDialog):
         layout.addWidget(ng_speed_group)
 
         # ====== スパークボール移動速度 ======
-        sb_speed_group = QGroupBox("スパークボール移動速度")
+        sb_speed_group = QGroupBox(t("hack_dialog.group.spark_ball_speed", "スパークボール移動速度"))
         sb_speed_group.setProperty("settings_category", "敵・AI")
         sbf = QFormLayout(sb_speed_group)
         _setup_enemy_group(self, sb_speed_group, sbf, 40, (0x28, 0x6A, 0x72))
@@ -742,12 +762,12 @@ class HackDialog(QDialog):
             spark_ball_speed.verify(rom.data)
             self._spark_ball_spd_ok = True
         except spark_ball_speed.SparkBallSpeedError as e:
-            note = QLabel(f"笞 辟｡蜉ｹ: {str(e).splitlines()[0]}")
+            note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             sbf.addRow(note)
         for m in spark_ball_speed.MULTIPLIERS:
-            lab = f"{m:g}x" + (" (原作)" if abs(m - 1.0) < 1e-6 else "")
+            lab = f"{m:g}x" + (t("hack_dialog.original_suffix", "（原作）") if abs(m - 1.0) < 1e-6 else "")
             self.combo_spark_ball_speed.addItem(lab, m)
         if self._spark_ball_spd_ok:
             cur_sb = spark_ball_speed.current_multiplier(rom.data)
@@ -755,10 +775,13 @@ class HackDialog(QDialog):
                 if abs(self.combo_spark_ball_speed.itemData(i) - cur_sb) < 0.01:
                     self.combo_spark_ball_speed.setCurrentIndex(i)
                     break
-            sbf.addRow("移動速度:", self.combo_spark_ball_speed)
+            sbf.addRow(t("hack_dialog.move_speed.label", "移動速度:"), self.combo_spark_ball_speed)
             sbhint = QLabel(
-                "Spark Ball専用の $A9DF/$A9E7 移動差分テーブルを倍率変更します。"
-                "通常スパークボールと強化スパークボール(6A/6B/6E/6F)の両方に効きます。")
+                t(
+                    "hack_dialog.spark_ball_speed.hint",
+                    "Spark Ball専用の $A9DF/$A9E7 移動差分テーブルを倍率変更します。"
+                    "通常スパークボールと強化スパークボール(6A/6B/6E/6F)の両方に効きます。",
+                ))
             sbhint.setWordWrap(True)
             sbhint.setStyleSheet("color:#888; font-size:11px;")
             sbf.addRow(sbhint)
@@ -767,7 +790,7 @@ class HackDialog(QDialog):
         layout.addWidget(sb_speed_group)
 
         # ====== 強化スパークボール ======
-        sb_variant_group = QGroupBox("強化スパークボール")
+        sb_variant_group = QGroupBox(t("hack_dialog.group.spark_ball_variant", "強化スパークボール"))
         sb_variant_group.setProperty("settings_category", "敵・AI")
         sbvf = QFormLayout(sb_variant_group)
         _setup_enemy_group(self, sb_variant_group, sbvf, 41, (0x6A, 0x72))
@@ -781,7 +804,7 @@ class HackDialog(QDialog):
         except spark_ball_variant.SparkBallVariantError as e:
             pause_digits = set(spark_ball_variant.DEFAULT_PAUSE_DIGITS)
             transparency_period = spark_ball_variant.DEFAULT_TRANSPARENCY_PERIOD
-            note = QLabel(f"無効: {str(e).splitlines()[0]}")
+            note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             sbvf.addRow(note)
@@ -794,24 +817,27 @@ class HackDialog(QDialog):
             chk.setEnabled(self._spark_ball_variant_ok)
             self.chk_spark_pause_digits.append(chk)
             digit_grid.addWidget(chk, digit // 5, digit % 5)
-        sbvf.addRow("停止するLIFE百の位:", digit_grid)
+        sbvf.addRow(t("hack_dialog.spark_ball_variant.pause_digits.label", "停止するLIFE百の位:"), digit_grid)
 
         for value in spark_ball_variant.TRANSPARENCY_PERIODS:
             self.combo_spark_transparency.addItem(f"${value:02X}", value)
         self._set_combo_data(self.combo_spark_transparency, transparency_period)
         self.combo_spark_transparency.setEnabled(self._spark_ball_variant_ok)
-        sbvf.addRow("透明化周期:", self.combo_spark_transparency)
+        sbvf.addRow(t("hack_dialog.spark_ball_variant.transparency.label", "透明化周期:"), self.combo_spark_transparency)
 
         sbvhint = QLabel(
-            "停止型(6A/6B/6E/6F)は選択したLIFE百の位で停止します。"
-            "透明型(72/73/76/77)はフレームカウンタのANDマスクで透明化周期を変えます。")
+            t(
+                "hack_dialog.spark_ball_variant.hint",
+                "停止型(6A/6B/6E/6F)は選択したLIFE百の位で停止します。"
+                "透明型(72/73/76/77)はフレームカウンタのANDマスクで透明化周期を変えます。",
+            ))
         sbvhint.setWordWrap(True)
         sbvhint.setStyleSheet("color:#888; font-size:11px;")
         sbvf.addRow(sbvhint)
         layout.addWidget(sb_variant_group)
 
         # ====== デーモンヘッド ======
-        demonhead_group = QGroupBox("デーモンヘッド")
+        demonhead_group = QGroupBox(t("hack_dialog.group.demonhead", "デーモンヘッド"))
         demonhead_group.setProperty("settings_category", "敵・AI")
         dhf = QFormLayout(demonhead_group)
         _setup_enemy_group(self, demonhead_group, dhf, 20, (0x50, 0x54, 0x58))
@@ -820,16 +846,16 @@ class HackDialog(QDialog):
             demonhead_hack.current_wait(rom.data)
             self._demonhead_ok = True
         except demonhead_hack.DemonheadHackError as e:
-            note = QLabel(f"笞 辟｡蜉ｹ: {str(e).splitlines()[0]}")
+            note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             dhf.addRow(note)
-        self.chk_demonhead_snappy = QCheckBox("キビキビ動作（反転後の溜めを最小化）")
+        self.chk_demonhead_snappy = QCheckBox(t("hack_dialog.demonhead.snappy", "キビキビ動作（反転後の溜めを最小化）"))
         if self._demonhead_ok:
             self.chk_demonhead_snappy.setChecked(
                 demonhead_hack.is_snappy(rom.data))
             dhf.addRow(self.chk_demonhead_snappy)
-            dhhint = QLabel("Demonheadが増殖/反転した直後の待ち $0F を $01 にします。")
+            dhhint = QLabel(t("hack_dialog.demonhead.hint", "Demonheadが増殖/反転した直後の待ち $0F を $01 にします。"))
             dhhint.setWordWrap(True)
             dhhint.setStyleSheet("color:#888; font-size:11px;")
             dhf.addRow(dhhint)
@@ -838,7 +864,7 @@ class HackDialog(QDialog):
         layout.addWidget(demonhead_group)
 
         # ====== ガーゴイル ======
-        gargoyle_group = QGroupBox("ガーゴイル")
+        gargoyle_group = QGroupBox(t("hack_dialog.group.gargoyle", "ガーゴイル"))
         gargoyle_group.setProperty("settings_category", "敵・AI")
         gyf = QFormLayout(gargoyle_group)
         _setup_enemy_group(self, gargoyle_group, gyf, 70, (0x78, 0x7C))
@@ -847,29 +873,35 @@ class HackDialog(QDialog):
             gargoyle_hack.detect_region(rom.data)
             self._gargoyle_ok = True
         except gargoyle_hack.GargoyleHackError as e:
-            note = QLabel(f"⚠ 無効: {str(e).splitlines()[0]}")
+            note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             gyf.addRow(note)
 
         self.chk_gargoyle_snappy = QCheckBox(
-            "キビキビ動作（検知後・発射直前・復帰待ちを最小化）")
+            t("hack_dialog.gargoyle.snappy", "キビキビ動作（検知後・発射直前・復帰待ちを最小化）"))
         self.spin_gargoyle_cooldown = QSpinBox()
         self.spin_gargoyle_cooldown.setRange(
             gargoyle_hack.COOLDOWN_MIN, gargoyle_hack.COOLDOWN_MAX)
-        self.spin_gargoyle_cooldown.setSuffix(" フレーム")
+        self.spin_gargoyle_cooldown.setSuffix(t("hack_dialog.frame.suffix", " フレーム"))
         self.spin_gargoyle_cooldown.setToolTip(
-            "発射後に通常行動へ戻るまでの待ち。原作は80F。"
-            "1F化は危険なので下限を設けています。")
+            t(
+                "hack_dialog.gargoyle.cooldown.tooltip",
+                "発射後に通常行動へ戻るまでの待ち。原作は80F。"
+                "1F化は危険なので下限を設けています。",
+            ))
         if self._gargoyle_ok:
             self.chk_gargoyle_snappy.setChecked(
                 gargoyle_hack.is_snappy(rom.data))
             self.spin_gargoyle_cooldown.setValue(
                 gargoyle_hack.current_cooldown(rom.data))
             gyf.addRow(self.chk_gargoyle_snappy)
-            gyf.addRow("発射後クールダウン:", self.spin_gargoyle_cooldown)
-            ghint = QLabel("ONでガーゴイル固有の待ち3箇所を$01にします。"
-                           "弾の2発化とは別軸で併用できます。")
+            gyf.addRow(t("hack_dialog.gargoyle.cooldown.label", "発射後クールダウン:"), self.spin_gargoyle_cooldown)
+            ghint = QLabel(t(
+                "hack_dialog.gargoyle.hint",
+                "ONでガーゴイル固有の待ち3箇所を$01にします。"
+                "弾の2発化とは別軸で併用できます。",
+            ))
             ghint.setWordWrap(True)
             ghint.setStyleSheet("color:#888; font-size:11px;")
             gyf.addRow(ghint)
@@ -879,7 +911,7 @@ class HackDialog(QDialog):
         layout.addWidget(gargoyle_group)
 
         # ====== 強化ガーゴイル ======
-        gargoyle_variant_group = QGroupBox("強化ガーゴイル")
+        gargoyle_variant_group = QGroupBox(t("hack_dialog.group.gargoyle_variant", "強化ガーゴイル"))
         gargoyle_variant_group.setProperty("settings_category", "敵・AI")
         gvf = QFormLayout(gargoyle_variant_group)
         _setup_enemy_group(self, gargoyle_variant_group, gvf, 71, (0x7A, 0x7E))
@@ -890,28 +922,31 @@ class HackDialog(QDialog):
             self._gargoyle_variant_ok = True
         except gargoyle_variant.GargoyleVariantError as e:
             cur_gv_offset = gargoyle_variant.DEFAULT_SECOND_OFFSET
-            note = QLabel(f"無効: {str(e).splitlines()[0]}")
+            note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             gvf.addRow(note)
 
         for value in gargoyle_variant.SECOND_OFFSET_PRESETS:
-            label = f"{value}px" + ("（標準）" if value == gargoyle_variant.DEFAULT_SECOND_OFFSET else "")
+            label = f"{value}px" + (t("hack_dialog.standard_suffix", "（標準）") if value == gargoyle_variant.DEFAULT_SECOND_OFFSET else "")
             self.combo_gargoyle_variant_offset.addItem(label, value)
         self._set_combo_data(self.combo_gargoyle_variant_offset, cur_gv_offset)
         self.combo_gargoyle_variant_offset.setEnabled(self._gargoyle_variant_ok)
-        gvf.addRow("2発目の位置:", self.combo_gargoyle_variant_offset)
+        gvf.addRow(t("hack_dialog.gargoyle_variant.offset.label", "2発目の位置:"), self.combo_gargoyle_variant_offset)
 
         gvhint = QLabel(
-            "強化ガーゴイル(7A/7B/7E/7F)の2発目だけを調整します。"
-            "1発目は原作の弾生成処理をそのまま使います。")
+            t(
+                "hack_dialog.gargoyle_variant.hint",
+                "強化ガーゴイル(7A/7B/7E/7F)の2発目だけを調整します。"
+                "1発目は原作の弾生成処理をそのまま使います。",
+            ))
         gvhint.setWordWrap(True)
         gvhint.setStyleSheet("color:#888; font-size:11px;")
         gvf.addRow(gvhint)
         layout.addWidget(gargoyle_variant_group)
 
         # ====== ドラゴン ======
-        dragon_group = QGroupBox("ドラゴン")
+        dragon_group = QGroupBox(t("hack_dialog.group.dragon", "ドラゴン"))
         dragon_group.setProperty("settings_category", "敵・AI")
         drf = QFormLayout(dragon_group)
         _setup_enemy_group(self, dragon_group, drf, 60, (0x68, 0x6C))
@@ -920,19 +955,22 @@ class HackDialog(QDialog):
             dragon_hack.detect_region(rom.data)
             self._dragon_ok = True
         except dragon_hack.DragonHackError as e:
-            note = QLabel(f"⚠ 無効: {str(e).splitlines()[0]}")
+            note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             drf.addRow(note)
 
         self.chk_dragon_snappy = QCheckBox(
-            "キビキビ動作（攻撃前の待ちを最小化）")
+            t("hack_dialog.dragon.snappy", "キビキビ動作（攻撃前の待ちを最小化）"))
         if self._dragon_ok:
             self.chk_dragon_snappy.setChecked(
                 dragon_hack.is_snappy(rom.data))
             drf.addRow(self.chk_dragon_snappy)
-            dhint = QLabel("ONでドラゴン固有の攻撃前待ち1箇所を$01にします。"
-                           "サラマンダー共有の火吐き開始waitは変更しません。")
+            dhint = QLabel(t(
+                "hack_dialog.dragon.hint",
+                "ONでドラゴン固有の攻撃前待ち1箇所を$01にします。"
+                "サラマンダー共有の火吐き開始waitは変更しません。",
+            ))
             dhint.setWordWrap(True)
             dhint.setStyleSheet("color:#888; font-size:11px;")
             drf.addRow(dhint)
@@ -941,7 +979,7 @@ class HackDialog(QDialog):
         layout.addWidget(dragon_group)
 
         # クリア画面 (THANK YOU DANA) のキャラ差し替え
-        cs_group = QGroupBox("クリア画面のキャラ (おめでとう画面の2体)")
+        cs_group = QGroupBox(t("hack_dialog.group.clear_screen_char", "クリア画面のキャラ (おめでとう画面の2体)"))
         cs_group.setProperty("settings_category", "画面・演出")
         csf = QFormLayout(cs_group)
         self.combo_clearscreen = QComboBox()
@@ -955,10 +993,13 @@ class HackDialog(QDialog):
         except Exception:
             self._cs_ok = False
             self.combo_clearscreen.setEnabled(False)
-        csf.addRow("表示キャラ:", self.combo_clearscreen)
+        csf.addRow(t("hack_dialog.clear_screen_char.label", "表示キャラ:"), self.combo_clearscreen)
         cshint = QLabel(
-            "ステージクリア画面で左右に出る2体を差し替え。"
-            "全プリセットは速度ゼロ=落下せず置物表示 (ROM解析確定)。")
+            t(
+                "hack_dialog.clear_screen_char.hint",
+                "ステージクリア画面で左右に出る2体を差し替え。"
+                "全プリセットは速度ゼロ=落下せず置物表示 (ROM解析確定)。",
+            ))
         cshint.setWordWrap(True)
         cshint.setStyleSheet("color:#888; font-size:11px;")
         csf.addRow(cshint)
@@ -966,15 +1007,18 @@ class HackDialog(QDialog):
         cs_group.setVisible(False)
 
         # ステージ外枠
-        frame_group = QGroupBox("ステージ外枠")
+        frame_group = QGroupBox(t("hack_dialog.group.stage_frame", "ステージ外枠"))
         frame_group.setProperty("settings_category", "画面・演出")
         frame_f = QVBoxLayout(frame_group)
         self.chk_stage_frame_white = QCheckBox(
-            "ゲーム画面の外枠を白ブロック柄にする")
+            t("hack_dialog.stage_frame.checkbox", "ゲーム画面の外枠を白ブロック柄にする"))
         self.chk_stage_frame_white.setToolTip(
-            "ステージ外枠テーブルを外枠用白ブロック反復へ変更し、"
-            "4つのCHRバンクすべてで対応CHRを白ブロック柄へ差し替えます。\n"
-            "境界セル$F8や衝突判定、ステージデータ形式は変更しません。")
+            t(
+                "hack_dialog.stage_frame.tooltip",
+                "ステージ外枠テーブルを外枠用白ブロック反復へ変更し、"
+                "4つのCHRバンクすべてで対応CHRを白ブロック柄へ差し替えます。\n"
+                "境界セル$F8や衝突判定、ステージデータ形式は変更しません。",
+            ))
         self._stage_frame_ok = False
         base_region = (
             self.rom.base_region()
@@ -991,29 +1035,35 @@ class HackDialog(QDialog):
             self.chk_stage_frame_white.setEnabled(False)
         frame_f.addWidget(self.chk_stage_frame_white)
         frame_hint = QLabel(
-            "ONにすると保存ROM/テストプレイROMの左右・下外枠が白ブロック柄になります。"
-            "OFFに戻して適用すると外枠テーブルとハードコード済み原作CHRを復元します。")
+            t(
+                "hack_dialog.stage_frame.hint",
+                "ONにすると保存ROM/テストプレイROMの左右・下外枠が白ブロック柄になります。"
+                "OFFに戻して適用すると外枠テーブルとハードコード済み原作CHRを復元します。",
+            ))
         if state == "unknown":
             frame_hint.setText(
-                "外枠タイル列またはCHRが既知値と一致しないため、このROMでは変更を無効化しています。")
+                t("hack_dialog.stage_frame.unknown", "外枠タイル列またはCHRが既知値と一致しないため、このROMでは変更を無効化しています。"))
         elif not stage_frame.is_supported_region(base_region):
-            frame_hint.setText("日本版ベースROM専用です。")
+            frame_hint.setText(t("hack_dialog.jp_base_only", "日本版ベースROM専用です。"))
         frame_hint.setWordWrap(True)
         frame_hint.setStyleSheet("color:#888; font-size:11px;")
         frame_f.addWidget(frame_hint)
         layout.addWidget(frame_group)
 
         # 原作バグ回避: 落下中の横穴侵入を安定化 (グローバル)
-        gf_group = QGroupBox("原作バグ回避")
+        gf_group = QGroupBox(t("hack_dialog.group.gap_fix", "原作バグ回避"))
         gf_group.setProperty("settings_category", "保守・特殊")
         gff = QVBoxLayout(gf_group)
         self.chk_gapfix = QCheckBox(
-            "落下中の横穴侵入を安定化（運ゲー解消・左右対応）")
+            t("hack_dialog.gap_fix.checkbox", "落下中の横穴侵入を安定化（運ゲー解消・左右対応）"))
         self.chk_gapfix.setToolTip(
-            "上から落ちながら左/右で横穴に入れる時と入れない時がある"
-            "原作の挙動(サブピクセル位相依存)を解消し、毎回入れるように\n"
-            "します。横穴がある時だけ作用し通常の壁・歩行・着地は原作"
-            "どおり(副作用なし、実機確認済)。Mesen解析 asm R182")
+            t(
+                "hack_dialog.gap_fix.tooltip",
+                "上から落ちながら左/右で横穴に入れる時と入れない時がある"
+                "原作の挙動(サブピクセル位相依存)を解消し、毎回入れるように\n"
+                "します。横穴がある時だけ作用し通常の壁・歩行・着地は原作"
+                "どおり(副作用なし、実機確認済)。Mesen解析 asm R182",
+            ))
         try:
             self.chk_gapfix.setChecked(gap_fix.is_applied(self.rom.data))
             self._gapfix_ok = True
@@ -1022,8 +1072,11 @@ class HackDialog(QDialog):
             self.chk_gapfix.setEnabled(False)
         gff.addWidget(self.chk_gapfix)
         gfhint = QLabel(
-            "ソロモンの鍵 積年の謎「横穴に入れる/入れないが運任せ」を"
-            "機構解明し回避。詳細 docs/gap_entry_mechanism.html")
+            t(
+                "hack_dialog.gap_fix.hint",
+                "ソロモンの鍵 積年の謎「横穴に入れる/入れないが運任せ」を"
+                "機構解明し回避。詳細 docs/gap_entry_mechanism.html",
+            ))
         gfhint.setWordWrap(True)
         gfhint.setStyleSheet("color:#888; font-size:11px;")
         gff.addWidget(gfhint)
@@ -1031,15 +1084,15 @@ class HackDialog(QDialog):
 
         # 暗闇テンポ (全体共通)。どの面を暗闇にするかは
         # 「レベル設定」パネルの『この画面を暗闇にする』(部屋別)。
-        dk_group = QGroupBox("暗闇テンポ (全体共通・必ず明から開始)")
+        dk_group = QGroupBox(t("hack_dialog.group.dark_tempo", "暗闇テンポ (全体共通・必ず明から開始)"))
         dk_group.setProperty("settings_category", "画面・演出")
         dkf = QFormLayout(dk_group)
         self.spin_dark_light = QSpinBox()
         self.spin_dark_light.setRange(1, 200)
-        self.spin_dark_light.setSuffix(" フレーム")
+        self.spin_dark_light.setSuffix(t("hack_dialog.frame.suffix", " フレーム"))
         self.spin_dark_dark = QSpinBox()
         self.spin_dark_dark.setRange(1, 240)
-        self.spin_dark_dark.setSuffix(" フレーム")
+        self.spin_dark_dark.setSuffix(t("hack_dialog.frame.suffix", " フレーム"))
         try:
             lf, df = room_flags.get_tempo(self.rom.data)
             self.spin_dark_light.setValue(lf)
@@ -1049,11 +1102,14 @@ class HackDialog(QDialog):
             self._dark_tempo_ok = False
             self.spin_dark_light.setEnabled(False)
             self.spin_dark_dark.setEnabled(False)
-        dkf.addRow("明るい (見える):", self.spin_dark_light)
-        dkf.addRow("暗い (見えない):", self.spin_dark_dark)
+        dkf.addRow(t("hack_dialog.dark_tempo.light.label", "明るい (見える):"), self.spin_dark_light)
+        dkf.addRow(t("hack_dialog.dark_tempo.dark.label", "暗い (見えない):"), self.spin_dark_dark)
         dkhint = QLabel(
-            "60フレーム≒1秒。既定: 明45/暗100。"
-            "暗闇面を1つでも設定して保存すると有効。")
+            t(
+                "hack_dialog.dark_tempo.hint",
+                "60フレーム≒1秒。既定: 明45/暗100。"
+                "暗闇面を1つでも設定して保存すると有効。",
+            ))
         dkhint.setWordWrap(True)
         dkhint.setStyleSheet("color:#888; font-size:11px;")
         dkf.addRow(dkhint)
@@ -1217,8 +1273,8 @@ class HackDialog(QDialog):
             sender.blockSignals(False)
         QMessageBox.information(
             self,
-            "強化スパークボール",
-            "停止するLIFE百の位は最大4個までです。",
+            t("hack_dialog.group.spark_ball_variant", "強化スパークボール"),
+            t("hack_dialog.spark_ball_variant.max_digits", "停止するLIFE百の位は最大4個までです。"),
         )
 
     def _mark_parent_dirty(self, log_message: str):
@@ -1255,7 +1311,7 @@ class HackDialog(QDialog):
             return
         dlg.exec_()
         if bytes(self.rom.data[o:o + n]) != before:
-            self._mark_parent_dirty("敵ドロップ効果表 $C293 書換")
+            self._mark_parent_dirty(t("hack_dialog.log.enemy_drop_changed", "敵ドロップ効果表 $C293 書換"))
 
     def _on_show_demo_input(self):
         from .demo_input_dialog import DemoInputDialog, format_demo_input_error
@@ -1278,7 +1334,7 @@ class HackDialog(QDialog):
             return
         dlg.exec_()
         if bytes(self.rom.data[o0:o1]) != before:
-            self._mark_parent_dirty("デモ操作データ ($CF9A/$CFBC) 書換")
+            self._mark_parent_dirty(t("hack_dialog.log.demo_input_changed", "デモ操作データ ($CF9A/$CFBC) 書換"))
 
     def _on_show_clear_message(self):
         from .clear_message_dialog import ClearMessageDialog, format_clear_message_error
@@ -1303,7 +1359,7 @@ class HackDialog(QDialog):
             return
         dlg.exec_()
         if bytes(self.rom.data[o0:o1]) != before:
-            self._mark_parent_dirty("クリア画面メッセージ ($94DB/$94ED/$9507) 書換")
+            self._mark_parent_dirty(t("hack_dialog.log.clear_message_changed", "クリア画面メッセージ ($94DB/$94ED/$9507) 書換"))
 
     def _on_show_special_process(self):
         from .special_process_dialog import SpecialProcessDialog
@@ -1331,12 +1387,12 @@ class HackDialog(QDialog):
     def _format_time_rate_estimate(self, value: int) -> str:
         seconds = time_decrease_hack.estimate_total_seconds(value)
         if seconds is None:
-            return "目安: 減らない"
+            return t("hack_dialog.time_estimate.never", "目安: 減らない")
         total = int(round(seconds))
         minutes, sec = divmod(total, 60)
         if minutes:
-            return f"目安: 約{minutes}分{sec:02d}秒"
-        return f"目安: 約{sec}秒"
+            return t("hack_dialog.time_estimate.minutes", "目安: 約{minutes}分{seconds:02d}秒").format(minutes=minutes, seconds=sec)
+        return t("hack_dialog.time_estimate.seconds", "目安: 約{seconds}秒").format(seconds=sec)
 
     def _update_time_rate_estimates(self):
         if hasattr(self, "lbl_time_fast_est"):
@@ -1517,7 +1573,10 @@ class HackDialog(QDialog):
                 new_pos = self._nearest_solomon_seal_clear_air(level, new_level_no, old_pos, no)
             if new_pos is None:
                 raise solomon_seal_stage.SolomonSealStageError(
-                    f"封印{no + 1}: {new_level_no + 1}面に配置可能な空気マスがありません。"
+                    t(
+                        "hack_dialog.solomon_seal.no_clear_air",
+                        "封印{seal}: {stage}面に配置可能な空気マスがありません。",
+                    ).format(seal=no + 1, stage=new_level_no + 1)
                 )
             relocations.append({
                 "meta": mi,
@@ -1543,8 +1602,15 @@ class HackDialog(QDialog):
                 rom_data[rom_offset] = byte_from_position(mi.position)
             if item.get("relocated"):
                 notes.append(
-                    f"封印{int(item['no']) + 1}: {int(item['new_level_no']) + 1}面 "
-                    f"{tuple(item['old_pos'])} -> {tuple(item['new_pos'])}"
+                    t(
+                        "hack_dialog.solomon_seal.relocation_note",
+                        "封印{seal}: {stage}面 {old_pos} -> {new_pos}",
+                    ).format(
+                        seal=int(item["no"]) + 1,
+                        stage=int(item["new_level_no"]) + 1,
+                        old_pos=tuple(item["old_pos"]),
+                        new_pos=tuple(item["new_pos"]),
+                    )
                 )
         return notes
 
@@ -1689,7 +1755,7 @@ class HackDialog(QDialog):
                 combo.blockSignals(True)
                 combo.clear()
                 for stage_no in valid_choices:
-                    combo.addItem(f"{stage_no}面", stage_no)
+                    combo.addItem(t("hack_dialog.stage.option", "{stage}面").format(stage=stage_no), stage_no)
                 idx = combo.findData(old_value)
                 combo.setCurrentIndex(idx if idx >= 0 else 0)
                 combo.blockSignals(False)
@@ -1900,22 +1966,22 @@ class HackDialog(QDialog):
             if self._panel_variant_settings_from_ui() != old:
                 changed.append(label)
 
-        set_spin("start_stage", self.spin_stage, "開始ステージ")
-        set_spin("continue_max_stage", self.spin_continue, "コンティニュー上限")
+        set_spin("start_stage", self.spin_stage, t("hack_dialog.setting.start_stage", "開始ステージ"))
+        set_spin("continue_max_stage", self.spin_continue, t("hack_dialog.setting.continue_limit", "コンティニュー上限"))
         if has("final_stage_redirect_after_stage"):
             if self._set_final_stage_redirect_stage_no(settings["final_stage_redirect_after_stage"]):
-                changed.append("最終面への移行")
-        set_spin("warp_feather_steps", self.spin_warp_feather, "ワープ羽")
-        set_spin("initial_magic_max", self.spin_initial_magic_max, "初期魔法 最大数")
+                changed.append(t("hack_dialog.setting.final_stage_redirect", "最終面への移行"))
+        set_spin("warp_feather_steps", self.spin_warp_feather, t("hack_dialog.setting.warp_feather", "ワープ羽"))
+        set_spin("initial_magic_max", self.spin_initial_magic_max, t("hack_dialog.setting.initial_magic_max", "初期魔法 最大数"))
         if has("initial_magic_pattern") and self.edit_initial_magic.isEnabled():
             old = self.edit_initial_magic.text()
             self.edit_initial_magic.setText(str(settings["initial_magic_pattern"]))
             if self.edit_initial_magic.text() != old:
-                changed.append("初期魔法 初期所持")
-        set_spin("initial_lives", self.spin_initial_lives, "初期残数")
-        set_spin("time_rate_fast", self.spin_time_fast, "ステージ制限時間 速い")
-        set_spin("time_rate_normal", self.spin_time_normal, "ステージ制限時間 普通")
-        set_spin("time_rate_slow", self.spin_time_slow, "ステージ制限時間 遅い")
+                changed.append(t("hack_dialog.setting.initial_magic_pattern", "初期魔法 初期所持"))
+        set_spin("initial_lives", self.spin_initial_lives, t("hack_dialog.setting.initial_lives", "初期残数"))
+        set_spin("time_rate_fast", self.spin_time_fast, t("hack_dialog.setting.time_fast", "ステージ制限時間 速い"))
+        set_spin("time_rate_normal", self.spin_time_normal, t("hack_dialog.setting.time_normal", "ステージ制限時間 普通"))
+        set_spin("time_rate_slow", self.spin_time_slow, t("hack_dialog.setting.time_slow", "ステージ制限時間 遅い"))
         if has("solomon_seal_stages") and getattr(self, "_seal_stage_ok", False):
             values = solomon_seal_stage.validate_stages(settings["solomon_seal_stages"])
             old = self._selected_solomon_seal_stages()
@@ -1924,7 +1990,7 @@ class HackDialog(QDialog):
                 if idx >= 0:
                     combo.setCurrentIndex(idx)
             if self._selected_solomon_seal_stages() != old:
-                changed.append("ソロモンの封印 出現面")
+                changed.append(t("hack_dialog.setting.solomon_seal_stage", "ソロモンの封印 出現面"))
                 self._sync_parent_solomon_seal_stages(values)
         if has("wall_colors_1_48"):
             values = settings["wall_colors_1_48"]
@@ -1937,7 +2003,7 @@ class HackDialog(QDialog):
             else:
                 wall_changed = wall_color_hack.apply(self.rom.data, values)
                 if wall_changed:
-                    changed.append("ステージ壁色")
+                    changed.append(t("hack_dialog.setting.wall_color", "ステージ壁色"))
                     self._sync_parent_wall_color()
         if has("main_palette_hex"):
             values = settings["main_palette_hex"]
@@ -1947,7 +2013,7 @@ class HackDialog(QDialog):
             new = self._parse_hex_bytes(values, 32, "main_palette_hex")
             if new != old:
                 self.rom.data[0x0ED4:0x0ED4 + 32] = new
-                changed.append("メインパレット")
+                changed.append(t("hack_dialog.setting.main_palette", "メインパレット"))
         if has("demo_input_wait_hex"):
             values = settings["demo_input_wait_hex"]
             if not isinstance(values, str):
@@ -1956,7 +2022,7 @@ class HackDialog(QDialog):
             new = self._parse_hex_bytes(values, demo_input.STEPS, "demo_input_wait_hex")
             if new != old:
                 self.rom.data[demo_input.OFF_WAIT:demo_input.OFF_WAIT + demo_input.STEPS] = new
-                changed.append("デモ操作 wait")
+                changed.append(t("hack_dialog.setting.demo_wait", "デモ操作 wait"))
         if has("demo_input_joy_hex"):
             values = settings["demo_input_joy_hex"]
             if not isinstance(values, str):
@@ -1965,7 +2031,7 @@ class HackDialog(QDialog):
             new = self._parse_hex_bytes(values, demo_input.STEPS, "demo_input_joy_hex")
             if new != old:
                 self.rom.data[demo_input.OFF_JOY:demo_input.OFF_JOY + demo_input.STEPS] = new
-                changed.append("デモ操作 joy")
+                changed.append(t("hack_dialog.setting.demo_joy", "デモ操作 joy"))
         if has("enemy_drop_c278_hex"):
             values = settings["enemy_drop_c278_hex"]
             if not isinstance(values, str):
@@ -1974,7 +2040,7 @@ class HackDialog(QDialog):
             new = self._parse_hex_bytes(values, enemy_drop.LEN_C278, "enemy_drop_c278_hex")
             if new != old:
                 self.rom.data[enemy_drop.OFF_C278:enemy_drop.OFF_C278 + enemy_drop.LEN_C278] = new
-                changed.append("敵ドロップ C278")
+                changed.append(t("hack_dialog.setting.enemy_drop_c278", "敵ドロップ C278"))
         if has("enemy_drop_c293_hex"):
             values = settings["enemy_drop_c293_hex"]
             if not isinstance(values, str):
@@ -1983,7 +2049,7 @@ class HackDialog(QDialog):
             new = self._parse_hex_bytes(values, enemy_drop.LEN_C293, "enemy_drop_c293_hex")
             if new != old:
                 self.rom.data[enemy_drop.OFF_C293:enemy_drop.OFF_C293 + enemy_drop.LEN_C293] = new
-                changed.append("敵ドロップ C293")
+                changed.append(t("hack_dialog.setting.enemy_drop_c293", "敵ドロップ C293"))
         if has("clear_message_hex"):
             start = clear_message.MESSAGES[0]["off"]
             end = clear_message.MESSAGES[-1]["off"] + 3 + clear_message.MESSAGES[-1]["count"] + 1
@@ -1994,7 +2060,7 @@ class HackDialog(QDialog):
             new = self._parse_hex_bytes(values, end - start, "clear_message_hex")
             if new != old:
                 self.rom.data[start:end] = new
-                changed.append("クリア画面メッセージ")
+                changed.append(t("hack_dialog.setting.clear_message", "クリア画面メッセージ"))
         bonus_changed = False
         if has("bonus_stage_pos_hex"):
             pos_addr, _item_addr = self._bonus_stage_offsets()
@@ -2005,7 +2071,7 @@ class HackDialog(QDialog):
             new = self._parse_hex_bytes(values, 32, "bonus_stage_pos_hex")
             if new != old:
                 self.rom.data[pos_addr:pos_addr + 32] = new
-                changed.append("ボーナスステージ配置")
+                changed.append(t("hack_dialog.setting.bonus_positions", "ボーナスステージ配置"))
                 bonus_changed = True
         if has("bonus_stage_items_hex"):
             _pos_addr, item_addr = self._bonus_stage_offsets()
@@ -2016,41 +2082,41 @@ class HackDialog(QDialog):
             new = self._parse_hex_bytes(values, 16, "bonus_stage_items_hex")
             if new != old:
                 self.rom.data[item_addr:item_addr + 16] = new
-                changed.append("ボーナスステージアイテム")
+                changed.append(t("hack_dialog.setting.bonus_items", "ボーナスステージアイテム"))
                 bonus_changed = True
         if bonus_changed:
             self._sync_parent_bonus_stage()
         if has("level_meta_positions"):
             meta_changed = self._apply_level_meta_positions(settings["level_meta_positions"])
             for name in meta_changed:
-                changed.append(f"メタ項目座標: {name}")
-        set_combo("walk_speed_multiplier", self.combo_walk, "ダーナ歩行速度")
+                changed.append(t("hack_dialog.setting.meta_position", "メタ項目座標: {name}").format(name=name))
+        set_combo("walk_speed_multiplier", self.combo_walk, t("hack_dialog.setting.walk_speed", "ダーナ歩行速度"))
 
-        set_spin("panel_monster_cooldown_frames", self.spin_pm, "パネルモンスター クールダウン")
-        set_check("panel_bullet_speed_fix_enabled", self.chk_pm_bullet_speed_fix, "パネルモンスター 弾の左右速度バグ修正")
-        set_combo("panel_bullet_speed_fix_value", self.combo_pm_bullet_speed_fix, "パネルモンスター 弾速度")
-        set_panel_variant_settings("panel_variant_settings", "パネルモンスター A/B/C共通値")
-        set_spin("demo_stage", self.spin_ds, "デモステージ")
-        set_check("golem_snappy", self.chk_golem_snappy, "ゴーレム キビキビ")
-        set_check("gargoyle_snappy", self.chk_gargoyle_snappy, "ガーゴイル キビキビ")
-        set_spin("gargoyle_cooldown_frames", self.spin_gargoyle_cooldown, "ガーゴイル クールダウン")
-        set_combo("gargoyle_variant_second_offset", self.combo_gargoyle_variant_offset, "強化ガーゴイル 2発目位置")
-        set_check("dragon_snappy", self.chk_dragon_snappy, "ドラゴン キビキビ")
-        set_combo("shared_monster_walk_multiplier", self.combo_shared_walk, "共通歩行速度")
-        set_combo("neul_ghost_speed_multiplier", self.combo_neul_ghost_speed, "ゴースト＆ヌエル移動速度")
-        set_combo("spark_ball_speed_multiplier", self.combo_spark_ball_speed, "スパークボール移動速度")
-        set_spark_pause_digits("spark_ball_pause_digits", "強化スパークボール停止")
-        set_combo("spark_ball_transparency_period", self.combo_spark_transparency, "強化スパークボール透明化")
-        set_check("demonhead_snappy", self.chk_demonhead_snappy, "デーモンヘッド キビキビ")
+        set_spin("panel_monster_cooldown_frames", self.spin_pm, t("hack_dialog.setting.panel_cooldown", "パネルモンスター クールダウン"))
+        set_check("panel_bullet_speed_fix_enabled", self.chk_pm_bullet_speed_fix, t("hack_dialog.setting.panel_bullet_fix", "パネルモンスター 弾の左右速度バグ修正"))
+        set_combo("panel_bullet_speed_fix_value", self.combo_pm_bullet_speed_fix, t("hack_dialog.setting.panel_bullet_speed", "パネルモンスター 弾速度"))
+        set_panel_variant_settings("panel_variant_settings", t("hack_dialog.setting.panel_variant", "パネルモンスター A/B/C共通値"))
+        set_spin("demo_stage", self.spin_ds, t("hack_dialog.setting.demo_stage", "デモステージ"))
+        set_check("golem_snappy", self.chk_golem_snappy, t("hack_dialog.setting.golem_snappy", "ゴーレム キビキビ"))
+        set_check("gargoyle_snappy", self.chk_gargoyle_snappy, t("hack_dialog.setting.gargoyle_snappy", "ガーゴイル キビキビ"))
+        set_spin("gargoyle_cooldown_frames", self.spin_gargoyle_cooldown, t("hack_dialog.setting.gargoyle_cooldown", "ガーゴイル クールダウン"))
+        set_combo("gargoyle_variant_second_offset", self.combo_gargoyle_variant_offset, t("hack_dialog.setting.gargoyle_variant_offset", "強化ガーゴイル 2発目位置"))
+        set_check("dragon_snappy", self.chk_dragon_snappy, t("hack_dialog.setting.dragon_snappy", "ドラゴン キビキビ"))
+        set_combo("shared_monster_walk_multiplier", self.combo_shared_walk, t("hack_dialog.setting.shared_walk", "共通歩行速度"))
+        set_combo("neul_ghost_speed_multiplier", self.combo_neul_ghost_speed, t("hack_dialog.setting.neul_ghost_speed", "ゴースト＆ヌエル移動速度"))
+        set_combo("spark_ball_speed_multiplier", self.combo_spark_ball_speed, t("hack_dialog.setting.spark_ball_speed", "スパークボール移動速度"))
+        set_spark_pause_digits("spark_ball_pause_digits", t("hack_dialog.setting.spark_ball_pause", "強化スパークボール停止"))
+        set_combo("spark_ball_transparency_period", self.combo_spark_transparency, t("hack_dialog.setting.spark_ball_transparency", "強化スパークボール透明化"))
+        set_check("demonhead_snappy", self.chk_demonhead_snappy, t("hack_dialog.setting.demonhead_snappy", "デーモンヘッド キビキビ"))
         if has("clear_screen_preset") and self.combo_clearscreen.isEnabled():
             old = self.combo_clearscreen.currentIndex()
             self._set_combo_data(self.combo_clearscreen, str(settings["clear_screen_preset"]))
             if self.combo_clearscreen.currentIndex() != old:
-                changed.append("クリア画面キャラ")
-        set_check("stage_frame_white_enabled", self.chk_stage_frame_white, "ステージ外枠")
-        set_check("gap_fix_enabled", self.chk_gapfix, "横穴侵入安定化")
-        set_spin("dark_light_frames", self.spin_dark_light, "暗闇 明フレーム")
-        set_spin("dark_dark_frames", self.spin_dark_dark, "暗闇 暗フレーム")
+                changed.append(t("hack_dialog.setting.clear_screen_char", "クリア画面キャラ"))
+        set_check("stage_frame_white_enabled", self.chk_stage_frame_white, t("hack_dialog.setting.stage_frame", "ステージ外枠"))
+        set_check("gap_fix_enabled", self.chk_gapfix, t("hack_dialog.setting.gap_fix", "横穴侵入安定化"))
+        set_spin("dark_light_frames", self.spin_dark_light, t("hack_dialog.setting.dark_light", "暗闇 明フレーム"))
+        set_spin("dark_dark_frames", self.spin_dark_dark, t("hack_dialog.setting.dark_dark", "暗闇 暗フレーム"))
         return changed
 
     def _on_export_global_settings(self):
@@ -2136,7 +2202,7 @@ class HackDialog(QDialog):
         )
         if changed:
             msg += t("hack_dialog.import.changed_header", "\n\n変更された項目:\n")
-            msg += "\n".join(f"・{x}" for x in changed)
+            msg += "\n".join(t("common.bullet_item", "・{item}").format(item=x) for x in changed)
         else:
             msg += t("hack_dialog.import.no_changes", "\n\n現在の画面値と同じ内容でした。")
         if "level_meta_positions" in settings:
@@ -2193,7 +2259,7 @@ class HackDialog(QDialog):
         if stage_no == 1:
             if d[0x1145] != 0x00:
                 d[0x1145] = 0x00
-                applied.append("開始ステージ → 1面")
+                applied.append(t("hack_dialog.applied.start_stage.default", "開始ステージ → 1面"))
             if d[0x1149] != 0x8D:
                 d[0x1149] = 0x8D
             if d[0x114B] != 0x04:
@@ -2202,7 +2268,7 @@ class HackDialog(QDialog):
             stage_byte = (stage_no - 1) & 0xff
             if d[0x1145] != stage_byte:
                 d[0x1145] = stage_byte
-                applied.append(f"開始ステージ → {stage_no}面")
+                applied.append(t("hack_dialog.applied.start_stage", "開始ステージ → {stage}面").format(stage=stage_no))
             if d[0x1149] != 0xAD:
                 d[0x1149] = 0xAD
             if d[0x114B] != 0x93:
@@ -2212,17 +2278,20 @@ class HackDialog(QDialog):
         new_cont = (self.spin_continue.value() - 1) & 0xff
         if self._continue_offset < len(d) and d[self._continue_offset] != new_cont:
             d[self._continue_offset] = new_cont
-            applied.append(f"コンティニュー上限 → {self.spin_continue.value()}")
+            applied.append(t("hack_dialog.applied.continue_limit", "コンティニュー上限 → {stage}").format(stage=self.spin_continue.value()))
 
         if self._apply_final_stage_redirect_setting():
             selected = int(self.combo_final_stage_redirect.currentData())
             if selected < 0:
                 applied.append(
-                    f"最終ステージ → {DEFAULT_FINAL_STAGE_REDIRECT_STAGE_NO}面をクリアした後（原作）"
+                    t(
+                        "hack_dialog.applied.final_stage.original",
+                        "最終ステージ → {stage}面をクリアした後（原作）",
+                    ).format(stage=DEFAULT_FINAL_STAGE_REDIRECT_STAGE_NO)
                 )
             else:
-                applied.append(f"最終ステージ → {selected + 1}面をクリアした後")
-            self._mark_parent_dirty("最終ステージ設定を変更")
+                applied.append(t("hack_dialog.applied.final_stage", "最終ステージ → {stage}面をクリアした後").format(stage=selected + 1))
+            self._mark_parent_dirty(t("hack_dialog.log.final_stage_changed", "最終ステージ設定を変更"))
 
         # ワープ羽
         if getattr(self, "_warp_feather_ok", False):
@@ -2230,7 +2299,7 @@ class HackDialog(QDialog):
                 applied.extend(
                     warp_feather.apply(d, self.spin_warp_feather.value()))
             except warp_feather.WarpFeatherError as e:
-                QMessageBox.warning(self, "ワープ羽 設定失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.warp_feather", "ワープ羽 設定失敗"), str(e))
 
         # ソロモンの封印 出現面
         if getattr(self, "_seal_stage_ok", False):
@@ -2240,12 +2309,12 @@ class HackDialog(QDialog):
                 seal_changes = solomon_seal_stage.apply(d, self.rom.region, stages)
                 if seal_changes:
                     relocation_notes = self._apply_solomon_seal_stage_relocations(seal_relocations, d)
-                    applied.append("ソロモンの封印 出現面: " + " / ".join(seal_changes))
+                    applied.append(t("hack_dialog.applied.solomon_seal_stage", "ソロモンの封印 出現面: {changes}").format(changes=" / ".join(seal_changes)))
                     if relocation_notes:
-                        applied.append("ソロモンの封印 位置補正: " + " / ".join(relocation_notes))
+                        applied.append(t("hack_dialog.applied.solomon_seal_relocation", "ソロモンの封印 位置補正: {changes}").format(changes=" / ".join(relocation_notes)))
                     self._sync_parent_solomon_seal_stages(stages)
             except solomon_seal_stage.SolomonSealStageError as e:
-                QMessageBox.warning(self, "ソロモンの封印 出現面 設定失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.solomon_seal_stage", "ソロモンの封印 出現面 設定失敗"), str(e))
                 return False
 
         # 初期魔法 (共通)
@@ -2257,9 +2326,9 @@ class HackDialog(QDialog):
                 imch = initial_magic.apply(
                     d, self.spin_initial_magic_max.value(), pattern)
                 if imch:
-                    applied.append("初期魔法: " + " / ".join(imch))
+                    applied.append(t("hack_dialog.applied.initial_magic", "初期魔法: {changes}").format(changes=" / ".join(imch)))
             except initial_magic.InitialMagicError as e:
-                QMessageBox.warning(self, "初期魔法 設定失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.initial_magic", "初期魔法 設定失敗"), str(e))
 
         # 初期残数
         if getattr(self, "_initial_lives_ok", False):
@@ -2267,9 +2336,9 @@ class HackDialog(QDialog):
                 lvch = initial_lives.apply(
                     d, self.spin_initial_lives.value())
                 if lvch:
-                    applied.append("初期残数: " + " / ".join(lvch))
+                    applied.append(t("hack_dialog.applied.initial_lives", "初期残数: {changes}").format(changes=" / ".join(lvch)))
             except initial_lives.InitialLivesError as e:
-                QMessageBox.warning(self, "初期残数 設定失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.initial_lives", "初期残数 設定失敗"), str(e))
 
         # ステージ制限時間
         if getattr(self, "_time_rate_ok", False):
@@ -2283,9 +2352,9 @@ class HackDialog(QDialog):
                     ),
                 )
                 if tch:
-                    applied.append("ステージ制限時間: " + " / ".join(tch))
+                    applied.append(t("hack_dialog.applied.time_decrease", "ステージ制限時間: {changes}").format(changes=" / ".join(tch)))
             except time_decrease_hack.TimeDecreaseHackError as e:
-                QMessageBox.warning(self, "ステージ制限時間 設定失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.time_decrease", "ステージ制限時間 設定失敗"), str(e))
 
         # ステージ壁色 (1-48面)
         if getattr(self, "_wall_color_ok", False):
@@ -2293,9 +2362,9 @@ class HackDialog(QDialog):
                 wch = wall_color_hack.apply(
                     d, [self._combo_data(c) for c in self.combo_wall_colors])
                 if wch:
-                    applied.append("ステージ壁色: " + " / ".join(wch))
+                    applied.append(t("hack_dialog.applied.wall_color", "ステージ壁色: {changes}").format(changes=" / ".join(wch)))
             except wall_color_hack.WallColorHackError as e:
-                QMessageBox.warning(self, "ステージ壁色 設定失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.wall_color", "ステージ壁色 設定失敗"), str(e))
 
         # ダーナ歩行速度
         if self._walk_ok:
@@ -2303,9 +2372,9 @@ class HackDialog(QDialog):
             try:
                 changed = walk_speed.apply_multiplier(d, mult)
                 if changed:
-                    applied.append(f"歩行速度 → {mult:g}x ({'/'.join(changed)})")
+                    applied.append(t("hack_dialog.applied.walk_speed", "歩行速度 → {mult:g}x ({changes})").format(mult=mult, changes="/".join(changed)))
             except walk_speed.WalkSpeedError as e:
-                QMessageBox.warning(self, "歩行速度の改造失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.walk_speed", "歩行速度の改造失敗"), str(e))
 
         # Saramandor #2 reaction range is handled by saramandor_variant.
         # Do not rewrite the shared stock Saramandor/Dragon distance bytes.
@@ -2322,29 +2391,29 @@ class HackDialog(QDialog):
                         self._combo_data(self.combo_pm_bullet_speed_fix),
                     ))
                 if pch:
-                    applied.append("パネルモンスター: " + " / ".join(pch))
+                    applied.append(t("hack_dialog.applied.panel_monster", "パネルモンスター: {changes}").format(changes=" / ".join(pch)))
             except panel_monster_hack.PanelMonsterHackError as e:
-                QMessageBox.warning(self, "パネルモンスター改造失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.panel_monster", "パネルモンスター改造失敗"), str(e))
             except panel_bullet_speed_fix.PanelBulletSpeedFixError as e:
-                QMessageBox.warning(self, "パネルモンスター弾速度修正失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.panel_bullet_speed", "パネルモンスター弾速度修正失敗"), str(e))
 
         # デモプレイのステージ
         if self._ds_ok:
             try:
                 dch = demo_stage_hack.apply(d, self.spin_ds.value())
                 if dch:
-                    applied.append("デモプレイ: " + " / ".join(dch))
+                    applied.append(t("hack_dialog.applied.demo_stage", "デモプレイ: {changes}").format(changes=" / ".join(dch)))
             except demo_stage_hack.DemoStageHackError as e:
-                QMessageBox.warning(self, "デモステージ改造失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.demo_stage", "デモステージ改造失敗"), str(e))
 
         # ゴーレム キビキビ
         if self._golem_ok:
             try:
                 gch = golem_hack.apply(d, self.chk_golem_snappy.isChecked())
                 if gch:
-                    applied.append("ゴーレム: " + " / ".join(gch))
+                    applied.append(t("hack_dialog.applied.golem", "ゴーレム: {changes}").format(changes=" / ".join(gch)))
             except golem_hack.GolemHackError as e:
-                QMessageBox.warning(self, "ゴーレム改造失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.golem", "ゴーレム改造失敗"), str(e))
 
         # ガーゴイル キビキビ
         if self._gargoyle_ok:
@@ -2355,9 +2424,9 @@ class HackDialog(QDialog):
                     d, self.spin_gargoyle_cooldown.value())
                 gych.extend(cdch)
                 if gych:
-                    applied.append("ガーゴイル: " + " / ".join(gych))
+                    applied.append(t("hack_dialog.applied.gargoyle", "ガーゴイル: {changes}").format(changes=" / ".join(gych)))
             except gargoyle_hack.GargoyleHackError as e:
-                QMessageBox.warning(self, "ガーゴイル改造失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.gargoyle", "ガーゴイル改造失敗"), str(e))
 
         # 強化ガーゴイル
         if getattr(self, "_gargoyle_variant_ok", False):
@@ -2374,9 +2443,9 @@ class HackDialog(QDialog):
                         second_speed=gargoyle_variant.DEFAULT_SECOND_SPEED,
                     )
                     if gvch:
-                        applied.append("強化ガーゴイル: " + " / ".join(gvch))
+                        applied.append(t("hack_dialog.applied.gargoyle_variant", "強化ガーゴイル: {changes}").format(changes=" / ".join(gvch)))
             except gargoyle_variant.GargoyleVariantError as e:
-                QMessageBox.warning(self, "強化ガーゴイル設定失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.gargoyle_variant", "強化ガーゴイル設定失敗"), str(e))
                 return
 
         # ドラゴン キビキビ
@@ -2385,9 +2454,9 @@ class HackDialog(QDialog):
                 drch = dragon_hack.apply(
                     d, self.chk_dragon_snappy.isChecked())
                 if drch:
-                    applied.append("ドラゴン: " + " / ".join(drch))
+                    applied.append(t("hack_dialog.applied.dragon", "ドラゴン: {changes}").format(changes=" / ".join(drch)))
             except dragon_hack.DragonHackError as e:
-                QMessageBox.warning(self, "ドラゴン改造失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.dragon", "ドラゴン改造失敗"), str(e))
 
         # 共通歩行速度 (Golem/Dragon/Gargoyle s0)
         if self._golem_spd_ok:
@@ -2395,9 +2464,9 @@ class HackDialog(QDialog):
                 gsch = golem_speed.apply_shared_walk(
                     d, self.combo_shared_walk.currentData())
                 if gsch:
-                    applied.append("共通歩行速度: " + " / ".join(gsch))
+                    applied.append(t("hack_dialog.applied.shared_walk", "共通歩行速度: {changes}").format(changes=" / ".join(gsch)))
             except golem_speed.GolemSpeedError as e:
-                QMessageBox.warning(self, "共通歩行速度改造失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.shared_walk", "共通歩行速度改造失敗"), str(e))
 
         # ゴースト＆ヌエル移動速度
         if self._neul_ghost_spd_ok:
@@ -2405,9 +2474,9 @@ class HackDialog(QDialog):
                 ngch = neul_ghost_speed.apply(
                     d, self.combo_neul_ghost_speed.currentData())
                 if ngch:
-                    applied.append("ゴースト＆ヌエル: " + " / ".join(ngch))
+                    applied.append(t("hack_dialog.applied.neul_ghost", "ゴースト＆ヌエル: {changes}").format(changes=" / ".join(ngch)))
             except neul_ghost_speed.NeulGhostSpeedError as e:
-                QMessageBox.warning(self, "ゴースト＆ヌエル速度改造失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.neul_ghost", "ゴースト＆ヌエル速度改造失敗"), str(e))
 
         # スパークボール移動速度
         if self._spark_ball_spd_ok:
@@ -2415,9 +2484,9 @@ class HackDialog(QDialog):
                 sbch = spark_ball_speed.apply(
                     d, self.combo_spark_ball_speed.currentData())
                 if sbch:
-                    applied.append("スパークボール: " + " / ".join(sbch))
+                    applied.append(t("hack_dialog.applied.spark_ball", "スパークボール: {changes}").format(changes=" / ".join(sbch)))
             except spark_ball_speed.SparkBallSpeedError as e:
-                QMessageBox.warning(self, "スパークボール速度改造失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.spark_ball", "スパークボール速度改造失敗"), str(e))
 
         # 強化スパークボール
         if getattr(self, "_spark_ball_variant_ok", False):
@@ -2429,9 +2498,9 @@ class HackDialog(QDialog):
                     transparency_period=self.combo_spark_transparency.currentData(),
                 )
                 if sbvch:
-                    applied.append("強化スパークボール: " + " / ".join(sbvch))
+                    applied.append(t("hack_dialog.applied.spark_ball_variant", "強化スパークボール: {changes}").format(changes=" / ".join(sbvch)))
             except spark_ball_variant.SparkBallVariantError as e:
-                QMessageBox.warning(self, "強化スパークボール設定失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.spark_ball_variant", "強化スパークボール設定失敗"), str(e))
                 return
 
         # デーモンヘッド キビキビ
@@ -2440,9 +2509,9 @@ class HackDialog(QDialog):
                 dhch = demonhead_hack.apply(
                     d, self.chk_demonhead_snappy.isChecked())
                 if dhch:
-                    applied.append("デーモンヘッド: " + " / ".join(dhch))
+                    applied.append(t("hack_dialog.applied.demonhead", "デーモンヘッド: {changes}").format(changes=" / ".join(dhch)))
             except demonhead_hack.DemonheadHackError as e:
-                QMessageBox.warning(self, "デーモンヘッド改造失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.demonhead", "デーモンヘッド改造失敗"), str(e))
 
         if getattr(self, "_cs_ok", False):
             preset_id = self._combo_data(self.combo_clearscreen)
@@ -2451,9 +2520,9 @@ class HackDialog(QDialog):
             if preset_id != cur:
                 try:
                     clearscreen_hack.apply_preset(d, preset_id)
-                    applied.append(f"クリア画面キャラ → {name}")
+                    applied.append(t("hack_dialog.applied.clear_screen_char", "クリア画面キャラ → {name}").format(name=name))
                 except clearscreen_hack.ClearScreenHackError as e:
-                    QMessageBox.warning(self, "クリア画面改造失敗", str(e))
+                    QMessageBox.warning(self, t("hack_dialog.error.clear_screen", "クリア画面改造失敗"), str(e))
 
         # ステージ外枠
         if getattr(self, "_stage_frame_ok", False):
@@ -2461,9 +2530,9 @@ class HackDialog(QDialog):
             try:
                 sfch = stage_frame.apply(d, want, self.rom.base_region())
                 if sfch:
-                    applied.append("ステージ外枠: " + " / ".join(sfch))
+                    applied.append(t("hack_dialog.applied.stage_frame", "ステージ外枠: {changes}").format(changes=" / ".join(sfch)))
             except stage_frame.StageFrameError as e:
-                QMessageBox.warning(self, "ステージ外枠 設定失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.stage_frame", "ステージ外枠 設定失敗"), str(e))
 
         # 原作バグ回避: 横穴侵入安定化
         if getattr(self, "_gapfix_ok", False):
@@ -2473,9 +2542,9 @@ class HackDialog(QDialog):
                     gch = gap_fix.apply(d, want)
                     if gch:
                         applied.append(
-                            "横穴侵入安定化 " + ("ON" if want else "OFF"))
+                            t("hack_dialog.applied.gap_fix", "横穴侵入安定化 {state}").format(state=("ON" if want else "OFF")))
             except gap_fix.GapFixError as e:
-                QMessageBox.warning(self, "横穴侵入安定化 失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.gap_fix", "横穴侵入安定化 失敗"), str(e))
 
         # 暗闇テンポ (全体共通)
         if getattr(self, "_dark_tempo_ok", False):
@@ -2484,9 +2553,9 @@ class HackDialog(QDialog):
             try:
                 if (lf, df) != room_flags.get_tempo(d):
                     room_flags.set_tempo(d, lf, df)
-                    applied.append(f"暗闇テンポ → 明{lf}/暗{df}フレーム")
+                    applied.append(t("hack_dialog.applied.dark_tempo", "暗闇テンポ → 明{light}/暗{dark}フレーム").format(light=lf, dark=df))
             except room_flags.RoomFlagError as e:
-                QMessageBox.warning(self, "暗闇テンポ設定 失敗", str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.dark_tempo", "暗闇テンポ設定 失敗"), str(e))
 
         panel_variant_settings = self._panel_variant_settings_from_ui()
         if self._app_config is not None:
@@ -2500,14 +2569,14 @@ class HackDialog(QDialog):
                     save_config(self._app_config)
                 except Exception:
                     pass
-                applied.append("パネルモンスター A/B/C共通値")
+                applied.append(t("hack_dialog.setting.panel_variant", "パネルモンスター A/B/C共通値"))
 
         if applied:
             QMessageBox.information(
                 self,
                 t("hack_dialog.apply.complete.title", "適用完了"),
                 t("hack_dialog.apply.complete.header", "以下の項目を変更しました:\n\n")
-                + "\n".join(f"・{a}" for a in applied)
+                + "\n".join(t("common.bullet_item", "・{item}").format(item=a) for a in applied)
                 + t("hack_dialog.apply.complete.footer", "\n\n※ 改造ROMとして保存しないと永続化されません。")
             )
         else:
@@ -2529,10 +2598,14 @@ class HackDialog(QDialog):
 
     def _on_revert(self):
         ans = QMessageBox.question(
-            self, "確認",
-            "このダイアログで設定した項目を全てデフォルト（オリジナル値）に戻します。\n"
-            "適用するには [適用] または [OK] を押してください。\n\n"
-            "続行しますか？",
+            self,
+            t("common.confirm", "確認"),
+            t(
+                "hack_dialog.revert.confirm.body",
+                "このダイアログで設定した項目を全てデフォルト（オリジナル値）に戻します。\n"
+                "適用するには [適用] または [OK] を押してください。\n\n"
+                "続行しますか？",
+            ),
             QMessageBox.Yes | QMessageBox.No
         )
         if ans != QMessageBox.Yes:

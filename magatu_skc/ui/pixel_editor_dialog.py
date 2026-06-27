@@ -750,7 +750,7 @@ class PixelEditorDialog(QDialog):
 
     def _on_canvas_pixel_picked(self, value: int):
         self._set_brush(value)
-        self._refresh_info(f"スポイト: ペン{value}を選択")
+        self._refresh_info(t("pixel.status.eyedropper", "スポイト: ペン{value}を選択").format(value=value))
 
     def _on_canvas_selection_changed(self, start, end):
         del start, end
@@ -766,7 +766,7 @@ class PixelEditorDialog(QDialog):
         previous = self._undo_stack.pop()
         self._redo_stack.append(current)
         self._set_working_pixels(previous)
-        self._refresh_info("元に戻しました。")
+        self._refresh_info(t("pixel.status.undo", "元に戻しました。"))
 
     def _redo(self):
         if not self._redo_stack:
@@ -777,7 +777,7 @@ class PixelEditorDialog(QDialog):
         if len(self._undo_stack) > self._history_limit:
             del self._undo_stack[0]
         self._set_working_pixels(next_pixels)
-        self._refresh_info("やり直しました。")
+        self._refresh_info(t("pixel.status.redo", "やり直しました。"))
 
     def _selection_or_full_bounds(self) -> tuple[int, int, int, int]:
         bounds = self.canvas.selection_bounds()
@@ -790,7 +790,7 @@ class PixelEditorDialog(QDialog):
         new_pixels = self._copy_pixels(self._pixels)
         for y in range(y1, y2 + 1):
             new_pixels[y][x1:x2 + 1] = reversed(new_pixels[y][x1:x2 + 1])
-        self._commit_pixels(new_pixels, "左右反転しました。", clear_selection=False)
+        self._commit_pixels(new_pixels, t("pixel.status.flip_h", "左右反転しました。"), clear_selection=False)
 
     def _flip_vertical(self):
         x1, y1, x2, y2 = self._selection_or_full_bounds()
@@ -798,7 +798,7 @@ class PixelEditorDialog(QDialog):
         rows = [new_pixels[y][x1:x2 + 1] for y in range(y1, y2 + 1)]
         for row_offset, row in enumerate(reversed(rows)):
             new_pixels[y1 + row_offset][x1:x2 + 1] = row
-        self._commit_pixels(new_pixels, "上下反転しました。", clear_selection=False)
+        self._commit_pixels(new_pixels, t("pixel.status.flip_v", "上下反転しました。"), clear_selection=False)
 
     def _tile_pair(self, byte_idx: int) -> tuple[int, int]:
         half = 256 if (byte_idx & 1) else 0
@@ -955,7 +955,7 @@ class PixelEditorDialog(QDialog):
     def _clear_pixels(self):
         self._commit_pixels(
             [[0 for _ in range(16)] for _ in range(16)],
-            "クリアしました。",
+            t("pixel.status.clear", "クリアしました。"),
         )
 
     def _nearest_palette_index(self, color: QColor, colors: list[tuple[int, int, int] | None]) -> int:
@@ -1003,7 +1003,7 @@ class PixelEditorDialog(QDialog):
                 else:
                     value = self._nearest_palette_index(qc, colors[0 if x < 8 else 1])
                 new_pixels[y][x] = value & 3
-        self._commit_pixels(new_pixels, "画像を取り込みました。")
+        self._commit_pixels(new_pixels, t("pixel.status.imported", "画像を取り込みました。"))
 
     def _export_png(self):
         path = get_path(
@@ -1047,7 +1047,7 @@ class PixelEditorDialog(QDialog):
         self._loaded_pixels = self._copy_pixels(self._pixels)
         self._changed = True
         self.rom_changed.emit()
-        self._refresh_info("ROMへ書き込みました。")
+        self._refresh_info(t("pixel.status.wrote_rom", "ROMへ書き込みました。"))
 
     def _has_pending_changes(self) -> bool:
         return self._pixels != self._loaded_pixels
@@ -1059,24 +1059,48 @@ class PixelEditorDialog(QDialog):
         right_tiles = self._tile_pair(self._entry.right_tile)
         left_pal, right_pal = self._palette_numbers_for_entry(self._entry)
         refs = self._entry_ref_counts.get(self._entry_key(self._entry), 1)
-        dirty = " / 未書込" if self._has_pending_changes() else ""
+        dirty = t("pixel.info.dirty_suffix", " / 未書込") if self._has_pending_changes() else ""
         selection_text = ""
         if hasattr(self, "canvas"):
             bounds = self.canvas.selection_bounds()
             if bounds is not None:
                 x1, y1, x2, y2 = bounds
                 selection_text = (
-                    f"選択範囲: ({x1},{y1})-({x2},{y2}) "
-                    f"{x2 - x1 + 1}x{y2 - y1 + 1}<br>"
+                    t(
+                        "pixel.info.selection",
+                        "選択範囲: ({x1},{y1})-({x2},{y2}) {width}x{height}<br>",
+                    ).format(
+                        x1=x1,
+                        y1=y1,
+                        x2=x2,
+                        y2=y2,
+                        width=x2 - x1 + 1,
+                        height=y2 - y1 + 1,
+                    )
                 )
         msg = (
             f"CHR bank: {self._chr_bank}<br>"
-            f"左CHR: {left_tiles[0]}, {left_tiles[1]} / "
-            f"右CHR: {right_tiles[0]}, {right_tiles[1]}<br>"
-            f"{selection_text}"
-            f"表示SPRパレット: 左#{left_pal} 右#{right_pal} / "
-            f"attr=${self._entry.attr:02X} / 参照数:{refs}{dirty}<br>"
-            "右クリックまたはペン0で透明色。CHR共有タイルを使う別フレームも同時に見た目が変わります。"
+            + t("pixel.info.chr_pair", "左CHR: {left0}, {left1} / 右CHR: {right0}, {right1}<br>").format(
+                left0=left_tiles[0],
+                left1=left_tiles[1],
+                right0=right_tiles[0],
+                right1=right_tiles[1],
+            )
+            + f"{selection_text}"
+            + t(
+                "pixel.info.palette_attr",
+                "表示SPRパレット: 左#{left_pal} 右#{right_pal} / attr=${attr:02X} / 参照数:{refs}{dirty}<br>",
+            ).format(
+                left_pal=left_pal,
+                right_pal=right_pal,
+                attr=self._entry.attr,
+                refs=refs,
+                dirty=dirty,
+            )
+            + t(
+                "pixel.info.hint",
+                "右クリックまたはペン0で透明色。CHR共有タイルを使う別フレームも同時に見た目が変わります。",
+            )
         )
         if prefix:
             msg = f"<b>{prefix}</b><br>" + msg

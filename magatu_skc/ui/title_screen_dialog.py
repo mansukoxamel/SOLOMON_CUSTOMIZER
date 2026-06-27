@@ -27,6 +27,7 @@ from ..core import clearscreen_hack
 from ..core import clear_message as CM
 from ..core import rom as _rommod
 from ..core.config import save_config
+from ..core.i18n import t
 from ..nes.palette import NES_COLORS
 from ..nes.tile import NesTile, NES_TILE_W, NES_GFX_TILE_BYTE_SIZE
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
@@ -512,7 +513,7 @@ class TitleTileEditorDialog(QDialog):
         body.addWidget(self._canvas, 0, Qt.AlignTop)
 
         side = QVBoxLayout()
-        side.addWidget(QLabel("ペン:"))
+        side.addWidget(QLabel(t("title_screen.tile_editor.pen", "ペン:")))
         brush_row = QHBoxLayout()
         self._brush_group = QButtonGroup(self)
         self._brush_buttons = []
@@ -521,7 +522,10 @@ class TitleTileEditorDialog(QDialog):
             btn.setCheckable(True)
             btn.setMinimumSize(42, 34)
             btn.setToolTip(
-                f"パレットインデックス {idx} で描く。Alt+クリックでスポイト。")
+                t(
+                    "title_screen.tile_editor.brush.tooltip",
+                    "パレットインデックス {index} で描く。Alt+クリックでスポイト。",
+                ).format(index=idx))
             btn.clicked.connect(lambda _checked=False, value=idx: self._set_brush(value))
             self._brush_group.addButton(btn, idx)
             self._brush_buttons.append(btn)
@@ -529,11 +533,16 @@ class TitleTileEditorDialog(QDialog):
         self._brush_buttons[1].setChecked(True)
         side.addLayout(brush_row)
 
-        clear_btn = QPushButton("クリア")
-        clear_btn.setToolTip("8x8タイルをパレットインデックス0で消去")
+        clear_btn = QPushButton(t("common.clear", "クリア"))
+        clear_btn.setToolTip(
+            t(
+                "title_screen.tile_editor.clear.tooltip",
+                "8x8タイルをパレットインデックス0で消去",
+            )
+        )
         clear_btn.clicked.connect(self._clear)
         side.addWidget(clear_btn)
-        reload_btn = QPushButton("開いた時点へ戻す")
+        reload_btn = QPushButton(t("title_screen.revert_initial", "開いた時点へ戻す"))
         reload_btn.clicked.connect(self._restore_initial)
         side.addWidget(reload_btn)
         side.addStretch()
@@ -587,7 +596,7 @@ class TitlePaletteDialog(QDialog):
                  group_select_enabled=False, current_group=0,
                  group_callback=None, live_apply=False):
         super().__init__(parent)
-        self.setWindowTitle("タイトル色編集")
+        self.setWindowTitle(t("title_screen.palette_dialog.title", "タイトル色編集"))
         self._initial_colors = [c & 0x3F for c in colors]
         self._colors = [c & 0x3F for c in colors]
         self._apply_callback = apply_callback
@@ -603,12 +612,16 @@ class TitlePaletteDialog(QDialog):
 
         root = QVBoxLayout(self)
         note = QLabel(
-            "タイトル画面のBGパレット16色を編集します。"
-            "各値はROMに書かれるNES色番号($00-$3F)です。")
+            t(
+                "title_screen.palette_dialog.note",
+                "タイトル画面のBGパレット16色を編集します。"
+                "各値はROMに書かれるNES色番号($00-$3F)です。",
+            )
+        )
         note.setWordWrap(True)
         root.addWidget(note)
 
-        g = QGroupBox("タイトルパレット $3F00-$3F0F")
+        g = QGroupBox(t("title_screen.palette.group", "タイトルパレット $3F00-$3F0F"))
         gl = QGridLayout(g)
         labels = [
             "$3F00", "$3F01", "$3F02", "$3F03",
@@ -617,7 +630,9 @@ class TitlePaletteDialog(QDialog):
             "$3F0C", "$3F0D", "$3F0E", "$3F0F",
         ]
         for group in range(4):
-            rb = QRadioButton(f"パレット {group}")
+            rb = QRadioButton(
+                t("title_screen.palette.index", "パレット {index}").format(index=group)
+            )
             rb.setChecked(group == self._current_group)
             rb.setEnabled(self._group_select_enabled)
             rb.toggled.connect(lambda checked, idx=group: self._select_group(idx, checked))
@@ -699,8 +714,12 @@ class TitlePaletteDialog(QDialog):
                 self._apply_callback(self.colors())
             except Exception as e:
                 QMessageBox.critical(
-                    self, "タイトル色変更不可",
-                    f"タイトルパレットを書き換えられませんでした:\n{type(e).__name__}: {e}")
+                    self,
+                    t("title_screen.palette_panel.change_unavailable", "タイトル色変更不可"),
+                    t(
+                        "title_screen.palette_panel.write_failed",
+                        "タイトルパレットを書き換えられませんでした:\n{error}",
+                    ).format(error=f"{type(e).__name__}: {e}"))
 
     def _on_cancel(self):
         if self._apply_callback is not None:
@@ -773,12 +792,14 @@ class TitleCharacterPickerDialog(QDialog):
         self._rom = rom_data
         self._items = self._dedupe_romframe_items(self._romframe_items())
         self._selected_index = 0
-        self.setWindowTitle("タイトルキャラクター追加")
+        self.setWindowTitle(
+            t("title_screen.character_picker.title", "タイトルキャラクター追加")
+        )
         self.resize(760, 560)
 
         root = QVBoxLayout(self)
         prow = QHBoxLayout()
-        prow.addWidget(QLabel("色:"))
+        prow.addWidget(QLabel(t("title_screen.label.color", "色:")))
         self._palette = QComboBox()
         for i in range(4):
             self._palette.addItem(f"SPR {i}", i)
@@ -794,7 +815,12 @@ class TitleCharacterPickerDialog(QDialog):
         root.addWidget(self._scroll, 1)
 
         note = QLabel(
-            f"一覧をクリックして選択、ダブルクリックで確定。OK後、タイトルプレビューをクリックして配置します。最大 {TS.title_character_max()} 体。")
+            t(
+                "title_screen.character_picker.note",
+                "一覧をクリックして選択、ダブルクリックで確定。OK後、"
+                "タイトルプレビューをクリックして配置します。最大 {max} 体。",
+            ).format(max=TS.title_character_max())
+        )
         note.setWordWrap(True)
         root.addWidget(note)
 
@@ -866,7 +892,9 @@ class TitleCharacterPickerDialog(QDialog):
         old_h = self._scroll.horizontalScrollBar().value() \
             if getattr(self, "_scroll", None) is not None else 0
         if not self._items:
-            lbl = QLabel("ROMフレームが見つかりません。")
+            lbl = QLabel(
+                t("title_screen.character_picker.no_frames", "ROMフレームが見つかりません。")
+            )
             lbl.setAlignment(Qt.AlignCenter)
             self._scroll.setWidget(lbl)
             return
@@ -913,7 +941,11 @@ class TitleCharacterPickerDialog(QDialog):
             return
         g, s, fi, t1, t2, attr = self._items[self._selected_index]
         self._selection_label.setText(
-            f"選択: g{g:02X} s{s:02X} f{fi} / tile ${t1:02X},${t2:02X} attr ${attr:02X}")
+            t(
+                "title_screen.character_picker.selection",
+                "選択: g{group:02X} s{state:02X} f{frame} / "
+                "tile ${tile1:02X},${tile2:02X} attr ${attr:02X}",
+            ).format(group=g, state=s, frame=fi, tile1=t1, tile2=t2, attr=attr))
 
     def _select_index(self, index):
         if not (0 <= int(index) < len(self._items)):
@@ -989,7 +1021,7 @@ class TitlePngColorGuardDialog(QDialog):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("PNG取り込み不可")
+        self.setWindowTitle(t("title_screen.png_guard.title", "PNG取り込み不可"))
         root = QVBoxLayout(self)
         msg = QLabel(str(error))
         msg.setWordWrap(True)
@@ -1000,7 +1032,13 @@ class TitlePngColorGuardDialog(QDialog):
         for i, block in enumerate(error.bad_blocks[:12]):
             bx, by, n, sx, sy = block
             cell = QVBoxLayout()
-            title = QLabel(f"attr ({bx},{by}) / {n}色")
+            title = QLabel(
+                t("title_screen.png_guard.block", "attr ({x},{y}) / {count}色").format(
+                    x=bx,
+                    y=by,
+                    count=n,
+                )
+            )
             cell.addWidget(title)
             preview = QLabel()
             preview.setFixedSize(96, 96)
@@ -1027,7 +1065,7 @@ class TitleScreenDialog(QDialog):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("タイトル画面編集")
+        self.setWindowTitle(t("title_screen_dialog.title", "タイトル画面編集"))
         self._rom = rom_data
         self._app_config = app_config
         # 開いた時点の ROM 全体を退避 (キャンセル復元用)
@@ -1042,17 +1080,20 @@ class TitleScreenDialog(QDialog):
         root.addWidget(tabs, 1)
         title_tab = QWidget()
         title_root = QVBoxLayout(title_tab)
-        tabs.addTab(title_tab, "タイトル")
+        tabs.addTab(title_tab, t("title_screen_dialog.tab.title", "タイトル"))
         head = QLabel(
-            "別 ROM のタイトルを<b>移植</b>します: <b>配置(nametable)"
-            "+色区分(attribute)+絵(CHR bank3)</b> をピース単位で"
-            "コピー。<b>コードは一切改変しません</b>(各版の描画コードが"
-            "自分の位置のデータを読むため US↔JP どちらでも崩れません)。"
-            "<br><b>CRC 一致は不要</b>(既知ピースのコピー、IPSではない)。"
-            "JP/US 自動判定・双方向。下のプレビューは CHR(絵)を"
-            "グレー表示。<br><b>著作権配慮:</b> データはツールに含めず、"
-            "ご自分が所有する ROM 同士でのみ移植します。"
-            "<br>※色(パレット)は v1 では移植先のまま(配置・絵は移植)。")
+            t(
+                "title_screen_dialog.title_tab.info_html",
+                "別 ROM のタイトルを<b>移植</b>します: <b>配置(nametable)"
+                "+色区分(attribute)+絵(CHR bank3)</b> をピース単位で"
+                "コピー。<b>コードは一切改変しません</b>(各版の描画コードが"
+                "自分の位置のデータを読むため US↔JP どちらでも崩れません)。"
+                "<br><b>CRC 一致は不要</b>(既知ピースのコピー、IPSではない)。"
+                "JP/US 自動判定・双方向。下のプレビューは CHR(絵)を"
+                "グレー表示。<br><b>著作権配慮:</b> データはツールに含めず、"
+                "ご自分が所有する ROM 同士でのみ移植します。"
+                "<br>※色(パレット)は v1 では移植先のまま(配置・絵は移植)。",
+            ))
         head.setWordWrap(True)
         title_root.addWidget(head)
 
@@ -1061,7 +1102,7 @@ class TitleScreenDialog(QDialog):
 
         # 倍率
         zr = QHBoxLayout()
-        zr.addWidget(QLabel("表示倍率:"))
+        zr.addWidget(QLabel(t("title_screen_dialog.zoom.label", "表示倍率:")))
         self._zoom = QComboBox()
         for z in (1, 2, 3, 4, 5, 6, 7, 8):
             self._zoom.addItem(f"x{z}", z)
@@ -1077,25 +1118,25 @@ class TitleScreenDialog(QDialog):
         self._zoom.currentIndexChanged.connect(self._refresh)
         zr.addWidget(self._zoom)
         zr.addSpacing(16)
-        zr.addWidget(QLabel("bank内:"))
+        zr.addWidget(QLabel(t("title_screen_dialog.bank_offset.label", "bank内:")))
         self._highlight_tile = HexSpinBox()
         self._highlight_tile.setRange(0x100, 0x1FF)
         self._highlight_tile.setSingleStep(1)
         self._highlight_tile.setValue(0x130)
         self._highlight_tile.setMinimumWidth(98)
         self._highlight_tile.setMinimumHeight(26)
-        self._highlight_tile.setToolTip("指定したCHR bank3内タイルをタイトルプレビュー上でピンク表示")
+        self._highlight_tile.setToolTip(t("title_screen_dialog.highlight_tile.tooltip", "指定したCHR bank3内タイルをタイトルプレビュー上でピンク表示"))
         self._highlight_tile.valueChanged.connect(self._refresh)
         zr.addWidget(self._highlight_tile)
         zr.addSpacing(16)
-        zr.addWidget(QLabel("色グループ表示:"))
+        zr.addWidget(QLabel(t("title_screen_dialog.color_group_overlay.label", "色グループ表示:")))
         self._group_overlay = QComboBox()
-        self._group_overlay.addItem("なし", -1)
+        self._group_overlay.addItem(t("common.none", "なし"), -1)
         for i in range(4):
             self._group_overlay.addItem(str(i), i)
         self._group_overlay.setMinimumWidth(86)
         self._group_overlay.setMinimumHeight(26)
-        self._group_overlay.setToolTip("選択した色グループに属する16x16区画をプレビュー上で表示")
+        self._group_overlay.setToolTip(t("title_screen_dialog.color_group_overlay.tooltip", "選択した色グループに属する16x16区画をプレビュー上で表示"))
         self._group_overlay.currentIndexChanged.connect(self._refresh)
         zr.addWidget(self._group_overlay)
         zr.addSpacing(10)
@@ -1108,14 +1149,14 @@ class TitleScreenDialog(QDialog):
         self._group_to.setMinimumWidth(54)
         self._group_from.setMinimumHeight(26)
         self._group_to.setMinimumHeight(26)
-        self._group_from.setToolTip("一括置換元の色グループ")
-        self._group_to.setToolTip("一括置換先の色グループ")
+        self._group_from.setToolTip(t("title_screen_dialog.color_group_from.tooltip", "一括置換元の色グループ"))
+        self._group_to.setToolTip(t("title_screen_dialog.color_group_to.tooltip", "一括置換先の色グループ"))
         zr.addWidget(self._group_from)
         zr.addWidget(QLabel("→"))
         zr.addWidget(self._group_to)
-        b_group_replace = QPushButton("色G置換")
+        b_group_replace = QPushButton(t("title_screen_dialog.color_group_replace.button", "色G置換"))
         b_group_replace.setMinimumHeight(26)
-        b_group_replace.setToolTip("選択した色グループを使う16x16区画を、別の色グループへ一括変更")
+        b_group_replace.setToolTip(t("title_screen_dialog.color_group_replace.tooltip", "選択した色グループを使う16x16区画を、別の色グループへ一括変更"))
         b_group_replace.clicked.connect(self._on_replace_attr_group)
         zr.addWidget(b_group_replace)
         zr.addStretch()
@@ -1126,7 +1167,7 @@ class TitleScreenDialog(QDialog):
         self._canvas.setAlignment(Qt.AlignCenter)
         self._canvas.setStyleSheet("background:#444;")
         self._canvas.setToolTip(
-            "左クリック: 8x8 CHRタイル編集 / 右クリック: 16x16色グループ変更")
+            t("title_screen_dialog.canvas.tooltip", "左クリック: 8x8 CHRタイル編集 / 右クリック: 16x16色グループ変更"))
         self._canvas.tile_hovered.connect(self._on_preview_tile_hovered)
         self._canvas.tile_left.connect(self._restore_preview_status)
         self._canvas.tile_clicked.connect(self._on_preview_tile_clicked)
@@ -1158,53 +1199,65 @@ class TitleScreenDialog(QDialog):
 
         # 操作ボタン
         br = QHBoxLayout()
-        b_save_top = QPushButton("Top PNG保存...")
-        b_save_top.setToolTip("タイトル上部ロゴ領域だけを256x64/4階調PNGで保存")
+        b_save_top = QPushButton(t("title_screen_dialog.save_top_png.button", "Top PNG保存..."))
+        b_save_top.setToolTip(t("title_screen_dialog.save_top_png.tooltip", "タイトル上部ロゴ領域だけを256x64/4階調PNGで保存"))
         b_save_top.clicked.connect(self._on_save_top_image)
         br.addWidget(b_save_top)
-        b_png_top = QPushButton("Top PNG読み込み...")
+        b_png_top = QPushButton(t("title_screen_dialog.load_top_png.button", "Top PNG読み込み..."))
         b_png_top.setToolTip(
-            "上部ロゴ領域のPNG/BMP/JPEGを読み込みます。"
-            "256x64を超える画像は縮小し、4色へ減色します。"
+            t(
+                "title_screen_dialog.load_top_png.tooltip",
+                "上部ロゴ領域のPNG/BMP/JPEGを読み込みます。"
+                "256x64を超える画像は縮小し、4色へ減色します。",
+            )
         )
         b_png_top.clicked.connect(self._on_import_top_png)
         br.addWidget(b_png_top)
-        b_imp = QPushButton("別ROMからタイトルを移植...")
+        b_imp = QPushButton(t("title_screen_dialog.import_title.button", "別ROMからタイトルを移植..."))
         b_imp.setToolTip(
-            "所有する別 ROM (.nes/.zip) のタイトルを移植: 配置"
-            "(nametable)+色区分(attribute)+絵(CHR bank3) をピース単位"
-            "コピー。JP/US 自動判定・CRC不要・US↔JP両方向・コード非改変")
+            t(
+                "title_screen_dialog.import_title.tooltip",
+                "所有する別 ROM (.nes/.zip) のタイトルを移植: 配置"
+                "(nametable)+色区分(attribute)+絵(CHR bank3) をピース単位"
+                "コピー。JP/US 自動判定・CRC不要・US↔JP両方向・コード非改変",
+            ))
         b_imp.clicked.connect(self._on_transcode_title)
         br.addWidget(b_imp)
-        b_text = QPushButton("文字編集...")
+        b_text = QPushButton(t("title_screen_dialog.text_edit.button", "文字編集..."))
         b_text.setToolTip(
-            "タイトル中央付近の追加文字とPUSH START位置の固定文字を編集します。"
-            "A-Z / 0-9 / スペース / , . \" が使えます。"
-            "入力中にプレビューへ反映します。")
+            t(
+                "title_screen_dialog.text_edit.tooltip",
+                "タイトル中央付近の追加文字とPUSH START位置の固定文字を編集します。"
+                "A-Z / 0-9 / スペース / , . \" が使えます。"
+                "入力中にプレビューへ反映します。",
+            ))
         b_text.clicked.connect(self._on_edit_title_texts)
         br.addWidget(b_text)
-        b_tile_place = QPushButton("タイル配置...")
+        b_tile_place = QPushButton(t("title_screen_dialog.tile_place.button", "タイル配置..."))
         b_tile_place.setToolTip(
-            "CHR bank3の8x8タイルを選び、タイトル背景の32x30マスへ配置します。")
+            t("title_screen_dialog.tile_place.tooltip", "CHR bank3の8x8タイルを選び、タイトル背景の32x30マスへ配置します。"))
         b_tile_place.clicked.connect(self._on_show_title_tile_picker)
         br.addWidget(b_tile_place)
-        b_char = QPushButton("キャラクター...")
+        b_char = QPushButton(t("title_screen_dialog.character.button", "キャラクター..."))
         b_char.setToolTip(
-            f"$D0E8由来の16x16キャラを選び、タイトル上へ最大{TS.title_character_max()}体配置します。")
+            t(
+                "title_screen_dialog.character.tooltip",
+                "$D0E8由来の16x16キャラを選び、タイトル上へ最大{count}体配置します。",
+            ).format(count=TS.title_character_max()))
         b_char.clicked.connect(self._on_pick_title_character)
         br.addWidget(b_char)
-        b_pal = QPushButton("パレット変更...")
-        b_pal.setToolTip("タイトル画面のBGパレット16色($3F00-$3F0F)を編集します。")
+        b_pal = QPushButton(t("title_screen_dialog.palette.button", "パレット変更..."))
+        b_pal.setToolTip(t("title_screen_dialog.palette.tooltip", "タイトル画面のBGパレット16色($3F00-$3F0F)を編集します。"))
         b_pal.clicked.connect(self._on_edit_title_palette)
         br.addWidget(b_pal)
-        b_revert = QPushButton("変更を取り消す")
-        b_revert.setToolTip("このダイアログを開いた時点の ROM に戻す")
+        b_revert = QPushButton(t("title_screen_dialog.revert.button", "変更を取り消す"))
+        b_revert.setToolTip(t("title_screen_dialog.revert.tooltip", "このダイアログを開いた時点の ROM に戻す"))
         b_revert.clicked.connect(self._on_revert)
         br.addWidget(b_revert)
         title_root.addLayout(br)
 
-        tabs.addTab(self._build_ending_text_tab(), "エンディング")
-        tabs.addTab(self._build_clear_screen_tab(), "クリア画面")
+        tabs.addTab(self._build_ending_text_tab(), t("title_screen_dialog.tab.ending", "エンディング"))
+        tabs.addTab(self._build_clear_screen_tab(), t("title_screen_dialog.tab.clear_screen", "クリア画面"))
 
         bb = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
@@ -1222,9 +1275,12 @@ class TitleScreenDialog(QDialog):
         tab = QWidget()
         root = QVBoxLayout(tab)
         info = QLabel(
-            "ステージクリア後の『おめでとう画面』に関係する設定です。"
-            "ここでは既存のクリア画面キャラ差し替えとメッセージ編集を扱います。"
-            "プレビューは実機エミュレーションではなく、文字位置確認用の簡易表示です。")
+            t(
+                "title_screen_dialog.clear_tab.info",
+                "ステージクリア後の『おめでとう画面』に関係する設定です。"
+                "ここでは既存のクリア画面キャラ差し替えとメッセージ編集を扱います。"
+                "プレビューは実機エミュレーションではなく、文字位置確認用の簡易表示です。",
+            ))
         info.setWordWrap(True)
         root.addWidget(info)
 
@@ -1248,20 +1304,23 @@ class TitleScreenDialog(QDialog):
         clear_scroll.setWidget(clear_wrap)
         preview_col.addWidget(clear_scroll, 1)
 
-        msg_group = QGroupBox("クリア画面メッセージ")
+        msg_group = QGroupBox(t("title_screen_dialog.clear_message.group", "クリア画面メッセージ"))
         msg_root = QVBoxLayout(msg_group)
         msg_hint = QLabel(
-            "THANK YOU DANA / YOU RELEASED THIS ROOM / TRY NEXT ROOM の3行を編集します。"
-            "英大文字 A-Z とスペースのみ、同字数置換です。")
+            t(
+                "title_screen_dialog.clear_message.hint",
+                "THANK YOU DANA / YOU RELEASED THIS ROOM / TRY NEXT ROOM の3行を編集します。"
+                "英大文字 A-Z とスペースのみ、同字数置換です。",
+            ))
         msg_hint.setWordWrap(True)
         msg_hint.setStyleSheet("color:#888; font-size:11px;")
         msg_root.addWidget(msg_hint)
         msg_grid = QGridLayout()
         msg_grid.setHorizontalSpacing(8)
         msg_grid.setVerticalSpacing(6)
-        msg_grid.addWidget(QLabel("行"), 0, 0)
-        msg_grid.addWidget(QLabel("文字"), 0, 1)
-        msg_grid.addWidget(QLabel("字数"), 0, 2)
+        msg_grid.addWidget(QLabel(t("title_screen_dialog.clear_message.column.line", "行")), 0, 0)
+        msg_grid.addWidget(QLabel(t("title_screen_dialog.clear_message.column.text", "文字")), 0, 1)
+        msg_grid.addWidget(QLabel(t("title_screen_dialog.clear_message.column.count", "字数")), 0, 2)
         self._clear_message_edits = []
         self._clear_message_status = QLabel("")
         try:
@@ -1282,13 +1341,13 @@ class TitleScreenDialog(QDialog):
                 self._clear_message_edits.append(le)
                 self._on_clear_message_count(le, count, cnt)
         except CM.ClearMessageError as e:
-            msg_grid.addWidget(QLabel(f"編集不可: {e}"), 1, 0, 1, 3)
+            msg_grid.addWidget(QLabel(t("title_screen_dialog.clear_message.unavailable", "編集不可: {error}").format(error=e)), 1, 0, 1, 3)
         msg_root.addLayout(msg_grid)
         self._clear_message_status.setStyleSheet("color:#888; font-size:11px;")
         msg_root.addWidget(self._clear_message_status)
         edit_col.addWidget(msg_group)
 
-        group = QGroupBox("クリア画面のキャラ (おめでとう画面の2体)")
+        group = QGroupBox(t("title_screen_dialog.clear_screen_char.group", "クリア画面のキャラ (おめでとう画面の2体)"))
         form = QFormLayout(group)
         self._clear_screen_combo = QComboBox()
         for preset_id, preset in clearscreen_hack.PRESET_DEFS.items():
@@ -1303,13 +1362,16 @@ class TitleScreenDialog(QDialog):
         except Exception as e:
             self._clear_screen_ok = False
             self._clear_screen_combo.setEnabled(False)
-            self._clear_screen_status.setText(f"使用不可: {type(e).__name__}: {e}")
+            self._clear_screen_status.setText(t("title_screen_dialog.clear_screen_char.unavailable", "使用不可: {type}: {error}").format(type=type(e).__name__, error=e))
         self._clear_screen_combo.currentIndexChanged.connect(
             self._on_clear_screen_preset_changed)
-        form.addRow("表示キャラ:", self._clear_screen_combo)
+        form.addRow(t("title_screen_dialog.clear_screen_char.label", "表示キャラ:"), self._clear_screen_combo)
         hint = QLabel(
-            "ステージクリア画面で左右に出る2体を差し替えます。"
-            "既存のゲーム挙動改造にあった設定と同じ処理です。")
+            t(
+                "title_screen_dialog.clear_screen_char.hint",
+                "ステージクリア画面で左右に出る2体を差し替えます。"
+                "既存のゲーム挙動改造にあった設定と同じ処理です。",
+            ))
         hint.setWordWrap(True)
         hint.setStyleSheet("color:#888; font-size:11px;")
         form.addRow(hint)
@@ -1324,15 +1386,18 @@ class TitleScreenDialog(QDialog):
         tab = QWidget()
         root = QVBoxLayout(tab)
         info = QLabel(
-            "エンディングの文字列だけを編集します。表示位置や改行などの"
-            "制御データは維持します。英大文字 A-Z / スペース / , ' \" "
-            "のみ使用できます。")
+            t(
+                "title_screen_dialog.ending_tab.info",
+                "エンディングの文字列だけを編集します。表示位置や改行などの"
+                "制御データは維持します。英大文字 A-Z / スペース / , ' \" "
+                "のみ使用できます。",
+            ))
         info.setWordWrap(True)
         root.addWidget(info)
         try:
             rows = TS.read_ending_text_messages(self._rom)
         except (TS.EndingTextError, TS.TitleScreenError, ValueError) as e:
-            msg = QLabel(f"エンディング文字列を編集できません: {e}")
+            msg = QLabel(t("title_screen_dialog.ending_tab.unavailable", "エンディング文字列を編集できません: {error}").format(error=e))
             msg.setWordWrap(True)
             root.addWidget(msg)
             root.addStretch()
@@ -1533,12 +1598,19 @@ class TitleScreenDialog(QDialog):
             clearscreen_hack.apply_preset(self._rom, preset_id)
         except clearscreen_hack.ClearScreenHackError as e:
             self._rom[:] = snap
-            QMessageBox.warning(self, "クリア画面改造失敗", str(e))
+            QMessageBox.warning(
+                self,
+                t("title_screen.clear_screen.apply_failed", "クリア画面改造失敗"),
+                str(e),
+            )
             return
         self._changed = True
         if getattr(self, "_clear_screen_status", None) is not None:
             self._clear_screen_status.setText(
-                f"表示キャラを {combo.currentText()} に変更しました")
+                t(
+                    "title_screen.clear_screen.character_changed",
+                    "表示キャラを {name} に変更しました",
+                ).format(name=combo.currentText()))
 
     def _on_show_clear_message(self):
         from .clear_message_dialog import ClearMessageDialog, format_clear_message_error
@@ -1560,7 +1632,12 @@ class TitleScreenDialog(QDialog):
         if bytes(self._rom) != snap:
             self._changed = True
             if getattr(self, "_clear_screen_status", None) is not None:
-                self._clear_screen_status.setText("クリア画面メッセージを更新しました")
+                self._clear_screen_status.setText(
+                    t(
+                        "title_screen.clear_message.updated",
+                        "クリア画面メッセージを更新しました",
+                    )
+                )
 
     def _build_clear_preview_image(self):
         img = QImage(_IMG_W, _IMG_H, QImage.Format_RGB32)
@@ -1606,7 +1683,12 @@ class TitleScreenDialog(QDialog):
         try:
             img = self._build_clear_preview_image()
         except Exception as e:
-            preview.setText(f"プレビュー不可: {type(e).__name__}: {e}")
+            preview.setText(
+                t(
+                    "title_screen.preview.unavailable",
+                    "プレビュー不可: {error}",
+                ).format(error=f"{type(e).__name__}: {e}")
+            )
             return
         zoom = int(getattr(self, "_clear_zoom", 3))
         pm = QPixmap.fromImage(img).scaled(
@@ -1645,12 +1727,19 @@ class TitleScreenDialog(QDialog):
         except CM.ClearMessageError as e:
             self._rom[:] = snap
             if getattr(self, "_clear_message_status", None) is not None:
-                self._clear_message_status.setText(f"入力エラー: {e}")
+                self._clear_message_status.setText(
+                    t("title_screen.input_error", "入力エラー: {error}").format(error=e)
+                )
             return
         if changes:
             self._changed = True
             if getattr(self, "_clear_message_status", None) is not None:
-                self._clear_message_status.setText("クリア画面メッセージを反映しました")
+                self._clear_message_status.setText(
+                    t(
+                        "title_screen.clear_message.applied",
+                        "クリア画面メッセージを反映しました",
+                    )
+                )
         else:
             if getattr(self, "_clear_message_status", None) is not None:
                 self._clear_message_status.setText("")
@@ -1696,11 +1785,15 @@ class TitleScreenDialog(QDialog):
                 self._rom, [e.text() for e in edits])
         except (TS.EndingTextError, TS.TitleScreenError, ValueError) as e:
             self._rom[:] = snap
-            self._ending_text_status.setText(f"入力エラー: {e}")
+            self._ending_text_status.setText(
+                t("title_screen.input_error", "入力エラー: {error}").format(error=e)
+            )
             return
         if changes:
             self._changed = True
-            self._ending_text_status.setText("エンディング文字を反映しました")
+            self._ending_text_status.setText(
+                t("title_screen.ending_text.applied", "エンディング文字を反映しました")
+            )
         else:
             self._ending_text_status.setText("")
         self._refresh_ending_preview()
@@ -2308,7 +2401,7 @@ class TitleScreenDialog(QDialog):
 
     def _show_title_character_picker_panel(self):
         self._clear_side_panel()
-        title = QLabel("キャラクター")
+        title = QLabel(t("title_screen.character_panel.title", "キャラクター"))
         title.setStyleSheet("font-weight:bold;")
         head = QHBoxLayout()
         head.addWidget(title)
@@ -2318,7 +2411,7 @@ class TitleScreenDialog(QDialog):
         head.addWidget(self._title_character_count_label)
         self._side_layout.addLayout(head)
         row = QHBoxLayout()
-        row.addWidget(QLabel("色:"))
+        row.addWidget(QLabel(t("title_screen.label.color", "色:")))
         self._picker_palette = QComboBox()
         for i in range(4):
             self._picker_palette.addItem(f"SPR {i}", i)
@@ -2327,8 +2420,13 @@ class TitleScreenDialog(QDialog):
         self._picker_palette.currentIndexChanged.connect(self._refresh_picker_grid)
         row.addWidget(self._picker_palette)
         row.addStretch()
-        b_clear = QPushButton("全削除")
-        b_clear.setToolTip("タイトル上に配置した静止キャラを全て消します。")
+        b_clear = QPushButton(t("title_screen.character.clear_all", "全削除"))
+        b_clear.setToolTip(
+            t(
+                "title_screen.character.clear_all.tooltip",
+                "タイトル上に配置した静止キャラを全て消します。",
+            )
+        )
         b_clear.clicked.connect(self._on_clear_title_characters)
         row.addWidget(b_clear)
         self._side_layout.addLayout(row)
@@ -2347,15 +2445,15 @@ class TitleScreenDialog(QDialog):
     def _show_title_tile_picker_panel(self):
         self._clear_side_panel()
         self._pending_title_tile_stream = 0
-        title = QLabel("タイル配置")
+        title = QLabel(t("title_screen.tile_picker.title", "タイル配置"))
         title.setStyleSheet("font-weight:bold;")
         self._side_layout.addWidget(title)
         row = QHBoxLayout()
-        row.addWidget(QLabel("表示モード:"))
-        mode = QLabel("生CHRタイル (8x8)")
+        row.addWidget(QLabel(t("title_screen.tile_picker.display_mode", "表示モード:")))
+        mode = QLabel(t("title_screen.tile_picker.raw_chr", "生CHRタイル (8x8)"))
         mode.setMinimumHeight(26)
         row.addWidget(mode)
-        row.addWidget(QLabel("パレット:"))
+        row.addWidget(QLabel(t("title_screen.tile_picker.palette", "パレット:")))
         pal_combo = QComboBox()
         for label in _TITLE_TILE_PICKER_PALETTE_LABELS:
             pal_combo.addItem(label)
@@ -2363,7 +2461,7 @@ class TitleScreenDialog(QDialog):
         pal_combo.currentIndexChanged.connect(self._refresh_title_tile_picker)
         self._title_tile_picker_palette = pal_combo
         row.addWidget(pal_combo)
-        row.addWidget(QLabel("拡大:"))
+        row.addWidget(QLabel(t("title_screen.zoom.label", "拡大:")))
         zoom = QSpinBox()
         zoom.setRange(1, 16)
         zoom.setValue(4)
@@ -2371,7 +2469,7 @@ class TitleScreenDialog(QDialog):
         zoom.valueChanged.connect(self._refresh_title_tile_picker)
         self._title_tile_picker_zoom = zoom
         row.addWidget(zoom)
-        grid = QCheckBox("グリッド線")
+        grid = QCheckBox(t("title_screen.grid_lines", "グリッド線"))
         grid.setChecked(True)
         grid.stateChanged.connect(self._refresh_title_tile_picker)
         self._title_tile_picker_grid = grid
@@ -2411,7 +2509,11 @@ class TitleScreenDialog(QDialog):
             zoom_value, show_grid)
         self._restore_title_tile_picker_status()
         self._preview_status.setText(
-            f"タイル配置: stream ${stream:02X} / bank内 0x{(_BG_BASE + stream):03X}")
+            t(
+                "title_screen.tile_picker.status",
+                "タイル配置: stream ${stream:02X} / bank内 0x{bank:03X}",
+            ).format(stream=stream, bank=(_BG_BASE + stream))
+        )
 
     def _title_tile_picker_rgb(self, palette_index):
         idx = int(palette_index) & 7
@@ -2431,16 +2533,26 @@ class TitleScreenDialog(QDialog):
         status = getattr(self, "_title_tile_picker_status", None)
         if status is not None:
             status.setText(
-                f"選択: stream ${stream:02X} / bank内 0x{(_BG_BASE + stream):03X}\n"
-                "キャンバス上の8x8マスをクリックすると配置します。")
+                t(
+                    "title_screen.tile_picker.selection_status",
+                    "選択: stream ${stream:02X} / bank内 0x{bank:03X}\n"
+                    "キャンバス上の8x8マスをクリックすると配置します。",
+                ).format(stream=stream, bank=(_BG_BASE + stream)))
 
     def _on_title_tile_picker_hovered(self, stream):
         stream = int(stream) & 0xFF
         status = getattr(self, "_title_tile_picker_status", None)
         if status is not None:
             status.setText(
-                f"選択: stream ${int(getattr(self, '_pending_title_tile_stream', 0) or 0) & 0xFF:02X}\n"
-                f"カーソル: stream ${stream:02X} / bank内 0x{(_BG_BASE + stream):03X}")
+                t(
+                    "title_screen.tile_picker.hover_status",
+                    "選択: stream ${selected:02X}\n"
+                    "カーソル: stream ${stream:02X} / bank内 0x{bank:03X}",
+                ).format(
+                    selected=int(getattr(self, "_pending_title_tile_stream", 0) or 0) & 0xFF,
+                    stream=stream,
+                    bank=(_BG_BASE + stream),
+                ))
 
     def _select_title_tile_stream(self, stream):
         self._pending_title_tile_stream = int(stream) & 0xFF
@@ -2461,21 +2573,29 @@ class TitleScreenDialog(QDialog):
         self._palette_slot_buttons = []
         self._palette_color_buttons = []
         self._palette_group_radios = []
-        title = QLabel("パレット変更")
+        title = QLabel(t("title_screen.palette_panel.title", "パレット変更"))
         title.setStyleSheet("font-weight:bold;")
         self._side_layout.addWidget(title)
         status = QLabel(
-            f"対象: x={int(block_col)}, y={int(block_row)} の16x16区画"
+            t(
+                "title_screen.palette_panel.target_block",
+                "対象: x={x}, y={y} の16x16区画",
+            ).format(x=int(block_col), y=int(block_row))
             if has_block else
-            "対象区画なし: 色番号だけ変更できます。パレット番号の割当はキャンバスを右クリック。")
+            t(
+                "title_screen.palette_panel.no_target",
+                "対象区画なし: 色番号だけ変更できます。パレット番号の割当はキャンバスを右クリック。",
+            ))
         status.setWordWrap(True)
         self._palette_context_label = status
         self._side_layout.addWidget(status)
 
-        g = QGroupBox("タイトルパレット $3F00-$3F0F")
+        g = QGroupBox(t("title_screen.palette.group", "タイトルパレット $3F00-$3F0F"))
         gl = QGridLayout(g)
         for group in range(4):
-            rb = QRadioButton(f"パレット {group + 1}")
+            rb = QRadioButton(
+                t("title_screen.palette.index", "パレット {index}").format(index=group + 1)
+            )
             rb.setEnabled(has_block)
             rb.setChecked(current == group)
             rb.toggled.connect(
@@ -2494,7 +2614,7 @@ class TitleScreenDialog(QDialog):
                 gl.addWidget(b, group * 2 + 1, sub + 1)
         self._side_layout.addWidget(g)
 
-        picker = QGroupBox("NES 64色")
+        picker = QGroupBox(t("title_screen.palette.nes64", "NES 64色"))
         pg = QGridLayout(picker)
         for i in range(64):
             b = QPushButton(f"{i:02X}")
@@ -2529,7 +2649,12 @@ class TitleScreenDialog(QDialog):
         for i, b in enumerate(self._palette_slot_buttons):
             val = colors[i] & 0x3F
             b.setText(f"${val:02X}")
-            b.setToolTip(f"パレット {i // 4 + 1} / slot {i % 4} = ${val:02X}")
+            b.setToolTip(
+                t(
+                    "title_screen.palette.slot.tooltip",
+                    "パレット {palette} / slot {slot} = ${value:02X}",
+                ).format(palette=i // 4 + 1, slot=i % 4, value=val)
+            )
             b.setStyleSheet(TitlePaletteDialog._button_style(val, i == sel))
         for i, b in enumerate(self._palette_color_buttons):
             b.setStyleSheet(
@@ -2573,17 +2698,26 @@ class TitleScreenDialog(QDialog):
             "bank_tile": int(bank_tile),
         }
 
-        box = QGroupBox(f"8x8 CHR編集 bank内 0x{int(bank_tile):03X}")
+        box = QGroupBox(
+            t(
+                "title_screen.tile_editor.group",
+                "8x8 CHR編集 bank内 0x{bank:03X}",
+            ).format(bank=int(bank_tile))
+        )
         root = QVBoxLayout(box)
         info = QLabel(
             f"cell ({int(col)}, {int(row)}) / stream 0x{int(stream):02X} / "
             f"ROM 0x{int(pos):X}-0x{int(pos) + 0x0F:X}\n"
-            f"色グループ {int(pal_no) + 1} / 使用箇所: {int(ref_count)}")
+            +
+            t(
+                "title_screen.tile_editor.info_suffix",
+                "色グループ {group} / 使用箇所: {count}",
+            ).format(group=int(pal_no) + 1, count=int(ref_count)))
         info.setWordWrap(True)
         root.addWidget(info)
 
         top = QHBoxLayout()
-        top.addWidget(QLabel("拡大:"))
+        top.addWidget(QLabel(t("title_screen.zoom.label", "拡大:")))
         zoom = QSpinBox()
         zoom.setRange(16, 48)
         zoom.setValue(28)
@@ -2604,7 +2738,7 @@ class TitleScreenDialog(QDialog):
         body.addWidget(canvas, 0, Qt.AlignTop)
 
         side = QVBoxLayout()
-        side.addWidget(QLabel("ペン:"))
+        side.addWidget(QLabel(t("title_screen.tile_editor.pen", "ペン:")))
         brush_row = QHBoxLayout()
         self._title_tile_brush_buttons = []
         for idx in range(4):
@@ -2612,7 +2746,10 @@ class TitleScreenDialog(QDialog):
             btn.setCheckable(True)
             btn.setMinimumSize(38, 30)
             btn.setToolTip(
-                f"パレットインデックス {idx} で描く。Alt+クリックでスポイト。")
+                t(
+                    "title_screen.tile_editor.brush.tooltip",
+                    "パレットインデックス {index} で描く。Alt+クリックでスポイト。",
+                ).format(index=idx))
             btn.clicked.connect(
                 lambda _checked=False, value=idx: self._set_title_tile_panel_brush(value))
             self._title_tile_brush_buttons.append(btn)
@@ -2620,11 +2757,16 @@ class TitleScreenDialog(QDialog):
         side.addLayout(brush_row)
         self._set_title_tile_panel_brush(1)
 
-        clear_btn = QPushButton("クリア")
-        clear_btn.setToolTip("8x8タイルをパレットインデックス0で消去")
+        clear_btn = QPushButton(t("common.clear", "クリア"))
+        clear_btn.setToolTip(
+            t(
+                "title_screen.tile_editor.clear.tooltip",
+                "8x8タイルをパレットインデックス0で消去",
+            )
+        )
         clear_btn.clicked.connect(self._clear_title_tile_panel)
         side.addWidget(clear_btn)
-        restore_btn = QPushButton("開いた時点へ戻す")
+        restore_btn = QPushButton(t("title_screen.revert_initial", "開いた時点へ戻す"))
         restore_btn.clicked.connect(self._restore_title_tile_panel_initial)
         side.addWidget(restore_btn)
         side.addStretch()
@@ -2633,7 +2775,11 @@ class TitleScreenDialog(QDialog):
 
         self._palette_extra_layout.addWidget(box)
         self._preview_status.setText(
-            f"8x8編集: cell ({int(col)}, {int(row)}) / bank内 0x{int(bank_tile):03X}")
+            t(
+                "title_screen.tile_editor.status",
+                "8x8編集: cell ({col}, {row}) / bank内 0x{bank:03X}",
+            ).format(col=int(col), row=int(row), bank=int(bank_tile))
+        )
 
     def _set_title_tile_panel_brush(self, value):
         canvas = getattr(self, "_title_tile_editor_canvas", None)
@@ -2654,8 +2800,15 @@ class TitleScreenDialog(QDialog):
         self._changed = True
         self._refresh()
         self._preview_status.setText(
-            f"8x8編集中: cell ({state['col']}, {state['row']}) / "
-            f"bank内 0x{state['bank_tile']:03X}")
+            t(
+                "title_screen.tile_editor.editing_status",
+                "8x8編集中: cell ({col}, {row}) / bank内 0x{bank:03X}",
+            ).format(
+                col=state["col"],
+                row=state["row"],
+                bank=state["bank_tile"],
+            )
+        )
 
     def _set_title_tile_panel_pixels(self, pixels, changed=True):
         state = getattr(self, "_title_tile_editor_state", None)
@@ -2687,7 +2840,10 @@ class TitleScreenDialog(QDialog):
         label = getattr(self, "_palette_context_label", None)
         if label is not None:
             label.setText(
-                "対象区画なし: 色番号だけ変更できます。パレット番号の割当はキャンバスを右クリック。")
+                t(
+                    "title_screen.palette_panel.no_target",
+                    "対象区画なし: 色番号だけ変更できます。パレット番号の割当はキャンバスを右クリック。",
+                ))
         self._refresh_title_palette_panel()
 
     def _select_title_palette_slot(self, idx):
@@ -2713,7 +2869,10 @@ class TitleScreenDialog(QDialog):
         self._refresh()
         self._refresh_title_palette_panel()
         self._preview_status.setText(
-            f"16x16色変更: x={col}, y={row} / パレット {pal_no + 1}")
+            t(
+                "title_screen.palette_panel.block_changed",
+                "16x16色変更: x={x}, y={y} / パレット {palette}",
+            ).format(x=col, y=row, palette=pal_no + 1))
 
     def _set_title_palette_slot_color(self, nes_idx):
         colors = self._title_palette()
@@ -2723,12 +2882,19 @@ class TitleScreenDialog(QDialog):
             self._apply_title_palette_colors(colors)
         except Exception as e:
             QMessageBox.critical(
-                self, "パレット変更不可",
-                f"タイトルパレットを書き換えられませんでした:\n{type(e).__name__}: {e}")
+                self,
+                t("title_screen.palette_panel.change_unavailable", "パレット変更不可"),
+                t(
+                    "title_screen.palette_panel.write_failed",
+                    "タイトルパレットを書き換えられませんでした:\n{error}",
+                ).format(error=f"{type(e).__name__}: {e}"))
             return
         self._refresh_title_palette_panel()
         self._preview_status.setText(
-            f"パレット変更: パレット {sel // 4 + 1} / slot {sel % 4} = ${colors[sel] & 0x3F:02X}")
+            t(
+                "title_screen.palette_panel.slot_changed",
+                "パレット変更: パレット {palette} / slot {slot} = ${value:02X}",
+            ).format(palette=sel // 4 + 1, slot=sel % 4, value=colors[sel] & 0x3F))
 
     def _refresh_picker_grid(self, *_):
         if not hasattr(self, "_picker_scroll"):
@@ -2736,7 +2902,9 @@ class TitleScreenDialog(QDialog):
         old_v = self._picker_scroll.verticalScrollBar().value()
         items = self._title_picker_items()
         if not items:
-            self._picker_scroll.setWidget(QLabel("ROMフレームが見つかりません。"))
+            self._picker_scroll.setWidget(
+                QLabel(t("title_screen.character_picker.no_frames", "ROMフレームが見つかりません。"))
+            )
             return
         zoom = 3
         cell_w = 16 * zoom + 24
@@ -2792,8 +2960,16 @@ class TitleScreenDialog(QDialog):
             "palette": int(self._picker_palette.currentData()) & 0x03,
         }
         self._picker_status.setText(
-            f"選択: g{g:02X} s{s:02X} f{fi} / "
-            f"{self._title_character_count_text()} / キャンバスをクリックして配置")
+            t(
+                "title_screen.character_panel.selection_status",
+                "選択: g{group:02X} s{state:02X} f{frame} / "
+                "{count_text} / キャンバスをクリックして配置",
+            ).format(
+                group=g,
+                state=s,
+                frame=fi,
+                count_text=self._title_character_count_text(),
+            ))
         self._refresh_picker_grid()
 
     def _restore_preview_status(self):
@@ -2816,7 +2992,10 @@ class TitleScreenDialog(QDialog):
         self._drag_title_character_slot = int(slot)
         self._selected_title_character_slot = int(slot)
         self._preview_status.setText(
-            f"キャラスロット {int(slot) + 1} を移動中")
+            t(
+                "title_screen.character.moving_status",
+                "キャラスロット {slot} を移動中",
+            ).format(slot=int(slot) + 1))
         self._refresh()
 
     def _on_title_character_drag_move(self, row, col):
@@ -2831,7 +3010,7 @@ class TitleScreenDialog(QDialog):
             self._rom[:] = snap
             self._drag_title_character_slot = None
             QMessageBox.critical(
-                self, "キャラクター移動失敗",
+                self, t("title_screen.character.move_failed", "キャラクター移動失敗"),
                 f"{type(e).__name__}: {e}")
             return
         self._changed = True
@@ -2841,7 +3020,10 @@ class TitleScreenDialog(QDialog):
     def _on_title_character_drag_end(self):
         if getattr(self, "_drag_title_character_slot", None) is not None:
             self._preview_status.setText(
-                f"キャラスロット {int(self._drag_title_character_slot) + 1} を移動しました")
+                t(
+                    "title_screen.character.moved_status",
+                    "キャラスロット {slot} を移動しました",
+                ).format(slot=int(self._drag_title_character_slot) + 1))
         self._drag_title_character_slot = None
 
     def keyPressEvent(self, event):
@@ -2855,29 +3037,50 @@ class TitleScreenDialog(QDialog):
         pending = getattr(self, "_pending_stamp", None)
         if pending:
             self._preview_status.setText(
-                f"貼り付け待ち: {pending['width']}x{pending['height']}px "
-                f"({pending['tile_w']}x{pending['tile_h']} tiles) / "
-                f"クリック位置 ({col}, {row})")
+                t(
+                    "title_screen.preview.pending_stamp",
+                    "貼り付け待ち: {width}x{height}px ({tile_w}x{tile_h} tiles) / "
+                    "クリック位置 ({col}, {row})",
+                ).format(
+                    width=pending["width"],
+                    height=pending["height"],
+                    tile_w=pending["tile_w"],
+                    tile_h=pending["tile_h"],
+                    col=col,
+                    row=row,
+                ))
             return
         dx, dy = _ppu_pixel_to_display(col * 8, row * 8)
         hit = self._title_character_at_display(dx, dy)
         pending_ch = getattr(self, "_pending_title_character", None)
         if pending_ch:
             self._preview_status.setText(
-                f"キャラ配置待ち: g{pending_ch['group']:02X} "
-                f"s{pending_ch['state']:02X} f{pending_ch['frame']} / "
-                f"x={dx}, y={dy}")
+                t(
+                    "title_screen.preview.pending_character",
+                    "キャラ配置待ち: g{group:02X} s{state:02X} f{frame} / x={x}, y={y}",
+                ).format(
+                    group=pending_ch["group"],
+                    state=pending_ch["state"],
+                    frame=pending_ch["frame"],
+                    x=dx,
+                    y=dy,
+                ))
             return
         pending_tile = getattr(self, "_pending_title_tile_stream", None)
         if pending_tile is not None:
             stream = int(pending_tile) & 0xFF
             self._preview_status.setText(
-                f"タイル配置待ち: cell ({col}, {row}) / "
-                f"stream ${stream:02X} / bank内 0x{(_BG_BASE + stream):03X}")
+                t(
+                    "title_screen.preview.pending_tile",
+                    "タイル配置待ち: cell ({col}, {row}) / stream ${stream:02X} / bank内 0x{bank:03X}",
+                ).format(col=col, row=row, stream=stream, bank=(_BG_BASE + stream)))
             return
         if hit is not None:
             self._preview_status.setText(
-                f"キャラスロット {hit + 1}/{TS.title_character_max()} / x={dx}, y={dy}")
+                t(
+                    "title_screen.preview.character_hit",
+                    "キャラスロット {slot}/{max} / x={x}, y={y}",
+                ).format(slot=hit + 1, max=TS.title_character_max(), x=dx, y=dy))
             return
         self._preview_status.setText(
             f"cell ({col}, {row}) / stream 0x{stream:02X} / "
@@ -2895,12 +3098,17 @@ class TitleScreenDialog(QDialog):
                     pending_ch["attr"], pending_ch["palette"])
             except (TS.TitleScreenError, ValueError) as e:
                 self._rom[:] = snap
-                QMessageBox.critical(self, "キャラクター配置不可", str(e))
+                QMessageBox.critical(
+                    self,
+                    t("title_screen.character.place_unavailable", "キャラクター配置不可"),
+                    str(e),
+                )
                 return
             except Exception as e:
                 self._rom[:] = snap
                 QMessageBox.critical(
-                    self, "キャラクター配置失敗",
+                    self,
+                    t("title_screen.character.place_failed", "キャラクター配置失敗"),
                     f"{type(e).__name__}: {e}")
                 return
             self._pending_title_character = None
@@ -2925,10 +3133,19 @@ class TitleScreenDialog(QDialog):
         if row + pending["tile_h"] > (_IMG_H // 8) or \
                 col + pending["tile_w"] > _NT_W:
             QMessageBox.warning(
-                self, "貼り付け不可",
-                "貼り付け先が画面外にはみ出します。\n"
-                f"クリック位置: x={col}, y={row}\n"
-                f"画像サイズ: {pending['tile_w']}x{pending['tile_h']} tiles")
+                self,
+                t("title_screen.stamp.unavailable", "貼り付け不可"),
+                t(
+                    "title_screen.stamp.out_of_bounds",
+                    "貼り付け先が画面外にはみ出します。\n"
+                    "クリック位置: x={x}, y={y}\n"
+                    "画像サイズ: {tile_w}x{tile_h} tiles",
+                ).format(
+                    x=col,
+                    y=row,
+                    tile_w=pending["tile_w"],
+                    tile_h=pending["tile_h"],
+                ))
             return
         snap = bytes(self._rom)
         try:
@@ -2944,17 +3161,27 @@ class TitleScreenDialog(QDialog):
             return
         except (TS.TitleScreenError, ValueError) as e:
             self._rom[:] = snap
-            QMessageBox.critical(self, "貼り付け失敗", str(e))
+            QMessageBox.critical(
+                self,
+                t("title_screen.stamp.failed", "貼り付け失敗"),
+                str(e),
+            )
             return
         except Exception as e:
             self._rom[:] = snap
             QMessageBox.critical(
-                self, "貼り付け失敗", f"{type(e).__name__}: {e}")
+                self,
+                t("title_screen.stamp.failed", "貼り付け失敗"),
+                f"{type(e).__name__}: {e}")
             return
         self._pending_stamp = None
         self._changed = True
         self._refresh()
-        QMessageBox.information(self, "Top PNG貼り付け完了", "\n".join(chg))
+        QMessageBox.information(
+            self,
+            t("title_screen.top_png.paste_complete.title", "Top PNG貼り付け完了"),
+            "\n".join(chg),
+        )
 
     def _place_title_tile(self, row, col, stream):
         snap = bytes(self._rom)
@@ -2962,12 +3189,18 @@ class TitleScreenDialog(QDialog):
             chg = TS.set_title_tile_cell(self._rom, row, col, stream)
         except (TS.TitleScreenError, ValueError) as e:
             self._rom[:] = snap
-            QMessageBox.critical(self, "タイル配置不可", str(e))
+            QMessageBox.critical(
+                self,
+                t("title_screen.tile.place_unavailable", "タイル配置不可"),
+                str(e),
+            )
             return
         except Exception as e:
             self._rom[:] = snap
             QMessageBox.critical(
-                self, "タイル配置失敗", f"{type(e).__name__}: {e}")
+                self,
+                t("title_screen.tile.place_failed", "タイル配置失敗"),
+                f"{type(e).__name__}: {e}")
             return
         self._changed = True
         self._refresh()
@@ -3020,7 +3253,9 @@ class TitleScreenDialog(QDialog):
             colors, pal_no = self._title_tile_palette_colors(row, col)
         except Exception as e:
             QMessageBox.critical(
-                self, "8x8編集不可", f"{type(e).__name__}: {e}")
+                self,
+                t("title_screen.tile.edit_unavailable", "8x8編集不可"),
+                f"{type(e).__name__}: {e}")
             return
         self._highlight_tile.setValue(bank_tile)
         ref_count = self._title_tile_ref_count(grid, stream)
@@ -3035,7 +3270,10 @@ class TitleScreenDialog(QDialog):
         current = self._attr_palette_no(self._title_attributes(), row, col)
         self._group_overlay.setCurrentIndex(current + 1)
         self._preview_status.setText(
-            f"16x16色対象: x={col}, y={row} / パレット {current + 1}")
+            t(
+                "title_screen.palette_panel.block_target",
+                "16x16色対象: x={x}, y={y} / パレット {palette}",
+            ).format(x=col, y=row, palette=current + 1))
 
     def _on_replace_attr_group(self):
         self._cancel_palette_block_context()
@@ -3043,8 +3281,12 @@ class TitleScreenDialog(QDialog):
         dst = int(self._group_to.currentData()) & 0x03
         if src == dst:
             QMessageBox.information(
-                self, "色グループ置換",
-                "置換元と置換先が同じです。変更はありません。")
+                self,
+                t("title_screen.palette_group_replace.title", "色グループ置換"),
+                t(
+                    "title_screen.palette_group_replace.same",
+                    "置換元と置換先が同じです。変更はありません。",
+                ))
             return
         attr = self._title_attributes()
         changed_blocks = 0
@@ -3060,15 +3302,22 @@ class TitleScreenDialog(QDialog):
                 changed_blocks += 1
         if changed_blocks == 0:
             QMessageBox.information(
-                self, "色グループ置換",
-                f"色グループ {src} を使う16x16区画はありません。")
+                self,
+                t("title_screen.palette_group_replace.title", "色グループ置換"),
+                t(
+                    "title_screen.palette_group_replace.none",
+                    "色グループ {group} を使う16x16区画はありません。",
+                ).format(group=src))
             return
         self._write_title_attributes(attr)
         self._changed = True
         self._group_overlay.setCurrentIndex(dst + 1)
         self._refresh()
         self._preview_status.setText(
-            f"色グループ置換: {src} -> {dst} / {changed_blocks}区画")
+            t(
+                "title_screen.palette_group_replace.status",
+                "色グループ置換: {src} -> {dst} / {count}区画",
+            ).format(src=src, dst=dst, count=changed_blocks))
 
     # --- 操作 ---
     def _apply_title_palette_colors(self, colors):
@@ -3081,34 +3330,50 @@ class TitleScreenDialog(QDialog):
 
     def _on_save_image(self):
         path, _ = QFileDialog.getSaveFileName(
-            self, "タイトル画面を画像保存", "title_screen.png",
+            self,
+            t("title_screen.save_image.dialog_title", "タイトル画面を画像保存"),
+            "title_screen.png",
             "PNG (*.png);;BMP (*.bmp)")
         if not path:
             return
         img = self._build_image(color=False)
         if not img.save(path):
-            QMessageBox.critical(self, "保存失敗",
-                                 f"画像を保存できませんでした:\n{path}")
+            QMessageBox.critical(
+                self,
+                t("title_screen.save.failed.title", "保存失敗"),
+                t("title_screen.save_image.failed", "画像を保存できませんでした:\n{path}").format(path=path),
+            )
             return
         QMessageBox.information(
-            self, "保存完了",
-            f"タイトル画面 ({_IMG_W}x{_IMG_H}, 4階調) を保存:\n{path}")
+            self,
+            t("title_screen.save.complete.title", "保存完了"),
+            t(
+                "title_screen.save_image.complete",
+                "タイトル画面 ({width}x{height}, 4階調) を保存:\n{path}",
+            ).format(width=_IMG_W, height=_IMG_H, path=path))
 
     def _on_save_top_image_legacy_unused(self):
         path, _ = QFileDialog.getSaveFileName(
-            self, "タイトル上部PNGを保存", "title_top_256x64.png",
+            self,
+            t("title_screen.save_top.dialog_title", "タイトル上部PNGを保存"),
+            "title_top_256x64.png",
             "PNG (*.png);;BMP (*.bmp)")
         if not path:
             return
         img = self._build_image(color=True).copy(0, _TOP_Y, _IMG_W, _TOP_H)
         if not img.save(path):
             QMessageBox.critical(
-                self, "保存失敗",
-                f"タイトル上部画像を保存できませんでした:\n{path}")
+                self,
+                t("title_screen.save.failed.title", "保存失敗"),
+                t("title_screen.save_top.failed", "タイトル上部画像を保存できませんでした:\n{path}").format(path=path))
             return
         QMessageBox.information(
-            self, "保存完了",
-            f"タイトル上部画像 ({_IMG_W}x{_TOP_H}, 4階調) を保存:\n{path}")
+            self,
+            t("title_screen.save.complete.title", "保存完了"),
+            t(
+                "title_screen.save_top.complete",
+                "タイトル上部画像 ({width}x{height}, 4階調) を保存:\n{path}",
+            ).format(width=_IMG_W, height=_TOP_H, path=path))
 
     def _on_save_top_image(self):
         self._cancel_palette_block_context()
@@ -3206,10 +3471,14 @@ class TitleScreenDialog(QDialog):
 
     def _on_import_png(self):
         QMessageBox.information(
-            self, "PNG取り込み",
-            "全体PNG取り込みは現在停止しています。\n"
-            "タイトル画像の読み込みは「Top PNG読み込み...」から、"
-            "最大256x64の画像を指定してください。")
+            self,
+            t("title_screen.png_import.title", "PNG取り込み"),
+            t(
+                "title_screen.png_import.disabled",
+                "全体PNG取り込みは現在停止しています。\n"
+                "タイトル画像の読み込みは「Top PNG読み込み...」から、"
+                "最大256x64の画像を指定してください。",
+            ))
 
     def _cells_from_display_image(self, img):
         img = img.convertToFormat(QImage.Format_RGB32).scaled(
@@ -3497,8 +3766,9 @@ class TitleScreenDialog(QDialog):
         top = QImage(path)
         if top.isNull():
             QMessageBox.critical(
-                self, "読み込み不可",
-                f"画像を読み込めません:\n{path}")
+                self,
+                t("title_screen.load.unavailable", "読み込み不可"),
+                t("title_screen.load.image_failed", "画像を読み込めません:\n{path}").format(path=path))
             return
         top = top.convertToFormat(QImage.Format_RGB32).scaled(
             _IMG_W, _TOP_H, Qt.IgnoreAspectRatio,
@@ -3511,18 +3781,29 @@ class TitleScreenDialog(QDialog):
             chg = TS.apply_title_image(self._rom,
                                        self._cells_from_display_image(full))
         except (TS.TitleScreenError, ValueError) as e:
-            QMessageBox.critical(self, "読み込み不可", str(e))
+            QMessageBox.critical(
+                self,
+                t("title_screen.load.unavailable", "読み込み不可"),
+                str(e),
+            )
             return
         except Exception as e:
-            QMessageBox.critical(self, "読み込み失敗",
-                                 f"{type(e).__name__}: {e}")
+            QMessageBox.critical(
+                self,
+                t("title_screen.load.failed", "読み込み失敗"),
+                f"{type(e).__name__}: {e}")
             return
         self._changed = True
         self._refresh()
         QMessageBox.information(
-            self, "Top PNG読み込み完了",
-            "\n".join(chg) +
-            "\n\n対象: x=0..255, y=49..112。下半分の山/神殿側は触りません。")
+            self,
+            t("title_screen.top_png.load_complete.title", "Top PNG読み込み完了"),
+            "\n".join(chg)
+            + "\n\n"
+            + t(
+                "title_screen.top_png.load_complete.scope",
+                "対象: x=0..255, y=49..112。下半分の山/神殿側は触りません。",
+            ))
 
     def _on_import_top_png(self):
         self._cancel_palette_block_context()
@@ -3535,23 +3816,32 @@ class TitleScreenDialog(QDialog):
             top = self._load_image_with_pillow(path)
         if top.isNull():
             QMessageBox.critical(
-                self, "画像読み込み失敗",
-                f"画像を開けません:\n{path}")
+                self,
+                t("title_screen.load.image_open_failed.title", "画像読み込み失敗"),
+                t("title_screen.load.image_open_failed", "画像を開けません:\n{path}").format(path=path))
             return
         original_size = (top.width(), top.height())
         oversized = top.width() > _IMG_W or top.height() > _TOP_H
         if top.width() <= 0 or top.height() <= 0:
             QMessageBox.critical(
-                self, "Top PNG取り込み失敗",
-                f"画像サイズが不正です: {top.width()}x{top.height()}")
+                self,
+                t("title_screen.top_png.import_failed.title", "Top PNG取り込み失敗"),
+                t(
+                    "title_screen.top_png.invalid_size",
+                    "画像サイズが不正です: {width}x{height}",
+                ).format(width=top.width(), height=top.height()))
             return
         if not oversized and (
                 top.width() % 8 != 0 or top.height() % 8 != 0
         ):
             QMessageBox.critical(
-                self, "Top PNG取り込み失敗",
-                "Top PNGとして読み込める画像は、幅と高さが8の倍数である必要があります。\n"
-                f"指定画像: {top.width()}x{top.height()}")
+                self,
+                t("title_screen.top_png.import_failed.title", "Top PNG取り込み失敗"),
+                t(
+                    "title_screen.top_png.size_not_multiple",
+                    "Top PNGとして読み込める画像は、幅と高さが8の倍数である必要があります。\n"
+                    "指定画像: {width}x{height}",
+                ).format(width=top.width(), height=top.height()))
             return
         source_top = top.convertToFormat(QImage.Format_RGB32)
         top = source_top
@@ -3568,13 +3858,24 @@ class TitleScreenDialog(QDialog):
                 "tile_h": top.height() // 8,
             }
             self._preview_status.setText(
-                f"貼り付け待ち: {top.width()}x{top.height()}px "
-                f"({top.width() // 8}x{top.height() // 8} tiles) / "
-                "プレビュー上の貼り付け開始位置をクリック")
+                t(
+                    "title_screen.top_png.pending_stamp_status",
+                    "貼り付け待ち: {width}x{height}px ({tile_w}x{tile_h} tiles) / "
+                    "プレビュー上の貼り付け開始位置をクリック",
+                ).format(
+                    width=top.width(),
+                    height=top.height(),
+                    tile_w=top.width() // 8,
+                    tile_h=top.height() // 8,
+                ))
             QMessageBox.information(
-                self, "貼り付け位置を指定",
-                "読み込んだ画像は256x64より小さいため、まだROMへ適用していません。\n"
-                "タイトルプレビュー上で貼り付け開始位置をクリックしてください。")
+                self,
+                t("title_screen.top_png.pick_paste_position.title", "貼り付け位置を指定"),
+                t(
+                    "title_screen.top_png.pick_paste_position.body",
+                    "読み込んだ画像は256x64より小さいため、まだROMへ適用していません。\n"
+                    "タイトルプレビュー上で貼り付け開始位置をクリックしてください。",
+                ))
             return
         snap = bytes(self._rom)
         last_error = None
@@ -3628,17 +3929,25 @@ class TitleScreenDialog(QDialog):
             return
         except (TS.TitleScreenError, ValueError) as e:
             self._rom[:] = snap
-            QMessageBox.critical(self, "Top PNG取り込み失敗", str(e))
+            QMessageBox.critical(
+                self,
+                t("title_screen.top_png.import_failed.title", "Top PNG取り込み失敗"),
+                str(e),
+            )
             return
         except Exception as e:
             self._rom[:] = snap
             QMessageBox.critical(
-                self, "Top PNG取り込み失敗", f"{type(e).__name__}: {e}")
+                self,
+                t("title_screen.top_png.import_failed.title", "Top PNG取り込み失敗"),
+                f"{type(e).__name__}: {e}")
             return
         self._changed = True
         self._refresh()
         QMessageBox.information(
-            self, "Top PNG取り込み完了", "\n".join(pre_msgs + chg))
+            self,
+            t("title_screen.top_png.import_complete.title", "Top PNG取り込み完了"),
+            "\n".join(pre_msgs + chg))
 
     @staticmethod
     def _sidecar_path(path):
@@ -3681,17 +3990,26 @@ class TitleScreenDialog(QDialog):
             _name, data = _rommod.load_rom_data(path)
             chg = TS.transcode_title(self._rom, bytearray(data))
         except (TS.TitleScreenError, ValueError) as e:
-            QMessageBox.critical(self, "移植不可", str(e))
+            QMessageBox.critical(
+                self,
+                t("title_screen.transcode.unavailable", "移植不可"),
+                str(e),
+            )
             return
         except Exception as e:
-            QMessageBox.critical(self, "移植失敗",
-                                 f"{type(e).__name__}: {e}")
+            QMessageBox.critical(
+                self,
+                t("title_screen.transcode.failed", "移植失敗"),
+                f"{type(e).__name__}: {e}")
             return
         self._changed = True
         self._refresh()
         QMessageBox.information(
-            self, "タイトル移植完了",
-            "\n".join(chg) + "\n\n(実機/エミュで要確認)")
+            self,
+            t("title_screen.transcode.complete.title", "タイトル移植完了"),
+            "\n".join(chg)
+            + "\n\n"
+            + t("title_screen.transcode.complete.note", "(実機/エミュで要確認)"))
 
     def _on_pick_title_character(self):
         self._cancel_palette_block_context()
@@ -3704,20 +4022,30 @@ class TitleScreenDialog(QDialog):
     def _on_clear_title_characters(self):
         self._cancel_palette_block_context()
         if QMessageBox.question(
-                self, "キャラ全削除",
-                "タイトル上に配置した静止キャラを全て消します。") != QMessageBox.Yes:
+                self,
+                t("title_screen.character.clear_all.title", "キャラ全削除"),
+                t(
+                    "title_screen.character.clear_all.confirm",
+                    "タイトル上に配置した静止キャラを全て消します。",
+                )) != QMessageBox.Yes:
             return
         snap = bytes(self._rom)
         try:
             chg = TS.clear_title_characters(self._rom)
         except (TS.TitleScreenError, ValueError) as e:
             self._rom[:] = snap
-            QMessageBox.critical(self, "キャラ削除不可", str(e))
+            QMessageBox.critical(
+                self,
+                t("title_screen.character.delete_unavailable", "キャラ削除不可"),
+                str(e),
+            )
             return
         except Exception as e:
             self._rom[:] = snap
             QMessageBox.critical(
-                self, "キャラ削除失敗", f"{type(e).__name__}: {e}")
+                self,
+                t("title_screen.character.delete_failed", "キャラ削除失敗"),
+                f"{type(e).__name__}: {e}")
             return
         self._pending_title_character = None
         self._selected_title_character_slot = None
@@ -3736,19 +4064,28 @@ class TitleScreenDialog(QDialog):
             TS.remove_title_character(self._rom, int(slot))
         except (TS.TitleScreenError, ValueError) as e:
             self._rom[:] = snap
-            QMessageBox.critical(self, "キャラ削除不可", str(e))
+            QMessageBox.critical(
+                self,
+                t("title_screen.character.delete_unavailable", "キャラ削除不可"),
+                str(e),
+            )
             return
         except Exception as e:
             self._rom[:] = snap
             QMessageBox.critical(
-                self, "キャラ削除失敗", f"{type(e).__name__}: {e}")
+                self,
+                t("title_screen.character.delete_failed", "キャラ削除失敗"),
+                f"{type(e).__name__}: {e}")
             return
         slots = self._active_title_character_slots()
         self._selected_title_character_slot = slots[0] if slots else None
         self._changed = True
         self._refresh()
         self._preview_status.setText(
-            f"選択キャラを削除しました / {self._title_character_count_text()}")
+            t(
+                "title_screen.character.deleted_status",
+                "選択キャラを削除しました / {count_text}",
+            ).format(count_text=self._title_character_count_text()))
 
     def _on_edit_title_texts(self):
         self._cancel_palette_block_context()
@@ -3765,23 +4102,35 @@ class TitleScreenDialog(QDialog):
         try:
             cur_push = TS.read_title_push_start_text(self._rom)
         except (TS.TitleScreenError, ValueError) as e:
-            QMessageBox.critical(self, "文字編集不可", str(e))
+            QMessageBox.critical(
+                self,
+                t("title_screen.text.edit_unavailable", "文字編集不可"),
+                str(e),
+            )
             return
         except Exception as e:
             QMessageBox.critical(
-                self, "PUSH START文字読込失敗", f"{type(e).__name__}: {e}")
+                self,
+                t("title_screen.text.push_read_failed", "PUSH START文字読込失敗"),
+                f"{type(e).__name__}: {e}")
             return
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("タイトル文字編集")
+        dlg.setWindowTitle(t("title_screen.text.dialog_title", "タイトル文字編集"))
         lay = QVBoxLayout(dlg)
         lay.addWidget(QLabel(
-            "追加文字 (A-Z / 0-9 / スペース / , . \"、最大32文字)"))
+            t(
+                "title_screen.text.extra_label",
+                "追加文字 (A-Z / 0-9 / スペース / , . \"、最大32文字)",
+            )))
         extra_edit = QLineEdit(cur_extra[:32])
         extra_edit.setMaxLength(32)
         lay.addWidget(extra_edit)
         lay.addWidget(QLabel(
-            "PUSH START位置の固定文字 (A-Z / 0-9 / スペース / , . \"、最大32文字)"))
+            t(
+                "title_screen.text.push_label",
+                "PUSH START位置の固定文字 (A-Z / 0-9 / スペース / , . \"、最大32文字)",
+            )))
         push_combo = QComboBox()
         push_combo.setEditable(True)
         for text in _TITLE_PUSH_TEXT_PRESETS:
@@ -3812,20 +4161,26 @@ class TitleScreenDialog(QDialog):
                     self._rom, push_combo.currentText()))
             except (TS.TitleScreenError, ValueError) as e:
                 self._rom[:] = snap
-                status.setText(f"入力エラー: {e}")
+                status.setText(
+                    t("title_screen.input_error", "入力エラー: {error}").format(error=e)
+                )
                 self._refresh()
                 restore_editor_geometry()
                 preview_changes = []
                 return False
             except Exception as e:
                 self._rom[:] = snap
-                status.setText(f"入力エラー: {type(e).__name__}: {e}")
+                status.setText(
+                    t("title_screen.input_error", "入力エラー: {error}").format(
+                        error=f"{type(e).__name__}: {e}"
+                    )
+                )
                 self._refresh()
                 restore_editor_geometry()
                 preview_changes = []
                 return False
             preview_changes = changes
-            status.setText("プレビュー反映中")
+            status.setText(t("title_screen.text.previewing", "プレビュー反映中"))
             self._refresh()
             restore_editor_geometry()
             return True
@@ -3841,13 +4196,19 @@ class TitleScreenDialog(QDialog):
 
         if not apply_preview():
             self._rom[:] = snap
-            QMessageBox.critical(self, "文字編集不可", status.text())
+            QMessageBox.critical(
+                self,
+                t("title_screen.text.edit_unavailable", "文字編集不可"),
+                status.text(),
+            )
             restore_editor_geometry()
             return
         self._changed = True
         self._refresh()
         restore_editor_geometry()
-        self._preview_status.setText("タイトル文字を更新しました")
+        self._preview_status.setText(
+            t("title_screen.text.updated", "タイトル文字を更新しました")
+        )
 
     def _on_add_title_text(self):
         self._on_edit_title_texts()
@@ -3856,17 +4217,26 @@ class TitleScreenDialog(QDialog):
         try:
             cur = TS.read_title_push_start_text(self._rom)
         except (TS.TitleScreenError, ValueError) as e:
-            QMessageBox.critical(self, "PUSH START文字不可", str(e))
+            QMessageBox.critical(
+                self,
+                t("title_screen.text.push_unavailable", "PUSH START文字不可"),
+                str(e),
+            )
             return
         except Exception as e:
             QMessageBox.critical(
-                self, "PUSH START文字読込失敗", f"{type(e).__name__}: {e}")
+                self,
+                t("title_screen.text.push_read_failed", "PUSH START文字読込失敗"),
+                f"{type(e).__name__}: {e}")
             return
         text, ok = QInputDialog.getText(
             self,
-            "PUSH START文字",
-            "PUSH START BUTTON位置の固定文字 "
-            "(A-Z / 0-9 / スペース / , . \"、最大32文字):",
+            t("title_screen.text.push_input_title", "PUSH START文字"),
+            t(
+                "title_screen.text.push_input_label",
+                "PUSH START BUTTON位置の固定文字 "
+                "(A-Z / 0-9 / スペース / , . \"、最大32文字):",
+            ),
             text=cur)
         if not ok:
             return
@@ -3875,12 +4245,18 @@ class TitleScreenDialog(QDialog):
             chg = TS.set_title_push_start_text(self._rom, text)
         except (TS.TitleScreenError, ValueError) as e:
             self._rom[:] = snap
-            QMessageBox.critical(self, "PUSH START文字不可", str(e))
+            QMessageBox.critical(
+                self,
+                t("title_screen.text.push_unavailable", "PUSH START文字不可"),
+                str(e),
+            )
             return
         except Exception as e:
             self._rom[:] = snap
             QMessageBox.critical(
-                self, "PUSH START文字変更失敗", f"{type(e).__name__}: {e}")
+                self,
+                t("title_screen.text.push_change_failed", "PUSH START文字変更失敗"),
+                f"{type(e).__name__}: {e}")
             return
         self._changed = True
         self._refresh()
@@ -3894,8 +4270,11 @@ class TitleScreenDialog(QDialog):
         self._refresh()
         self._reload_ending_text_edits()
         self._reload_clear_screen_controls()
-        QMessageBox.information(self, "取り消し",
-                                "開いた時点の ROM に戻しました。")
+        QMessageBox.information(
+            self,
+            t("title_screen.revert.title", "取り消し"),
+            t("title_screen.revert.complete", "開いた時点の ROM に戻しました。"),
+        )
 
     def _reload_clear_screen_controls(self):
         combo = getattr(self, "_clear_screen_combo", None)
@@ -3936,9 +4315,14 @@ class TitleScreenDialog(QDialog):
     def _on_apply(self):
         # 既に in-place 反映済。確認のみ。
         QMessageBox.information(
-            self, "適用",
-            "変更は ROM に反映済みです (このまま編集を続けられます)。"
-            if self._changed else "変更はありません。")
+            self,
+            t("title_screen.apply.title", "適用"),
+            t(
+                "title_screen.apply.changed",
+                "変更は ROM に反映済みです (このまま編集を続けられます)。",
+            )
+            if self._changed else
+            t("title_screen.apply.no_changes", "変更はありません。"))
 
     def _on_cancel(self):
         # 開いた時点へ復元してから閉じる

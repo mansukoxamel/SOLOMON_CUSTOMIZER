@@ -204,7 +204,9 @@ class _EnemyCountIndicator(QWidget):
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self._apply_size_hints()
-        self.setToolTip("敵配置数 0/15")
+        self.setToolTip(
+            t("main.enemy_count.tooltip", "敵配置数 0/15")
+        )
 
     def sizeHint(self):
         return QSize(self.minimumWidth(), self.height())
@@ -1288,7 +1290,9 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.splitter)
 
         # ステータスバー
-        self.statusBar().showMessage("準備完了 (F1: ヘルプ / F9: 設定)")
+        self.statusBar().showMessage(
+            t("main.status.ready", "準備完了 (F1: ヘルプ / F9: 設定)")
+        )
         # マウス下部のタイル情報を常時表示（右寄せ・固定）
         self.lbl_hover_info = QLabel("")
         self.lbl_hover_info.setMinimumWidth(420)
@@ -1449,7 +1453,12 @@ class MainWindow(QMainWindow):
             return
         stage_no = self.current_level_no + 1
         self.stage_number_label.setText(f"STAGE {stage_no:02d}")
-        self.stage_number_label.setToolTip(f"現在のステージ: {stage_no}\nマウスホイールでステージ切替")
+        self.stage_number_label.setToolTip(
+            t(
+                "main.stage_nav.current_stage.tooltip",
+                "現在のステージ: {stage}\nマウスホイールでステージ切替",
+            ).format(stage=stage_no)
+        )
         self.stage_number_label.show()
         max_stage = min(c.LEVEL_COUNT, len(self.levels))
         if hasattr(self, "btn_stage_prev_canvas"):
@@ -1467,7 +1476,11 @@ class MainWindow(QMainWindow):
         if not self._is_stage_compare_edit_view() or self._stage_compare_diff_count is None:
             label.hide()
             return
-        label.setText(f"差分 {self._stage_compare_diff_count}")
+        label.setText(
+            t("main.stage_compare.diff_count", "差分 {count}").format(
+                count=self._stage_compare_diff_count
+            )
+        )
         label.show()
         self._position_stage_compare_diff_label()
 
@@ -2914,7 +2927,9 @@ class MainWindow(QMainWindow):
             return
         self.load_rom(path)
 
-    def _confirm_replace_current_work(self, action_label: str = "別のROMを読み込みます") -> bool:
+    def _confirm_replace_current_work(self, action_label: str | None = None) -> bool:
+        if action_label is None:
+            action_label = t("main.file.action.load_another", "別のROMを読み込みます")
         if not self.rom or not self._dirty or self._is_read_only():
             return True
         box = QMessageBox(self)
@@ -3754,8 +3769,11 @@ class MainWindow(QMainWindow):
         ):
             return
         self._restart_after_close = True
-        self.statusBar().showMessage("アプリを再起動します", 2000)
-        self._log("アプリ再起動")
+        self.statusBar().showMessage(
+            t("main.action.restart_app", "アプリを再起動します"),
+            2000,
+        )
+        self._log(t("main.log.restart_app", "アプリ再起動"))
         self.close()
 
     def _load_autosave_workstate(self, path: str, add_history: bool = True) -> bool:
@@ -3792,7 +3810,7 @@ class MainWindow(QMainWindow):
         self._prune_missing_autosave_history()
         menu = QMenu(self)
         if not self._history:
-            menu.addAction("(履歴なし)").setEnabled(False)
+            menu.addAction(t("main.history.empty", "(履歴なし)")).setEnabled(False)
         else:
             for path in self._history:
                 label = self._history_label_for_path(path)
@@ -3800,14 +3818,16 @@ class MainWindow(QMainWindow):
                 action.setToolTip(path)
                 action.triggered.connect(lambda checked, pp=path: self._open_history_path(pp))
             menu.addSeparator()
-            clr = menu.addAction("履歴をクリア")
+            clr = menu.addAction(t("main.history.clear", "履歴をクリア"))
             clr.triggered.connect(self._on_clear_history)
         # ボタンの真下に表示
         btn = self.btn_history
         menu.exec_(btn.mapToGlobal(btn.rect().bottomLeft()))
 
     def _open_history_path(self, path: str):
-        if not self._confirm_replace_current_work("履歴からROM/作業状態を開きます"):
+        if not self._confirm_replace_current_work(
+            t("main.file.action.open_history", "履歴からROM/作業状態を開きます")
+        ):
             return
         if self._is_autosave_path(path):
             self._load_autosave_workstate(path)
@@ -3819,7 +3839,11 @@ class MainWindow(QMainWindow):
         self._history = [latest] if latest else []
         self._save_history()
         self.statusBar().showMessage(
-            "履歴をクリアしました（前回の作業状態は保持）", 2500
+            t(
+                "main.history.cleared",
+                "履歴をクリアしました（前回の作業状態は保持）",
+            ),
+            2500,
         )
 
     def _show_save_failure(self, title: str, error: Exception, log_prefix: str,
@@ -4316,15 +4340,24 @@ class MainWindow(QMainWindow):
         more = len(warnings) - len(shown)
         body = "\n".join(f"- {msg}" for msg in shown)
         if more > 0:
-            body += f"\n- ...ほか {more} 件"
-        self._log("保存前不整合: " + " / ".join(warnings))
+            body += "\n" + t(
+                "main.save_preflight.more",
+                "- ...ほか {count} 件",
+            ).format(count=more)
+        self._log(
+            t("main.save_preflight.log_prefix", "保存前不整合: ")
+            + " / ".join(warnings)
+        )
         reply = QMessageBox.warning(
             self,
-            "保存前チェック",
-            "保存前チェックで不整合らしき項目が見つかりました。\n"
-            "エラーではありませんが、見落としの可能性があります。\n\n"
-            f"{body}\n\n"
-            "このまま保存を続行しますか？",
+            t("main.save_preflight.title", "保存前チェック"),
+            t(
+                "main.save_preflight.body",
+                "保存前チェックで不整合らしき項目が見つかりました。\n"
+                "エラーではありませんが、見落としの可能性があります。\n\n"
+                "{body}\n\n"
+                "このまま保存を続行しますか？",
+            ).format(body=body),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -9551,20 +9584,43 @@ class MainWindow(QMainWindow):
             display_name = self._autosave_display_name_from_metadata(metadata, path)
             saved_at = self._format_autosave_saved_at(metadata.get("saved_at", ""))
             self.statusBar().showMessage(
-                f"{display_name} の作業状態を復元しました: {saved_at} / Stage {self.current_level_no + 1}",
+                t(
+                    "main.autosave.restore_status",
+                    "{name} の作業状態を復元しました: {saved_at} / Stage {stage}",
+                ).format(
+                    name=display_name,
+                    saved_at=saved_at,
+                    stage=self.current_level_no + 1,
+                ),
                 5000,
             )
             self._log(
-                f"前回の作業状態を復元: {display_name} / {saved_at} / {path} / Stage {self.current_level_no + 1}"
+                t(
+                    "main.autosave.restore_log",
+                    "前回の作業状態を復元: {name} / {saved_at} / {path} / Stage {stage}",
+                ).format(
+                    name=display_name,
+                    saved_at=saved_at,
+                    path=path,
+                    stage=self.current_level_no + 1,
+                )
             )
             return True
         except Exception as e:
             QMessageBox.warning(
                 self,
-                "前回の作業状態を復元できません",
+                t(
+                    "main.autosave.restore_failed.title",
+                    "前回の作業状態を復元できません",
+                ),
                 f"{type(e).__name__}: {e}",
             )
-            self._log(f"前回の作業状態を復元失敗: {type(e).__name__}: {e}")
+            self._log(
+                t(
+                    "main.autosave.restore_failed.log",
+                    "前回の作業状態を復元失敗: {error}",
+                ).format(error=f"{type(e).__name__}: {e}")
+            )
             return False
 
     def _restore_previous_readonly_rom_if_available(self) -> bool:
@@ -9577,7 +9633,10 @@ class MainWindow(QMainWindow):
             self.load_rom(
                 path,
                 add_history=False,
-                status_message="前回の閲覧専用ROMを復元しました",
+                status_message=t(
+                    "main.readonly_restore.status_short",
+                    "前回の閲覧専用ROMを復元しました",
+                ),
             )
             if not self._is_read_only():
                 return False
@@ -9589,20 +9648,34 @@ class MainWindow(QMainWindow):
                 self.spin_level.setValue(level_no + 1)
             self._remember_previous_workstate_history(path)
             self.statusBar().showMessage(
-                f"前回の閲覧専用ROMを復元しました: Stage {self.current_level_no + 1}",
+                t(
+                    "main.readonly_restore.status",
+                    "前回の閲覧専用ROMを復元しました: Stage {stage}",
+                ).format(stage=self.current_level_no + 1),
                 5000,
             )
             self._log(
-                f"前回の閲覧専用ROMを復元: {path} / Stage {self.current_level_no + 1}"
+                t(
+                    "main.readonly_restore.log",
+                    "前回の閲覧専用ROMを復元: {path} / Stage {stage}",
+                ).format(path=path, stage=self.current_level_no + 1)
             )
             return True
         except Exception as e:
             QMessageBox.warning(
                 self,
-                "前回の閲覧専用ROMを復元できません",
+                t(
+                    "main.readonly_restore.failed.title",
+                    "前回の閲覧専用ROMを復元できません",
+                ),
                 f"{type(e).__name__}: {e}",
             )
-            self._log(f"前回の閲覧専用ROMを復元失敗: {type(e).__name__}: {e}")
+            self._log(
+                t(
+                    "main.readonly_restore.failed.log",
+                    "前回の閲覧専用ROMを復元失敗: {error}",
+                ).format(error=f"{type(e).__name__}: {e}")
+            )
             return False
 
     def closeEvent(self, event):
@@ -10341,8 +10414,11 @@ class MainWindow(QMainWindow):
                 self._cancel_canvas_mouse_button_state()
                 QMessageBox.warning(
                     self,
-                    "鍵持ち敵設定を解除",
-                    "鍵持ち敵に指定していた番号が、このステージの敵数を超えたため解除しました。"
+                    t("main.key_enemy.reset.title", "鍵持ち敵設定を解除"),
+                    t(
+                        "main.key_enemy.reset.body",
+                        "鍵持ち敵に指定していた番号が、このステージの敵数を超えたため解除しました。",
+                    )
                 )
                 self._cancel_canvas_mouse_button_state()
         old_block = self.spin_key_enemy.blockSignals(True)
@@ -10350,7 +10426,10 @@ class MainWindow(QMainWindow):
         self.spin_key_enemy.setValue(display_current)
         self.spin_key_enemy.blockSignals(old_block)
         self.spin_key_enemy.setToolTip(
-            f"0=なし。1から{max_enemy}は初期配置敵の順番です。Flame系と妖精化敵と同じ番号は指定できません。"
+            t(
+                "main.key_enemy.tooltip",
+                "0=なし。1から{max_enemy}は初期配置敵の順番です。Flame系と妖精化敵と同じ番号は指定できません。",
+            ).format(max_enemy=max_enemy)
         )
 
     def _refresh_fairy_enemy_spin_range(self, warn: bool = False):
@@ -10375,8 +10454,11 @@ class MainWindow(QMainWindow):
                 self._cancel_canvas_mouse_button_state()
                 QMessageBox.warning(
                     self,
-                    "妖精化敵設定を解除",
-                    "妖精化敵に指定していた番号が、このステージで使えないため解除しました。"
+                    t("main.fairy_enemy.reset.title", "妖精化敵設定を解除"),
+                    t(
+                        "main.fairy_enemy.reset.body",
+                        "妖精化敵に指定していた番号が、このステージで使えないため解除しました。",
+                    )
                 )
                 self._cancel_canvas_mouse_button_state()
         old_block = self.spin_fairy_enemy.blockSignals(True)
@@ -10384,7 +10466,10 @@ class MainWindow(QMainWindow):
         self.spin_fairy_enemy.setValue(display_current)
         self.spin_fairy_enemy.blockSignals(old_block)
         self.spin_fairy_enemy.setToolTip(
-            f"0=なし。Dragon/Golem/Gargoyle系のみ。Flame系と鍵持ち敵と同じ番号は指定できません。"
+            t(
+                "main.fairy_enemy.tooltip",
+                "0=なし。Dragon/Golem/Gargoyle系のみ。Flame系と鍵持ち敵と同じ番号は指定できません。",
+            )
         )
 
     def _load_meta_to_ui(self):
@@ -10470,13 +10555,21 @@ class MainWindow(QMainWindow):
             for idx, raw in enumerate(values):
                 seconds = time_decrease_hack.estimate_total_seconds(raw)
                 if seconds is None:
-                    seconds_text = "停止"
+                    seconds_text = t("main.time_decrease.stopped", "停止")
                 else:
-                    seconds_text = f"{int(seconds + 0.5)}秒"
+                    seconds_text = t(
+                        "main.time_decrease.seconds",
+                        "{seconds}秒",
+                    ).format(seconds=int(seconds + 0.5))
                 parts.append(f"{idx}={seconds_text}")
             self.lbl_time_dr_hint.setText(" / ".join(parts))
         except Exception:
-            self.lbl_time_dr_hint.setText("0=24秒 / 1=32秒 / 2=44秒")
+            self.lbl_time_dr_hint.setText(
+                t(
+                    "main.time_decrease.default_hint",
+                    "0=24秒 / 1=32秒 / 2=44秒",
+                )
+            )
 
     def _on_meta_no_bfire_toggled(self, checked):
         if self._meta_loading or not self.levels:
@@ -11522,14 +11615,17 @@ class MainWindow(QMainWindow):
         if not self.rom.is_expanded():
             QMessageBox.information(
                 self,
-                "ミラーOFF",
-                "拡張ROMを読み込んだ状態で使用できます。"
+                t("main.mirror_off.unavailable.title", "ミラーOFF"),
+                t("main.expanded_rom_required", "拡張ROMを読み込んだ状態で使用できます。")
             )
             return
         ans = QMessageBox.question(
             self,
-            "ミラー出現タイミングをOFF",
-            f"Stage {self.current_level_no + 1} のミラー1/2の出現タイミングをすべてOFFにしますか？",
+            t("main.mirror_off.confirm.title", "ミラー出現タイミングをOFF"),
+            t(
+                "main.mirror_off.confirm.body",
+                "Stage {stage} のミラー1/2の出現タイミングをすべてOFFにしますか？",
+            ).format(stage=self.current_level_no + 1),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.Yes,
         )
@@ -11548,7 +11644,7 @@ class MainWindow(QMainWindow):
                 if any(int(v) != 0 for v in list(sched)[:8]):
                     changed = True
         if not changed:
-            self.statusBar().showMessage("ミラー1/2はすでに全OFFです", 3000)
+            self.statusBar().showMessage(t("main.mirror_off.already", "ミラー1/2はすでに全OFFです"), 3000)
             return
         self._push_undo()
         for mirror_no in range(2):
@@ -11561,7 +11657,7 @@ class MainWindow(QMainWindow):
         self._refresh_view()
         self._set_dirty(True)
         self._log(f"ミラー出現OFF: L{ln + 1} のミラー1/2を全OFF")
-        self.statusBar().showMessage("ミラー1/2の出現タイミングを全OFFにしました", 3000)
+        self.statusBar().showMessage(t("main.mirror_off.done", "ミラー1/2の出現タイミングを全OFFにしました"), 3000)
 
     def _mirror_schedule_offset(self, level_no: int, mirror_no: int) -> int:
         from ..core import m66
@@ -11609,7 +11705,7 @@ class MainWindow(QMainWindow):
         if self._reject_read_only_edit():
             return
         if not self.rom.is_expanded():
-            self.statusBar().showMessage("拡張ROMを読み込んだ状態で使用できます。", 3000)
+            self.statusBar().showMessage(t("main.expanded_rom_required", "拡張ROMを読み込んだ状態で使用できます。"), 3000)
             return
         if mirror_no not in (0, 1):
             return
@@ -11620,13 +11716,16 @@ class MainWindow(QMainWindow):
             state_text = "OFF"
         else:
             self._set_mirror_schedule_bytes(ln, mirror_no, self._mirror_schedule_bytes_for_gap(6))
-            state_text = "ON（6空け）"
+            state_text = t("main.mirror_toggle.state.on_gap6", "ON（6空け）")
         self._sync_mirror_panel()
         self._refresh_view()
         self._set_dirty(True)
         self._log(f"ミラー出現切替: L{ln + 1} M{mirror_no + 1} -> {state_text}")
         self.statusBar().showMessage(
-            f"ミラー{mirror_no + 1}の出現タイミングを{state_text}にしました",
+            t(
+                "main.mirror_toggle.done",
+                "ミラー{mirror}の出現タイミングを{state}にしました",
+            ).format(mirror=mirror_no + 1, state=state_text),
             3000,
         )
 
@@ -11883,16 +11982,18 @@ class MainWindow(QMainWindow):
             return
 
         labels = {
-            "all": "すべての編集対象（ブロック/アイテム/敵）",
-            "blocks": "ブロック",
-            "items": "アイテム",
-            "enemies": "モンスター",
+            "all": t("main.clear_level.mode.all", "すべての編集対象（ブロック/アイテム/敵）"),
+            "blocks": t("main.clear_level.mode.blocks", "ブロック"),
+            "items": t("main.clear_level.mode.items", "アイテム"),
+            "enemies": t("main.clear_level.mode.enemies", "モンスター"),
         }
         label = labels.get(mode, "?")
         ans = QMessageBox.question(
-            self, "確認",
-            f"L{self.current_level_no + 1} の{label}を削除します。よろしいですか？\n"
-            f"（Undo可能）",
+            self, t("common.confirm", "確認"),
+            t(
+                "main.clear_level.confirm",
+                "L{level} の{label}を削除します。よろしいですか？\n（Undo可能）",
+            ).format(level=self.current_level_no + 1, label=label),
             QMessageBox.Yes | QMessageBox.No
         )
         if ans != QMessageBox.Yes:
@@ -11902,7 +12003,11 @@ class MainWindow(QMainWindow):
         can_edit_col15 = self.chk_edit_col15.isChecked()
         if mode in ("all", "enemies") and self._key_enemy_is_required_for_exit(lv):
             self.statusBar().showMessage(
-                "鍵メタが無いため、鍵持ち敵を含むモンスター削除はできません", 3000
+                t(
+                    "main.clear_level.key_enemy_blocked",
+                    "鍵メタが無いため、鍵持ち敵を含むモンスター削除はできません",
+                ),
+                3000
             )
             return
 
@@ -11950,7 +12055,11 @@ class MainWindow(QMainWindow):
         self._log(f"ステージクリア: S{self.current_level_no + 1} / {label}")
         self._refresh_view()
         self.statusBar().showMessage(
-            f"L{self.current_level_no + 1}: {label}をクリア（Ctrl+Zで戻せます）", 4000
+            t(
+                "main.clear_level.done",
+                "L{level}: {label}をクリア（Ctrl+Zで戻せます）",
+            ).format(level=self.current_level_no + 1, label=label),
+            4000
         )
 
     # ====== Undo / Redo ======
@@ -12094,7 +12203,10 @@ class MainWindow(QMainWindow):
         labels = [self._stage_label(level_no) for level_no in sorted(level_nos)]
         if len(labels) <= 2:
             return ", ".join(labels)
-        return f"{labels[0]} ほか{len(labels) - 1}面"
+        return t("main.undo.levels.more", "{first} ほか{count}面").format(
+            first=labels[0],
+            count=len(labels) - 1,
+        )
 
     def _snapshot_current_for_undo_entry(self, entry):
         levels = self._undo_entry_levels(entry)
@@ -12144,7 +12256,10 @@ class MainWindow(QMainWindow):
         KeyboardMapDialog.show_from_dict(
             self,
             self._keyboard_map_bindings(),
-            title=f"{APP_DISPLAY_NAME} v{__version__} ショートカットMAP",
+            title=t(
+                "main.keyboard_map.title",
+                "{app} v{version} ショートカットMAP",
+            ).format(app=APP_DISPLAY_NAME, version=__version__),
             app_name=APP_DISPLAY_NAME,
             notes_html=self._keyboard_map_notes_html(),
             geometry_state=self._keyboard_map_geometry_state(),
@@ -12186,9 +12301,11 @@ class MainWindow(QMainWindow):
                 self._app_config.get("gamepad_shortcuts")
             )
             button = shortcuts.get(action, DEFAULT_GAMEPAD_SHORTCUTS.get(action, ""))
-            return escape(gamepad_labels.get(button, "未割当"))
+            return escape(gamepad_labels.get(button, t("common.unassigned", "未割当")))
 
-        return f"""<b>マウス操作</b><br>
+        return t(
+            "main.keyboard_map.notes_html",
+            """<b>マウス操作</b><br>
 左クリック: 選択中の要素を配置<br>
 右クリック: そのマスの要素を削除<br>
 左ドラッグ: 連続配置<br>
@@ -12212,9 +12329,14 @@ Tab/Shift+Tab系は、ホバー位置のアイテム/鍵/扉状態を順送り/�
 コマンドライン例: python SOLOMON_CUSTOMIZER.py path/to/rom.nes<br>
 <br>
 <b>ゲームパッド</b><br>
-テストプレイ: {pad("test_play")}<br>
-前/次ステージ: {pad("stage_prev")} / {pad("stage_next")}<br>
-"""
+テストプレイ: {test_play}<br>
+前/次ステージ: {stage_prev} / {stage_next}<br>
+""",
+        ).format(
+            test_play=pad("test_play"),
+            stage_prev=pad("stage_prev"),
+            stage_next=pad("stage_next"),
+        )
 
     def _keyboard_map_bindings(self) -> dict:
         shortcuts = normalize_shortcuts(self._app_config.get("shortcuts"))

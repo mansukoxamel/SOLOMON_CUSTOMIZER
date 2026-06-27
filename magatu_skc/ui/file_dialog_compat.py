@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from PyQt5.QtWidgets import QFileDialog
 
+from ..core.i18n import t
+
 
 def _qt_filter(filter: str) -> str:
     text = (filter or "").strip()
@@ -15,11 +17,15 @@ def _qt_filter(filter: str) -> str:
 
 
 def get_file(parent=None, *, title: str = "ファイルを選択", filter: str = "*", directory: str = "") -> str:
+    if title == "ファイルを選択":
+        title = t("file_dialog.select_file", "ファイルを選択")
     path, _ = QFileDialog.getOpenFileName(parent, title, directory, _qt_filter(filter))
     return path
 
 
 def get_folder(parent=None, *, title: str = "フォルダを選択", directory: str = "") -> str:
+    if title == "フォルダを選択":
+        title = t("file_dialog.select_folder", "フォルダを選択")
     return QFileDialog.getExistingDirectory(parent, title, directory)
 
 
@@ -31,6 +37,8 @@ def get_path(
     mode: str = "open",
     directory: str = "",
 ) -> str:
+    if title == "保存先を選択":
+        title = t("file_dialog.select_save_path", "保存先を選択")
     if mode == "save":
         path, _ = QFileDialog.getSaveFileName(parent, title, directory, _qt_filter(filter))
         return path

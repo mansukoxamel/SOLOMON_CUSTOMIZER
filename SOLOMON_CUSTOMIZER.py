@@ -18,7 +18,7 @@ from PyQt5.QtCore import QTimer
 from PyQt5.QtNetwork import QLocalServer, QLocalSocket
 
 from magatu_skc.core.config import load_config, resolve_project_path
-from magatu_skc.core.i18n import set_language
+from magatu_skc.core.i18n import set_language, t
 from magatu_skc.ui.main_window import MainWindow
 from magatu_skc.ui.theme import build_app_stylesheet, DEFAULT_THEME_GRAY
 
@@ -50,7 +50,11 @@ def _create_single_instance_server(win: MainWindow) -> QLocalServer:
         win.raise_()
         win.activateWindow()
         win.statusBar().showMessage(
-            "既に起動中のSOLOMON_CUSTOMIZERを前面に表示しました", 3000
+            t(
+                "app.single_instance.activated",
+                "既に起動中のSOLOMON_CUSTOMIZERを前面に表示しました",
+            ),
+            3000
         )
 
     server.newConnection.connect(activate_window)

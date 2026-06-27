@@ -208,6 +208,7 @@ _TRANSLATIONS = {
     "common.browse": {"ja": "参照...", "en": "Browse..."},
     "common.add": {"ja": "追加", "en": "Add"},
     "common.delete": {"ja": "削除", "en": "Delete"},
+    "common.clear": {"ja": "クリア", "en": "Clear"},
     "common.file_filter.images": {
         "ja": "Images (*.png *.ico *.jpg *.bmp);;All files (*)",
         "en": "Images (*.png *.ico *.jpg *.bmp);;All files (*)",
@@ -696,6 +697,14 @@ _TRANSLATIONS = {
         "ja": "NES ROM を選択",
         "en": "Select NES ROM",
     },
+    "main.status.ready": {
+        "ja": "準備完了 (F1: ヘルプ / F9: 設定)",
+        "en": "Ready (F1: Help / F9: Settings)",
+    },
+    "main.enemy_count.tooltip": {
+        "ja": "敵配置数 0/15",
+        "en": "Enemy placements 0/15",
+    },
     "main.file.action.open_another": {
         "ja": "別のROMを開きます",
         "en": "Another ROM will be opened",
@@ -703,6 +712,14 @@ _TRANSLATIONS = {
     "main.file.action.open_dropped": {
         "ja": "ドロップされたROMを開きます",
         "en": "The dropped ROM will be opened",
+    },
+    "main.file.action.load_another": {
+        "ja": "別のROMを読み込みます",
+        "en": "Another ROM will be loaded",
+    },
+    "main.file.action.open_history": {
+        "ja": "履歴からROM/作業状態を開きます",
+        "en": "A ROM/work state will be opened from history",
     },
     "main.unsaved.title": {
         "ja": "未保存の変更",
@@ -1897,6 +1914,114 @@ _TRANSLATIONS = {
         "ja": "アプリを再起動します",
         "en": "The application will restart",
     },
+    "main.log.restart_app": {
+        "ja": "アプリ再起動",
+        "en": "Application restart",
+    },
+    "main.history.empty": {
+        "ja": "(履歴なし)",
+        "en": "(No history)",
+    },
+    "main.history.clear": {
+        "ja": "履歴をクリア",
+        "en": "Clear History",
+    },
+    "main.history.cleared": {
+        "ja": "履歴をクリアしました（前回の作業状態は保持）",
+        "en": "History cleared (previous work state kept)",
+    },
+    "main.save_preflight.more": {
+        "ja": "- ...ほか {count} 件",
+        "en": "- ... and {count} more",
+    },
+    "main.save_preflight.log_prefix": {
+        "ja": "保存前不整合: ",
+        "en": "Pre-save inconsistencies: ",
+    },
+    "main.save_preflight.title": {
+        "ja": "保存前チェック",
+        "en": "Pre-save Check",
+    },
+    "main.save_preflight.body": {
+        "ja": (
+            "保存前チェックで不整合らしき項目が見つかりました。\n"
+            "エラーではありませんが、見落としの可能性があります。\n\n"
+            "{body}\n\n"
+            "このまま保存を続行しますか？"
+        ),
+        "en": (
+            "The pre-save check found possible inconsistencies.\n"
+            "This is not an error, but something may have been missed.\n\n"
+            "{body}\n\n"
+            "Continue saving anyway?"
+        ),
+    },
+    "main.autosave.restore_status": {
+        "ja": "{name} の作業状態を復元しました: {saved_at} / Stage {stage}",
+        "en": "Restored work state for {name}: {saved_at} / Stage {stage}",
+    },
+    "main.autosave.restore_log": {
+        "ja": "前回の作業状態を復元: {name} / {saved_at} / {path} / Stage {stage}",
+        "en": "Restored previous work state: {name} / {saved_at} / {path} / Stage {stage}",
+    },
+    "main.autosave.restore_failed.title": {
+        "ja": "前回の作業状態を復元できません",
+        "en": "Could Not Restore Previous Work State",
+    },
+    "main.autosave.restore_failed.log": {
+        "ja": "前回の作業状態を復元失敗: {error}",
+        "en": "Failed to restore previous work state: {error}",
+    },
+    "main.readonly_restore.status_short": {
+        "ja": "前回の閲覧専用ROMを復元しました",
+        "en": "Restored the previous read-only ROM",
+    },
+    "main.readonly_restore.status": {
+        "ja": "前回の閲覧専用ROMを復元しました: Stage {stage}",
+        "en": "Restored the previous read-only ROM: Stage {stage}",
+    },
+    "main.readonly_restore.log": {
+        "ja": "前回の閲覧専用ROMを復元: {path} / Stage {stage}",
+        "en": "Restored previous read-only ROM: {path} / Stage {stage}",
+    },
+    "main.readonly_restore.failed.title": {
+        "ja": "前回の閲覧専用ROMを復元できません",
+        "en": "Could Not Restore Previous Read-only ROM",
+    },
+    "main.readonly_restore.failed.log": {
+        "ja": "前回の閲覧専用ROMを復元失敗: {error}",
+        "en": "Failed to restore previous read-only ROM: {error}",
+    },
+    "main.key_enemy.reset.title": {
+        "ja": "鍵持ち敵設定を解除",
+        "en": "Key Enemy Setting Cleared",
+    },
+    "main.key_enemy.reset.body": {
+        "ja": "鍵持ち敵に指定していた番号が、このステージの敵数を超えたため解除しました。",
+        "en": "The selected key enemy number exceeded this stage's enemy count, so it was cleared.",
+    },
+    "main.key_enemy.tooltip": {
+        "ja": "0=なし。1から{max_enemy}は初期配置敵の順番です。Flame系と妖精化敵と同じ番号は指定できません。",
+        "en": "0 = none. 1 through {max_enemy} are the initial enemy placement order. Flame-type enemies and the fairy enemy cannot use the same number.",
+    },
+    "main.fairy_enemy.reset.title": {
+        "ja": "妖精化敵設定を解除",
+        "en": "Fairy Enemy Setting Cleared",
+    },
+    "main.fairy_enemy.reset.body": {
+        "ja": "妖精化敵に指定していた番号が、このステージで使えないため解除しました。",
+        "en": "The selected fairy enemy number cannot be used in this stage, so it was cleared.",
+    },
+    "main.fairy_enemy.tooltip": {
+        "ja": "0=なし。Dragon/Golem/Gargoyle系のみ。Flame系と鍵持ち敵と同じ番号は指定できません。",
+        "en": "0 = none. Dragon/Golem/Gargoyle types only. Flame-type enemies and the key enemy cannot use the same number.",
+    },
+    "main.time_decrease.stopped": {"ja": "停止", "en": "Stopped"},
+    "main.time_decrease.seconds": {"ja": "{seconds}秒", "en": "{seconds} sec"},
+    "main.time_decrease.default_hint": {
+        "ja": "0=24秒 / 1=32秒 / 2=44秒",
+        "en": "0=24 sec / 1=32 sec / 2=44 sec",
+    },
     "main.rom.unsupported.title": {
         "ja": "非対応ROM",
         "en": "Unsupported ROM",
@@ -2274,10 +2399,265 @@ _TRANSLATIONS = {
         "ja": "次のステージ",
         "en": "Next stage",
     },
+    "main.stage_nav.current_stage.tooltip": {
+        "ja": "現在のステージ: {stage}\nマウスホイールでステージ切替",
+        "en": "Current stage: {stage}\nUse the mouse wheel to switch stages",
+    },
+    "main.stage_compare.diff_count": {
+        "ja": "差分 {count}",
+        "en": "Diff {count}",
+    },
     "title_screen.open_failed": {
         "ja": "タイトル画面操作不可",
         "en": "Title Screen Operation Unavailable",
     },
+    "title_screen.revert_initial": {"ja": "開いた時点へ戻す", "en": "Restore Initial"},
+    "title_screen.revert.title": {"ja": "取り消し", "en": "Revert"},
+    "title_screen.revert.complete": {
+        "ja": "開いた時点の ROM に戻しました。",
+        "en": "Restored the ROM to the state from when this dialog was opened.",
+    },
+    "title_screen.label.color": {"ja": "色:", "en": "Color:"},
+    "title_screen.zoom.label": {"ja": "拡大:", "en": "Zoom:"},
+    "title_screen.grid_lines": {"ja": "グリッド線", "en": "Grid Lines"},
+    "title_screen.input_error": {"ja": "入力エラー: {error}", "en": "Input error: {error}"},
+    "title_screen.preview.unavailable": {"ja": "プレビュー不可: {error}", "en": "Preview unavailable: {error}"},
+    "title_screen.tile_editor.pen": {"ja": "ペン:", "en": "Pen:"},
+    "title_screen.tile_editor.brush.tooltip": {
+        "ja": "パレットインデックス {index} で描く。Alt+クリックでスポイト。",
+        "en": "Draw with palette index {index}. Alt-click to pick a color.",
+    },
+    "title_screen.tile_editor.clear.tooltip": {
+        "ja": "8x8タイルをパレットインデックス0で消去",
+        "en": "Clear the 8x8 tile with palette index 0.",
+    },
+    "title_screen.tile_editor.group": {
+        "ja": "8x8 CHR編集 bank内 0x{bank:03X}",
+        "en": "8x8 CHR Edit in bank 0x{bank:03X}",
+    },
+    "title_screen.tile_editor.info_suffix": {
+        "ja": "色グループ {group} / 使用箇所: {count}",
+        "en": "Color group {group} / references: {count}",
+    },
+    "title_screen.tile_editor.status": {
+        "ja": "8x8編集: cell ({col}, {row}) / bank内 0x{bank:03X}",
+        "en": "8x8 edit: cell ({col}, {row}) / in-bank 0x{bank:03X}",
+    },
+    "title_screen.tile_editor.editing_status": {
+        "ja": "8x8編集中: cell ({col}, {row}) / bank内 0x{bank:03X}",
+        "en": "Editing 8x8: cell ({col}, {row}) / in-bank 0x{bank:03X}",
+    },
+    "title_screen.tile.edit_unavailable": {"ja": "8x8編集不可", "en": "8x8 Edit Unavailable"},
+    "title_screen.tile.place_unavailable": {"ja": "タイル配置不可", "en": "Tile Placement Unavailable"},
+    "title_screen.tile.place_failed": {"ja": "タイル配置失敗", "en": "Tile Placement Failed"},
+    "title_screen.palette_dialog.title": {"ja": "タイトル色編集", "en": "Title Color Edit"},
+    "title_screen.palette_dialog.note": {
+        "ja": "タイトル画面のBGパレット16色を編集します。各値はROMに書かれるNES色番号($00-$3F)です。",
+        "en": "Edit the 16 BG palette colors for the title screen. Each value is the NES color number ($00-$3F) written to the ROM.",
+    },
+    "title_screen.palette.group": {"ja": "タイトルパレット $3F00-$3F0F", "en": "Title Palette $3F00-$3F0F"},
+    "title_screen.palette.index": {"ja": "パレット {index}", "en": "Palette {index}"},
+    "title_screen.palette.nes64": {"ja": "NES 64色", "en": "NES 64 Colors"},
+    "title_screen.palette.slot.tooltip": {
+        "ja": "パレット {palette} / slot {slot} = ${value:02X}",
+        "en": "Palette {palette} / slot {slot} = ${value:02X}",
+    },
+    "title_screen.palette_panel.title": {"ja": "パレット変更", "en": "Change Palette"},
+    "title_screen.palette_panel.target_block": {
+        "ja": "対象: x={x}, y={y} の16x16区画",
+        "en": "Target: 16x16 block at x={x}, y={y}",
+    },
+    "title_screen.palette_panel.no_target": {
+        "ja": "対象区画なし: 色番号だけ変更できます。パレット番号の割当はキャンバスを右クリック。",
+        "en": "No target block: only color numbers can be changed. Right-click the canvas to assign a palette number.",
+    },
+    "title_screen.palette_panel.block_changed": {
+        "ja": "16x16色変更: x={x}, y={y} / パレット {palette}",
+        "en": "16x16 color changed: x={x}, y={y} / palette {palette}",
+    },
+    "title_screen.palette_panel.block_target": {
+        "ja": "16x16色対象: x={x}, y={y} / パレット {palette}",
+        "en": "16x16 color target: x={x}, y={y} / palette {palette}",
+    },
+    "title_screen.palette_panel.change_unavailable": {"ja": "パレット変更不可", "en": "Palette Change Unavailable"},
+    "title_screen.palette_panel.write_failed": {
+        "ja": "タイトルパレットを書き換えられませんでした:\n{error}",
+        "en": "Could not rewrite the title palette:\n{error}",
+    },
+    "title_screen.palette_panel.slot_changed": {
+        "ja": "パレット変更: パレット {palette} / slot {slot} = ${value:02X}",
+        "en": "Palette changed: palette {palette} / slot {slot} = ${value:02X}",
+    },
+    "title_screen.palette_group_replace.title": {"ja": "色グループ置換", "en": "Replace Color Group"},
+    "title_screen.palette_group_replace.same": {
+        "ja": "置換元と置換先が同じです。変更はありません。",
+        "en": "The source and destination are the same. Nothing changed.",
+    },
+    "title_screen.palette_group_replace.none": {
+        "ja": "色グループ {group} を使う16x16区画はありません。",
+        "en": "No 16x16 blocks use color group {group}.",
+    },
+    "title_screen.palette_group_replace.status": {
+        "ja": "色グループ置換: {src} -> {dst} / {count}区画",
+        "en": "Color group replace: {src} -> {dst} / {count} blocks",
+    },
+    "title_screen.character_picker.title": {"ja": "タイトルキャラクター追加", "en": "Add Title Character"},
+    "title_screen.character_picker.note": {
+        "ja": "一覧をクリックして選択、ダブルクリックで確定。OK後、タイトルプレビューをクリックして配置します。最大 {max} 体。",
+        "en": "Click the list to select, double-click to confirm. After OK, click the title preview to place it. Maximum {max} characters.",
+    },
+    "title_screen.character_picker.no_frames": {"ja": "ROMフレームが見つかりません。", "en": "No ROM frames were found."},
+    "title_screen.character_picker.selection": {
+        "ja": "選択: g{group:02X} s{state:02X} f{frame} / tile ${tile1:02X},${tile2:02X} attr ${attr:02X}",
+        "en": "Selected: g{group:02X} s{state:02X} f{frame} / tile ${tile1:02X},${tile2:02X} attr ${attr:02X}",
+    },
+    "title_screen.character_panel.title": {"ja": "キャラクター", "en": "Characters"},
+    "title_screen.character_panel.selection_status": {
+        "ja": "選択: g{group:02X} s{state:02X} f{frame} / {count_text} / キャンバスをクリックして配置",
+        "en": "Selected: g{group:02X} s{state:02X} f{frame} / {count_text} / click the canvas to place",
+    },
+    "title_screen.character.clear_all": {"ja": "全削除", "en": "Clear All"},
+    "title_screen.character.clear_all.tooltip": {
+        "ja": "タイトル上に配置した静止キャラを全て消します。",
+        "en": "Remove all static characters placed on the title screen.",
+    },
+    "title_screen.character.clear_all.title": {"ja": "キャラ全削除", "en": "Clear All Characters"},
+    "title_screen.character.clear_all.confirm": {
+        "ja": "タイトル上に配置した静止キャラを全て消します。",
+        "en": "Remove all static characters placed on the title screen?",
+    },
+    "title_screen.character.place_unavailable": {"ja": "キャラクター配置不可", "en": "Character Placement Unavailable"},
+    "title_screen.character.place_failed": {"ja": "キャラクター配置失敗", "en": "Character Placement Failed"},
+    "title_screen.character.move_failed": {"ja": "キャラクター移動失敗", "en": "Character Move Failed"},
+    "title_screen.character.moving_status": {"ja": "キャラスロット {slot} を移動中", "en": "Moving character slot {slot}"},
+    "title_screen.character.moved_status": {"ja": "キャラスロット {slot} を移動しました", "en": "Moved character slot {slot}"},
+    "title_screen.character.delete_unavailable": {"ja": "キャラ削除不可", "en": "Character Delete Unavailable"},
+    "title_screen.character.delete_failed": {"ja": "キャラ削除失敗", "en": "Character Delete Failed"},
+    "title_screen.character.deleted_status": {
+        "ja": "選択キャラを削除しました / {count_text}",
+        "en": "Deleted the selected character / {count_text}",
+    },
+    "title_screen.tile_picker.title": {"ja": "タイル配置", "en": "Tile Placement"},
+    "title_screen.tile_picker.display_mode": {"ja": "表示モード:", "en": "Display Mode:"},
+    "title_screen.tile_picker.raw_chr": {"ja": "生CHRタイル (8x8)", "en": "Raw CHR Tiles (8x8)"},
+    "title_screen.tile_picker.palette": {"ja": "パレット:", "en": "Palette:"},
+    "title_screen.tile_picker.status": {
+        "ja": "タイル配置: stream ${stream:02X} / bank内 0x{bank:03X}",
+        "en": "Tile placement: stream ${stream:02X} / in-bank 0x{bank:03X}",
+    },
+    "title_screen.tile_picker.selection_status": {
+        "ja": "選択: stream ${stream:02X} / bank内 0x{bank:03X}\nキャンバス上の8x8マスをクリックすると配置します。",
+        "en": "Selected: stream ${stream:02X} / in-bank 0x{bank:03X}\nClick an 8x8 cell on the canvas to place it.",
+    },
+    "title_screen.tile_picker.hover_status": {
+        "ja": "選択: stream ${selected:02X}\nカーソル: stream ${stream:02X} / bank内 0x{bank:03X}",
+        "en": "Selected: stream ${selected:02X}\nCursor: stream ${stream:02X} / in-bank 0x{bank:03X}",
+    },
+    "title_screen.preview.pending_stamp": {
+        "ja": "貼り付け待ち: {width}x{height}px ({tile_w}x{tile_h} tiles) / クリック位置 ({col}, {row})",
+        "en": "Pending paste: {width}x{height}px ({tile_w}x{tile_h} tiles) / click position ({col}, {row})",
+    },
+    "title_screen.preview.pending_character": {
+        "ja": "キャラ配置待ち: g{group:02X} s{state:02X} f{frame} / x={x}, y={y}",
+        "en": "Pending character: g{group:02X} s{state:02X} f{frame} / x={x}, y={y}",
+    },
+    "title_screen.preview.pending_tile": {
+        "ja": "タイル配置待ち: cell ({col}, {row}) / stream ${stream:02X} / bank内 0x{bank:03X}",
+        "en": "Pending tile: cell ({col}, {row}) / stream ${stream:02X} / in-bank 0x{bank:03X}",
+    },
+    "title_screen.preview.character_hit": {
+        "ja": "キャラスロット {slot}/{max} / x={x}, y={y}",
+        "en": "Character slot {slot}/{max} / x={x}, y={y}",
+    },
+    "title_screen.stamp.unavailable": {"ja": "貼り付け不可", "en": "Paste Unavailable"},
+    "title_screen.stamp.failed": {"ja": "貼り付け失敗", "en": "Paste Failed"},
+    "title_screen.stamp.out_of_bounds": {
+        "ja": "貼り付け先が画面外にはみ出します。\nクリック位置: x={x}, y={y}\n画像サイズ: {tile_w}x{tile_h} tiles",
+        "en": "The paste target extends outside the screen.\nClick position: x={x}, y={y}\nImage size: {tile_w}x{tile_h} tiles",
+    },
+    "title_screen.png_guard.title": {"ja": "PNG取り込み不可", "en": "PNG Import Unavailable"},
+    "title_screen.png_guard.block": {"ja": "attr ({x},{y}) / {count}色", "en": "attr ({x},{y}) / {count} colors"},
+    "title_screen.top_png.paste_complete.title": {"ja": "Top PNG貼り付け完了", "en": "Top PNG Paste Complete"},
+    "title_screen.save.failed.title": {"ja": "保存失敗", "en": "Save Failed"},
+    "title_screen.save.complete.title": {"ja": "保存完了", "en": "Save Complete"},
+    "title_screen.save_image.dialog_title": {"ja": "タイトル画面を画像保存", "en": "Save Title Screen Image"},
+    "title_screen.save_image.failed": {"ja": "画像を保存できませんでした:\n{path}", "en": "Could not save the image:\n{path}"},
+    "title_screen.save_image.complete": {
+        "ja": "タイトル画面 ({width}x{height}, 4階調) を保存:\n{path}",
+        "en": "Saved title screen ({width}x{height}, 4 shades):\n{path}",
+    },
+    "title_screen.save_top.dialog_title": {"ja": "タイトル上部PNGを保存", "en": "Save Title Top PNG"},
+    "title_screen.save_top.failed": {"ja": "タイトル上部画像を保存できませんでした:\n{path}", "en": "Could not save the title top image:\n{path}"},
+    "title_screen.save_top.complete": {
+        "ja": "タイトル上部画像 ({width}x{height}, 4階調) を保存:\n{path}",
+        "en": "Saved title top image ({width}x{height}, 4 shades):\n{path}",
+    },
+    "title_screen.clear_screen.apply_failed": {"ja": "クリア画面改造失敗", "en": "Clear Screen Mod Failed"},
+    "title_screen.clear_screen.character_changed": {"ja": "表示キャラを {name} に変更しました", "en": "Changed display character to {name}"},
+    "title_screen.clear_message.updated": {"ja": "クリア画面メッセージを更新しました", "en": "Updated clear screen message"},
+    "title_screen.clear_message.applied": {"ja": "クリア画面メッセージを反映しました", "en": "Applied clear screen message"},
+    "title_screen.ending_text.applied": {"ja": "エンディング文字を反映しました", "en": "Applied ending text"},
+    "title_screen.png_import.title": {"ja": "PNG取り込み", "en": "PNG Import"},
+    "title_screen.png_import.disabled": {
+        "ja": "全体PNG取り込みは現在停止しています。\nタイトル画像の読み込みは「Top PNG読み込み...」から、最大256x64の画像を指定してください。",
+        "en": "Full PNG import is currently disabled.\nTo load a title image, use \"Load Top PNG...\" and choose an image up to 256x64.",
+    },
+    "title_screen.load.unavailable": {"ja": "読み込み不可", "en": "Load Unavailable"},
+    "title_screen.load.failed": {"ja": "読み込み失敗", "en": "Load Failed"},
+    "title_screen.load.image_failed": {"ja": "画像を読み込めません:\n{path}", "en": "Could not load the image:\n{path}"},
+    "title_screen.load.image_open_failed.title": {"ja": "画像読み込み失敗", "en": "Image Load Failed"},
+    "title_screen.load.image_open_failed": {"ja": "画像を開けません:\n{path}", "en": "Could not open the image:\n{path}"},
+    "title_screen.top_png.load_complete.title": {"ja": "Top PNG読み込み完了", "en": "Top PNG Load Complete"},
+    "title_screen.top_png.load_complete.scope": {
+        "ja": "対象: x=0..255, y=49..112。下半分の山/神殿側は触りません。",
+        "en": "Target: x=0..255, y=49..112. The lower mountain/temple area is not touched.",
+    },
+    "title_screen.top_png.import_failed.title": {"ja": "Top PNG取り込み失敗", "en": "Top PNG Import Failed"},
+    "title_screen.top_png.import_complete.title": {"ja": "Top PNG取り込み完了", "en": "Top PNG Import Complete"},
+    "title_screen.top_png.invalid_size": {"ja": "画像サイズが不正です: {width}x{height}", "en": "Invalid image size: {width}x{height}"},
+    "title_screen.top_png.size_not_multiple": {
+        "ja": "Top PNGとして読み込める画像は、幅と高さが8の倍数である必要があります。\n指定画像: {width}x{height}",
+        "en": "Images loaded as Top PNG must have width and height that are multiples of 8.\nSelected image: {width}x{height}",
+    },
+    "title_screen.top_png.pending_stamp_status": {
+        "ja": "貼り付け待ち: {width}x{height}px ({tile_w}x{tile_h} tiles) / プレビュー上の貼り付け開始位置をクリック",
+        "en": "Pending paste: {width}x{height}px ({tile_w}x{tile_h} tiles) / click the paste start position in the preview",
+    },
+    "title_screen.top_png.pick_paste_position.title": {"ja": "貼り付け位置を指定", "en": "Choose Paste Position"},
+    "title_screen.top_png.pick_paste_position.body": {
+        "ja": "読み込んだ画像は256x64より小さいため、まだROMへ適用していません。\nタイトルプレビュー上で貼り付け開始位置をクリックしてください。",
+        "en": "The loaded image is smaller than 256x64, so it has not been applied to the ROM yet.\nClick the paste start position in the title preview.",
+    },
+    "title_screen.transcode.unavailable": {"ja": "移植不可", "en": "Transcode Unavailable"},
+    "title_screen.transcode.failed": {"ja": "移植失敗", "en": "Transcode Failed"},
+    "title_screen.transcode.complete.title": {"ja": "タイトル移植完了", "en": "Title Transcode Complete"},
+    "title_screen.transcode.complete.note": {"ja": "(実機/エミュで要確認)", "en": "(Verify on real hardware/emulator)"},
+    "title_screen.apply.title": {"ja": "適用", "en": "Apply"},
+    "title_screen.apply.changed": {
+        "ja": "変更は ROM に反映済みです (このまま編集を続けられます)。",
+        "en": "Changes have already been applied to the ROM. You can continue editing.",
+    },
+    "title_screen.apply.no_changes": {"ja": "変更はありません。", "en": "There are no changes."},
+    "title_screen.text.edit_unavailable": {"ja": "文字編集不可", "en": "Text Edit Unavailable"},
+    "title_screen.text.push_read_failed": {"ja": "PUSH START文字読込失敗", "en": "PUSH START Text Read Failed"},
+    "title_screen.text.dialog_title": {"ja": "タイトル文字編集", "en": "Edit Title Text"},
+    "title_screen.text.extra_label": {
+        "ja": "追加文字 (A-Z / 0-9 / スペース / , . \"、最大32文字)",
+        "en": "Extra text (A-Z / 0-9 / space / , . \"; max 32 characters)",
+    },
+    "title_screen.text.push_label": {
+        "ja": "PUSH START位置の固定文字 (A-Z / 0-9 / スペース / , . \"、最大32文字)",
+        "en": "Fixed text at the PUSH START position (A-Z / 0-9 / space / , . \"; max 32 characters)",
+    },
+    "title_screen.text.previewing": {"ja": "プレビュー反映中", "en": "Preview Applied"},
+    "title_screen.text.updated": {"ja": "タイトル文字を更新しました", "en": "Updated title text"},
+    "title_screen.text.push_unavailable": {"ja": "PUSH START文字不可", "en": "PUSH START Text Unavailable"},
+    "title_screen.text.push_input_title": {"ja": "PUSH START文字", "en": "PUSH START Text"},
+    "title_screen.text.push_input_label": {
+        "ja": "PUSH START BUTTON位置の固定文字 (A-Z / 0-9 / スペース / , . \"、最大32文字):",
+        "en": "Fixed text at the PUSH START BUTTON position (A-Z / 0-9 / space / , . \"; max 32 characters):",
+    },
+    "title_screen.text.push_change_failed": {"ja": "PUSH START文字変更失敗", "en": "PUSH START Text Change Failed"},
     "hack_dialog.title.enemy": {"ja": "敵", "en": "Enemies"},
     "hack_dialog.title.game": {"ja": "ゲーム挙動改造", "en": "Game Behavior Tweaks"},
     "hack_dialog.info.enemy_html": {
@@ -2356,6 +2736,269 @@ _TRANSLATIONS = {
     "hack_dialog.initial_lives.hint": {
         "ja": "原作は3。単純な #$03 変更では巻物最大数にも漏れるため、専用フックで残数だけ変更します。",
         "en": "Original is 3. A simple #$03 edit also leaks into max scroll count, so a dedicated hook changes only lives.",
+    },
+    "hack_dialog.disabled": {"ja": "⚠ 無効: {error}", "en": "Disabled: {error}"},
+    "hack_dialog.standard_suffix": {"ja": "（標準）", "en": " (standard)"},
+    "hack_dialog.frame.suffix": {"ja": " フレーム", "en": " frames"},
+    "hack_dialog.stage.suffix": {"ja": " 面", "en": " stage"},
+    "hack_dialog.group.time_decrease": {"ja": "ステージ制限時間", "en": "Stage Time Limit"},
+    "hack_dialog.time_decrease.tooltip": {
+        "ja": "CPU $9942 のステージ制限時間テーブル値。値が大きいほど短くなります。",
+        "en": "Stage time-decrease table value at CPU $9942. Larger values make time run out faster.",
+    },
+    "hack_dialog.time_decrease.fast.label": {"ja": "0=速い:", "en": "0=Fast:"},
+    "hack_dialog.time_decrease.normal.label": {"ja": "1=普通:", "en": "1=Normal:"},
+    "hack_dialog.time_decrease.slow.label": {"ja": "2=遅い:", "en": "2=Slow:"},
+    "hack_dialog.time_decrease.hint": {
+        "ja": "原作値は 速い=$2D / 普通=$22 / 遅い=$19。目安は開始LIFE 10000が0になるまでの時間です。",
+        "en": "Original values are Fast=$2D / Normal=$22 / Slow=$19. The estimate is the time until starting LIFE 10000 reaches 0.",
+    },
+    "hack_dialog.group.wall_color": {"ja": "ステージ壁色 (1-48面)", "en": "Stage Wall Colors (Stages 1-48)"},
+    "hack_dialog.wall_color.tooltip": {
+        "ja": "CPU $9122 の4面単位壁色テーブル値。NESパレット番号です。",
+        "en": "Four-stage wall-color table value at CPU $9122. This is a NES palette index.",
+    },
+    "hack_dialog.wall_color.stage_range": {"ja": "{range}面", "en": "Stages {range}"},
+    "hack_dialog.wall_color.hint": {
+        "ja": "4面ごとの壁の基調色です。ROM $9122 の先頭12バイトだけを変更します。49面以降の特殊値 $80/$80 は触りません。",
+        "en": "Base wall color for each four-stage range. Only the first 12 bytes of ROM $9122 are changed; special values $80/$80 for stages 49+ are left untouched.",
+    },
+    "hack_dialog.group.walk_speed": {"ja": "ダーナ歩行速度", "en": "Dana Walk Speed"},
+    "hack_dialog.walk_speed.label": {"ja": "移動速度:", "en": "Move speed:"},
+    "hack_dialog.walk_speed.hint": {
+        "ja": "原作 1.0x = 0.75 px/frame（4コマ歩行アニメと同期した精密値）。地上・空中の左右4方向すべてに適用。JP/US 共通。",
+        "en": "Original 1.0x = 0.75 px/frame, the exact value synchronized with the 4-frame walk animation. Applies to left/right movement on ground and in air. Common to JP/US.",
+    },
+    "hack_dialog.group.panel_monster": {"ja": "パネルモンスター", "en": "Panel Monster"},
+    "hack_dialog.panel_monster.bullet_fix": {"ja": "弾の左右速度バグ修正", "en": "Fix bullet left/right speed bug"},
+    "hack_dialog.panel_monster.bullet_speed.slow": {"ja": "$30/$50（右下$30・左上$50）", "en": "$30/$50 (down-right $30 / up-left $50)"},
+    "hack_dialog.panel_monster.bullet_speed.fast": {"ja": "$3F/$41（右下$3F・左上$41）", "en": "$3F/$41 (down-right $3F / up-left $41)"},
+    "hack_dialog.panel_monster.cooldown.label": {"ja": "クールダウン:", "en": "Cooldown:"},
+    "hack_dialog.panel_monster.fixed_speed.label": {"ja": "修正後の速度:", "en": "Fixed speed:"},
+    "hack_dialog.panel_monster.hint": {
+        "ja": "判定: {region} / 原作 クールダウン192F。値を小さくすると連射化します。下限32F。短すぎる値は複数パネル面で17個のsub-slotを使い切りやすく、発射失敗や弾抜けの原因になります。 弾の左右速度バグ修正は共有Bullet速度テーブルを補正するため、バレットを使う敵すべてに影響します。",
+        "en": "Detected: {region} / Original cooldown is 192F. Smaller values fire more rapidly. Minimum is 32F. Too-small values can exhaust the 17 sub-slots on stages with multiple panels, causing failed shots or missing bullets. The left/right bullet speed fix changes the shared Bullet speed table, so it affects every enemy that uses Bullet.",
+    },
+    "hack_dialog.panel_variant.note": {
+        "ja": "A/B/Cパネルモンスターはステージ別ではなく、全ステージ共通の固定値を使います。既存ステージデータ内の旧A/B/C個別値は読み込み互換のみで、保存時には使いません。",
+        "en": "A/B/C Panel Monsters use fixed values shared by all stages, not per-stage values. Old per-stage A/B/C values in existing stage data are read only for compatibility and are not used when saving.",
+    },
+    "hack_dialog.panel_variant.speed": {"ja": "速度", "en": "Speed"},
+    "hack_dialog.panel_variant.interval": {"ja": "間隔", "en": "Interval"},
+    "hack_dialog.group.demo_stage": {"ja": "デモプレイのステージ", "en": "Demo Play Stage"},
+    "hack_dialog.demo_stage.label": {"ja": "デモの面:", "en": "Demo stage:"},
+    "hack_dialog.demo_stage.hint": {
+        "ja": "判定: {region} / 原作の既定は3面。3面以上のみ(内部のX連鎖制約)。録画入力は3面用なので別面ではDanaが録画通り動く=見た目で別面と分かる。正規プレイには影響なし。",
+        "en": "Detected: {region} / Original default is stage 3. Stage 3 or later only, due to internal X-chain constraints. The recorded input is for stage 3, so on other stages Dana still follows that input and the demo visibly differs. Normal play is unaffected.",
+    },
+    "hack_dialog.group.golem": {"ja": "ゴーレム", "en": "Golem"},
+    "hack_dialog.golem.snappy": {
+        "ja": "キビキビ動作（視認→即反応・方向転換・移動再開、隙を最小化）",
+        "en": "Snappy behavior (minimize delay for detection, turning, and movement restart)",
+    },
+    "hack_dialog.group.shared_walk": {"ja": "ゴーレム/ドラゴン/ガーゴイル歩行速度", "en": "Golem / Dragon / Gargoyle Walk Speed"},
+    "hack_dialog.shared_walk.label": {"ja": "歩行速度:", "en": "Walk speed:"},
+    "hack_dialog.shared_walk.hint": {
+        "ja": "Golem/Dragon/Gargoyle の s0 通常歩行が同じ速度で連動します。ゴーレム専用の歩行速度・突進速度は混乱を避けるため一旦表示しません。",
+        "en": "The s0 normal walking speed for Golem, Dragon, and Gargoyle changes together. Golem-only walk and charge speeds are hidden for now to avoid confusion.",
+    },
+    "hack_dialog.group.neul_ghost_speed": {"ja": "ゴースト＆ヌエル移動速度", "en": "Ghost & Neul Move Speed"},
+    "hack_dialog.move_speed.label": {"ja": "移動速度:", "en": "Move speed:"},
+    "hack_dialog.neul_ghost_speed.hint": {
+        "ja": "GhostはX方向、NeulはY方向の速度を変更します。SP1/SP2と通常/noslow版がまとめて同じ倍率で変わります。",
+        "en": "Changes Ghost X speed and Neul Y speed. SP1/SP2 and normal/noslow variants all use the same multiplier.",
+    },
+    "hack_dialog.group.spark_ball_speed": {"ja": "スパークボール移動速度", "en": "Spark Ball Move Speed"},
+    "hack_dialog.spark_ball_speed.hint": {
+        "ja": "Spark Ball専用の $A9DF/$A9E7 移動差分テーブルを倍率変更します。通常スパークボールと強化スパークボール(6A/6B/6E/6F)の両方に効きます。",
+        "en": "Changes the Spark Ball-specific $A9DF/$A9E7 movement delta table by multiplier. Applies to both normal Spark Ball and enhanced Spark Ball (6A/6B/6E/6F).",
+    },
+    "hack_dialog.group.spark_ball_variant": {"ja": "強化スパークボール", "en": "Enhanced Spark Ball"},
+    "hack_dialog.spark_ball_variant.pause_digits.label": {"ja": "停止するLIFE百の位:", "en": "Pause on LIFE hundreds digit:"},
+    "hack_dialog.spark_ball_variant.transparency.label": {"ja": "透明化周期:", "en": "Transparency cycle:"},
+    "hack_dialog.spark_ball_variant.hint": {
+        "ja": "停止型(6A/6B/6E/6F)は選択したLIFE百の位で停止します。透明型(72/73/76/77)はフレームカウンタのANDマスクで透明化周期を変えます。",
+        "en": "Pause variants (6A/6B/6E/6F) stop on the selected LIFE hundreds digits. Transparency variants (72/73/76/77) change their transparency cycle through the frame-counter AND mask.",
+    },
+    "hack_dialog.group.demonhead": {"ja": "デーモンヘッド", "en": "Demon Head"},
+    "hack_dialog.demonhead.snappy": {"ja": "キビキビ動作（反転後の溜めを最小化）", "en": "Snappy behavior (minimize the delay after reversing)"},
+    "hack_dialog.demonhead.hint": {"ja": "Demonheadが増殖/反転した直後の待ち $0F を $01 にします。", "en": "Changes the $0F wait just after Demon Head multiplies or reverses to $01."},
+    "hack_dialog.group.gargoyle": {"ja": "ガーゴイル", "en": "Gargoyle"},
+    "hack_dialog.gargoyle.snappy": {"ja": "キビキビ動作（検知後・発射直前・復帰待ちを最小化）", "en": "Snappy behavior (minimize detection, pre-shot, and recovery waits)"},
+    "hack_dialog.gargoyle.cooldown.tooltip": {
+        "ja": "発射後に通常行動へ戻るまでの待ち。原作は80F。1F化は危険なので下限を設けています。",
+        "en": "Wait after firing before returning to normal behavior. Original is 80F. A 1F value is risky, so the lower limit is restricted.",
+    },
+    "hack_dialog.gargoyle.cooldown.label": {"ja": "発射後クールダウン:", "en": "Post-shot cooldown:"},
+    "hack_dialog.gargoyle.hint": {
+        "ja": "ONでガーゴイル固有の待ち3箇所を$01にします。弾の2発化とは別軸で併用できます。",
+        "en": "When ON, changes Gargoyle's three unique waits to $01. This can be combined with the two-shot variant because it is a separate setting.",
+    },
+    "hack_dialog.group.gargoyle_variant": {"ja": "強化ガーゴイル", "en": "Enhanced Gargoyle"},
+    "hack_dialog.gargoyle_variant.offset.label": {"ja": "2発目の位置:", "en": "Second shot position:"},
+    "hack_dialog.gargoyle_variant.hint": {
+        "ja": "強化ガーゴイル(7A/7B/7E/7F)の2発目だけを調整します。1発目は原作の弾生成処理をそのまま使います。",
+        "en": "Adjusts only the second shot of Enhanced Gargoyle (7A/7B/7E/7F). The first shot uses the original bullet generation unchanged.",
+    },
+    "hack_dialog.group.dragon": {"ja": "ドラゴン", "en": "Dragon"},
+    "hack_dialog.dragon.snappy": {"ja": "キビキビ動作（攻撃前の待ちを最小化）", "en": "Snappy behavior (minimize the pre-attack wait)"},
+    "hack_dialog.dragon.hint": {
+        "ja": "ONでドラゴン固有の攻撃前待ち1箇所を$01にします。サラマンダー共有の火吐き開始waitは変更しません。",
+        "en": "When ON, changes Dragon's unique pre-attack wait to $01. The fire-breath start wait shared with Saramandor is not changed.",
+    },
+    "hack_dialog.group.clear_screen_char": {"ja": "クリア画面のキャラ (おめでとう画面の2体)", "en": "Clear Screen Characters (Two Congratulations-Screen Sprites)"},
+    "hack_dialog.clear_screen_char.label": {"ja": "表示キャラ:", "en": "Displayed character:"},
+    "hack_dialog.clear_screen_char.hint": {
+        "ja": "ステージクリア画面で左右に出る2体を差し替え。全プリセットは速度ゼロ=落下せず置物表示 (ROM解析確定)。",
+        "en": "Replaces the two sprites shown on the left and right of the stage-clear screen. All presets have zero velocity, so they stay in place without falling (confirmed by ROM analysis).",
+    },
+    "hack_dialog.group.stage_frame": {"ja": "ステージ外枠", "en": "Stage Border"},
+    "hack_dialog.stage_frame.checkbox": {"ja": "ゲーム画面の外枠を白ブロック柄にする", "en": "Use white-block graphics for the gameplay border"},
+    "hack_dialog.stage_frame.tooltip": {
+        "ja": "ステージ外枠テーブルを外枠用白ブロック反復へ変更し、4つのCHRバンクすべてで対応CHRを白ブロック柄へ差し替えます。\n境界セル$F8や衝突判定、ステージデータ形式は変更しません。",
+        "en": "Changes the stage-border table to repeated border white blocks, and replaces the corresponding CHR in all four CHR banks with white-block graphics.\nBoundary cell $F8, collision, and the stage data format are not changed.",
+    },
+    "hack_dialog.stage_frame.hint": {
+        "ja": "ONにすると保存ROM/テストプレイROMの左右・下外枠が白ブロック柄になります。OFFに戻して適用すると外枠テーブルとハードコード済み原作CHRを復元します。",
+        "en": "When ON, saved ROMs and test-play ROMs use white-block graphics on the left, right, and bottom borders. Turning it OFF and applying restores the border table and hardcoded original CHR.",
+    },
+    "hack_dialog.stage_frame.unknown": {
+        "ja": "外枠タイル列またはCHRが既知値と一致しないため、このROMでは変更を無効化しています。",
+        "en": "This ROM cannot edit the border because the border tile sequence or CHR does not match known values.",
+    },
+    "hack_dialog.jp_base_only": {"ja": "日本版ベースROM専用です。", "en": "Only JP-based ROMs are supported."},
+    "hack_dialog.group.gap_fix": {"ja": "原作バグ回避", "en": "Original Bug Workaround"},
+    "hack_dialog.gap_fix.checkbox": {"ja": "落下中の横穴侵入を安定化（運ゲー解消・左右対応）", "en": "Stabilize side-gap entry while falling (left/right supported)"},
+    "hack_dialog.gap_fix.tooltip": {
+        "ja": "上から落ちながら左/右で横穴に入れる時と入れない時がある原作の挙動(サブピクセル位相依存)を解消し、毎回入れるように\nします。横穴がある時だけ作用し通常の壁・歩行・着地は原作どおり(副作用なし、実機確認済)。Mesen解析 asm R182",
+        "en": "Fixes the original subpixel-phase-dependent behavior where Dana sometimes can and sometimes cannot enter a side gap while falling with left/right held.\nOnly applies when a side gap exists; normal walls, walking, and landing remain original behavior (no side effects confirmed on hardware-like testing). Mesen analysis asm R182.",
+    },
+    "hack_dialog.gap_fix.hint": {
+        "ja": "ソロモンの鍵 積年の謎「横穴に入れる/入れないが運任せ」を機構解明し回避。詳細 docs/gap_entry_mechanism.html",
+        "en": "Documents and works around the long-standing Solomon's Key issue where entering side gaps depended on luck. See docs/gap_entry_mechanism.html.",
+    },
+    "hack_dialog.group.dark_tempo": {"ja": "暗闇テンポ (全体共通・必ず明から開始)", "en": "Darkness Tempo (Global, Always Starts Bright)"},
+    "hack_dialog.dark_tempo.light.label": {"ja": "明るい (見える):", "en": "Bright (visible):"},
+    "hack_dialog.dark_tempo.dark.label": {"ja": "暗い (見えない):", "en": "Dark (hidden):"},
+    "hack_dialog.dark_tempo.hint": {
+        "ja": "60フレーム≒1秒。既定: 明45/暗100。暗闇面を1つでも設定して保存すると有効。",
+        "en": "60 frames is about 1 second. Default: bright 45 / dark 100. Takes effect after saving with at least one darkness stage configured.",
+    },
+    "hack_dialog.spark_ball_variant.max_digits": {
+        "ja": "停止するLIFE百の位は最大4個までです。",
+        "en": "You can select up to four LIFE hundreds digits.",
+    },
+    "hack_dialog.time_estimate.never": {"ja": "目安: 減らない", "en": "Estimate: does not decrease"},
+    "hack_dialog.time_estimate.minutes": {"ja": "目安: 約{minutes}分{seconds:02d}秒", "en": "Estimate: about {minutes}m {seconds:02d}s"},
+    "hack_dialog.time_estimate.seconds": {"ja": "目安: 約{seconds}秒", "en": "Estimate: about {seconds}s"},
+    "hack_dialog.setting.start_stage": {"ja": "開始ステージ", "en": "Starting Stage"},
+    "hack_dialog.setting.continue_limit": {"ja": "コンティニュー上限", "en": "Continue Limit"},
+    "hack_dialog.setting.final_stage_redirect": {"ja": "最終面への移行", "en": "Final-stage transition"},
+    "hack_dialog.setting.warp_feather": {"ja": "ワープ羽", "en": "Warp Feather"},
+    "hack_dialog.setting.initial_magic_max": {"ja": "初期魔法 最大数", "en": "Initial Magic max count"},
+    "hack_dialog.setting.initial_magic_pattern": {"ja": "初期魔法 初期所持", "en": "Initial Magic starting scrolls"},
+    "hack_dialog.setting.initial_lives": {"ja": "初期残数", "en": "Initial Lives"},
+    "hack_dialog.setting.time_fast": {"ja": "ステージ制限時間 速い", "en": "Stage time limit fast"},
+    "hack_dialog.setting.time_normal": {"ja": "ステージ制限時間 普通", "en": "Stage time limit normal"},
+    "hack_dialog.setting.time_slow": {"ja": "ステージ制限時間 遅い", "en": "Stage time limit slow"},
+    "hack_dialog.setting.solomon_seal_stage": {"ja": "ソロモンの封印 出現面", "en": "Solomon's Seal stages"},
+    "hack_dialog.setting.wall_color": {"ja": "ステージ壁色", "en": "Stage wall colors"},
+    "hack_dialog.setting.main_palette": {"ja": "メインパレット", "en": "Main palette"},
+    "hack_dialog.setting.demo_wait": {"ja": "デモ操作 wait", "en": "Demo input wait"},
+    "hack_dialog.setting.demo_joy": {"ja": "デモ操作 joy", "en": "Demo input joy"},
+    "hack_dialog.setting.enemy_drop_c278": {"ja": "敵ドロップ C278", "en": "Enemy drop C278"},
+    "hack_dialog.setting.enemy_drop_c293": {"ja": "敵ドロップ C293", "en": "Enemy drop C293"},
+    "hack_dialog.setting.clear_message": {"ja": "クリア画面メッセージ", "en": "Clear-screen message"},
+    "hack_dialog.setting.bonus_positions": {"ja": "ボーナスステージ配置", "en": "Bonus stage positions"},
+    "hack_dialog.setting.bonus_items": {"ja": "ボーナスステージアイテム", "en": "Bonus stage items"},
+    "hack_dialog.setting.meta_position": {"ja": "メタ項目座標: {name}", "en": "Meta object position: {name}"},
+    "hack_dialog.setting.walk_speed": {"ja": "ダーナ歩行速度", "en": "Dana walk speed"},
+    "hack_dialog.setting.panel_cooldown": {"ja": "パネルモンスター クールダウン", "en": "Panel Monster cooldown"},
+    "hack_dialog.setting.panel_bullet_fix": {"ja": "パネルモンスター 弾の左右速度バグ修正", "en": "Panel Monster bullet left/right speed fix"},
+    "hack_dialog.setting.panel_bullet_speed": {"ja": "パネルモンスター 弾速度", "en": "Panel Monster bullet speed"},
+    "hack_dialog.setting.panel_variant": {"ja": "パネルモンスター A/B/C共通値", "en": "Panel Monster A/B/C shared values"},
+    "hack_dialog.setting.demo_stage": {"ja": "デモステージ", "en": "Demo stage"},
+    "hack_dialog.setting.golem_snappy": {"ja": "ゴーレム キビキビ", "en": "Golem snappy behavior"},
+    "hack_dialog.setting.gargoyle_snappy": {"ja": "ガーゴイル キビキビ", "en": "Gargoyle snappy behavior"},
+    "hack_dialog.setting.gargoyle_cooldown": {"ja": "ガーゴイル クールダウン", "en": "Gargoyle cooldown"},
+    "hack_dialog.setting.gargoyle_variant_offset": {"ja": "強化ガーゴイル 2発目位置", "en": "Enhanced Gargoyle second shot position"},
+    "hack_dialog.setting.dragon_snappy": {"ja": "ドラゴン キビキビ", "en": "Dragon snappy behavior"},
+    "hack_dialog.setting.shared_walk": {"ja": "共通歩行速度", "en": "Shared walk speed"},
+    "hack_dialog.setting.neul_ghost_speed": {"ja": "ゴースト＆ヌエル移動速度", "en": "Ghost & Neul move speed"},
+    "hack_dialog.setting.spark_ball_speed": {"ja": "スパークボール移動速度", "en": "Spark Ball move speed"},
+    "hack_dialog.setting.spark_ball_pause": {"ja": "強化スパークボール停止", "en": "Enhanced Spark Ball pause"},
+    "hack_dialog.setting.spark_ball_transparency": {"ja": "強化スパークボール透明化", "en": "Enhanced Spark Ball transparency"},
+    "hack_dialog.setting.demonhead_snappy": {"ja": "デーモンヘッド キビキビ", "en": "Demon Head snappy behavior"},
+    "hack_dialog.setting.clear_screen_char": {"ja": "クリア画面キャラ", "en": "Clear-screen character"},
+    "hack_dialog.setting.stage_frame": {"ja": "ステージ外枠", "en": "Stage border"},
+    "hack_dialog.setting.gap_fix": {"ja": "横穴侵入安定化", "en": "Side-gap entry stabilization"},
+    "hack_dialog.setting.dark_light": {"ja": "暗闇 明フレーム", "en": "Darkness bright frames"},
+    "hack_dialog.setting.dark_dark": {"ja": "暗闇 暗フレーム", "en": "Darkness dark frames"},
+    "hack_dialog.applied.start_stage.default": {"ja": "開始ステージ → 1面", "en": "Starting stage -> Stage 1"},
+    "hack_dialog.applied.start_stage": {"ja": "開始ステージ → {stage}面", "en": "Starting stage -> Stage {stage}"},
+    "hack_dialog.applied.continue_limit": {"ja": "コンティニュー上限 → {stage}", "en": "Continue limit -> {stage}"},
+    "hack_dialog.applied.final_stage.original": {"ja": "最終ステージ → {stage}面をクリアした後（原作）", "en": "Final stage -> after clearing Stage {stage} (original)"},
+    "hack_dialog.applied.final_stage": {"ja": "最終ステージ → {stage}面をクリアした後", "en": "Final stage -> after clearing Stage {stage}"},
+    "hack_dialog.log.final_stage_changed": {"ja": "最終ステージ設定を変更", "en": "Changed final-stage setting"},
+    "hack_dialog.log.enemy_drop_changed": {"ja": "敵ドロップ効果表 $C293 書換", "en": "Changed enemy drop effect table $C293"},
+    "hack_dialog.log.demo_input_changed": {"ja": "デモ操作データ ($CF9A/$CFBC) 書換", "en": "Changed demo input data ($CF9A/$CFBC)"},
+    "hack_dialog.log.clear_message_changed": {"ja": "クリア画面メッセージ ($94DB/$94ED/$9507) 書換", "en": "Changed clear-screen message ($94DB/$94ED/$9507)"},
+    "hack_dialog.solomon_seal.no_clear_air": {
+        "ja": "封印{seal}: {stage}面に配置可能な空気マスがありません。",
+        "en": "Seal {seal}: Stage {stage} has no air cell where it can be placed.",
+    },
+    "hack_dialog.solomon_seal.relocation_note": {
+        "ja": "封印{seal}: {stage}面 {old_pos} -> {new_pos}",
+        "en": "Seal {seal}: Stage {stage} {old_pos} -> {new_pos}",
+    },
+    "hack_dialog.applied.solomon_seal_stage": {"ja": "ソロモンの封印 出現面: {changes}", "en": "Solomon's Seal stages: {changes}"},
+    "hack_dialog.applied.solomon_seal_relocation": {"ja": "ソロモンの封印 位置補正: {changes}", "en": "Solomon's Seal position adjustment: {changes}"},
+    "hack_dialog.applied.initial_magic": {"ja": "初期魔法: {changes}", "en": "Initial Magic: {changes}"},
+    "hack_dialog.applied.initial_lives": {"ja": "初期残数: {changes}", "en": "Initial Lives: {changes}"},
+    "hack_dialog.applied.time_decrease": {"ja": "ステージ制限時間: {changes}", "en": "Stage time limit: {changes}"},
+    "hack_dialog.applied.wall_color": {"ja": "ステージ壁色: {changes}", "en": "Stage wall colors: {changes}"},
+    "hack_dialog.applied.walk_speed": {"ja": "歩行速度 → {mult:g}x ({changes})", "en": "Walk speed -> {mult:g}x ({changes})"},
+    "hack_dialog.applied.panel_monster": {"ja": "パネルモンスター: {changes}", "en": "Panel Monster: {changes}"},
+    "hack_dialog.applied.demo_stage": {"ja": "デモプレイ: {changes}", "en": "Demo play: {changes}"},
+    "hack_dialog.applied.golem": {"ja": "ゴーレム: {changes}", "en": "Golem: {changes}"},
+    "hack_dialog.applied.gargoyle": {"ja": "ガーゴイル: {changes}", "en": "Gargoyle: {changes}"},
+    "hack_dialog.applied.gargoyle_variant": {"ja": "強化ガーゴイル: {changes}", "en": "Enhanced Gargoyle: {changes}"},
+    "hack_dialog.applied.dragon": {"ja": "ドラゴン: {changes}", "en": "Dragon: {changes}"},
+    "hack_dialog.applied.shared_walk": {"ja": "共通歩行速度: {changes}", "en": "Shared walk speed: {changes}"},
+    "hack_dialog.applied.neul_ghost": {"ja": "ゴースト＆ヌエル: {changes}", "en": "Ghost & Neul: {changes}"},
+    "hack_dialog.applied.spark_ball": {"ja": "スパークボール: {changes}", "en": "Spark Ball: {changes}"},
+    "hack_dialog.applied.spark_ball_variant": {"ja": "強化スパークボール: {changes}", "en": "Enhanced Spark Ball: {changes}"},
+    "hack_dialog.applied.demonhead": {"ja": "デーモンヘッド: {changes}", "en": "Demon Head: {changes}"},
+    "hack_dialog.applied.clear_screen_char": {"ja": "クリア画面キャラ → {name}", "en": "Clear-screen character -> {name}"},
+    "hack_dialog.applied.stage_frame": {"ja": "ステージ外枠: {changes}", "en": "Stage border: {changes}"},
+    "hack_dialog.applied.gap_fix": {"ja": "横穴侵入安定化 {state}", "en": "Side-gap entry stabilization {state}"},
+    "hack_dialog.applied.dark_tempo": {"ja": "暗闇テンポ → 明{light}/暗{dark}フレーム", "en": "Darkness tempo -> bright {light} / dark {dark} frames"},
+    "hack_dialog.error.warp_feather": {"ja": "ワープ羽 設定失敗", "en": "Warp Feather Setting Failed"},
+    "hack_dialog.error.solomon_seal_stage": {"ja": "ソロモンの封印 出現面 設定失敗", "en": "Solomon's Seal Stage Setting Failed"},
+    "hack_dialog.error.initial_magic": {"ja": "初期魔法 設定失敗", "en": "Initial Magic Setting Failed"},
+    "hack_dialog.error.initial_lives": {"ja": "初期残数 設定失敗", "en": "Initial Lives Setting Failed"},
+    "hack_dialog.error.time_decrease": {"ja": "ステージ制限時間 設定失敗", "en": "Stage Time Limit Setting Failed"},
+    "hack_dialog.error.wall_color": {"ja": "ステージ壁色 設定失敗", "en": "Stage Wall Color Setting Failed"},
+    "hack_dialog.error.walk_speed": {"ja": "歩行速度の改造失敗", "en": "Walk Speed Tweak Failed"},
+    "hack_dialog.error.panel_monster": {"ja": "パネルモンスター改造失敗", "en": "Panel Monster Tweak Failed"},
+    "hack_dialog.error.panel_bullet_speed": {"ja": "パネルモンスター弾速度修正失敗", "en": "Panel Monster Bullet Speed Fix Failed"},
+    "hack_dialog.error.demo_stage": {"ja": "デモステージ改造失敗", "en": "Demo Stage Tweak Failed"},
+    "hack_dialog.error.golem": {"ja": "ゴーレム改造失敗", "en": "Golem Tweak Failed"},
+    "hack_dialog.error.gargoyle": {"ja": "ガーゴイル改造失敗", "en": "Gargoyle Tweak Failed"},
+    "hack_dialog.error.gargoyle_variant": {"ja": "強化ガーゴイル設定失敗", "en": "Enhanced Gargoyle Setting Failed"},
+    "hack_dialog.error.dragon": {"ja": "ドラゴン改造失敗", "en": "Dragon Tweak Failed"},
+    "hack_dialog.error.shared_walk": {"ja": "共通歩行速度改造失敗", "en": "Shared Walk Speed Tweak Failed"},
+    "hack_dialog.error.neul_ghost": {"ja": "ゴースト＆ヌエル速度改造失敗", "en": "Ghost & Neul Speed Tweak Failed"},
+    "hack_dialog.error.spark_ball": {"ja": "スパークボール速度改造失敗", "en": "Spark Ball Speed Tweak Failed"},
+    "hack_dialog.error.spark_ball_variant": {"ja": "強化スパークボール設定失敗", "en": "Enhanced Spark Ball Setting Failed"},
+    "hack_dialog.error.demonhead": {"ja": "デーモンヘッド改造失敗", "en": "Demon Head Tweak Failed"},
+    "hack_dialog.error.clear_screen": {"ja": "クリア画面改造失敗", "en": "Clear Screen Tweak Failed"},
+    "hack_dialog.error.stage_frame": {"ja": "ステージ外枠 設定失敗", "en": "Stage Border Setting Failed"},
+    "hack_dialog.error.gap_fix": {"ja": "横穴侵入安定化 失敗", "en": "Side-gap Entry Stabilization Failed"},
+    "hack_dialog.error.dark_tempo": {"ja": "暗闇テンポ設定 失敗", "en": "Darkness Tempo Setting Failed"},
+    "hack_dialog.revert.confirm.body": {
+        "ja": "このダイアログで設定した項目を全てデフォルト（オリジナル値）に戻します。\n適用するには [適用] または [OK] を押してください。\n\n続行しますか？",
+        "en": "Restore every item in this dialog to its default original value.\nPress Apply or OK to apply the restored values.\n\nContinue?",
     },
     "hack_dialog.group.related_edit": {"ja": "関連編集", "en": "Related Editors"},
     "hack_dialog.related.enemy_drop.button": {"ja": "敵ドロップ編集", "en": "Enemy Drop Editor"},
@@ -3062,6 +3705,248 @@ _TRANSLATIONS = {
     "keyboard_map.default_title": {
         "ja": "ショートカットMAP",
         "en": "Shortcut Map",
+    },
+    "main.expanded_rom_required": {
+        "ja": "拡張ROMを読み込んだ状態で使用できます。",
+        "en": "Available after loading an expanded ROM.",
+    },
+    "main.mirror_off.unavailable.title": {
+        "ja": "ミラーOFF",
+        "en": "Mirror Off",
+    },
+    "main.mirror_off.confirm.title": {
+        "ja": "ミラー出現タイミングをOFF",
+        "en": "Turn Mirror Spawn Timing Off",
+    },
+    "main.mirror_off.confirm.body": {
+        "ja": "Stage {stage} のミラー1/2の出現タイミングをすべてOFFにしますか？",
+        "en": "Turn off all Mirror 1/2 spawn timings for Stage {stage}?",
+    },
+    "main.mirror_off.already": {
+        "ja": "ミラー1/2はすでに全OFFです",
+        "en": "Mirror 1/2 spawn timings are already all off.",
+    },
+    "main.mirror_off.done": {
+        "ja": "ミラー1/2の出現タイミングを全OFFにしました",
+        "en": "Turned off all Mirror 1/2 spawn timings.",
+    },
+    "main.mirror_toggle.state.on_gap6": {
+        "ja": "ON（6空け）",
+        "en": "ON (6-gap)",
+    },
+    "main.mirror_toggle.done": {
+        "ja": "ミラー{mirror}の出現タイミングを{state}にしました",
+        "en": "Set Mirror {mirror} spawn timing to {state}.",
+    },
+    "main.clear_level.mode.all": {
+        "ja": "すべての編集対象（ブロック/アイテム/敵）",
+        "en": "all editable objects (blocks/items/enemies)",
+    },
+    "main.clear_level.mode.blocks": {
+        "ja": "ブロック",
+        "en": "blocks",
+    },
+    "main.clear_level.mode.items": {
+        "ja": "アイテム",
+        "en": "items",
+    },
+    "main.clear_level.mode.enemies": {
+        "ja": "モンスター",
+        "en": "monsters",
+    },
+    "main.clear_level.confirm": {
+        "ja": "L{level} の{label}を削除します。よろしいですか？\n（Undo可能）",
+        "en": "Delete {label} from L{level}?\nYou can undo this.",
+    },
+    "main.clear_level.key_enemy_blocked": {
+        "ja": "鍵メタが無いため、鍵持ち敵を含むモンスター削除はできません",
+        "en": "Cannot delete monsters containing the key carrier because key metadata is missing.",
+    },
+    "main.clear_level.done": {
+        "ja": "L{level}: {label}をクリア（Ctrl+Zで戻せます）",
+        "en": "L{level}: cleared {label} (Ctrl+Z to undo)",
+    },
+    "main.undo.levels.more": {
+        "ja": "{first} ほか{count}面",
+        "en": "{first} and {count} more",
+    },
+    "main.keyboard_map.title": {
+        "ja": "{app} v{version} ショートカットMAP",
+        "en": "{app} v{version} Shortcut Map",
+    },
+    "main.keyboard_map.notes_html": {
+        "ja": (
+            "<b>マウス操作</b><br>\n"
+            "左クリック: 選択中の要素を配置<br>\n"
+            "右クリック: そのマスの要素を削除<br>\n"
+            "左ドラッグ: 連続配置<br>\n"
+            "右ドラッグ: 連続削除<br>\n"
+            "Ctrl+左ドラッグ: 既存要素を移動<br>\n"
+            "Ctrl+ホイール: 前/次ステージへ移動<br>\n"
+            "Shift+左ドラッグ: 範囲選択<br>\n"
+            "Alt+左クリック: スポイト（そのマスの要素をピッカーに取り込む）<br>\n"
+            "<br>\n"
+            "<b>範囲編集</b><br>\n"
+            "ペーストは、選択範囲またはホバー位置を起点にします。<br>\n"
+            "Delete/Backspaceは、選択範囲がある場合は範囲内削除、なければホバー位置削除です。<br>\n"
+            "左右反転は、地形・アイテム・敵・敵の左右向き・スタート・鍵・扉・星座パネル・ミラー・六芒星などのメタ項目も反転します。<br>\n"
+            "<br>\n"
+            "<b>アイテム状態</b><br>\n"
+            "Tab/Shift+Tab系は、ホバー位置のアイテム/鍵/扉状態を順送り/逆送りします。<br>\n"
+            "隠しに変更した時、デーモンミラー上では隠しアイテム0x48を配置します。<br>\n"
+            "<br>\n"
+            "<b>ファイル読込</b><br>\n"
+            ".nes / .zip はウィンドウへドラッグ&ドロップで読込できます。<br>\n"
+            "コマンドライン例: python SOLOMON_CUSTOMIZER.py path/to/rom.nes<br>\n"
+            "<br>\n"
+            "<b>ゲームパッド</b><br>\n"
+            "テストプレイ: {test_play}<br>\n"
+            "前/次ステージ: {stage_prev} / {stage_next}<br>\n"
+        ),
+        "en": (
+            "<b>Mouse</b><br>\n"
+            "Left click: place the selected object<br>\n"
+            "Right click: delete the object on that cell<br>\n"
+            "Left drag: continuous placement<br>\n"
+            "Right drag: continuous deletion<br>\n"
+            "Ctrl+left drag: move an existing object<br>\n"
+            "Ctrl+wheel: move to the previous/next stage<br>\n"
+            "Shift+left drag: select a range<br>\n"
+            "Alt+left click: eyedropper (load that cell's object into the picker)<br>\n"
+            "<br>\n"
+            "<b>Range Editing</b><br>\n"
+            "Paste starts from the selection or the hovered cell.<br>\n"
+            "Delete/Backspace deletes inside the selection if one exists, otherwise the hovered cell.<br>\n"
+            "Horizontal/vertical flip also flips terrain, items, enemies, enemy facing, start, key, door, constellation panel, mirror, hexagram, and other meta objects.<br>\n"
+            "<br>\n"
+            "<b>Item State</b><br>\n"
+            "Tab/Shift+Tab shortcuts cycle the hovered item/key/door state forward or backward.<br>\n"
+            "When changing to hidden on a demon mirror, hidden item 0x48 is placed.<br>\n"
+            "<br>\n"
+            "<b>File Loading</b><br>\n"
+            "Drag and drop .nes / .zip files onto the window to load them.<br>\n"
+            "Command-line example: python SOLOMON_CUSTOMIZER.py path/to/rom.nes<br>\n"
+            "<br>\n"
+            "<b>Gamepad</b><br>\n"
+            "Test play: {test_play}<br>\n"
+            "Previous/next stage: {stage_prev} / {stage_next}<br>\n"
+        ),
+    },
+    "common.confirm": {
+        "ja": "確認",
+        "en": "Confirm",
+    },
+    "common.unassigned": {
+        "ja": "未割当",
+        "en": "Unassigned",
+    },
+    "common.bullet_item": {
+        "ja": "・{item}",
+        "en": "- {item}",
+    },
+    "app.single_instance.activated": {
+        "ja": "既に起動中のSOLOMON_CUSTOMIZERを前面に表示しました",
+        "en": "Brought the already-running SOLOMON_CUSTOMIZER window to the front.",
+    },
+    "file_dialog.select_file": {
+        "ja": "ファイルを選択",
+        "en": "Select File",
+    },
+    "file_dialog.select_folder": {
+        "ja": "フォルダを選択",
+        "en": "Select Folder",
+    },
+    "file_dialog.select_save_path": {
+        "ja": "保存先を選択",
+        "en": "Select Save Destination",
+    },
+    "common.none": {"ja": "なし", "en": "None"},
+    "title_screen_dialog.title": {"ja": "タイトル画面編集", "en": "Title Screen Editor"},
+    "title_screen_dialog.tab.title": {"ja": "タイトル", "en": "Title"},
+    "title_screen_dialog.tab.ending": {"ja": "エンディング", "en": "Ending"},
+    "title_screen_dialog.tab.clear_screen": {"ja": "クリア画面", "en": "Clear Screen"},
+    "title_screen_dialog.title_tab.info_html": {
+        "ja": (
+            "別 ROM のタイトルを<b>移植</b>します: <b>配置(nametable)+色区分(attribute)+絵(CHR bank3)</b> をピース単位で"
+            "コピー。<b>コードは一切改変しません</b>(各版の描画コードが自分の位置のデータを読むため US↔JP どちらでも崩れません)。"
+            "<br><b>CRC 一致は不要</b>(既知ピースのコピー、IPSではない)。JP/US 自動判定・双方向。下のプレビューは CHR(絵)を"
+            "グレー表示。<br><b>著作権配慮:</b> データはツールに含めず、ご自分が所有する ROM 同士でのみ移植します。"
+            "<br>※色(パレット)は v1 では移植先のまま(配置・絵は移植)。"
+        ),
+        "en": (
+            "Imports a title screen from another ROM by copying <b>layout (nametable) + color regions (attribute) + graphics (CHR bank3)</b> as known pieces. "
+            "<b>No code is changed</b>, so each version keeps reading its own data locations and JP/US transfers stay intact."
+            "<br><b>No CRC match is required</b>; this is known-piece copying, not IPS patching. JP/US are auto-detected and both directions are supported. "
+            "The preview below shows CHR graphics in gray.<br><b>Copyright note:</b> the tool does not include this data; import only between ROMs you own."
+            "<br>Palette colors stay from the destination in v1; layout and graphics are imported."
+        ),
+    },
+    "title_screen_dialog.zoom.label": {"ja": "表示倍率:", "en": "Zoom:"},
+    "title_screen_dialog.bank_offset.label": {"ja": "bank内:", "en": "Bank offset:"},
+    "title_screen_dialog.highlight_tile.tooltip": {"ja": "指定したCHR bank3内タイルをタイトルプレビュー上でピンク表示", "en": "Highlights the selected CHR bank3 tile in pink on the title preview."},
+    "title_screen_dialog.color_group_overlay.label": {"ja": "色グループ表示:", "en": "Color group overlay:"},
+    "title_screen_dialog.color_group_overlay.tooltip": {"ja": "選択した色グループに属する16x16区画をプレビュー上で表示", "en": "Shows 16x16 regions that use the selected color group on the preview."},
+    "title_screen_dialog.color_group_from.tooltip": {"ja": "一括置換元の色グループ", "en": "Source color group for batch replacement."},
+    "title_screen_dialog.color_group_to.tooltip": {"ja": "一括置換先の色グループ", "en": "Destination color group for batch replacement."},
+    "title_screen_dialog.color_group_replace.button": {"ja": "色G置換", "en": "Replace Color G"},
+    "title_screen_dialog.color_group_replace.tooltip": {"ja": "選択した色グループを使う16x16区画を、別の色グループへ一括変更", "en": "Batch changes all 16x16 regions using the selected color group to another color group."},
+    "title_screen_dialog.canvas.tooltip": {"ja": "左クリック: 8x8 CHRタイル編集 / 右クリック: 16x16色グループ変更", "en": "Left click: edit 8x8 CHR tile / Right click: change 16x16 color group"},
+    "title_screen_dialog.save_top_png.button": {"ja": "Top PNG保存...", "en": "Save Top PNG..."},
+    "title_screen_dialog.save_top_png.tooltip": {"ja": "タイトル上部ロゴ領域だけを256x64/4階調PNGで保存", "en": "Saves only the upper title-logo area as a 256x64 four-color PNG."},
+    "title_screen_dialog.load_top_png.button": {"ja": "Top PNG読み込み...", "en": "Load Top PNG..."},
+    "title_screen_dialog.load_top_png.tooltip": {"ja": "上部ロゴ領域のPNG/BMP/JPEGを読み込みます。256x64を超える画像は縮小し、4色へ減色します。", "en": "Loads a PNG/BMP/JPEG for the upper logo area. Images larger than 256x64 are scaled down and reduced to four colors."},
+    "title_screen_dialog.import_title.button": {"ja": "別ROMからタイトルを移植...", "en": "Import Title from Another ROM..."},
+    "title_screen_dialog.import_title.tooltip": {"ja": "所有する別 ROM (.nes/.zip) のタイトルを移植: 配置(nametable)+色区分(attribute)+絵(CHR bank3) をピース単位コピー。JP/US 自動判定・CRC不要・US↔JP両方向・コード非改変", "en": "Imports the title from another ROM you own (.nes/.zip): copies layout (nametable), color regions (attribute), and graphics (CHR bank3) as pieces. JP/US auto-detected, no CRC required, both directions supported, code unchanged."},
+    "title_screen_dialog.text_edit.button": {"ja": "文字編集...", "en": "Edit Text..."},
+    "title_screen_dialog.text_edit.tooltip": {"ja": "タイトル中央付近の追加文字とPUSH START位置の固定文字を編集します。A-Z / 0-9 / スペース / , . \" が使えます。入力中にプレビューへ反映します。", "en": "Edits the added text near the center of the title and fixed text at the PUSH START position. A-Z / 0-9 / space / , . \" can be used. The preview updates while editing."},
+    "title_screen_dialog.tile_place.button": {"ja": "タイル配置...", "en": "Tile Placement..."},
+    "title_screen_dialog.tile_place.tooltip": {"ja": "CHR bank3の8x8タイルを選び、タイトル背景の32x30マスへ配置します。", "en": "Choose 8x8 tiles from CHR bank3 and place them on the 32x30 title background grid."},
+    "title_screen_dialog.character.button": {"ja": "キャラクター...", "en": "Characters..."},
+    "title_screen_dialog.character.tooltip": {"ja": "$D0E8由来の16x16キャラを選び、タイトル上へ最大{count}体配置します。", "en": "Choose 16x16 characters from $D0E8 data and place up to {count} of them on the title screen."},
+    "title_screen_dialog.palette.button": {"ja": "パレット変更...", "en": "Edit Palette..."},
+    "title_screen_dialog.palette.tooltip": {"ja": "タイトル画面のBGパレット16色($3F00-$3F0F)を編集します。", "en": "Edits the 16 BG palette colors for the title screen ($3F00-$3F0F)."},
+    "title_screen_dialog.revert.button": {"ja": "変更を取り消す", "en": "Revert Changes"},
+    "title_screen_dialog.revert.tooltip": {"ja": "このダイアログを開いた時点の ROM に戻す", "en": "Restore the ROM to the state it had when this dialog was opened."},
+    "title_screen_dialog.clear_tab.info": {"ja": "ステージクリア後の『おめでとう画面』に関係する設定です。ここでは既存のクリア画面キャラ差し替えとメッセージ編集を扱います。プレビューは実機エミュレーションではなく、文字位置確認用の簡易表示です。", "en": "Settings related to the congratulations screen after clearing a stage. This tab handles the existing clear-screen character replacement and message editing. The preview is a simple text-position check, not hardware emulation."},
+    "title_screen_dialog.clear_message.group": {"ja": "クリア画面メッセージ", "en": "Clear Screen Message"},
+    "title_screen_dialog.clear_message.hint": {"ja": "THANK YOU DANA / YOU RELEASED THIS ROOM / TRY NEXT ROOM の3行を編集します。英大文字 A-Z とスペースのみ、同字数置換です。", "en": "Edits the three lines THANK YOU DANA / YOU RELEASED THIS ROOM / TRY NEXT ROOM. Uppercase A-Z and spaces only, same-length replacement."},
+    "title_screen_dialog.clear_message.column.line": {"ja": "行", "en": "Line"},
+    "title_screen_dialog.clear_message.column.text": {"ja": "文字", "en": "Text"},
+    "title_screen_dialog.clear_message.column.count": {"ja": "字数", "en": "Count"},
+    "title_screen_dialog.clear_message.unavailable": {"ja": "編集不可: {error}", "en": "Cannot edit: {error}"},
+    "title_screen_dialog.clear_screen_char.group": {"ja": "クリア画面のキャラ (おめでとう画面の2体)", "en": "Clear Screen Characters (Two Congratulations-Screen Sprites)"},
+    "title_screen_dialog.clear_screen_char.unavailable": {"ja": "使用不可: {type}: {error}", "en": "Unavailable: {type}: {error}"},
+    "title_screen_dialog.clear_screen_char.label": {"ja": "表示キャラ:", "en": "Displayed character:"},
+    "title_screen_dialog.clear_screen_char.hint": {"ja": "ステージクリア画面で左右に出る2体を差し替えます。既存のゲーム挙動改造にあった設定と同じ処理です。", "en": "Replaces the two sprites shown on the left and right of the stage-clear screen. This is the same setting that previously existed in Game Behavior Tweaks."},
+    "title_screen_dialog.ending_tab.info": {"ja": "エンディングの文字列だけを編集します。表示位置や改行などの制御データは維持します。英大文字 A-Z / スペース / , ' \" のみ使用できます。", "en": "Edits only the ending text strings. Control data such as positions and line breaks is preserved. Only uppercase A-Z / space / , ' \" can be used."},
+    "title_screen_dialog.ending_tab.unavailable": {"ja": "エンディング文字列を編集できません: {error}", "en": "Cannot edit ending text: {error}"},
+    "pixel.status.eyedropper": {
+        "ja": "スポイト: ペン{value}を選択",
+        "en": "Eyedropper: selected pen {value}",
+    },
+    "pixel.status.undo": {"ja": "元に戻しました。", "en": "Undid the edit."},
+    "pixel.status.redo": {"ja": "やり直しました。", "en": "Redid the edit."},
+    "pixel.status.flip_h": {"ja": "左右反転しました。", "en": "Flipped horizontally."},
+    "pixel.status.flip_v": {"ja": "上下反転しました。", "en": "Flipped vertically."},
+    "pixel.status.clear": {"ja": "クリアしました。", "en": "Cleared."},
+    "pixel.status.imported": {"ja": "画像を取り込みました。", "en": "Imported the image."},
+    "pixel.status.wrote_rom": {"ja": "ROMへ書き込みました。", "en": "Wrote to ROM."},
+    "pixel.info.dirty_suffix": {"ja": " / 未書込", "en": " / pending"},
+    "pixel.info.selection": {
+        "ja": "選択範囲: ({x1},{y1})-({x2},{y2}) {width}x{height}<br>",
+        "en": "Selection: ({x1},{y1})-({x2},{y2}) {width}x{height}<br>",
+    },
+    "pixel.info.chr_pair": {
+        "ja": "左CHR: {left0}, {left1} / 右CHR: {right0}, {right1}<br>",
+        "en": "Left CHR: {left0}, {left1} / Right CHR: {right0}, {right1}<br>",
+    },
+    "pixel.info.palette_attr": {
+        "ja": "表示SPRパレット: 左#{left_pal} 右#{right_pal} / attr=${attr:02X} / 参照数:{refs}{dirty}<br>",
+        "en": "Displayed SPR palette: left #{left_pal}, right #{right_pal} / attr=${attr:02X} / refs: {refs}{dirty}<br>",
+    },
+    "pixel.info.hint": {
+        "ja": "右クリックまたはペン0で透明色。CHR共有タイルを使う別フレームも同時に見た目が変わります。",
+        "en": "Right-click or use pen 0 for transparency. Other frames using the same shared CHR tiles will visually change too.",
     },
     "common.complete": {
         "ja": "完了",
