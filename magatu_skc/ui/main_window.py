@@ -1159,9 +1159,12 @@ class MainWindow(QMainWindow):
         self.picker.mirror_panel.mirror_active_toggle_requested.connect(
             self._on_toggle_mirror_schedule
         )
-        self.btn_mirror = QPushButton("ミラー詳細設定")
+        self.btn_mirror = QPushButton(t("main.mirror_detail.button", "ミラー詳細設定"))
         self.btn_mirror.setToolTip(
-            "現在ステージの2つのミラーについて、出現タイミング(64ビット)とTTLを編集"
+            t(
+                "main.mirror_detail.tooltip",
+                "現在ステージの2つのミラーについて、出現タイミング(64ビット)とTTLを編集",
+            )
         )
         self.btn_mirror.clicked.connect(self._on_show_mirror)
         mirror_button_row = QWidget()
@@ -1237,8 +1240,8 @@ class MainWindow(QMainWindow):
         self.btn_stage_prev_canvas = QToolButton(self.level_view.viewport())
         self.btn_stage_next_canvas = QToolButton(self.level_view.viewport())
         for btn, text, tip, delta in (
-            (self.btn_stage_prev_canvas, "◀", "前のステージ", -1),
-            (self.btn_stage_next_canvas, "▶", "次のステージ", 1),
+            (self.btn_stage_prev_canvas, "◀", t("main.stage_nav.prev.tooltip", "前のステージ"), -1),
+            (self.btn_stage_next_canvas, "▶", t("main.stage_nav.next.tooltip", "次のステージ"), 1),
         ):
             btn.setText(text)
             btn.setToolTip(tip)
@@ -11361,7 +11364,11 @@ class MainWindow(QMainWindow):
                 app_config=self._app_config,
             )
         except _ts.TitleScreenError as e:
-            QMessageBox.critical(self, "タイトル画面操作不可", str(e))
+            QMessageBox.critical(
+                self,
+                t("title_screen.open_failed", "タイトル画面操作不可"),
+                str(e),
+            )
             return
         self._title_screen_dialog = dlg
 

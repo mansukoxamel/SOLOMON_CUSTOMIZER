@@ -2258,6 +2258,26 @@ _TRANSLATIONS = {
         "ja": "比較編集({direction}): {name}",
         "en": "Compare Edit ({direction}): {name}",
     },
+    "main.mirror_detail.button": {
+        "ja": "ミラー詳細設定",
+        "en": "Mirror Details",
+    },
+    "main.mirror_detail.tooltip": {
+        "ja": "現在ステージの2つのミラーについて、出現タイミング(64ビット)とTTLを編集",
+        "en": "Edit spawn timing (64 bits) and TTL for the two mirrors in the current stage.",
+    },
+    "main.stage_nav.prev.tooltip": {
+        "ja": "前のステージ",
+        "en": "Previous stage",
+    },
+    "main.stage_nav.next.tooltip": {
+        "ja": "次のステージ",
+        "en": "Next stage",
+    },
+    "title_screen.open_failed": {
+        "ja": "タイトル画面操作不可",
+        "en": "Title Screen Operation Unavailable",
+    },
     "bonus_dialog.title": {
         "ja": "ボーナスステージ (Stage 51) 出現位置編集",
         "en": "Bonus Stage (Stage 51) Spawn Position Editor",
