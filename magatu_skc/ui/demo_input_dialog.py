@@ -11,7 +11,31 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from ..core import demo_input as DI
+from ..core.i18n import get_language, t
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
+
+
+_BUTTON_LABEL_KEYS = {
+    "上": "demo_input.button.up",
+    "下": "demo_input.button.down",
+    "左": "demo_input.button.left",
+    "右": "demo_input.button.right",
+}
+
+
+def format_demo_input_error(error) -> str:
+    msg = str(error)
+    if get_language() != "en":
+        return msg
+    if "ROM が小さすぎます" in msg:
+        return t("demo_input.error.rom_too_small", msg)
+    if "$CBEC 署名不一致" in msg:
+        return t("demo_input.error.signature", msg)
+    if "$CBF6 ステップ数" in msg:
+        return t("demo_input.error.step_count", msg)
+    if "step 数不正" in msg:
+        return t("demo_input.error.invalid_step_count", msg)
+    return msg
 
 
 class DemoInputDialog(QDialog):
@@ -19,7 +43,7 @@ class DemoInputDialog(QDialog):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("デモ操作編集 (34ステップ固定)")
+        self.setWindowTitle(t("demo_input.title", "デモ操作編集 (34ステップ固定)"))
         self._rom = rom_data
         self._app_config = app_config
         self.resize(560, 720)
@@ -27,11 +51,7 @@ class DemoInputDialog(QDialog):
         steps = DI.read_steps(rom_data)   # [(joy, frames)] ×34
 
         root = QVBoxLayout(self)
-        head = QLabel(
-            "タイトル放置で流れるデモの操作を編集します。各行＝入力を"
-            "何フレーム続けるか。60フレーム≒1秒。34ステップ固定で、"
-            "Start/Selectはデモが中断するため使えません。"
-            "最後に死ぬ動きは不要(34ステップ使い切りで終了)。")
+        head = QLabel(t("demo_input.description"))
         head.setWordWrap(True)
         root.addWidget(head)
 
@@ -43,10 +63,14 @@ class DemoInputDialog(QDialog):
         g.setContentsMargins(4, 4, 4, 4)
         g.setHorizontalSpacing(6)
         g.setVerticalSpacing(3)
-        g.addWidget(QLabel("#"), 0, 0)
+        g.addWidget(QLabel(t("demo_input.column.step", "#")), 0, 0)
         for ci, (nm, _b) in enumerate(DI.BTN):
-            g.addWidget(QLabel(nm), 0, 1 + ci)
-        g.addWidget(QLabel("フレーム"), 0, 1 + len(DI.BTN))
+            g.addWidget(QLabel(t(_BUTTON_LABEL_KEYS.get(nm, ""), nm)), 0, 1 + ci)
+        g.addWidget(
+            QLabel(t("demo_input.column.frames", "フレーム")),
+            0,
+            1 + len(DI.BTN),
+        )
 
         self._rows = []   # [(checkboxes[], spin)]
         for i, (joy, frames) in enumerate(steps):
@@ -67,7 +91,7 @@ class DemoInputDialog(QDialog):
         root.addWidget(scroll, 1)
 
         btnrow = QHBoxLayout()
-        b_rest = QPushButton("原作に戻す")
+        b_rest = QPushButton(t("demo_input.restore_original", "原作に戻す"))
         b_rest.clicked.connect(self._on_restore)
         btnrow.addWidget(b_rest)
         btnrow.addStretch()
@@ -79,6 +103,9 @@ class DemoInputDialog(QDialog):
         bb.accepted.connect(self._apply_and_close)
         bb.rejected.connect(self.reject)
         bb.button(QDialogButtonBox.Apply).clicked.connect(self._apply)
+        bb.button(QDialogButtonBox.Ok).setText(t("common.ok", "OK"))
+        bb.button(QDialogButtonBox.Cancel).setText(t("common.cancel", "キャンセル"))
+        bb.button(QDialogButtonBox.Apply).setText(t("common.apply", "適用"))
         root.addWidget(bb)
         restore_dialog_geometry(self, self._app_config, "demo_input_dlg")
 
@@ -104,7 +131,11 @@ class DemoInputDialog(QDialog):
         try:
             DI.write_steps(self._rom, self._collect())
         except DI.DemoInputError as e:
-            QMessageBox.critical(self, "デモ操作編集失敗", str(e))
+            QMessageBox.critical(
+                self,
+                t("demo_input.apply_failed", "デモ操作編集失敗"),
+                format_demo_input_error(e),
+            )
             return False
         return True
 

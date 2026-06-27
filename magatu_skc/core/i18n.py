@@ -98,6 +98,96 @@ _TRANSLATIONS = {
         "ja": "太字",
         "en": "Bold",
     },
+    "demo_input.title": {
+        "ja": "デモ操作編集 (34ステップ固定)",
+        "en": "Demo Input Editor (Fixed 34 Steps)",
+    },
+    "demo_input.description": {
+        "ja": (
+            "タイトル放置で流れるデモの操作を編集します。各行＝入力を"
+            "何フレーム続けるか。60フレーム≒1秒。34ステップ固定で、"
+            "Start/Selectはデモが中断するため使えません。"
+            "最後に死ぬ動きは不要(34ステップ使い切りで終了)。"
+        ),
+        "en": (
+            "Edit the attract-mode input sequence shown after the title screen is left idle. "
+            "Each row sets which buttons are held and for how many frames. "
+            "60 frames is about 1 second. The sequence is fixed at 34 steps. "
+            "Start and Select cannot be used because they interrupt the demo. "
+            "No final death movement is needed; the demo ends after all 34 steps are consumed."
+        ),
+    },
+    "demo_input.column.step": {
+        "ja": "#",
+        "en": "#",
+    },
+    "demo_input.column.frames": {
+        "ja": "フレーム",
+        "en": "Frames",
+    },
+    "demo_input.button.up": {
+        "ja": "上",
+        "en": "Up",
+    },
+    "demo_input.button.down": {
+        "ja": "下",
+        "en": "Down",
+    },
+    "demo_input.button.left": {
+        "ja": "左",
+        "en": "Left",
+    },
+    "demo_input.button.right": {
+        "ja": "右",
+        "en": "Right",
+    },
+    "demo_input.restore_original": {
+        "ja": "原作に戻す",
+        "en": "Restore Original",
+    },
+    "demo_input.apply_failed": {
+        "ja": "デモ操作編集失敗",
+        "en": "Demo Input Edit Failed",
+    },
+    "demo_input.open_failed": {
+        "ja": "デモ操作編集不可",
+        "en": "Demo Input Edit Unavailable",
+    },
+    "demo_input.error.rom_too_small": {
+        "ja": "",
+        "en": "The ROM is too small. Demo input editing was canceled.",
+    },
+    "demo_input.error.signature": {
+        "ja": "",
+        "en": (
+            "The $CBEC signature does not match. The ROM may be modified, "
+            "extended, US-region, or corrupted, so demo input editing was canceled. "
+            "This feature is JP-only."
+        ),
+    },
+    "demo_input.error.step_count": {
+        "ja": "",
+        "en": (
+            "The $CBF6 step count does not match the expected 34 steps. "
+            "The ROM may be modified or corrupted, so demo input editing was canceled."
+        ),
+    },
+    "demo_input.error.invalid_step_count": {
+        "ja": "",
+        "en": "The number of demo input steps is invalid.",
+    },
+    "common.ok": {
+        "ja": "OK",
+        "en": "OK",
+    },
+    "common.cancel": {
+        "ja": "キャンセル",
+        "en": "Cancel",
+    },
+    "common.apply": {
+        "ja": "適用",
+        "en": "Apply",
+    },
 }
 
 

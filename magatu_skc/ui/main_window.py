@@ -10701,7 +10701,7 @@ class MainWindow(QMainWindow):
             return
         if self._reject_read_only_edit():
             return
-        from .demo_input_dialog import DemoInputDialog
+        from .demo_input_dialog import DemoInputDialog, format_demo_input_error
         from ..core import demo_input as _di
         o0, o1 = _di.OFF_WAIT, _di.OFF_JOY + _di.STEPS
         before = bytes(self.rom.data[o0:o1])
@@ -10712,7 +10712,12 @@ class MainWindow(QMainWindow):
                 app_config=self._app_config,
             )
         except _di.DemoInputError as e:
-            QMessageBox.critical(self, "デモ操作編集不可", str(e))
+            from ..core.i18n import t
+            QMessageBox.critical(
+                self,
+                t("demo_input.open_failed", "デモ操作編集不可"),
+                format_demo_input_error(e),
+            )
             return
         dlg.exec_()
         if bytes(self.rom.data[o0:o1]) != before:
