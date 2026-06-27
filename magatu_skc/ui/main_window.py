@@ -54,7 +54,7 @@ from ..core.config import (
 from ..core import (
     saver, ips, wall_color_hack, stage50_book_color, stage_ext, save_validation,
 )
-from ..core.i18n import get_language, t
+from ..core.i18n import get_language, set_language, t
 from ..gfx.tile_renderer import TileRenderer
 from ..gfx.level_renderer import LevelRenderer
 from ..nes.config_loader import SkcConfig
@@ -9635,7 +9635,9 @@ class MainWindow(QMainWindow):
 
     def _apply_settings(self, new_config: dict):
         """設定ダイアログから呼び出される。即時反映 + JSON保存"""
+        old_language = get_language()
         self._app_config = dict(new_config)
+        new_language = set_language(self._app_config.get("language"))
         self._apply_shortcut_settings()
         self._apply_history_limit_settings()
         from ..core.config import save_config
@@ -9664,6 +9666,183 @@ class MainWindow(QMainWindow):
         if self.levels and self.level_renderer is not None:
             self._generate_all_thumbnails()
         self._apply_icon()
+        if new_language != old_language:
+            self._retranslate_main_ui()
+            self.statusBar().showMessage(
+                t("main.status.language_changed", "表示言語を切り替えました"),
+                2500,
+            )
+
+    def _retranslate_main_ui(self):
+        """Update already-created main-window text after runtime language changes."""
+        self.btn_open.setText(t("main.file.open_rom", "ROM読込"))
+        self.btn_open.setToolTip(t("main.file.open_rom.tooltip", "ROMを開きます。(Ctrl+O)"))
+        self.btn_restart.setText(t("main.file.restart", "再起動"))
+        self.btn_restart.setToolTip(t("main.file.restart.tooltip", "アプリを再起動"))
+        self.btn_history.setText(t("main.file.history", "履歴"))
+        self.btn_history.setToolTip(t("main.file.history.tooltip", "最近開いたROMから選択"))
+        self.btn_rom_validation.setToolTip(
+            t("main.file.validation.tooltip", "読み込んだROMの不整合らしき配置を一覧表示")
+        )
+        self._update_rom_validation_button()
+        self.btn_readonly_migrate.setText(t("main.file.migrate", "データ移行"))
+        self.btn_readonly_migrate.setToolTip(t("main.file.migrate.tooltip"))
+        self.btn_save_rom.setText(t("main.file.save_rom", "ROM保存"))
+        self.btn_save_rom.setToolTip(
+            t("main.file.save_rom.tooltip", "現在の編集内容をROMとして保存します。(Ctrl+S)")
+        )
+        self.btn_save_ips.setText(t("main.file.save_ips", "IPSパッチ出力"))
+        self.btn_test_play.setText(t("main.file.test_play", "▶ テストプレイ"))
+        self.btn_test_play.setToolTip(
+            t(
+                "main.file.test_play.tooltip",
+                "左クリック: 既定エミュレータで起動 / 右クリック: エミュレータを選んで起動",
+            )
+        )
+        self.rb_stage_current.setText(t("main.file.scope.current", "現在のステージ"))
+        self.rb_stage_all.setText(t("main.file.scope.all", "すべてのステージ"))
+        self.btn_stage_load.setText(t("main.file.stage_load", "ステージデータ読込"))
+        self.btn_stage_save.setText(t("main.file.stage_save", "ステージデータ保存"))
+        self.btn_stage_save.setToolTip(
+            t(
+                "main.file.stage_save.tooltip",
+                "選択した範囲のステージデータPNGを保存します。Ctrl+Eは現在ステージを保存します。",
+            )
+        )
+        self.btn_stage_compare_current.setText(t("main.compare.current", "現在"))
+        self.btn_stage_compare_diff.setText(t("main.compare.diff", "差分"))
+        self.btn_rom_diff.setText(t("main.compare.rom_diff", "ROM比較"))
+        self.btn_rom_diff.setToolTip(
+            t(
+                "main.compare.rom_diff.tooltip",
+                "ROM/ZIP同士のステージ差分を比較します。PNGとの比較は比較編集を使います。",
+            )
+        )
+        self.btn_stage_compare_edit_start.setToolTip(
+            t(
+                "main.compare.edit_start.tooltip",
+                "現在ステージのスナップショットを横に表示して比較編集モードを開始します。(Ctrl+Q)",
+            )
+        )
+        self.btn_stage_compare_orientation.setText(t("main.compare.orientation", "縦横(Q)"))
+        self.btn_stage_compare_orientation.setToolTip(
+            t(
+                "main.compare.orientation.tooltip",
+                "比較しながら編集の表示方向を横並び/縦並びで切り替えます。(Q)",
+            )
+        )
+        self.btn_stage_compare_edit_end.setText(t("main.compare.end", "終了"))
+        self.btn_stage_compare_edit_end.setToolTip(
+            t("main.compare.end.tooltip", "比較編集モードを終了して通常表示に戻します。")
+        )
+        self.chk_grid.setText(t("main.view.grid", "グリッド表示"))
+        self.chk_hidden.setText(t("main.view.hidden", "隠し要素強調 (黄色枠)"))
+        self.chk_special_marks.setText(t("main.view.special_marks", "特殊処理マーカー表示"))
+        self.chk_special_marks.setToolTip(
+            t(
+                "main.view.special_marks.tooltip",
+                "ROMのハードコード特殊処理が動的に配置するマスを枠で表示。\n"
+                "緑=壊せるブロック / 水色=強制クリア\n"
+                "例: Stage 50 SOLOMON の (7,1) (12,7) (3,3) は壊せる隠しブロックとして配置される",
+            )
+        )
+        self.chk_stage_selector.setText(t("main.view.stage_selector", "ステージ選択ペイン表示"))
+        self.chk_stage_selector.setToolTip(
+            t(
+                "main.view.stage_selector.tooltip",
+                "右端のサムネイル付きステージ選択ペインを表示/非表示にします。",
+            )
+        )
+        self.chk_edit_col15.setText(t("main.view.edit_col15", "16列目を編集"))
+        self.chk_edit_col15.setToolTip(
+            t(
+                "main.view.edit_col15.tooltip",
+                "右端列(16列目)はデータ上常に壁。通常は編集不可。\n"
+                "ONにすると編集できる。",
+            )
+        )
+        self.btn_clear.setText(t("main.tools.clear", "オブジェクト削除 ▼"))
+        self.btn_clear.setToolTip(
+            t("main.tools.clear.tooltip", "現在のステージから要素を削除（Undo可能）")
+        )
+        if self.btn_clear.menu() is not None:
+            labels = [
+                t("main.tools.clear_all", "すべて削除（鍵/扉/スタート/ミラーは保持）"),
+                t("main.tools.clear_blocks", "ブロックのみ削除"),
+                t("main.tools.clear_items", "アイテムのみ削除"),
+                t("main.tools.clear_enemies", "モンスターのみ削除"),
+            ]
+            for action, label in zip(self.btn_clear.menu().actions(), labels):
+                action.setText(label)
+        self.btn_stats.setText(t("main.tools.stats", "全ステージ統計"))
+        self.btn_stats.setToolTip(
+            t("main.tools.stats.tooltip", "53ステージのアイテム/敵/隠し配置を一覧表示します。(Ctrl+I)")
+        )
+        self.btn_hack.setText(t("main.tools.game_hack", "ゲーム挙動改造"))
+        self.btn_hack.setToolTip(
+            t("main.tools.game_hack.tooltip", "開始ライフ・開始ステージ等の既知ROMアドレスを書き換え")
+        )
+        self.btn_enemy_hack.setText(t("main.tools.enemy_hack", "敵改造"))
+        self.btn_enemy_hack.setToolTip(
+            t("main.tools.enemy_hack.tooltip", "敵AI・敵速度など、敵に関係するROM挙動を編集")
+        )
+        self.btn_palette.setText(t("main.tools.palette", "パレット編集"))
+        self.btn_palette.setToolTip(
+            t("main.tools.palette.tooltip", "背景・スプライトのパレット (8パレット x 3色) を編集")
+        )
+        self.btn_sprite_viewer.setText(t("main.tools.sprite_viewer", "スプライトビューア"))
+        self.btn_sprite_viewer.setToolTip(
+            t(
+                "main.tools.sprite_viewer.tooltip",
+                "CHR-ROM の全キャラクタータイル (8x8) を一覧表示。\n"
+                "バンク・パレット・拡大率を切替可能。読込専用。",
+            )
+        )
+        self.btn_title_screen.setText(t("main.tools.title_screen", "タイトル画面編集"))
+        self.btn_title_screen.setToolTip(
+            t(
+                "main.tools.title_screen.tooltip",
+                "タイトル画面を編集/移植: 配置(nametable)+色区分(attribute)"
+                "+絵(CHR bank3)をピース単位で扱います。コード非改変・JP/US"
+                "自動判定・CRC不要・双方向。",
+            )
+        )
+        self.btn_pixel_editor.setText(t("main.tools.pixel_editor", "16x16ピクセル編集"))
+        self.btn_pixel_editor.setToolTip(
+            t(
+                "main.tools.pixel_editor.tooltip",
+                "ROMフレーム由来の16x16スプライトを1ピクセル単位で編集。"
+                "16x16画像の取り込みにも対応。",
+            )
+        )
+        self.btn_sound_viewer.setText(t("main.tools.sound_viewer", "音楽データ表示"))
+        self.btn_sound_viewer.setToolTip(
+            t("main.tools.sound_viewer.tooltip", "ROM内サウンドデータをC/D/E表記のテキストで表示（読取専用）")
+        )
+        self.btn_special_process.setText(t("main.tools.special_process", "特殊処理ビューア"))
+        self.btn_special_process.setToolTip(
+            t("main.tools.special_process.tooltip", "各ステージにハードコードされた特殊処理を表示します（読取専用）。")
+        )
+        self.btn_item_replace.setText(t("main.tools.batch_replace", "オブジェクト一括置換"))
+        self.btn_item_replace.setToolTip(
+            t(
+                "main.tools.batch_replace.tooltip",
+                "指定したブロック、アイテム、モンスターを同じ種別内で一括置換。"
+                "選択範囲、現在ステージ、全ステージを対象にできます。",
+            )
+        )
+        self.btn_mirror.setText(t("main.mirror_detail.button", "ミラー詳細設定"))
+        self.btn_mirror.setToolTip(
+            t(
+                "main.mirror_detail.tooltip",
+                "現在ステージの2つのミラーについて、出現タイミング(64ビット)とTTLを編集",
+            )
+        )
+        self._update_stage_operation_buttons()
+        self._update_stage_number_label()
+        self._update_stage_compare_diff_label()
+        self._update_stage_compare_edit_label()
+        self._update_info()
 
     def _autosave_keep_count(self) -> int:
         return normalize_int_setting(

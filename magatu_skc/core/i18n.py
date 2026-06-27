@@ -1164,6 +1164,7 @@ _TRANSLATIONS = {
     "main.status.validation_jump": {"ja": "不整合: Stage {stage}へ移動", "en": "Validation issue: moved to Stage {stage}"},
     "main.status.validation_jump_out_of_range": {"ja": "不整合: Stage {stage}へ移動（座標は範囲外: {pos}）", "en": "Validation issue: moved to Stage {stage} (position out of range: {pos})"},
     "main.status.validation_select": {"ja": "不整合: Stage {stage} ({x}, {y})を選択", "en": "Validation issue: selected Stage {stage} ({x}, {y})"},
+    "main.status.language_changed": {"ja": "表示言語を切り替えました", "en": "Display language changed"},
     "main.status.solomon_seal_block_overlap": {"ja": "ソロモンの封印は {label} には重ねられません {tile}", "en": "Solomon's Seal cannot overlap {label} {tile}"},
     "main.status.solomon_seal_door_overlap": {"ja": "ソロモンの封印は扉には重ねられません {tile}", "en": "Solomon's Seal cannot overlap the door {tile}"},
     "main.status.actor_block_overlap": {"ja": "主人公・敵とブロックは同じ位置にできません {tile}", "en": "Dana/enemies and blocks cannot share the same position {tile}"},
