@@ -20,6 +20,8 @@ MAX_UNDO_LIMIT = 999
 DEFAULT_HOVER_INFO_POPUP_FONT_SIZE = 16
 MIN_HOVER_INFO_POPUP_FONT_SIZE = 10
 MAX_HOVER_INFO_POPUP_FONT_SIZE = 40
+DEFAULT_LANGUAGE = "ja"
+SUPPORTED_LANGUAGES = {"ja", "en"}
 DEFAULT_PANEL_VARIANT_SETTINGS = {
     "a_speed": 0,
     "a_interval": 0xC0,
@@ -162,6 +164,13 @@ def normalize_panel_variant_settings(value) -> dict:
     return settings
 
 
+def normalize_language(value) -> str:
+    lang = str(value or DEFAULT_LANGUAGE).strip().lower()
+    if lang in SUPPORTED_LANGUAGES:
+        return lang
+    return DEFAULT_LANGUAGE
+
+
 def normalize_emulators(value) -> list[dict]:
     emulators = []
     seen_ids = set()
@@ -191,6 +200,7 @@ def normalize_emulators(value) -> list[dict]:
 DEFAULT_CONFIG = {
     # 表示
     "dirty_mark": "●",
+    "language": DEFAULT_LANGUAGE,
     # 外部連携
     "emulators": DEFAULT_EMULATORS,
     "default_emulator_id": "",
@@ -385,6 +395,7 @@ def load_config() -> dict:
                 MIN_HOVER_INFO_POPUP_FONT_SIZE,
                 MAX_HOVER_INFO_POPUP_FONT_SIZE,
             )
+            cfg["language"] = normalize_language(cfg.get("language"))
             cfg["shortcuts"] = normalize_shortcuts(cfg.get("shortcuts"))
             cfg["gamepad_shortcuts"] = normalize_gamepad_shortcuts(
                 cfg.get("gamepad_shortcuts")
@@ -406,6 +417,7 @@ def load_config() -> dict:
     cfg["gamepad_shortcuts"] = normalize_gamepad_shortcuts(
         cfg.get("gamepad_shortcuts")
     )
+    cfg["language"] = normalize_language(cfg.get("language"))
     cfg["emulators"] = normalize_emulators(cfg.get("emulators"))
     cfg["panel_variant_settings"] = normalize_panel_variant_settings(
         cfg.get("panel_variant_settings")

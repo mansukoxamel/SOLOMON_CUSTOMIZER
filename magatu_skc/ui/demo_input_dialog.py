@@ -104,7 +104,7 @@ class DemoInputDialog(QDialog):
         try:
             DI.write_steps(self._rom, self._collect())
         except DI.DemoInputError as e:
-            QMessageBox.critical(self, "デモ操作編集 失敗", str(e))
+            QMessageBox.critical(self, "デモ操作編集失敗", str(e))
             return False
         return True
 

@@ -1088,7 +1088,7 @@ class TitleScreenDialog(QDialog):
         self._highlight_tile.valueChanged.connect(self._refresh)
         zr.addWidget(self._highlight_tile)
         zr.addSpacing(16)
-        zr.addWidget(QLabel("色G表示:"))
+        zr.addWidget(QLabel("色グループ表示:"))
         self._group_overlay = QComboBox()
         self._group_overlay.addItem("なし", -1)
         for i in range(4):
@@ -1162,7 +1162,7 @@ class TitleScreenDialog(QDialog):
         b_save_top.setToolTip("タイトル上部ロゴ領域だけを256x64/4階調PNGで保存")
         b_save_top.clicked.connect(self._on_save_top_image)
         br.addWidget(b_save_top)
-        b_png_top = QPushButton("Top PNG読込...")
+        b_png_top = QPushButton("Top PNG読み込み...")
         b_png_top.setToolTip(
             "上部ロゴ領域のPNG/BMP/JPEGを読み込みます。"
             "256x64を超える画像は縮小し、4色へ減色します。"
@@ -1549,7 +1549,7 @@ class TitleScreenDialog(QDialog):
             dlg = ClearMessageDialog(
                 self._rom, self, app_config=self._app_config)
         except _cm.ClearMessageError as e:
-            QMessageBox.critical(self, "クリア画面メッセージ編集 不可", str(e))
+            QMessageBox.critical(self, "クリア画面メッセージ編集不可", str(e))
             return
         dlg.exec_()
         if bytes(self._rom) != snap:
@@ -2039,7 +2039,7 @@ class TitleScreenDialog(QDialog):
             f"{self._update_title_character_count_labels()}")
         sel = getattr(self, "_selected_title_character_slot", None)
         if sel is not None:
-            self._preview_status_text += f" / 選択キャラ slot {int(sel) + 1}"
+            self._preview_status_text += f" / 選択キャラスロット {int(sel) + 1}"
         self._restore_preview_status()
 
     @staticmethod
@@ -2347,7 +2347,7 @@ class TitleScreenDialog(QDialog):
         self._side_layout.addWidget(title)
         row = QHBoxLayout()
         row.addWidget(QLabel("表示モード:"))
-        mode = QLabel("生CHRタイル (8x8素)")
+        mode = QLabel("生CHRタイル (8x8)")
         mode.setMinimumHeight(26)
         row.addWidget(mode)
         row.addWidget(QLabel("パレット:"))
@@ -2811,7 +2811,7 @@ class TitleScreenDialog(QDialog):
         self._drag_title_character_slot = int(slot)
         self._selected_title_character_slot = int(slot)
         self._preview_status.setText(
-            f"キャラ slot {int(slot) + 1} を移動中")
+            f"キャラスロット {int(slot) + 1} を移動中")
         self._refresh()
 
     def _on_title_character_drag_move(self, row, col):
@@ -2836,7 +2836,7 @@ class TitleScreenDialog(QDialog):
     def _on_title_character_drag_end(self):
         if getattr(self, "_drag_title_character_slot", None) is not None:
             self._preview_status.setText(
-                f"キャラ slot {int(self._drag_title_character_slot) + 1} を移動しました")
+                f"キャラスロット {int(self._drag_title_character_slot) + 1} を移動しました")
         self._drag_title_character_slot = None
 
     def keyPressEvent(self, event):
@@ -2872,7 +2872,7 @@ class TitleScreenDialog(QDialog):
             return
         if hit is not None:
             self._preview_status.setText(
-                f"キャラ slot {hit + 1}/{TS.title_character_max()} / x={dx}, y={dy}")
+                f"キャラスロット {hit + 1}/{TS.title_character_max()} / x={dx}, y={dy}")
             return
         self._preview_status.setText(
             f"cell ({col}, {row}) / stream 0x{stream:02X} / "
@@ -3203,7 +3203,7 @@ class TitleScreenDialog(QDialog):
         QMessageBox.information(
             self, "PNG取り込み",
             "全体PNG取り込みは現在停止しています。\n"
-            "タイトル画像の読み込みは「Top PNG読込...」から、"
+            "タイトル画像の読み込みは「Top PNG読み込み...」から、"
             "最大256x64の画像を指定してください。")
 
     def _cells_from_display_image(self, img):
@@ -3530,21 +3530,21 @@ class TitleScreenDialog(QDialog):
             top = self._load_image_with_pillow(path)
         if top.isNull():
             QMessageBox.critical(
-                self, "Open failed",
-                f"Could not open image:\n{path}")
+                self, "画像読み込み失敗",
+                f"画像を開けません:\n{path}")
             return
         original_size = (top.width(), top.height())
         oversized = top.width() > _IMG_W or top.height() > _TOP_H
         if top.width() <= 0 or top.height() <= 0:
             QMessageBox.critical(
-                self, "Import failed",
+                self, "Top PNG取り込み失敗",
                 f"画像サイズが不正です: {top.width()}x{top.height()}")
             return
         if not oversized and (
                 top.width() % 8 != 0 or top.height() % 8 != 0
         ):
             QMessageBox.critical(
-                self, "Import failed",
+                self, "Top PNG取り込み失敗",
                 "Top PNGとして読み込める画像は、幅と高さが8の倍数である必要があります。\n"
                 f"指定画像: {top.width()}x{top.height()}")
             return
@@ -3623,17 +3623,17 @@ class TitleScreenDialog(QDialog):
             return
         except (TS.TitleScreenError, ValueError) as e:
             self._rom[:] = snap
-            QMessageBox.critical(self, "Import failed", str(e))
+            QMessageBox.critical(self, "Top PNG取り込み失敗", str(e))
             return
         except Exception as e:
             self._rom[:] = snap
             QMessageBox.critical(
-                self, "Import failed", f"{type(e).__name__}: {e}")
+                self, "Top PNG取り込み失敗", f"{type(e).__name__}: {e}")
             return
         self._changed = True
         self._refresh()
         QMessageBox.information(
-            self, "Top PNG imported", "\n".join(pre_msgs + chg))
+            self, "Top PNG取り込み完了", "\n".join(pre_msgs + chg))
 
     @staticmethod
     def _sidecar_path(path):
@@ -3764,7 +3764,7 @@ class TitleScreenDialog(QDialog):
             return
         except Exception as e:
             QMessageBox.critical(
-                self, "PUSH文字読込失敗", f"{type(e).__name__}: {e}")
+                self, "PUSH START文字読込失敗", f"{type(e).__name__}: {e}")
             return
 
         dlg = QDialog(self)
@@ -3851,15 +3851,15 @@ class TitleScreenDialog(QDialog):
         try:
             cur = TS.read_title_push_start_text(self._rom)
         except (TS.TitleScreenError, ValueError) as e:
-            QMessageBox.critical(self, "PUSH文字不可", str(e))
+            QMessageBox.critical(self, "PUSH START文字不可", str(e))
             return
         except Exception as e:
             QMessageBox.critical(
-                self, "PUSH文字読込失敗", f"{type(e).__name__}: {e}")
+                self, "PUSH START文字読込失敗", f"{type(e).__name__}: {e}")
             return
         text, ok = QInputDialog.getText(
             self,
-            "PUSH文字",
+            "PUSH START文字",
             "PUSH START BUTTON位置の固定文字 "
             "(A-Z / 0-9 / スペース / , . \"、最大32文字):",
             text=cur)
@@ -3870,12 +3870,12 @@ class TitleScreenDialog(QDialog):
             chg = TS.set_title_push_start_text(self._rom, text)
         except (TS.TitleScreenError, ValueError) as e:
             self._rom[:] = snap
-            QMessageBox.critical(self, "PUSH文字不可", str(e))
+            QMessageBox.critical(self, "PUSH START文字不可", str(e))
             return
         except Exception as e:
             self._rom[:] = snap
             QMessageBox.critical(
-                self, "PUSH文字変更失敗", f"{type(e).__name__}: {e}")
+                self, "PUSH START文字変更失敗", f"{type(e).__name__}: {e}")
             return
         self._changed = True
         self._refresh()

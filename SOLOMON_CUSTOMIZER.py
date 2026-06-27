@@ -18,6 +18,7 @@ from PyQt5.QtCore import QTimer
 from PyQt5.QtNetwork import QLocalServer, QLocalSocket
 
 from magatu_skc.core.config import load_config, resolve_project_path
+from magatu_skc.core.i18n import set_language
 from magatu_skc.ui.main_window import MainWindow
 from magatu_skc.ui.theme import build_app_stylesheet, DEFAULT_THEME_GRAY
 
@@ -66,6 +67,7 @@ def main():
 
     app.setStyle("Fusion")  # スタイルシート互換確保
     cfg = load_config()
+    set_language(cfg.get("language"))
     app.setStyleSheet(
         build_app_stylesheet(cfg.get("theme_gray", DEFAULT_THEME_GRAY))
     )

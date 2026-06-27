@@ -92,7 +92,7 @@ class EnemyDropDialog(QDialog):
         btn_restore = QPushButton("原作に戻す")
         btn_restore.clicked.connect(self._on_restore)
         btnrow.addWidget(btn_restore)
-        btn_clear = QPushButton("すべてなしにする")
+        btn_clear = QPushButton("すべて未設定にする")
         btn_clear.clicked.connect(self._on_clear_all)
         btnrow.addWidget(btn_clear)
         btnrow.addStretch()

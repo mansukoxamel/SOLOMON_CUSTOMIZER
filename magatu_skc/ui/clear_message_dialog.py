@@ -104,7 +104,7 @@ class ClearMessageDialog(QDialog):
             CM.write_messages(
                 self._rom, [e.text() for e in self._edits])
         except CM.ClearMessageError as e:
-            QMessageBox.critical(self, "クリア画面メッセージ編集 失敗",
+            QMessageBox.critical(self, "クリア画面メッセージ編集失敗",
                                  str(e))
             return False
         return True

@@ -10688,7 +10688,7 @@ class MainWindow(QMainWindow):
                 app_config=self._app_config,
             )
         except _ed.EnemyDropError as e:
-            QMessageBox.critical(self, "敵ドロップ編集 不可", str(e))
+            QMessageBox.critical(self, "敵ドロップ編集不可", str(e))
             return
         dlg.exec_()
         if bytes(self.rom.data[o:o + n]) != before:
@@ -10712,7 +10712,7 @@ class MainWindow(QMainWindow):
                 app_config=self._app_config,
             )
         except _di.DemoInputError as e:
-            QMessageBox.critical(self, "デモ操作編集 不可", str(e))
+            QMessageBox.critical(self, "デモ操作編集不可", str(e))
             return
         dlg.exec_()
         if bytes(self.rom.data[o0:o1]) != before:
@@ -10738,7 +10738,7 @@ class MainWindow(QMainWindow):
                 app_config=self._app_config,
             )
         except _cm.ClearMessageError as e:
-            QMessageBox.critical(self, "クリア画面メッセージ編集 不可",
+            QMessageBox.critical(self, "クリア画面メッセージ編集不可",
                                  str(e))
             return
         dlg.exec_()
@@ -10767,7 +10767,7 @@ class MainWindow(QMainWindow):
                 app_config=self._app_config,
             )
         except _ts.TitleScreenError as e:
-            QMessageBox.critical(self, "タイトル画面 操作不可", str(e))
+            QMessageBox.critical(self, "タイトル画面操作不可", str(e))
             return
         self._title_screen_dialog = dlg
 
@@ -10841,7 +10841,7 @@ class MainWindow(QMainWindow):
                 app_config=self._app_config,
             )
         except Exception as e:
-            QMessageBox.critical(self, "音楽データ表示 不可", f"{type(e).__name__}: {e}")
+            QMessageBox.critical(self, "音楽データ表示不可", f"{type(e).__name__}: {e}")
             return
         dlg.exec_()
 

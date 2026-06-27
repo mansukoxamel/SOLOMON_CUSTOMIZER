@@ -159,7 +159,7 @@ class SpriteViewer(QDialog):
         self.mode_combo.addItem("★ROMフレームデータ (全網羅 16x16)")
         if have_cfg:
             self.mode_combo.addItem("キャラクター (組み立て)")
-        self.mode_combo.addItem("生CHRタイル (8x8素)")
+        self.mode_combo.addItem("生CHRタイル (8x8)")
         self.mode_combo.currentIndexChanged.connect(self._rebuild_controls)
         mode_row.addWidget(self.mode_combo)
         mode_row.addStretch()

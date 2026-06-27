@@ -27,11 +27,13 @@ from ..core.config import (
     DEFAULT_SHORTCUTS,
     GAMEPAD_BUTTON_OPTIONS,
     DEFAULT_GAMEPAD_SHORTCUTS,
+    normalize_language,
     normalize_emulators,
     normalize_int_setting,
     normalize_gamepad_shortcuts,
     normalize_shortcuts,
 )
+from ..core.i18n import LANGUAGE_OPTIONS, t
 from .level_view import (
     DEFAULT_MARKER_COLORS,
     DEFAULT_MARKER_SHAPES,
@@ -78,7 +80,7 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("設定 (F9)")
+        self.setWindowTitle(t("settings.title", "設定 (F9)"))
         self.config = dict(config)  # 編集用コピー
         self.config["shortcuts"] = normalize_shortcuts(self.config.get("shortcuts"))
         self.config["gamepad_shortcuts"] = normalize_gamepad_shortcuts(
@@ -97,12 +99,12 @@ class SettingsDialog(QDialog):
         colors_layout = QVBoxLayout(colors_tab)
         shortcuts_tab = QWidget()
         shortcuts_layout = QVBoxLayout(shortcuts_tab)
-        self.tabs.addTab(general_tab, "一般")
-        self.tabs.addTab(colors_tab, "色・表示")
-        self.tabs.addTab(shortcuts_tab, "ショートカット")
+        self.tabs.addTab(general_tab, t("settings.tab.general", "一般"))
+        self.tabs.addTab(colors_tab, t("settings.tab.colors", "色・表示"))
+        self.tabs.addTab(shortcuts_tab, t("settings.tab.shortcuts", "ショートカット"))
 
         # ====== 表示 ======
-        disp_group = QGroupBox("表示")
+        disp_group = QGroupBox(t("settings.group.display", "表示"))
         df = QFormLayout(disp_group)
 
         self.cmb_dirty_mark = QComboBox()
@@ -115,7 +117,16 @@ class SettingsDialog(QDialog):
             self.cmb_dirty_mark.setCurrentIndex(idx)
         else:
             self.cmb_dirty_mark.setCurrentText(cur_mark)
-        df.addRow("未保存マーク:", self.cmb_dirty_mark)
+        df.addRow(t("settings.dirty_mark.label", "未保存マーク:"), self.cmb_dirty_mark)
+
+        self.cmb_language = QComboBox()
+        for value, label in LANGUAGE_OPTIONS:
+            self.cmb_language.addItem(label, value)
+        lang = normalize_language(self.config.get("language"))
+        idx = self.cmb_language.findData(lang)
+        self.cmb_language.setCurrentIndex(idx if idx >= 0 else 0)
+        self.cmb_language.setToolTip(t("settings.language.tooltip"))
+        df.addRow(t("settings.language.label", "表示言語:"), self.cmb_language)
 
         # フォントファミリー（空 = デフォルト）
         font_wrap = QWidget()
@@ -128,18 +139,18 @@ class SettingsDialog(QDialog):
         self.cmb_font_family.currentFontChanged.connect(
             lambda *_: setattr(self, "_font_family_default", False))
         font_row.addWidget(self.cmb_font_family, 1)
-        btn_font_default = QPushButton("既定に戻す")
+        btn_font_default = QPushButton(t("settings.font.reset", "既定に戻す"))
         btn_font_default.clicked.connect(self._reset_font_family)
         font_row.addWidget(btn_font_default)
-        df.addRow("フォント:", font_wrap)
+        df.addRow(t("settings.font.label", "フォント:"), font_wrap)
         self._font_family_default = (cur_family == "")
 
         self.spin_font_size = QSpinBox()
         self.spin_font_size.setRange(0, 999)
-        self.spin_font_size.setSpecialValueText("デフォルト")
+        self.spin_font_size.setSpecialValueText(t("settings.default", "デフォルト"))
         self.spin_font_size.setSuffix(" pt")
         self.spin_font_size.setValue(self.config.get("font_size", 0))
-        df.addRow("フォントサイズ:", self.spin_font_size)
+        df.addRow(t("settings.font_size.label", "フォントサイズ:"), self.spin_font_size)
 
         self.spin_hover_popup_font_size = QSpinBox()
         self.spin_hover_popup_font_size.setRange(
@@ -156,9 +167,15 @@ class SettingsDialog(QDialog):
             )
         )
         self.spin_hover_popup_font_size.setToolTip(
-            "Iキーで表示するホバー情報ポップアップだけの文字サイズです。"
+            t(
+                "settings.hover_info_font_size.tooltip",
+                "Iキーで表示するホバー情報ポップアップだけの文字サイズです。",
+            )
         )
-        df.addRow("ホバー情報文字サイズ:", self.spin_hover_popup_font_size)
+        df.addRow(
+            t("settings.hover_info_font_size.label", "ホバー情報文字サイズ:"),
+            self.spin_hover_popup_font_size,
+        )
 
         self.spin_enemy_meter_slot_size = QSpinBox()
         self.spin_enemy_meter_slot_size.setRange(10, 32)
@@ -172,14 +189,20 @@ class SettingsDialog(QDialog):
             )
         )
         self.spin_enemy_meter_slot_size.setToolTip(
-            "キャンバス上部の敵数メーターの1マスサイズです。"
-            "鍵持ち敵/妖精化敵の表示画像も同じ大きさで拡大縮小します。"
+            t(
+                "settings.enemy_meter_slot.tooltip",
+                "キャンバス上部の敵数メーターの1マスサイズです。"
+                "鍵持ち敵/妖精化敵の表示画像も同じ大きさで拡大縮小します。",
+            )
         )
-        df.addRow("敵数メーター1マス:", self.spin_enemy_meter_slot_size)
+        df.addRow(
+            t("settings.enemy_meter_slot.label", "敵数メーター1マス:"),
+            self.spin_enemy_meter_slot_size,
+        )
 
-        self.chk_font_bold = QCheckBox("太字")
+        self.chk_font_bold = QCheckBox(t("settings.bold.checkbox", "太字"))
         self.chk_font_bold.setChecked(bool(self.config.get("font_bold", False)))
-        df.addRow("太字:", self.chk_font_bold)
+        df.addRow(t("settings.bold.label", "太字:"), self.chk_font_bold)
 
         general_layout.addWidget(disp_group)
 
@@ -666,6 +689,7 @@ class SettingsDialog(QDialog):
         if not mark:
             mark = "●"
         self.config["dirty_mark"] = mark
+        self.config["language"] = normalize_language(self.cmb_language.currentData())
         self._update_current_emulator()
         self.config["emulators"] = normalize_emulators(self._emulators)
         valid_emu_ids = {emu["id"] for emu in self.config["emulators"]}
