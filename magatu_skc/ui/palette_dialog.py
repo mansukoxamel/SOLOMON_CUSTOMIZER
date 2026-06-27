@@ -146,7 +146,7 @@ class PaletteDialog(QDialog):
         wall_group = QGroupBox(t("palette.wall_group", "ステージ壁色 (1-48面)"))
         wall_layout = QGridLayout(wall_group)
         for i in range(wall_color_hack.EDIT_COUNT):
-            label = QLabel(f"{wall_color_hack.stage_range_label(i)}面")
+            label = QLabel(f"Stages {wall_color_hack.stage_range_label(i)}")
             btn = QPushButton()
             btn.setFixedSize(self.SWATCH_W, self.SWATCH_H)
             btn.setEnabled(self._wall_ok)
@@ -312,7 +312,7 @@ class PaletteDialog(QDialog):
         cur_idx = self._buf[palette_no][slot] & 0x3F
         label = PALETTE_LABELS[palette_no]
         self._picker_info.setText(
-            f"<b>{label}</b> スロット{slot + 1} を編集中 (現在: 0x{cur_idx:02X})"
+            f"<b>{label}</b> slot {slot + 1} editing (current: 0x{cur_idx:02X})"
         )
         # 64色グリッドの現在色をハイライト
         self._update_color_grid_highlight(cur_idx)
@@ -361,8 +361,8 @@ class PaletteDialog(QDialog):
         self._refresh_wall_swatch(index)
         cur_idx = self._wall_buf[index] & 0x3F
         self._picker_info.setText(
-            f"<b>ステージ壁色 {wall_color_hack.stage_range_label(index)}面</b> を編集中 "
-            f"(現在: 0x{cur_idx:02X})"
+            f"<b>Stage wall color {wall_color_hack.stage_range_label(index)}</b> editing "
+            f"(current: 0x{cur_idx:02X})"
         )
         self._update_color_grid_highlight(cur_idx)
 
@@ -380,7 +380,7 @@ class PaletteDialog(QDialog):
         self._refresh_book_color_swatch()
         cur_idx = self._book_color & 0x3F
         self._picker_info.setText(
-            f"<b>Stage 50 ソロモンの書の色</b> を編集中 (現在: 0x{cur_idx:02X})"
+            f"<b>Stage 50 Solomon's Book color</b> editing (current: 0x{cur_idx:02X})"
         )
         self._update_color_grid_highlight(cur_idx)
 
@@ -408,8 +408,8 @@ class PaletteDialog(QDialog):
                 self._refresh_wall_swatch(idx)
                 self._changed = True
             self._picker_info.setText(
-                f"<b>ステージ壁色 {wall_color_hack.stage_range_label(idx)}面</b> を編集中 "
-                f"(現在: 0x{new_idx:02X})"
+                f"<b>Stage wall color {wall_color_hack.stage_range_label(idx)}</b> editing "
+                f"(current: 0x{new_idx:02X})"
             )
             self._update_color_grid_highlight(new_idx)
             return
@@ -421,7 +421,7 @@ class PaletteDialog(QDialog):
                 self._refresh_book_color_swatch()
                 self._changed = True
             self._picker_info.setText(
-                f"<b>Stage 50 ソロモンの書の色</b> を編集中 (現在: 0x{new_idx:02X})"
+                f"<b>Stage 50 Solomon's Book color</b> editing (current: 0x{new_idx:02X})"
             )
             self._update_color_grid_highlight(new_idx)
             return
@@ -438,7 +438,7 @@ class PaletteDialog(QDialog):
         # 情報ラベル更新
         label = PALETTE_LABELS[p]
         self._picker_info.setText(
-            f"<b>{label}</b> スロット{s + 1} を編集中 (現在: 0x{new_idx:02X})"
+            f"<b>{label}</b> slot {s + 1} editing (current: 0x{new_idx:02X})"
         )
         self._update_color_grid_highlight(new_idx)
 
@@ -512,21 +512,21 @@ class PaletteDialog(QDialog):
         if self._sel_wall is not None:
             cur_idx = self._wall_buf[self._sel_wall] & 0x3F
             self._picker_info.setText(
-                f"<b>ステージ壁色 {wall_color_hack.stage_range_label(self._sel_wall)}面</b> を編集中 "
-                f"(現在: 0x{cur_idx:02X})"
+                f"<b>Stage wall color {wall_color_hack.stage_range_label(self._sel_wall)}</b> editing "
+                f"(current: 0x{cur_idx:02X})"
             )
             self._update_color_grid_highlight(cur_idx)
         elif self._sel_book_color:
             cur_idx = self._book_color & 0x3F
             self._picker_info.setText(
-                f"<b>Stage 50 ソロモンの書の色</b> を編集中 (現在: 0x{cur_idx:02X})"
+                f"<b>Stage 50 Solomon's Book color</b> editing (current: 0x{cur_idx:02X})"
             )
             self._update_color_grid_highlight(cur_idx)
         elif self._sel_palette is not None and self._sel_slot is not None:
             cur_idx = self._buf[self._sel_palette][self._sel_slot] & 0x3F
             label = PALETTE_LABELS[self._sel_palette]
             self._picker_info.setText(
-                f"<b>{label}</b> スロット{self._sel_slot + 1} を編集中 (現在: 0x{cur_idx:02X})"
+                f"<b>{label}</b> slot {self._sel_slot + 1} editing (current: 0x{cur_idx:02X})"
             )
             self._update_color_grid_highlight(cur_idx)
 
@@ -567,7 +567,7 @@ class PaletteDialog(QDialog):
             self._update_color_grid_highlight(cur_idx)
             label = PALETTE_LABELS[palette_no]
             self._picker_info.setText(
-                f"<b>{label}</b> スロット{self._sel_slot + 1} を編集中 (現在: 0x{cur_idx:02X})"
+                f"<b>{label}</b> slot {self._sel_slot + 1} editing (current: 0x{cur_idx:02X})"
             )
 
     def _randomize_selected_palette(self):

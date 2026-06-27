@@ -4,6 +4,9 @@
 - Gitで取得したローカル作業ツリー向けに、`origin/main` を確認してfast-forward更新する `update_from_github.bat` を追加した。
 - `update_from_github.bat` のfetch時はGitの自動GCを無効化し、packファイル削除確認で停止しにくいようにした。
 
+## v0.8.409 (2026-06-28) UI直書き日本語の検査残りを修正
+- tooltip、status label、palette dialogの表示API直書き日本語を英語表示へ変更した。
+
 ## v0.8.408 (2026-06-28) ステージ情報表示の英語漏れを修正
 - メイン画面左下のステージ情報表示、ステージ枠タイトル、タイルセット固定表示に残っていた日本語を英語表示へ対応させた。
 

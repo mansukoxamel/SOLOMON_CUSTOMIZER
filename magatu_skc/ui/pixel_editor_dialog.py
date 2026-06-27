@@ -465,7 +465,7 @@ class PixelEditorDialog(QDialog):
             btn = QPushButton(str(idx))
             btn.setCheckable(True)
             btn.setMinimumSize(44, 34)
-            btn.setToolTip(f"パレットインデックス {idx} で描く")
+            btn.setToolTip(f"Draw with palette index {idx}")
             btn.clicked.connect(lambda _checked=False, value=idx: self._set_brush(value))
             self.brush_group.addButton(btn, idx)
             self.brush_buttons.append(btn)

@@ -494,7 +494,7 @@ class TitleTileEditorDialog(QDialog):
         root.addWidget(info)
 
         top = QHBoxLayout()
-        top.addWidget(QLabel("拡大:"))
+        top.addWidget(QLabel("Zoom:"))
         self._zoom = QSpinBox()
         self._zoom.setRange(16, 48)
         self._zoom.setValue(28)
@@ -647,7 +647,7 @@ class TitlePaletteDialog(QDialog):
             gl.addWidget(b, (i // 4) * 2 + 1, (i % 4) + 1)
         root.addWidget(g)
 
-        picker = QGroupBox("NES 64色")
+        picker = QGroupBox("NES 64 Colors")
         pg = QGridLayout(picker)
         for i in range(64):
             b = QPushButton(f"{i:02X}")
@@ -1412,7 +1412,7 @@ class TitleScreenDialog(QDialog):
         body.addLayout(edit_col, 2)
 
         top = QHBoxLayout()
-        top.addWidget(QLabel("表示:"))
+        top.addWidget(QLabel("View:"))
         self._ending_mode = QComboBox()
         self._ending_mode.addItem("True Ending", "PrincessTrue")
         self._ending_mode.addItem("Good Ending A", "PrincessNormal")
@@ -1447,9 +1447,9 @@ class TitleScreenDialog(QDialog):
         g = QGridLayout()
         g.setHorizontalSpacing(8)
         g.setVerticalSpacing(6)
-        g.addWidget(QLabel("文"), 0, 0)
-        g.addWidget(QLabel("文字"), 0, 1)
-        g.addWidget(QLabel("字数"), 0, 2)
+        g.addWidget(QLabel("Line"), 0, 0)
+        g.addWidget(QLabel("Text"), 0, 1)
+        g.addWidget(QLabel("Count"), 0, 2)
         rx = QRegExpValidator(QRegExp("[A-Za-z ,'\\\"]*"))
         self._ending_text_edits = []
         self._ending_text_row_widgets = []
@@ -1547,7 +1547,7 @@ class TitleScreenDialog(QDialog):
         try:
             img = self._build_ending_preview_image()
         except Exception as e:
-            preview.setText(f"プレビュー不可: {type(e).__name__}: {e}")
+            preview.setText(f"Preview unavailable: {type(e).__name__}: {e}")
             return
         zoom = int(getattr(self, "_ending_zoom", 3))
         pm = QPixmap.fromImage(img).scaled(
@@ -2338,13 +2338,13 @@ class TitleScreenDialog(QDialog):
 
     def _title_character_count_text(self):
         count = len(self._active_title_character_slots())
-        return f"キャラ {count}/{TS.title_character_max()}"
+        return f"Characters {count}/{TS.title_character_max()}"
 
     def _update_title_character_count_labels(self):
         text = self._title_character_count_text()
         label = getattr(self, "_title_character_count_label", None)
         if label is not None:
-            label.setText(f"配置: {text.split(' ', 1)[1]}")
+            label.setText(f"Placed: {len(self._active_title_character_slots())}/{TS.title_character_max()}")
         return text
 
     def _select_title_character_slot(self, slot):
@@ -3084,7 +3084,7 @@ class TitleScreenDialog(QDialog):
             return
         self._preview_status.setText(
             f"cell ({col}, {row}) / stream 0x{stream:02X} / "
-            f"bank内 0x{bank_tile:03X} / ROM 0x{file_start:X}-0x{file_end:X}")
+            f"bank 0x{bank_tile:03X} / ROM 0x{file_start:X}-0x{file_end:X}")
 
     def _on_preview_tile_clicked(self, row, col, modifiers=0):
         self._cancel_palette_block_context()

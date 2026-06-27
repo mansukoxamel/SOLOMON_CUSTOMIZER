@@ -3578,7 +3578,7 @@ class MainWindow(QMainWindow):
         if count <= 0:
             self.btn_rom_validation.setVisible(False)
             return
-        self.btn_rom_validation.setText(f"不整合 {count}")
+        self.btn_rom_validation.setText(f"Issues {count}")
         self.btn_rom_validation.setVisible(True)
 
     def _on_show_rom_validation(self):

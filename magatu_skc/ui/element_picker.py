@@ -1902,7 +1902,7 @@ class ElementPicker(QWidget):
                         fav_it = self.favorites.item(i)
                         fav_it.setIcon(it.icon())
                         key = (i + 1) % FAVORITES_COUNT
-                        fav_it.setToolTip(f"スロット {key}: {it.toolTip()}")
+                        fav_it.setToolTip(f"Slot {key}: {it.toolTip()}")
                         found = True
                         break
 
