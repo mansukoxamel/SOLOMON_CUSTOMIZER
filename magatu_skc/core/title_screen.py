@@ -1276,6 +1276,7 @@ def decode_ending_base_grid(rom_data) -> list:
     """Decode the stock ending background stream into a 32x30 tile grid."""
     _verify_ending_text_target(rom_data)
     grid = [0x24] * _NT_CELLS
+    _apply_wide_title_live_background_fill(grid)
     stream = _wt_ending_stock_stream(rom_data)
     start = _wjp_cf(0xCEA3)
     tmp = bytearray(rom_data)
