@@ -12,17 +12,38 @@ if sys.platform == "win32":
     except Exception as e:
         print(f"AppUserModelID set failed: {e}")
 
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMessageBox
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QTimer
 from PyQt5.QtNetwork import QLocalServer, QLocalSocket
 
-from magatu_skc.core.config import load_config, resolve_project_path
+from magatu_skc.core.config import (
+    config_has_language_setting,
+    load_config,
+    resolve_project_path,
+    save_config,
+)
 from magatu_skc.core.i18n import set_language, t
 from magatu_skc.ui.main_window import MainWindow
 from magatu_skc.ui.theme import build_app_stylesheet, DEFAULT_THEME_GRAY
 
 SINGLE_INSTANCE_SERVER = "Chaos.SOLOMON_CUSTOMIZER.SingleInstance"
+
+
+def _choose_initial_language() -> str:
+    box = QMessageBox()
+    box.setWindowTitle("Language / 表示言語")
+    box.setText(
+        "Choose display language.\n"
+        "You can change this later from Settings (F9).\n\n"
+        "表示言語を選んでください。\n"
+        "あとで設定 (F9) から変更できます。"
+    )
+    en_button = box.addButton("English", QMessageBox.AcceptRole)
+    ja_button = box.addButton("日本語", QMessageBox.AcceptRole)
+    box.setDefaultButton(en_button)
+    box.exec_()
+    return "ja" if box.clickedButton() is ja_button else "en"
 
 
 def _notify_existing_instance() -> bool:
@@ -71,6 +92,9 @@ def main():
 
     app.setStyle("Fusion")  # スタイルシート互換確保
     cfg = load_config()
+    if not config_has_language_setting():
+        cfg["language"] = _choose_initial_language()
+        save_config(cfg)
     set_language(cfg.get("language"))
     app.setStyleSheet(
         build_app_stylesheet(cfg.get("theme_gray", DEFAULT_THEME_GRAY))

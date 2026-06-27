@@ -15,9 +15,9 @@ The English text is a practical translation of the Japanese manual. Some wording
 
 ## Requirements and Launch
 
-### Packaged Version
+### If a Packaged Version Is Available
 
-Use the onedir zip package.
+If a packaged build is available, use the onedir zip package from the release page.
 
 1. Extract the zip file.
 2. Open the extracted folder.

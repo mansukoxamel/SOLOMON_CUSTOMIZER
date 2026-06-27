@@ -171,6 +171,21 @@ def normalize_language(value) -> str:
     return DEFAULT_LANGUAGE
 
 
+def config_has_language_setting() -> bool:
+    p = get_config_path()
+    if not p.exists():
+        return False
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return False
+    if not isinstance(data, dict):
+        return False
+    lang = str(data.get("language", "") or "").strip().lower()
+    return lang in SUPPORTED_LANGUAGES
+
+
 def normalize_emulators(value) -> list[dict]:
     emulators = []
     seen_ids = set()

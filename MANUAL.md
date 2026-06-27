@@ -15,9 +15,10 @@ SOLOMON_CUSTOMIZERは、ファミコン版『ソロモンの鍵』の日本版RO
 
 ## 必要環境と起動
 
-### 配布版を使う場合
+### 配布版が公開されている場合
 
-GitHub Releases の `SOLOMON_CUSTOMIZER_vX.X.X_onedir.zip` を展開し、展開後の
+配布版が公開されている場合は、Releaseページの
+`SOLOMON_CUSTOMIZER_vX.X.X_onedir.zip` を展開し、展開後の
 `SOLOMON_CUSTOMIZER\SOLOMON_CUSTOMIZER.exe` を起動します。
 
 `_internal` フォルダには実行に必要なライブラリや設定ファイルが入っています。
