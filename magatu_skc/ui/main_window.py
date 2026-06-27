@@ -1600,15 +1600,15 @@ class MainWindow(QMainWindow):
         stage_btn_row.addWidget(self.btn_stage_save)
         fl.addLayout(stage_btn_row)
 
-        compare_group = QGroupBox("比較")
+        compare_group = QGroupBox(t("main.compare.group", "比較"))
         compare_layout = QVBoxLayout(compare_group)
-        self.btn_stage_compare_current = QPushButton("現在")
+        self.btn_stage_compare_current = QPushButton(t("main.compare.current", "現在"))
         self.btn_stage_compare_current.setCheckable(True)
         self.btn_stage_compare_current.clicked.connect(
             lambda: self._set_stage_compare_view(False)
         )
 
-        self.btn_stage_compare_diff = QPushButton("差分")
+        self.btn_stage_compare_diff = QPushButton(t("main.compare.diff", "差分"))
         self.btn_stage_compare_diff.setCheckable(True)
         self.btn_stage_compare_diff.clicked.connect(
             lambda: self._set_stage_compare_view(True)
@@ -1622,15 +1622,23 @@ class MainWindow(QMainWindow):
         self.lbl_stage_compare_mode.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         self.lbl_stage_compare_mode.setMinimumWidth(0)
         compare_tool_row = QHBoxLayout()
-        self.btn_rom_diff = QPushButton("ROM比較")
+        self.btn_rom_diff = QPushButton(t("main.compare.rom_diff", "ROM比較"))
         self.btn_rom_diff.setToolTip(
-            "ROM/ZIP同士のステージ差分を比較します。PNGとの比較は比較編集を使います。"
+            t(
+                "main.compare.rom_diff.tooltip",
+                "ROM/ZIP同士のステージ差分を比較します。PNGとの比較は比較編集を使います。",
+            )
         )
         self.btn_rom_diff.clicked.connect(self._on_show_rom_diff)
         compare_tool_row.addWidget(self.btn_rom_diff)
-        self.btn_stage_compare_edit_start = QPushButton("比較編集")
+        self.btn_stage_compare_edit_start = QPushButton(
+            t("main.compare.edit_start", "比較編集")
+        )
         self.btn_stage_compare_edit_start.setToolTip(
-            "現在ステージのスナップショットを横に表示して比較編集モードを開始します。(Ctrl+Q)"
+            t(
+                "main.compare.edit_start.tooltip",
+                "現在ステージのスナップショットを横に表示して比較編集モードを開始します。(Ctrl+Q)",
+            )
         )
         self.btn_stage_compare_edit_start.clicked.connect(
             self._toggle_stage_compare_edit_from_snapshot
@@ -1640,16 +1648,23 @@ class MainWindow(QMainWindow):
 
         stage_compare_edit_row = QHBoxLayout()
         stage_compare_edit_row.addWidget(self.lbl_stage_compare_mode, 1)
-        self.btn_stage_compare_orientation = QPushButton("縦横(Q)")
+        self.btn_stage_compare_orientation = QPushButton(
+            t("main.compare.orientation", "縦横(Q)")
+        )
         self.btn_stage_compare_orientation.setToolTip(
-            "比較しながら編集の表示方向を横並び/縦並びで切り替えます。(Q)"
+            t(
+                "main.compare.orientation.tooltip",
+                "比較しながら編集の表示方向を横並び/縦並びで切り替えます。(Q)",
+            )
         )
         self.btn_stage_compare_orientation.clicked.connect(
             self._toggle_stage_compare_edit_orientation
         )
         stage_compare_edit_row.addWidget(self.btn_stage_compare_orientation)
-        self.btn_stage_compare_edit_end = QPushButton("終了")
-        self.btn_stage_compare_edit_end.setToolTip("比較編集モードを終了して通常表示に戻します。")
+        self.btn_stage_compare_edit_end = QPushButton(t("main.compare.end", "終了"))
+        self.btn_stage_compare_edit_end.setToolTip(
+            t("main.compare.end.tooltip", "比較編集モードを終了して通常表示に戻します。")
+        )
         self.btn_stage_compare_edit_end.clicked.connect(lambda: self._clear_stage_compare())
         stage_compare_edit_row.addWidget(self.btn_stage_compare_edit_end)
         compare_layout.addLayout(stage_compare_edit_row)
@@ -4604,12 +4619,20 @@ class MainWindow(QMainWindow):
         edit_btn = getattr(self, "btn_stage_compare_edit_start", None)
         if edit_btn is not None:
             if visible and self._stage_compare_edit_mode:
-                edit_btn.setText("比較編集終了")
-                edit_btn.setToolTip("比較編集モードを終了して通常表示に戻します。(Ctrl+Q)")
-            else:
-                edit_btn.setText("比較編集")
+                edit_btn.setText(t("main.compare.edit_end", "比較編集終了"))
                 edit_btn.setToolTip(
-                    "現在ステージのスナップショットを横に表示して比較編集モードを開始します。(Ctrl+Q)"
+                    t(
+                        "main.compare.edit_end.tooltip",
+                        "比較編集モードを終了して通常表示に戻します。(Ctrl+Q)",
+                    )
+                )
+            else:
+                edit_btn.setText(t("main.compare.edit_start", "比較編集"))
+                edit_btn.setToolTip(
+                    t(
+                        "main.compare.edit_start.tooltip",
+                        "現在ステージのスナップショットを横に表示して比較編集モードを開始します。(Ctrl+Q)",
+                    )
                 )
         orientation_shortcut = getattr(self, "shortcut_stage_compare_orientation", None)
         if orientation_shortcut is not None:
@@ -4657,10 +4680,10 @@ class MainWindow(QMainWindow):
         self._stage_compare_show_diff = bool(show_diff)
         if show_diff:
             self.btn_stage_compare_diff.setChecked(True)
-            self.lbl_stage_compare_mode.setText("差分")
+            self.lbl_stage_compare_mode.setText(t("main.compare.diff", "差分"))
         else:
             self.btn_stage_compare_current.setChecked(True)
-            self.lbl_stage_compare_mode.setText("現在")
+            self.lbl_stage_compare_mode.setText(t("main.compare.current", "現在"))
         self._refresh_view()
 
     def _toggle_stage_compare_view(self):

@@ -541,6 +541,58 @@ _TRANSLATIONS = {
         "ja": "破棄して続行",
         "en": "Discard and Continue",
     },
+    "main.compare.group": {
+        "ja": "比較",
+        "en": "Compare",
+    },
+    "main.compare.current": {
+        "ja": "現在",
+        "en": "Current",
+    },
+    "main.compare.diff": {
+        "ja": "差分",
+        "en": "Diff",
+    },
+    "main.compare.rom_diff": {
+        "ja": "ROM比較",
+        "en": "Compare ROMs",
+    },
+    "main.compare.rom_diff.tooltip": {
+        "ja": "ROM/ZIP同士のステージ差分を比較します。PNGとの比較は比較編集を使います。",
+        "en": "Compare stage differences between ROM/ZIP files. Use Compare Edit for PNG comparison.",
+    },
+    "main.compare.edit_start": {
+        "ja": "比較編集",
+        "en": "Compare Edit",
+    },
+    "main.compare.edit_start.tooltip": {
+        "ja": "現在ステージのスナップショットを横に表示して比較編集モードを開始します。(Ctrl+Q)",
+        "en": "Start compare-edit mode by showing a snapshot of the current stage beside it. (Ctrl+Q)",
+    },
+    "main.compare.edit_end": {
+        "ja": "比較編集終了",
+        "en": "End Compare Edit",
+    },
+    "main.compare.edit_end.tooltip": {
+        "ja": "比較編集モードを終了して通常表示に戻します。(Ctrl+Q)",
+        "en": "End compare-edit mode and return to the normal view. (Ctrl+Q)",
+    },
+    "main.compare.orientation": {
+        "ja": "縦横(Q)",
+        "en": "Layout (Q)",
+    },
+    "main.compare.orientation.tooltip": {
+        "ja": "比較しながら編集の表示方向を横並び/縦並びで切り替えます。(Q)",
+        "en": "Switch compare-edit layout between side-by-side and stacked. (Q)",
+    },
+    "main.compare.end": {
+        "ja": "終了",
+        "en": "End",
+    },
+    "main.compare.end.tooltip": {
+        "ja": "比較編集モードを終了して通常表示に戻します。",
+        "en": "End compare-edit mode and return to the normal view.",
+    },
     "common.close": {
         "ja": "閉じる",
         "en": "Close",
