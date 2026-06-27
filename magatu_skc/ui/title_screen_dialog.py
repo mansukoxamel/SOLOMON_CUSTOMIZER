@@ -1131,7 +1131,10 @@ class TitleScreenDialog(QDialog):
         b_save_top.clicked.connect(self._on_save_top_image)
         br.addWidget(b_save_top)
         b_png_top = QPushButton("Top PNG読込...")
-        b_png_top.setToolTip("最大256x64、幅/高さ8の倍数の上部ロゴ領域PNGを読み込み、下半分は触らない")
+        b_png_top.setToolTip(
+            "上部ロゴ領域のPNG/BMP/JPEGを読み込みます。"
+            "256x64を超える画像は縮小し、4色へ減色します。"
+        )
         b_png_top.clicked.connect(self._on_import_top_png)
         br.addWidget(b_png_top)
         b_imp = QPushButton("別ROMからタイトルを移植...")
@@ -2768,6 +2771,84 @@ class TitleScreenDialog(QDialog):
                 best, bd = i, d
         return best & 0x3F
 
+    def _reduce_image_to_four_nes_colors(self, img):
+        counts = Counter()
+        nearest_cache = {}
+        for y in range(img.height()):
+            for x in range(img.width()):
+                rgb = self._pixel_rgb(img, x, y)
+                idx = nearest_cache.get(rgb)
+                if idx is None:
+                    idx = self._nearest_nes_color(rgb)
+                    nearest_cache[rgb] = idx
+                counts[idx] += 1
+        selected = [idx for idx, _count in counts.most_common(4)]
+        if not selected:
+            return img.copy()
+        selected_rgbs = [NES_COLORS[idx & 0x3F] for idx in selected]
+        out = QImage(img.width(), img.height(), QImage.Format_RGB32)
+        color_cache = {}
+        for y in range(img.height()):
+            for x in range(img.width()):
+                rgb = self._pixel_rgb(img, x, y)
+                mapped = color_cache.get(rgb)
+                if mapped is None:
+                    mapped = min(
+                        selected_rgbs,
+                        key=lambda candidate: self._rgb_dist(rgb, candidate),
+                    )
+                    color_cache[rgb] = mapped
+                out.setPixel(x, y, QColor(*mapped).rgb())
+        return out
+
+    @staticmethod
+    def _load_image_with_pillow(path):
+        try:
+            from PIL import Image, ImageOps
+        except Exception:
+            return QImage()
+        try:
+            with Image.open(path) as pil_img:
+                pil_img = ImageOps.exif_transpose(pil_img).convert("RGBA")
+                data = pil_img.tobytes("raw", "RGBA")
+                img = QImage(
+                    data, pil_img.width, pil_img.height,
+                    pil_img.width * 4, QImage.Format_RGBA8888,
+                )
+                return img.copy()
+        except Exception:
+            return QImage()
+
+    def _top_png_canvas_from_source(self, source, draw_w, draw_h):
+        draw_w = max(8, min(_IMG_W, int(draw_w)))
+        draw_h = max(8, min(_TOP_H, int(draw_h)))
+        draw_w = max(8, (draw_w // 8) * 8)
+        draw_h = max(8, (draw_h // 8) * 8)
+        pal = self._title_palette()
+        bg = NES_COLORS[pal[0] & 0x3F]
+        canvas = QImage(_IMG_W, _TOP_H, QImage.Format_RGB32)
+        canvas.fill(QColor(*bg))
+        scaled = source.scaled(
+            draw_w, draw_h, Qt.IgnoreAspectRatio,
+            Qt.SmoothTransformation,
+        ).convertToFormat(QImage.Format_RGB32)
+        ox = ((_IMG_W - draw_w) // 16) * 8
+        oy = ((_TOP_H - draw_h) // 16) * 8
+        for y in range(draw_h):
+            for x in range(draw_w):
+                canvas.setPixel(ox + x, oy + y, scaled.pixel(x, y))
+        return self._reduce_image_to_four_nes_colors(canvas), draw_w, draw_h
+
+    def _oversized_top_png_candidates(self, source):
+        seen = set()
+        for tile_w in range(_NT_W, 0, -1):
+            tile_h = max(1, min(_TOP_H // 8, round(tile_w * (_TOP_H // 8) / _NT_W)))
+            key = (tile_w, tile_h)
+            if key in seen:
+                continue
+            seen.add(key)
+            yield self._top_png_canvas_from_source(source, tile_w * 8, tile_h * 8)
+
     def _set_title_attr_palette_no(self, attr, row, col, pal_no):
         ai = (row // 2) * 16 + (col // 2)
         if not (0 <= ai < len(attr)):
@@ -2910,30 +2991,38 @@ class TitleScreenDialog(QDialog):
     def _on_import_top_png(self):
         self._cancel_palette_block_context()
         path = self._pick_open(
-            "Open Top PNG (PNG/BMP, max 256x64)", "*.png;*.bmp")
+            "Open Top Image (PNG/BMP/JPEG)", "*.png;*.bmp;*.jpg;*.jpeg")
         if not path:
             return
         top = QImage(path)
+        if top.isNull():
+            top = self._load_image_with_pillow(path)
         if top.isNull():
             QMessageBox.critical(
                 self, "Open failed",
                 f"Could not open image:\n{path}")
             return
-        if top.width() > _IMG_W or top.height() > _TOP_H:
+        original_size = (top.width(), top.height())
+        oversized = top.width() > _IMG_W or top.height() > _TOP_H
+        if top.width() <= 0 or top.height() <= 0:
             QMessageBox.critical(
                 self, "Import failed",
-                "Top PNGとして読み込める画像は最大256x64です。\n"
-                f"指定画像: {top.width()}x{top.height()}\n\n"
-                "全体PNG取り込みは現在停止しています。")
+                f"画像サイズが不正です: {top.width()}x{top.height()}")
             return
-        if top.width() <= 0 or top.height() <= 0 or \
-                top.width() % 8 != 0 or top.height() % 8 != 0:
+        if not oversized and (
+                top.width() % 8 != 0 or top.height() % 8 != 0
+        ):
             QMessageBox.critical(
                 self, "Import failed",
                 "Top PNGとして読み込める画像は、幅と高さが8の倍数である必要があります。\n"
                 f"指定画像: {top.width()}x{top.height()}")
             return
-        top = top.convertToFormat(QImage.Format_RGB32)
+        source_top = top.convertToFormat(QImage.Format_RGB32)
+        top = source_top
+        if oversized:
+            top, _draw_w, _draw_h = self._top_png_canvas_from_source(
+                source_top, _IMG_W, _TOP_H
+            )
         if top.width() != _IMG_W or top.height() != _TOP_H:
             self._pending_stamp = {
                 "image": top.copy(),
@@ -2952,24 +3041,51 @@ class TitleScreenDialog(QDialog):
                 "タイトルプレビュー上で貼り付け開始位置をクリックしてください。")
             return
         snap = bytes(self._rom)
+        last_error = None
         try:
-            self._guard_image_16x16_colors(top, display_top_y=_TOP_Y)
-            cells, pre_msgs = self._try_top_png_4color_cells(top)
-            if cells is None:
-                full = QImage(_IMG_W, _IMG_H, QImage.Format_RGB32)
-                pal = self._title_palette()
-                bg = NES_COLORS[pal[0] & 0x3F]
-                full.fill(QColor(*bg))
-                for y in range(top.height()):
-                    for x in range(top.width()):
-                        full.setPixel(x, _TOP_Y + y, top.pixel(x, y))
-                cells = self._cells_from_display_image(full)
-                pre_msgs = [
-                    "multi-color top PNG path: existing title palette used",
-                    f"source image kept at original size: {top.width()}x{top.height()}",
-                ]
-            chg = TS.apply_title_top_image_from_png(
-                self._rom, cells)
+            candidates = (
+                self._oversized_top_png_candidates(source_top)
+                if oversized else ((top, top.width(), top.height()),)
+            )
+            for candidate, draw_w, draw_h in candidates:
+                self._rom[:] = snap
+                self._guard_image_16x16_colors(candidate, display_top_y=_TOP_Y)
+                cells, pre_msgs = self._try_top_png_4color_cells(candidate)
+                if cells is None:
+                    full = QImage(_IMG_W, _IMG_H, QImage.Format_RGB32)
+                    pal = self._title_palette()
+                    bg = NES_COLORS[pal[0] & 0x3F]
+                    full.fill(QColor(*bg))
+                    for y in range(candidate.height()):
+                        for x in range(candidate.width()):
+                            full.setPixel(x, _TOP_Y + y, candidate.pixel(x, y))
+                    cells = self._cells_from_display_image(full)
+                    pre_msgs = [
+                        "multi-color top PNG path: existing title palette used",
+                        f"source image kept at original size: {candidate.width()}x{candidate.height()}",
+                    ]
+                if oversized:
+                    resize_msg = (
+                        f"source image resized from "
+                        f"{original_size[0]}x{original_size[1]} to "
+                        f"{draw_w}x{draw_h} on a 256x64 top canvas and reduced to 4 colors"
+                    )
+                    pre_msgs = [
+                        resize_msg if msg.startswith("source image kept at original size:")
+                        else msg
+                        for msg in pre_msgs
+                    ]
+                try:
+                    chg = TS.apply_title_top_image_from_png(
+                        self._rom, cells)
+                    break
+                except TS.TitleScreenError as e:
+                    last_error = e
+                    if oversized and "自由CHR枠の空きが足りません" in str(e):
+                        continue
+                    raise
+            else:
+                raise last_error or TS.TitleScreenError("画像を取り込めませんでした。")
         except TitlePngColorGuardError as e:
             self._rom[:] = snap
             TitlePngColorGuardDialog(e, self).exec_()
