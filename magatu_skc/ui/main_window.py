@@ -715,7 +715,7 @@ class MainWindow(QMainWindow):
 
     def _cycle_hover_item_flag(self, reverse: bool = False):
         if self._hover_tile is None or not self.levels:
-            self.statusBar().showMessage("状態を切り替える対象がありません", 1200)
+            self.statusBar().showMessage(t("main.item_state.no_target", "状態を切り替える対象がありません"), 1200)
             return
         lv = self.levels[self.current_level_no]
         tile = self._hover_tile
@@ -752,11 +752,17 @@ class MainWindow(QMainWindow):
         else:
             idx = lv.get_item_index(tile)
             if idx < 0:
-                self.statusBar().showMessage("状態を切り替えるアイテムがありません", 1200)
+                self.statusBar().showMessage(
+                    t("main.item_state.no_item", "状態を切り替えるアイテムがありません"),
+                    1200,
+                )
                 return
             item = lv.items[idx]
             if item.element_no >= c.ITEM_COPY_INDICATOR_MIN and not item.is_white_in_block():
-                self.statusBar().showMessage("このアイテム形式は状態変更できません", 1500)
+                self.statusBar().showMessage(
+                    t("main.item_state.unsupported", "このアイテム形式は状態変更できません"),
+                    1500,
+                )
                 return
             base = int(item.element_no) & 0x3F
             if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
@@ -9605,10 +9611,13 @@ class MainWindow(QMainWindow):
                 save_config(self._app_config)
                 QMessageBox.information(
                     self,
-                    "作業状態の自動保存",
-                    "作業状態を自動保存しました。\n安全に終了します。\n\n"
-                    "次回、ROMを指定せずに起動した場合は、この作業状態を自動的に復元します。\n\n"
-                    f"{path}",
+                    t("main.autosave.complete.title", "作業状態の自動保存"),
+                    t(
+                        "main.autosave.complete.body",
+                        "作業状態を自動保存しました。\n安全に終了します。\n\n"
+                        "次回、ROMを指定せずに起動した場合は、この作業状態を自動的に復元します。\n\n"
+                        "{path}",
+                    ).format(path=path),
                 )
             except Exception as e:
                 if isinstance(e, saver.SavePreflightError):
@@ -9620,11 +9629,14 @@ class MainWindow(QMainWindow):
                 self._log(f"作業状態の自動保存失敗: {log_msg}")
                 ans = QMessageBox.warning(
                     self,
-                    "作業状態の自動保存に失敗",
-                    "作業状態を自動保存できませんでした。\n"
-                    "このまま終了すると、今回の変更が失われる可能性があります。\n\n"
-                    f"{detail}\n\n"
-                    "自動保存せずに終了しますか？",
+                    t("main.autosave.failed.title", "作業状態の自動保存に失敗"),
+                    t(
+                        "main.autosave.failed.body",
+                        "作業状態を自動保存できませんでした。\n"
+                        "このまま終了すると、今回の変更が失われる可能性があります。\n\n"
+                        "{detail}\n\n"
+                        "自動保存せずに終了しますか？",
+                    ).format(detail=detail),
                     QMessageBox.Yes | QMessageBox.No,
                     QMessageBox.No,
                 )
@@ -9643,7 +9655,11 @@ class MainWindow(QMainWindow):
                 subprocess.Popen(args, cwd=str(Path(__file__).parent.parent.parent))
             except Exception as e:
                 self._restart_after_close = False
-                QMessageBox.critical(self, "再起動失敗", f"{type(e).__name__}: {e}")
+                QMessageBox.critical(
+                    self,
+                    t("main.action.restart_failed", "再起動失敗"),
+                    f"{type(e).__name__}: {e}",
+                )
                 self._log(f"再起動失敗: {type(e).__name__}: {e}")
                 event.ignore()
                 return
@@ -9955,7 +9971,8 @@ class MainWindow(QMainWindow):
                 if item.element_no >= c.ITEM_COPY_INDICATOR_MIN:
                     if not item.is_white_in_block():
                         self.statusBar().showMessage(
-                            "このアイテム形式は状態変更できません", 1500
+                            t("main.item_state.unsupported", "このアイテム形式は状態変更できません"),
+                            1500,
                         )
                         return
                 tx, ty = self._hover_tile
@@ -10980,19 +10997,26 @@ class MainWindow(QMainWindow):
             return
         if opts.get("mode") == MODE_BLOCK:
             count, changed_levels = self._count_block_replacements(opts)
+            title = t("main.replace.block.title", "ブロック一括置換")
             if count <= 0:
-                QMessageBox.information(self, "ブロック一括置換", "置換対象はありませんでした。")
+                QMessageBox.information(self, title, t("main.replace.none", "置換対象はありませんでした。"))
                 return
             scope_label = {
-                "selection": "選択範囲",
-                "current": "現在ステージ",
-                "all": "全ステージ",
-            }.get(opts["scope"], "対象範囲")
+                "selection": t("main.replace.scope.selection", "選択範囲"),
+                "current": t("main.replace.scope.current", "現在ステージ"),
+                "all": t("main.replace.scope.all", "全ステージ"),
+            }.get(opts["scope"], t("main.replace.scope.default", "対象範囲"))
             reply = QMessageBox.question(
                 self,
-                "ブロック一括置換",
-                f"{scope_label}で {count} 件のブロックを置換します。\n\n"
-                "実行後も Undo で戻せます。続行しますか？",
+                title,
+                t(
+                    "main.replace.confirm",
+                    "{scope}で {count} 件の{kind}を置換します。\n\n実行後も Undo で戻せます。続行しますか？",
+                ).format(
+                    scope=scope_label,
+                    count=count,
+                    kind=t("main.replace.block.kind", "ブロック"),
+                ),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -11000,7 +11024,12 @@ class MainWindow(QMainWindow):
                 return
             self._apply_block_replacements(opts, changed_levels)
             self.statusBar().showMessage(
-                f"ブロック一括置換: {count} 件 / {len(changed_levels)} ステージ", 4000
+                t("main.replace.complete", "{title}: {count} 件 / {stages} ステージ").format(
+                    title=title,
+                    count=count,
+                    stages=len(changed_levels),
+                ),
+                4000,
             )
             self._log(
                 f"ブロック一括置換: {count}件 / scope={opts['scope']} / "
@@ -11009,19 +11038,26 @@ class MainWindow(QMainWindow):
             return
         if opts.get("mode") == MODE_ENEMY:
             count, changed_levels = self._count_enemy_replacements(opts)
+            title = t("main.replace.enemy.title", "モンスター一括置換")
             if count <= 0:
-                QMessageBox.information(self, "モンスター一括置換", "置換対象はありませんでした。")
+                QMessageBox.information(self, title, t("main.replace.none", "置換対象はありませんでした。"))
                 return
             scope_label = {
-                "selection": "選択範囲",
-                "current": "現在ステージ",
-                "all": "全ステージ",
-            }.get(opts["scope"], "対象範囲")
+                "selection": t("main.replace.scope.selection", "選択範囲"),
+                "current": t("main.replace.scope.current", "現在ステージ"),
+                "all": t("main.replace.scope.all", "全ステージ"),
+            }.get(opts["scope"], t("main.replace.scope.default", "対象範囲"))
             reply = QMessageBox.question(
                 self,
-                "モンスター一括置換",
-                f"{scope_label}で {count} 件のモンスターを置換します。\n\n"
-                "実行後も Undo で戻せます。続行しますか？",
+                title,
+                t(
+                    "main.replace.confirm",
+                    "{scope}で {count} 件の{kind}を置換します。\n\n実行後も Undo で戻せます。続行しますか？",
+                ).format(
+                    scope=scope_label,
+                    count=count,
+                    kind=t("main.replace.enemy.kind", "モンスター"),
+                ),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -11029,7 +11065,12 @@ class MainWindow(QMainWindow):
                 return
             self._apply_enemy_replacements(opts, changed_levels)
             self.statusBar().showMessage(
-                f"モンスター一括置換: {count} 件 / {len(changed_levels)} ステージ", 4000
+                t("main.replace.complete", "{title}: {count} 件 / {stages} ステージ").format(
+                    title=title,
+                    count=count,
+                    stages=len(changed_levels),
+                ),
+                4000,
             )
             self._log(
                 f"モンスター一括置換: {count}件 / scope={opts['scope']} / "
@@ -11040,26 +11081,37 @@ class MainWindow(QMainWindow):
             opts["to_state"] == c.ITEM_FLAG_WHITE_IN_BLOCK and
             opts["to_item"] > c.ITEM_WHITE_IN_BLOCK_MAX_BASE
         ):
+            title = t("main.replace.item.title", "アイテム一括置換")
             QMessageBox.warning(
                 self,
-                "アイテム一括置換",
-                "このアイテムは白ブロック内アイテムとして保存できません。",
+                title,
+                t(
+                    "main.replace.item.white_in_block_unsupported",
+                    "このアイテムは白ブロック内アイテムとして保存できません。",
+                ),
             )
             return
         count, changed_levels = self._count_item_replacements(opts)
+        title = t("main.replace.item.title", "アイテム一括置換")
         if count <= 0:
-            QMessageBox.information(self, "アイテム一括置換", "置換対象はありませんでした。")
+            QMessageBox.information(self, title, t("main.replace.none", "置換対象はありませんでした。"))
             return
         scope_label = {
-            "selection": "選択範囲",
-            "current": "現在ステージ",
-            "all": "全ステージ",
-        }.get(opts["scope"], "対象範囲")
+            "selection": t("main.replace.scope.selection", "選択範囲"),
+            "current": t("main.replace.scope.current", "現在ステージ"),
+            "all": t("main.replace.scope.all", "全ステージ"),
+        }.get(opts["scope"], t("main.replace.scope.default", "対象範囲"))
         reply = QMessageBox.question(
             self,
-            "アイテム一括置換",
-            f"{scope_label}で {count} 件のアイテムを置換します。\n\n"
-            "実行後も Undo で戻せます。続行しますか？",
+            title,
+            t(
+                "main.replace.confirm",
+                "{scope}で {count} 件の{kind}を置換します。\n\n実行後も Undo で戻せます。続行しますか？",
+            ).format(
+                scope=scope_label,
+                count=count,
+                kind=t("main.replace.item.kind", "アイテム"),
+            ),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -11067,7 +11119,12 @@ class MainWindow(QMainWindow):
             return
         self._apply_item_replacements(opts, changed_levels)
         self.statusBar().showMessage(
-            f"アイテム一括置換: {count} 件 / {len(changed_levels)} ステージ", 4000
+            t("main.replace.complete", "{title}: {count} 件 / {stages} ステージ").format(
+                title=title,
+                count=count,
+                stages=len(changed_levels),
+            ),
+            4000,
         )
         self._log(
             f"アイテム一括置換: {count}件 / scope={opts['scope']} / "
@@ -11960,7 +12017,7 @@ class MainWindow(QMainWindow):
 
     def _on_undo(self):
         if not self._undo_stack or not self.levels:
-            self.statusBar().showMessage("Undo履歴なし", 2000)
+            self.statusBar().showMessage(t("main.undo.empty", "Undo履歴なし"), 2000)
             return
         entry = self._undo_stack.pop()
         # 現在状態を redo に push
@@ -11974,12 +12031,16 @@ class MainWindow(QMainWindow):
         else:
             self._refresh_view()
         self.statusBar().showMessage(
-            f"Undo: {label} (履歴 {len(self._undo_stack)} 件)", 2500
+            t("main.undo.status", "Undo: {label} (履歴 {count} 件)").format(
+                label=label,
+                count=len(self._undo_stack),
+            ),
+            2500,
         )
 
     def _on_redo(self):
         if not self._redo_stack or not self.levels:
-            self.statusBar().showMessage("Redo履歴なし", 2000)
+            self.statusBar().showMessage(t("main.redo.empty", "Redo履歴なし"), 2000)
             return
         entry = self._redo_stack.pop()
         self._undo_stack.append(self._snapshot_current_for_undo_entry(entry))
@@ -11991,7 +12052,11 @@ class MainWindow(QMainWindow):
         else:
             self._refresh_view()
         self.statusBar().showMessage(
-            f"Redo: {label} (履歴 {len(self._redo_stack)} 件)", 2500
+            t("main.redo.status", "Redo: {label} (履歴 {count} 件)").format(
+                label=label,
+                count=len(self._redo_stack),
+            ),
+            2500,
         )
 
     def _clear_undo_history(self):

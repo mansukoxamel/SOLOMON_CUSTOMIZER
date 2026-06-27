@@ -1046,6 +1046,128 @@ _TRANSLATIONS = {
         "ja": "上下反転: Stage 52/53共有の条件付き壊せるブロックマーカーは対象外です",
         "en": "Flipped vertically: shared Stage 52/53 conditional breakable-block markers were skipped.",
     },
+    "main.item_state.no_target": {
+        "ja": "状態を切り替える対象がありません",
+        "en": "No target for state switching.",
+    },
+    "main.item_state.no_item": {
+        "ja": "状態を切り替えるアイテムがありません",
+        "en": "No item available for state switching.",
+    },
+    "main.item_state.unsupported": {
+        "ja": "このアイテム形式は状態変更できません",
+        "en": "This item format does not support state changes.",
+    },
+    "main.action.restart_failed": {
+        "ja": "再起動失敗",
+        "en": "Restart Failed",
+    },
+    "main.autosave.complete.title": {
+        "ja": "作業状態の自動保存",
+        "en": "Work State Autosaved",
+    },
+    "main.autosave.complete.body": {
+        "ja": (
+            "作業状態を自動保存しました。\n安全に終了します。\n\n"
+            "次回、ROMを指定せずに起動した場合は、この作業状態を自動的に復元します。\n\n"
+            "{path}"
+        ),
+        "en": (
+            "The work state was autosaved. The app will close safely.\n\n"
+            "If you start without specifying a ROM next time, this work state will be restored automatically.\n\n"
+            "{path}"
+        ),
+    },
+    "main.autosave.failed.title": {
+        "ja": "作業状態の自動保存に失敗",
+        "en": "Autosave Failed",
+    },
+    "main.autosave.failed.body": {
+        "ja": (
+            "作業状態を自動保存できませんでした。\n"
+            "このまま終了すると、今回の変更が失われる可能性があります。\n\n"
+            "{detail}\n\n"
+            "自動保存せずに終了しますか？"
+        ),
+        "en": (
+            "Could not autosave the work state.\n"
+            "If you close now, your changes from this session may be lost.\n\n"
+            "{detail}\n\n"
+            "Close without autosaving?"
+        ),
+    },
+    "main.replace.scope.selection": {
+        "ja": "選択範囲",
+        "en": "Selection",
+    },
+    "main.replace.scope.current": {
+        "ja": "現在ステージ",
+        "en": "Current Stage",
+    },
+    "main.replace.scope.all": {
+        "ja": "全ステージ",
+        "en": "All Stages",
+    },
+    "main.replace.scope.default": {
+        "ja": "対象範囲",
+        "en": "Target Scope",
+    },
+    "main.replace.none": {
+        "ja": "置換対象はありませんでした。",
+        "en": "No matching targets were found.",
+    },
+    "main.replace.confirm": {
+        "ja": "{scope}で {count} 件の{kind}を置換します。\n\n実行後も Undo で戻せます。続行しますか？",
+        "en": "Replace {count} {kind} in {scope}.\n\nYou can still undo this after it runs. Continue?",
+    },
+    "main.replace.complete": {
+        "ja": "{title}: {count} 件 / {stages} ステージ",
+        "en": "{title}: {count} replacements / {stages} stages",
+    },
+    "main.replace.block.title": {
+        "ja": "ブロック一括置換",
+        "en": "Batch Replace Blocks",
+    },
+    "main.replace.block.kind": {
+        "ja": "ブロック",
+        "en": "blocks",
+    },
+    "main.replace.enemy.title": {
+        "ja": "モンスター一括置換",
+        "en": "Batch Replace Monsters",
+    },
+    "main.replace.enemy.kind": {
+        "ja": "モンスター",
+        "en": "monsters",
+    },
+    "main.replace.item.title": {
+        "ja": "アイテム一括置換",
+        "en": "Batch Replace Items",
+    },
+    "main.replace.item.kind": {
+        "ja": "アイテム",
+        "en": "items",
+    },
+    "main.replace.item.white_in_block_unsupported": {
+        "ja": "このアイテムは白ブロック内アイテムとして保存できません。",
+        "en": "This item cannot be saved as a white-block item.",
+    },
+    "main.undo.empty": {
+        "ja": "Undo履歴なし",
+        "en": "No undo history.",
+    },
+    "main.redo.empty": {
+        "ja": "Redo履歴なし",
+        "en": "No redo history.",
+    },
+    "main.undo.status": {
+        "ja": "Undo: {label} (履歴 {count} 件)",
+        "en": "Undo: {label} ({count} history entries)",
+    },
+    "main.redo.status": {
+        "ja": "Redo: {label} (履歴 {count} 件)",
+        "en": "Redo: {label} ({count} history entries)",
+    },
     "main.action.restart_app": {
         "ja": "アプリを再起動します",
         "en": "The application will restart",
