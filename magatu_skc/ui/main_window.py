@@ -6368,13 +6368,19 @@ class MainWindow(QMainWindow):
         if not self.levels:
             return
         if self._is_stage_compare_diff_view():
-            self.statusBar().showMessage("差分表示中は編集できません。「現在」に戻すと編集できます", 2500)
+            self.statusBar().showMessage(
+                t("main.edit.diff_view_blocked", "差分表示中は編集できません。「現在」に戻すと編集できます"),
+                2500,
+            )
             return
         if self._reject_read_only_edit():
             return
         # 16列目の編集ロック
         if not self.chk_edit_col15.isChecked() and tile[0] == 15:
-            self.statusBar().showMessage("16列目は編集不可です（「16列目を編集」をONにしてください）", 2000)
+            self.statusBar().showMessage(
+                t("main.edit.col15_locked", "16列目は編集不可です（「16列目を編集」をONにしてください）"),
+                2000,
+            )
             return
         lv = self.levels[self.current_level_no]
 
@@ -6402,7 +6408,10 @@ class MainWindow(QMainWindow):
                 BLOCK_INVISIBLE_BREAKABLE,
             ):
                 self.statusBar().showMessage(
-                    f"ソロモンの紋章位置に置けるブロックは茶色/壊せる白/透明壊せるのみです {tile}",
+                    t(
+                        "main.edit.block_on_seal",
+                        "ソロモンの紋章位置に置けるブロックは茶色/壊せる白/透明壊せるのみです {tile}",
+                    ).format(tile=tile),
                     3000,
                 )
                 restore_rejected_click_edit()
@@ -6410,7 +6419,10 @@ class MainWindow(QMainWindow):
             # 敵と同位置にブロックは置けない
             if value not in passable_block_values and lv.get_enemy_index(tile) >= 0:
                 self.statusBar().showMessage(
-                    f"敵がいる位置にはブロックを置けません {tile}", 2500
+                    t("main.edit.block_on_enemy", "敵がいる位置にはブロックを置けません {tile}").format(
+                        tile=tile
+                    ),
+                    2500,
                 )
                 restore_rejected_click_edit()
                 return
@@ -6418,7 +6430,10 @@ class MainWindow(QMainWindow):
             # スタート位置にブロックは置けない（主人公が埋まる）
             if value not in passable_block_values and lv.fixed_start_pos == tile:
                 self.statusBar().showMessage(
-                    f"スタート位置にブロックは置けません {tile}", 2500
+                    t("main.edit.block_on_start", "スタート位置にブロックは置けません {tile}").format(
+                        tile=tile
+                    ),
+                    2500,
                 )
                 restore_rejected_click_edit()
                 return
@@ -6428,7 +6443,10 @@ class MainWindow(QMainWindow):
                     value not in in_block_absorb_values and
                     not lv.is_door_removed() and lv.fixed_door_pos == tile):
                 self.statusBar().showMessage(
-                    f"扉位置にブロックは置けません {tile}", 2500
+                    t("main.edit.block_on_door", "扉位置にブロックは置けません {tile}").format(
+                        tile=tile
+                    ),
+                    2500,
                 )
                 restore_rejected_click_edit()
                 return
@@ -6439,7 +6457,11 @@ class MainWindow(QMainWindow):
                 BLOCK_PASSABLE_BROWN, BLOCK_SOLID_BROWN,
             ) and lv.get_item_index(tile) >= 0:
                 self.statusBar().showMessage(
-                    f"アイテムがある位置に特殊壁は置けません（取れなくなる） {tile}", 3000
+                    t(
+                        "main.edit.special_wall_on_item",
+                        "アイテムがある位置に特殊壁は置けません（取れなくなる） {tile}",
+                    ).format(tile=tile),
+                    3000,
                 )
                 restore_rejected_click_edit()
                 return
@@ -6666,7 +6688,11 @@ class MainWindow(QMainWindow):
 
             if tile in getattr(lv, "invisible_solid_cells", set()):
                 self.statusBar().showMessage(
-                    f"透明な白壁にはアイテムを配置できません {tile}", 3000
+                    t(
+                        "main.edit.item_on_invisible_wall",
+                        "透明な白壁にはアイテムを配置できません {tile}",
+                    ).format(tile=tile),
+                    3000,
                 )
                 restore_rejected_click_edit()
                 return
@@ -6674,7 +6700,10 @@ class MainWindow(QMainWindow):
             if (tile in getattr(lv, "passable_brown_cells", set()) or
                     tile in getattr(lv, "solid_brown_cells", set())):
                 self.statusBar().showMessage(
-                    f"特殊壁にはアイテムを配置できません {tile}", 3000
+                    t("main.edit.item_on_special_wall", "特殊壁にはアイテムを配置できません {tile}").format(
+                        tile=tile
+                    ),
+                    3000,
                 )
                 restore_rejected_click_edit()
                 return
@@ -6683,13 +6712,20 @@ class MainWindow(QMainWindow):
 
             if self._tile_has_visible_key_or_door(lv, tile):
                 self.statusBar().showMessage(
-                    f"鍵・扉の位置にはアイテムを置けません {tile}", 3000
+                    t("main.edit.item_on_key_or_door", "鍵・扉の位置にはアイテムを置けません {tile}").format(
+                        tile=tile
+                    ),
+                    3000,
                 )
                 restore_rejected_click_edit()
                 return
             if self._solomon_seal_meta_at(self.current_level_no, tile) is not None:
                 self.statusBar().showMessage(
-                    f"ソロモンの紋章位置には通常アイテムを置けません {tile}", 3000
+                    t(
+                        "main.edit.item_on_seal",
+                        "ソロモンの紋章位置には通常アイテムを置けません {tile}",
+                    ).format(tile=tile),
+                    3000,
                 )
                 restore_rejected_click_edit()
                 return
@@ -6703,7 +6739,10 @@ class MainWindow(QMainWindow):
                         c.ITEM_FLAG_CRACKED_IN_BLOCK,
                     )):
                 self.statusBar().showMessage(
-                    f"白ブロック内にはアイテムを配置できません {tile}", 3000
+                    t("main.edit.item_in_solid_white", "白ブロック内にはアイテムを配置できません {tile}").format(
+                        tile=tile
+                    ),
+                    3000,
                 )
                 restore_rejected_click_edit()
                 return
@@ -6824,7 +6863,10 @@ class MainWindow(QMainWindow):
                     tile in getattr(lv, "invisible_solid_cells", set()) or
                     tile in getattr(lv, "solid_brown_cells", set())):
                 self.statusBar().showMessage(
-                    f"ブロックがある位置には敵を置けません {tile}", 2500
+                    t("main.edit.enemy_on_block", "ブロックがある位置には敵を置けません {tile}").format(
+                        tile=tile
+                    ),
+                    2500,
                 )
                 restore_rejected_click_edit()
                 return
@@ -6832,7 +6874,11 @@ class MainWindow(QMainWindow):
             # 同マスから複数体生成する意図的な配置）。上書きせず追加のみ。
             if lv.fixed_start_pos == tile:
                 self.statusBar().showMessage(
-                    f"スタート位置には敵を置けません（開始直後に死亡します） {tile}", 3000
+                    t(
+                        "main.edit.enemy_on_start",
+                        "スタート位置には敵を置けません（開始直後に死亡します） {tile}",
+                    ).format(tile=tile),
+                    3000,
                 )
                 restore_rejected_click_edit()
                 return
@@ -6842,7 +6888,11 @@ class MainWindow(QMainWindow):
             ok = lv.add_enemy(actual_code, tile)
             if not ok:
                 self.statusBar().showMessage(
-                    f"敵は1ステージ {c.ENEMY_COUNT_MAX} 体まで（拡張ROM形式の制限）", 3000
+                    t(
+                        "main.edit.enemy_limit",
+                        "敵は1ステージ {count} 体まで（拡張ROM形式の制限）",
+                    ).format(count=c.ENEMY_COUNT_MAX),
+                    3000,
                 )
                 restore_rejected_click_edit()
                 return
@@ -6861,7 +6911,11 @@ class MainWindow(QMainWindow):
             if value == "start":
                 if lv.get_enemy_index(tile) >= 0:
                     self.statusBar().showMessage(
-                        f"敵がいる位置にはスタートを置けません（開始直後に死亡します） {tile}", 3000
+                        t(
+                            "main.edit.start_on_enemy",
+                            "敵がいる位置にはスタートを置けません（開始直後に死亡します） {tile}",
+                        ).format(tile=tile),
+                        3000,
                     )
                     restore_rejected_click_edit()
                     return
@@ -6869,13 +6923,17 @@ class MainWindow(QMainWindow):
             elif value == "key":
                 if lv.is_door_removed():
                     self.statusBar().showMessage(
-                        "扉が削除されているステージには鍵を置けません", 3000
+                        t("main.edit.key_without_door", "扉が削除されているステージには鍵を置けません"),
+                        3000,
                     )
                     restore_rejected_click_edit()
                     return
                 if lv.get_item_index(tile) >= 0:
                     self.statusBar().showMessage(
-                        f"アイテムがある位置には鍵を置けません {tile}", 3000
+                        t("main.edit.key_on_item", "アイテムがある位置には鍵を置けません {tile}").format(
+                            tile=tile
+                        ),
+                        3000,
                     )
                     restore_rejected_click_edit()
                     return
@@ -6970,7 +7028,10 @@ class MainWindow(QMainWindow):
         if not self.levels:
             return
         if self._is_stage_compare_diff_view():
-            self.statusBar().showMessage("差分表示中は編集できません。「現在」に戻すと編集できます", 2500)
+            self.statusBar().showMessage(
+                t("main.edit.diff_view_blocked", "差分表示中は編集できません。「現在」に戻すと編集できます"),
+                2500,
+            )
             return
         if self._reject_read_only_edit():
             return
@@ -7194,7 +7255,10 @@ class MainWindow(QMainWindow):
             return
         if self._is_stage_compare_diff_view():
             self._move_pending = None
-            self.statusBar().showMessage("差分表示中は編集できません。「現在」に戻すと編集できます", 2500)
+            self.statusBar().showMessage(
+                t("main.edit.diff_view_blocked", "差分表示中は編集できません。「現在」に戻すと編集できます"),
+                2500,
+            )
             return
         if self._reject_read_only_edit():
             self._move_pending = None
@@ -7208,7 +7272,12 @@ class MainWindow(QMainWindow):
             ox = tile[0] - mp["click_offset"][0]
             oy = tile[1] - mp["click_offset"][1]
             if self._clip_targets_locked_col15(clip, ox, oy):
-                self._show_col15_locked_message("16列目へは移動できません（「16列目を編集」をONにしてください）")
+                self._show_col15_locked_message(
+                    t(
+                        "main.edit.col15_move_locked",
+                        "16列目へは移動できません（「16列目を編集」をONにしてください）",
+                    )
+                )
                 return
             base_lv = self._drag_base_level or lv
             if self._clip_has_start_enemy_overlap(base_lv, clip, ox, oy):
@@ -7225,7 +7294,12 @@ class MainWindow(QMainWindow):
                 return
             selection_target = (clip, ox, oy)
         elif self._is_locked_col15_tile(tile):
-            self._show_col15_locked_message("16列目へは移動できません（「16列目を編集」をONにしてください）")
+            self._show_col15_locked_message(
+                t(
+                    "main.edit.col15_move_locked",
+                    "16列目へは移動できません（「16列目を編集」をONにしてください）",
+                )
+            )
             return
 
         if kind in ("item", "enemy"):
@@ -7504,7 +7578,10 @@ class MainWindow(QMainWindow):
         if not self.levels:
             return
         if self._is_stage_compare_diff_view():
-            self.statusBar().showMessage("差分表示中は編集できません。「現在」に戻すと編集できます", 2500)
+            self.statusBar().showMessage(
+                t("main.edit.diff_view_blocked", "差分表示中は編集できません。「現在」に戻すと編集できます"),
+                2500,
+            )
             return
         if self._reject_read_only_edit():
             return
@@ -7655,7 +7732,11 @@ class MainWindow(QMainWindow):
         if normalized is None:
             self._selection_rect = None
             self.statusBar().showMessage(
-                "16列目は範囲選択不可です（「16列目を編集」をONにしてください）", 2000
+                t(
+                    "main.edit.col15_select_locked",
+                    "16列目は範囲選択不可です（「16列目を編集」をONにしてください）",
+                ),
+                2000,
             )
             self._refresh_view()
             return
@@ -7698,7 +7779,7 @@ class MainWindow(QMainWindow):
 
     def _show_col15_locked_message(self, message: str | None = None):
         self.statusBar().showMessage(
-            message or "16列目は編集不可です（「16列目を編集」をONにしてください）",
+            message or t("main.edit.col15_locked", "16列目は編集不可です（「16列目を編集」をONにしてください）"),
             2000,
         )
 
@@ -8971,7 +9052,10 @@ class MainWindow(QMainWindow):
         if not self.levels:
             return
         if self._is_stage_compare_diff_view():
-            self.statusBar().showMessage("差分表示中はスポイトできません。「現在」に戻すと使えます", 2500)
+            self.statusBar().showMessage(
+                t("main.edit.diff_eyedropper_blocked", "差分表示中はスポイトできません。「現在」に戻すと使えます"),
+                2500,
+            )
             return
         from .element_picker import (
             MODE_BLOCK, MODE_ITEM, MODE_ENEMY, MODE_META,

@@ -918,6 +918,90 @@ _TRANSLATIONS = {
         "ja": "{source} と {target} を入れ替えました",
         "en": "Swapped {source} and {target}.",
     },
+    "main.edit.diff_view_blocked": {
+        "ja": "差分表示中は編集できません。「現在」に戻すと編集できます",
+        "en": "Editing is disabled while the diff view is active. Switch back to Current to edit.",
+    },
+    "main.edit.diff_eyedropper_blocked": {
+        "ja": "差分表示中はスポイトできません。「現在」に戻すと使えます",
+        "en": "The eyedropper is disabled while the diff view is active. Switch back to Current to use it.",
+    },
+    "main.edit.col15_locked": {
+        "ja": "16列目は編集不可です（「16列目を編集」をONにしてください）",
+        "en": "Column 16 is locked. Turn on Edit Column 16 to edit it.",
+    },
+    "main.edit.col15_move_locked": {
+        "ja": "16列目へは移動できません（「16列目を編集」をONにしてください）",
+        "en": "Cannot move into column 16. Turn on Edit Column 16 first.",
+    },
+    "main.edit.col15_select_locked": {
+        "ja": "16列目は範囲選択不可です（「16列目を編集」をONにしてください）",
+        "en": "Column 16 cannot be selected. Turn on Edit Column 16 first.",
+    },
+    "main.edit.block_on_seal": {
+        "ja": "ソロモンの紋章位置に置けるブロックは茶色/壊せる白/透明壊せるのみです {tile}",
+        "en": "Only brown, breakable white, or invisible breakable blocks can be placed on Solomon's Seal {tile}",
+    },
+    "main.edit.block_on_enemy": {
+        "ja": "敵がいる位置にはブロックを置けません {tile}",
+        "en": "Cannot place a block on an enemy {tile}",
+    },
+    "main.edit.block_on_start": {
+        "ja": "スタート位置にブロックは置けません {tile}",
+        "en": "Cannot place a block on the start position {tile}",
+    },
+    "main.edit.block_on_door": {
+        "ja": "扉位置にブロックは置けません {tile}",
+        "en": "Cannot place a block on the door position {tile}",
+    },
+    "main.edit.special_wall_on_item": {
+        "ja": "アイテムがある位置に特殊壁は置けません（取れなくなる） {tile}",
+        "en": "Cannot place this special wall on an item; the item would become unreachable {tile}",
+    },
+    "main.edit.item_on_invisible_wall": {
+        "ja": "透明な白壁にはアイテムを配置できません {tile}",
+        "en": "Cannot place an item on an invisible white wall {tile}",
+    },
+    "main.edit.item_on_special_wall": {
+        "ja": "特殊壁にはアイテムを配置できません {tile}",
+        "en": "Cannot place an item on a special wall {tile}",
+    },
+    "main.edit.item_on_key_or_door": {
+        "ja": "鍵・扉の位置にはアイテムを置けません {tile}",
+        "en": "Cannot place an item on the key or door position {tile}",
+    },
+    "main.edit.item_on_seal": {
+        "ja": "ソロモンの紋章位置には通常アイテムを置けません {tile}",
+        "en": "Cannot place a normal item on Solomon's Seal {tile}",
+    },
+    "main.edit.item_in_solid_white": {
+        "ja": "白ブロック内にはアイテムを配置できません {tile}",
+        "en": "Cannot place an item inside a solid white block {tile}",
+    },
+    "main.edit.enemy_on_block": {
+        "ja": "ブロックがある位置には敵を置けません {tile}",
+        "en": "Cannot place an enemy on a block {tile}",
+    },
+    "main.edit.enemy_on_start": {
+        "ja": "スタート位置には敵を置けません（開始直後に死亡します） {tile}",
+        "en": "Cannot place an enemy on the start position; the player would die immediately {tile}",
+    },
+    "main.edit.enemy_limit": {
+        "ja": "敵は1ステージ {count} 体まで（拡張ROM形式の制限）",
+        "en": "Each stage can have up to {count} enemies (expanded ROM format limit).",
+    },
+    "main.edit.start_on_enemy": {
+        "ja": "敵がいる位置にはスタートを置けません（開始直後に死亡します） {tile}",
+        "en": "Cannot place the start position on an enemy; the player would die immediately {tile}",
+    },
+    "main.edit.key_without_door": {
+        "ja": "扉が削除されているステージには鍵を置けません",
+        "en": "Cannot place a key in a stage where the door is deleted.",
+    },
+    "main.edit.key_on_item": {
+        "ja": "アイテムがある位置には鍵を置けません {tile}",
+        "en": "Cannot place the key on an item {tile}",
+    },
     "main.action.restart_app": {
         "ja": "アプリを再起動します",
         "en": "The application will restart",
