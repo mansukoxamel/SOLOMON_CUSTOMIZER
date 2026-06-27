@@ -997,7 +997,8 @@ class MainWindow(QMainWindow):
         if not self._is_read_only():
             return False
         self.statusBar().showMessage(
-            "編集不可: 閲覧/ステージ出力専用ROMです", 3000
+            t("main.stage_ops.read_only", "編集不可: 閲覧/ステージ出力専用ROMです"),
+            3000,
         )
         return True
 
@@ -5571,7 +5572,10 @@ class MainWindow(QMainWindow):
         }
         self._update_stage_operation_buttons()
         self.statusBar().showMessage(
-            f"{self._stage_label(source_no)} をコピーしました", 3000
+            t("main.stage_ops.copy_complete", "{stage} をコピーしました").format(
+                stage=self._stage_label(source_no)
+            ),
+            3000,
         )
         self._log(f"ステージコピー: {self._stage_label(source_no)}")
 
@@ -5586,10 +5590,15 @@ class MainWindow(QMainWindow):
         try:
             reply = QMessageBox.question(
                 self,
-                "ステージ貼り付け",
-                f"{self._stage_label(source_no)} のデータを "
-                f"{self._stage_label(target_no)} へ貼り付けます。\n\n"
-                f"{self._stage_label(target_no)} の現在の内容は上書きされます。",
+                t("main.stage_ops.paste.title", "ステージ貼り付け"),
+                t(
+                    "main.stage_ops.paste.confirm",
+                    "{source} のデータを {target} へ貼り付けます。\n\n"
+                    "{target} の現在の内容は上書きされます。",
+                ).format(
+                    source=self._stage_label(source_no),
+                    target=self._stage_label(target_no),
+                ),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -5602,7 +5611,10 @@ class MainWindow(QMainWindow):
         self.levels[target_no] = copy.deepcopy(self._stage_clipboard["level"])
         self._refresh_changed_stages([target_no])
         self.statusBar().showMessage(
-            f"{self._stage_label(source_no)} を {self._stage_label(target_no)} へ貼り付けました",
+            t("main.stage_ops.paste_complete", "{source} を {target} へ貼り付けました").format(
+                source=self._stage_label(source_no),
+                target=self._stage_label(target_no),
+            ),
             4000,
         )
         self._log(
@@ -5621,7 +5633,10 @@ class MainWindow(QMainWindow):
         source_no = self._stage_swap_source_no
         target_no = self.spin_stage_swap_target.value() - 1
         if target_no == source_no:
-            self.statusBar().showMessage("同じステージは入れ替え不要です", 2500)
+            self.statusBar().showMessage(
+                t("main.stage_ops.swap_same", "同じステージは入れ替え不要です"),
+                2500,
+            )
             self.spin_stage_swap_target.setFocus()
             self.spin_stage_swap_target.selectAll()
             return
@@ -5629,9 +5644,14 @@ class MainWindow(QMainWindow):
         try:
             reply = QMessageBox.question(
                 self,
-                "ステージ入れ替え",
-                f"{self._stage_label(source_no)} と {self._stage_label(target_no)} の"
-                "データ一式を入れ替えます。",
+                t("main.stage_ops.swap.title", "ステージ入れ替え"),
+                t(
+                    "main.stage_ops.swap.confirm",
+                    "{source} と {target} のデータ一式を入れ替えます。",
+                ).format(
+                    source=self._stage_label(source_no),
+                    target=self._stage_label(target_no),
+                ),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -5710,7 +5730,10 @@ class MainWindow(QMainWindow):
         )
         self._refresh_changed_stages([current_no, target_no])
         self.statusBar().showMessage(
-            f"{self._stage_label(current_no)} と {self._stage_label(target_no)} を入れ替えました",
+            t("main.stage_ops.swap_complete", "{source} と {target} を入れ替えました").format(
+                source=self._stage_label(current_no),
+                target=self._stage_label(target_no),
+            ),
             4000,
         )
         self._log(
@@ -11763,7 +11786,8 @@ class MainWindow(QMainWindow):
             return
         if self._is_read_only():
             self.statusBar().showMessage(
-                "編集不可: 閲覧/ステージ出力専用ROMです", 3000
+                t("main.stage_ops.read_only", "編集不可: 閲覧/ステージ出力専用ROMです"),
+                3000,
             )
             return
         if getattr(self, '_suppress_next_undo', False):
@@ -11798,7 +11822,8 @@ class MainWindow(QMainWindow):
         """未保存フラグを更新してタイトルバーに反映"""
         if dirty and self._is_read_only():
             self.statusBar().showMessage(
-                "編集不可: 閲覧/ステージ出力専用ROMです", 3000
+                t("main.stage_ops.read_only", "編集不可: 閲覧/ステージ出力専用ROMです"),
+                3000,
             )
             return
         # クリーン → 編集状態に切り替わった瞬間のみログを残す

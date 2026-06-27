@@ -882,6 +882,42 @@ _TRANSLATIONS = {
         "ja": "入れ替え元: {stage}",
         "en": "Swap Source: {stage}",
     },
+    "main.stage_ops.read_only": {
+        "ja": "編集不可: 閲覧/ステージ出力専用ROMです",
+        "en": "Read-only: this ROM is for viewing/stage export only.",
+    },
+    "main.stage_ops.copy_complete": {
+        "ja": "{stage} をコピーしました",
+        "en": "Copied {stage}.",
+    },
+    "main.stage_ops.paste.title": {
+        "ja": "ステージ貼り付け",
+        "en": "Paste Stage",
+    },
+    "main.stage_ops.paste.confirm": {
+        "ja": "{source} のデータを {target} へ貼り付けます。\n\n{target} の現在の内容は上書きされます。",
+        "en": "Paste data from {source} into {target}.\n\nThe current contents of {target} will be overwritten.",
+    },
+    "main.stage_ops.paste_complete": {
+        "ja": "{source} を {target} へ貼り付けました",
+        "en": "Pasted {source} into {target}.",
+    },
+    "main.stage_ops.swap_same": {
+        "ja": "同じステージは入れ替え不要です",
+        "en": "The same stage does not need to be swapped.",
+    },
+    "main.stage_ops.swap.title": {
+        "ja": "ステージ入れ替え",
+        "en": "Swap Stages",
+    },
+    "main.stage_ops.swap.confirm": {
+        "ja": "{source} と {target} のデータ一式を入れ替えます。",
+        "en": "Swap all data between {source} and {target}.",
+    },
+    "main.stage_ops.swap_complete": {
+        "ja": "{source} と {target} を入れ替えました",
+        "en": "Swapped {source} and {target}.",
+    },
     "main.action.restart_app": {
         "ja": "アプリを再起動します",
         "en": "The application will restart",
