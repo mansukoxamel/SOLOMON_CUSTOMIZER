@@ -207,7 +207,7 @@ class SettingsDialog(QDialog):
         general_layout.addWidget(disp_group)
 
         # ====== 色・マーカー ======
-        color_group = QGroupBox("色・マーカー")
+        color_group = QGroupBox(t("settings.group.colors_markers", "色・マーカー"))
         cf = QFormLayout(color_group)
 
         self.spin_theme_gray = QSpinBox()
@@ -216,26 +216,38 @@ class SettingsDialog(QDialog):
             normalize_theme_gray(self.config.get("theme_gray", DEFAULT_THEME_GRAY))
         )
         self.spin_theme_gray.setToolTip(
-            "黒テーマの明るさです。小さいほど黒く、大きいほど明るくなります。"
+            t(
+                "settings.theme_gray.tooltip",
+                "黒テーマの明るさです。小さいほど黒く、大きいほど明るくなります。",
+            )
         )
-        cf.addRow("黒テーマ明度:", self.spin_theme_gray)
+        cf.addRow(t("settings.theme_gray.label", "黒テーマ明度:"), self.spin_theme_gray)
 
         self.cmb_marker_overlay_scale = QComboBox()
         for value in (3, 4, 5):
-            self.cmb_marker_overlay_scale.addItem(f"{value}倍", value)
+            self.cmb_marker_overlay_scale.addItem(t(
+                "settings.marker_overlay_scale.option",
+                "{value}倍",
+            ).format(value=value), value)
         cur_scale = int(self.config.get("marker_overlay_scale", 3) or 3)
         idx = self.cmb_marker_overlay_scale.findData(cur_scale)
         self.cmb_marker_overlay_scale.setCurrentIndex(idx if idx >= 0 else 0)
         self.cmb_marker_overlay_scale.setToolTip(
-            "キャンバス上の隠し要素枠や特殊処理マーカーなどの線幅倍率です。"
+            t(
+                "settings.marker_overlay_scale.tooltip",
+                "キャンバス上の隠し要素枠や特殊処理マーカーなどの線幅倍率です。",
+            )
         )
-        cf.addRow("編集用マーカー線幅:", self.cmb_marker_overlay_scale)
+        cf.addRow(t("settings.marker_overlay_scale.label", "編集用マーカー線幅:"), self.cmb_marker_overlay_scale)
 
         self._color_edits = {}
         self._color_buttons = {}
         self._shape_combos = {}
         for key, label in MARKER_COLOR_ROWS:
-            cf.addRow(f"{label}色:", self._make_color_row(key))
+            cf.addRow(t(
+                f"settings.marker_color.{key}",
+                "{label}色:",
+            ).format(label=label), self._make_color_row(key))
 
         color_scroll = QScrollArea()
         color_scroll.setWidgetResizable(True)
@@ -249,13 +261,13 @@ class SettingsDialog(QDialog):
         self.edit_icon = QLineEdit(self.config.get("icon_path", ""))
         self.edit_icon.setPlaceholderText(DEFAULT_ICON_PATH)
         icon_row.addWidget(self.edit_icon, 1)
-        btn_icon = QPushButton("参照...")
+        btn_icon = QPushButton(t("common.browse", "参照..."))
         btn_icon.clicked.connect(self._browse_icon)
         icon_row.addWidget(btn_icon)
-        df.addRow("アイコン:", icon_wrap)
+        df.addRow(t("settings.icon.label", "アイコン:"), icon_wrap)
 
         # ====== 連携 ======
-        link_group = QGroupBox("外部連携")
+        link_group = QGroupBox(t("settings.group.external", "外部連携"))
         lf = QFormLayout(link_group)
         emu_select_wrap = QWidget()
         emu_select_row = QHBoxLayout(emu_select_wrap)
@@ -263,62 +275,74 @@ class SettingsDialog(QDialog):
         self.cmb_emulators = QComboBox()
         self.cmb_emulators.currentIndexChanged.connect(self._on_emulator_selected)
         emu_select_row.addWidget(self.cmb_emulators, 1)
-        btn_add_emu = QPushButton("追加")
+        btn_add_emu = QPushButton(t("common.add", "追加"))
         btn_add_emu.clicked.connect(self._add_emulator)
         emu_select_row.addWidget(btn_add_emu)
-        btn_delete_emu = QPushButton("削除")
+        btn_delete_emu = QPushButton(t("common.delete", "削除"))
         btn_delete_emu.clicked.connect(self._delete_emulator)
         emu_select_row.addWidget(btn_delete_emu)
-        btn_default_emu = QPushButton("既定にする")
+        btn_default_emu = QPushButton(t("settings.emulator.set_default", "既定にする"))
         btn_default_emu.clicked.connect(self._set_default_emulator)
         emu_select_row.addWidget(btn_default_emu)
-        lf.addRow("登録:", emu_select_wrap)
+        lf.addRow(t("settings.emulator.list.label", "登録:"), emu_select_wrap)
         self.edit_emu_name = QLineEdit()
-        self.edit_emu_name.setPlaceholderText("例: Mesen 0.9.9")
+        self.edit_emu_name.setPlaceholderText(t("settings.emulator.name.placeholder", "例: Mesen 0.9.9"))
         self.edit_emu_name.editingFinished.connect(self._update_current_emulator)
-        lf.addRow("表示名:", self.edit_emu_name)
+        lf.addRow(t("settings.emulator.name.label", "表示名:"), self.edit_emu_name)
         emu_wrap = QWidget()
         emu_row = QHBoxLayout(emu_wrap)
         emu_row.setContentsMargins(0, 0, 0, 0)
         self.edit_emu = QLineEdit()
-        self.edit_emu.setPlaceholderText("例: D:/emu/fceux/fceux.exe")
+        self.edit_emu.setPlaceholderText(t("settings.emulator.path.placeholder", "例: D:/emu/fceux/fceux.exe"))
         self.edit_emu.editingFinished.connect(self._update_current_emulator)
         emu_row.addWidget(self.edit_emu, 1)
-        btn_browse = QPushButton("参照...")
+        btn_browse = QPushButton(t("common.browse", "参照..."))
         btn_browse.clicked.connect(self._browse_emu)
         emu_row.addWidget(btn_browse)
-        lf.addRow("実行ファイル:", emu_wrap)
+        lf.addRow(t("settings.emulator.path.label", "実行ファイル:"), emu_wrap)
         general_layout.addWidget(link_group)
         self._refresh_emulator_combo()
 
         # ====== テストプレイ・PNG出力 ======
-        workflow_group = QGroupBox("テストプレイ・PNG出力")
+        workflow_group = QGroupBox(t("settings.group.workflow", "テストプレイ・PNG出力"))
         wf = QFormLayout(workflow_group)
 
-        self.chk_test_play_quick_start = QCheckBox("タイトル画面と開始待ちを省略する")
+        self.chk_test_play_quick_start = QCheckBox(t(
+            "settings.quick_test.checkbox",
+            "タイトル画面と開始待ちを省略する",
+        ))
         self.chk_test_play_quick_start.setChecked(
             bool(self.config.get("test_play_quick_start", True))
         )
         self.chk_test_play_quick_start.setToolTip(
-            "ON: テストプレイ時に現在ステージをすぐ起動します。\n"
-            "OFF: タイトル画面から通常どおり起動します。"
+            t(
+                "settings.quick_test.tooltip",
+                "ON: テストプレイ時に現在ステージをすぐ起動します。\n"
+                "OFF: タイトル画面から通常どおり起動します。",
+            )
         )
-        wf.addRow("クイックテストプレイ:", self.chk_test_play_quick_start)
+        wf.addRow(t("settings.quick_test.label", "クイックテストプレイ:"), self.chk_test_play_quick_start)
 
-        self.chk_stage_png_show_secrets = QCheckBox("隠し要素や敵バリエーション表示をPNGに含める")
+        self.chk_stage_png_show_secrets = QCheckBox(t(
+            "settings.stage_png_show_secrets.checkbox",
+            "隠し要素や敵バリエーション表示をPNGに含める",
+        ))
         self.chk_stage_png_show_secrets.setChecked(
             bool(self.config.get("stage_png_show_secrets", True))
         )
         self.chk_stage_png_show_secrets.setToolTip(
-            "ON: 制作者確認用として隠しアイテムや特殊ブロックを画像にも表示します。\n"
-            "OFF: 友人へ渡すプレイ用として隠し要素を画像から隠します。\n"
-            "PNG内のステージデータXMLはON/OFFに関係なく保持されます。"
+            t(
+                "settings.stage_png_show_secrets.tooltip",
+                "ON: 制作者確認用として隠しアイテムや特殊ブロックを画像にも表示します。\n"
+                "OFF: 友人へ渡すプレイ用として隠し要素を画像から隠します。\n"
+                "PNG内のステージデータXMLはON/OFFに関係なく保持されます。",
+            )
         )
-        wf.addRow("ステージPNGで隠し要素表示:", self.chk_stage_png_show_secrets)
+        wf.addRow(t("settings.stage_png_show_secrets.label", "ステージPNGで隠し要素表示:"), self.chk_stage_png_show_secrets)
         general_layout.addWidget(workflow_group)
 
         # ====== 履歴・自動保存 ======
-        history_group = QGroupBox("履歴・自動保存")
+        history_group = QGroupBox(t("settings.group.history", "履歴・自動保存"))
         hf = QFormLayout(history_group)
 
         self.spin_autosave_keep_count = QSpinBox()
@@ -326,7 +350,7 @@ class SettingsDialog(QDialog):
             MIN_AUTOSAVE_KEEP_COUNT,
             MAX_AUTOSAVE_KEEP_COUNT,
         )
-        self.spin_autosave_keep_count.setSuffix(" 世代")
+        self.spin_autosave_keep_count.setSuffix(t("settings.autosave_keep_count.suffix", " 世代"))
         self.spin_autosave_keep_count.setValue(normalize_int_setting(
             self.config.get("autosave_keep_count"),
             DEFAULT_AUTOSAVE_KEEP_COUNT,
@@ -334,13 +358,16 @@ class SettingsDialog(QDialog):
             MAX_AUTOSAVE_KEEP_COUNT,
         ))
         self.spin_autosave_keep_count.setToolTip(
-            "終了時に保存する作業状態の保持数です。既定は10世代です。"
+            t(
+                "settings.autosave_keep_count.tooltip",
+                "終了時に保存する作業状態の保持数です。既定は10世代です。",
+            )
         )
-        hf.addRow("作業状態自動保存:", self.spin_autosave_keep_count)
+        hf.addRow(t("settings.autosave_keep_count.label", "作業状態自動保存:"), self.spin_autosave_keep_count)
 
         self.spin_undo_limit = QSpinBox()
         self.spin_undo_limit.setRange(MIN_UNDO_LIMIT, MAX_UNDO_LIMIT)
-        self.spin_undo_limit.setSuffix(" 件")
+        self.spin_undo_limit.setSuffix(t("settings.undo_limit.suffix", " 件"))
         self.spin_undo_limit.setValue(normalize_int_setting(
             self.config.get("undo_limit"),
             DEFAULT_UNDO_LIMIT,
@@ -348,18 +375,21 @@ class SettingsDialog(QDialog):
             MAX_UNDO_LIMIT,
         ))
         self.spin_undo_limit.setToolTip(
-            "ステージ編集のUndo/Redo履歴上限です。既定は200件、最大999件です。"
+            t(
+                "settings.undo_limit.tooltip",
+                "ステージ編集のUndo/Redo履歴上限です。既定は200件、最大999件です。",
+            )
         )
-        hf.addRow("Undo履歴上限:", self.spin_undo_limit)
+        hf.addRow(t("settings.undo_limit.label", "Undo履歴上限:"), self.spin_undo_limit)
 
         general_layout.addWidget(history_group)
 
         # ====== TODO（今後実装） ======
-        todo_group = QGroupBox("今後追加予定の項目")
+        todo_group = QGroupBox(t("settings.group.todo", "今後追加予定の項目"))
         tl = QVBoxLayout(todo_group)
         for label in [
-            "・通知音ファイル + 音量",
-            "・クラウドバックアップ先フォルダ",
+            t("settings.todo.notification", "・通知音ファイル + 音量"),
+            t("settings.todo.cloud_backup", "・クラウドバックアップ先フォルダ"),
         ]:
             lbl = QLabel(f"<small style='color:#888'>{label}</small>")
             tl.addWidget(lbl)
@@ -367,7 +397,7 @@ class SettingsDialog(QDialog):
         general_layout.addStretch(1)
 
         # ====== ショートカット ======
-        shortcut_group = QGroupBox("ショートカット")
+        shortcut_group = QGroupBox(t("settings.group.shortcuts", "ショートカット"))
         sf = QFormLayout(shortcut_group)
         self._shortcut_edits = {}
         self._gamepad_combos = {}
@@ -375,15 +405,15 @@ class SettingsDialog(QDialog):
             row = QWidget()
             rl = QHBoxLayout(row)
             rl.setContentsMargins(0, 0, 0, 0)
-            rl.addWidget(QLabel("キー"))
+            rl.addWidget(QLabel(t("settings.shortcut.key.label", "キー")))
             edit = QKeySequenceEdit(QKeySequence(
                 self.config["shortcuts"].get(key, default)
             ))
-            btn = QPushButton("既定")
+            btn = QPushButton(t("settings.shortcut.default", "既定"))
             btn.clicked.connect(lambda _=None, k=key, d=default: self._reset_shortcut(k, d))
             rl.addWidget(edit, 2)
             rl.addWidget(btn)
-            rl.addWidget(QLabel("パッド"))
+            rl.addWidget(QLabel(t("settings.shortcut.pad.label", "パッド")))
             combo = QComboBox()
             for value, button_label in GAMEPAD_BUTTON_OPTIONS:
                 combo.addItem(button_label, value)
@@ -391,7 +421,7 @@ class SettingsDialog(QDialog):
             pad_value = self.config["gamepad_shortcuts"].get(key, pad_default)
             idx = combo.findData(pad_value)
             combo.setCurrentIndex(idx if idx >= 0 else 0)
-            pad_btn = QPushButton("既定")
+            pad_btn = QPushButton(t("settings.shortcut.default", "既定"))
             pad_btn.clicked.connect(
                 lambda _=None, k=key, d=pad_default: self._reset_gamepad_shortcut(k, d)
             )
@@ -472,7 +502,14 @@ class SettingsDialog(QDialog):
                 owner = key_owner.get(text)
                 if owner is not None:
                     conflicts.append(
-                        f"キー {text}: {labels_by_key[owner]} / {labels_by_key[key]}"
+                        t(
+                            "settings.shortcut.conflict.key",
+                            "キー {shortcut}: {left} / {right}",
+                        ).format(
+                            shortcut=text,
+                            left=labels_by_key[owner],
+                            right=labels_by_key[key],
+                        )
                     )
                 else:
                     key_owner[text] = key
@@ -481,7 +518,14 @@ class SettingsDialog(QDialog):
                 owner = pad_owner.get(pad)
                 if owner is not None:
                     conflicts.append(
-                        f"パッド {pad}: {labels_by_key[owner]} / {labels_by_key[key]}"
+                        t(
+                            "settings.shortcut.conflict.pad",
+                            "パッド {shortcut}: {left} / {right}",
+                        ).format(
+                            shortcut=pad,
+                            left=labels_by_key[owner],
+                            right=labels_by_key[key],
+                        )
                     )
                 else:
                     pad_owner[pad] = key
@@ -489,9 +533,12 @@ class SettingsDialog(QDialog):
             return True
         QMessageBox.warning(
             self,
-            "ショートカット重複",
-            "同じショートカットが複数の操作に割り当てられています。\n"
-            "重複を解消してから適用してください。\n\n"
+            t("settings.shortcut.conflict.title", "ショートカット重複"),
+            t(
+                "settings.shortcut.conflict.body",
+                "同じショートカットが複数の操作に割り当てられています。\n"
+                "重複を解消してから適用してください。\n\n",
+            )
             + "\n".join(conflicts[:12]),
         )
         return False
@@ -510,7 +557,7 @@ class SettingsDialog(QDialog):
         default = DEFAULT_MARKER_COLORS[key]
         edit = QLineEdit(self._normalize_color(self.config.get(key, default), default))
         edit.setPlaceholderText(default)
-        button = QPushButton("色選択...")
+        button = QPushButton(t("settings.color.choose", "色選択..."))
         self._color_edits[key] = edit
         self._color_buttons[key] = button
         edit.textChanged.connect(lambda _=None, k=key: self._sync_color_button(k))
@@ -527,7 +574,7 @@ class SettingsDialog(QDialog):
         combo = QComboBox()
         combo.setMinimumWidth(92)
         for value, label in MARKER_SHAPE_OPTIONS:
-            combo.addItem(label, value)
+            combo.addItem(t(f"settings.marker_shape.{value}", label), value)
         default = DEFAULT_MARKER_SHAPES[key]
         current = str(self.config.get(key, default))
         idx = combo.findData(current)
@@ -552,7 +599,11 @@ class SettingsDialog(QDialog):
         current = QColor(edit.text().strip())
         if not current.isValid():
             current = QColor(default)
-        color = QColorDialog.getColor(current, self, "マーカー色")
+        color = QColorDialog.getColor(
+            current,
+            self,
+            t("settings.marker_color.dialog_title", "マーカー色"),
+        )
         if color.isValid():
             edit.setText(color.name().upper())
 
@@ -560,8 +611,11 @@ class SettingsDialog(QDialog):
         from .file_dialog_compat import get_file
         path = get_file(
             self,
-            title="アイコンを選択",
-            filter="Images (*.png *.ico *.jpg *.bmp);;All files (*)",
+            title=t("settings.icon.open_title", "アイコンを選択"),
+            filter=t(
+                "common.file_filter.images",
+                "Images (*.png *.ico *.jpg *.bmp);;All files (*)",
+            ),
             directory=self.edit_icon.text(),
         )
         if path:
@@ -571,8 +625,11 @@ class SettingsDialog(QDialog):
         from .file_dialog_compat import get_file
         path = get_file(
             self,
-            title="エミュレータを選択",
-            filter="Executables (*.exe);;All files (*)",
+            title=t("settings.emulator.open_title", "エミュレータを選択"),
+            filter=t(
+                "common.file_filter.executables",
+                "Executables (*.exe);;All files (*)",
+            ),
             directory=self.edit_emu.text(),
         )
         if path:
@@ -595,7 +652,10 @@ class SettingsDialog(QDialog):
         self.cmb_emulators.clear()
         default_id = str(self.config.get("default_emulator_id", "") or "")
         for i, emu in enumerate(self._emulators, 1):
-            name = emu.get("name", "") or f"エミュレータ {i}"
+            name = emu.get("name", "") or t(
+                "settings.emulator.default_name",
+                "エミュレータ {index}",
+            ).format(index=i)
             mark = "★ " if emu.get("id") == default_id else ""
             self.cmb_emulators.addItem(f"{mark}{name}", emu.get("id"))
         idx = self.cmb_emulators.findData(select_id)
@@ -630,7 +690,10 @@ class SettingsDialog(QDialog):
         name = self.edit_emu_name.text().strip()
         path = self.edit_emu.text().strip()
         if not name:
-            name = Path(path).stem if path else f"エミュレータ {idx + 1}"
+            name = Path(path).stem if path else t(
+                "settings.emulator.default_name",
+                "エミュレータ {index}",
+            ).format(index=idx + 1)
             self.edit_emu_name.setText(name)
         self._emulators[idx]["name"] = name
         self._emulators[idx]["path"] = path
@@ -646,7 +709,10 @@ class SettingsDialog(QDialog):
             emu_id = f"emu_{base}"
         self._emulators.append({
             "id": emu_id,
-            "name": f"エミュレータ {len(self._emulators) + 1}",
+            "name": t(
+                "settings.emulator.default_name",
+                "エミュレータ {index}",
+            ).format(index=len(self._emulators) + 1),
             "path": "",
         })
         if not self.config.get("default_emulator_id"):
