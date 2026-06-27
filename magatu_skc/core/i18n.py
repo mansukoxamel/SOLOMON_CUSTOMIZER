@@ -2075,6 +2075,322 @@ _TRANSLATIONS = {
         "ja": "比較編集({direction}): {name}",
         "en": "Compare Edit ({direction}): {name}",
     },
+    "bonus_dialog.title": {
+        "ja": "ボーナスステージ (Stage 51) 出現位置編集",
+        "en": "Bonus Stage (Stage 51) Spawn Position Editor",
+    },
+    "bonus_dialog.positions.group": {
+        "ja": "出現位置 ({count}箇所)",
+        "en": "Spawn Positions ({count})",
+    },
+    "bonus_dialog.position.tooltip": {
+        "ja": "位置{index}: アイテム#{item}を配置",
+        "en": "Position {index}: places item #{item}",
+    },
+    "mirror_dialog.title": {
+        "ja": "ミラー詳細設定 - Stage {stage}",
+        "en": "Mirror Detail Settings - Stage {stage}",
+    },
+    "mirror_dialog.ttl.label": {
+        "ja": "スポーン敵の生存時間:",
+        "en": "Spawned enemy lifetime:",
+    },
+    "mirror_dialog.ttl.tooltip": {
+        "ja": (
+            "Saramander / DemonHead 系のスポーン敵に使われます。\n"
+            "目安: 約0.5秒 × 値 (例: 16=約8秒、30=約16秒)"
+        ),
+        "en": (
+            "Used for spawned enemies such as Saramander and Demon Head.\n"
+            "Guide: about 0.5 seconds x value (for example, 16=about 8 seconds, 30=about 16 seconds)"
+        ),
+    },
+    "mirror_dialog.ttl.seconds": {
+        "ja": "約{seconds}秒",
+        "en": "about {seconds}s",
+    },
+    "mirror_dialog.overview.button": {
+        "ja": "ミラー出現一覧",
+        "en": "Mirror Spawn List",
+    },
+    "mirror_dialog.overview.tooltip": {
+        "ja": "全ステージのミラー敵セットと出現タイミングを読取専用で一覧表示します。",
+        "en": "Shows every stage's mirror enemy sets and spawn timing as a read-only list.",
+    },
+    "mirror_dialog.mirror.group": {
+        "ja": "ミラー {mirror}  (位置: {position})",
+        "en": "Mirror {mirror}  (Position: {position})",
+    },
+    "mirror_dialog.schedule.label_html": {
+        "ja": (
+            "<b>出現タイミング</b> (左から順に時間経過)"
+            "　<span style='color:gray;'>※先頭2tickはゲーム側で無視される</span>"
+        ),
+        "en": (
+            "<b>Spawn Timing</b> (time runs left to right) "
+            "<span style='color:gray;'>First 2 ticks are ignored by the game</span>"
+        ),
+    },
+    "mirror_dialog.phase2.label": {
+        "ja": "Phase 2 (ループ):",
+        "en": "Phase 2 (loop):",
+    },
+    "mirror_dialog.tick.ignored.tooltip": {
+        "ja": "tick {tick} (ゲーム側で無視される)",
+        "en": "tick {tick} (ignored by the game)",
+    },
+    "mirror_dialog.all_on.button": {
+        "ja": "全ON",
+        "en": "All On",
+    },
+    "mirror_dialog.all_on.tooltip": {
+        "ja": "有効tickをすべてONにします。",
+        "en": "Turns all valid ticks on.",
+    },
+    "mirror_dialog.all_off.button": {
+        "ja": "全OFF",
+        "en": "All Off",
+    },
+    "mirror_dialog.all_off.tooltip": {
+        "ja": "出現タイミングをすべてOFFにします。",
+        "en": "Turns all spawn timing off.",
+    },
+    "mirror_dialog.gap.tooltip": {
+        "ja": "tick {start} から、{gap}個空けて出現タイミングをONにします。",
+        "en": "Starting from tick {start}, turns timing on after every {gap} skipped ticks.",
+    },
+    "mirror_dialog.gap.button.1": {
+        "ja": "1空け",
+        "en": "Skip 1",
+    },
+    "mirror_dialog.gap.button.2": {
+        "ja": "2空け",
+        "en": "Skip 2",
+    },
+    "mirror_dialog.gap.button.3": {
+        "ja": "3空け",
+        "en": "Skip 3",
+    },
+    "mirror_dialog.gap.button.4": {
+        "ja": "4空け",
+        "en": "Skip 4",
+    },
+    "mirror_dialog.gap.button.5": {
+        "ja": "5空け",
+        "en": "Skip 5",
+    },
+    "mirror_dialog.gap.button.6": {
+        "ja": "6空け",
+        "en": "Skip 6",
+    },
+    "mirror_overview.title": {
+        "ja": "ミラー出現パターン一覧",
+        "en": "Mirror Spawn Pattern List",
+    },
+    "mirror_overview.info": {
+        "ja": (
+            "全ステージのミラー敵セットと64tick出現パターンを表示します。"
+            "X=出現、.=なし、-=ゲーム側で無視される先頭tick。"
+        ),
+        "en": (
+            "Shows mirror enemy sets and 64-tick spawn patterns for every stage. "
+            "X=spawn, .=none, -=initial tick ignored by the game."
+        ),
+    },
+    "mirror_overview.column.level": {
+        "ja": "Lv",
+        "en": "Lv",
+    },
+    "mirror_overview.column.ttl": {
+        "ja": "TTL",
+        "en": "TTL",
+    },
+    "mirror_overview.column.m1_pos": {
+        "ja": "M1位置",
+        "en": "M1 Pos",
+    },
+    "mirror_overview.column.m1_enemy": {
+        "ja": "M1敵",
+        "en": "M1 Enemy",
+    },
+    "mirror_overview.column.m1_count": {
+        "ja": "M1数",
+        "en": "M1 Count",
+    },
+    "mirror_overview.column.m2_pos": {
+        "ja": "M2位置",
+        "en": "M2 Pos",
+    },
+    "mirror_overview.column.m2_enemy": {
+        "ja": "M2敵",
+        "en": "M2 Enemy",
+    },
+    "mirror_overview.column.m2_count": {
+        "ja": "M2数",
+        "en": "M2 Count",
+    },
+    "sprite_viewer.title": {
+        "ja": "スプライト/キャラクタービューア",
+        "en": "Sprite/Character Viewer",
+    },
+    "sprite_viewer.mode.label": {
+        "ja": "表示モード:",
+        "en": "View mode:",
+    },
+    "sprite_viewer.mode.rom_frames": {
+        "ja": "★ROMフレームデータ (全網羅 16x16)",
+        "en": "ROM Frame Data (complete 16x16)",
+    },
+    "sprite_viewer.mode.characters": {
+        "ja": "キャラクター (組み立て)",
+        "en": "Characters (assembled)",
+    },
+    "sprite_viewer.mode.raw_chr": {
+        "ja": "生CHRタイル (8x8)",
+        "en": "Raw CHR Tiles (8x8)",
+    },
+    "sprite_viewer.chr_bank.label": {
+        "ja": "CHRバンク:",
+        "en": "CHR bank:",
+    },
+    "sprite_viewer.palette.label": {
+        "ja": "パレット:",
+        "en": "Palette:",
+    },
+    "sprite_viewer.palette.auto_attr": {
+        "ja": "attr&3で自動",
+        "en": "Auto from attr&3",
+    },
+    "sprite_viewer.palette.option.0": {
+        "ja": "BG #0",
+        "en": "BG #0",
+    },
+    "sprite_viewer.palette.option.1": {
+        "ja": "BG #1",
+        "en": "BG #1",
+    },
+    "sprite_viewer.palette.option.2": {
+        "ja": "BG #2",
+        "en": "BG #2",
+    },
+    "sprite_viewer.palette.option.3": {
+        "ja": "BG #3",
+        "en": "BG #3",
+    },
+    "sprite_viewer.palette.option.4": {
+        "ja": "SPR #0 主人公",
+        "en": "SPR #0 Dana",
+    },
+    "sprite_viewer.palette.option.5": {
+        "ja": "SPR #1 サラマンダー",
+        "en": "SPR #1 Saramander",
+    },
+    "sprite_viewer.palette.option.6": {
+        "ja": "SPR #2 ガーゴイル",
+        "en": "SPR #2 Gargoyle",
+    },
+    "sprite_viewer.palette.option.7": {
+        "ja": "SPR #3 ゴブリン",
+        "en": "SPR #3 Goblin",
+    },
+    "sprite_viewer.duplicates.checkbox": {
+        "ja": "重複参照も表示",
+        "en": "Show duplicate refs",
+    },
+    "sprite_viewer.duplicates.tooltip": {
+        "ja": "同じleft/right/attrを参照するROMフレームも個別に表示",
+        "en": "Also shows ROM frames that reference the same left/right/attr separately.",
+    },
+    "sprite_viewer.zoom.label": {
+        "ja": "拡大:",
+        "en": "Zoom:",
+    },
+    "sprite_viewer.category.label": {
+        "ja": "カテゴリ:",
+        "en": "Category:",
+    },
+    "sprite_viewer.category.items": {
+        "ja": "アイテム",
+        "en": "Items",
+    },
+    "sprite_viewer.category.enemies": {
+        "ja": "敵",
+        "en": "Enemies",
+    },
+    "sprite_viewer.category.meta": {
+        "ja": "メタ",
+        "en": "Meta",
+    },
+    "sprite_viewer.category.all_metatiles": {
+        "ja": "全メタタイル",
+        "en": "All Metatiles",
+    },
+    "sprite_viewer.category.all_tiledefs": {
+        "ja": "★全網羅 (全tile_def×全tileset)",
+        "en": "Complete (all tile_def x all tileset)",
+    },
+    "sprite_viewer.tileset.label": {
+        "ja": "タイルセット:",
+        "en": "Tileset:",
+    },
+    "sprite_viewer.tileset.all": {
+        "ja": "全部(網羅)",
+        "en": "All (complete)",
+    },
+    "sprite_viewer.opaque.checkbox": {
+        "ja": "背景不透明",
+        "en": "Opaque background",
+    },
+    "sprite_viewer.bank.label": {
+        "ja": "バンク:",
+        "en": "Bank:",
+    },
+    "sprite_viewer.grid.checkbox": {
+        "ja": "グリッド線",
+        "en": "Grid lines",
+    },
+    "sprite_viewer.characters.status": {
+        "ja": "{count} 枚表示 / tile_def {tile_defs}種 × tileset {tilesets}種 / フィルタなし全網羅可",
+        "en": "{count} shown / {tile_defs} tile_def types x {tilesets} tilesets / complete unfiltered view available",
+    },
+    "sprite_viewer.raw.status": {
+        "ja": "Bank {bank}: タイル {first}-{last} / CHR開始 0x{chr_start:X}",
+        "en": "Bank {bank}: tiles {first}-{last} / CHR start 0x{chr_start:X}",
+    },
+    "sprite_viewer.raw.hover": {
+        "ja": (
+            "Bank {bank}: タイル {tile_no} (0x{tile_no:03X}) / "
+            "bank内 {bank_tile} (0x{bank_tile:03X}) / "
+            "CHR+0x{chr_offset:04X} / ROM 0x{file_start:X}-0x{file_end:X}"
+        ),
+        "en": (
+            "Bank {bank}: tile {tile_no} (0x{tile_no:03X}) / "
+            "in-bank {bank_tile} (0x{bank_tile:03X}) / "
+            "CHR+0x{chr_offset:04X} / ROM 0x{file_start:X}-0x{file_end:X}"
+        ),
+    },
+    "sprite_viewer.romframe.tooltip": {
+        "ja": "ダブルクリックでこのフレームを16x16ピクセル編集で開く",
+        "en": "Double-click this frame to open it in the 16x16 pixel editor.",
+    },
+    "sprite_viewer.romframe.count.references": {
+        "ja": "{count} フレーム参照",
+        "en": "{count} frame refs",
+    },
+    "sprite_viewer.romframe.count.targets": {
+        "ja": "{targets} 編集対象 / {references} フレーム参照",
+        "en": "{targets} edit targets / {references} frame refs",
+    },
+    "sprite_viewer.romframe.status": {
+        "ja": (
+            "{count_text} / $D0E8機構由来 / Bank {bank} / "
+            "16x16(8x16スプライト) / ROM直読み・configに依存しない"
+        ),
+        "en": (
+            "{count_text} / from $D0E8 mechanism / Bank {bank} / "
+            "16x16 (8x16 sprites) / direct ROM read, independent of config"
+        ),
+    },
     "common.close": {
         "ja": "閉じる",
         "en": "Close",

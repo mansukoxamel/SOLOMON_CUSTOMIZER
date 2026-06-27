@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QImage, QPixmap, QColor, QPainter
 
+from ..core.i18n import t
 from ..nes.tile import NesTile, NES_TILE_W, NES_GFX_TILE_BYTE_SIZE
 from ..nes import palette as pal
 
@@ -129,11 +130,18 @@ class SpriteViewer(QDialog):
 
     rom_changed = pyqtSignal()
 
+    @staticmethod
+    def _palette_label(index):
+        return t(f"sprite_viewer.palette.option.{index}", PALETTE_LABELS[index])
+
     def __init__(self, rom, tile_renderer=None, config=None, app_config=None, parent=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("スプライト/キャラクタービューア")
+        self.setWindowTitle(t(
+            "sprite_viewer.title",
+            "スプライト/キャラクタービューア",
+        ))
         self.resize(760, 800)
         self.rom = rom
         self.tile_renderer = tile_renderer
@@ -153,13 +161,22 @@ class SpriteViewer(QDialog):
 
         # --- モード切替 ---
         mode_row = QHBoxLayout()
-        mode_row.addWidget(QLabel("表示モード:"))
+        mode_row.addWidget(QLabel(t("sprite_viewer.mode.label", "表示モード:")))
         self.mode_combo = QComboBox()
         have_cfg = self.tile_renderer is not None and self.config is not None
-        self.mode_combo.addItem("★ROMフレームデータ (全網羅 16x16)")
+        self.mode_combo.addItem(t(
+            "sprite_viewer.mode.rom_frames",
+            "★ROMフレームデータ (全網羅 16x16)",
+        ), "rom")
         if have_cfg:
-            self.mode_combo.addItem("キャラクター (組み立て)")
-        self.mode_combo.addItem("生CHRタイル (8x8)")
+            self.mode_combo.addItem(t(
+                "sprite_viewer.mode.characters",
+                "キャラクター (組み立て)",
+            ), "char")
+        self.mode_combo.addItem(t(
+            "sprite_viewer.mode.raw_chr",
+            "生CHRタイル (8x8)",
+        ), "raw")
         self.mode_combo.currentIndexChanged.connect(self._rebuild_controls)
         mode_row.addWidget(self.mode_combo)
         mode_row.addStretch()
@@ -227,12 +244,12 @@ class SpriteViewer(QDialog):
             if w:
                 w.deleteLater()
 
-        mode_txt = self.mode_combo.currentText()
-        is_char = mode_txt.startswith("キャラ")
-        is_rom = mode_txt.startswith("★ROM")
+        mode_code = self.mode_combo.currentData()
+        is_char = mode_code == "char"
+        is_rom = mode_code == "rom"
 
         if is_rom:
-            self.ctrl_layout.addWidget(QLabel("CHRバンク:"))
+            self.ctrl_layout.addWidget(QLabel(t("sprite_viewer.chr_bank.label", "CHRバンク:")))
             self.rb_bank = QComboBox()
             for b in range(self.bank_count):
                 self.rb_bank.addItem(f"Bank {b}")
@@ -240,21 +257,27 @@ class SpriteViewer(QDialog):
             self.rb_bank.currentIndexChanged.connect(self._render_romframes)
             self.ctrl_layout.addWidget(self.rb_bank)
 
-            self.ctrl_layout.addWidget(QLabel("パレット:"))
+            self.ctrl_layout.addWidget(QLabel(t("sprite_viewer.palette.label", "パレット:")))
             self.rb_pal = QComboBox()
             for i in range(4, 8):
-                self.rb_pal.addItem(PALETTE_LABELS[i])
-            self.rb_pal.addItem("attr&3で自動")
+                self.rb_pal.addItem(self._palette_label(i))
+            self.rb_pal.addItem(t("sprite_viewer.palette.auto_attr", "attr&3で自動"))
             self.rb_pal.setCurrentIndex(4)
             self.rb_pal.currentIndexChanged.connect(self._render_romframes)
             self.ctrl_layout.addWidget(self.rb_pal)
 
-            self.rb_duplicates = QCheckBox("重複参照も表示")
-            self.rb_duplicates.setToolTip("同じleft/right/attrを参照するROMフレームも個別に表示")
+            self.rb_duplicates = QCheckBox(t(
+                "sprite_viewer.duplicates.checkbox",
+                "重複参照も表示",
+            ))
+            self.rb_duplicates.setToolTip(t(
+                "sprite_viewer.duplicates.tooltip",
+                "同じleft/right/attrを参照するROMフレームも個別に表示",
+            ))
             self.rb_duplicates.stateChanged.connect(self._render_romframes)
             self.ctrl_layout.addWidget(self.rb_duplicates)
 
-            self.ctrl_layout.addWidget(QLabel("拡大:"))
+            self.ctrl_layout.addWidget(QLabel(t("sprite_viewer.zoom.label", "拡大:")))
             self.rb_zoom = QSpinBox()
             self.rb_zoom.setRange(1, 8)
             self.rb_zoom.setValue(3)
@@ -266,29 +289,32 @@ class SpriteViewer(QDialog):
             return
 
         if is_char:
-            self.ctrl_layout.addWidget(QLabel("カテゴリ:"))
+            self.ctrl_layout.addWidget(QLabel(t("sprite_viewer.category.label", "カテゴリ:")))
             self.cat_combo = QComboBox()
             self.cat_combo.addItems([
-                "アイテム", "敵", "メタ", "全メタタイル",
-                "★全網羅 (全tile_def×全tileset)"])
+                t("sprite_viewer.category.items", "アイテム"),
+                t("sprite_viewer.category.enemies", "敵"),
+                t("sprite_viewer.category.meta", "メタ"),
+                t("sprite_viewer.category.all_metatiles", "全メタタイル"),
+                t("sprite_viewer.category.all_tiledefs", "★全網羅 (全tile_def×全tileset)")])
             self.cat_combo.setCurrentIndex(1)
             self.cat_combo.currentIndexChanged.connect(self._render_chars)
             self.ctrl_layout.addWidget(self.cat_combo)
 
-            self.ctrl_layout.addWidget(QLabel("タイルセット:"))
+            self.ctrl_layout.addWidget(QLabel(t("sprite_viewer.tileset.label", "タイルセット:")))
             self.ts_combo = QComboBox()
             for i in range(len(self.config.tilesets)):
                 self.ts_combo.addItem(f"tileset {i}")
-            self.ts_combo.addItem("全部(網羅)")
+            self.ts_combo.addItem(t("sprite_viewer.tileset.all", "全部(網羅)"))
             self.ts_combo.currentIndexChanged.connect(self._render_chars)
             self.ctrl_layout.addWidget(self.ts_combo)
 
-            self.opaque_chk = QCheckBox("背景不透明")
+            self.opaque_chk = QCheckBox(t("sprite_viewer.opaque.checkbox", "背景不透明"))
             self.opaque_chk.setChecked(True)
             self.opaque_chk.stateChanged.connect(self._render_chars)
             self.ctrl_layout.addWidget(self.opaque_chk)
 
-            self.ctrl_layout.addWidget(QLabel("拡大:"))
+            self.ctrl_layout.addWidget(QLabel(t("sprite_viewer.zoom.label", "拡大:")))
             self.zoom_spin = QSpinBox()
             self.zoom_spin.setRange(1, 12)
             self.zoom_spin.setValue(4)
@@ -298,22 +324,22 @@ class SpriteViewer(QDialog):
             self.ctrl_layout.addStretch()
             self._render_chars()
         else:
-            self.ctrl_layout.addWidget(QLabel("バンク:"))
+            self.ctrl_layout.addWidget(QLabel(t("sprite_viewer.bank.label", "バンク:")))
             self.bank_combo = QComboBox()
             for b in range(self.bank_count):
                 self.bank_combo.addItem(f"Bank {b}")
             self.bank_combo.currentIndexChanged.connect(self._render_raw)
             self.ctrl_layout.addWidget(self.bank_combo)
 
-            self.ctrl_layout.addWidget(QLabel("パレット:"))
+            self.ctrl_layout.addWidget(QLabel(t("sprite_viewer.palette.label", "パレット:")))
             self.pal_combo = QComboBox()
             for i in range(PALETTE_COUNT):
-                self.pal_combo.addItem(PALETTE_LABELS[i])
+                self.pal_combo.addItem(self._palette_label(i))
             self.pal_combo.setCurrentIndex(4)
             self.pal_combo.currentIndexChanged.connect(self._render_raw)
             self.ctrl_layout.addWidget(self.pal_combo)
 
-            self.ctrl_layout.addWidget(QLabel("拡大:"))
+            self.ctrl_layout.addWidget(QLabel(t("sprite_viewer.zoom.label", "拡大:")))
             self.zoom_spin = QSpinBox()
             self.zoom_spin.setRange(1, 16)
             self.zoom_spin.setValue(4)
@@ -321,7 +347,7 @@ class SpriteViewer(QDialog):
             self.zoom_spin.valueChanged.connect(self._render_raw)
             self.ctrl_layout.addWidget(self.zoom_spin)
 
-            self.grid_chk = QCheckBox("グリッド線")
+            self.grid_chk = QCheckBox(t("sprite_viewer.grid.checkbox", "グリッド線"))
             self.grid_chk.setChecked(True)
             self.grid_chk.stateChanged.connect(self._render_raw)
             self.ctrl_layout.addWidget(self.grid_chk)
@@ -454,9 +480,10 @@ class SpriteViewer(QDialog):
 
         host.setLayout(grid)
         self.scroll.setWidget(host)
-        self.hover_label.setText(
-            f"{idx} 枚表示 / tile_def {len(self.config.tile_defs)}種 × "
-            f"tileset {n_ts}種 / フィルタなし全網羅可")
+        self.hover_label.setText(t(
+            "sprite_viewer.characters.status",
+            "{count} 枚表示 / tile_def {tile_defs}種 × tileset {tilesets}種 / フィルタなし全網羅可",
+        ).format(count=idx, tile_defs=len(self.config.tile_defs), tilesets=n_ts))
 
     # ---- 生CHRタイルモード ----
     def _get_subpalette(self):
@@ -556,8 +583,10 @@ class SpriteViewer(QDialog):
         if old:
             old.deleteLater()
         self.scroll.setWidget(lbl)
-        self._raw_chr_status_text = (
-            f"Bank {bank}: タイル {first}-{last-1} / CHR開始 0x{self.chr_start:X}")
+        self._raw_chr_status_text = t(
+            "sprite_viewer.raw.status",
+            "Bank {bank}: タイル {first}-{last} / CHR開始 0x{chr_start:X}",
+        ).format(bank=bank, first=first, last=last - 1, chr_start=self.chr_start)
         self._restore_raw_chr_status()
 
     def _restore_raw_chr_status(self):
@@ -569,10 +598,19 @@ class SpriteViewer(QDialog):
         chr_offset = int(tile_no) * NES_GFX_TILE_BYTE_SIZE
         file_start = self.chr_start + chr_offset
         file_end = file_start + NES_GFX_TILE_BYTE_SIZE - 1
-        self.hover_label.setText(
-            f"Bank {bank}: タイル {tile_no} (0x{tile_no:03X}) / "
-            f"bank内 {bank_tile} (0x{bank_tile:03X}) / "
-            f"CHR+0x{chr_offset:04X} / ROM 0x{file_start:X}-0x{file_end:X}")
+        self.hover_label.setText(t(
+            "sprite_viewer.raw.hover",
+            "Bank {bank}: タイル {tile_no} (0x{tile_no:03X}) / "
+            "bank内 {bank_tile} (0x{bank_tile:03X}) / "
+            "CHR+0x{chr_offset:04X} / ROM 0x{file_start:X}-0x{file_end:X}",
+        ).format(
+            bank=bank,
+            tile_no=tile_no,
+            bank_tile=bank_tile,
+            chr_offset=chr_offset,
+            file_start=file_start,
+            file_end=file_end,
+        ))
 
     # ---- ★ROMフレームデータモード ($D0E8 機構、16x16 8x16スプライト) ----
     def _cf(self, cpu):
@@ -716,19 +754,31 @@ class SpriteViewer(QDialog):
         lbl = RomFrameImageLabel(len(items), cols, cw, ch)
         lbl.setPixmap(QPixmap.fromImage(img))
         lbl.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        lbl.setToolTip("ダブルクリックでこのフレームを16x16ピクセル編集で開く")
+        lbl.setToolTip(t(
+            "sprite_viewer.romframe.tooltip",
+            "ダブルクリックでこのフレームを16x16ピクセル編集で開く",
+        ))
         lbl.frame_double_clicked.connect(self._on_romframe_double_clicked)
         old = self.scroll.takeWidget()
         if old:
             old.deleteLater()
         self.scroll.setWidget(lbl)
         if show_duplicates:
-            count_text = f"{len(items)} フレーム参照"
+            count_text = t(
+                "sprite_viewer.romframe.count.references",
+                "{count} フレーム参照",
+            ).format(count=len(items))
         else:
-            count_text = f"{len(items)} 編集対象 / {len(all_items)} フレーム参照"
+            count_text = t(
+                "sprite_viewer.romframe.count.targets",
+                "{targets} 編集対象 / {references} フレーム参照",
+            ).format(targets=len(items), references=len(all_items))
         self.hover_label.setText(
-            f"{count_text} / $D0E8機構由来 / Bank {bank} / "
-            "16x16(8x16スプライト) / ROM直読み・configに依存しない")
+            t(
+                "sprite_viewer.romframe.status",
+                "{count_text} / $D0E8機構由来 / Bank {bank} / "
+                "16x16(8x16スプライト) / ROM直読み・configに依存しない",
+            ).format(count_text=count_text, bank=bank))
 
     def _on_romframe_double_clicked(self, index):
         items = getattr(self, "_romframe_render_items", [])
@@ -768,7 +818,7 @@ class SpriteViewer(QDialog):
         dlg.activateWindow()
 
     def _on_editor_rom_changed(self):
-        mode_txt = self.mode_combo.currentText() if hasattr(self, "mode_combo") else ""
-        if mode_txt.startswith("★ROM"):
+        mode_code = self.mode_combo.currentData() if hasattr(self, "mode_combo") else ""
+        if mode_code == "rom":
             self._render_romframes()
         self.rom_changed.emit()

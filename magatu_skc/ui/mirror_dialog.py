@@ -17,6 +17,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 
 from ..core import m66
+from ..core.i18n import t
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
@@ -72,7 +73,10 @@ class MirrorDialog(QDialog):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle(f"ミラー詳細設定 - Stage {level_no + 1}")
+        self.setWindowTitle(t(
+            "mirror_dialog.title",
+            "ミラー詳細設定 - Stage {stage}",
+        ).format(stage=level_no + 1))
         self._app_config = app_config
         self.rom = rom
         self.level = level
@@ -119,14 +123,18 @@ class MirrorDialog(QDialog):
 
         # TTL
         ttl_row = QHBoxLayout()
-        ttl_row.addWidget(QLabel("スポーン敵の生存時間:"))
+        ttl_row.addWidget(QLabel(t(
+            "mirror_dialog.ttl.label",
+            "スポーン敵の生存時間:",
+        )))
         self.spin_ttl = QSpinBox()
         self.spin_ttl.setRange(0, 255)
         self.spin_ttl.setValue(self._ttl)
-        self.spin_ttl.setToolTip(
+        self.spin_ttl.setToolTip(t(
+            "mirror_dialog.ttl.tooltip",
             "Saramander / DemonHead 系のスポーン敵に使われます。\n"
-            "目安: 約0.5秒 × 値 (例: 16=約8秒、30=約16秒)"
-        )
+            "目安: 約0.5秒 × 値 (例: 16=約8秒、30=約16秒)",
+        ))
         self.spin_ttl.valueChanged.connect(self._update_ttl_seconds_label)
         ttl_row.addWidget(self.spin_ttl)
         self.lbl_ttl_seconds = QLabel()
@@ -138,10 +146,14 @@ class MirrorDialog(QDialog):
 
         overview_row = QHBoxLayout()
         overview_row.addStretch()
-        btn_overview = QPushButton("ミラー出現一覧")
-        btn_overview.setToolTip(
-            "全ステージのミラー敵セットと出現タイミングを読取専用で一覧表示します。"
-        )
+        btn_overview = QPushButton(t(
+            "mirror_dialog.overview.button",
+            "ミラー出現一覧",
+        ))
+        btn_overview.setToolTip(t(
+            "mirror_dialog.overview.tooltip",
+            "全ステージのミラー敵セットと出現タイミングを読取専用で一覧表示します。",
+        ))
         btn_overview.clicked.connect(self._show_overview)
         overview_row.addWidget(btn_overview)
         layout.addLayout(overview_row)
@@ -150,14 +162,18 @@ class MirrorDialog(QDialog):
         self._sched_checks = [[None] * SCHEDULE_BITS, [None] * SCHEDULE_BITS]
 
         for m in range(2):
-            grp = QGroupBox(f"ミラー {m + 1}  (位置: {self.level.demon_mirrors[m].position})")
+            grp = QGroupBox(t(
+                "mirror_dialog.mirror.group",
+                "ミラー {mirror}  (位置: {position})",
+            ).format(mirror=m + 1, position=self.level.demon_mirrors[m].position))
             gl = QVBoxLayout(grp)
 
             # スケジュール
-            gl.addWidget(QLabel(
+            gl.addWidget(QLabel(t(
+                "mirror_dialog.schedule.label_html",
                 "<b>出現タイミング</b> (左から順に時間経過)"
-                "　<span style='color:gray;'>※先頭2tickはゲーム側で無視される</span>"
-            ))
+                "　<span style='color:gray;'>※先頭2tickはゲーム側で無視される</span>",
+            )))
 
             LABEL_W = 110
 
@@ -172,7 +188,10 @@ class MirrorDialog(QDialog):
                 cb.setFixedSize(18, 22)
                 if i < DEAD_TICKS:
                     cb.setEnabled(False)
-                    cb.setToolTip(f"tick {i} (ゲーム側で無視される)")
+                    cb.setToolTip(t(
+                        "mirror_dialog.tick.ignored.tooltip",
+                        "tick {tick} (ゲーム側で無視される)",
+                    ).format(tick=i))
                 else:
                     cb.setToolTip(f"tick {i}")
                 phase1_row.addWidget(cb)
@@ -182,7 +201,10 @@ class MirrorDialog(QDialog):
 
             phase2_row = QHBoxLayout()
             phase2_row.setSpacing(0)
-            lbl_p2 = QLabel("Phase 2 (ループ):")
+            lbl_p2 = QLabel(t(
+                "mirror_dialog.phase2.label",
+                "Phase 2 (ループ):",
+            ))
             lbl_p2.setFixedWidth(LABEL_W)
             phase2_row.addWidget(lbl_p2)
             for i in range(PHASE2_BITS):
@@ -198,11 +220,17 @@ class MirrorDialog(QDialog):
 
             # クイック操作
             quick_row = QHBoxLayout()
-            btn_fill_sched = QPushButton("全ON")
-            btn_fill_sched.setToolTip("有効tickをすべてONにします。")
+            btn_fill_sched = QPushButton(t("mirror_dialog.all_on.button", "全ON"))
+            btn_fill_sched.setToolTip(t(
+                "mirror_dialog.all_on.tooltip",
+                "有効tickをすべてONにします。",
+            ))
             btn_fill_sched.clicked.connect(lambda _, mm=m: self._fill_schedule(mm))
-            btn_clear_sched = QPushButton("全OFF")
-            btn_clear_sched.setToolTip("出現タイミングをすべてOFFにします。")
+            btn_clear_sched = QPushButton(t("mirror_dialog.all_off.button", "全OFF"))
+            btn_clear_sched.setToolTip(t(
+                "mirror_dialog.all_off.tooltip",
+                "出現タイミングをすべてOFFにします。",
+            ))
             btn_clear_sched.clicked.connect(lambda _, mm=m: self._clear_schedule(mm))
             quick_row.addWidget(btn_fill_sched)
             quick_row.addWidget(btn_clear_sched)
@@ -210,10 +238,14 @@ class MirrorDialog(QDialog):
                 (1, "1空け"), (2, "2空け"), (3, "3空け"),
                 (4, "4空け"), (5, "5空け"), (6, "6空け"),
             ):
-                btn = QPushButton(text)
-                btn.setToolTip(
-                    f"tick {DEAD_TICKS} から、{gap}個空けて出現タイミングをONにします。"
-                )
+                btn = QPushButton(t(
+                    f"mirror_dialog.gap.button.{gap}",
+                    text,
+                ))
+                btn.setToolTip(t(
+                    "mirror_dialog.gap.tooltip",
+                    "tick {start} から、{gap}個空けて出現タイミングをONにします。",
+                ).format(start=DEAD_TICKS, gap=gap))
                 btn.clicked.connect(lambda _, mm=m, g=gap: self._set_schedule_gap(mm, g))
                 quick_row.addWidget(btn)
             quick_row.addStretch()
@@ -236,7 +268,10 @@ class MirrorDialog(QDialog):
             seconds_text = str(int(seconds))
         else:
             seconds_text = f"{seconds:.1f}"
-        self.lbl_ttl_seconds.setText(f"約{seconds_text}秒")
+        self.lbl_ttl_seconds.setText(t(
+            "mirror_dialog.ttl.seconds",
+            "約{seconds}秒",
+        ).format(seconds=seconds_text))
 
     # ===== クイック操作 =====
 
@@ -303,25 +338,28 @@ class MirrorScheduleOverviewDialog(QDialog):
     """全ステージのミラー出現タイミングを読取専用で一覧表示する"""
 
     COLUMNS = (
-        ("Lv", 38),
-        ("TTL", 48),
-        ("M1位置", 64),
-        ("M1敵", 230),
-        ("M1数", 48),
-        ("M1 Phase1", 245),
-        ("M1 Phase2", 245),
-        ("M2位置", 64),
-        ("M2敵", 230),
-        ("M2数", 48),
-        ("M2 Phase1", 245),
-        ("M2 Phase2", 245),
+        ("mirror_overview.column.level", "Lv", 38),
+        ("mirror_overview.column.ttl", "TTL", 48),
+        ("mirror_overview.column.m1_pos", "M1位置", 64),
+        ("mirror_overview.column.m1_enemy", "M1敵", 230),
+        ("mirror_overview.column.m1_count", "M1数", 48),
+        ("", "M1 Phase1", 245),
+        ("", "M1 Phase2", 245),
+        ("mirror_overview.column.m2_pos", "M2位置", 64),
+        ("mirror_overview.column.m2_enemy", "M2敵", 230),
+        ("mirror_overview.column.m2_count", "M2数", 48),
+        ("", "M2 Phase1", 245),
+        ("", "M2 Phase2", 245),
     )
 
     def __init__(self, rom, levels, config=None, parent=None, app_config=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("ミラー出現パターン一覧")
+        self.setWindowTitle(t(
+            "mirror_overview.title",
+            "ミラー出現パターン一覧",
+        ))
         self.resize(1280, 720)
         self._app_config = app_config
         self.rom = rom
@@ -329,16 +367,20 @@ class MirrorScheduleOverviewDialog(QDialog):
         self.config = config
 
         layout = QVBoxLayout(self)
-        info = QLabel(
+        info = QLabel(t(
+            "mirror_overview.info",
             "全ステージのミラー敵セットと64tick出現パターンを表示します。"
-            "X=出現、.=なし、-=ゲーム側で無視される先頭tick。"
-        )
+            "X=出現、.=なし、-=ゲーム側で無視される先頭tick。",
+        ))
         info.setWordWrap(True)
         layout.addWidget(info)
 
         self.table = QTableWidget(len(levels), len(self.COLUMNS), self)
-        self.table.setHorizontalHeaderLabels([name for name, _width in self.COLUMNS])
-        for i, (_name, width) in enumerate(self.COLUMNS):
+        self.table.setHorizontalHeaderLabels([
+            t(key, default) if key else default
+            for key, default, _width in self.COLUMNS
+        ])
+        for i, (_key, _default, width) in enumerate(self.COLUMNS):
             self.table.setColumnWidth(i, width)
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -351,7 +393,7 @@ class MirrorScheduleOverviewDialog(QDialog):
 
         btn_row = QHBoxLayout()
         btn_row.addStretch()
-        btn_close = QPushButton("閉じる")
+        btn_close = QPushButton(t("common.close", "閉じる"))
         btn_close.clicked.connect(self.accept)
         btn_row.addWidget(btn_close)
         layout.addLayout(btn_row)

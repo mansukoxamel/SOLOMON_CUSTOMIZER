@@ -13,6 +13,7 @@ from PyQt5.QtCore import Qt
 
 from ..core import constants as c
 from ..core.element import position_from_byte, byte_from_position
+from ..core.i18n import t
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
@@ -26,7 +27,10 @@ class BonusStageDialog(QDialog):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("ボーナスステージ (Stage 51) 出現位置編集")
+        self.setWindowTitle(t(
+            "bonus_dialog.title",
+            "ボーナスステージ (Stage 51) 出現位置編集",
+        ))
         self._app_config = app_config
         self.rom = rom
 
@@ -43,7 +47,10 @@ class BonusStageDialog(QDialog):
         layout = QVBoxLayout(self)
 
         # 位置テーブル (32箇所)
-        pos_grp = QGroupBox(f"出現位置 ({BONUS_POS_COUNT}箇所)")
+        pos_grp = QGroupBox(t(
+            "bonus_dialog.positions.group",
+            "出現位置 ({count}箇所)",
+        ).format(count=BONUS_POS_COUNT))
         pg = QGridLayout(pos_grp)
         self._pos_x_spins = []
         self._pos_y_spins = []
@@ -55,7 +62,10 @@ class BonusStageDialog(QDialog):
             item_idx = i % BONUS_ITEM_COUNT
 
             lbl = QLabel(f"[{i}] (→#{item_idx})")
-            lbl.setToolTip(f"位置{i}: アイテム#{item_idx}を配置")
+            lbl.setToolTip(t(
+                "bonus_dialog.position.tooltip",
+                "位置{index}: アイテム#{item}を配置",
+            ).format(index=i, item=item_idx))
             pg.addWidget(lbl, row, col_base)
 
             sx = QSpinBox()
