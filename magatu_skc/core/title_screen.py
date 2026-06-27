@@ -1347,6 +1347,19 @@ def write_ending_text_messages(rom_data, texts: list[str]) -> list:
     return changes
 
 
+def ending_text_edit_indices(mode: str = "Normal") -> list[int]:
+    """Return read_ending_text_messages row indices used by one preview mode."""
+    key = str(mode or "Normal")
+    if key not in _ENDING_TEXT_SEQUENCES:
+        key = "Normal"
+    out = []
+    if key.startswith("Princess"):
+        out.extend(range(len(_ENDING_PRINCESS_TEXT_BLOCKS)))
+    text_base = len(_ENDING_PRINCESS_TEXT_BLOCKS)
+    out.extend(text_base + int(i) for i in _ENDING_TEXT_SEQUENCES[key])
+    return out
+
+
 def ending_text_preview_entries(rom_data, mode: str = "Normal") -> list:
     """Return [(ppu_addr, tile_values, text_index), ...] for ending preview."""
     key = str(mode or "Normal")

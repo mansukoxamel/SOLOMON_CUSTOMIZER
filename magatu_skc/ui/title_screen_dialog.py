@@ -1241,7 +1241,7 @@ class TitleScreenDialog(QDialog):
         self._ending_mode.addItem("Worst Ending", "Bad")
         self._ending_mode.setCurrentIndex(5)
         self._ending_mode.currentIndexChanged.connect(
-            self._refresh_ending_preview)
+            self._on_ending_mode_changed)
         top.addWidget(self._ending_mode)
         top.addStretch()
         preview_col.addLayout(top)
@@ -1268,8 +1268,10 @@ class TitleScreenDialog(QDialog):
         g.addWidget(QLabel("字数"), 0, 2)
         rx = QRegExpValidator(QRegExp("[A-Za-z ,'\\\"]*"))
         self._ending_text_edits = []
+        self._ending_text_row_widgets = []
         for i, (name, cur, count, _orig) in enumerate(rows):
-            g.addWidget(QLabel(name), i + 1, 0)
+            name_lbl = QLabel(name)
+            g.addWidget(name_lbl, i + 1, 0)
             le = QLineEdit(cur.rstrip())
             le.setMaxLength(count)
             le.setValidator(rx)
@@ -1281,13 +1283,14 @@ class TitleScreenDialog(QDialog):
             g.addWidget(le, i + 1, 1)
             g.addWidget(cnt, i + 1, 2)
             self._ending_text_edits.append(le)
+            self._ending_text_row_widgets.append((name_lbl, le, cnt))
             self._on_ending_text_count(le, count, cnt)
         edit_col.addLayout(g)
         self._ending_text_status = QLabel("")
         edit_col.addWidget(self._ending_text_status)
         edit_col.addStretch()
         root.addLayout(body, 1)
-        self._refresh_ending_preview()
+        self._on_ending_mode_changed()
         return tab
 
     def _build_ending_preview_image(self):
@@ -1372,6 +1375,14 @@ class TitleScreenDialog(QDialog):
     def _on_ending_zoom_wheel(self, step):
         cur = int(getattr(self, "_ending_zoom", 3))
         self._ending_zoom = max(1, min(8, cur + int(step)))
+        self._refresh_ending_preview()
+
+    def _on_ending_mode_changed(self, *_):
+        visible = set(TS.ending_text_edit_indices(self._ending_mode.currentData()))
+        for i, widgets in enumerate(getattr(self, "_ending_text_row_widgets", [])):
+            show = i in visible
+            for widget in widgets:
+                widget.setVisible(show)
         self._refresh_ending_preview()
 
     @staticmethod
