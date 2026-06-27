@@ -1059,29 +1059,38 @@ class HackDialog(QDialog):
         dkf.addRow(dkhint)
         layout.addWidget(dk_group)
 
-        related_group = QGroupBox("関連編集")
+        related_group = QGroupBox(t("hack_dialog.group.related_edit", "関連編集"))
         related_group.setProperty("settings_category", "敵以外")
         related_layout = QVBoxLayout(related_group)
 
-        self.btn_enemy_drop = QPushButton("敵ドロップ編集")
+        self.btn_enemy_drop = QPushButton(t("hack_dialog.related.enemy_drop.button", "敵ドロップ編集"))
         self.btn_enemy_drop.setToolTip(
-            "敵を炎で倒した時に出る効果(スコア/1UP/特殊等)と確率を"
-            "グローバルに編集 ($C293)。通常アイテムIDではない点に注意")
+            t(
+                "hack_dialog.related.enemy_drop.tooltip",
+                "敵を炎で倒した時に出る効果(スコア/1UP/特殊等)と確率を"
+                "グローバルに編集 ($C293)。通常アイテムIDではない点に注意",
+            ))
         self.btn_enemy_drop.clicked.connect(self._on_show_enemy_drop)
         related_layout.addWidget(self.btn_enemy_drop)
 
-        self.btn_demo_input = QPushButton("デモ操作編集")
+        self.btn_demo_input = QPushButton(t("hack_dialog.related.demo_input.button", "デモ操作編集"))
         self.btn_demo_input.setToolTip(
-            "タイトル放置で流れるデモの操作(34ステップ固定)を編集。"
-            "各ステップ=入力を何フレーム続けるか。録画不要・原作方式手入力"
-            "($CF9A/$CFBC、JP専用)")
+            t(
+                "hack_dialog.related.demo_input.tooltip",
+                "タイトル放置で流れるデモの操作(34ステップ固定)を編集。"
+                "各ステップ=入力を何フレーム続けるか。録画不要・原作方式手入力"
+                "($CF9A/$CFBC、JP専用)",
+            ))
         self.btn_demo_input.clicked.connect(self._on_show_demo_input)
         related_layout.addWidget(self.btn_demo_input)
 
-        self.btn_clear_msg = QPushButton("クリア画面メッセージ編集")
+        self.btn_clear_msg = QPushButton(t("hack_dialog.related.clear_message.button", "クリア画面メッセージ編集"))
         self.btn_clear_msg.setToolTip(
-            "ステージクリア後の『おめでとう画面』3行を編集。"
-            "英大文字+スペース、原作と同字数まで(JP専用・同字数置換)")
+            t(
+                "hack_dialog.related.clear_message.tooltip",
+                "ステージクリア後の『おめでとう画面』3行を編集。"
+                "英大文字+スペース、原作と同字数まで(JP専用・同字数置換)",
+            ))
         self.btn_clear_msg.clicked.connect(self._on_show_clear_message)
         related_layout.addWidget(self.btn_clear_msg)
         self.btn_clear_msg.setVisible(False)
@@ -1090,17 +1099,26 @@ class HackDialog(QDialog):
 
         # 補助ボタン
         helper_row = QHBoxLayout()
-        self.btn_export_global = QPushButton("共通設定をエクスポート...")
-        self.btn_export_global.setToolTip("このダイアログの共通設定をJSONファイルに保存します")
+        self.btn_export_global = QPushButton(t("hack_dialog.export.button", "共通設定をエクスポート..."))
+        self.btn_export_global.setToolTip(t(
+            "hack_dialog.export.tooltip",
+            "このダイアログの共通設定をJSONファイルに保存します",
+        ))
         self.btn_export_global.clicked.connect(self._on_export_global_settings)
         helper_row.addWidget(self.btn_export_global)
-        self.btn_import_global = QPushButton("共通設定をインポート...")
-        self.btn_import_global.setToolTip("JSONファイルから共通設定を読み込み、画面の値に反映します")
+        self.btn_import_global = QPushButton(t("hack_dialog.import.button", "共通設定をインポート..."))
+        self.btn_import_global.setToolTip(t(
+            "hack_dialog.import.tooltip",
+            "JSONファイルから共通設定を読み込み、画面の値に反映します",
+        ))
         self.btn_import_global.clicked.connect(self._on_import_global_settings)
         helper_row.addWidget(self.btn_import_global)
         helper_row.addSpacing(16)
-        self.btn_revert = QPushButton("オリジナル値に戻す")
-        self.btn_revert.setToolTip("このダイアログで設定した項目を全てデフォルトに戻します")
+        self.btn_revert = QPushButton(t("hack_dialog.revert.button", "オリジナル値に戻す"))
+        self.btn_revert.setToolTip(t(
+            "hack_dialog.revert.tooltip",
+            "このダイアログで設定した項目を全てデフォルトに戻します",
+        ))
         self.btn_revert.clicked.connect(self._on_revert)
         helper_row.addWidget(self.btn_revert)
         helper_row.addStretch()
@@ -2038,9 +2056,9 @@ class HackDialog(QDialog):
     def _on_export_global_settings(self):
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "共通設定をエクスポート",
+            t("hack_dialog.export.title", "共通設定をエクスポート"),
             f"solomon_global_settings_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-            "JSON (*.json);;All Files (*)",
+            t("common.file_filter.json", "JSON (*.json);;All Files (*)"),
         )
         if not path:
             return
@@ -2050,20 +2068,27 @@ class HackDialog(QDialog):
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(self._collect_global_settings(), f, ensure_ascii=False, indent=2)
         except Exception as e:
-            QMessageBox.critical(self, "エクスポート失敗", f"{type(e).__name__}: {e}")
+            QMessageBox.critical(self, t("hack_dialog.export.failed", "エクスポート失敗"), f"{type(e).__name__}: {e}")
             return
-        QMessageBox.information(self, "エクスポート完了", f"共通設定を保存しました:\n{path}")
+        QMessageBox.information(
+            self,
+            t("hack_dialog.export.complete.title", "エクスポート完了"),
+            t("hack_dialog.export.complete.body", "共通設定を保存しました:\n{path}").format(path=path),
+        )
 
     def _on_import_global_settings(self):
         ans = QMessageBox.warning(
             self,
-            "共通設定インポートの確認",
-            "これから選択する共通設定を読み込むと、メインパレット、ステージ壁色、デモ操作、敵ドロップ、"
-            "クリア画面メッセージ、ボーナスステージ、ソロモンの紋章/Page座標などROMデータは"
-            "読み込み時点で反映されます。\n\n"
-            "この操作はUndoできません。元に戻す可能性がある場合は、先に現在の共通設定を"
-            "エクスポートしてください。\n\n"
-            "共通設定ファイルを選択しますか？",
+            t("hack_dialog.import.confirm.title", "共通設定インポートの確認"),
+            t(
+                "hack_dialog.import.confirm.body",
+                "これから選択する共通設定を読み込むと、メインパレット、ステージ壁色、デモ操作、敵ドロップ、"
+                "クリア画面メッセージ、ボーナスステージ、ソロモンの紋章/Page座標などROMデータは"
+                "読み込み時点で反映されます。\n\n"
+                "この操作はUndoできません。元に戻す可能性がある場合は、先に現在の共通設定を"
+                "エクスポートしてください。\n\n"
+                "共通設定ファイルを選択しますか？",
+            ),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -2071,9 +2096,9 @@ class HackDialog(QDialog):
             return
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "共通設定をインポート",
+            t("hack_dialog.import.title", "共通設定をインポート"),
             "",
-            "JSON (*.json);;All Files (*)",
+            t("common.file_filter.json", "JSON (*.json);;All Files (*)"),
         )
         if not path:
             return
@@ -2081,29 +2106,39 @@ class HackDialog(QDialog):
             with open(path, "r", encoding="utf-8") as f:
                 payload = json.load(f)
         except Exception as e:
-            QMessageBox.critical(self, "インポート失敗", f"{type(e).__name__}: {e}")
+            QMessageBox.critical(self, t("hack_dialog.import.failed", "インポート失敗"), f"{type(e).__name__}: {e}")
             return
         if payload.get("format") != "solomon_customizer_global_settings":
-            QMessageBox.warning(self, "形式エラー", "このファイルは共通設定JSONではありません。")
+            QMessageBox.warning(
+                self,
+                t("hack_dialog.import.format_error.title", "形式エラー"),
+                t("hack_dialog.import.format_error.not_global", "このファイルは共通設定JSONではありません。"),
+            )
             return
         settings = payload.get("settings")
         if not isinstance(settings, dict):
-            QMessageBox.warning(self, "形式エラー", "settings が見つからないか不正です。")
+            QMessageBox.warning(
+                self,
+                t("hack_dialog.import.format_error.title", "形式エラー"),
+                t("hack_dialog.import.format_error.no_settings", "settings が見つからないか不正です。"),
+            )
             return
         try:
             changed = self._apply_imported_global_settings(settings)
         except Exception as e:
-            QMessageBox.critical(self, "インポート失敗", f"{type(e).__name__}: {e}")
+            QMessageBox.critical(self, t("hack_dialog.import.failed", "インポート失敗"), f"{type(e).__name__}: {e}")
             return
-        msg = (
+        msg = t(
+            "hack_dialog.import.complete.body",
             "共通設定を読み込みました。\n"
             "一部のROMデータは読み込み時点で反映済みです。\n"
-            "画面上の設定値は [適用] または [OK] で反映されます。"
+            "画面上の設定値は [適用] または [OK] で反映されます。",
         )
         if changed:
-            msg += "\n\n変更された項目:\n" + "\n".join(f"・{x}" for x in changed)
+            msg += t("hack_dialog.import.changed_header", "\n\n変更された項目:\n")
+            msg += "\n".join(f"・{x}" for x in changed)
         else:
-            msg += "\n\n現在の画面値と同じ内容でした。"
+            msg += t("hack_dialog.import.no_changes", "\n\n現在の画面値と同じ内容でした。")
         if "level_meta_positions" in settings:
             parent = self.parent()
             refresh = getattr(parent, "_refresh_view", None)
@@ -2112,7 +2147,7 @@ class HackDialog(QDialog):
             refresh_thumb = getattr(parent, "_generate_all_thumbnails", None)
             if callable(refresh_thumb):
                 refresh_thumb()
-        QMessageBox.information(self, "インポート完了", msg)
+        QMessageBox.information(self, t("hack_dialog.import.complete.title", "インポート完了"), msg)
 
     def _restore_geometry(self):
         cfg = self._app_config
@@ -2469,12 +2504,18 @@ class HackDialog(QDialog):
 
         if applied:
             QMessageBox.information(
-                self, "適用完了",
-                "以下の項目を変更しました:\n\n" + "\n".join(f"・{a}" for a in applied)
-                + "\n\n※ 改造ROMとして保存しないと永続化されません。"
+                self,
+                t("hack_dialog.apply.complete.title", "適用完了"),
+                t("hack_dialog.apply.complete.header", "以下の項目を変更しました:\n\n")
+                + "\n".join(f"・{a}" for a in applied)
+                + t("hack_dialog.apply.complete.footer", "\n\n※ 改造ROMとして保存しないと永続化されません。")
             )
         else:
-            QMessageBox.information(self, "変更なし", "書き換えられた箇所はありません。")
+            QMessageBox.information(
+                self,
+                t("hack_dialog.apply.no_changes.title", "変更なし"),
+                t("hack_dialog.apply.no_changes.body", "書き換えられた箇所はありません。"),
+            )
         if applied:
             parent = self.parent()
             cb = getattr(parent, "_on_hack_dialog_applied", None)

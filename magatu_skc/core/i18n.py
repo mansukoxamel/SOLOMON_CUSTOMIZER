@@ -2357,6 +2357,86 @@ _TRANSLATIONS = {
         "ja": "原作は3。単純な #$03 変更では巻物最大数にも漏れるため、専用フックで残数だけ変更します。",
         "en": "Original is 3. A simple #$03 edit also leaks into max scroll count, so a dedicated hook changes only lives.",
     },
+    "hack_dialog.group.related_edit": {"ja": "関連編集", "en": "Related Editors"},
+    "hack_dialog.related.enemy_drop.button": {"ja": "敵ドロップ編集", "en": "Enemy Drop Editor"},
+    "hack_dialog.related.enemy_drop.tooltip": {
+        "ja": "敵を炎で倒した時に出る効果(スコア/1UP/特殊等)と確率をグローバルに編集 ($C293)。通常アイテムIDではない点に注意",
+        "en": "Globally edits effects and odds when enemies are defeated by fire, such as score, 1UP, and special effects ($C293). These are not normal item IDs.",
+    },
+    "hack_dialog.related.demo_input.button": {"ja": "デモ操作編集", "en": "Demo Input Editor"},
+    "hack_dialog.related.demo_input.tooltip": {
+        "ja": "タイトル放置で流れるデモの操作(34ステップ固定)を編集。各ステップ=入力を何フレーム続けるか。録画不要・原作方式手入力($CF9A/$CFBC、JP専用)",
+        "en": "Edits the title idle demo input sequence (fixed 34 steps). Each step controls how many frames an input is held. Manual original-format input; no recording required ($CF9A/$CFBC, JP only).",
+    },
+    "hack_dialog.related.clear_message.button": {"ja": "クリア画面メッセージ編集", "en": "Clear Message Editor"},
+    "hack_dialog.related.clear_message.tooltip": {
+        "ja": "ステージクリア後の『おめでとう画面』3行を編集。英大文字+スペース、原作と同字数まで(JP専用・同字数置換)",
+        "en": "Edits the three lines on the stage-clear congratulations screen. Uppercase English letters and spaces only, up to the original character counts (JP only, same-length replacement).",
+    },
+    "hack_dialog.export.button": {"ja": "共通設定をエクスポート...", "en": "Export Common Settings..."},
+    "hack_dialog.export.tooltip": {
+        "ja": "このダイアログの共通設定をJSONファイルに保存します",
+        "en": "Saves this dialog's common settings to a JSON file.",
+    },
+    "hack_dialog.import.button": {"ja": "共通設定をインポート...", "en": "Import Common Settings..."},
+    "hack_dialog.import.tooltip": {
+        "ja": "JSONファイルから共通設定を読み込み、画面の値に反映します",
+        "en": "Loads common settings from a JSON file and applies them to the on-screen values.",
+    },
+    "hack_dialog.revert.button": {"ja": "オリジナル値に戻す", "en": "Restore Original Values"},
+    "hack_dialog.revert.tooltip": {
+        "ja": "このダイアログで設定した項目を全てデフォルトに戻します",
+        "en": "Restores all items in this dialog to their default values.",
+    },
+    "hack_dialog.export.title": {"ja": "共通設定をエクスポート", "en": "Export Common Settings"},
+    "hack_dialog.export.failed": {"ja": "エクスポート失敗", "en": "Export Failed"},
+    "hack_dialog.export.complete.title": {"ja": "エクスポート完了", "en": "Export Complete"},
+    "hack_dialog.export.complete.body": {"ja": "共通設定を保存しました:\n{path}", "en": "Saved common settings:\n{path}"},
+    "hack_dialog.import.confirm.title": {"ja": "共通設定インポートの確認", "en": "Confirm Common Settings Import"},
+    "hack_dialog.import.confirm.body": {
+        "ja": (
+            "これから選択する共通設定を読み込むと、メインパレット、ステージ壁色、デモ操作、敵ドロップ、"
+            "クリア画面メッセージ、ボーナスステージ、ソロモンの紋章/Page座標などROMデータは"
+            "読み込み時点で反映されます。\n\n"
+            "この操作はUndoできません。元に戻す可能性がある場合は、先に現在の共通設定を"
+            "エクスポートしてください。\n\n"
+            "共通設定ファイルを選択しますか？"
+        ),
+        "en": (
+            "When you load the selected common settings, ROM data such as the main palette, stage wall colors, "
+            "demo input, enemy drops, clear-screen messages, bonus stage, and Solomon's Seal/Page positions "
+            "will be applied immediately at load time.\n\n"
+            "This operation cannot be undone. Export the current common settings first if you may need to restore them.\n\n"
+            "Select a common settings file?"
+        ),
+    },
+    "hack_dialog.import.title": {"ja": "共通設定をインポート", "en": "Import Common Settings"},
+    "hack_dialog.import.failed": {"ja": "インポート失敗", "en": "Import Failed"},
+    "hack_dialog.import.format_error.title": {"ja": "形式エラー", "en": "Format Error"},
+    "hack_dialog.import.format_error.not_global": {
+        "ja": "このファイルは共通設定JSONではありません。",
+        "en": "This file is not a common settings JSON file.",
+    },
+    "hack_dialog.import.format_error.no_settings": {
+        "ja": "settings が見つからないか不正です。",
+        "en": "settings is missing or invalid.",
+    },
+    "hack_dialog.import.complete.title": {"ja": "インポート完了", "en": "Import Complete"},
+    "hack_dialog.import.complete.body": {
+        "ja": "共通設定を読み込みました。\n一部のROMデータは読み込み時点で反映済みです。\n画面上の設定値は [適用] または [OK] で反映されます。",
+        "en": "Loaded common settings.\nSome ROM data has already been applied at load time.\nOn-screen setting values are applied with Apply or OK.",
+    },
+    "hack_dialog.import.changed_header": {"ja": "\n\n変更された項目:\n", "en": "\n\nChanged items:\n"},
+    "hack_dialog.import.no_changes": {"ja": "\n\n現在の画面値と同じ内容でした。", "en": "\n\nThe contents matched the current on-screen values."},
+    "hack_dialog.apply.complete.title": {"ja": "適用完了", "en": "Apply Complete"},
+    "hack_dialog.apply.complete.header": {"ja": "以下の項目を変更しました:\n\n", "en": "Changed the following items:\n\n"},
+    "hack_dialog.apply.complete.footer": {
+        "ja": "\n\n※ 改造ROMとして保存しないと永続化されません。",
+        "en": "\n\nThese changes are not permanent until you save as a modified ROM.",
+    },
+    "hack_dialog.apply.no_changes.title": {"ja": "変更なし", "en": "No Changes"},
+    "hack_dialog.apply.no_changes.body": {"ja": "書き換えられた箇所はありません。", "en": "No locations were changed."},
+    "common.file_filter.json": {"ja": "JSON (*.json);;All Files (*)", "en": "JSON (*.json);;All Files (*)"},
     "bonus_dialog.title": {
         "ja": "ボーナスステージ (Stage 51) 出現位置編集",
         "en": "Bonus Stage (Stage 51) Spawn Position Editor",
