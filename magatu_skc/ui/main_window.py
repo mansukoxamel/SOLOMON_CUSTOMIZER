@@ -3375,15 +3375,27 @@ class MainWindow(QMainWindow):
             import zlib
             crc_hex = f"{zlib.crc32(bytes(self.original_rom_data)) & 0xFFFFFFFF:08X}"
             known = KNOWN_CRC32.get(crc_hex, "")
-            verify_mark = "✓ 正規" if known else "? 不明/改造版"
+            verify_mark = (
+                t("main.rom.verify.known", "✓ 正規")
+                if known
+                else t("main.rom.verify.unknown", "? 不明/改造版")
+            )
             from ..core import rom_metadata
             meta = rom_metadata.read_metadata(bytes(rom.data))
             customizer_version = meta.get("app_version") if meta else ""
             expand_note = ""
             if auto_expanded:
-                expand_note = "<br><span style='color:#fbbf24'>⚙ 拡張ROMに自動変換 (mapper 66)</span>"
+                expand_note = (
+                    "<br><span style='color:#fbbf24'>"
+                    f"{t('main.rom.info.auto_expanded', '⚙ 拡張ROMに自動変換 (mapper 66)')}"
+                    "</span>"
+                )
             elif rom.is_expanded():
-                expand_note = "<br><span style='color:#fbbf24'>拡張ROM (mapper 66)</span>"
+                expand_note = (
+                    "<br><span style='color:#fbbf24'>"
+                    f"{t('main.rom.info.expanded', '拡張ROM (mapper 66)')}"
+                    "</span>"
+                )
             version_note = ""
             if customizer_version:
                 version_note = (
@@ -3393,14 +3405,15 @@ class MainWindow(QMainWindow):
             if read_only_mode:
                 readonly_note = (
                     "<br><span style='color:#ff4d4d; font-weight:700'>"
-                    f"編集不可: 閲覧/ステージ出力専用 ({read_only_reason})"
+                    f"{t('main.rom.info.read_only', '編集不可: 閲覧/ステージ出力専用 ({reason})').format(reason=read_only_reason)}"
                     "</span>"
                 )
             workstate_note = ""
             if workstate_saved_at_override:
+                saved_at_text = escape(self._format_autosave_saved_at(workstate_saved_at_override))
                 workstate_note = (
                     "<br><span style='color:#fbbf24'>"
-                    f"作業状態復元: {escape(self._format_autosave_saved_at(workstate_saved_at_override))}"
+                    f"{t('main.rom.info.workstate_restored', '作業状態復元: {saved_at}').format(saved_at=saved_at_text)}"
                     "</span>"
                 )
             info_html = (
@@ -3421,7 +3434,11 @@ class MainWindow(QMainWindow):
             if hasattr(self, "btn_readonly_migrate"):
                 self.btn_readonly_migrate.setVisible(read_only_mode)
                 self.btn_readonly_migrate.setEnabled(read_only_mode and bool(levels))
-            self.statusBar().showMessage(f"読み込み完了: {len(levels)}ステージ")
+            self.statusBar().showMessage(
+                t("main.rom.load_complete", "読み込み完了: {count}ステージ").format(
+                    count=len(levels)
+                )
+            )
             # ROM読込でアイコンが揃ったので、お気に入りを復元
             saved_favs = self._app_config.get("picker_favorites", [])
             self.picker.restore_favorites(saved_favs)
@@ -3476,11 +3493,14 @@ class MainWindow(QMainWindow):
             self.list_levels.blockSignals(False)
             self._refresh_view()
             # 全レベルのサムネイル生成（53枚、約1〜3秒）
-            self.statusBar().showMessage("サムネイル生成中...")
+            self.statusBar().showMessage(t("main.rom.thumbnail_generating", "サムネイル生成中..."))
             QApplication.processEvents()
             self._generate_all_thumbnails()
-            status_suffix = " (編集不可)" if read_only_mode else ""
-            final_status = status_message or f"読み込み完了: {len(levels)}ステージ{status_suffix}"
+            status_suffix = t("main.rom.read_only_suffix", " (編集不可)") if read_only_mode else ""
+            final_status = status_message or t(
+                "main.rom.load_complete",
+                "読み込み完了: {count}ステージ",
+            ).format(count=len(levels)) + status_suffix
             self.statusBar().showMessage(final_status)
             # 読込成功 → 履歴に追加、Undo履歴クリア、未保存マーククリア
             self.last_loaded_path = path

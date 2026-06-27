@@ -939,6 +939,42 @@ _TRANSLATIONS = {
         "ja": "ロード失敗",
         "en": "Load Failed",
     },
+    "main.rom.verify.known": {
+        "ja": "✓ 正規",
+        "en": "Verified",
+    },
+    "main.rom.verify.unknown": {
+        "ja": "? 不明/改造版",
+        "en": "Unknown / Modified",
+    },
+    "main.rom.info.auto_expanded": {
+        "ja": "⚙ 拡張ROMに自動変換 (mapper 66)",
+        "en": "Auto-converted to expanded ROM (mapper 66)",
+    },
+    "main.rom.info.expanded": {
+        "ja": "拡張ROM (mapper 66)",
+        "en": "Expanded ROM (mapper 66)",
+    },
+    "main.rom.info.read_only": {
+        "ja": "編集不可: 閲覧/ステージ出力専用 ({reason})",
+        "en": "Read-only: view/stage export only ({reason})",
+    },
+    "main.rom.info.workstate_restored": {
+        "ja": "作業状態復元: {saved_at}",
+        "en": "Work state restored: {saved_at}",
+    },
+    "main.rom.load_complete": {
+        "ja": "読み込み完了: {count}ステージ",
+        "en": "Loaded: {count} stages",
+    },
+    "main.rom.thumbnail_generating": {
+        "ja": "サムネイル生成中...",
+        "en": "Generating thumbnails...",
+    },
+    "main.rom.read_only_suffix": {
+        "ja": " (編集不可)",
+        "en": " (read-only)",
+    },
     "main.rom.save_dialog.title": {
         "ja": "改造ROMの保存先",
         "en": "Save Modified ROM",
