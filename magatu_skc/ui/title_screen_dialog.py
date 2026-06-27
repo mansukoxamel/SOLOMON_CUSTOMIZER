@@ -16,13 +16,14 @@ from PyQt5.QtWidgets import (
     QDialogButtonBox, QMessageBox, QScrollArea, QWidget, QComboBox,
     QFileDialog, QInputDialog, QGridLayout, QGroupBox, QLineEdit,
     QSpinBox, QRadioButton, QButtonGroup, QSizePolicy, QCheckBox,
-    QTabWidget,
+    QTabWidget, QFormLayout,
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QRegExp
 from PyQt5.QtGui import (
     QImage, QPixmap, QPainter, QColor, QPen, QRegExpValidator,
 )
 from ..core import title_screen as TS
+from ..core import clearscreen_hack
 from ..core import rom as _rommod
 from ..core.config import save_config
 from ..nes.palette import NES_COLORS
@@ -1191,6 +1192,7 @@ class TitleScreenDialog(QDialog):
         title_root.addLayout(br)
 
         tabs.addTab(self._build_ending_text_tab(), "エンディング")
+        tabs.addTab(self._build_clear_screen_tab(), "クリア画面")
 
         bb = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
@@ -1203,6 +1205,58 @@ class TitleScreenDialog(QDialog):
         self._refresh()
         self._show_title_palette_panel()
         restore_dialog_geometry(self, self._app_config, "title_screen_dlg")
+
+    def _build_clear_screen_tab(self):
+        tab = QWidget()
+        root = QVBoxLayout(tab)
+        info = QLabel(
+            "ステージクリア後の『おめでとう画面』に関係する設定です。"
+            "ここでは既存のクリア画面キャラ差し替えとメッセージ編集を扱います。")
+        info.setWordWrap(True)
+        root.addWidget(info)
+
+        group = QGroupBox("クリア画面のキャラ (おめでとう画面の2体)")
+        form = QFormLayout(group)
+        self._clear_screen_combo = QComboBox()
+        for preset_id, preset in clearscreen_hack.PRESET_DEFS.items():
+            self._clear_screen_combo.addItem(preset["label"], preset_id)
+        self._clear_screen_status = QLabel("")
+        try:
+            cur = clearscreen_hack.current_preset_id(self._rom)
+            idx = self._clear_screen_combo.findData(cur)
+            if idx >= 0:
+                self._clear_screen_combo.setCurrentIndex(idx)
+            self._clear_screen_ok = True
+        except Exception as e:
+            self._clear_screen_ok = False
+            self._clear_screen_combo.setEnabled(False)
+            self._clear_screen_status.setText(f"使用不可: {type(e).__name__}: {e}")
+        self._clear_screen_combo.currentIndexChanged.connect(
+            self._on_clear_screen_preset_changed)
+        form.addRow("表示キャラ:", self._clear_screen_combo)
+        hint = QLabel(
+            "ステージクリア画面で左右に出る2体を差し替えます。"
+            "既存のゲーム挙動改造にあった設定と同じ処理です。")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color:#888; font-size:11px;")
+        form.addRow(hint)
+        form.addRow(self._clear_screen_status)
+        root.addWidget(group)
+
+        msg_group = QGroupBox("クリア画面メッセージ")
+        msg_root = QVBoxLayout(msg_group)
+        msg_hint = QLabel(
+            "THANK YOU DANA / YOU RELEASED THIS ROOM / TRY NEXT ROOM の3行を編集します。"
+            "同字数置換のみです。")
+        msg_hint.setWordWrap(True)
+        msg_hint.setStyleSheet("color:#888; font-size:11px;")
+        msg_root.addWidget(msg_hint)
+        btn_msg = QPushButton("クリア画面メッセージ編集")
+        btn_msg.clicked.connect(self._on_show_clear_message)
+        msg_root.addWidget(btn_msg)
+        root.addWidget(msg_group)
+        root.addStretch()
+        return tab
 
     def _build_ending_text_tab(self):
         tab = QWidget()
@@ -1399,6 +1453,47 @@ class TitleScreenDialog(QDialog):
             for widget in widgets:
                 widget.setVisible(show)
         self._refresh_ending_preview()
+
+    def _on_clear_screen_preset_changed(self, *_):
+        if not getattr(self, "_clear_screen_ok", False):
+            return
+        combo = getattr(self, "_clear_screen_combo", None)
+        if combo is None:
+            return
+        preset_id = combo.currentData()
+        snap = bytes(self._rom)
+        try:
+            cur = clearscreen_hack.current_preset_id(self._rom)
+            if preset_id == cur:
+                if getattr(self, "_clear_screen_status", None) is not None:
+                    self._clear_screen_status.setText("")
+                return
+            clearscreen_hack.apply_preset(self._rom, preset_id)
+        except clearscreen_hack.ClearScreenHackError as e:
+            self._rom[:] = snap
+            QMessageBox.warning(self, "クリア画面改造失敗", str(e))
+            return
+        self._changed = True
+        if getattr(self, "_clear_screen_status", None) is not None:
+            self._clear_screen_status.setText(
+                f"表示キャラを {combo.currentText()} に変更しました")
+
+    def _on_show_clear_message(self):
+        from .clear_message_dialog import ClearMessageDialog
+        from ..core import clear_message as _cm
+
+        snap = bytes(self._rom)
+        try:
+            dlg = ClearMessageDialog(
+                self._rom, self, app_config=self._app_config)
+        except _cm.ClearMessageError as e:
+            QMessageBox.critical(self, "クリア画面メッセージ編集 不可", str(e))
+            return
+        dlg.exec_()
+        if bytes(self._rom) != snap:
+            self._changed = True
+            if getattr(self, "_clear_screen_status", None) is not None:
+                self._clear_screen_status.setText("クリア画面メッセージを更新しました")
 
     @staticmethod
     def _shift_title_display_image(img: QImage) -> QImage:
@@ -3637,8 +3732,25 @@ class TitleScreenDialog(QDialog):
         self._changed = False
         self._refresh()
         self._reload_ending_text_edits()
+        self._reload_clear_screen_controls()
         QMessageBox.information(self, "取り消し",
                                 "開いた時点の ROM に戻しました。")
+
+    def _reload_clear_screen_controls(self):
+        combo = getattr(self, "_clear_screen_combo", None)
+        if combo is None or not combo.isEnabled():
+            return
+        try:
+            cur = clearscreen_hack.current_preset_id(self._rom)
+        except Exception:
+            return
+        idx = combo.findData(cur)
+        if idx >= 0:
+            old = combo.blockSignals(True)
+            combo.setCurrentIndex(idx)
+            combo.blockSignals(old)
+        if getattr(self, "_clear_screen_status", None) is not None:
+            self._clear_screen_status.setText("")
 
     # --- ボタンボックス ---
     def _on_apply(self):

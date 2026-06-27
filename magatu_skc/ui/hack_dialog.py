@@ -911,6 +911,7 @@ class HackDialog(QDialog):
         cshint.setStyleSheet("color:#888; font-size:11px;")
         csf.addRow(cshint)
         layout.addWidget(cs_group)
+        cs_group.setVisible(False)
 
         # ステージ外枠
         frame_group = QGroupBox("ステージ外枠")
@@ -1031,6 +1032,7 @@ class HackDialog(QDialog):
             "英大文字+スペース、原作と同字数まで(JP専用・同字数置換)")
         self.btn_clear_msg.clicked.connect(self._on_show_clear_message)
         related_layout.addWidget(self.btn_clear_msg)
+        self.btn_clear_msg.setVisible(False)
 
         layout.addWidget(related_group)
 
