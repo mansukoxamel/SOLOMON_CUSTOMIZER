@@ -1215,6 +1215,22 @@ def _read_ending_text_at_positions(rom_data, positions: list[int]) -> str:
     return "".join(_ENDING_TEXT_TILE_TO_CH[int(rom_data[p])] for p in positions)
 
 
+def _ending_text_display_tiles(rom_data, index: int) -> list[int]:
+    """Return raw display tiles for preview, including fixed non-editable tiles."""
+    start, _positions, _ppu = _ending_text_record(rom_data, index)
+    limit_off = _wjp_cf(_ENDING_TEXT_LIMIT_CPU)
+    out = []
+    p = start + 1
+    while p < limit_off:
+        b = int(rom_data[p]) & 0xFF
+        if b == 0x00:
+            return out
+        out.append(b)
+        p += 1
+    raise EndingTextError(
+        f"エンディング文{int(index) + 1}の終端($00)が見つかりません。")
+
+
 def read_ending_text_messages(rom_data) -> list:
     """[(name, current, count, original_hint), ...] for ending text editor."""
     out = []
@@ -1266,8 +1282,8 @@ def ending_text_preview_entries(rom_data, mode: str = "Normal") -> list:
         key = "Normal"
     out = []
     for text_index in _ENDING_TEXT_SEQUENCES[key]:
-        _start, positions, ppu_addr = _ending_text_record(rom_data, text_index)
-        tiles = [int(rom_data[p]) & 0xFF for p in positions]
+        _start, _positions, ppu_addr = _ending_text_record(rom_data, text_index)
+        tiles = _ending_text_display_tiles(rom_data, text_index)
         out.append((ppu_addr, tiles, text_index))
     return out
 
