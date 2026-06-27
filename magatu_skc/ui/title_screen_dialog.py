@@ -1198,7 +1198,7 @@ class TitleScreenDialog(QDialog):
         root = QVBoxLayout(tab)
         info = QLabel(
             "エンディングの文字列だけを編集します。表示位置や改行などの"
-            "制御データは維持します。英大文字 A-Z / スペース / , . ' "
+            "制御データは維持します。英大文字 A-Z / スペース / , ' \" "
             "のみ使用できます。")
         info.setWordWrap(True)
         root.addWidget(info)
@@ -1250,7 +1250,7 @@ class TitleScreenDialog(QDialog):
         g.addWidget(QLabel("文"), 0, 0)
         g.addWidget(QLabel("文字"), 0, 1)
         g.addWidget(QLabel("字数"), 0, 2)
-        rx = QRegExpValidator(QRegExp("[A-Za-z ,\\.']*"))
+        rx = QRegExpValidator(QRegExp("[A-Za-z ,'\\\"]*"))
         self._ending_text_edits = []
         for i, (name, cur, count, _orig) in enumerate(rows):
             g.addWidget(QLabel(name), i + 1, 0)

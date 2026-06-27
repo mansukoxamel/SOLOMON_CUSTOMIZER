@@ -1159,11 +1159,19 @@ _ENDING_TEXT_SEQUENCES = {
     "Normal": (0, 1, 3, 4, 5, 6),
     "True": (0, 1, 3, 7, 8, 9),
 }
-_ENDING_TEXT_TILE_TO_CH = {0x24: " ", 0x25: ",", 0x3A: ".", 0x3B: "'"}
+_ENDING_TEXT_TILE_TO_CH = {
+    0x24: " ",
+    0x25: ",",
+    0x28: '"',
+    0x3A: '"',
+    0x3B: "'",
+}
 for _i in range(0x0A, 0x24):
     _ENDING_TEXT_TILE_TO_CH[_i] = chr(ord("A") + (_i - 0x0A))
-_ENDING_TEXT_CH_TO_TILE = {v: k for k, v in _ENDING_TEXT_TILE_TO_CH.items()}
-_ENDING_TEXT_SUPPORTED = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ,.'"
+_ENDING_TEXT_CH_TO_TILE = {
+    v: k for k, v in _ENDING_TEXT_TILE_TO_CH.items() if v != '"'
+}
+_ENDING_TEXT_SUPPORTED = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ,'\""
 
 
 class EndingTextError(TitleScreenError):
@@ -1215,6 +1223,13 @@ def _read_ending_text_at_positions(rom_data, positions: list[int]) -> str:
     return "".join(_ENDING_TEXT_TILE_TO_CH[int(rom_data[p])] for p in positions)
 
 
+def _ending_text_char_to_tile(ch: str, current_tile: int) -> int:
+    if ch == '"':
+        cur = int(current_tile) & 0xFF
+        return cur if cur in (0x28, 0x3A) else 0x28
+    return _ENDING_TEXT_CH_TO_TILE[ch]
+
+
 def _ending_text_display_tiles(rom_data, index: int) -> list[int]:
     """Return raw display tiles for preview, including fixed non-editable tiles."""
     start, _positions, _ppu = _ending_text_record(rom_data, index)
@@ -1257,13 +1272,16 @@ def write_ending_text_messages(rom_data, texts: list[str]) -> list:
             if ch not in _ENDING_TEXT_SUPPORTED:
                 raise EndingTextError(
                     f"{_ENDING_TEXT_NAMES[i]}: 使えない文字 {ch!r}。"
-                    "英大文字 A-Z / スペース / , . ' のみ使えます。")
+                    "英大文字 A-Z / スペース / , ' \" のみ使えます。")
         if len(raw) > len(positions):
             raise EndingTextError(
                 f"{_ENDING_TEXT_NAMES[i]}: {len(raw)}字は長すぎます"
                 f"(最大 {len(positions)}字)。")
         raw = raw.ljust(len(positions), " ")
-        encoded.append([_ENDING_TEXT_CH_TO_TILE[ch] for ch in raw])
+        encoded.append([
+            _ending_text_char_to_tile(ch, rom_data[p])
+            for ch, p in zip(raw, positions)
+        ])
         records.append(positions)
     for i, positions in enumerate(records):
         before = bytes(rom_data[p] for p in positions)
