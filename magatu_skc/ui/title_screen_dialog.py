@@ -24,6 +24,7 @@ from PyQt5.QtGui import (
 )
 from ..core import title_screen as TS
 from ..core import clearscreen_hack
+from ..core import clear_message as CM
 from ..core import rom as _rommod
 from ..core.config import save_config
 from ..nes.palette import NES_COLORS
@@ -1211,9 +1212,68 @@ class TitleScreenDialog(QDialog):
         root = QVBoxLayout(tab)
         info = QLabel(
             "ステージクリア後の『おめでとう画面』に関係する設定です。"
-            "ここでは既存のクリア画面キャラ差し替えとメッセージ編集を扱います。")
+            "ここでは既存のクリア画面キャラ差し替えとメッセージ編集を扱います。"
+            "プレビューは実機エミュレーションではなく、文字位置確認用の簡易表示です。")
         info.setWordWrap(True)
         root.addWidget(info)
+
+        body = QHBoxLayout()
+        preview_col = QVBoxLayout()
+        edit_col = QVBoxLayout()
+        body.addLayout(preview_col, 3)
+        body.addLayout(edit_col, 2)
+
+        self._clear_preview = QLabel()
+        self._clear_preview.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self._clear_preview.setStyleSheet("background:#000;")
+        clear_scroll = QScrollArea()
+        clear_scroll.setWidgetResizable(True)
+        clear_wrap = QWidget()
+        clear_wrap_lay = QHBoxLayout(clear_wrap)
+        clear_wrap_lay.addWidget(self._clear_preview, 0, Qt.AlignTop | Qt.AlignLeft)
+        clear_wrap_lay.addStretch()
+        clear_scroll.setWidget(clear_wrap)
+        preview_col.addWidget(clear_scroll, 1)
+
+        msg_group = QGroupBox("クリア画面メッセージ")
+        msg_root = QVBoxLayout(msg_group)
+        msg_hint = QLabel(
+            "THANK YOU DANA / YOU RELEASED THIS ROOM / TRY NEXT ROOM の3行を編集します。"
+            "英大文字 A-Z とスペースのみ、同字数置換です。")
+        msg_hint.setWordWrap(True)
+        msg_hint.setStyleSheet("color:#888; font-size:11px;")
+        msg_root.addWidget(msg_hint)
+        msg_grid = QGridLayout()
+        msg_grid.setHorizontalSpacing(8)
+        msg_grid.setVerticalSpacing(6)
+        msg_grid.addWidget(QLabel("行"), 0, 0)
+        msg_grid.addWidget(QLabel("文字"), 0, 1)
+        msg_grid.addWidget(QLabel("字数"), 0, 2)
+        self._clear_message_edits = []
+        self._clear_message_status = QLabel("")
+        try:
+            rows = CM.read_messages(self._rom)
+            rx = QRegExpValidator(QRegExp("[A-Za-z ]*"))
+            for i, (name, cur, count, _orig) in enumerate(rows):
+                msg_grid.addWidget(QLabel(name), i + 1, 0)
+                le = QLineEdit(cur.rstrip())
+                le.setMaxLength(count)
+                le.setValidator(rx)
+                cnt = QLabel()
+                cnt.setMinimumWidth(56)
+                le.textChanged.connect(
+                    lambda _t, e=le, c=count, lb=cnt:
+                    self._on_clear_message_changed(e, c, lb))
+                msg_grid.addWidget(le, i + 1, 1)
+                msg_grid.addWidget(cnt, i + 1, 2)
+                self._clear_message_edits.append(le)
+                self._on_clear_message_count(le, count, cnt)
+        except CM.ClearMessageError as e:
+            msg_grid.addWidget(QLabel(f"編集不可: {e}"), 1, 0, 1, 3)
+        msg_root.addLayout(msg_grid)
+        self._clear_message_status.setStyleSheet("color:#888; font-size:11px;")
+        msg_root.addWidget(self._clear_message_status)
+        edit_col.addWidget(msg_group)
 
         group = QGroupBox("クリア画面のキャラ (おめでとう画面の2体)")
         form = QFormLayout(group)
@@ -1241,21 +1301,10 @@ class TitleScreenDialog(QDialog):
         hint.setStyleSheet("color:#888; font-size:11px;")
         form.addRow(hint)
         form.addRow(self._clear_screen_status)
-        root.addWidget(group)
-
-        msg_group = QGroupBox("クリア画面メッセージ")
-        msg_root = QVBoxLayout(msg_group)
-        msg_hint = QLabel(
-            "THANK YOU DANA / YOU RELEASED THIS ROOM / TRY NEXT ROOM の3行を編集します。"
-            "同字数置換のみです。")
-        msg_hint.setWordWrap(True)
-        msg_hint.setStyleSheet("color:#888; font-size:11px;")
-        msg_root.addWidget(msg_hint)
-        btn_msg = QPushButton("クリア画面メッセージ編集")
-        btn_msg.clicked.connect(self._on_show_clear_message)
-        msg_root.addWidget(btn_msg)
-        root.addWidget(msg_group)
-        root.addStretch()
+        edit_col.addWidget(group)
+        edit_col.addStretch()
+        root.addLayout(body, 1)
+        self._refresh_clear_preview()
         return tab
 
     def _build_ending_text_tab(self):
@@ -1494,6 +1543,96 @@ class TitleScreenDialog(QDialog):
             self._changed = True
             if getattr(self, "_clear_screen_status", None) is not None:
                 self._clear_screen_status.setText("クリア画面メッセージを更新しました")
+
+    def _build_clear_preview_image(self):
+        img = QImage(_IMG_W, _IMG_H, QImage.Format_RGB32)
+        painter = QPainter(img)
+        try:
+            painter.fillRect(0, 0, _IMG_W, _IMG_H, QColor(92, 28, 0))
+            tiles = TS.get_chr_bank3_tiles(self._rom)
+            for msg in CM.MESSAGES:
+                idx = (int(msg["ppu"]) - 0x2000) & 0x03FF
+                x = (idx % _NT_W) * 8
+                y = (idx // _NT_W) * 8
+                start = int(msg["off"]) + 3
+                for k in range(int(msg["count"])):
+                    stream = int(self._rom[start + k]) & 0xFF
+                    ti = (_BG_BASE + stream) & 0x1FF
+                    self._draw_clear_text_tile(painter, tiles[ti], x, y)
+                    x += 8
+        finally:
+            painter.end()
+        return img
+
+    def _draw_clear_text_tile(self, painter, tile, x0, y0):
+        clear_pal = (
+            QColor(0, 0, 0),
+            QColor(255, 255, 255),
+            QColor(180, 180, 180),
+            QColor(0, 0, 0),
+        )
+        for py in range(8):
+            for px in range(8):
+                pi = tile.pixels[py][px] & 0x03
+                if pi == 0:
+                    continue
+                dx = int(x0) + px
+                dy = int(y0) + py
+                if 0 <= dx < _IMG_W and 0 <= dy < _IMG_H:
+                    painter.fillRect(dx, dy, 1, 1, clear_pal[pi])
+
+    def _refresh_clear_preview(self):
+        preview = getattr(self, "_clear_preview", None)
+        if preview is None:
+            return
+        try:
+            img = self._build_clear_preview_image()
+        except Exception as e:
+            preview.setText(f"プレビュー不可: {type(e).__name__}: {e}")
+            return
+        zoom = 3
+        pm = QPixmap.fromImage(img).scaled(
+            _IMG_W * zoom, _IMG_H * zoom,
+            Qt.KeepAspectRatio, Qt.FastTransformation)
+        self._draw_preview_grid(pm, zoom)
+        preview.setPixmap(pm)
+        preview.setFixedSize(pm.size())
+
+    def _on_clear_message_count(self, le, count, cnt_lbl):
+        n = len(le.text())
+        cnt_lbl.setText(f"{n} / {count}")
+        if n >= count:
+            cnt_lbl.setStyleSheet("color:#c33;")
+        elif n == 0:
+            cnt_lbl.setStyleSheet("color:#888;")
+        else:
+            cnt_lbl.setStyleSheet("")
+
+    def _on_clear_message_changed(self, le, count, cnt_lbl):
+        up = le.text().upper()
+        if le.text() != up:
+            le.setText(up)
+            return
+        self._on_clear_message_count(le, count, cnt_lbl)
+        edits = getattr(self, "_clear_message_edits", [])
+        if not edits:
+            return
+        snap = bytes(self._rom)
+        try:
+            changes = CM.write_messages(self._rom, [e.text() for e in edits])
+        except CM.ClearMessageError as e:
+            self._rom[:] = snap
+            if getattr(self, "_clear_message_status", None) is not None:
+                self._clear_message_status.setText(f"入力エラー: {e}")
+            return
+        if changes:
+            self._changed = True
+            if getattr(self, "_clear_message_status", None) is not None:
+                self._clear_message_status.setText("クリア画面メッセージを反映しました")
+        else:
+            if getattr(self, "_clear_message_status", None) is not None:
+                self._clear_message_status.setText("")
+        self._refresh_clear_preview()
 
     @staticmethod
     def _shift_title_display_image(img: QImage) -> QImage:
@@ -3739,10 +3878,12 @@ class TitleScreenDialog(QDialog):
     def _reload_clear_screen_controls(self):
         combo = getattr(self, "_clear_screen_combo", None)
         if combo is None or not combo.isEnabled():
+            self._reload_clear_message_edits()
             return
         try:
             cur = clearscreen_hack.current_preset_id(self._rom)
         except Exception:
+            self._reload_clear_message_edits()
             return
         idx = combo.findData(cur)
         if idx >= 0:
@@ -3751,6 +3892,23 @@ class TitleScreenDialog(QDialog):
             combo.blockSignals(old)
         if getattr(self, "_clear_screen_status", None) is not None:
             self._clear_screen_status.setText("")
+        self._reload_clear_message_edits()
+        self._refresh_clear_preview()
+
+    def _reload_clear_message_edits(self):
+        edits = getattr(self, "_clear_message_edits", [])
+        if not edits:
+            return
+        try:
+            rows = CM.read_messages(self._rom)
+        except CM.ClearMessageError:
+            return
+        for le, (_name, cur, _count, _orig) in zip(edits, rows):
+            old = le.blockSignals(True)
+            le.setText(cur.rstrip())
+            le.blockSignals(old)
+        if getattr(self, "_clear_message_status", None) is not None:
+            self._clear_message_status.setText("")
 
     # --- ボタンボックス ---
     def _on_apply(self):
