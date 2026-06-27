@@ -745,6 +745,103 @@ _TRANSLATIONS = {
         "ja": "指定したブロック、アイテム、モンスターを同じ種別内で一括置換。選択範囲、現在ステージ、全ステージを対象にできます。",
         "en": "Batch-replace specified blocks, items, or monsters within the same category. Scope can be the selection, current stage, or all stages.",
     },
+    "main.stage.group": {
+        "ja": "ステージ設定",
+        "en": "Stage Settings",
+    },
+    "main.stage.tileset": {
+        "ja": "タイルセット:",
+        "en": "Tileset:",
+    },
+    "main.stage.time_limit": {
+        "ja": "制限時間:",
+        "en": "Time Limit:",
+    },
+    "main.stage.restrictions": {
+        "ja": "制限:",
+        "en": "Restrictions:",
+    },
+    "main.stage.no_bfire": {
+        "ja": "Bボタン（ファイア）禁止",
+        "en": "Disable B Button (Fire)",
+    },
+    "main.stage.no_bfire.tooltip": {
+        "ja": (
+            "この部屋だけBボタンの火球(魔法)を無効化。Aボタンの石生成は使えます。\n"
+            "ROM保存時に bank0 のコードケーブへ注入 (位置+署名 検証付き)"
+        ),
+        "en": (
+            "Disable B-button fireballs only in this room. A-button stone creation still works.\n"
+            "Injected into a bank0 code cave when saving the ROM, with position and signature checks."
+        ),
+    },
+    "main.stage.no_astone": {
+        "ja": "Aボタン(換石)禁止",
+        "en": "Disable A Button (Stone)",
+    },
+    "main.stage.no_astone.tooltip": {
+        "ja": (
+            "この部屋だけAボタンの石生成を無効化 (Bファイアとは独立)。\n"
+            "※石で階段が作れず進行不能になり得ます。意図して使う設定です"
+        ),
+        "en": (
+            "Disable A-button stone creation only in this room, independently from B fire.\n"
+            "This can make the stage impossible if stairs must be made from stones. Use intentionally."
+        ),
+    },
+    "main.stage.dark": {
+        "ja": "暗闇モード",
+        "en": "Darkness Mode",
+    },
+    "main.stage.dark.tooltip": {
+        "ja": (
+            "この面のプレイ中だけ背景(地形/HUD)を明滅で消し、敵とDana\n"
+            "だけ見えるようにします。明の瞬間に地形/鍵/扉が見えるので\n"
+            "記憶して進む暗闇面。明/暗の長さは全体共通(ゲーム挙動改造\n"
+            "の『暗闇テンポ』)。タイトル/紹介/クリアは通常表示・必ず明から"
+        ),
+        "en": (
+            "During this stage, blink the background, terrain, and HUD off so only enemies and Dana remain visible.\n"
+            "Terrain, keys, and doors are visible during lit moments, so the stage must be navigated from memory.\n"
+            "Light/dark timing is global and set by the Darkness Tempo game behavior mod. Title, intro, and clear screens stay normal and always start lit."
+        ),
+    },
+    "main.stage.fire_reset": {
+        "ja": "開始時にファイヤー所持をリセット",
+        "en": "Reset Fire Power on Start",
+    },
+    "main.stage.fire_reset.tooltip": {
+        "ja": "この面を開始した時に、前の面から持ち越したファイヤー/スーパーの所持を0にします。",
+        "en": "When this stage starts, reset fire/super fire carried over from the previous stage.",
+    },
+    "main.stage.none": {
+        "ja": "(なし)",
+        "en": "(None)",
+    },
+    "main.stage.enemy_number.tooltip": {
+        "ja": "0=なし。1から15は、このステージの初期配置敵リスト順です。",
+        "en": "0 = none. 1 through 15 refer to the initial enemy placement order in this stage.",
+    },
+    "main.stage.fairy_enemy.tooltip": {
+        "ja": "0=なし。1から15は、このステージの初期配置敵リスト順です。鍵持ち敵と同じ番号は指定できません。",
+        "en": "0 = none. 1 through 15 refer to the initial enemy placement order in this stage. This cannot match the key-carrying enemy.",
+    },
+    "main.stage.key_enemy": {
+        "ja": "鍵持ち敵 (#):",
+        "en": "Key Enemy (#):",
+    },
+    "main.stage.fairy_enemy": {
+        "ja": "妖精化敵 (#):",
+        "en": "Fairy Enemy (#):",
+    },
+    "main.stage.constellation": {
+        "ja": "星座:",
+        "en": "Constellation:",
+    },
+    "main.stage.position_x": {
+        "ja": "位置 X:",
+        "en": "Position X:",
+    },
     "common.close": {
         "ja": "閉じる",
         "en": "Close",

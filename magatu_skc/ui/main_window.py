@@ -1849,7 +1849,7 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(edit_group)
 
         # レベル設定（編集UI - skchain移植）
-        meta_group = QGroupBox("ステージ設定")
+        meta_group = QGroupBox(t("main.stage.group", "ステージ設定"))
         ml = QVBoxLayout(meta_group)
         self.lbl_info = QLabel("-")
         self.lbl_info.setWordWrap(True)
@@ -1863,7 +1863,7 @@ class MainWindow(QMainWindow):
         tileset_line_row = QHBoxLayout(tileset_line)
         tileset_line_row.setContentsMargins(0, 0, 0, 0)
         tileset_line_row.setSpacing(4)
-        self.lbl_tileset_caption = QLabel("タイルセット:")
+        self.lbl_tileset_caption = QLabel(t("main.stage.tileset", "タイルセット:"))
         self.lbl_tileset_caption.setObjectName("leftFormLabel")
         self.lbl_tileset_caption.setMinimumWidth(72)
         tileset_line_row.addWidget(self.lbl_tileset_caption)
@@ -1898,65 +1898,85 @@ class MainWindow(QMainWindow):
         self.spin_time_dr = QSpinBox()
         self.spin_time_dr.setRange(0, 2)
         self.spin_time_dr.valueChanged.connect(self._on_meta_time_dr_changed)
-        form.addRow("制限時間:", self.spin_time_dr)
+        form.addRow(t("main.stage.time_limit", "制限時間:"), self.spin_time_dr)
         self.lbl_time_dr_hint = QLabel()
         self._update_time_dr_hint()
         form.addRow("", self.lbl_time_dr_hint)
 
         # Room Flag Table 拡張: 画面ごとの挙動改造 (原作level data非破壊)
-        self.chk_no_bfire = QCheckBox("Bボタン（ファイア）禁止")
+        self.chk_no_bfire = QCheckBox(t("main.stage.no_bfire", "Bボタン（ファイア）禁止"))
         self.chk_no_bfire.setToolTip(
-            "この部屋だけBボタンの火球(魔法)を無効化。Aボタンの石生成は使えます。\n"
-            "ROM保存時に bank0 のコードケーブへ注入 (位置+署名 検証付き)"
+            t(
+                "main.stage.no_bfire.tooltip",
+                "この部屋だけBボタンの火球(魔法)を無効化。Aボタンの石生成は使えます。\n"
+                "ROM保存時に bank0 のコードケーブへ注入 (位置+署名 検証付き)",
+            )
         )
         self.chk_no_bfire.toggled.connect(self._on_meta_no_bfire_toggled)
-        form.addRow("制限:", self.chk_no_bfire)
+        form.addRow(t("main.stage.restrictions", "制限:"), self.chk_no_bfire)
 
-        self.chk_no_astone = QCheckBox("Aボタン(換石)禁止")
+        self.chk_no_astone = QCheckBox(t("main.stage.no_astone", "Aボタン(換石)禁止"))
         self.chk_no_astone.setToolTip(
-            "この部屋だけAボタンの石生成を無効化 (Bファイアとは独立)。\n"
-            "※石で階段が作れず進行不能になり得ます。意図して使う設定です"
+            t(
+                "main.stage.no_astone.tooltip",
+                "この部屋だけAボタンの石生成を無効化 (Bファイアとは独立)。\n"
+                "※石で階段が作れず進行不能になり得ます。意図して使う設定です",
+            )
         )
         self.chk_no_astone.toggled.connect(self._on_meta_no_astone_toggled)
         form.addRow("", self.chk_no_astone)
 
-        self.chk_dark = QCheckBox("暗闇モード")
+        self.chk_dark = QCheckBox(t("main.stage.dark", "暗闇モード"))
         self.chk_dark.setToolTip(
-            "この面のプレイ中だけ背景(地形/HUD)を明滅で消し、敵とDana\n"
-            "だけ見えるようにします。明の瞬間に地形/鍵/扉が見えるので\n"
-            "記憶して進む暗闇面。明/暗の長さは全体共通(ゲーム挙動改造\n"
-            "の『暗闇テンポ』)。タイトル/紹介/クリアは通常表示・必ず明から")
+            t(
+                "main.stage.dark.tooltip",
+                "この面のプレイ中だけ背景(地形/HUD)を明滅で消し、敵とDana\n"
+                "だけ見えるようにします。明の瞬間に地形/鍵/扉が見えるので\n"
+                "記憶して進む暗闇面。明/暗の長さは全体共通(ゲーム挙動改造\n"
+                "の『暗闇テンポ』)。タイトル/紹介/クリアは通常表示・必ず明から",
+            )
+        )
         self.chk_dark.toggled.connect(self._on_meta_dark_toggled)
         form.addRow("", self.chk_dark)
 
         # 星座: combo + position
-        self.chk_fire_reset = QCheckBox("開始時にファイヤー所持をリセット")
+        self.chk_fire_reset = QCheckBox(t("main.stage.fire_reset", "開始時にファイヤー所持をリセット"))
         self.chk_fire_reset.setToolTip(
-            "この面を開始した時に、前の面から持ち越したファイヤー/スーパーの所持を0にします。"
+            t(
+                "main.stage.fire_reset.tooltip",
+                "この面を開始した時に、前の面から持ち越したファイヤー/スーパーの所持を0にします。",
+            )
         )
         self.chk_fire_reset.toggled.connect(self._on_meta_fire_reset_toggled)
         form.addRow("", self.chk_fire_reset)
 
         self.spin_key_enemy = QSpinBox()
         self.spin_key_enemy.setRange(0, c.ENEMY_COUNT_MAX)
-        self.spin_key_enemy.setSpecialValueText("(なし)")
-        self.spin_key_enemy.setToolTip("0=なし。1から15は、このステージの初期配置敵リスト順です。")
+        self.spin_key_enemy.setSpecialValueText(t("main.stage.none", "(なし)"))
+        self.spin_key_enemy.setToolTip(
+            t("main.stage.enemy_number.tooltip", "0=なし。1から15は、このステージの初期配置敵リスト順です。")
+        )
         self.spin_key_enemy.valueChanged.connect(self._on_meta_key_enemy_changed)
-        form.addRow("鍵持ち敵 (#):", self.spin_key_enemy)
+        form.addRow(t("main.stage.key_enemy", "鍵持ち敵 (#):"), self.spin_key_enemy)
 
         self.spin_fairy_enemy = QSpinBox()
         self.spin_fairy_enemy.setRange(0, c.ENEMY_COUNT_MAX)
-        self.spin_fairy_enemy.setSpecialValueText("(なし)")
-        self.spin_fairy_enemy.setToolTip("0=なし。1から15は、このステージの初期配置敵リスト順です。鍵持ち敵と同じ番号は指定できません。")
+        self.spin_fairy_enemy.setSpecialValueText(t("main.stage.none", "(なし)"))
+        self.spin_fairy_enemy.setToolTip(
+            t(
+                "main.stage.fairy_enemy.tooltip",
+                "0=なし。1から15は、このステージの初期配置敵リスト順です。鍵持ち敵と同じ番号は指定できません。",
+            )
+        )
         self.spin_fairy_enemy.valueChanged.connect(self._on_meta_fairy_enemy_changed)
-        form.addRow("妖精化敵 (#):", self.spin_fairy_enemy)
+        form.addRow(t("main.stage.fairy_enemy", "妖精化敵 (#):"), self.spin_fairy_enemy)
 
         self.combo_const = QComboBox()
-        self.combo_const.addItem("(なし)", -1)
+        self.combo_const.addItem(t("main.stage.none", "(なし)"), -1)
         for code, (name, _) in c.CONSTELLATION_NAMES.items():
             self.combo_const.addItem(name, code)
         self.combo_const.currentIndexChanged.connect(self._on_meta_constellation_changed)
-        form.addRow("星座:", self.combo_const)
+        form.addRow(t("main.stage.constellation", "星座:"), self.combo_const)
 
         const_pos_row = QHBoxLayout()
         self.spin_const_x = QSpinBox()
@@ -1965,7 +1985,7 @@ class MainWindow(QMainWindow):
         self.spin_const_y = QSpinBox()
         self.spin_const_y.setRange(0, c.LEVEL_H - 1)
         self.spin_const_y.valueChanged.connect(self._on_meta_const_pos_changed)
-        const_pos_row.addWidget(QLabel("位置 X:"))
+        const_pos_row.addWidget(QLabel(t("main.stage.position_x", "位置 X:")))
         const_pos_row.addWidget(self.spin_const_x)
         const_pos_row.addWidget(QLabel("Y:"))
         const_pos_row.addWidget(self.spin_const_y)
