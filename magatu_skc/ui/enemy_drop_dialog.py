@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QColor
 from ..core import enemy_drop as ED
+from ..core.i18n import get_language, t
 from .element_picker import (
     ENEMIES_LIST, ENHANCED_ENEMY_CODES, PANEL_VARIANT_VISUAL_SOURCE,
 )
@@ -25,13 +26,54 @@ ENEMY_THUMB = 28
 ENEMY_GAP = 4
 
 
+_ROW_USER_KEYS = {
+    0x00: "enemy_drop.users.none",
+    0x08: "enemy_drop.users.fireball",
+    0x10: "enemy_drop.users.ghost",
+    0x18: "enemy_drop.users.neul",
+    0x20: "enemy_drop.users.demonhead12",
+    0x28: "enemy_drop.users.demonhead3_saramandor12",
+    0x30: "enemy_drop.users.saramandor3_dragon1",
+    0x38: "enemy_drop.users.dragon2_golem1",
+    0x40: "enemy_drop.users.golem2_gargoyle1",
+    0x48: "enemy_drop.users.panel_monster",
+}
+
+
+def _effect_label(value: int) -> str:
+    value = int(value)
+    return t(f"enemy_drop.effect.{value:02X}", ED.DROP_EFFECTS[value][0])
+
+
+def _row_users_label(row_offset: int) -> str:
+    return t(
+        _ROW_USER_KEYS.get(int(row_offset), ""),
+        ED.ROW_USERS.get(row_offset, ""),
+    )
+
+
+def format_enemy_drop_error(error) -> str:
+    msg = str(error)
+    if get_language() != "en":
+        return msg
+    if "ROM が小さすぎます" in msg:
+        return t("enemy_drop.error.rom_too_small", msg)
+    if "署名不一致" in msg:
+        return t("enemy_drop.error.signature", msg)
+    if "行数/列数不正" in msg:
+        return t("enemy_drop.error.shape", msg)
+    if "未対応値" in msg:
+        return t("enemy_drop.error.value", msg)
+    return msg
+
+
 class EnemyDropDialog(QDialog):
     def __init__(self, rom_data: bytearray, parent=None,
                  tile_renderer=None, config=None, app_config=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("敵ドロップ効果表 編集")
+        self.setWindowTitle(t("enemy_drop.title", "敵ドロップ効果表 編集"))
         self._rom = rom_data
         self.tile_renderer = tile_renderer
         self.config = config
@@ -43,14 +85,10 @@ class EnemyDropDialog(QDialog):
 
         # 効果値の選択肢 (値順)
         self._values = sorted(ED.DROP_EFFECTS)
-        self._labels = [f"${v:02X} {ED.DROP_EFFECTS[v][0]}" for v in self._values]
+        self._labels = [f"${v:02X} {_effect_label(v)}" for v in self._values]
 
         root = QVBoxLayout(self)
-        head = QLabel(
-            "敵を炎で倒した時に出る効果を行ごとに編集します。確率＝8枠中の"
-            "出現数。<b>値は効果値であり通常アイテムIDではありません</b>"
-            "（$06=1UP で鍵ではない）。行は複数の敵で共有されます。"
-        )
+        head = QLabel(t("enemy_drop.description"))
         head.setWordWrap(True)
         root.addWidget(head)
 
@@ -62,8 +100,10 @@ class EnemyDropDialog(QDialog):
         self._prob_lbls = []
         for ri in range(ED.ROW_COUNT):
             off = ri * 8
-            gb = QGroupBox(f"行 {ED.ROW_LABELS[ri]}  — 使用: "
-                           f"{ED.ROW_USERS.get(off, '?')}")
+            gb = QGroupBox(t("enemy_drop.row_header").format(
+                row=ED.ROW_LABELS[ri],
+                users=_row_users_label(off) or "?",
+            ))
             gl = QGridLayout(gb)
             enemy_strip = QLabel()
             enemy_strip.setPixmap(self._compose_enemy_strip(off))
@@ -89,10 +129,10 @@ class EnemyDropDialog(QDialog):
         root.addWidget(scroll, 1)
 
         btnrow = QHBoxLayout()
-        btn_restore = QPushButton("原作に戻す")
+        btn_restore = QPushButton(t("enemy_drop.restore_original", "原作に戻す"))
         btn_restore.clicked.connect(self._on_restore)
         btnrow.addWidget(btn_restore)
-        btn_clear = QPushButton("すべて未設定にする")
+        btn_clear = QPushButton(t("enemy_drop.clear_all", "すべて未設定にする"))
         btn_clear.clicked.connect(self._on_clear_all)
         btnrow.addWidget(btn_clear)
         btnrow.addStretch()
@@ -105,6 +145,9 @@ class EnemyDropDialog(QDialog):
         bb.accepted.connect(self._apply_and_close)
         bb.rejected.connect(self.reject)
         bb.button(QDialogButtonBox.Apply).clicked.connect(self._apply)
+        bb.button(QDialogButtonBox.Ok).setText(t("common.ok", "OK"))
+        bb.button(QDialogButtonBox.Cancel).setText(t("common.cancel", "キャンセル"))
+        bb.button(QDialogButtonBox.Apply).setText(t("common.apply", "適用"))
         root.addWidget(bb)
         self.resize(840, 680)
         restore_dialog_geometry(self, self._app_config, "enemy_drop_dlg")
@@ -126,7 +169,7 @@ class EnemyDropDialog(QDialog):
     def _enemy_tooltip(self, row_offset: int) -> str:
         entries = self._enemy_entries_for_row(row_offset)
         if not entries:
-            return ED.ROW_USERS.get(row_offset, "")
+            return _row_users_label(row_offset)
         return "\n".join(f"${code:02X} {name}" for code, name in entries)
 
     def _enemy_pixmap(self, code: int) -> QPixmap:
@@ -187,8 +230,12 @@ class EnemyDropDialog(QDialog):
         parts = []
         for v in sorted(prob, key=lambda k: -prob[k]):
             n = prob[v]
-            parts.append(f"{ED.DROP_EFFECTS[v][0]}×{n}={n*100//8}.{(n*1000//8)%10}%")
-        self._prob_lbls[ri].setText("確率: " + " / ".join(parts))
+            parts.append(f"{_effect_label(v)} x{n}={n*100//8}.{(n*1000//8)%10}%")
+        self._prob_lbls[ri].setText(
+            t("enemy_drop.probability", "確率: {parts}").format(
+                parts=" / ".join(parts)
+            )
+        )
 
     def _set_all_rows(self, value: int):
         self._rows = [[value for _ in range(ED.ROW_LEN)] for _ in range(ED.ROW_COUNT)]
@@ -218,10 +265,16 @@ class EnemyDropDialog(QDialog):
         try:
             changed = ED.write_rows(self._rom, self._rows)
         except ED.EnemyDropError as e:
-            QMessageBox.critical(self, "敵ドロップ改造 失敗", str(e))
+            QMessageBox.critical(
+                self,
+                t("enemy_drop.apply_failed", "敵ドロップ改造失敗"),
+                format_enemy_drop_error(e),
+            )
             return False
         if changed:
-            self.setWindowTitle("敵ドロップ効果表 編集  (適用済)")
+            self.setWindowTitle(
+                t("enemy_drop.title.applied", "敵ドロップ効果表 編集  (適用済)")
+            )
         return True
 
     def _apply_and_close(self):

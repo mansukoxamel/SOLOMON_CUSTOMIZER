@@ -1163,7 +1163,7 @@ class HackDialog(QDialog):
             log(log_message)
 
     def _on_show_enemy_drop(self):
-        from .enemy_drop_dialog import EnemyDropDialog
+        from .enemy_drop_dialog import EnemyDropDialog, format_enemy_drop_error
         from ..core import enemy_drop as _ed
         o, n = _ed.OFF_C293, _ed.LEN_C293
         before = bytes(self.rom.data[o:o + n])
@@ -1176,7 +1176,12 @@ class HackDialog(QDialog):
                 app_config=self._app_config,
             )
         except _ed.EnemyDropError as e:
-            QMessageBox.critical(self, "敵ドロップ編集不可", str(e))
+            from ..core.i18n import t
+            QMessageBox.critical(
+                self,
+                t("enemy_drop.open_failed", "敵ドロップ編集不可"),
+                format_enemy_drop_error(e),
+            )
             return
         dlg.exec_()
         if bytes(self.rom.data[o:o + n]) != before:

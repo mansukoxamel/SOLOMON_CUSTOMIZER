@@ -271,6 +271,126 @@ _TRANSLATIONS = {
         "ja": "",
         "en": "The number of clear screen message lines is invalid.",
     },
+    "enemy_drop.title": {
+        "ja": "敵ドロップ効果表 編集",
+        "en": "Enemy Drop Effect Table Editor",
+    },
+    "enemy_drop.title.applied": {
+        "ja": "敵ドロップ効果表 編集  (適用済)",
+        "en": "Enemy Drop Effect Table Editor (Applied)",
+    },
+    "enemy_drop.description": {
+        "ja": (
+            "敵を炎で倒した時に出る効果を行ごとに編集します。確率＝8枠中の"
+            "出現数。<b>値は効果値であり通常アイテムIDではありません</b>"
+            "（$06=1UP で鍵ではない）。行は複数の敵で共有されます。"
+        ),
+        "en": (
+            "Edit the effect dropped when an enemy is defeated by fire. "
+            "Probability is based on how many of the 8 slots contain each effect. "
+            "<b>These values are drop effects, not normal item IDs</b> "
+            "($06 is 1UP, not a key). Rows are shared by multiple enemies."
+        ),
+    },
+    "enemy_drop.row_header": {
+        "ja": "行 {row} - 使用: {users}",
+        "en": "Row {row} - Used by: {users}",
+    },
+    "enemy_drop.users.none": {
+        "ja": "Bomb Jack系/Fairy系/Bullet/Gargoyle s2/Flame (ドロップ無)",
+        "en": "Bomb Jack types / Fairy types / Bullet / Gargoyle s2 / Flame (no drop)",
+    },
+    "enemy_drop.users.fireball": {
+        "ja": "Fireball s1・s2",
+        "en": "Fireball s1 / s2",
+    },
+    "enemy_drop.users.ghost": {
+        "ja": "Ghost 各系",
+        "en": "Ghost types",
+    },
+    "enemy_drop.users.neul": {
+        "ja": "Neul 各系",
+        "en": "Neul types",
+    },
+    "enemy_drop.users.demonhead12": {
+        "ja": "Demonhead s1・s2",
+        "en": "Demonhead s1 / s2",
+    },
+    "enemy_drop.users.demonhead3_saramandor12": {
+        "ja": "Demonhead s3 / Saramandor s1・s2",
+        "en": "Demonhead s3 / Saramandor s1 / s2",
+    },
+    "enemy_drop.users.saramandor3_dragon1": {
+        "ja": "Saramandor s3 / Dragon s1",
+        "en": "Saramandor s3 / Dragon s1",
+    },
+    "enemy_drop.users.dragon2_golem1": {
+        "ja": "Dragon s2 / Golem s1",
+        "en": "Dragon s2 / Golem s1",
+    },
+    "enemy_drop.users.golem2_gargoyle1": {
+        "ja": "Golem s2 / Gargoyle s1",
+        "en": "Golem s2 / Gargoyle s1",
+    },
+    "enemy_drop.users.panel_monster": {
+        "ja": "Panel Monster",
+        "en": "Panel Monster",
+    },
+    "enemy_drop.probability": {
+        "ja": "確率: {parts}",
+        "en": "Probability: {parts}",
+    },
+    "enemy_drop.restore_original": {
+        "ja": "原作に戻す",
+        "en": "Restore Original",
+    },
+    "enemy_drop.clear_all": {
+        "ja": "すべて未設定にする",
+        "en": "Set All to None",
+    },
+    "enemy_drop.apply_failed": {
+        "ja": "敵ドロップ改造失敗",
+        "en": "Enemy Drop Edit Failed",
+    },
+    "enemy_drop.open_failed": {
+        "ja": "敵ドロップ編集不可",
+        "en": "Enemy Drop Edit Unavailable",
+    },
+    "enemy_drop.error.rom_too_small": {
+        "ja": "",
+        "en": "The ROM is too small. Enemy drop editing was canceled.",
+    },
+    "enemy_drop.error.signature": {
+        "ja": "",
+        "en": (
+            "A code signature does not match. The ROM may be modified, extended, "
+            "or corrupted, so enemy drop editing was canceled."
+        ),
+    },
+    "enemy_drop.error.shape": {
+        "ja": "",
+        "en": "The enemy drop table shape is invalid.",
+    },
+    "enemy_drop.error.value": {
+        "ja": "",
+        "en": "The enemy drop table contains an unsupported value.",
+    },
+    "enemy_drop.effect.00": {"ja": "なし", "en": "None"},
+    "enemy_drop.effect.01": {"ja": "未確定$01", "en": "Unknown $01"},
+    "enemy_drop.effect.02": {"ja": "マガドラの壺", "en": "Magdra Pot"},
+    "enemy_drop.effect.03": {"ja": "ライラックの鐘", "en": "Lilac Bell"},
+    "enemy_drop.effect.04": {"ja": "ファイア距離+", "en": "Fire Range+"},
+    "enemy_drop.effect.05": {"ja": "妖精予約", "en": "Fairy Queue"},
+    "enemy_drop.effect.06": {"ja": "1UP", "en": "1UP"},
+    "enemy_drop.effect.07": {"ja": "未確定$07", "en": "Unknown $07"},
+    "enemy_drop.effect.08": {"ja": "スコア+10", "en": "Score +10"},
+    "enemy_drop.effect.09": {"ja": "スコア+20", "en": "Score +20"},
+    "enemy_drop.effect.0A": {"ja": "スコア+50", "en": "Score +50"},
+    "enemy_drop.effect.0B": {"ja": "スコア+100", "en": "Score +100"},
+    "enemy_drop.effect.0C": {"ja": "スコア+200", "en": "Score +200"},
+    "enemy_drop.effect.0D": {"ja": "スコア+500", "en": "Score +500"},
+    "enemy_drop.effect.0E": {"ja": "スコア+1000", "en": "Score +1000"},
+    "enemy_drop.effect.0F": {"ja": "スコア+2000", "en": "Score +2000"},
     "common.ok": {
         "ja": "OK",
         "en": "OK",
