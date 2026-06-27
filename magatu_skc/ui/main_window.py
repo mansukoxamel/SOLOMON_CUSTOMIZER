@@ -10012,6 +10012,12 @@ class MainWindow(QMainWindow):
             )
             self._refresh_key_enemy_spin_range()
             return
+        if int(enemy_number) > 0 and lv.is_key_removed():
+            self.statusBar().showMessage(
+                "鍵メタが無いステージには鍵持ち敵を設定できません", 3000
+            )
+            self._refresh_key_enemy_spin_range()
+            return
         self._push_undo()
         current = _se.get_key_enemy_number(lv)
         fairy_enemy_number = _se.get_fairy_enemy_number(lv)
