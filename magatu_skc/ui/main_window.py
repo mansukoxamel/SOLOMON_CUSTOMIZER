@@ -2937,7 +2937,12 @@ class MainWindow(QMainWindow):
 
     def _capture_readonly_migration_payload(self) -> dict:
         if not self.rom or not self.levels or not self._is_read_only():
-            raise ValueError("データ移行は編集不可ROMを読み込んだ状態で実行してください。")
+            raise ValueError(
+                t(
+                    "main.migration.error.source_state",
+                    "データ移行は編集不可ROMを読み込んだ状態で実行してください。",
+                )
+            )
         if self.rom.is_expanded():
             for level_no in range(len(self.levels)):
                 self._sync_enemy_codes_from_rom(level_no)
@@ -2968,7 +2973,12 @@ class MainWindow(QMainWindow):
 
     def _apply_readonly_migration_payload(self, payload: dict) -> tuple[int, list[str]]:
         if not self.rom or not self.levels or self._is_read_only():
-            raise ValueError("移行先の編集可能ROMを準備できませんでした。")
+            raise ValueError(
+                t(
+                    "main.migration.error.target_not_ready",
+                    "移行先の編集可能ROMを準備できませんでした。",
+                )
+            )
         source_levels = payload.get("levels") or []
         count = min(len(self.levels), len(source_levels))
         warnings = []
@@ -2986,7 +2996,12 @@ class MainWindow(QMainWindow):
                 self._apply_stage_conditional_breakable_positions_from_xml(root, level_no)
                 self._apply_stage_bomb_jack_positions_from_xml(root, level_no)
             except Exception as exc:
-                warnings.append(f"L{level_no + 1}: 補助情報の一部を移行できませんでした ({type(exc).__name__})")
+                warnings.append(
+                    t(
+                        "main.migration.warning.auxiliary_failed",
+                        "L{stage}: 補助情報の一部を移行できませんでした ({error_type})",
+                    ).format(stage=level_no + 1, error_type=type(exc).__name__)
+                )
             self._write_mirror_data_to_rom(level_no)
         bonus_positions = payload.get("bonus_positions") or []
         if bonus_positions and len(bonus_positions) >= 32:
@@ -2995,7 +3010,12 @@ class MainWindow(QMainWindow):
                 self._rebuild_bonus_items_from_positions()
                 self._write_bonus_positions_to_rom()
             except Exception as exc:
-                warnings.append(f"51面ボーナススポットを移行できませんでした ({type(exc).__name__})")
+                warnings.append(
+                    t(
+                        "main.migration.warning.bonus_failed",
+                        "51面ボーナススポットを移行できませんでした ({error_type})",
+                    ).format(error_type=type(exc).__name__)
+                )
         self._sync_mirror_panel()
         self._refresh_view()
         self._generate_all_thumbnails()
@@ -3007,17 +3027,30 @@ class MainWindow(QMainWindow):
         if not self.rom or not self.levels:
             return
         if not self._is_read_only():
-            self.statusBar().showMessage("データ移行は編集不可ROMを読み込んだ時だけ使えます", 3000)
+            self.statusBar().showMessage(
+                t(
+                    "main.migration.unavailable.status",
+                    "データ移行は編集不可ROMを読み込んだ時だけ使えます",
+                ),
+                3000,
+            )
             return
         try:
             payload = self._capture_readonly_migration_payload()
         except Exception as exc:
-            QMessageBox.warning(self, "データ移行", f"移行元データを準備できませんでした。\n{type(exc).__name__}: {exc}")
+            QMessageBox.warning(
+                self,
+                t("main.migration.title", "データ移行"),
+                t(
+                    "main.migration.source_prepare_failed",
+                    "移行元データを準備できませんでした。\n{error}",
+                ).format(error=f"{type(exc).__name__}: {exc}"),
+            )
             return
         from .file_dialog_compat import get_file
         base_path = get_file(
             self,
-            title="移行先の編集可能ROMを選択",
+            title=t("main.migration.target_dialog.title", "移行先の編集可能ROMを選択"),
             filter="NES ROMs / ZIP (*.nes *.zip);;NES ROMs (*.nes);;ZIP archives (*.zip);;All files (*)",
         )
         if not base_path:
@@ -3025,44 +3058,87 @@ class MainWindow(QMainWindow):
         try:
             base_rom = Rom.load(base_path)
         except Exception as exc:
-            QMessageBox.warning(self, "データ移行", f"移行先ROMを読み込めませんでした。\n{type(exc).__name__}: {exc}")
+            QMessageBox.warning(
+                self,
+                t("main.migration.title", "データ移行"),
+                t(
+                    "main.migration.target_read_failed",
+                    "移行先ROMを読み込めませんでした。\n{error}",
+                ).format(error=f"{type(exc).__name__}: {exc}"),
+            )
             return
         if not base_rom.is_supported_editor_input():
             QMessageBox.warning(
                 self,
-                "データ移行",
-                "移行先にできるROMではありません。\n"
-                "確認済みの日本版オリジナルROM、またはこのアプリで保存した編集可能ROMを選んでください。",
+                t("main.migration.title", "データ移行"),
+                t(
+                    "main.migration.target_not_supported",
+                    "移行先にできるROMではありません。\n"
+                    "確認済みの日本版オリジナルROM、またはこのアプリで保存した編集可能ROMを選んでください。",
+                ),
             )
             return
         self.load_rom(
             base_path,
             add_history=True,
-            status_message="移行先ROMを編集可能形式で準備しました",
+            status_message=t(
+                "main.migration.target_prepared.status",
+                "移行先ROMを編集可能形式で準備しました",
+            ),
         )
         if not self.rom or self._is_read_only():
-            QMessageBox.warning(self, "データ移行", "移行先ROMを編集可能状態で開けませんでした。")
+            QMessageBox.warning(
+                self,
+                t("main.migration.title", "データ移行"),
+                t("main.migration.target_open_failed", "移行先ROMを編集可能状態で開けませんでした。"),
+            )
             return
         try:
             count, warnings = self._apply_readonly_migration_payload(payload)
         except Exception as exc:
-            QMessageBox.critical(self, "データ移行失敗", f"{type(exc).__name__}: {exc}")
+            QMessageBox.critical(
+                self,
+                t("main.migration.failed.title", "データ移行失敗"),
+                f"{type(exc).__name__}: {exc}",
+            )
             return
-        source_name = payload.get("source_name", "編集不可ROM")
+        source_name = payload.get(
+            "source_name",
+            t("main.migration.default_source_name", "編集不可ROM"),
+        )
         warning_text = ""
         if warnings:
             preview = "\n".join(warnings[:5])
             if len(warnings) > 5:
-                preview += f"\n...ほか{len(warnings) - 5}件"
-            warning_text = "\n\n一部補助情報は移行できませんでした:\n" + preview
+                preview += "\n" + t("main.migration.warning_more", "...ほか{count}件").format(
+                    count=len(warnings) - 5
+                )
+            warning_text = t(
+                "main.migration.warning_header",
+                "\n\n一部補助情報は移行できませんでした:\n",
+            ) + preview
         QMessageBox.information(
             self,
-            "データ移行完了",
-            f"{source_name} から {count}/{len(self.levels)} ステージを移行しました。\n"
-            "移行後のROMはまだ保存されていません。必要ならROM保存してください。"
-            f"{warning_text}",
+            t("main.migration.complete.title", "データ移行完了"),
+            t(
+                "main.migration.complete.body",
+                "{source_name} から {count}/{total} ステージを移行しました。\n"
+                "移行後のROMはまだ保存されていません。必要ならROM保存してください。"
+                "{warning_text}",
+            ).format(
+                source_name=source_name,
+                count=count,
+                total=len(self.levels),
+                warning_text=warning_text,
+            ),
         )
-        self.statusBar().showMessage(f"データ移行完了: {count}/{len(self.levels)} ステージ", 6000)
+        self.statusBar().showMessage(
+            t("main.migration.complete.status", "データ移行完了: {count}/{total} ステージ").format(
+                count=count,
+                total=len(self.levels),
+            ),
+            6000,
+        )
         self._log(
             f"データ移行: {source_name} -> {base_path} / "
             f"{count}/{len(self.levels)}ステージ / 補助警告{len(warnings)}件"
@@ -4756,8 +4832,8 @@ class MainWindow(QMainWindow):
         current_stage = self.current_level_no + 1
         stage_no, ok = QInputDialog.getInt(
             self,
-            "ステージ番号ジャンプ",
-            "ステージ番号:",
+            t("main.stage_jump.title", "ステージ番号ジャンプ"),
+            t("main.stage_jump.label", "ステージ番号:"),
             current_stage,
             1,
             len(self.levels),

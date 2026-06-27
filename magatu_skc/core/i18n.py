@@ -1017,6 +1017,104 @@ _TRANSLATIONS = {
         "ja": "IPS保存完了: {path}{suffix}",
         "en": "IPS saved: {path}{suffix}",
     },
+    "main.migration.title": {
+        "ja": "データ移行",
+        "en": "Data Migration",
+    },
+    "main.migration.failed.title": {
+        "ja": "データ移行失敗",
+        "en": "Data Migration Failed",
+    },
+    "main.migration.unavailable.status": {
+        "ja": "データ移行は編集不可ROMを読み込んだ時だけ使えます",
+        "en": "Data migration is available only after loading a non-editable ROM.",
+    },
+    "main.migration.source_prepare_failed": {
+        "ja": "移行元データを準備できませんでした。\n{error}",
+        "en": "Could not prepare the source data.\n{error}",
+    },
+    "main.migration.error.source_state": {
+        "ja": "データ移行は編集不可ROMを読み込んだ状態で実行してください。",
+        "en": "Run data migration after loading a non-editable ROM.",
+    },
+    "main.migration.error.target_not_ready": {
+        "ja": "移行先の編集可能ROMを準備できませんでした。",
+        "en": "Could not prepare the editable target ROM.",
+    },
+    "main.migration.warning.auxiliary_failed": {
+        "ja": "L{stage}: 補助情報の一部を移行できませんでした ({error_type})",
+        "en": "L{stage}: Some auxiliary data could not be migrated ({error_type})",
+    },
+    "main.migration.warning.bonus_failed": {
+        "ja": "51面ボーナススポットを移行できませんでした ({error_type})",
+        "en": "Could not migrate the stage 51 bonus spot ({error_type})",
+    },
+    "main.migration.target_dialog.title": {
+        "ja": "移行先の編集可能ROMを選択",
+        "en": "Select Editable Target ROM",
+    },
+    "main.migration.target_read_failed": {
+        "ja": "移行先ROMを読み込めませんでした。\n{error}",
+        "en": "Could not load the target ROM.\n{error}",
+    },
+    "main.migration.target_not_supported": {
+        "ja": (
+            "移行先にできるROMではありません。\n"
+            "確認済みの日本版オリジナルROM、またはこのアプリで保存した編集可能ROMを選んでください。"
+        ),
+        "en": (
+            "This ROM cannot be used as the migration target.\n"
+            "Select a verified original Japanese ROM or an editable ROM saved by this app."
+        ),
+    },
+    "main.migration.target_prepared.status": {
+        "ja": "移行先ROMを編集可能形式で準備しました",
+        "en": "Prepared the target ROM in editable format.",
+    },
+    "main.migration.target_open_failed": {
+        "ja": "移行先ROMを編集可能状態で開けませんでした。",
+        "en": "Could not open the target ROM in editable mode.",
+    },
+    "main.migration.default_source_name": {
+        "ja": "編集不可ROM",
+        "en": "Non-editable ROM",
+    },
+    "main.migration.warning_more": {
+        "ja": "...ほか{count}件",
+        "en": "...and {count} more",
+    },
+    "main.migration.warning_header": {
+        "ja": "\n\n一部補助情報は移行できませんでした:\n",
+        "en": "\n\nSome auxiliary data could not be migrated:\n",
+    },
+    "main.migration.complete.title": {
+        "ja": "データ移行完了",
+        "en": "Data Migration Complete",
+    },
+    "main.migration.complete.body": {
+        "ja": (
+            "{source_name} から {count}/{total} ステージを移行しました。\n"
+            "移行後のROMはまだ保存されていません。必要ならROM保存してください。"
+            "{warning_text}"
+        ),
+        "en": (
+            "Migrated {count}/{total} stages from {source_name}.\n"
+            "The migrated ROM has not been saved yet. Save the ROM if needed."
+            "{warning_text}"
+        ),
+    },
+    "main.migration.complete.status": {
+        "ja": "データ移行完了: {count}/{total} ステージ",
+        "en": "Data migration complete: {count}/{total} stages",
+    },
+    "main.stage_jump.title": {
+        "ja": "ステージ番号ジャンプ",
+        "en": "Jump to Stage",
+    },
+    "main.stage_jump.label": {
+        "ja": "ステージ番号:",
+        "en": "Stage number:",
+    },
     "main.stage_png.save_dialog.title": {
         "ja": "ステージデータPNGの保存先",
         "en": "Save Stage Data PNG",
