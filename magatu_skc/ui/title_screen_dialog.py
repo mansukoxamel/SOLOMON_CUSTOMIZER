@@ -1280,7 +1280,7 @@ class TitleScreenDialog(QDialog):
             self._rom, self._ending_mode.currentData())
         tiles = TS.get_chr_bank3_tiles(self._rom)
         pal = self._title_palette()
-        attr = self._title_attributes()
+        attr = self._ending_attributes()
         img = QImage(_IMG_W, _IMG_H, QImage.Format_RGB32)
         painter = None
         try:
@@ -1315,6 +1315,16 @@ class TitleScreenDialog(QDialog):
                 pal_no = self._attr_palette_no(attr, dy // 8, dx // 8)
                 nes_idx = pal[pal_no * 4 + pi]
                 painter.fillRect(dx, dy, 1, 1, QColor(*NES_COLORS[nes_idx & 0x3F]))
+
+    def _ending_attributes(self):
+        """Use title colors except the top logo band used by ending text."""
+        attr = list(self._title_attributes())
+        for row in range(6, 14):
+            for col in range(_NT_W):
+                ai = (row // 2) * 16 + (col // 2)
+                if 0 <= ai < len(attr):
+                    attr[ai] = 0
+        return attr
 
     def _refresh_ending_preview(self):
         preview = getattr(self, "_ending_preview", None)
