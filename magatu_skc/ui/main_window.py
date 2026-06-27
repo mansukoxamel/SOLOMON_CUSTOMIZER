@@ -54,7 +54,7 @@ from ..core.config import (
 from ..core import (
     saver, ips, wall_color_hack, stage50_book_color, stage_ext, save_validation,
 )
-from ..core.i18n import t
+from ..core.i18n import get_language, t
 from ..gfx.tile_renderer import TileRenderer
 from ..gfx.level_renderer import LevelRenderer
 from ..nes.config_loader import SkcConfig
@@ -266,11 +266,24 @@ class _EnemyCountIndicator(QWidget):
         return 0
 
     def _update_tooltip(self):
-        parts = [f"敵配置数 {self._count}/{self._maximum}"]
+        parts = [
+            t("main.enemy_count.tooltip_count", "敵配置数 {count}/{maximum}").format(
+                count=self._count,
+                maximum=self._maximum,
+            )
+        ]
         if self._key_enemy_number:
-            parts.append(f"鍵持ち敵: #{self._key_enemy_number}")
+            parts.append(
+                t("main.enemy_count.tooltip_key", "鍵持ち敵: #{number}").format(
+                    number=self._key_enemy_number
+                )
+            )
         if self._fairy_enemy_number:
-            parts.append(f"落下死で妖精化: #{self._fairy_enemy_number}")
+            parts.append(
+                t("main.enemy_count.tooltip_fairy", "落下死で妖精化: #{number}").format(
+                    number=self._fairy_enemy_number
+                )
+            )
         self.setToolTip(" / ".join(parts))
 
     def paintEvent(self, event):
@@ -658,20 +671,29 @@ class MainWindow(QMainWindow):
             self._toggle_hover_info_popup()
             return True
         item_flag_by_action = {
-            "hover_item_normal": (c.ITEM_FLAG_NORMAL, "通常"),
-            "hover_item_hidden": (0x40, "隠し"),
-            "hover_item_in_block": (c.ITEM_FLAG_IN_BLOCK, "ブロック内"),
+            "hover_item_normal": (
+                c.ITEM_FLAG_NORMAL,
+                t("element_picker.item_state.normal", "通常"),
+            ),
+            "hover_item_hidden": (
+                0x40,
+                t("element_picker.item_state.hidden", "隠し"),
+            ),
+            "hover_item_in_block": (
+                c.ITEM_FLAG_IN_BLOCK,
+                t("element_picker.item_state.in_block", "ブロック内"),
+            ),
             "hover_item_white_in_block": (
                 c.ITEM_FLAG_WHITE_IN_BLOCK,
-                "白ブロック内",
+                t("element_picker.item_state.white_in_block", "白ブロック内"),
             ),
             "hover_item_visible_in_block": (
                 c.ITEM_FLAG_VISIBLE_IN_BLOCK,
-                "透明ブロック内",
+                t("element_picker.item_state.visible_in_block", "透明ブロック内"),
             ),
             "hover_item_cracked_in_block": (
                 c.ITEM_FLAG_CRACKED_IN_BLOCK,
-                "ひび割れブロック内",
+                t("element_picker.item_state.cracked_in_block", "ひび割れブロック内"),
             ),
         }
         item_flag = item_flag_by_action.get(action)
@@ -696,12 +718,12 @@ class MainWindow(QMainWindow):
 
     def _item_flag_label(self, flag: int) -> str:
         return {
-            c.ITEM_FLAG_NORMAL: "通常",
-            c.ITEM_FLAG_HIDDEN: "隠し",
-            c.ITEM_FLAG_IN_BLOCK: "ブロック内",
-            c.ITEM_FLAG_WHITE_IN_BLOCK: "白ブロック内",
-            c.ITEM_FLAG_VISIBLE_IN_BLOCK: "透明ブロック内",
-            c.ITEM_FLAG_CRACKED_IN_BLOCK: "ひび割れブロック内",
+            c.ITEM_FLAG_NORMAL: t("element_picker.item_state.normal", "通常"),
+            c.ITEM_FLAG_HIDDEN: t("element_picker.item_state.hidden", "隠し"),
+            c.ITEM_FLAG_IN_BLOCK: t("element_picker.item_state.in_block", "ブロック内"),
+            c.ITEM_FLAG_WHITE_IN_BLOCK: t("element_picker.item_state.white_in_block", "白ブロック内"),
+            c.ITEM_FLAG_VISIBLE_IN_BLOCK: t("element_picker.item_state.visible_in_block", "透明ブロック内"),
+            c.ITEM_FLAG_CRACKED_IN_BLOCK: t("element_picker.item_state.cracked_in_block", "ひび割れブロック内"),
         }.get(flag, f"0x{int(flag):X}")
 
     def _next_item_flag(self, current: int, allowed, reverse: bool = False):
@@ -789,11 +811,13 @@ class MainWindow(QMainWindow):
             return False
         if not self.picker.trigger_favorite_key(int(slot)):
             self.statusBar().showMessage(
-                f"お気に入りスロット {int(slot)} は空です", 1500
+                t("main.status.favorite_empty", "お気に入りスロット {slot} は空です").format(slot=int(slot)),
+                1500,
             )
         else:
             self.statusBar().showMessage(
-                f"お気に入りスロット {int(slot)} を選択", 1500
+                t("main.status.favorite_selected", "お気に入りスロット {slot} を選択").format(slot=int(slot)),
+                1500,
             )
         return True
 
@@ -3589,16 +3613,25 @@ class MainWindow(QMainWindow):
         if self.spin_level.value() != stage_no:
             self.spin_level.setValue(stage_no)
         if pos is None:
-            self.statusBar().showMessage(f"不整合: Stage {stage_no}へ移動", 3000)
+            self.statusBar().showMessage(
+                t("main.status.validation_jump", "不整合: Stage {stage}へ移動").format(stage=stage_no),
+                3000,
+            )
             return
         try:
             x, y = int(pos[0]), int(pos[1])
         except Exception:
-            self.statusBar().showMessage(f"不整合: Stage {stage_no}へ移動", 3000)
+            self.statusBar().showMessage(
+                t("main.status.validation_jump", "不整合: Stage {stage}へ移動").format(stage=stage_no),
+                3000,
+            )
             return
         if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
             self.statusBar().showMessage(
-                f"不整合: Stage {stage_no}へ移動（座標は範囲外: {pos}）",
+                t(
+                    "main.status.validation_jump_out_of_range",
+                    "不整合: Stage {stage}へ移動（座標は範囲外: {pos}）",
+                ).format(stage=stage_no, pos=pos),
                 3000,
             )
             return
@@ -3607,7 +3640,10 @@ class MainWindow(QMainWindow):
             self.level_view._select_end = (x, y)
         self._on_selection_updated((x, y), (x, y))
         self.statusBar().showMessage(
-            f"不整合: Stage {stage_no} ({x}, {y})を選択",
+            t(
+                "main.status.validation_select",
+                "不整合: Stage {stage} ({x}, {y})を選択",
+            ).format(stage=stage_no, x=x, y=y),
             3000,
         )
 
@@ -4076,10 +4112,10 @@ class MainWindow(QMainWindow):
                 )
             menu.addSeparator()
         else:
-            action = menu.addAction("エミュレータ未登録")
+            action = menu.addAction(t("main.emulator.none_registered", "エミュレータ未登録"))
             action.setEnabled(False)
             menu.addSeparator()
-        settings_action = menu.addAction("エミュレータ設定...")
+        settings_action = menu.addAction(t("main.emulator.settings", "エミュレータ設定..."))
         settings_action.triggered.connect(self._show_settings)
         menu.exec_(button.mapToGlobal(pos))
 
@@ -4090,7 +4126,10 @@ class MainWindow(QMainWindow):
         self._app_config["default_emulator_id"] = emu_id
         save_config(self._app_config)
         self.statusBar().showMessage(
-            f"既定エミュレータ: {emulator.get('name', '') or 'エミュレータ'}", 3000
+            t("main.status.default_emulator", "既定エミュレータ: {name}").format(
+                name=emulator.get("name", "") or t("main.emulator.generic", "エミュレータ")
+            ),
+            3000,
         )
 
     def _on_test_play(self, emulator: dict | None = None):
@@ -4540,7 +4579,11 @@ class MainWindow(QMainWindow):
     def _show_solomon_seal_block_overlap_message(self, level, tile: tuple):
         label = self._solomon_seal_tile_block_label(level, tile)
         self.statusBar().showMessage(
-            f"ソロモンの封印は {label} には重ねられません {tile}", 3000
+            t(
+                "main.status.solomon_seal_block_overlap",
+                "ソロモンの封印は {label} には重ねられません {tile}",
+            ).format(label=label, tile=tile),
+            3000,
         )
 
     def _solomon_seal_can_move_to_tile(self, level, tile: tuple) -> bool:
@@ -4553,7 +4596,11 @@ class MainWindow(QMainWindow):
             self._show_solomon_seal_block_overlap_message(level, tile)
             return
         self.statusBar().showMessage(
-            f"ソロモンの封印は扉には重ねられません {tile}", 3000
+            t(
+                "main.status.solomon_seal_door_overlap",
+                "ソロモンの封印は扉には重ねられません {tile}",
+            ).format(tile=tile),
+            3000,
         )
 
     def _collect_stage_level_meta_positions(self, level_no: int) -> list:
@@ -6089,63 +6136,120 @@ class MainWindow(QMainWindow):
             it = lv.items[item_idx]
             base = it.element_no & 0x3F
             flag = it.element_no & 0xC0
-            desc = self.config.item_desc.get(base, f"item 0x{base:02x}") if self.config else f"0x{base:02x}"
+            desc = self._display_item_desc(base)
             tag = ""
             if tile in getattr(lv, "visible_in_block_item_cells", set()):
-                tag = "[透明ブロック内]"
-            elif flag == 0x40: tag = "[隠し]"
-            elif flag in (0x80, 0xC0): tag = "[in_block]"
+                tag = self._meta_tag(
+                    t("element_picker.item_state.visible_in_block", "透明ブロック内")
+                )
+            elif flag == 0x40:
+                tag = self._meta_tag(t("element_picker.item_state.hidden", "隠し"))
+            elif flag in (0x80, 0xC0):
+                tag = self._meta_tag(t("element_picker.item_state.in_block", "ブロック内"))
             # ★アイテム番号も表示 (base コード。flag付きは raw も併記)
             code = f"0x{base:02X}"
             if flag:
                 code += f"(raw 0x{it.element_no:02X})"
-            parts.append(f"アイテム:{code} {desc}{tag}")
+            parts.append(
+                t("main.hover.item", "アイテム:{code} {desc}{tag}").format(
+                    code=code,
+                    desc=desc,
+                    tag=tag,
+                )
+            )
 
         # 敵（複数あり得る）
         enemy_hits = [(i, e) for i, e in enumerate(lv.enemies, start=1) if e.position == tile]
         if enemy_hits:
             for enemy_no, en in enemy_hits:
-                edesc = self.config.enemy_desc.get(en.element_no, f"0x{en.element_no:02x}") if self.config else f"0x{en.element_no:02x}"
-                parts.append(f"敵#{enemy_no}:{edesc}")
+                edesc = self._display_enemy_desc(en.element_no)
+                parts.append(
+                    t("main.hover.enemy", "敵#{number}:{desc}").format(
+                        number=enemy_no,
+                        desc=edesc,
+                    )
+                )
 
         # メタ要素
         if lv.fixed_start_pos == tile:
-            parts.append("[スタート]")
+            parts.append(self._meta_tag(t("main.hover.meta.start", "スタート")))
         if not lv.is_key_removed() and lv.fixed_key_pos == tile:
-            key_tag = "[鍵]"
+            key_tag = self._meta_tag(t("main.hover.meta.key", "鍵"))
             if tile in getattr(lv, "visible_in_block_item_cells", set()):
-                key_tag = "[鍵:透明ブロック内]"
+                key_tag = self._meta_tag(
+                    t("main.hover.meta.key_state", "鍵:{state}").format(
+                        state=t("element_picker.item_state.visible_in_block", "透明ブロック内")
+                    )
+                )
             elif lv.is_key_white_in_block():
-                key_tag = "[鍵:白ブロック内]"
+                key_tag = self._meta_tag(
+                    t("main.hover.meta.key_state", "鍵:{state}").format(
+                        state=t("element_picker.item_state.white_in_block", "白ブロック内")
+                    )
+                )
             elif lv.is_key_in_block():
-                key_tag = "[鍵:ブロック内]"
+                key_tag = self._meta_tag(
+                    t("main.hover.meta.key_state", "鍵:{state}").format(
+                        state=t("element_picker.item_state.in_block", "ブロック内")
+                    )
+                )
             elif lv.is_key_hidden():
-                key_tag = "[鍵:隠し]"
+                key_tag = self._meta_tag(
+                    t("main.hover.meta.key_state", "鍵:{state}").format(
+                        state=t("element_picker.item_state.hidden", "隠し")
+                    )
+                )
             parts.append(key_tag)
         if not lv.is_door_removed() and lv.fixed_door_pos == tile:
             from ..core import room_flags as _rf
             door_state = lv.room_flags & _rf.DOOR_STATE_MASK
             if door_state == _rf.DOOR_STATE_WHITE_IN_BLOCK:
-                parts.append("[扉:白ブロック内]")
+                parts.append(
+                    self._meta_tag(
+                        t("main.hover.meta.door_state", "扉:{state}").format(
+                            state=t("element_picker.item_state.white_in_block", "白ブロック内")
+                        )
+                    )
+                )
             elif door_state == _rf.DOOR_STATE_IN_BLOCK:
-                parts.append("[扉:ブロック内]")
+                parts.append(
+                    self._meta_tag(
+                        t("main.hover.meta.door_state", "扉:{state}").format(
+                            state=t("element_picker.item_state.in_block", "ブロック内")
+                        )
+                    )
+                )
             elif door_state == _rf.DOOR_STATE_HIDDEN:
-                parts.append("[扉:隠し]")
+                parts.append(
+                    self._meta_tag(
+                        t("main.hover.meta.door_state", "扉:{state}").format(
+                            state=t("element_picker.item_state.hidden", "隠し")
+                        )
+                    )
+                )
             else:
-                parts.append("[扉]")
+                parts.append(self._meta_tag(t("main.hover.meta.door", "扉")))
         for i, m in enumerate(lv.demon_mirrors):
             if m.position == tile:
-                parts.append(f"[ミラー{i+1}]")
+                parts.append(
+                    self._meta_tag(
+                        t("main.hover.meta.mirror", "ミラー{number}").format(number=i + 1)
+                    )
+                )
 
         # 星座
         if lv.has_constellation() and lv.get_constellation_pos() == tile:
             from ..core.constants import CONSTELLATION_NAMES
             cn = lv.get_constellation_no()
             name, _ = CONSTELLATION_NAMES.get(cn, (f"0x{cn:02x}", 0))
-            parts.append(f"[星座:{name}]")
+            parts.append(
+                self._meta_tag(
+                    t("main.hover.meta.constellation", "星座:{name}").format(name=name)
+                )
+            )
         seal_meta = self._solomon_seal_meta_at(self.current_level_no, tile)
         if seal_meta is not None:
-            parts.append("[ソロモンの紋章]")
+            parts.append(self._meta_tag(t("main.hover.meta.solomon_seal", "ソロモンの紋章")))
 
         self.lbl_hover_info.setText(" / ".join(parts))
 
@@ -6159,63 +6263,63 @@ class MainWindow(QMainWindow):
         x, y = tile
         wall = lv.tiles[y][x]
         if wall == Wall.BROWN and tile in getattr(lv, "passable_brown_cells", set()):
-            return "0x01", "すり抜ける茶色ブロック"
+            return "0x01", t("main.hover.block.passable_brown", "すり抜ける茶色ブロック")
         if wall == Wall.BROWN and tile in getattr(lv, "solid_brown_cells", set()):
-            return "0x01", "壊せない茶色ブロック"
+            return "0x01", t("main.hover.block.solid_brown", "壊せない茶色ブロック")
         if wall == Wall.BROWN and tile in getattr(lv, "cracked_block_cells", set()):
-            return "0x01", "ひび割れブロック"
+            return "0x01", t("main.hover.block.cracked", "ひび割れブロック")
         if wall == Wall.BROWN:
-            return "0x01", "茶色ブロック"
+            return "0x01", t("main.hover.block.brown", "茶色ブロック")
         if wall == Wall.WHITE and tile in getattr(lv, "breakable_white_cells", set()):
-            return "0x02", "壊せる白ブロック"
+            return "0x02", t("main.hover.block.breakable_white", "壊せる白ブロック")
         if wall == Wall.WHITE and tile in getattr(lv, "passable_white_cells", set()):
-            return "0x02", "すり抜ける白ブロック"
+            return "0x02", t("main.hover.block.passable_white", "すり抜ける白ブロック")
         if wall == Wall.WHITE:
-            return "0x02", "白ブロック"
+            return "0x02", t("main.hover.block.white", "白ブロック")
         if wall == Wall.NONE and tile in getattr(lv, "invisible_breakable_cells", set()):
-            return "0x00", "壊せる透明ブロック"
+            return "0x00", t("main.hover.block.invisible_breakable", "壊せる透明ブロック")
         if wall == Wall.NONE and tile in getattr(lv, "invisible_solid_cells", set()):
-            return "0x00", "壊せない透明ブロック"
+            return "0x00", t("main.hover.block.invisible_solid", "壊せない透明ブロック")
         if wall == Wall.BROWN_WHITE:
-            return "0x03", "壊せる白ブロック"
+            return "0x03", t("main.hover.block.breakable_white", "壊せる白ブロック")
         return None, None
 
     def _item_state_label(self, lv, item, tile):
         if tile in getattr(lv, "visible_in_block_item_cells", set()):
-            return "透明ブロック内"
+            return t("element_picker.item_state.visible_in_block", "透明ブロック内")
         if item.is_white_in_block():
-            return "白ブロック内"
+            return t("element_picker.item_state.white_in_block", "白ブロック内")
         if item.is_hidden():
-            return "隠し"
+            return t("element_picker.item_state.hidden", "隠し")
         if item.is_in_block():
-            return "ブロック内"
+            return t("element_picker.item_state.in_block", "ブロック内")
         return ""
 
     def _key_state_label(self, lv):
         if lv.fixed_key_pos in getattr(lv, "visible_in_block_item_cells", set()):
-            return "透明ブロック内"
+            return t("element_picker.item_state.visible_in_block", "透明ブロック内")
         if (
             lv.fixed_key_pos in getattr(lv, "cracked_block_cells", set())
             and lv.is_key_hidden()
         ):
-            return "ひび割れブロック内"
+            return t("element_picker.item_state.cracked_in_block", "ひび割れブロック内")
         if lv.is_key_white_in_block():
-            return "白ブロック内"
+            return t("element_picker.item_state.white_in_block", "白ブロック内")
         if lv.is_key_in_block():
-            return "ブロック内"
+            return t("element_picker.item_state.in_block", "ブロック内")
         if lv.is_key_hidden():
-            return "隠し"
+            return t("element_picker.item_state.hidden", "隠し")
         return ""
 
     def _door_state_label(self, lv):
         from ..core import room_flags as _rf
         door_state = lv.room_flags & _rf.DOOR_STATE_MASK
         if door_state == _rf.DOOR_STATE_WHITE_IN_BLOCK:
-            return "白ブロック内"
+            return t("element_picker.item_state.white_in_block", "白ブロック内")
         if door_state == _rf.DOOR_STATE_IN_BLOCK:
-            return "ブロック内"
+            return t("element_picker.item_state.in_block", "ブロック内")
         if door_state == _rf.DOOR_STATE_HIDDEN:
-            return "隠し"
+            return t("element_picker.item_state.hidden", "隠し")
         return ""
 
     def _enemy_speed_info(self, code: int):
@@ -6243,10 +6347,7 @@ class MainWindow(QMainWindow):
         if enemy_hits:
             for enemy_no, en in enemy_hits:
                 code = int(en.element_no) & 0xFF
-                desc = (
-                    self.config.enemy_desc.get(code, f"0x{code:02X}")
-                    if self.config else f"0x{code:02X}"
-                )
+                desc = self._display_enemy_desc(code)
                 _base_code, speed, available = self._enemy_speed_info(code)
                 speed_text = f"SP{speed}" if available else ""
                 suffix = (
@@ -6255,18 +6356,23 @@ class MainWindow(QMainWindow):
                 )
                 lines.append(
                     '<div style="color:#FFD166; font-weight:700;">'
-                    f'敵#{enemy_no} ID 0x{code:02X}: {escape(desc)}{suffix}'
-                    "</div>"
+                    + t(
+                        "main.hover.popup.enemy",
+                        "敵#{number} ID 0x{code:02X}: {desc}{suffix}",
+                    ).format(
+                        number=enemy_no,
+                        code=code,
+                        desc=escape(desc),
+                        suffix=suffix,
+                    )
+                    + "</div>"
                 )
 
         item_idx = lv.get_item_index(tile)
         if item_idx >= 0:
             item = lv.items[item_idx]
             base = int(item.element_no) & 0x3F
-            desc = (
-                self.config.item_desc.get(base, f"0x{base:02X}")
-                if self.config else f"0x{base:02X}"
-            )
+            desc = self._display_item_desc(base)
             state = self._item_state_label(lv, item, tile)
             state_suffix = (
                 f' <span style="color:#BFE8FF;">[{escape(state)}]</span>'
@@ -6288,16 +6394,30 @@ class MainWindow(QMainWindow):
 
         meta = []
         if lv.fixed_start_pos == tile:
-            meta.append("スタート")
+            meta.append(t("main.hover.meta.start", "スタート"))
         if not lv.is_key_removed() and lv.fixed_key_pos == tile:
             key_state = self._key_state_label(lv)
-            meta.append(f"鍵 [{key_state}]" if key_state else "鍵")
+            meta.append(
+                t("main.hover.popup.meta_with_state", "{name} [{state}]").format(
+                    name=t("main.hover.meta.key", "鍵"),
+                    state=key_state,
+                )
+                if key_state else
+                t("main.hover.meta.key", "鍵")
+            )
         if not lv.is_door_removed() and lv.fixed_door_pos == tile:
             door_state = self._door_state_label(lv)
-            meta.append(f"扉 [{door_state}]" if door_state else "扉")
+            meta.append(
+                t("main.hover.popup.meta_with_state", "{name} [{state}]").format(
+                    name=t("main.hover.meta.door", "扉"),
+                    state=door_state,
+                )
+                if door_state else
+                t("main.hover.meta.door", "扉")
+            )
         for i, mirror in enumerate(lv.demon_mirrors, start=1):
             if mirror.position == tile:
-                meta.append(f"ミラー{i}")
+                meta.append(t("main.hover.meta.mirror", "ミラー{number}").format(number=i))
         if meta:
             lines.append(
                 '<div style="color:#C4B5FD;">'
@@ -6387,19 +6507,88 @@ class MainWindow(QMainWindow):
         label.raise_()
         label.show()
 
+    @staticmethod
+    def _contains_japanese(text: str) -> bool:
+        return any(
+            "\u3040" <= ch <= "\u30ff" or "\u4e00" <= ch <= "\u9fff"
+            for ch in str(text or "")
+        )
+
+    @staticmethod
+    def _meta_tag(text: str) -> str:
+        return f"[{text}]"
+
+    def _display_item_desc(self, code: int) -> str:
+        code = int(code) & 0x3F
+        desc = ""
+        if self.config is not None:
+            desc = (getattr(self.config, "item_desc", {}) or {}).get(code, "") or ""
+        if desc and not (get_language() == "en" and self._contains_japanese(desc)):
+            return desc
+        return t("main.hover.item_fallback", "item 0x{code:02X}").format(code=code)
+
+    def _display_enemy_desc(self, code: int) -> str:
+        code = int(code) & 0xFF
+        desc = ""
+        if self.config is not None:
+            desc = (getattr(self.config, "enemy_desc", {}) or {}).get(code, "") or ""
+        if desc and not (get_language() == "en" and self._contains_japanese(desc)):
+            return desc
+        return t("main.hover.enemy_fallback", "enemy 0x{code:02X}").format(code=code)
+
+    def _meta_value_label(self, value: str) -> str:
+        key = str(value or "")
+        labels = {
+            "start": t("main.hover.meta.start", "スタート"),
+            "key": t("main.hover.meta.key", "鍵"),
+            "door": t("main.hover.meta.door", "扉"),
+            "mirror1": t("main.hover.meta.mirror", "ミラー{number}").format(number=1),
+            "mirror2": t("main.hover.meta.mirror", "ミラー{number}").format(number=2),
+        }
+        return labels.get(key, key)
+
+    def _deleted_kind_label(self, value: str) -> str:
+        key = str(value or "")
+        labels = {
+            "key": t("main.hover.meta.key", "鍵"),
+            "door": t("main.hover.meta.door", "扉"),
+            "item": t("main.deleted_kind.item", "アイテム"),
+            "enemy": t("main.deleted_kind.enemy", "敵"),
+            "block": t("main.deleted_kind.block", "ブロック"),
+        }
+        return labels.get(key, key)
+
     def _update_info(self):
         if not self.levels:
             return
         lv = self.levels[self.current_level_no]
         if hasattr(self, "meta_group"):
-            self.meta_group.setTitle(f"ステージ {self.current_level_no + 1:02d}")
+            self.meta_group.setTitle(
+                t("main.stage_info.title", "ステージ {stage:02d}").format(
+                    stage=self.current_level_no + 1
+                )
+            )
         key_pos = str(tuple(lv.fixed_key_pos))
         door_pos = str(tuple(lv.fixed_door_pos))
         info = (
-            f"アイテム: {len(lv.items)}個 / 敵: {len(lv.enemies)}体<br>"
-            f"鍵: {key_pos} / 扉: {door_pos}<br>"
-            f"ミラー1: {lv.demon_mirrors[0].position} / "
-            f"ミラー2: {lv.demon_mirrors[1].position}<br>"
+            t(
+                "main.stage_info.item_enemy",
+                "アイテム: {items}個 / 敵: {enemies}体",
+            ).format(items=len(lv.items), enemies=len(lv.enemies))
+            + "<br>"
+            + t(
+                "main.stage_info.key_door",
+                "鍵: {key} / 扉: {door}",
+            ).format(key=key_pos, door=door_pos)
+            + "<br>"
+            + t(
+                "main.stage_info.mirrors",
+                "ミラー1: {mirror1} / ミラー2: {mirror2}",
+            ).format(
+                mirror1=lv.demon_mirrors[0].position,
+                mirror2=lv.demon_mirrors[1].position,
+            )
+            + "<br>"
         )
         self.lbl_info.setText(info)
 
@@ -6531,7 +6720,8 @@ class MainWindow(QMainWindow):
                     lv.set_block(Wall.NONE, tile)
                     skip_block_placement = True
                     self.statusBar().showMessage(
-                        f"鍵をブロック内状態に自動変換 {tile}", 2500
+                        t("main.status.auto_key_in_block", "鍵をブロック内状態に自動変換 {tile}").format(tile=tile),
+                        2500,
                     )
                 elif not lv.is_door_removed() and lv.fixed_door_pos == tile:
                     from ..core import room_flags as _rf
@@ -6541,7 +6731,8 @@ class MainWindow(QMainWindow):
                     lv.set_block(Wall.NONE, tile)
                     skip_block_placement = True
                     self.statusBar().showMessage(
-                        f"扉をブロック内状態に自動変換 {tile}", 2500
+                        t("main.status.auto_door_in_block", "扉をブロック内状態に自動変換 {tile}").format(tile=tile),
+                        2500,
                     )
                 else:
                     idx = lv.get_item_index(tile)
@@ -6553,7 +6744,8 @@ class MainWindow(QMainWindow):
                         lv.set_block(Wall.NONE, tile)
                         skip_block_placement = True
                         self.statusBar().showMessage(
-                            f"アイテムを in_block フラグ付きに自動変換 {tile}", 2500
+                            t("main.status.auto_item_in_block", "アイテムを in_block フラグ付きに自動変換 {tile}").format(tile=tile),
+                            2500,
                         )
             elif value == BLOCK_CRACKED:
                 idx = lv.get_item_index(tile)
@@ -6562,7 +6754,8 @@ class MainWindow(QMainWindow):
                     item.element_no = int(item.element_no) & 0x3F
                     lv.visible_in_block_item_cells.discard(tile)
                     self.statusBar().showMessage(
-                        f"アイテムをひび割れブロック内に自動変換 {tile}", 2500
+                        t("main.status.auto_item_cracked", "アイテムをひび割れブロック内に自動変換 {tile}").format(tile=tile),
+                        2500,
                     )
             elif value == BLOCK_BREAKABLE_WHITE:
                 if not lv.is_key_removed() and lv.fixed_key_pos == tile:
@@ -6572,7 +6765,8 @@ class MainWindow(QMainWindow):
                     lv.set_block(Wall.NONE, tile)
                     skip_block_placement = True
                     self.statusBar().showMessage(
-                        f"鍵を白ブロック内状態に自動変換 {tile}", 2500
+                        t("main.status.auto_key_white", "鍵を白ブロック内状態に自動変換 {tile}").format(tile=tile),
+                        2500,
                     )
                 elif not lv.is_door_removed() and lv.fixed_door_pos == tile:
                     from ..core import room_flags as _rf
@@ -6582,7 +6776,8 @@ class MainWindow(QMainWindow):
                     lv.set_block(Wall.NONE, tile)
                     skip_block_placement = True
                     self.statusBar().showMessage(
-                        f"扉を白ブロック内状態に自動変換 {tile}", 2500
+                        t("main.status.auto_door_white", "扉を白ブロック内状態に自動変換 {tile}").format(tile=tile),
+                        2500,
                     )
                 else:
                     idx = lv.get_item_index(tile)
@@ -6591,7 +6786,8 @@ class MainWindow(QMainWindow):
                         base = item.element_no & 0x3F
                         if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                             self.statusBar().showMessage(
-                                f"このアイテムは白い壊せるブロック内に入れられません: 0x{base:02X}", 3000
+                                t("main.hover.item_state.white_blocked", "このアイテムは白い壊せるブロック内に入れられません: 0x{code:02X}").format(code=base),
+                                3000,
                             )
                             restore_rejected_click_edit()
                             return
@@ -6600,7 +6796,8 @@ class MainWindow(QMainWindow):
                         lv.set_block(Wall.NONE, tile)
                         skip_block_placement = True
                         self.statusBar().showMessage(
-                            f"アイテムを白い壊せるブロック内に自動変換 {tile}", 2500
+                            t("main.status.auto_item_white", "アイテムを白い壊せるブロック内に自動変換 {tile}").format(tile=tile),
+                            2500,
                         )
             elif value == BLOCK_INVISIBLE_BREAKABLE:
                 if not lv.is_key_removed() and lv.fixed_key_pos == tile:
@@ -6610,7 +6807,8 @@ class MainWindow(QMainWindow):
                     lv.visible_in_block_item_cells.add(tile)
                     skip_block_placement = True
                     self.statusBar().showMessage(
-                        f"鍵を透明ブロック内状態に自動変換 {tile}", 2500
+                        t("main.status.auto_key_visible", "鍵を透明ブロック内状態に自動変換 {tile}").format(tile=tile),
+                        2500,
                     )
                 else:
                     idx = lv.get_item_index(tile)
@@ -6619,7 +6817,8 @@ class MainWindow(QMainWindow):
                         base = item.element_no & 0x3F
                         if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                             self.statusBar().showMessage(
-                                f"このアイテムは透明ブロック内に入れられません: 0x{base:02X}", 3000
+                                t("main.hover.item_state.visible_blocked", "このアイテムは透明ブロック内に入れられません: 0x{code:02X}").format(code=base),
+                                3000,
                             )
                             restore_rejected_click_edit()
                             return
@@ -6628,7 +6827,8 @@ class MainWindow(QMainWindow):
                         lv.visible_in_block_item_cells.add(tile)
                         skip_block_placement = True
                         self.statusBar().showMessage(
-                            f"アイテムを透明ブロック内に自動変換 {tile}", 2500
+                            t("main.status.auto_item_visible", "アイテムを透明ブロック内に自動変換 {tile}").format(tile=tile),
+                            2500,
                         )
 
             if skip_block_placement:
@@ -6801,7 +7001,8 @@ class MainWindow(QMainWindow):
                     return
                 lv.delete_item(existing)
                 self.statusBar().showMessage(
-                    f"既存アイテムを置換 {tile}", 2500
+                    t("main.status.replace_existing_item", "既存アイテムを置換 {tile}").format(tile=tile),
+                    2500,
                 )
 
             # フラグ決定:
@@ -6822,7 +7023,8 @@ class MainWindow(QMainWindow):
                 base = value & 0x3F
                 if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                     self.statusBar().showMessage(
-                        f"このアイテムはひび割れブロック内に入れられません: 0x{base:02X}", 3000
+                        t("main.hover.item_state.cracked_blocked", "このアイテムはひび割れブロック内に入れられません: 0x{code:02X}").format(code=base),
+                        3000,
                     )
                     restore_rejected_click_edit()
                     return
@@ -6833,7 +7035,8 @@ class MainWindow(QMainWindow):
                 base = value & 0x3F
                 if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                     self.statusBar().showMessage(
-                        f"このアイテムは透明ブロック内に入れられません: 0x{base:02X}", 3000
+                        t("main.hover.item_state.visible_blocked", "このアイテムは透明ブロック内に入れられません: 0x{code:02X}").format(code=base),
+                        3000,
                     )
                     restore_rejected_click_edit()
                     return
@@ -6841,13 +7044,15 @@ class MainWindow(QMainWindow):
                 flag = c.ITEM_FLAG_NORMAL
                 if target_is_transparent_in_block and picker_flag != c.ITEM_FLAG_VISIBLE_IN_BLOCK:
                     self.statusBar().showMessage(
-                        f"透明な壊せるブロック内のため自動で透BL ON {tile}", 2500
+                        t("main.status.auto_visible_flag", "透明な壊せるブロック内のため自動で透BL ON {tile}").format(tile=tile),
+                        2500,
                     )
             elif tile in getattr(lv, "breakable_white_cells", set()):
                 base = value & 0x3F
                 if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                     self.statusBar().showMessage(
-                        f"このアイテムは白い壊せるブロック内に入れられません: 0x{base:02X}", 3000
+                        t("main.hover.item_state.white_blocked", "このアイテムは白い壊せるブロック内に入れられません: 0x{code:02X}").format(code=base),
+                        3000,
                     )
                     restore_rejected_click_edit()
                     return
@@ -6855,26 +7060,30 @@ class MainWindow(QMainWindow):
                 flag = c.ITEM_FLAG_WHITE_IN_BLOCK
                 if picker_flag != c.ITEM_FLAG_WHITE_IN_BLOCK:
                     self.statusBar().showMessage(
-                        f"白い壊せるブロック内のため自動で白ブロック内フラグON {tile}", 2500
+                        t("main.status.auto_white_flag", "白い壊せるブロック内のため自動で白ブロック内フラグON {tile}").format(tile=tile),
+                        2500,
                     )
             elif target_is_cracked_in_block:
                 flag = c.ITEM_FLAG_NORMAL
                 if picker_flag != c.ITEM_FLAG_NORMAL:
                     self.statusBar().showMessage(
-                        f"ひび割れブロック内のため通常item_idで保存 {tile}", 2500
+                        t("main.status.auto_normal_for_cracked", "ひび割れブロック内のため通常item_idで保存 {tile}").format(tile=tile),
+                        2500,
                     )
             elif lv.tiles[ty][tx] in (Wall.BROWN, Wall.BROWN_WHITE):
                 flag = c.ITEM_FLAG_IN_BLOCK
                 lv.set_block(Wall.NONE, tile)
                 if picker_flag != c.ITEM_FLAG_IN_BLOCK:
                     self.statusBar().showMessage(
-                        f"ブロック内のため自動で in_block フラグON {tile}", 2500
+                        t("main.status.auto_in_block_flag", "ブロック内のため自動で in_block フラグON {tile}").format(tile=tile),
+                        2500,
                     )
             elif picker_flag == c.ITEM_FLAG_WHITE_IN_BLOCK:
                 base = value & 0x3F
                 if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                     self.statusBar().showMessage(
-                        f"このアイテムは白い壊せるブロック内に入れられません: 0x{base:02X}", 3000
+                        t("main.hover.item_state.white_blocked", "このアイテムは白い壊せるブロック内に入れられません: 0x{code:02X}").format(code=base),
+                        3000,
                     )
                     restore_rejected_click_edit()
                     return
@@ -6941,7 +7150,11 @@ class MainWindow(QMainWindow):
             count = sum(1 for e in lv.enemies if e.position == tile)
             if count > 1:
                 self.statusBar().showMessage(
-                    f"敵を追加 {tile} (このマスに{count}体)", 2500
+                    t("main.status.enemy_added_multi", "敵を追加 {tile} (このマスに{count}体)").format(
+                        tile=tile,
+                        count=count,
+                    ),
+                    2500,
                 )
             self._refresh_key_enemy_spin_range()
             self._refresh_fairy_enemy_spin_range()
@@ -7029,7 +7242,10 @@ class MainWindow(QMainWindow):
             elif value == "door":
                 if lv.get_item_index(tile) >= 0:
                     self.statusBar().showMessage(
-                        f"アイテムがある位置には扉を置けません {tile}", 3000
+                        t("main.status.door_on_item", "アイテムがある位置には扉を置けません {tile}").format(
+                            tile=tile
+                        ),
+                        3000,
                     )
                     restore_rejected_click_edit()
                     return
@@ -7113,7 +7329,7 @@ class MainWindow(QMainWindow):
                     }
                     # 仮で今の位置に貼り（削除済みなのですぐ戻る）
                     self._paste_clipboard_at(drag_clip, x1, y1)
-                    self.statusBar().showMessage("選択範囲を移動中…", 0)
+                    self.statusBar().showMessage(t("main.status.selection_moving", "選択範囲を移動中…"), 0)
                     self._refresh_view()
                     return
 
@@ -7131,7 +7347,12 @@ class MainWindow(QMainWindow):
                 "prev_markers_at_current": set(),
             }
             self.statusBar().showMessage(
-                f"{seal_block_combo['meta'].description} + ブロックを掴み中 → ドラッグで移動", 0)
+                t(
+                    "main.status.drag_grab_with_block",
+                    "{name} + ブロックを掴み中 → ドラッグで移動",
+                ).format(name=seal_block_combo["meta"].description),
+                0,
+            )
             self._refresh_view()
             return
 
@@ -7147,7 +7368,7 @@ class MainWindow(QMainWindow):
                 "move_absorb_flag": move_absorb_flag,
                 "current_pos": tile,
             }
-            self.statusBar().showMessage(f"アイテムを掴み中 → ドラッグで移動", 0)
+            self.statusBar().showMessage(t("main.status.drag_item", "アイテムを掴み中 → ドラッグで移動"), 0)
             self._refresh_view()
             return
 
@@ -7155,7 +7376,7 @@ class MainWindow(QMainWindow):
         if idx >= 0:
             self._push_undo()
             self._move_pending = {"kind": "enemy", "ref": lv.enemies[idx]}
-            self.statusBar().showMessage(f"敵を掴み中 → ドラッグで移動", 0)
+            self.statusBar().showMessage(t("main.status.drag_enemy", "敵を掴み中 → ドラッグで移動"), 0)
             return
 
         # ボーナスマーカー (Level 51専用)
@@ -7165,7 +7386,12 @@ class MainWindow(QMainWindow):
                     self._push_undo()
                     self._move_pending = {"kind": "bonus", "index": bi}
                     self.statusBar().showMessage(
-                        f"ボーナススポット[{bi}] を掴み中 → ドラッグで移動", 0)
+                        t(
+                            "main.status.drag_bonus",
+                            "ボーナススポット[{index}] を掴み中 → ドラッグで移動",
+                        ).format(index=bi),
+                        0,
+                    )
                     return
 
         special_marker = self._conditional_breakable_marker_at(tile)
@@ -7179,7 +7405,11 @@ class MainWindow(QMainWindow):
             group_label = self._conditional_breakable_group_label(special_marker["group"])
             label = self._conditional_breakable_marker_label(special_marker["sub"])
             self.statusBar().showMessage(
-                f"{group_label} 条件付き壊せる白ブロック[{label}]を掴み中 → ドラッグで移動", 0
+                t(
+                    "main.status.drag_conditional_breakable",
+                    "{group} 条件付き壊せる白ブロック[{label}]を掴み中 → ドラッグで移動",
+                ).format(group=group_label, label=label),
+                0,
             )
             self._refresh_view()
             return
@@ -7191,9 +7421,17 @@ class MainWindow(QMainWindow):
                 "kind": "bomb_jack",
                 "sub": bomb_jack_marker,
             }
-            label = "頭突き判定" if bomb_jack_marker == "trigger" else "出現先"
+            label = (
+                t("main.status.bomb_jack.trigger", "頭突き判定")
+                if bomb_jack_marker == "trigger" else
+                t("main.status.bomb_jack.spawn", "出現先")
+            )
             self.statusBar().showMessage(
-                f"Mighty Bomb Jack [{label}] を掴み中 → ドラッグで移動", 0
+                t(
+                    "main.status.drag_bomb_jack",
+                    "Mighty Bomb Jack [{label}] を掴み中 → ドラッグで移動",
+                ).format(label=label),
+                0,
             )
             self._refresh_view()
             return
@@ -7224,7 +7462,9 @@ class MainWindow(QMainWindow):
                     self._push_undo()
                     self._move_pending = {"kind": "seal", "ref": mi}
                     self.statusBar().showMessage(
-                        f"{mi.description} を掴み中 → ドラッグで移動", 0)
+                        t("main.status.drag_named", "{name} を掴み中 → ドラッグで移動").format(name=mi.description),
+                        0,
+                    )
                     self._refresh_view()
                     return
 
@@ -7244,7 +7484,10 @@ class MainWindow(QMainWindow):
                 if self._move_pending["move_absorb_flag"] is not None:
                     self._apply_moving_door_absorb_state(lv, self._move_pending, tile)
             self.statusBar().showMessage(
-                f"{self._move_pending['sub']} を掴み中 → ドラッグで移動", 0
+                t("main.status.drag_named", "{name} を掴み中 → ドラッグで移動").format(
+                    name=self._meta_value_label(self._move_pending["sub"])
+                ),
+                0,
             )
             self._refresh_view()
             return
@@ -7272,23 +7515,29 @@ class MainWindow(QMainWindow):
             # 元位置を空白に
             lv.tiles[ty][tx] = Wall.NONE
             if "cracked_block_cells" in runtime_markers:
-                label = "ひび割れブロック"
+                label = t("main.hover.block.cracked", "ひび割れブロック")
             elif "invisible_breakable_cells" in runtime_markers:
-                label = "透明な壊せる壁"
+                label = t("main.hover.block.invisible_breakable", "壊せる透明ブロック")
             elif "invisible_solid_cells" in runtime_markers:
-                label = "透明な白壁"
+                label = t("main.hover.block.invisible_solid", "壊せない透明ブロック")
             elif "breakable_white_cells" in runtime_markers:
-                label = "壊せる白壁"
+                label = t("main.hover.block.breakable_white", "壊せる白ブロック")
             elif "passable_white_cells" in runtime_markers:
-                label = "すり抜ける白壁"
+                label = t("main.hover.block.passable_white", "すり抜ける白ブロック")
             elif "passable_brown_cells" in runtime_markers:
-                label = "すり抜ける茶色壁"
+                label = t("main.hover.block.passable_brown", "すり抜ける茶色ブロック")
             elif "solid_brown_cells" in runtime_markers:
-                label = "壊せない茶色壁"
+                label = t("main.hover.block.solid_brown", "壊せない茶色ブロック")
             else:
-                label = {Wall.BROWN: "茶ブロック", Wall.WHITE: "白ブロック",
-                         Wall.BROWN_WHITE: "壊せる白"}.get(wall, "ブロック")
-            self.statusBar().showMessage(f"{label} を掴み中 → ドラッグで移動", 0)
+                label = {
+                    Wall.BROWN: t("main.hover.block.brown", "茶色ブロック"),
+                    Wall.WHITE: t("main.hover.block.white", "白ブロック"),
+                    Wall.BROWN_WHITE: t("main.hover.block.breakable_white", "壊せる白ブロック"),
+                }.get(wall, t("main.status.block", "ブロック"))
+            self.statusBar().showMessage(
+                t("main.status.drag_named", "{name} を掴み中 → ドラッグで移動").format(name=label),
+                0,
+            )
             self._refresh_view()
 
     def _on_drag_move(self, tile: tuple):
@@ -7520,12 +7769,12 @@ class MainWindow(QMainWindow):
         if self._move_pending is not None:
             kind = self._move_pending.get("kind")
             if kind == "selection":
-                self.statusBar().showMessage("選択範囲の移動完了", 2000)
+                self.statusBar().showMessage(t("main.status.selection_move_complete", "選択範囲の移動完了"), 2000)
                 self._drag_base_level = None
                 self._refresh_thumbnails_after_edit()
             elif kind == "bonus":
                 self._write_bonus_positions_to_rom()
-                self.statusBar().showMessage("ボーナススポット移動完了", 2000)
+                self.statusBar().showMessage(t("main.status.bonus_move_complete", "ボーナススポット移動完了"), 2000)
                 self._refresh_thumbnails_after_edit()
             elif kind == "seal":
                 mi = self._move_pending["ref"]
@@ -7533,7 +7782,12 @@ class MainWindow(QMainWindow):
                     from ..core.element import byte_from_position
                     self.rom.data[mi.rom_offset] = byte_from_position(mi.position)
                 self.statusBar().showMessage(
-                    f"{mi.description} 移動完了 → {mi.position}", 2000)
+                    t("main.status.move_named_complete", "{name} 移動完了 → {pos}").format(
+                        name=mi.description,
+                        pos=mi.position,
+                    ),
+                    2000,
+                )
                 self._refresh_thumbnails_after_edit()
             elif kind == "seal_block":
                 mi = self._move_pending["ref"]
@@ -7541,7 +7795,12 @@ class MainWindow(QMainWindow):
                     from ..core.element import byte_from_position
                     self.rom.data[mi.rom_offset] = byte_from_position(mi.position)
                 self.statusBar().showMessage(
-                    f"{mi.description} + ブロック移動完了 → {mi.position}", 2000)
+                    t(
+                        "main.status.move_named_block_complete",
+                        "{name} + ブロック移動完了 → {pos}",
+                    ).format(name=mi.description, pos=mi.position),
+                    2000,
+                )
                 self._refresh_thumbnails_after_edit()
             elif kind == "conditional_breakable":
                 group = self._move_pending.get("group")
@@ -7551,16 +7810,28 @@ class MainWindow(QMainWindow):
                 group_label = self._conditional_breakable_group_label(group)
                 label = self._conditional_breakable_marker_label(sub)
                 self.statusBar().showMessage(
-                    f"{group_label} 条件付き壊せる白ブロック[{label}]移動完了 → {pos}", 2000
+                    t(
+                        "main.status.move_conditional_breakable_complete",
+                        "{group} 条件付き壊せる白ブロック[{label}]移動完了 → {pos}",
+                    ).format(group=group_label, label=label, pos=pos),
+                    2000,
                 )
                 self._refresh_thumbnails_after_conditional_marker_edit(group)
             elif kind == "bomb_jack":
                 sub = self._move_pending.get("sub")
                 positions = self._bomb_jack_positions() or {}
                 pos = positions.get(sub)
-                label = "頭突き判定" if sub == "trigger" else "出現先"
+                label = (
+                    t("main.status.bomb_jack.trigger", "頭突き判定")
+                    if sub == "trigger" else
+                    t("main.status.bomb_jack.spawn", "出現先")
+                )
                 self.statusBar().showMessage(
-                    f"Mighty Bomb Jack [{label}] 移動完了 → {pos}", 2000
+                    t(
+                        "main.status.move_bomb_jack_complete",
+                        "Mighty Bomb Jack [{label}] 移動完了 → {pos}",
+                    ).format(label=label, pos=pos),
+                    2000,
                 )
                 self._refresh_thumbnails_after_edit()
             elif kind == "item":
@@ -7568,14 +7839,14 @@ class MainWindow(QMainWindow):
                 item = self._move_pending.get("ref")
                 if item is not None and item.is_in_block():
                     lv.set_block(Wall.NONE, item.position)
-                self.statusBar().showMessage("アイテム移動完了", 2000)
+                self.statusBar().showMessage(t("main.status.item_move_complete", "アイテム移動完了"), 2000)
                 self._refresh_thumbnails_after_edit()
             elif kind == "meta" and self._move_pending.get("sub") in ("key", "door"):
                 self._finish_key_door_drag_absorb_state()
-                self.statusBar().showMessage("移動完了", 2000)
+                self.statusBar().showMessage(t("main.status.move_complete", "移動完了"), 2000)
                 self._refresh_thumbnails_after_edit()
             else:
-                self.statusBar().showMessage("移動完了", 2000)
+                self.statusBar().showMessage(t("main.status.move_complete", "移動完了"), 2000)
                 self._refresh_thumbnails_after_edit()
         self._move_pending = None
 
@@ -7666,12 +7937,20 @@ class MainWindow(QMainWindow):
             return
         if can_delete_door and stage_ext.get_key_enemy_number(lv) > 0:
             self.statusBar().showMessage(
-                "扉を削除する前に鍵持ち敵を解除してください", 3000
+                t(
+                    "main.status.delete_door_key_enemy_blocked",
+                    "扉を削除する前に鍵持ち敵を解除してください",
+                ),
+                3000,
             )
             return
         if can_delete_door and not lv.is_key_removed() and not can_delete_key:
             self.statusBar().showMessage(
-                "扉を削除する前に鍵メタを削除してください", 3000
+                t(
+                    "main.status.delete_door_key_meta_blocked",
+                    "扉を削除する前に鍵メタを削除してください",
+                ),
+                3000,
             )
             return
         key_enemy_number = stage_ext.get_key_enemy_number(lv)
@@ -7680,7 +7959,11 @@ class MainWindow(QMainWindow):
             while idx >= 0:
                 if idx <= key_enemy_number - 1:
                     self.statusBar().showMessage(
-                        "鍵メタが無いため、この鍵持ち敵に影響する敵は削除できません", 3000
+                        t(
+                            "main.status.delete_required_key_enemy_blocked",
+                            "鍵メタが無いため、この鍵持ち敵に影響する敵は削除できません",
+                        ),
+                        3000,
                     )
                     return
                 next_idx = -1
@@ -7747,7 +8030,14 @@ class MainWindow(QMainWindow):
             deleted.append("block")
 
         if deleted:
-            self.statusBar().showMessage(f"削除: {tile} ({', '.join(deleted)})", 2000)
+            labels = [self._deleted_kind_label(kind) for kind in deleted]
+            self.statusBar().showMessage(
+                t("main.status.deleted", "削除: {tile} ({items})").format(
+                    tile=tile,
+                    items=", ".join(labels),
+                ),
+                2000,
+            )
         self._refresh_view()
         self._refresh_thumbnails_after_edit()
 
@@ -7790,7 +8080,11 @@ class MainWindow(QMainWindow):
             x2, y2 = max(start[0], end[0]), max(start[1], end[1])
             w, h = x2 - x1 + 1, y2 - y1 + 1
             self.statusBar().showMessage(
-                f"選択範囲: ({x1},{y1})-({x2},{y2})  {w}×{h}", 0
+                t(
+                    "main.status.selection_rect",
+                    "選択範囲: ({x1},{y1})-({x2},{y2})  {w}×{h}",
+                ).format(x1=x1, y1=y1, x2=x2, y2=y2, w=w, h=h),
+                0,
             )
         self._refresh_view()
 
@@ -7962,7 +8256,8 @@ class MainWindow(QMainWindow):
 
     def _show_actor_block_overlap_message(self, tile):
         self.statusBar().showMessage(
-            f"主人公・敵とブロックは同じ位置にできません {tile}", 3000
+            t("main.status.actor_block_overlap", "主人公・敵とブロックは同じ位置にできません {tile}").format(tile=tile),
+            3000,
         )
 
     def _block_absorb_flag_from_parts(self, wall_type, runtime_markers) -> int | None:
@@ -7996,7 +8291,8 @@ class MainWindow(QMainWindow):
 
     def _show_block_absorb_rejected_message(self, tile):
         self.statusBar().showMessage(
-            f"このブロックとはアイテム/鍵/扉を重ねられません {tile}", 3000
+            t("main.status.block_absorb_rejected", "このブロックとはアイテム/鍵/扉を重ねられません {tile}").format(tile=tile),
+            3000,
         )
 
     def _snapshot_absorb_target_state(self, lv, tile):
@@ -8134,7 +8430,10 @@ class MainWindow(QMainWindow):
         if not any(tuple(m.position) == tile for m in lv.demon_mirrors):
             return
         self.statusBar().showMessage(
-            "警告: ミラー上の実体ブロック配置はドラゴン/ガーゴイル/ゴーレムが落下して死にます",
+            t(
+                "main.status.mirror_real_block_warning",
+                "警告: ミラー上の実体ブロック配置はドラゴン/ガーゴイル/ゴーレムが落下して死にます",
+            ),
             5000,
         )
 
@@ -8548,12 +8847,20 @@ class MainWindow(QMainWindow):
 
     def _show_start_enemy_overlap_message(self, tile):
         self.statusBar().showMessage(
-            f"主人公と敵は同じ位置にできません（開始直後に死亡します） {tile}", 3000
+            t(
+                "main.status.start_enemy_overlap",
+                "主人公と敵は同じ位置にできません（開始直後に死亡します） {tile}",
+            ).format(tile=tile),
+            3000,
         )
 
     def _show_key_door_item_overlap_message(self, tile):
         self.statusBar().showMessage(
-            f"鍵・扉・ソロモンの紋章とアイテムは同じ位置にできません {tile}", 3000
+            t(
+                "main.status.key_door_item_overlap",
+                "鍵・扉・ソロモンの紋章とアイテムは同じ位置にできません {tile}",
+            ).format(tile=tile),
+            3000,
         )
 
     def _clip_targets_locked_col15(self, clip, ox: int, oy: int) -> bool:
@@ -9154,7 +9461,11 @@ class MainWindow(QMainWindow):
             self.picker.set_enemy_speed(speed)
             self._set_picker_value(base, mode=MODE_ENEMY)
             self.statusBar().showMessage(
-                f"スポイト: 敵 0x{code:02X} (base 0x{base:02X}, SP{speed}) を選択", 2500
+                t(
+                    "main.eyedropper.enemy",
+                    "スポイト: 敵 0x{code:02X} (base 0x{base:02X}, SP{speed}) を選択",
+                ).format(code=code, base=base, speed=speed),
+                2500,
             )
             return
 
@@ -9182,7 +9493,10 @@ class MainWindow(QMainWindow):
             else:
                 self.picker.rb_flag_normal.setChecked(True)
             self.statusBar().showMessage(
-                f"スポイト: アイテム 0x{base:02X} を選択", 2000
+                t("main.eyedropper.item", "スポイト: アイテム 0x{code:02X} を選択").format(
+                    code=base
+                ),
+                2000,
             )
             return
 
@@ -9200,7 +9514,12 @@ class MainWindow(QMainWindow):
             meta = "mirror2"
         if meta:
             self._set_picker_value(meta, mode=MODE_META)
-            self.statusBar().showMessage(f"スポイト: {meta} を選択", 2000)
+            self.statusBar().showMessage(
+                t("main.eyedropper.meta", "スポイト: {name} を選択").format(
+                    name=self._meta_value_label(meta)
+                ),
+                2000,
+            )
             return
 
         # ブロック
@@ -9208,32 +9527,38 @@ class MainWindow(QMainWindow):
         block_value = None
         block_label = None
         if wall == Wall.BROWN and tile in getattr(lv, "passable_brown_cells", set()):
-            block_value, block_label = BLOCK_PASSABLE_BROWN, "すり抜ける土色壁"
+            block_value, block_label = BLOCK_PASSABLE_BROWN, t("main.hover.block.passable_brown", "すり抜ける茶色ブロック")
         elif wall == Wall.BROWN and tile in getattr(lv, "solid_brown_cells", set()):
-            block_value, block_label = BLOCK_SOLID_BROWN, "壊せない土色壁"
+            block_value, block_label = BLOCK_SOLID_BROWN, t("main.hover.block.solid_brown", "壊せない茶色ブロック")
         elif wall == Wall.BROWN and tile in getattr(lv, "cracked_block_cells", set()):
-            block_value, block_label = BLOCK_CRACKED, "ひび割れブロック"
+            block_value, block_label = BLOCK_CRACKED, t("main.hover.block.cracked", "ひび割れブロック")
         elif wall == Wall.BROWN:
-            block_value, block_label = BLOCK_BROWN, "茶ブロック"
+            block_value, block_label = BLOCK_BROWN, t("main.hover.block.brown", "茶色ブロック")
         elif wall == Wall.WHITE and tile in getattr(lv, "breakable_white_cells", set()):
-            block_value, block_label = BLOCK_BREAKABLE_WHITE, "壊せる白壁"
+            block_value, block_label = BLOCK_BREAKABLE_WHITE, t("main.hover.block.breakable_white", "壊せる白ブロック")
         elif wall == Wall.WHITE and tile in getattr(lv, "passable_white_cells", set()):
             block_value, block_label = BLOCK_PASSABLE_WHITE, "WHITE visual / EMPTY behavior"
         elif wall == Wall.NONE and tile in getattr(lv, "invisible_breakable_cells", set()):
-            block_value, block_label = BLOCK_INVISIBLE_BREAKABLE, "透明な壊せる壁"
+            block_value, block_label = BLOCK_INVISIBLE_BREAKABLE, t("main.hover.block.invisible_breakable", "壊せる透明ブロック")
         elif wall == Wall.NONE and tile in getattr(lv, "invisible_solid_cells", set()):
             block_value, block_label = BLOCK_INVISIBLE_SOLID, "EMPTY visual / WHITE solid"
         elif wall == Wall.WHITE:
-            block_value, block_label = BLOCK_WHITE, "白ブロック"
+            block_value, block_label = BLOCK_WHITE, t("main.hover.block.white", "白ブロック")
         elif wall == Wall.BROWN_WHITE:
-            block_value, block_label = BLOCK_BROWN_WHITE, "壊せる白"
+            block_value, block_label = BLOCK_BROWN_WHITE, t("main.hover.block.breakable_white", "壊せる白ブロック")
         if block_value is not None:
             self._set_picker_value(block_value, mode=MODE_BLOCK)
-            self.statusBar().showMessage(f"スポイト: {block_label} を選択", 2000)
+            self.statusBar().showMessage(
+                t("main.eyedropper.block", "スポイト: {name} を選択").format(
+                    name=block_label
+                ),
+                2000,
+            )
             return
 
         self.statusBar().showMessage(
-            f"スポイト: {tile} に何もありません", 1500
+            t("main.eyedropper.empty", "スポイト: {tile} に何もありません").format(tile=tile),
+            1500,
         )
 
     # ====== Keyboard shortcuts ======
@@ -9939,7 +10264,10 @@ class MainWindow(QMainWindow):
                     and new_cracked == old_cracked
                 ):
                     self.statusBar().showMessage(
-                        f"ホバー位置の鍵状態: {label}", 1500
+                        t("main.hover.key_state.current", "ホバー位置の鍵状態: {state}").format(
+                            state=label
+                        ),
+                        1500,
                     )
                     return
                 old_was_white = lv.is_key_white_in_block()
@@ -9966,7 +10294,10 @@ class MainWindow(QMainWindow):
                 self._set_dirty(True)
                 self._update_hover_info(self._hover_tile)
                 self.statusBar().showMessage(
-                    f"ホバー位置の鍵状態を{label}に変更", 1500
+                    t("main.hover.key_state.changed", "ホバー位置の鍵状態を{state}に変更").format(
+                        state=label
+                    ),
+                    1500,
                 )
                 return
 
@@ -9976,7 +10307,11 @@ class MainWindow(QMainWindow):
                     return
                 if flag == c.ITEM_FLAG_CRACKED_IN_BLOCK:
                     self.statusBar().showMessage(
-                        "扉はひび割れブロック内状態にできません", 1500
+                        t(
+                            "main.hover.door_state.cracked_blocked",
+                            "扉はひび割れブロック内状態にできません",
+                        ),
+                        1500,
                     )
                     return
                 from ..core import room_flags as _rf
@@ -9990,12 +10325,15 @@ class MainWindow(QMainWindow):
                 new_state = state_by_flag.get(flag, _rf.DOOR_STATE_NORMAL)
                 if old_state == new_state:
                     state = {
-                        _rf.DOOR_STATE_HIDDEN: "隠し",
-                        _rf.DOOR_STATE_IN_BLOCK: "ブロック内",
-                        _rf.DOOR_STATE_WHITE_IN_BLOCK: "白ブロック内",
-                    }.get(old_state, "通常")
+                        _rf.DOOR_STATE_HIDDEN: t("element_picker.item_state.hidden", "隠し"),
+                        _rf.DOOR_STATE_IN_BLOCK: t("element_picker.item_state.in_block", "ブロック内"),
+                        _rf.DOOR_STATE_WHITE_IN_BLOCK: t("element_picker.item_state.white_in_block", "白ブロック内"),
+                    }.get(old_state, t("element_picker.item_state.normal", "通常"))
                     self.statusBar().showMessage(
-                        f"ホバー位置の扉状態: {state}", 1500
+                        t("main.hover.door_state.current", "ホバー位置の扉状態: {state}").format(
+                            state=state
+                        ),
+                        1500,
                     )
                     return
                 self._push_undo()
@@ -10006,7 +10344,10 @@ class MainWindow(QMainWindow):
                 self._update_hover_info(self._hover_tile)
                 self._update_info()
                 self.statusBar().showMessage(
-                    f"ホバー位置の扉状態を{label}に変更", 1500
+                    t("main.hover.door_state.changed", "ホバー位置の扉状態を{state}に変更").format(
+                        state=label
+                    ),
+                    1500,
                 )
                 return
 
@@ -10020,22 +10361,30 @@ class MainWindow(QMainWindow):
                 if idx >= 0:
                     if lv.items[idx].element_no == item_no:
                         self.statusBar().showMessage(
-                            "デーモンミラー上の隠しアイテムは設定済みです", 1500
+                            t(
+                                "main.hover.demon_mirror.hidden_item_exists",
+                                "デーモンミラー上の隠しアイテムは設定済みです",
+                            ),
+                            1500,
                         )
                         return
                     self._push_undo()
                     lv.items[idx].element_no = item_no
-                    action = "変更"
+                    action = t("main.hover.action.changed", "変更")
                 else:
                     self._push_undo()
                     lv.items.append(LevelElement(ElementType.ITEM, self._hover_tile, item_no))
-                    action = "追加"
+                    action = t("main.hover.action.added", "追加")
                 self._refresh_view()
                 self._refresh_thumbnails_after_edit()
                 self._set_dirty(True)
                 self._update_hover_info(self._hover_tile)
                 self.statusBar().showMessage(
-                    f"デーモンミラー上に隠しアイテム 0x48 を{action}", 1500
+                    t(
+                        "main.hover.demon_mirror.hidden_item_action",
+                        "デーモンミラー上に隠しアイテム 0x48 を{action}",
+                    ).format(action=action),
+                    1500,
                 )
                 return
 
@@ -10056,21 +10405,33 @@ class MainWindow(QMainWindow):
                 if flag == c.ITEM_FLAG_VISIBLE_IN_BLOCK:
                     if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                         self.statusBar().showMessage(
-                            f"このアイテムは透明ブロック内に入れられません: 0x{base:02X}", 1500
+                            t(
+                                "main.hover.item_state.visible_blocked",
+                                "このアイテムは透明ブロック内に入れられません: 0x{code:02X}",
+                            ).format(code=base),
+                            1500,
                         )
                         return
                     new_no = base
                 elif flag == c.ITEM_FLAG_CRACKED_IN_BLOCK:
                     if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                         self.statusBar().showMessage(
-                            f"このアイテムはひび割れブロック内に入れられません: 0x{base:02X}", 1500
+                            t(
+                                "main.hover.item_state.cracked_blocked",
+                                "このアイテムはひび割れブロック内に入れられません: 0x{code:02X}",
+                            ).format(code=base),
+                            1500,
                         )
                         return
                     new_no = base
                 elif flag == c.ITEM_FLAG_WHITE_IN_BLOCK:
                     if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                         self.statusBar().showMessage(
-                            f"このアイテムは白い壊せるブロック内に入れられません: 0x{base:02X}", 1500
+                            t(
+                                "main.hover.item_state.white_blocked",
+                                "このアイテムは白い壊せるブロック内に入れられません: 0x{code:02X}",
+                            ).format(code=base),
+                            1500,
                         )
                         return
                     new_no = base | c.ITEM_FLAG_WHITE_IN_BLOCK
@@ -10088,7 +10449,10 @@ class MainWindow(QMainWindow):
                 new_cracked = flag == c.ITEM_FLAG_CRACKED_IN_BLOCK
                 if new_no == item.element_no and old_visible == new_visible and old_cracked == new_cracked:
                     self.statusBar().showMessage(
-                        f"ホバー位置のアイテム状態: {label}", 1500
+                        t("main.hover.item_state.current", "ホバー位置のアイテム状態: {state}").format(
+                            state=label
+                        ),
+                        1500,
                     )
                     return
                 old_was_in_block = bool(int(item.element_no) & 0x80)
@@ -10129,13 +10493,20 @@ class MainWindow(QMainWindow):
                     f"アイテム状態変更: L{self.current_level_no + 1} "
                     f"{self._hover_tile} 0x{old_no:02X}->0x{new_no:02X} {label}"
                 )
-                msg = f"ホバー位置のアイテム状態を{label}に変更"
+                msg = t(
+                    "main.hover.item_state.changed",
+                    "ホバー位置のアイテム状態を{state}に変更",
+                ).format(state=label)
                 if clear_backing_block:
-                    msg += "（元ブロックも削除）"
+                    msg += t("main.hover.item_state.removed_backing", "（元ブロックも削除）")
                 self.statusBar().showMessage(msg, 1500)
                 return
         self.statusBar().showMessage(
-            "ホバー位置に状態変更できるアイテム/鍵/扉がありません", 1500
+            t(
+                "main.hover.item_state.no_target",
+                "ホバー位置に状態変更できるアイテム/鍵/扉がありません",
+            ),
+            1500,
         )
 
     def _on_level_view_hover_action(self, action: str):
@@ -10150,10 +10521,10 @@ class MainWindow(QMainWindow):
         save_config(self._app_config)
         if enabled:
             self._update_hover_info_popup(self._hover_tile)
-            self.statusBar().showMessage("ホバー情報ポップアップ: ON", 1500)
+            self.statusBar().showMessage(t("main.hover.popup.on", "ホバー情報ポップアップ: ON"), 1500)
         else:
             self._hide_hover_info_popup()
-            self.statusBar().showMessage("ホバー情報ポップアップ: OFF", 1500)
+            self.statusBar().showMessage(t("main.hover.popup.off", "ホバー情報ポップアップ: OFF"), 1500)
 
     def _cycle_hover_enemy_speed(self) -> bool:
         if self._hover_tile is None or not self.levels:
@@ -10169,7 +10540,10 @@ class MainWindow(QMainWindow):
         old_no = int(enemy.element_no) & 0xFF
         base_code, speed, available = self._enemy_speed_info(old_no)
         if len(available) <= 1:
-            self.statusBar().showMessage("この敵はスピード変更に対応していません", 1500)
+            self.statusBar().showMessage(
+                t("main.hover.enemy_speed.unsupported", "この敵はスピード変更に対応していません"),
+                1500,
+            )
             return True
         speeds = [sp for sp, _code in available]
         try:
@@ -10179,7 +10553,12 @@ class MainWindow(QMainWindow):
         next_speed = speeds[(current_idx + 1) % len(speeds)]
         new_no = apply_enemy_speed(base_code, next_speed)
         if new_no == old_no:
-            self.statusBar().showMessage(f"この敵はSP{speed}です", 1500)
+            self.statusBar().showMessage(
+                t("main.hover.enemy_speed.current", "この敵はSP{speed}です").format(
+                    speed=speed
+                ),
+                1500,
+            )
             return True
 
         self._push_undo()
@@ -10189,20 +10568,18 @@ class MainWindow(QMainWindow):
         self._set_dirty(True)
         self._update_hover_info(self._hover_tile)
         self._update_hover_info_popup(self._hover_tile)
-        old_desc = (
-            self.config.enemy_desc.get(old_no, f"0x{old_no:02X}")
-            if self.config else f"0x{old_no:02X}"
-        )
-        new_desc = (
-            self.config.enemy_desc.get(new_no, f"0x{new_no:02X}")
-            if self.config else f"0x{new_no:02X}"
-        )
+        old_desc = self._display_enemy_desc(old_no)
+        new_desc = self._display_enemy_desc(new_no)
         self._log(
             f"敵スピード変更: L{self.current_level_no + 1} {self._hover_tile} "
             f"0x{old_no:02X}->0x{new_no:02X} {old_desc}->{new_desc}"
         )
         self.statusBar().showMessage(
-            f"ホバー位置の敵スピードをSP{next_speed}へ変更: {new_desc}", 1500
+            t(
+                "main.hover.enemy_speed.changed",
+                "ホバー位置の敵スピードをSP{speed}へ変更: {desc}",
+            ).format(speed=next_speed, desc=new_desc),
+            1500,
         )
         return True
 
@@ -10222,11 +10599,18 @@ class MainWindow(QMainWindow):
         new_no = enemy_enhance_variant(old_no)
         if new_no is None:
             self.statusBar().showMessage(
-                "この敵は強化/別版切替に対応していません", 1500
+                t(
+                    "main.hover.enemy_enhance.unsupported",
+                    "この敵は強化/別版切替に対応していません",
+                ),
+                1500,
             )
             return True
         if new_no == old_no:
-            self.statusBar().showMessage("この敵はこれ以上切り替えできません", 1500)
+            self.statusBar().showMessage(
+                t("main.hover.enemy_enhance.no_more", "この敵はこれ以上切り替えできません"),
+                1500,
+            )
             return True
 
         self._push_undo()
@@ -10236,20 +10620,17 @@ class MainWindow(QMainWindow):
         self._set_dirty(True)
         self._update_hover_info(self._hover_tile)
         self._update_hover_info_popup(self._hover_tile)
-        old_desc = (
-            self.config.enemy_desc.get(old_no, f"0x{old_no:02X}")
-            if self.config else f"0x{old_no:02X}"
-        )
-        new_desc = (
-            self.config.enemy_desc.get(new_no, f"0x{new_no:02X}")
-            if self.config else f"0x{new_no:02X}"
-        )
+        old_desc = self._display_enemy_desc(old_no)
+        new_desc = self._display_enemy_desc(new_no)
         self._log(
             f"敵強化切替: L{self.current_level_no + 1} {self._hover_tile} "
             f"0x{old_no:02X}->0x{new_no:02X} {old_desc}->{new_desc}"
         )
         self.statusBar().showMessage(
-            f"ホバー位置の敵を切替: {new_desc}", 1500
+            t("main.hover.enemy_enhance.changed", "ホバー位置の敵を切替: {desc}").format(
+                desc=new_desc
+            ),
+            1500,
         )
         return True
 
@@ -10267,15 +10648,26 @@ class MainWindow(QMainWindow):
         enemy = lv.enemies[idx]
         old_no = int(enemy.element_no) & 0xFF
         new_no = enemy_direction_variant(self.config, old_no, direction)
-        direction_label = DIRECTION_LABELS.get(direction, direction)
+        direction_label = t(
+            f"main.hover.direction.{direction}",
+            DIRECTION_LABELS.get(direction, direction),
+        )
         if new_no is None:
             self.statusBar().showMessage(
-                f"この敵は{direction_label}向きに変更できません", 1500
+                t(
+                    "main.hover.enemy_direction.unsupported",
+                    "この敵は{direction}向きに変更できません",
+                ).format(direction=direction_label),
+                1500,
             )
             return True
         if new_no == old_no:
             self.statusBar().showMessage(
-                f"この敵はすでに{direction_label}向きです", 1500
+                t(
+                    "main.hover.enemy_direction.current",
+                    "この敵はすでに{direction}向きです",
+                ).format(direction=direction_label),
+                1500,
             )
             return True
 
@@ -10286,20 +10678,18 @@ class MainWindow(QMainWindow):
         self._set_dirty(True)
         self._update_hover_info(self._hover_tile)
         self._update_hover_info_popup(self._hover_tile)
-        old_desc = (
-            self.config.enemy_desc.get(old_no, f"0x{old_no:02X}")
-            if self.config else f"0x{old_no:02X}"
-        )
-        new_desc = (
-            self.config.enemy_desc.get(new_no, f"0x{new_no:02X}")
-            if self.config else f"0x{new_no:02X}"
-        )
+        old_desc = self._display_enemy_desc(old_no)
+        new_desc = self._display_enemy_desc(new_no)
         self._log(
             f"敵向き変更: L{self.current_level_no + 1} {self._hover_tile} "
             f"0x{old_no:02X}->0x{new_no:02X} {old_desc}->{new_desc}"
         )
         self.statusBar().showMessage(
-            f"ホバー位置の敵を{direction_label}向きに変更: {new_desc}", 1500
+            t(
+                "main.hover.enemy_direction.changed",
+                "ホバー位置の敵を{direction}向きに変更: {desc}",
+            ).format(direction=direction_label, desc=new_desc),
+            1500,
         )
         return True
 
@@ -10389,7 +10779,9 @@ class MainWindow(QMainWindow):
             rb.setEnabled(enabled)
             rb.setStyleSheet("")
         if hasattr(self, "lbl_tileset_lock"):
-            self.lbl_tileset_lock.setText("" if enabled else "星座固定")
+            self.lbl_tileset_lock.setText(
+                "" if enabled else t("main.stage.constellation_locked", "星座固定")
+            )
             self.lbl_tileset_lock.setEnabled(enabled)
 
     def _refresh_key_enemy_spin_range(self, warn: bool = False):
@@ -10643,19 +11035,31 @@ class MainWindow(QMainWindow):
         lv = self.levels[self.current_level_no]
         if int(enemy_number) <= 0 and self._key_enemy_is_required_for_exit(lv):
             self.statusBar().showMessage(
-                "鍵メタが無いため、この鍵持ち敵は解除できません", 3000
+                t(
+                    "main.status.key_enemy_clear_blocked_no_key",
+                    "鍵メタが無いため、この鍵持ち敵は解除できません",
+                ),
+                3000,
             )
             self._refresh_key_enemy_spin_range()
             return
         if int(enemy_number) > 0 and lv.is_door_removed():
             self.statusBar().showMessage(
-                "扉が削除されているステージには鍵持ち敵を設定できません", 3000
+                t(
+                    "main.status.key_enemy_set_blocked_no_door",
+                    "扉が削除されているステージには鍵持ち敵を設定できません",
+                ),
+                3000,
             )
             self._refresh_key_enemy_spin_range()
             return
         if int(enemy_number) > 0 and lv.is_key_removed():
             self.statusBar().showMessage(
-                "鍵メタが無いステージには鍵持ち敵を設定できません", 3000
+                t(
+                    "main.status.key_enemy_set_blocked_no_key",
+                    "鍵メタが無いステージには鍵持ち敵を設定できません",
+                ),
+                3000,
             )
             self._refresh_key_enemy_spin_range()
             return
@@ -11049,7 +11453,11 @@ class MainWindow(QMainWindow):
                 return MODE_ENEMY, int(ENEMIES_LIST[0][0]), c.ITEM_FLAG_NORMAL
             if show_warning:
                 self.statusBar().showMessage(
-                    "ピッカーでブロック、アイテム、モンスターを選択してから指定してください", 2500
+                    t(
+                        "main.status.replace_picker_required",
+                        "ピッカーでブロック、アイテム、モンスターを選択してから指定してください",
+                    ),
+                    2500,
                 )
             return None
 
@@ -11520,7 +11928,10 @@ class MainWindow(QMainWindow):
             self._set_dirty(True)
             self._refresh_view()
             self._generate_all_thumbnails()
-            self.statusBar().showMessage("16x16ピクセル編集: CHRを書き換えました", 4000)
+            self.statusBar().showMessage(
+                t("main.status.pixel_editor_chr_written", "16x16ピクセル編集: CHRを書き換えました"),
+                4000,
+            )
             self._log("16x16ピクセル編集: CHR書換")
 
     def _on_show_sound_viewer(self):
@@ -11583,7 +11994,10 @@ class MainWindow(QMainWindow):
         self._set_dirty(True)
         self._refresh_view()
         self._generate_all_thumbnails()
-        self.statusBar().showMessage("スプライトビューア経由: CHRを書き換えました", 4000)
+        self.statusBar().showMessage(
+            t("main.status.sprite_viewer_chr_written", "スプライトビューア経由: CHRを書き換えました"),
+            4000,
+        )
         self._log("スプライトビューア経由: CHR書換")
 
     def _on_show_mirror(self):
