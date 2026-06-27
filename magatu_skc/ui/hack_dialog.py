@@ -47,6 +47,7 @@ from ..core import stage_ext
 from ..core import constants as c
 from ..core.config import normalize_panel_variant_settings
 from ..core.element import Wall
+from ..core.i18n import t
 from ..nes import palette as nes_palette
 
 
@@ -112,7 +113,10 @@ class HackDialog(QDialog):
         if parent is not None:
             self.setFont(parent.font())
         self._view_mode = view_mode
-        self.setWindowTitle("敵" if view_mode == "enemy" else "ゲーム挙動改造")
+        self.setWindowTitle(t(
+            "hack_dialog.title.enemy" if view_mode == "enemy" else "hack_dialog.title.game",
+            "敵" if view_mode == "enemy" else "ゲーム挙動改造",
+        ))
         self.resize(940, 720)
         self.rom = rom
         self._app_config = app_config   # サイズ/位置 復元用 (None=保存しない)
@@ -135,15 +139,21 @@ class HackDialog(QDialog):
 
         if view_mode == "enemy":
             info_text = (
-                "敵の挙動に関係する既知アドレスを書き換えます。<br>"
-                "適用すると <b>ROMバイナリが直接変更されます</b>。<br>"
-                "保存ボタンを押すまでは元に戻せます（再読込で復元可）。"
+                t(
+                    "hack_dialog.info.enemy_html",
+                    "敵の挙動に関係する既知アドレスを書き換えます。<br>"
+                    "適用すると <b>ROMバイナリが直接変更されます</b>。<br>"
+                    "保存ボタンを押すまでは元に戻せます（再読込で復元可）。",
+                )
             )
         else:
             info_text = (
-                "ROMの既知アドレスを書き換えてゲーム挙動を変更します。<br>"
-                "適用すると <b>ROMバイナリが直接変更されます</b>。<br>"
-                "保存ボタンを押すまでは元に戻せます（再読込で復元可）。"
+                t(
+                    "hack_dialog.info.game_html",
+                    "ROMの既知アドレスを書き換えてゲーム挙動を変更します。<br>"
+                    "適用すると <b>ROMバイナリが直接変更されます</b>。<br>"
+                    "保存ボタンを押すまでは元に戻せます（再読込で復元可）。",
+                )
             )
         info = QLabel(info_text)
         info.setWordWrap(True)
@@ -151,7 +161,7 @@ class HackDialog(QDialog):
         layout.addWidget(info)
 
         # ====== 開始ステージ ======
-        stage_group = QGroupBox("開始ステージ")
+        stage_group = QGroupBox(t("hack_dialog.group.start_stage", "開始ステージ"))
         stage_group.setProperty("settings_category", "基本")
         sf = QFormLayout(stage_group)
         self.spin_stage = QSpinBox()
@@ -161,7 +171,7 @@ class HackDialog(QDialog):
         layout.addWidget(stage_group)
 
         # ====== コンティニュー上限ステージ ======
-        cont_group = QGroupBox("コンティニュー上限")
+        cont_group = QGroupBox(t("hack_dialog.group.continue_limit", "コンティニュー上限"))
         cont_group.setProperty("settings_category", "基本")
         cf = QFormLayout(cont_group)
         self._continue_offset = hack_data.get_continue_max_offset(rom.region)
@@ -173,36 +183,42 @@ class HackDialog(QDialog):
         layout.addWidget(cont_group)
 
         # ====== 最終面への移行 ======
-        final_group = QGroupBox("最終ステージ")
+        final_group = QGroupBox(t("hack_dialog.group.final_stage", "最終ステージ"))
         final_group.setProperty("settings_category", "基本")
         ff = QFormLayout(final_group)
         self.combo_final_stage_redirect = QComboBox()
         for stage_no in range(1, 54):
-            label = f"{stage_no}面をクリアした後"
+            label = t(
+                "hack_dialog.final_stage.option",
+                "{stage}面をクリアした後",
+            ).format(stage=stage_no)
             data = stage_no - 1
             if stage_no == DEFAULT_FINAL_STAGE_REDIRECT_STAGE_NO:
-                label += "（原作）"
+                label += t("hack_dialog.original_suffix", "（原作）")
                 data = -1
             self.combo_final_stage_redirect.addItem(label, data)
         current_final_redirect = self._current_final_stage_redirect_level_no()
         idx = self.combo_final_stage_redirect.findData(current_final_redirect)
         self.combo_final_stage_redirect.setCurrentIndex(idx if idx >= 0 else 0)
         self.combo_final_stage_redirect.setToolTip(
-            "選んだ面をクリアした後、次の面を原作最終面に差し替えます。"
-            "48面は原作相当なので追加フラグを書きません。"
+            t(
+                "hack_dialog.final_stage.tooltip",
+                "選んだ面をクリアした後、次の面を原作最終面に差し替えます。"
+                "48面は原作相当なので追加フラグを書きません。",
+            )
         )
         ff.addRow("", self.combo_final_stage_redirect)
         layout.addWidget(final_group)
 
         # ====== ワープ羽 ======
-        wftr_group = QGroupBox("ワープの羽")
+        wftr_group = QGroupBox(t("hack_dialog.group.warp_feather", "ワープの羽"))
         wftr_group.setProperty("settings_category", "基本")
         wftr = QFormLayout(wftr_group)
         self._warp_feather_ok = False
         self.spin_warp_feather = QSpinBox()
         self.spin_warp_feather.setRange(
             warp_feather.MIN_STEPS, warp_feather.MAX_STEPS)
-        self.spin_warp_feather.setSuffix(" 面分ワープ")
+        self.spin_warp_feather.setSuffix(t("hack_dialog.warp_feather.suffix", " 面分ワープ"))
         try:
             self.spin_warp_feather.setValue(
                 warp_feather.current_steps(rom.data))
@@ -210,21 +226,27 @@ class HackDialog(QDialog):
         except warp_feather.WarpFeatherError as e:
             self.spin_warp_feather.setValue(warp_feather.ORIGINAL_STEPS)
             self.spin_warp_feather.setEnabled(False)
-            note = QLabel(f"⚠ 検証失敗のため無効: {str(e).splitlines()[0]}")
+            note = QLabel(t(
+                "hack_dialog.validation_failed_disabled",
+                "⚠ 検証失敗のため無効: {error}",
+            ).format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             wftr.addRow(note)
         wftr.addRow("", self.spin_warp_feather)
         wftr_hint = QLabel(
-            "原作は6面分。実コードは $C69F の #$05 と通常クリアの +1 で合計6。"
-            "この値は $28 bit6 ルートのクリア進行数を変えます。")
+            t(
+                "hack_dialog.warp_feather.hint",
+                "原作は6面分。実コードは $C69F の #$05 と通常クリアの +1 で合計6。"
+                "この値は $28 bit6 ルートのクリア進行数を変えます。",
+            ))
         wftr_hint.setWordWrap(True)
         wftr_hint.setStyleSheet("color:#888; font-size:11px;")
         wftr.addRow(wftr_hint)
         layout.addWidget(wftr_group)
 
         # ====== ソロモンの封印 出現面 ======
-        seal_group = QGroupBox("ソロモンの封印 出現面")
+        seal_group = QGroupBox(t("hack_dialog.group.solomon_seal_stage", "ソロモンの封印 出現面"))
         seal_group.setProperty("settings_category", "基本")
         seal_f = QFormLayout(seal_group)
         self._seal_stage_ok = solomon_seal_stage.supported(rom.region)
@@ -241,7 +263,7 @@ class HackDialog(QDialog):
         for spec in solomon_seal_stage.SLOTS:
             combo = QComboBox()
             for stage_no in solomon_seal_stage.candidates(spec.slot, rom.data, rom.region):
-                combo.addItem(f"{stage_no}面", stage_no)
+                combo.addItem(t("hack_dialog.stage.option", "{stage}面").format(stage=stage_no), stage_no)
             wanted = current_seal_stages[spec.slot]
             idx = combo.findData(wanted)
             combo.setCurrentIndex(idx if idx >= 0 else 0)
@@ -250,26 +272,35 @@ class HackDialog(QDialog):
             self.combo_seal_stages.append(combo)
             row = spec.slot // 2
             col = (spec.slot % 2) * 2
-            seal_grid.addWidget(QLabel(f"封印{spec.slot + 1}:"), row, col)
+            seal_grid.addWidget(QLabel(t(
+                "hack_dialog.solomon_seal.slot.label",
+                "封印{slot}:",
+            ).format(slot=spec.slot + 1)), row, col)
             seal_grid.addWidget(combo, row, col + 1)
         seal_f.addRow(seal_grid)
         self._refresh_solomon_seal_stage_choices()
         seal_hint = QLabel(
-            "1面につき封印1個まで。20面までに4個以上、44面までに6個以上、"
-            "48面までに8個配置される必要があります。ROM保存できる候補だけ表示します。"
+            t(
+                "hack_dialog.solomon_seal.hint",
+                "1面につき封印1個まで。20面までに4個以上、44面までに6個以上、"
+                "48面までに8個配置される必要があります。ROM保存できる候補だけ表示します。",
+            )
         )
         seal_hint.setWordWrap(True)
         seal_hint.setStyleSheet("color:#888; font-size:11px;")
         seal_f.addRow(seal_hint)
         if not self._seal_stage_ok:
-            note = QLabel("⚠ JP ROM以外、または特殊処理テーブル検証失敗のため無効です。")
+            note = QLabel(t(
+                "hack_dialog.solomon_seal.unsupported",
+                "⚠ JP ROM以外、または特殊処理テーブル検証失敗のため無効です。",
+            ))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             seal_f.addRow(note)
         layout.addWidget(seal_group)
 
         # ====== 初期魔法 (共通) ======
-        im_group = QGroupBox("初期魔法（共通）")
+        im_group = QGroupBox(t("hack_dialog.group.initial_magic", "初期魔法（共通）"))
         im_group.setProperty("settings_category", "プレイヤー")
         imf = QFormLayout(im_group)
         self._initial_magic_ok = False
@@ -277,13 +308,19 @@ class HackDialog(QDialog):
         self.spin_initial_magic_max.setRange(
             initial_magic.MAX_COUNT_MIN, initial_magic.MAX_COUNT_MAX)
         self.spin_initial_magic_max.setToolTip(
-            "持てる巻物の最大数。原作は3。0にすると巻物を持てません。")
+            t(
+                "hack_dialog.initial_magic.max.tooltip",
+                "持てる巻物の最大数。原作は3。0にすると巻物を持てません。",
+            ))
         self.edit_initial_magic = QLineEdit()
         self.edit_initial_magic.setMaxLength(initial_magic.MAX_PATTERN_CHARS)
-        self.edit_initial_magic.setPlaceholderText("例: FFF / SSS / FSFS")
+        self.edit_initial_magic.setPlaceholderText(t("hack_dialog.initial_magic.placeholder", "例: FFF / SSS / FSFS"))
         self.edit_initial_magic.setToolTip(
-            "開始時に持っている巻物。F=通常ファイヤー、S=スーパー。"
-            "最大8文字。空欄で原作(所持なし)。")
+            t(
+                "hack_dialog.initial_magic.pattern.tooltip",
+                "開始時に持っている巻物。F=通常ファイヤー、S=スーパー。"
+                "最大8文字。空欄で原作(所持なし)。",
+            ))
         try:
             max_count, pattern = initial_magic.current(rom.data)
             self.spin_initial_magic_max.setValue(max_count)
@@ -293,22 +330,28 @@ class HackDialog(QDialog):
             self.spin_initial_magic_max.setValue(initial_magic.ORIGINAL_MAX)
             self.spin_initial_magic_max.setEnabled(False)
             self.edit_initial_magic.setEnabled(False)
-            note = QLabel(f"⚠ 検証失敗のため無効: {str(e).splitlines()[0]}")
+            note = QLabel(t(
+                "hack_dialog.validation_failed_disabled",
+                "⚠ 検証失敗のため無効: {error}",
+            ).format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             imf.addRow(note)
-        imf.addRow("最大数:", self.spin_initial_magic_max)
-        imf.addRow("初期所持:", self.edit_initial_magic)
+        imf.addRow(t("hack_dialog.initial_magic.max.label", "最大数:"), self.spin_initial_magic_max)
+        imf.addRow(t("hack_dialog.initial_magic.pattern.label", "初期所持:"), self.edit_initial_magic)
         imhint = QLabel(
-            "原作は最大3・初期所持なし。例: FFF=通常火球3つ、SSS=超火球3つ。"
-            "原作値(最大3・空欄)に戻すと追加フックも復元します。")
+            t(
+                "hack_dialog.initial_magic.hint",
+                "原作は最大3・初期所持なし。例: FFF=通常火球3つ、SSS=超火球3つ。"
+                "原作値(最大3・空欄)に戻すと追加フックも復元します。",
+            ))
         imhint.setWordWrap(True)
         imhint.setStyleSheet("color:#888; font-size:11px;")
         imf.addRow(imhint)
         layout.addWidget(im_group)
 
         # ====== 初期残数 ======
-        lives_group = QGroupBox("初期残数")
+        lives_group = QGroupBox(t("hack_dialog.group.initial_lives", "初期残数"))
         lives_group.setProperty("settings_category", "プレイヤー")
         lives_f = QFormLayout(lives_group)
         self._initial_lives_ok = False
@@ -316,7 +359,10 @@ class HackDialog(QDialog):
         self.spin_initial_lives.setRange(
             initial_lives.MIN_LIVES, initial_lives.MAX_LIVES)
         self.spin_initial_lives.setToolTip(
-            "開始時のダーナ残数。原作は3。$0452だけを書き換え、初期魔法の$042Bには影響させません。")
+            t(
+                "hack_dialog.initial_lives.tooltip",
+                "開始時のダーナ残数。原作は3。$0452だけを書き換え、初期魔法の$042Bには影響させません。",
+            ))
         try:
             self.spin_initial_lives.setValue(
                 initial_lives.current(rom.data))
@@ -324,13 +370,19 @@ class HackDialog(QDialog):
         except initial_lives.InitialLivesError as e:
             self.spin_initial_lives.setValue(initial_lives.ORIGINAL_LIVES)
             self.spin_initial_lives.setEnabled(False)
-            note = QLabel(f"⚠ 検証失敗のため無効: {str(e).splitlines()[0]}")
+            note = QLabel(t(
+                "hack_dialog.validation_failed_disabled",
+                "⚠ 検証失敗のため無効: {error}",
+            ).format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             lives_f.addRow(note)
-        lives_f.addRow("開始時の残数:", self.spin_initial_lives)
+        lives_f.addRow(t("hack_dialog.initial_lives.label", "開始時の残数:"), self.spin_initial_lives)
         lives_hint = QLabel(
-            "原作は3。単純な #$03 変更では巻物最大数にも漏れるため、専用フックで残数だけ変更します。")
+            t(
+                "hack_dialog.initial_lives.hint",
+                "原作は3。単純な #$03 変更では巻物最大数にも漏れるため、専用フックで残数だけ変更します。",
+            ))
         lives_hint.setWordWrap(True)
         lives_hint.setStyleSheet("color:#888; font-size:11px;")
         lives_f.addRow(lives_hint)

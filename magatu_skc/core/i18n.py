@@ -2278,6 +2278,85 @@ _TRANSLATIONS = {
         "ja": "タイトル画面操作不可",
         "en": "Title Screen Operation Unavailable",
     },
+    "hack_dialog.title.enemy": {"ja": "敵", "en": "Enemies"},
+    "hack_dialog.title.game": {"ja": "ゲーム挙動改造", "en": "Game Behavior Tweaks"},
+    "hack_dialog.info.enemy_html": {
+        "ja": (
+            "敵の挙動に関係する既知アドレスを書き換えます。<br>"
+            "適用すると <b>ROMバイナリが直接変更されます</b>。<br>"
+            "保存ボタンを押すまでは元に戻せます（再読込で復元可）。"
+        ),
+        "en": (
+            "Changes known addresses related to enemy behavior.<br>"
+            "Applying changes <b>modifies the ROM binary directly</b>.<br>"
+            "You can still undo the changes until you save the ROM; reloading restores the original state."
+        ),
+    },
+    "hack_dialog.info.game_html": {
+        "ja": (
+            "ROMの既知アドレスを書き換えてゲーム挙動を変更します。<br>"
+            "適用すると <b>ROMバイナリが直接変更されます</b>。<br>"
+            "保存ボタンを押すまでは元に戻せます（再読込で復元可）。"
+        ),
+        "en": (
+            "Changes game behavior by writing known ROM addresses.<br>"
+            "Applying changes <b>modifies the ROM binary directly</b>.<br>"
+            "You can still undo the changes until you save the ROM; reloading restores the original state."
+        ),
+    },
+    "hack_dialog.group.start_stage": {"ja": "開始ステージ", "en": "Starting Stage"},
+    "hack_dialog.group.continue_limit": {"ja": "コンティニュー上限", "en": "Continue Limit"},
+    "hack_dialog.group.final_stage": {"ja": "最終ステージ", "en": "Final Stage"},
+    "hack_dialog.final_stage.option": {"ja": "{stage}面をクリアした後", "en": "After clearing stage {stage}"},
+    "hack_dialog.original_suffix": {"ja": "（原作）", "en": " (original)"},
+    "hack_dialog.final_stage.tooltip": {
+        "ja": "選んだ面をクリアした後、次の面を原作最終面に差し替えます。48面は原作相当なので追加フラグを書きません。",
+        "en": "After clearing the selected stage, replaces the next stage with the original final stage. Stage 48 is equivalent to the original, so no extra flag is written.",
+    },
+    "hack_dialog.group.warp_feather": {"ja": "ワープの羽", "en": "Warp Feather"},
+    "hack_dialog.warp_feather.suffix": {"ja": " 面分ワープ", "en": " stages warped"},
+    "hack_dialog.validation_failed_disabled": {"ja": "⚠ 検証失敗のため無効: {error}", "en": "Validation failed; disabled: {error}"},
+    "hack_dialog.warp_feather.hint": {
+        "ja": "原作は6面分。実コードは $C69F の #$05 と通常クリアの +1 で合計6。この値は $28 bit6 ルートのクリア進行数を変えます。",
+        "en": "The original warps 6 stages. The real code combines #$05 at $C69F with the normal clear +1 for a total of 6. This value changes the clear progression count on the $28 bit6 route.",
+    },
+    "hack_dialog.group.solomon_seal_stage": {"ja": "ソロモンの封印 出現面", "en": "Solomon's Seal Stages"},
+    "hack_dialog.stage.option": {"ja": "{stage}面", "en": "Stage {stage}"},
+    "hack_dialog.solomon_seal.slot.label": {"ja": "封印{slot}:", "en": "Seal {slot}:"},
+    "hack_dialog.solomon_seal.hint": {
+        "ja": "1面につき封印1個まで。20面までに4個以上、44面までに6個以上、48面までに8個配置される必要があります。ROM保存できる候補だけ表示します。",
+        "en": "Only one seal can appear per stage. At least 4 must be placed by stage 20, 6 by stage 44, and 8 by stage 48. Only ROM-saveable candidates are shown.",
+    },
+    "hack_dialog.solomon_seal.unsupported": {
+        "ja": "⚠ JP ROM以外、または特殊処理テーブル検証失敗のため無効です。",
+        "en": "Disabled because this is not a JP ROM or the special-process table validation failed.",
+    },
+    "hack_dialog.group.initial_magic": {"ja": "初期魔法（共通）", "en": "Initial Magic (Common)"},
+    "hack_dialog.initial_magic.max.tooltip": {
+        "ja": "持てる巻物の最大数。原作は3。0にすると巻物を持てません。",
+        "en": "Maximum number of scrolls Dana can hold. Original is 3. Set to 0 to disable scroll possession.",
+    },
+    "hack_dialog.initial_magic.placeholder": {"ja": "例: FFF / SSS / FSFS", "en": "Example: FFF / SSS / FSFS"},
+    "hack_dialog.initial_magic.pattern.tooltip": {
+        "ja": "開始時に持っている巻物。F=通常ファイヤー、S=スーパー。最大8文字。空欄で原作(所持なし)。",
+        "en": "Scrolls held at start. F=normal fire, S=super fire. Up to 8 characters. Empty restores the original no-scroll start.",
+    },
+    "hack_dialog.initial_magic.max.label": {"ja": "最大数:", "en": "Max count:"},
+    "hack_dialog.initial_magic.pattern.label": {"ja": "初期所持:", "en": "Initial scrolls:"},
+    "hack_dialog.initial_magic.hint": {
+        "ja": "原作は最大3・初期所持なし。例: FFF=通常火球3つ、SSS=超火球3つ。原作値(最大3・空欄)に戻すと追加フックも復元します。",
+        "en": "Original is max 3 with no initial scrolls. Example: FFF=3 normal fireballs, SSS=3 super fireballs. Restoring original values (max 3 and empty) also restores the added hook.",
+    },
+    "hack_dialog.group.initial_lives": {"ja": "初期残数", "en": "Initial Lives"},
+    "hack_dialog.initial_lives.tooltip": {
+        "ja": "開始時のダーナ残数。原作は3。$0452だけを書き換え、初期魔法の$042Bには影響させません。",
+        "en": "Dana lives at start. Original is 3. Only $0452 is changed; initial magic at $042B is not affected.",
+    },
+    "hack_dialog.initial_lives.label": {"ja": "開始時の残数:", "en": "Starting lives:"},
+    "hack_dialog.initial_lives.hint": {
+        "ja": "原作は3。単純な #$03 変更では巻物最大数にも漏れるため、専用フックで残数だけ変更します。",
+        "en": "Original is 3. A simple #$03 edit also leaks into max scroll count, so a dedicated hook changes only lives.",
+    },
     "bonus_dialog.title": {
         "ja": "ボーナスステージ (Stage 51) 出現位置編集",
         "en": "Bonus Stage (Stage 51) Spawn Position Editor",
