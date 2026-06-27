@@ -384,16 +384,6 @@ class SettingsDialog(QDialog):
 
         general_layout.addWidget(history_group)
 
-        # ====== TODO（今後実装） ======
-        todo_group = QGroupBox(t("settings.group.todo", "今後追加予定の項目"))
-        tl = QVBoxLayout(todo_group)
-        for label in [
-            t("settings.todo.notification", "・通知音ファイル + 音量"),
-            t("settings.todo.cloud_backup", "・クラウドバックアップ先フォルダ"),
-        ]:
-            lbl = QLabel(f"<small style='color:#888'>{label}</small>")
-            tl.addWidget(lbl)
-        general_layout.addWidget(todo_group)
         general_layout.addStretch(1)
 
         # ====== ショートカット ======
