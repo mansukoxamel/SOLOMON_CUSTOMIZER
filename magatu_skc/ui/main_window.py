@@ -4651,7 +4651,9 @@ class MainWindow(QMainWindow):
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         default_name = f"level_{stage_no:02d}_{ts}.png"
         path, _ = QFileDialog.getSaveFileName(
-            self, "ステージデータPNGの保存先", self._default_save_path(default_name),
+            self,
+            t("main.stage_png.save_dialog.title", "ステージデータPNGの保存先"),
+            self._default_save_path(default_name),
             "PNG Images (*.png);;All files (*)"
         )
         if not path:
@@ -4674,7 +4676,10 @@ class MainWindow(QMainWindow):
         self._sync_enemy_codes_from_rom(self.current_level_no)
         self._save_png_with_xml(img, level, path, level_no=self.current_level_no)
         self._remember_save_path(path)
-        self.statusBar().showMessage(f"保存: {path} (XML埋込)", 5000)
+        self.statusBar().showMessage(
+            t("main.stage_png.save_current.complete", "保存: {path} (XML埋込)").format(path=path),
+            5000,
+        )
 
     def _on_export_all(self):
         if not self.levels or self.level_renderer is None:
@@ -4699,14 +4704,28 @@ class MainWindow(QMainWindow):
             )
             self._sync_enemy_codes_from_rom(i)
             self._save_png_with_xml(img, level, path, level_no=i)
-            self.statusBar().showMessage(f"保存中: {i+1}/{len(self.levels)} (XML埋込)")
+            self.statusBar().showMessage(
+                t("main.stage_png.save_all.progress", "保存中: {current}/{total} (XML埋込)").format(
+                    current=i + 1,
+                    total=len(self.levels),
+                )
+            )
             QApplication.processEvents()
+        export_path = export_dir.absolute()
         self.statusBar().showMessage(
-            f"全 {len(self.levels)} ステージ保存完了 (XML埋込) → {export_dir.absolute()}", 8000
+            t(
+                "main.stage_png.save_all.status",
+                "全 {total} ステージ保存完了 (XML埋込) → {path}",
+            ).format(total=len(self.levels), path=export_path),
+            8000,
         )
         QMessageBox.information(
-            self, "完了",
-            f"全 {len(self.levels)} ステージを保存しました (XML埋込)\n\n保存先:\n{export_dir.absolute()}"
+            self,
+            t("main.stage_png.save_all.complete.title", "完了"),
+            t(
+                "main.stage_png.save_all.complete.body",
+                "全 {total} ステージを保存しました (XML埋込)\n\n保存先:\n{path}",
+            ).format(total=len(self.levels), path=export_path),
         )
 
     # ====== ステージデータ読込 (PNG埋め込みXML) ======
@@ -4846,13 +4865,15 @@ class MainWindow(QMainWindow):
     def _read_stage_png_level(self, path: str):
         xml_str = self._extract_xml_from_png(path)
         if xml_str is None:
-            raise ValueError("このPNGにはステージデータが埋め込まれていません")
+            raise ValueError(t("main.stage_png.error.no_data", "このPNGにはステージデータが埋め込まれていません"))
         root = ET.fromstring(xml_str)
         if root.tag != "solomon_customizer":
-            raise ValueError("このPNGはSOLOMON_CUSTOMIZERのステージPNGではありません")
+            raise ValueError(
+                t("main.stage_png.error.wrong_root", "このPNGはSOLOMON_CUSTOMIZERのステージPNGではありません")
+            )
         lv = self._xml_element_to_level_compat(root)
         if lv is None:
-            raise ValueError("ステージデータの解析に失敗しました")
+            raise ValueError(t("main.stage_png.error.parse_failed", "ステージデータの解析に失敗しました"))
         return lv, root
 
     @staticmethod
@@ -5061,7 +5082,11 @@ class MainWindow(QMainWindow):
         )
         png_image = QImage(png_path)
         if png_image.isNull():
-            QMessageBox.warning(self, "比較編集", "PNG画像の読み込みに失敗しました")
+            QMessageBox.warning(
+                self,
+                t("main.compare.edit.title", "比較編集"),
+                t("main.compare.stage_png.image_load_failed", "PNG画像の読み込みに失敗しました"),
+            )
             return
         self._start_stage_compare_edit(png_image, png_path, keep_orientation)
 
@@ -5073,8 +5098,11 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             QMessageBox.warning(
                 self,
-                "比較編集",
-                f"比較編集用スナップショットを保存できませんでした。\n{type(exc).__name__}: {exc}",
+                t("main.compare.edit.title", "比較編集"),
+                t(
+                    "main.compare.edit.snapshot_failed",
+                    "比較編集用スナップショットを保存できませんでした。\n{error}",
+                ).format(error=f"{type(exc).__name__}: {exc}"),
             )
             return
         self.start_stage_compare_edit_from_png(str(snapshot_path))
@@ -5120,7 +5148,10 @@ class MainWindow(QMainWindow):
         self._update_stage_compare_edit_label()
         self._refresh_view()
         self.statusBar().showMessage(
-            f"比較しながら編集: L{self.current_level_no + 1} と {self._stage_compare_label_text()}",
+            t("main.compare.edit.status", "比較しながら編集: L{stage} と {name}").format(
+                stage=self.current_level_no + 1,
+                name=self._stage_compare_label_text(),
+            ),
             5000,
         )
 
@@ -5139,8 +5170,14 @@ class MainWindow(QMainWindow):
     def _update_stage_compare_edit_label(self):
         if not hasattr(self, "lbl_stage_compare_mode"):
             return
-        direction = "縦" if self._stage_compare_edit_orientation == "vertical" else "横"
-        full_text = f"比較編集({direction}): {self._stage_compare_label_text()}"
+        if self._stage_compare_edit_orientation == "vertical":
+            direction = t("main.compare.edit.label.vertical", "縦")
+        else:
+            direction = t("main.compare.edit.label.horizontal", "横")
+        full_text = t("main.compare.edit.label", "比較編集({direction}): {name}").format(
+            direction=direction,
+            name=self._stage_compare_label_text(),
+        )
         max_width = max(40, self.lbl_stage_compare_mode.width() - 6)
         display_text = self.lbl_stage_compare_mode.fontMetrics().elidedText(
             full_text,
@@ -5165,14 +5202,20 @@ class MainWindow(QMainWindow):
         if not self.levels:
             return
         from .file_dialog_compat import get_file
-        path = get_file(self, title="比較するステージPNGを選択", filter="*.png")
+        path = get_file(
+            self,
+            title=t("main.compare.stage_png.open.title", "比較するステージPNGを選択"),
+            filter="*.png",
+        )
         if not path:
             return
         try:
             png_level, _root = self._read_stage_png_level(path)
             png_image = QImage(path)
             if png_image.isNull():
-                raise ValueError("PNG画像の読み込みに失敗しました")
+                raise ValueError(
+                    t("main.compare.stage_png.image_load_failed", "PNG画像の読み込みに失敗しました")
+                )
             current_image = self._render_current_stage_for_png_compare()
             diff_image = self._make_stage_png_diff_image(current_image, png_image)
             self._stage_compare_png_image = png_image
@@ -5183,10 +5226,14 @@ class MainWindow(QMainWindow):
             self._set_stage_compare_controls_visible(True)
             self._set_stage_compare_view(True)
             self.statusBar().showMessage(
-                f"PNG比較: L{self.current_level_no + 1} と {Path(path).name}", 5000
+                t("main.compare.stage_png.status", "PNG比較: L{stage} と {name}").format(
+                    stage=self.current_level_no + 1,
+                    name=Path(path).name,
+                ),
+                5000,
             )
         except Exception as e:
-            QMessageBox.warning(self, "比較失敗", str(e))
+            QMessageBox.warning(self, t("main.compare.stage_png.failed.title", "比較失敗"), str(e))
 
     @staticmethod
     def _extract_xml_from_png(png_path: str) -> str:
@@ -5234,16 +5281,28 @@ class MainWindow(QMainWindow):
             return False
         xml_str = self._extract_xml_from_png(path)
         if xml_str is None:
-            QMessageBox.warning(self, "読込失敗", "このPNGにはステージデータが埋め込まれていません")
+            QMessageBox.warning(
+                self,
+                t("main.stage_png.load_failed.title", "読込失敗"),
+                t("main.stage_png.error.no_data", "このPNGにはステージデータが埋め込まれていません"),
+            )
             return False
         import xml.etree.ElementTree as ET
         root = ET.fromstring(xml_str)
         if root.tag != "solomon_customizer":
-            QMessageBox.warning(self, "読込失敗", "このPNGはSOLOMON_CUSTOMIZERのステージPNGではありません")
+            QMessageBox.warning(
+                self,
+                t("main.stage_png.load_failed.title", "読込失敗"),
+                t("main.stage_png.error.wrong_root", "このPNGはSOLOMON_CUSTOMIZERのステージPNGではありません"),
+            )
             return False
         lv = self._xml_element_to_level_compat(root)
         if lv is None:
-            QMessageBox.warning(self, "読込失敗", "ステージデータの解析に失敗しました")
+            QMessageBox.warning(
+                self,
+                t("main.stage_png.load_failed.title", "読込失敗"),
+                t("main.stage_png.error.parse_failed", "ステージデータの解析に失敗しました"),
+            )
             return False
         self._push_undo()
         self.levels[self.current_level_no] = lv
@@ -5256,7 +5315,11 @@ class MainWindow(QMainWindow):
         self._refresh_thumbnail(self.current_level_no)
         self._set_dirty(True)
         self.statusBar().showMessage(
-            f"ステージデータ読込: L{self.current_level_no + 1} に上書き ({Path(path).name})", 5000
+            t("main.stage_png.load_current.status", "ステージデータ読込: L{stage} に上書き ({name})").format(
+                stage=self.current_level_no + 1,
+                name=Path(path).name,
+            ),
+            5000,
         )
         self._log(f"PNG読込(現在L{self.current_level_no + 1}): {path}")
         return True
@@ -5268,7 +5331,11 @@ class MainWindow(QMainWindow):
         try:
             self._load_stage_png_to_current(path)
         except Exception as e:
-            QMessageBox.critical(self, "読込失敗", f"{type(e).__name__}: {e}")
+            QMessageBox.critical(
+                self,
+                t("main.stage_png.load_failed.title", "読込失敗"),
+                f"{type(e).__name__}: {e}",
+            )
 
     def _on_png_import_current(self):
         if not self.levels:
@@ -5276,13 +5343,21 @@ class MainWindow(QMainWindow):
         if self._reject_read_only_edit():
             return
         from .file_dialog_compat import get_file
-        path = get_file(self, title="ステージデータPNGを選択", filter="*.png")
+        path = get_file(
+            self,
+            title=t("main.stage_png.open_current.title", "ステージデータPNGを選択"),
+            filter="*.png",
+        )
         if not path:
             return
         try:
             self._load_stage_png_to_current(path)
         except Exception as e:
-            QMessageBox.critical(self, "読込失敗", f"{type(e).__name__}: {e}")
+            QMessageBox.critical(
+                self,
+                t("main.stage_png.load_failed.title", "読込失敗"),
+                f"{type(e).__name__}: {e}",
+            )
 
     def _on_png_import_all(self):
         if not self.levels:
@@ -5290,7 +5365,10 @@ class MainWindow(QMainWindow):
         if self._reject_read_only_edit():
             return
         from .file_dialog_compat import get_folder
-        folder = get_folder(self, title="ステージデータPNGフォルダを選択")
+        folder = get_folder(
+            self,
+            title=t("main.stage_png.open_all.title", "ステージデータPNGフォルダを選択"),
+        )
         if not folder:
             return
         in_dir = Path(folder)
@@ -5320,12 +5398,20 @@ class MainWindow(QMainWindow):
                 self._set_dirty(True)
             self._clear_undo_history()
             QMessageBox.information(
-                self, "完了",
-                f"{loaded_count}/{len(self.levels)} ステージをPNGから読み込みました"
+                self,
+                t("main.stage_png.save_all.complete.title", "完了"),
+                t(
+                    "main.stage_png.load_all.complete.body",
+                    "{loaded}/{total} ステージをPNGから読み込みました",
+                ).format(loaded=loaded_count, total=len(self.levels)),
             )
             self._log(f"PNG読込(全): {loaded_count}/{len(self.levels)} from {in_dir}")
         except Exception as e:
-            QMessageBox.critical(self, "読込失敗", f"{type(e).__name__}: {e}")
+            QMessageBox.critical(
+                self,
+                t("main.stage_png.load_failed.title", "読込失敗"),
+                f"{type(e).__name__}: {e}",
+            )
 
     @staticmethod
     def _xml_element_to_level_compat(root):

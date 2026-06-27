@@ -1017,6 +1017,102 @@ _TRANSLATIONS = {
         "ja": "IPS保存完了: {path}{suffix}",
         "en": "IPS saved: {path}{suffix}",
     },
+    "main.stage_png.save_dialog.title": {
+        "ja": "ステージデータPNGの保存先",
+        "en": "Save Stage Data PNG",
+    },
+    "main.stage_png.save_current.complete": {
+        "ja": "保存: {path} (XML埋込)",
+        "en": "Saved: {path} (XML embedded)",
+    },
+    "main.stage_png.save_all.progress": {
+        "ja": "保存中: {current}/{total} (XML埋込)",
+        "en": "Saving: {current}/{total} (XML embedded)",
+    },
+    "main.stage_png.save_all.status": {
+        "ja": "全 {total} ステージ保存完了 (XML埋込) → {path}",
+        "en": "Saved all {total} stages (XML embedded) -> {path}",
+    },
+    "main.stage_png.save_all.complete.title": {
+        "ja": "完了",
+        "en": "Complete",
+    },
+    "main.stage_png.save_all.complete.body": {
+        "ja": "全 {total} ステージを保存しました (XML埋込)\n\n保存先:\n{path}",
+        "en": "Saved all {total} stages (XML embedded).\n\nFolder:\n{path}",
+    },
+    "main.stage_png.load_failed.title": {
+        "ja": "読込失敗",
+        "en": "Load Failed",
+    },
+    "main.stage_png.error.no_data": {
+        "ja": "このPNGにはステージデータが埋め込まれていません",
+        "en": "This PNG does not contain embedded stage data.",
+    },
+    "main.stage_png.error.wrong_root": {
+        "ja": "このPNGはSOLOMON_CUSTOMIZERのステージPNGではありません",
+        "en": "This PNG is not a SOLOMON_CUSTOMIZER stage PNG.",
+    },
+    "main.stage_png.error.parse_failed": {
+        "ja": "ステージデータの解析に失敗しました",
+        "en": "Failed to parse the stage data.",
+    },
+    "main.stage_png.load_current.status": {
+        "ja": "ステージデータ読込: L{stage} に上書き ({name})",
+        "en": "Stage data loaded: overwrote L{stage} ({name})",
+    },
+    "main.stage_png.open_current.title": {
+        "ja": "ステージデータPNGを選択",
+        "en": "Select Stage Data PNG",
+    },
+    "main.stage_png.open_all.title": {
+        "ja": "ステージデータPNGフォルダを選択",
+        "en": "Select Stage Data PNG Folder",
+    },
+    "main.stage_png.load_all.complete.body": {
+        "ja": "{loaded}/{total} ステージをPNGから読み込みました",
+        "en": "Loaded {loaded}/{total} stages from PNG.",
+    },
+    "main.compare.stage_png.open.title": {
+        "ja": "比較するステージPNGを選択",
+        "en": "Select Stage PNG to Compare",
+    },
+    "main.compare.stage_png.failed.title": {
+        "ja": "比較失敗",
+        "en": "Compare Failed",
+    },
+    "main.compare.stage_png.image_load_failed": {
+        "ja": "PNG画像の読み込みに失敗しました",
+        "en": "Failed to load the PNG image.",
+    },
+    "main.compare.stage_png.status": {
+        "ja": "PNG比較: L{stage} と {name}",
+        "en": "PNG compare: L{stage} with {name}",
+    },
+    "main.compare.edit.title": {
+        "ja": "比較編集",
+        "en": "Compare Edit",
+    },
+    "main.compare.edit.snapshot_failed": {
+        "ja": "比較編集用スナップショットを保存できませんでした。\n{error}",
+        "en": "Could not save the compare-edit snapshot.\n{error}",
+    },
+    "main.compare.edit.status": {
+        "ja": "比較しながら編集: L{stage} と {name}",
+        "en": "Compare editing: L{stage} with {name}",
+    },
+    "main.compare.edit.label.horizontal": {
+        "ja": "横",
+        "en": "Horizontal",
+    },
+    "main.compare.edit.label.vertical": {
+        "ja": "縦",
+        "en": "Vertical",
+    },
+    "main.compare.edit.label": {
+        "ja": "比較編集({direction}): {name}",
+        "en": "Compare Edit ({direction}): {name}",
+    },
     "common.close": {
         "ja": "閉じる",
         "en": "Close",
