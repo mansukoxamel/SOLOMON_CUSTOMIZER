@@ -1541,7 +1541,7 @@ class TitleScreenDialog(QDialog):
                 f"表示キャラを {combo.currentText()} に変更しました")
 
     def _on_show_clear_message(self):
-        from .clear_message_dialog import ClearMessageDialog
+        from .clear_message_dialog import ClearMessageDialog, format_clear_message_error
         from ..core import clear_message as _cm
 
         snap = bytes(self._rom)
@@ -1549,7 +1549,12 @@ class TitleScreenDialog(QDialog):
             dlg = ClearMessageDialog(
                 self._rom, self, app_config=self._app_config)
         except _cm.ClearMessageError as e:
-            QMessageBox.critical(self, "クリア画面メッセージ編集不可", str(e))
+            from ..core.i18n import t
+            QMessageBox.critical(
+                self,
+                t("clear_message.open_failed", "クリア画面メッセージ編集不可"),
+                format_clear_message_error(e),
+            )
             return
         dlg.exec_()
         if bytes(self._rom) != snap:

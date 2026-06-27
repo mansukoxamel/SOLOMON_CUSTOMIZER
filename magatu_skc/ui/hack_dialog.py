@@ -1206,7 +1206,7 @@ class HackDialog(QDialog):
             self._mark_parent_dirty("デモ操作データ ($CF9A/$CFBC) 書換")
 
     def _on_show_clear_message(self):
-        from .clear_message_dialog import ClearMessageDialog
+        from .clear_message_dialog import ClearMessageDialog, format_clear_message_error
         from ..core import clear_message as _cm
         o0 = _cm.MESSAGES[0]["off"]
         last = _cm.MESSAGES[-1]
@@ -1219,7 +1219,12 @@ class HackDialog(QDialog):
                 app_config=self._app_config,
             )
         except _cm.ClearMessageError as e:
-            QMessageBox.critical(self, "クリア画面メッセージ編集不可", str(e))
+            from ..core.i18n import t
+            QMessageBox.critical(
+                self,
+                t("clear_message.open_failed", "クリア画面メッセージ編集不可"),
+                format_clear_message_error(e),
+            )
             return
         dlg.exec_()
         if bytes(self.rom.data[o0:o1]) != before:

@@ -176,6 +176,101 @@ _TRANSLATIONS = {
         "ja": "",
         "en": "The number of demo input steps is invalid.",
     },
+    "clear_message.title": {
+        "ja": "クリア画面メッセージ編集 (同字数・JP)",
+        "en": "Clear Screen Message Editor (JP Fixed Length)",
+    },
+    "clear_message.description": {
+        "ja": (
+            "ステージクリア後の『おめでとう画面』3行を編集します。"
+            "英大文字 A-Z とスペースのみ。<b>原作と同じ文字数まで</b>"
+            "(長くはできません。短い分はスペースで埋まります)。"
+            "原作は THANK YOU DANA / YOU RELEASED THIS ROOM / "
+            "TRY NEXT ROOM。"
+        ),
+        "en": (
+            "Edit the three lines shown on the stage-clear congratulations screen. "
+            "Only uppercase A-Z and spaces are allowed. "
+            "<b>Each line must stay within the original character limit</b>; "
+            "shorter text is padded with spaces. "
+            "The original lines are THANK YOU DANA / YOU RELEASED THIS ROOM / "
+            "TRY NEXT ROOM."
+        ),
+    },
+    "clear_message.column.line": {
+        "ja": "行",
+        "en": "Line",
+    },
+    "clear_message.column.text": {
+        "ja": "文字",
+        "en": "Text",
+    },
+    "clear_message.column.count": {
+        "ja": "字数",
+        "en": "Count",
+    },
+    "clear_message.column.original": {
+        "ja": "原作",
+        "en": "Original",
+    },
+    "clear_message.line_label": {
+        "ja": "{index}行目",
+        "en": "Line {index}",
+    },
+    "clear_message.count_suffix": {
+        "ja": "{count}字",
+        "en": "{count} chars",
+    },
+    "clear_message.restore_original": {
+        "ja": "原作に戻す",
+        "en": "Restore Original",
+    },
+    "clear_message.apply_failed": {
+        "ja": "クリア画面メッセージ編集失敗",
+        "en": "Clear Screen Message Edit Failed",
+    },
+    "clear_message.open_failed": {
+        "ja": "クリア画面メッセージ編集不可",
+        "en": "Clear Screen Message Edit Unavailable",
+    },
+    "clear_message.error.rom_too_small": {
+        "ja": "",
+        "en": "The ROM is too small. Clear screen message editing was canceled.",
+    },
+    "clear_message.error.header": {
+        "ja": "",
+        "en": (
+            "A message header signature does not match. The ROM may be US-region, "
+            "mapped differently, modified, or corrupted, so editing was canceled. "
+            "This feature is JP-only and fixed-length."
+        ),
+    },
+    "clear_message.error.terminator": {
+        "ja": "",
+        "en": (
+            "A message terminator does not match $00. The ROM may be modified "
+            "or corrupted, so editing was canceled."
+        ),
+    },
+    "clear_message.error.unknown_tile": {
+        "ja": "",
+        "en": (
+            "A message contains an unknown character tile. The ROM may be modified "
+            "or corrupted, so editing was canceled."
+        ),
+    },
+    "clear_message.error.invalid_char": {
+        "ja": "",
+        "en": "Only uppercase A-Z and spaces can be used.",
+    },
+    "clear_message.error.too_long": {
+        "ja": "",
+        "en": "The text is too long for this fixed-length message line.",
+    },
+    "clear_message.error.invalid_line_count": {
+        "ja": "",
+        "en": "The number of clear screen message lines is invalid.",
+    },
     "common.ok": {
         "ja": "OK",
         "en": "OK",
