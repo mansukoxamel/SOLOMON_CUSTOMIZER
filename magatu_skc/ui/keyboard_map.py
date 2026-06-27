@@ -28,6 +28,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QPainter, QColor, QFont, QImage, QPen, QFontMetrics, QFontDatabase, QPalette
 from PyQt5.QtCore import Qt, QRectF, QSize, QPointF
 
+from ..core.i18n import t
+
 
 # ===== カテゴリ色定義 =====
 CATEGORY_COLORS = {
@@ -642,6 +644,7 @@ def _render_keyboard(painter, rect, bindings, title="", key_rects=None, font_fam
 
     lx = offset_x
     for cat_key, cat_label in CATEGORY_LABELS.items():
+        display_label = t(f"keyboard_map.category.{cat_key}", cat_label)
         color = QColor(CATEGORY_COLORS[cat_key])
         # 色見本
         swatch_size = max(12, unit * 0.35)
@@ -651,7 +654,7 @@ def _render_keyboard(painter, rect, bindings, title="", key_rects=None, font_fam
         # ラベル
         painter.setPen(QColor("#cccccc"))
         text_rect = QRectF(lx + swatch_size + 4, legend_y - 2, unit * 3, swatch_size + 4)
-        painter.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, cat_label)
+        painter.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, display_label)
         lx += swatch_size + 4 + unit * 2.2
 
 
@@ -695,7 +698,7 @@ class KeyboardWidget(QWidget):
                         mod = entry.get("modifier", "")
                         mod_prefix = f"{mod.capitalize()}+" if mod else ""
                         desc = entry.get("description", entry.get("label", ""))
-                        np_str = " [テンキー]" if entry.get("is_numpad") else ""
+                        np_str = t("keyboard_map.numpad.suffix", " [テンキー]") if entry.get("is_numpad") else ""
                         lines.append(f"{mod_prefix}{key_label}{np_str}: {desc}")
                     QToolTip.showText(event.globalPos(), "\n".join(lines))
                 else:
@@ -793,7 +796,7 @@ class KeyboardMapDialog(QDialog):
         btn_layout = QHBoxLayout()
 
         # フォント設定
-        btn_layout.addWidget(QLabel("フォント:"))
+        btn_layout.addWidget(QLabel(t("keyboard_map.font.label", "フォント:")))
         self._font_combo = QComboBox()
         self._font_combo.setEditable(True)
         font_families = QFontDatabase().families()
@@ -805,24 +808,24 @@ class KeyboardMapDialog(QDialog):
             self._font_combo.setCurrentText(self._font_family)
         btn_layout.addWidget(self._font_combo)
 
-        btn_layout.addWidget(QLabel("サイズ:"))
+        btn_layout.addWidget(QLabel(t("keyboard_map.size.label", "サイズ:")))
         self._font_size_spin = QSpinBox()
         self._font_size_spin.setRange(1, 999)
         self._font_size_spin.setValue(self._font_pixel_size)
         self._font_size_spin.setSuffix(" px")
         btn_layout.addWidget(self._font_size_spin)
 
-        apply_font_btn = QPushButton("適用")
+        apply_font_btn = QPushButton(t("common.apply", "適用"))
         apply_font_btn.clicked.connect(self._apply_font_settings)
         btn_layout.addWidget(apply_font_btn)
 
         btn_layout.addStretch()
 
-        save_btn = QPushButton("PNG保存")
+        save_btn = QPushButton(t("keyboard_map.save_png.button", "PNG保存"))
         save_btn.clicked.connect(self._save_png)
         btn_layout.addWidget(save_btn)
 
-        close_btn = QPushButton("閉じる")
+        close_btn = QPushButton(t("common.close", "閉じる"))
         close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(close_btn)
 
@@ -886,7 +889,7 @@ class KeyboardMapDialog(QDialog):
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
 
-        title = QLabel("操作メモ")
+        title = QLabel(t("keyboard_map.notes.title", "操作メモ"))
         title_font = QFont(self._font_family)
         title_font.setPixelSize(max(14, self._font_pixel_size + 1))
         title_font.setBold(True)
@@ -973,19 +976,30 @@ class KeyboardMapDialog(QDialog):
     def _save_png(self):
         """PNG画像として保存"""
         from .file_dialog_compat import get_folder
-        folder = get_folder(self, title="保存先フォルダを選択")
+        folder = get_folder(
+            self,
+            title=t("keyboard_map.save_png.folder_title", "保存先フォルダを選択"),
+        )
         if not folder:
             return
         output_path = os.path.join(folder, "keyboard_map.png")
         _save_image(self._bindings, output_path, title=self._title)
         from PyQt5.QtWidgets import QMessageBox
-        QMessageBox.information(self, "保存完了", f"保存しました:\n{output_path}")
+        QMessageBox.information(
+            self,
+            t("keyboard_map.save_png.complete.title", "保存完了"),
+            t("keyboard_map.save_png.complete.body", "保存しました:\n{path}").format(
+                path=output_path
+            ),
+        )
 
     @classmethod
     def show_from_config(cls, parent, config_module, title="ショートカットMAP",
                          label_overrides=None, app_name=None, notes_html="",
                          geometry_state=None, geometry_changed=None):
         """configモジュールからKEY_*を自動収集して表示（非モーダル）"""
+        if title == "ショートカットMAP":
+            title = t("keyboard_map.default_title", "ショートカットMAP")
         bindings = collect_keybindings(config_module, label_overrides)
         if app_name is None:
             app_name = _extract_app_name(title)
@@ -1020,6 +1034,8 @@ class KeyboardMapDialog(QDialog):
                        app_name=None, notes_html="", geometry_state=None,
                        geometry_changed=None):
         """辞書形式でバインディングを渡して表示（非モーダル）"""
+        if title == "ショートカットMAP":
+            title = t("keyboard_map.default_title", "ショートカットMAP")
         bindings = _convert_simple_dict(binding_dict)
         if app_name is None:
             app_name = _extract_app_name(title)
@@ -1082,6 +1098,8 @@ def save_keyboard_map_image(config_module, output_path, width=1600,
     config モジュールから KEY_* を収集してキーボードMAP画像を保存する。
     QApplication が起動している必要がある。
     """
+    if title == "ショートカットMAP":
+        title = t("keyboard_map.default_title", "ショートカットMAP")
     bindings = collect_keybindings(config_module, label_overrides)
     _save_image(bindings, output_path, width, title)
 

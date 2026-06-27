@@ -17,6 +17,7 @@ from ..core import constants as c
 from ..core.element import Wall
 from ..core import room_flags as _rf
 from ..core import stage_ext as _se
+from ..core.i18n import t
 from .element_picker import ITEMS_LIST
 
 
@@ -228,12 +229,37 @@ class StatsDialog(QDialog):
     FLAG_COLS = (ASTONE_COL, BFIRE_COL, FIRE_RESET_COL, DARK_COL, DOOR_COL, FAIRY_DROP_COL)
     NUM_COLS = (TS_COL, TIME_COL, LIFE_COL, SCORE_COL)  # 中央寄せする数値メタ列
 
+    @staticmethod
+    def _count_part(kind: str, count: int) -> str:
+        return t(f"stats_dialog.count_part.{kind}", "{count}").format(count=count)
+
+    def _state_count_parts(self, bucket) -> list:
+        parts = []
+        if bucket["normal"]:
+            parts.append(self._count_part("normal", bucket["normal"]))
+        if bucket["hidden"]:
+            parts.append(self._count_part("hidden", bucket["hidden"]))
+        if bucket["in_block"]:
+            parts.append(self._count_part("in_block", bucket["in_block"]))
+        return parts
+
+    @staticmethod
+    def _key_state_label(state: str) -> str:
+        return t(f"stats_dialog.key_state.{state}", state)
+
+    @staticmethod
+    def _door_state_label(state: str) -> str:
+        return t(f"stats_dialog.door_state.{state}", state)
+
     def __init__(self, levels, item_desc=None, config=None,
                  tile_renderer=None, app_config=None, rom=None, parent=None):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle(f"全ステージ統計 ({len(levels)}ステージ)")
+        self.setWindowTitle(t(
+            "stats_dialog.title",
+            "全ステージ統計 ({count}ステージ)",
+        ).format(count=len(levels)))
         self.setModal(False)
         self.resize(1280, 720)
         self.levels = levels
@@ -261,7 +287,8 @@ class StatsDialog(QDialog):
         layout = QVBoxLayout(self)
 
         # 説明
-        info = QLabel(
+        info = QLabel(t(
+            "stats_dialog.info_html",
             "「主要」列はWarp/星座パネル/Solomon's Seal/Pageを集計。「重要アイテム」列は"
             "Origami Swan/Demonhead Coin/"
             "Sphinx/Egyptian Head/Magic Lamp/E-bottle/Tecmo Bunny と、"
@@ -275,44 +302,62 @@ class StatsDialog(QDialog):
             "「妖精化」=落下死で妖精化する敵が設定されているステージ。<br>"
             "「理論得点」=配置されているアイテムをすべて取得した場合の取得時得点"
             "(到達可否、残りTIME換算、スコア倍率の副作用は除外)。<br>"
-            "セルをダブルクリックでそのステージへジャンプ。"
-        )
+            "セルをダブルクリックでそのステージへジャンプ。",
+        ))
         info.setWordWrap(True)
         layout.addWidget(info)
 
         # テーブル
         self.table = QTableWidget(len(levels) + 1, len(self.COLUMNS), self)
-        self.table.setHorizontalHeaderLabels([h for h, _ in self.COLUMNS])
+        self.table.setHorizontalHeaderLabels([
+            t(f"stats_dialog.column.{i}", h)
+            for i, (h, _width) in enumerate(self.COLUMNS)
+        ])
         featured_header = self.table.horizontalHeaderItem(self.FEATURED_COL)
         if featured_header is not None:
             featured_header.setToolTip(
-                "Warp / 星座パネル / Solomon's Seal / Page を専用表示します。"
+                t(
+                    "stats_dialog.tooltip.featured",
+                    "Warp / 星座パネル / Solomon's Seal / Page を専用表示します。",
+                )
             )
         item_header = self.table.horizontalHeaderItem(self.ITEM_COL)
         if item_header is not None:
             item_header.setToolTip(
-                "重要アイテム列の枠色:\n"
-                "黄 = 隠し / 緑 = ブロック内 / 灰 = 通常\n"
-                "右下の数字は同種アイテムの合計数です。"
+                t(
+                    "stats_dialog.tooltip.important_items",
+                    "重要アイテム列の枠色:\n"
+                    "黄 = 隠し / 緑 = ブロック内 / 灰 = 通常\n"
+                    "右下の数字は同種アイテムの合計数です。",
+                )
             )
         all_item_header = self.table.horizontalHeaderItem(self.ALL_ITEM_COL)
         if all_item_header is not None:
             all_item_header.setToolTip(
-                "全アイテム列は通常/隠し/ブロック内を区別せず、"
-                "主要/重要アイテム列に出したものを除いてベースアイテム別に合算します。\n"
-                "表示順はピッカー順です。右下の数字は同種アイテムの合計数です。"
+                t(
+                    "stats_dialog.tooltip.all_items",
+                    "全アイテム列は通常/隠し/ブロック内を区別せず、"
+                    "主要/重要アイテム列に出したものを除いてベースアイテム別に合算します。\n"
+                    "表示順はピッカー順です。右下の数字は同種アイテムの合計数です。",
+                )
             )
         block_header = self.table.horizontalHeaderItem(self.BLOCK_COL)
         if block_header is not None:
             block_header.setToolTip(
-                "空気以外の通常/特殊ブロック内訳です。\n"
-                "茶/白/壊白/透壊/通白/通茶/透固/固茶 などを集計します。"
+                t(
+                    "stats_dialog.tooltip.blocks",
+                    "空気以外の通常/特殊ブロック内訳です。\n"
+                    "茶/白/壊白/透壊/通白/通茶/透固/固茶 などを集計します。",
+                )
             )
         score_header = self.table.horizontalHeaderItem(self.SCORE_COL)
         if score_header is not None:
             score_header.setToolTip(
-                "配置されているアイテムをすべて取った場合の取得時得点です。\n"
-                "到達可否、残りTIMEのクリア時換算、スコア倍率の副作用は含めません。"
+                t(
+                    "stats_dialog.tooltip.score",
+                    "配置されているアイテムをすべて取った場合の取得時得点です。\n"
+                    "到達可否、残りTIMEのクリア時換算、スコア倍率の副作用は含めません。",
+                )
             )
         for i, (_, w) in enumerate(self.COLUMNS):
             self.table.setColumnWidth(i, w)
@@ -333,11 +378,11 @@ class StatsDialog(QDialog):
 
         # ボタン行
         btn_row = QHBoxLayout()
-        self.btn_csv = QPushButton("CSV出力")
+        self.btn_csv = QPushButton(t("stats_dialog.csv.button", "CSV出力"))
         self.btn_csv.clicked.connect(self._on_export_csv)
         btn_row.addWidget(self.btn_csv)
         btn_row.addStretch()
-        self.btn_close = QPushButton("閉じる")
+        self.btn_close = QPushButton(t("common.close", "閉じる"))
         self.btn_close.clicked.connect(self.accept)
         btn_row.addWidget(self.btn_close)
         layout.addLayout(btn_row)
@@ -844,17 +889,17 @@ class StatsDialog(QDialog):
 
             # 鍵状態 (座標は表示しない)
             if lv.is_key_removed():
-                key_state = "削除"
+                key_state = self._key_state_label("removed")
             elif lv.fixed_key_pos in getattr(lv, "visible_in_block_item_cells", set()):
-                key_state = "visible_in_block"
+                key_state = self._key_state_label("visible_in_block")
             elif lv.is_key_white_in_block():
-                key_state = "white_in_block"
+                key_state = self._key_state_label("white_in_block")
             elif lv.is_key_in_block():
-                key_state = "in_block"
+                key_state = self._key_state_label("in_block")
             elif lv.is_key_hidden():
-                key_state = "hidden"
+                key_state = self._key_state_label("hidden")
             else:
-                key_state = "通常"
+                key_state = self._key_state_label("normal")
 
             # 星座 (座標は表示しない)
             if lv.has_constellation():
@@ -872,12 +917,12 @@ class StatsDialog(QDialog):
             f_dark = "●" if rf & _rf.BIT_DARK else ""
             door_state = rf & _rf.DOOR_STATE_MASK
             if lv.is_door_removed():
-                f_door = "削除"
+                f_door = self._door_state_label("removed")
             else:
                 f_door = {
-                    _rf.DOOR_STATE_HIDDEN: "隠",
-                    _rf.DOOR_STATE_IN_BLOCK: "内",
-                    _rf.DOOR_STATE_WHITE_IN_BLOCK: "白内",
+                    _rf.DOOR_STATE_HIDDEN: self._door_state_label("hidden"),
+                    _rf.DOOR_STATE_IN_BLOCK: self._door_state_label("in_block"),
+                    _rf.DOOR_STATE_WHITE_IN_BLOCK: self._door_state_label("white_in_block"),
                 }.get(door_state, "")
             f_fire_reset = "●" if _se.fire_reset_enabled(lv) else ""
             f_fairy_drop = "●" if self._falling_fairy_enabled(row) else ""
@@ -886,10 +931,7 @@ class StatsDialog(QDialog):
             featured_ordered_buckets = self._ordered_featured_buckets(featured_buckets)
             featured_strs = []
             for key, label, b in featured_ordered_buckets:
-                parts = []
-                if b["normal"]: parts.append(f"通{b['normal']}")
-                if b["hidden"]: parts.append(f"隠{b['hidden']}")
-                if b["in_block"]: parts.append(f"内{b['in_block']}")
+                parts = self._state_count_parts(b)
                 featured_strs.append(f"{label}[{','.join(parts)}]")
             featured_text = " / ".join(featured_strs) if featured_strs else "-"
             self._csv_featured_text[row] = featured_text
@@ -901,10 +943,7 @@ class StatsDialog(QDialog):
                 if key in important_buckets:
                     label = self._important_label(key)
                     b = important_buckets[key]
-                    parts = []
-                    if b["normal"]: parts.append(f"通{b['normal']}")
-                    if b["hidden"]: parts.append(f"隠{b['hidden']}")
-                    if b["in_block"]: parts.append(f"内{b['in_block']}")
+                    parts = self._state_count_parts(b)
                     important_strs.append(f"{label}[{','.join(parts)}]")
                     ordered_buckets.append((key, label, b))
             important_text = " / ".join(important_strs) if important_strs else "-"
@@ -1193,7 +1232,7 @@ class StatsDialog(QDialog):
         totals = totals or {}
         for col in range(self.table.columnCount()):
             if col == self.LV_COL:
-                text = "合計"
+                text = t("stats_dialog.total", "合計")
                 sort_value = 9999
             elif col == self.SCORE_COL:
                 text = self._score_text(grand_score)
@@ -1292,7 +1331,10 @@ class StatsDialog(QDialog):
         parent = self.parent()
         if parent and hasattr(parent, "spin_level"):
             parent.spin_level.setValue(level_no + 1)
-            self.statusbar_message(f"L{level_no + 1} に移動")
+            self.statusbar_message(t(
+                "stats_dialog.jump.status",
+                "L{level} に移動",
+            ).format(level=level_no + 1))
 
     def statusbar_message(self, msg):
         parent = self.parent()
@@ -1301,14 +1343,20 @@ class StatsDialog(QDialog):
 
     def _on_export_csv(self):
         path, _ = QFileDialog.getSaveFileName(
-            self, "CSV出力先", "level_stats.csv", "CSV files (*.csv);;All files (*)"
+            self,
+            t("stats_dialog.csv.save_title", "CSV出力先"),
+            "level_stats.csv",
+            t("common.file_filter.csv", "CSV files (*.csv);;All files (*)"),
         )
         if not path:
             return
         try:
             with open(path, "w", encoding="utf-8-sig", newline="") as f:
                 # ヘッダ
-                headers = [h for h, _ in self.COLUMNS]
+                headers = [
+                    t(f"stats_dialog.column.{i}", h)
+                    for i, (h, _width) in enumerate(self.COLUMNS)
+                ]
                 f.write(",".join(headers) + "\n")
                 for row in range(self.table.rowCount()):
                     cells = []
@@ -1329,6 +1377,14 @@ class StatsDialog(QDialog):
                             text = f'"{text}"'
                         cells.append(text)
                     f.write(",".join(cells) + "\n")
-            QMessageBox.information(self, "完了", f"CSV出力完了\n{path}")
+            QMessageBox.information(
+                self,
+                t("common.complete", "完了"),
+                t("stats_dialog.csv.complete", "CSV出力完了\n{path}").format(path=path),
+            )
         except Exception as e:
-            QMessageBox.critical(self, "CSV出力失敗", f"{type(e).__name__}: {e}")
+            QMessageBox.critical(
+                self,
+                t("stats_dialog.csv.failed.title", "CSV出力失敗"),
+                f"{type(e).__name__}: {e}",
+            )

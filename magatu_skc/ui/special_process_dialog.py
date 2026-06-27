@@ -10,6 +10,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor
 
 from ..core import special_process as sp
+from ..core.i18n import t
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
 
@@ -21,7 +22,10 @@ class SpecialProcessDialog(QDialog):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("特殊処理ビューア (Phase 1 - 読込専用)")
+        self.setWindowTitle(t(
+            "special_process_dialog.title",
+            "特殊処理ビューア (Phase 1 - 読込専用)",
+        ))
         self.resize(1000, 600)
         self._app_config = app_config
         self.rom = rom
@@ -41,20 +45,33 @@ class SpecialProcessDialog(QDialog):
 
         # 上部情報
         info_text = (
-            f"<b>リージョン:</b> {self.region}"
+            t("special_process_dialog.region_html", "<b>リージョン:</b> {region}").format(
+                region=self.region
+            )
         )
         table_off = sp.get_dispatch_table(self.region)
         if table_off is None:
             info_text += (
-                f"<br><span style='color:#ef4444'><b>⚠ 未対応リージョン</b>: "
-                f"このリージョンの特殊処理テーブル位置は未確認です。</span>"
+                "<br>"
+                + t(
+                    "special_process_dialog.unsupported_html",
+                    "<span style='color:#ef4444'><b>⚠ 未対応リージョン</b>: "
+                    "このリージョンの特殊処理テーブル位置は未確認です。</span>",
+                )
             )
         else:
-            info_text += f" / <b>ディスパッチテーブル:</b> 0x{table_off:04X}"
+            info_text += " / " + t(
+                "special_process_dialog.dispatch_html",
+                "<b>ディスパッチテーブル:</b> 0x{offset:04X}",
+            ).format(offset=table_off)
             info_text += (
-                f"<br><span style='color:#888;font-size:11px'>"
-                f"出典: BESK (Binary Editor for Solomon's Key) を逆コンパイル + JP/USA ROM 直接検証"
-                f"</span>"
+                "<br>"
+                + t(
+                    "special_process_dialog.source_html",
+                    "<span style='color:#888;font-size:11px'>"
+                    "出典: BESK (Binary Editor for Solomon's Key) を逆コンパイル + JP/USA ROM 直接検証"
+                    "</span>",
+                )
             )
         lbl_info = QLabel(info_text)
         lbl_info.setWordWrap(True)
@@ -73,7 +90,10 @@ class SpecialProcessDialog(QDialog):
         right_widget = QSplitter(Qt.Vertical)
 
         # 右上: 生バイト
-        bytes_group = QGroupBox("生バイト (ROM)")
+        bytes_group = QGroupBox(t(
+            "special_process_dialog.bytes.group",
+            "生バイト (ROM)",
+        ))
         bg_layout = QVBoxLayout(bytes_group)
         self.txt_bytes = QPlainTextEdit()
         self.txt_bytes.setReadOnly(True)
@@ -83,7 +103,10 @@ class SpecialProcessDialog(QDialog):
         right_widget.addWidget(bytes_group)
 
         # 右下: 擬似アセンブラ + 注釈
-        asm_group = QGroupBox("擬似アセンブラ + 注釈")
+        asm_group = QGroupBox(t(
+            "special_process_dialog.asm.group",
+            "擬似アセンブラ + 注釈",
+        ))
         ag_layout = QVBoxLayout(asm_group)
         self.txt_asm = QPlainTextEdit()
         self.txt_asm.setReadOnly(True)
@@ -110,7 +133,10 @@ class SpecialProcessDialog(QDialog):
         for N in range(sp.NUM_LEVELS):
             addr, data = sp.get_special_process_bytes(self.rom_data, self.region, N)
             if addr is None:
-                label = f"L{N + 1:2d}  (未対応)"
+                label = t(
+                    "special_process_dialog.level.unsupported",
+                    "L{level:2d}  (未対応)",
+                ).format(level=N + 1)
             else:
                 length = len(data)
                 # サイズで分類
@@ -119,11 +145,11 @@ class SpecialProcessDialog(QDialog):
                 elif length <= 3:
                     kind = "JMP only"
                 elif length <= 8:
-                    kind = "短い"
+                    kind = t("special_process_dialog.kind.short", "短い")
                 elif length <= 50:
-                    kind = "中"
+                    kind = t("special_process_dialog.kind.medium", "中")
                 else:
-                    kind = "★大規模"
+                    kind = t("special_process_dialog.kind.large", "★大規模")
                 label = f"L{N + 1:2d}  0x{addr:04X}  {length:3d}B  [{kind}]"
             item = QListWidgetItem(label)
             self.list_levels.addItem(item)
@@ -133,13 +159,19 @@ class SpecialProcessDialog(QDialog):
             return
         addr, data = sp.get_special_process_bytes(self.rom_data, self.region, row)
         if addr is None:
-            self.txt_bytes.setPlainText("(リージョン未対応のため表示できません)")
+            self.txt_bytes.setPlainText(t(
+                "special_process_dialog.unsupported_text",
+                "(リージョン未対応のため表示できません)",
+            ))
             self.txt_asm.setPlainText("")
             return
 
         # 生バイト表示 (16バイトずつ + アドレス付き)
         lines = []
-        lines.append(f"; Stage {row + 1} 特殊処理")
+        lines.append(t(
+            "special_process_dialog.bytes.stage_comment",
+            "; Stage {stage} 特殊処理",
+        ).format(stage=row + 1))
         lines.append(f"; ROM offset: 0x{addr:04X}")
         lines.append(f"; Length: {len(data)} bytes")
         lines.append("")

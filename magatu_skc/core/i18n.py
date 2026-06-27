@@ -2391,6 +2391,324 @@ _TRANSLATIONS = {
             "16x16 (8x16 sprites) / direct ROM read, independent of config"
         ),
     },
+    "stats_dialog.title": {
+        "ja": "全ステージ統計 ({count}ステージ)",
+        "en": "All Stage Statistics ({count} stages)",
+    },
+    "stats_dialog.info_html": {
+        "ja": (
+            "「主要」列はWarp/星座パネル/Solomon's Seal/Pageを集計。「重要アイテム」列は"
+            "Origami Swan/Demonhead Coin/"
+            "Sphinx/Egyptian Head/Magic Lamp/E-bottle/Tecmo Bunny と、"
+            "特殊扱いの Mighty Bomb Jack/Fairy/Fairy Princess を集計(コイン/宝石/"
+            "Bell/Scroll/タイマー系などは除外)。「全アイテム」列は"
+            "主要/重要アイテム列に出したものを除き、通常/隠し/ブロック内を"
+            "区別せずベースアイテム別に集計。「配置敵」=面に置かれた敵"
+            "(実数 ×N)、「ミラー敵」=デーモンミラーから出る敵(種類のみ・"
+            "無スケジュールのミラーは除外)。「ブロック」=空気以外の通常/特殊"
+            "ブロック内訳。<br>"
+            "「妖精化」=落下死で妖精化する敵が設定されているステージ。<br>"
+            "「理論得点」=配置されているアイテムをすべて取得した場合の取得時得点"
+            "(到達可否、残りTIME換算、スコア倍率の副作用は除外)。<br>"
+            "セルをダブルクリックでそのステージへジャンプ。"
+        ),
+        "en": (
+            "The Featured column counts Warp, constellation panels, Solomon's Seal, and Page. "
+            "The Important Items column counts Origami Swan, Demonhead Coin, Sphinx, Egyptian Head, "
+            "Magic Lamp, E-bottle, Tecmo Bunny, and special entities Mighty Bomb Jack, Fairy, "
+            "and Fairy Princess. Coins, jewels, Bell, Scroll, timer items, and similar items are excluded. "
+            "The All Items column aggregates base items that are not already shown in Featured or Important Items, "
+            "without separating normal, hidden, and in-block placement. Placed Enemies means enemies placed on the stage "
+            "(actual count xN). Mirror Enemies means enemy types spawned by demon mirrors; unscheduled mirrors are excluded. "
+            "Blocks shows the breakdown of non-air normal/special blocks.<br>"
+            "Fairy Transform marks stages where an enemy is configured to become a fairy after falling death.<br>"
+            "Theoretical Score is the pickup score if all placed items are collected. Reachability, remaining TIME conversion, "
+            "and score multiplier side effects are excluded.<br>"
+            "Double-click a cell to jump to that stage."
+        ),
+    },
+    "stats_dialog.column.0": {"ja": "Lv", "en": "Lv"},
+    "stats_dialog.column.1": {"ja": "通常", "en": "Normal"},
+    "stats_dialog.column.2": {"ja": "隠し", "en": "Hidden"},
+    "stats_dialog.column.3": {"ja": "in_blk", "en": "in_blk"},
+    "stats_dialog.column.4": {"ja": "敵数", "en": "Enemies"},
+    "stats_dialog.column.5": {"ja": "タイル", "en": "Tileset"},
+    "stats_dialog.column.6": {"ja": "時間減少", "en": "Time Drain"},
+    "stats_dialog.column.7": {"ja": "敵寿命\n約0.5秒x値", "en": "Enemy Life\nabout 0.5s x value"},
+    "stats_dialog.column.8": {"ja": "鍵", "en": "Key"},
+    "stats_dialog.column.9": {"ja": "星座", "en": "Constellation"},
+    "stats_dialog.column.10": {"ja": "A禁止", "en": "No A"},
+    "stats_dialog.column.11": {"ja": "B禁止", "en": "No B"},
+    "stats_dialog.column.12": {"ja": "火リセット", "en": "Fire Reset"},
+    "stats_dialog.column.13": {"ja": "鍵敵#", "en": "Key Enemy #"},
+    "stats_dialog.column.14": {"ja": "暗闇", "en": "Dark"},
+    "stats_dialog.column.15": {"ja": "特殊扉", "en": "Special Door"},
+    "stats_dialog.column.16": {"ja": "妖精化", "en": "Fairy Transform"},
+    "stats_dialog.column.17": {"ja": "配置敵", "en": "Placed Enemies"},
+    "stats_dialog.column.18": {"ja": "ミラー敵", "en": "Mirror Enemies"},
+    "stats_dialog.column.19": {"ja": "主要", "en": "Featured"},
+    "stats_dialog.column.20": {"ja": "重要アイテム", "en": "Important Items"},
+    "stats_dialog.column.21": {"ja": "全アイテム", "en": "All Items"},
+    "stats_dialog.column.22": {"ja": "理論得点", "en": "Theoretical Score"},
+    "stats_dialog.column.23": {"ja": "ブロック", "en": "Blocks"},
+    "stats_dialog.tooltip.featured": {
+        "ja": "Warp / 星座パネル / Solomon's Seal / Page を専用表示します。",
+        "en": "Shows Warp, constellation panels, Solomon's Seal, and Page separately.",
+    },
+    "stats_dialog.tooltip.important_items": {
+        "ja": (
+            "重要アイテム列の枠色:\n"
+            "黄 = 隠し / 緑 = ブロック内 / 灰 = 通常\n"
+            "右下の数字は同種アイテムの合計数です。"
+        ),
+        "en": (
+            "Important Items border colors:\n"
+            "yellow = hidden / green = in block / gray = normal\n"
+            "The lower-right number is the total count for the same item type."
+        ),
+    },
+    "stats_dialog.tooltip.all_items": {
+        "ja": (
+            "全アイテム列は通常/隠し/ブロック内を区別せず、"
+            "主要/重要アイテム列に出したものを除いてベースアイテム別に合算します。\n"
+            "表示順はピッカー順です。右下の数字は同種アイテムの合計数です。"
+        ),
+        "en": (
+            "All Items aggregates by base item without separating normal, hidden, and in-block placement, "
+            "excluding items already shown in Featured or Important Items.\n"
+            "Order follows the picker. The lower-right number is the total count for the same item type."
+        ),
+    },
+    "stats_dialog.tooltip.blocks": {
+        "ja": (
+            "空気以外の通常/特殊ブロック内訳です。\n"
+            "茶/白/壊白/透壊/通白/通茶/透固/固茶 などを集計します。"
+        ),
+        "en": (
+            "Breakdown of normal/special blocks except air.\n"
+            "Counts brown, white, breakable white, transparent breakable, passable white/brown, transparent solid, solid brown, and similar blocks."
+        ),
+    },
+    "stats_dialog.tooltip.score": {
+        "ja": (
+            "配置されているアイテムをすべて取った場合の取得時得点です。\n"
+            "到達可否、残りTIMEのクリア時換算、スコア倍率の副作用は含めません。"
+        ),
+        "en": (
+            "Pickup score if all placed items are collected.\n"
+            "Reachability, remaining TIME conversion at clear, and score multiplier side effects are not included."
+        ),
+    },
+    "stats_dialog.csv.button": {
+        "ja": "CSV出力",
+        "en": "Export CSV",
+    },
+    "stats_dialog.csv.save_title": {
+        "ja": "CSV出力先",
+        "en": "Export CSV",
+    },
+    "stats_dialog.csv.complete": {
+        "ja": "CSV出力完了\n{path}",
+        "en": "CSV export complete.\n{path}",
+    },
+    "stats_dialog.csv.failed.title": {
+        "ja": "CSV出力失敗",
+        "en": "CSV Export Failed",
+    },
+    "stats_dialog.count_part.normal": {
+        "ja": "通{count}",
+        "en": "N{count}",
+    },
+    "stats_dialog.count_part.hidden": {
+        "ja": "隠{count}",
+        "en": "H{count}",
+    },
+    "stats_dialog.count_part.in_block": {
+        "ja": "内{count}",
+        "en": "B{count}",
+    },
+    "stats_dialog.key_state.normal": {
+        "ja": "通常",
+        "en": "Normal",
+    },
+    "stats_dialog.key_state.removed": {
+        "ja": "削除",
+        "en": "Removed",
+    },
+    "stats_dialog.key_state.hidden": {
+        "ja": "hidden",
+        "en": "Hidden",
+    },
+    "stats_dialog.key_state.in_block": {
+        "ja": "in_block",
+        "en": "In Block",
+    },
+    "stats_dialog.key_state.visible_in_block": {
+        "ja": "visible_in_block",
+        "en": "Visible In Block",
+    },
+    "stats_dialog.key_state.white_in_block": {
+        "ja": "white_in_block",
+        "en": "White In Block",
+    },
+    "stats_dialog.door_state.removed": {
+        "ja": "削除",
+        "en": "Removed",
+    },
+    "stats_dialog.door_state.hidden": {
+        "ja": "隠",
+        "en": "Hidden",
+    },
+    "stats_dialog.door_state.in_block": {
+        "ja": "内",
+        "en": "In Block",
+    },
+    "stats_dialog.door_state.white_in_block": {
+        "ja": "白内",
+        "en": "White In Block",
+    },
+    "stats_dialog.total": {
+        "ja": "合計",
+        "en": "Total",
+    },
+    "stats_dialog.jump.status": {
+        "ja": "L{level} に移動",
+        "en": "Moved to L{level}",
+    },
+    "special_process_dialog.title": {
+        "ja": "特殊処理ビューア (Phase 1 - 読込専用)",
+        "en": "Special Process Viewer (Phase 1 - Read Only)",
+    },
+    "special_process_dialog.region_html": {
+        "ja": "<b>リージョン:</b> {region}",
+        "en": "<b>Region:</b> {region}",
+    },
+    "special_process_dialog.unsupported_html": {
+        "ja": (
+            "<span style='color:#ef4444'><b>⚠ 未対応リージョン</b>: "
+            "このリージョンの特殊処理テーブル位置は未確認です。</span>"
+        ),
+        "en": (
+            "<span style='color:#ef4444'><b>Unsupported region</b>: "
+            "The special-process table location for this region is not confirmed.</span>"
+        ),
+    },
+    "special_process_dialog.dispatch_html": {
+        "ja": "<b>ディスパッチテーブル:</b> 0x{offset:04X}",
+        "en": "<b>Dispatch table:</b> 0x{offset:04X}",
+    },
+    "special_process_dialog.source_html": {
+        "ja": (
+            "<span style='color:#888;font-size:11px'>"
+            "出典: BESK (Binary Editor for Solomon's Key) を逆コンパイル + JP/USA ROM 直接検証"
+            "</span>"
+        ),
+        "en": (
+            "<span style='color:#888;font-size:11px'>"
+            "Source: decompiled BESK (Binary Editor for Solomon's Key) plus direct JP/USA ROM verification"
+            "</span>"
+        ),
+    },
+    "special_process_dialog.bytes.group": {
+        "ja": "生バイト (ROM)",
+        "en": "Raw Bytes (ROM)",
+    },
+    "special_process_dialog.asm.group": {
+        "ja": "擬似アセンブラ + 注釈",
+        "en": "Pseudo Assembly + Notes",
+    },
+    "special_process_dialog.level.unsupported": {
+        "ja": "L{level:2d}  (未対応)",
+        "en": "L{level:2d}  (unsupported)",
+    },
+    "special_process_dialog.kind.short": {
+        "ja": "短い",
+        "en": "short",
+    },
+    "special_process_dialog.kind.medium": {
+        "ja": "中",
+        "en": "medium",
+    },
+    "special_process_dialog.kind.large": {
+        "ja": "★大規模",
+        "en": "large",
+    },
+    "special_process_dialog.unsupported_text": {
+        "ja": "(リージョン未対応のため表示できません)",
+        "en": "(Cannot display because this region is unsupported)",
+    },
+    "special_process_dialog.bytes.stage_comment": {
+        "ja": "; Stage {stage} 特殊処理",
+        "en": "; Stage {stage} special process",
+    },
+    "keyboard_map.category.navigation": {
+        "ja": "ナビゲーション",
+        "en": "Navigation",
+    },
+    "keyboard_map.category.display": {
+        "ja": "表示切替",
+        "en": "Display",
+    },
+    "keyboard_map.category.file_op": {
+        "ja": "ファイル操作",
+        "en": "File",
+    },
+    "keyboard_map.category.ui": {
+        "ja": "ブラウザ/UI",
+        "en": "Browser/UI",
+    },
+    "keyboard_map.category.system": {
+        "ja": "システム",
+        "en": "System",
+    },
+    "keyboard_map.category.other": {
+        "ja": "その他",
+        "en": "Other",
+    },
+    "keyboard_map.numpad.suffix": {
+        "ja": " [テンキー]",
+        "en": " [numpad]",
+    },
+    "keyboard_map.font.label": {
+        "ja": "フォント:",
+        "en": "Font:",
+    },
+    "keyboard_map.size.label": {
+        "ja": "サイズ:",
+        "en": "Size:",
+    },
+    "keyboard_map.save_png.button": {
+        "ja": "PNG保存",
+        "en": "Save PNG",
+    },
+    "keyboard_map.notes.title": {
+        "ja": "操作メモ",
+        "en": "Notes",
+    },
+    "keyboard_map.save_png.folder_title": {
+        "ja": "保存先フォルダを選択",
+        "en": "Select Save Folder",
+    },
+    "keyboard_map.save_png.complete.title": {
+        "ja": "保存完了",
+        "en": "Save Complete",
+    },
+    "keyboard_map.save_png.complete.body": {
+        "ja": "保存しました:\n{path}",
+        "en": "Saved:\n{path}",
+    },
+    "keyboard_map.default_title": {
+        "ja": "ショートカットMAP",
+        "en": "Shortcut Map",
+    },
+    "common.complete": {
+        "ja": "完了",
+        "en": "Complete",
+    },
+    "common.file_filter.csv": {
+        "ja": "CSV files (*.csv);;All files (*)",
+        "en": "CSV files (*.csv);;All files (*)",
+    },
     "common.close": {
         "ja": "閉じる",
         "en": "Close",
