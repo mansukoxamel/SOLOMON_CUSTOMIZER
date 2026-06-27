@@ -1159,6 +1159,7 @@ _ENDING_TEXT_SEQUENCES = {
     "Normal": (0, 1, 3, 4, 5, 6),
     "True": (0, 1, 3, 7, 8, 9),
 }
+_ENDING_TRUE_PREVIEW_ROW_SHIFT = 12
 _ENDING_TEXT_TILE_TO_CH = {
     0x24: " ",
     0x25: ",",
@@ -1301,6 +1302,11 @@ def ending_text_preview_entries(rom_data, mode: str = "Normal") -> list:
     out = []
     for text_index in _ENDING_TEXT_SEQUENCES[key]:
         _start, _positions, ppu_addr = _ending_text_record(rom_data, text_index)
+        if key == "True" and text_index in (7, 8, 9):
+            ppu_addr = 0x2800 + (
+                ((ppu_addr - 0x2800) + _ENDING_TRUE_PREVIEW_ROW_SHIFT * 32)
+                & 0x03FF
+            )
         tiles = _ending_text_display_tiles(rom_data, text_index)
         out.append((ppu_addr, tiles, text_index))
     return out
