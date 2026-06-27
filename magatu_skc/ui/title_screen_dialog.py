@@ -16,9 +16,12 @@ from PyQt5.QtWidgets import (
     QDialogButtonBox, QMessageBox, QScrollArea, QWidget, QComboBox,
     QFileDialog, QInputDialog, QGridLayout, QGroupBox, QLineEdit,
     QSpinBox, QRadioButton, QButtonGroup, QSizePolicy, QCheckBox,
+    QTabWidget,
 )
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QImage, QPixmap, QPainter, QColor, QPen
+from PyQt5.QtCore import Qt, pyqtSignal, QRegExp
+from PyQt5.QtGui import (
+    QImage, QPixmap, QPainter, QColor, QPen, QRegExpValidator,
+)
 from ..core import title_screen as TS
 from ..core import rom as _rommod
 from ..core.config import save_config
@@ -1011,6 +1014,11 @@ class TitleScreenDialog(QDialog):
         self._region = TS.region_of(rom_data)   # 非対応は例外 (呼び側catch)
 
         root = QVBoxLayout(self)
+        tabs = QTabWidget()
+        root.addWidget(tabs, 1)
+        title_tab = QWidget()
+        title_root = QVBoxLayout(title_tab)
+        tabs.addTab(title_tab, "タイトル")
         head = QLabel(
             "別 ROM のタイトルを<b>移植</b>します: <b>配置(nametable)"
             "+色区分(attribute)+絵(CHR bank3)</b> をピース単位で"
@@ -1022,10 +1030,10 @@ class TitleScreenDialog(QDialog):
             "ご自分が所有する ROM 同士でのみ移植します。"
             "<br>※色(パレット)は v1 では移植先のまま(配置・絵は移植)。")
         head.setWordWrap(True)
-        root.addWidget(head)
+        title_root.addWidget(head)
 
         self._info = QLabel()
-        root.addWidget(self._info)
+        title_root.addWidget(self._info)
 
         # 倍率
         zr = QHBoxLayout()
@@ -1087,7 +1095,7 @@ class TitleScreenDialog(QDialog):
         b_group_replace.clicked.connect(self._on_replace_attr_group)
         zr.addWidget(b_group_replace)
         zr.addStretch()
-        root.addLayout(zr)
+        title_root.addLayout(zr)
 
         # プレビュー (スクロール)
         self._canvas = TitlePreviewLabel()
@@ -1115,9 +1123,9 @@ class TitleScreenDialog(QDialog):
         self._side_layout = QVBoxLayout(self._side_panel)
         wl.addWidget(self._side_panel, 1)
         sa.setWidget(wrap)
-        root.addWidget(sa, 1)
+        title_root.addWidget(sa, 1)
         self._preview_status = QLabel("")
-        root.addWidget(self._preview_status)
+        title_root.addWidget(self._preview_status)
         self._pending_stamp = None
         self._pending_title_character = None
         self._pending_title_tile_stream = None
@@ -1169,7 +1177,9 @@ class TitleScreenDialog(QDialog):
         b_revert.setToolTip("このダイアログを開いた時点の ROM に戻す")
         b_revert.clicked.connect(self._on_revert)
         br.addWidget(b_revert)
-        root.addLayout(br)
+        title_root.addLayout(br)
+
+        tabs.addTab(self._build_ending_text_tab(), "エンディング")
 
         bb = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
@@ -1182,6 +1192,208 @@ class TitleScreenDialog(QDialog):
         self._refresh()
         self._show_title_palette_panel()
         restore_dialog_geometry(self, self._app_config, "title_screen_dlg")
+
+    def _build_ending_text_tab(self):
+        tab = QWidget()
+        root = QVBoxLayout(tab)
+        info = QLabel(
+            "エンディングの文字列だけを編集します。表示位置や改行などの"
+            "制御データは維持します。英大文字 A-Z / スペース / , . ' "
+            "のみ使用できます。")
+        info.setWordWrap(True)
+        root.addWidget(info)
+        try:
+            rows = TS.read_ending_text_messages(self._rom)
+        except (TS.EndingTextError, TS.TitleScreenError, ValueError) as e:
+            msg = QLabel(f"エンディング文字列を編集できません: {e}")
+            msg.setWordWrap(True)
+            root.addWidget(msg)
+            root.addStretch()
+            self._ending_text_edits = []
+            self._ending_text_status = QLabel("")
+            return tab
+
+        body = QHBoxLayout()
+        preview_col = QVBoxLayout()
+        edit_col = QVBoxLayout()
+        body.addLayout(preview_col, 3)
+        body.addLayout(edit_col, 2)
+
+        top = QHBoxLayout()
+        top.addWidget(QLabel("表示:"))
+        self._ending_mode = QComboBox()
+        self._ending_mode.addItem("Bad Ending", "Bad")
+        self._ending_mode.addItem("Good Ending", "Normal")
+        self._ending_mode.addItem("True Ending", "True")
+        self._ending_mode.setCurrentIndex(1)
+        self._ending_mode.currentIndexChanged.connect(
+            self._refresh_ending_preview)
+        top.addWidget(self._ending_mode)
+        top.addStretch()
+        preview_col.addLayout(top)
+
+        self._ending_preview = QLabel()
+        self._ending_preview.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self._ending_preview.setStyleSheet("background:#000;")
+        ending_scroll = QScrollArea()
+        ending_scroll.setWidgetResizable(True)
+        ending_wrap = QWidget()
+        ending_wrap_lay = QHBoxLayout(ending_wrap)
+        ending_wrap_lay.addWidget(self._ending_preview, 0, Qt.AlignTop | Qt.AlignLeft)
+        ending_wrap_lay.addStretch()
+        ending_scroll.setWidget(ending_wrap)
+        preview_col.addWidget(ending_scroll, 1)
+
+        g = QGridLayout()
+        g.setHorizontalSpacing(8)
+        g.setVerticalSpacing(6)
+        g.addWidget(QLabel("文"), 0, 0)
+        g.addWidget(QLabel("文字"), 0, 1)
+        g.addWidget(QLabel("字数"), 0, 2)
+        rx = QRegExpValidator(QRegExp("[A-Za-z ,\\.']*"))
+        self._ending_text_edits = []
+        for i, (name, cur, count, _orig) in enumerate(rows):
+            g.addWidget(QLabel(name), i + 1, 0)
+            le = QLineEdit(cur.rstrip())
+            le.setMaxLength(count)
+            le.setValidator(rx)
+            cnt = QLabel()
+            cnt.setMinimumWidth(56)
+            le.textChanged.connect(
+                lambda _t, e=le, c=count, lb=cnt:
+                self._on_ending_text_changed(e, c, lb))
+            g.addWidget(le, i + 1, 1)
+            g.addWidget(cnt, i + 1, 2)
+            self._ending_text_edits.append(le)
+            self._on_ending_text_count(le, count, cnt)
+        edit_col.addLayout(g)
+        self._ending_text_status = QLabel("")
+        edit_col.addWidget(self._ending_text_status)
+        edit_col.addStretch()
+        root.addLayout(body, 1)
+        self._refresh_ending_preview()
+        return tab
+
+    def _build_ending_preview_image(self):
+        grid = TS.decode_ending_base_grid(self._rom)
+        entries = TS.ending_text_preview_entries(
+            self._rom, self._ending_mode.currentData())
+        tiles = TS.get_chr_bank3_tiles(self._rom)
+        pal = self._title_palette()
+        attr = self._title_attributes()
+        img = QImage(_IMG_W, _IMG_H, QImage.Format_RGB32)
+        painter = None
+        try:
+            painter = QPainter(img)
+            for cell, stream in enumerate(grid):
+                row = cell // _NT_W
+                col = cell % _NT_W
+                ti = (_BG_BASE + int(stream)) & 0x1FF
+                self._draw_ending_tile(
+                    painter, tiles[ti], col * 8, row * 8, pal, attr)
+            for ppu_addr, text_tiles, _text_index in entries:
+                idx = (int(ppu_addr) - 0x2800) & 0x03FF
+                x = (idx % _NT_W) * 8
+                y = (idx // _NT_W) * 8
+                for stream in text_tiles:
+                    ti = (_BG_BASE + int(stream)) & 0x1FF
+                    self._draw_ending_tile(painter, tiles[ti], x, y, pal, attr)
+                    x += 8
+        finally:
+            if painter is not None:
+                painter.end()
+        return self._shift_title_display_image(img)
+
+    def _draw_ending_tile(self, painter, tile, x0, y0, pal, attr):
+        for py in range(8):
+            for px in range(8):
+                pi = tile.pixels[py][px] & 0x03
+                dx = int(x0) + px
+                dy = int(y0) + py
+                if not (0 <= dx < _IMG_W and 0 <= dy < _IMG_H):
+                    continue
+                pal_no = self._attr_palette_no(attr, dy // 8, dx // 8)
+                nes_idx = pal[pal_no * 4 + pi]
+                painter.fillRect(dx, dy, 1, 1, QColor(*NES_COLORS[nes_idx & 0x3F]))
+
+    def _refresh_ending_preview(self):
+        preview = getattr(self, "_ending_preview", None)
+        if preview is None:
+            return
+        try:
+            img = self._build_ending_preview_image()
+        except Exception as e:
+            preview.setText(f"プレビュー不可: {type(e).__name__}: {e}")
+            return
+        zoom = 3
+        pm = QPixmap.fromImage(img).scaled(
+            _IMG_W * zoom, _IMG_H * zoom, Qt.KeepAspectRatio, Qt.FastTransformation)
+        self._draw_preview_grid(pm, zoom)
+        preview.setPixmap(pm)
+        preview.setFixedSize(pm.size())
+
+    @staticmethod
+    def _shift_title_display_image(img: QImage) -> QImage:
+        """Apply the same 8px/1px display correction used by title preview."""
+        src = img.convertToFormat(QImage.Format_RGB32)
+        out = QImage(_IMG_W, _IMG_H, QImage.Format_RGB32)
+        painter = QPainter(out)
+        try:
+            painter.drawImage(0, 0, src, _IMG_W - 8, _IMG_H - 1, 8, 1)
+            painter.drawImage(8, 0, src, 0, _IMG_H - 1, _IMG_W - 8, 1)
+            painter.drawImage(0, 1, src, _IMG_W - 8, 0, 8, _IMG_H - 1)
+            painter.drawImage(8, 1, src, 0, 0, _IMG_W - 8, _IMG_H - 1)
+        finally:
+            painter.end()
+        return out
+
+    def _on_ending_text_count(self, le, count, cnt_lbl):
+        n = len(le.text())
+        cnt_lbl.setText(f"{n} / {count}")
+        if n >= count:
+            cnt_lbl.setStyleSheet("color:#c33;")
+        elif n == 0:
+            cnt_lbl.setStyleSheet("color:#888;")
+        else:
+            cnt_lbl.setStyleSheet("")
+
+    def _on_ending_text_changed(self, le, count, cnt_lbl):
+        up = le.text().upper()
+        if le.text() != up:
+            le.setText(up)
+            return
+        self._on_ending_text_count(le, count, cnt_lbl)
+        edits = getattr(self, "_ending_text_edits", [])
+        if not edits:
+            return
+        snap = bytes(self._rom)
+        try:
+            changes = TS.write_ending_text_messages(
+                self._rom, [e.text() for e in edits])
+        except (TS.EndingTextError, TS.TitleScreenError, ValueError) as e:
+            self._rom[:] = snap
+            self._ending_text_status.setText(f"入力エラー: {e}")
+            return
+        if changes:
+            self._changed = True
+            self._ending_text_status.setText("エンディング文字を反映しました")
+        else:
+            self._ending_text_status.setText("")
+        self._refresh_ending_preview()
+
+    def _reload_ending_text_edits(self):
+        edits = getattr(self, "_ending_text_edits", [])
+        if not edits:
+            return
+        try:
+            rows = TS.read_ending_text_messages(self._rom)
+        except Exception:
+            return
+        for le, (_name, cur, _count, _orig) in zip(edits, rows):
+            old = le.blockSignals(True)
+            le.setText(cur.rstrip())
+            le.blockSignals(old)
+        self._refresh_ending_preview()
 
     # --- 描画 (実タイトル画面を合成) ---
     def _build_image(self, color: bool = True) -> QImage:
@@ -3356,6 +3568,7 @@ class TitleScreenDialog(QDialog):
         self._rom[:] = self._snap
         self._changed = False
         self._refresh()
+        self._reload_ending_text_edits()
         QMessageBox.information(self, "取り消し",
                                 "開いた時点の ROM に戻しました。")
 

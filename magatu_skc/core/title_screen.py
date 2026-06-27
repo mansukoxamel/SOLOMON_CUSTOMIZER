@@ -1138,6 +1138,155 @@ _TITLE_PUNCT_TILE = {
     ".": 0x29,
 }
 
+_ENDING_TEXT_OFF_CPU = 0xBA74
+_ENDING_TEXT_BASE_CPU = 0xBA7E
+_ENDING_TEXT_COUNT = 10
+_ENDING_TEXT_LIMIT_CPU = 0xBB78
+_ENDING_TEXT_NAMES = (
+    "共通 1",
+    "共通 2",
+    "Bad 1",
+    "Normal/True 1",
+    "Normal 2",
+    "Normal 3",
+    "Normal 4",
+    "True 2",
+    "True 3",
+    "True 4",
+)
+_ENDING_TEXT_SEQUENCES = {
+    "Bad": (0, 1, 2),
+    "Normal": (0, 1, 3, 4, 5, 6),
+    "True": (0, 1, 3, 7, 8, 9),
+}
+_ENDING_TEXT_TILE_TO_CH = {0x24: " ", 0x25: ",", 0x3A: ".", 0x3B: "'"}
+for _i in range(0x0A, 0x24):
+    _ENDING_TEXT_TILE_TO_CH[_i] = chr(ord("A") + (_i - 0x0A))
+_ENDING_TEXT_CH_TO_TILE = {v: k for k, v in _ENDING_TEXT_TILE_TO_CH.items()}
+_ENDING_TEXT_SUPPORTED = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ,.'"
+
+
+class EndingTextError(TitleScreenError):
+    """エンディング文字列編集の検証失敗"""
+
+
+def _verify_ending_text_target(rom_data) -> None:
+    region = _verify(rom_data)
+    if region not in ("JP", "JP66"):
+        raise EndingTextError(
+            f"エンディング文字列編集は JP/JP66 専用です (現在 {region})。")
+
+
+def _ending_text_record(rom_data, index: int) -> tuple[int, list[int], int]:
+    """Return (start_file, editable_file_positions, ppu_addr)."""
+    _verify_ending_text_target(rom_data)
+    if not (0 <= int(index) < _ENDING_TEXT_COUNT):
+        raise EndingTextError(f"エンディング文番号が範囲外です ({index})。")
+    table_off = _wjp_cf(_ENDING_TEXT_OFF_CPU)
+    base_file = _wjp_cf(_ENDING_TEXT_BASE_CPU)
+    limit_off = _wjp_cf(_ENDING_TEXT_LIMIT_CPU)
+    start_index = (int(rom_data[table_off + int(index)]) + 1) & 0xFF
+    start_file = _wjp_cf(_ENDING_TEXT_BASE_CPU + start_index)
+    if not (base_file <= start_file < limit_off):
+        raise EndingTextError(
+            f"エンディング文{index + 1}の開始位置が範囲外です。")
+    editable = []
+    p = start_file
+    while p < limit_off:
+        b = int(rom_data[p])
+        if b == 0x00:
+            if not editable:
+                raise EndingTextError(
+                    f"エンディング文{index + 1}に編集可能文字がありません。")
+            if p + 2 >= len(rom_data):
+                raise EndingTextError(
+                    f"エンディング文{index + 1}の表示座標が範囲外です。")
+            ppu_addr = ((int(rom_data[p + 2]) & 0xFF) << 8) | \
+                (int(rom_data[p + 1]) & 0xFF)
+            return start_file, editable, ppu_addr
+        if b in _ENDING_TEXT_TILE_TO_CH:
+            editable.append(p)
+        p += 1
+    raise EndingTextError(
+        f"エンディング文{index + 1}の終端($00)が見つかりません。")
+
+
+def _read_ending_text_at_positions(rom_data, positions: list[int]) -> str:
+    return "".join(_ENDING_TEXT_TILE_TO_CH[int(rom_data[p])] for p in positions)
+
+
+def read_ending_text_messages(rom_data) -> list:
+    """[(name, current, count, original_hint), ...] for ending text editor."""
+    out = []
+    for i in range(_ENDING_TEXT_COUNT):
+        _start, positions, _ppu = _ending_text_record(rom_data, i)
+        cur = _read_ending_text_at_positions(rom_data, positions)
+        out.append((_ENDING_TEXT_NAMES[i], cur, len(positions), cur))
+    return out
+
+
+def write_ending_text_messages(rom_data, texts: list[str]) -> list:
+    """Fixed-length ending text replacement. Control bytes stay untouched."""
+    _verify_ending_text_target(rom_data)
+    if len(texts) != _ENDING_TEXT_COUNT:
+        raise EndingTextError(
+            f"行数不正 ({len(texts)} != {_ENDING_TEXT_COUNT})。")
+    changes = []
+    encoded = []
+    records = []
+    for i, text in enumerate(texts):
+        _start, positions, _ppu = _ending_text_record(rom_data, i)
+        raw = (text or "").upper()
+        for ch in raw:
+            if ch not in _ENDING_TEXT_SUPPORTED:
+                raise EndingTextError(
+                    f"{_ENDING_TEXT_NAMES[i]}: 使えない文字 {ch!r}。"
+                    "英大文字 A-Z / スペース / , . ' のみ使えます。")
+        if len(raw) > len(positions):
+            raise EndingTextError(
+                f"{_ENDING_TEXT_NAMES[i]}: {len(raw)}字は長すぎます"
+                f"(最大 {len(positions)}字)。")
+        raw = raw.ljust(len(positions), " ")
+        encoded.append([_ENDING_TEXT_CH_TO_TILE[ch] for ch in raw])
+        records.append(positions)
+    for i, positions in enumerate(records):
+        before = bytes(rom_data[p] for p in positions)
+        after = bytes(encoded[i])
+        if before != after:
+            for p, b in zip(positions, after):
+                rom_data[p] = b
+            changes.append(f"エンディング {_ENDING_TEXT_NAMES[i]} 更新")
+    return changes
+
+
+def ending_text_preview_entries(rom_data, mode: str = "Normal") -> list:
+    """Return [(ppu_addr, tile_values, text_index), ...] for ending preview."""
+    key = str(mode or "Normal")
+    if key not in _ENDING_TEXT_SEQUENCES:
+        key = "Normal"
+    out = []
+    for text_index in _ENDING_TEXT_SEQUENCES[key]:
+        _start, positions, ppu_addr = _ending_text_record(rom_data, text_index)
+        tiles = [int(rom_data[p]) & 0xFF for p in positions]
+        out.append((ppu_addr, tiles, text_index))
+    return out
+
+
+def decode_ending_base_grid(rom_data) -> list:
+    """Decode the stock ending background stream into a 32x30 tile grid."""
+    _verify_ending_text_target(rom_data)
+    grid = [0x24] * _NT_CELLS
+    stream = _wt_ending_stock_stream(rom_data)
+    start = _wjp_cf(0xCEA3)
+    tmp = bytearray(rom_data)
+    tmp[start:start + len(stream)] = stream
+    writes, _end = _decode_cc4f(bytes(tmp), start)
+    for ppu_addr, tile in writes:
+        idx = int(ppu_addr) & 0x03FF
+        if 0 <= idx < _NT_CELLS:
+            grid[idx] = int(tile) & 0xFF
+    return grid
+
 
 def _title_char_src_tile(ch: str) -> int:
     if ch == " ":
