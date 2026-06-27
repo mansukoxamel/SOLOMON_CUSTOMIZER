@@ -1331,7 +1331,10 @@ def write_ending_text_messages(rom_data, texts: list[str]) -> list:
             raise EndingTextError(
                 f"{name}: {len(raw)}字は長すぎます"
                 f"(最大 {len(positions)}字)。")
-        raw = raw.ljust(len(positions), " ")
+        raw = raw.strip()
+        pad = len(positions) - len(raw)
+        left = pad // 2
+        raw = (" " * left) + raw + (" " * (pad - left))
         encoded.append([
             _ending_text_char_to_tile(ch, rom_data[p])
             for ch, p in zip(raw, positions)

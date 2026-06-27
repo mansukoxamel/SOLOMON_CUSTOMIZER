@@ -210,6 +210,17 @@ class EndingPreviewLabel(QLabel):
         super().wheelEvent(event)
 
 
+class ClearPreviewLabel(QLabel):
+    zoom_wheel = pyqtSignal(int)
+
+    def wheelEvent(self, event):
+        if event.modifiers() & Qt.ControlModifier:
+            self.zoom_wheel.emit(1 if event.angleDelta().y() > 0 else -1)
+            event.accept()
+            return
+        super().wheelEvent(event)
+
+
 class TitleChrTilePickerLabel(QLabel):
     tile_selected = pyqtSignal(int)
     tile_hovered = pyqtSignal(int)
@@ -1223,9 +1234,11 @@ class TitleScreenDialog(QDialog):
         body.addLayout(preview_col, 3)
         body.addLayout(edit_col, 2)
 
-        self._clear_preview = QLabel()
+        self._clear_preview = ClearPreviewLabel()
         self._clear_preview.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self._clear_preview.setStyleSheet("background:#000;")
+        self._clear_preview.zoom_wheel.connect(self._on_clear_zoom_wheel)
+        self._clear_zoom = 3
         clear_scroll = QScrollArea()
         clear_scroll.setWidgetResizable(True)
         clear_wrap = QWidget()
@@ -1567,14 +1580,14 @@ class TitleScreenDialog(QDialog):
     def _draw_clear_text_tile(self, painter, tile, x0, y0):
         clear_pal = (
             QColor(0, 0, 0),
-            QColor(255, 255, 255),
             QColor(180, 180, 180),
             QColor(0, 0, 0),
+            QColor(255, 255, 255),
         )
         for py in range(8):
             for px in range(8):
                 pi = tile.pixels[py][px] & 0x03
-                if pi == 0:
+                if pi == 1:
                     continue
                 dx = int(x0) + px
                 dy = int(y0) + py
@@ -1590,13 +1603,17 @@ class TitleScreenDialog(QDialog):
         except Exception as e:
             preview.setText(f"プレビュー不可: {type(e).__name__}: {e}")
             return
-        zoom = 3
+        zoom = int(getattr(self, "_clear_zoom", 3))
         pm = QPixmap.fromImage(img).scaled(
             _IMG_W * zoom, _IMG_H * zoom,
             Qt.KeepAspectRatio, Qt.FastTransformation)
-        self._draw_preview_grid(pm, zoom)
         preview.setPixmap(pm)
         preview.setFixedSize(pm.size())
+
+    def _on_clear_zoom_wheel(self, step):
+        cur = int(getattr(self, "_clear_zoom", 3))
+        self._clear_zoom = max(1, min(8, cur + int(step)))
+        self._refresh_clear_preview()
 
     def _on_clear_message_count(self, le, count, cnt_lbl):
         n = len(le.text())

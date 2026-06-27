@@ -110,7 +110,8 @@ def is_modified(rom_data) -> bool:
 
 def _encode_line(m, text: str) -> bytes:
     """text(A-Z/space, 大文字化) を count 長の tile 列へ。
-    count未満は space 詰め。超過/不正文字は ClearMessageError。"""
+    count未満は左右に space を足して中央寄せ。超過/不正文字は
+    ClearMessageError。"""
     t = (text or "").upper()
     for c in t:
         if not (c == " " or "A" <= c <= "Z"):
@@ -118,11 +119,14 @@ def _encode_line(m, text: str) -> bytes:
                 f"{m['name']}: 使えない文字 {c!r}。英大文字 A-Z と"
                 "スペースのみ(同字数置換ゆえ長さは最大"
                 f"{m['count']}字)。")
+    t = t.strip()
     if len(t) > m["count"]:
         raise ClearMessageError(
             f"{m['name']}: {len(t)}字は長すぎます(最大 {m['count']}字、"
             "同字数置換のため)。")
-    t = t.ljust(m["count"], " ")          # 不足分は space 詰め(固定長)
+    pad = m["count"] - len(t)
+    left = pad // 2
+    t = (" " * left) + t + (" " * (pad - left))
     return bytes(_ch_to_tile(c) for c in t)
 
 
