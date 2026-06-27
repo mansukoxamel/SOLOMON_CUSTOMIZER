@@ -217,6 +217,8 @@ OFF_FINAL_PANEL_TYPE_CLASSIFIER = 0x3FCA  # CPU $BFBA, 30B post bullet-hook gap
 CPU_FINAL_PANEL_TYPE_CLASSIFIER = _cpu(OFF_FINAL_PANEL_TYPE_CLASSIFIER)
 OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL = 0x3F7C  # CPU $BF6C, reclaimed Panel Bullet hook body
 CPU_FINAL_PANEL_TYPE_CLASSIFIER_TAIL = _cpu(OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL)
+OFF_FINAL_PANEL_ANIM_DIR_HELPER = 0x3F90  # CPU $BF80, reclaimed Panel Bullet hook body
+CPU_FINAL_PANEL_ANIM_DIR_HELPER = _cpu(OFF_FINAL_PANEL_ANIM_DIR_HELPER)
 OFF_FINAL_ABC_GROUP_OFFSET_HELPER = 0x693C  # CPU $E92C, original 00-fill
 CPU_FINAL_ABC_GROUP_OFFSET_HELPER = _cpu(OFF_FINAL_ABC_GROUP_OFFSET_HELPER)
 
@@ -636,8 +638,23 @@ def _build_stage_anim_hook() -> bytes:
     a.b(0xA9, panel_monster_variant.PANEL_ANIM_META[0], 0x85, 0x0A)
     a.b(0xA9, panel_monster_variant.PANEL_ANIM_META[1], 0x85, 0x0B)
     a.b(0xA0, 0x01, 0xB1, 0x08)
-    a.b(0x4A, 0x29, 0x03, 0x85, 0x0F)
+    a.jsr(CPU_FINAL_PANEL_ANIM_DIR_HELPER)
+    a.b(0x85, 0x0F)
     a.b(0x60)
+    return a.finish()
+
+
+def _build_panel_anim_dir_helper() -> bytes:
+    a = _Asm()
+    a.b(0xC9, 0x50)
+    a.branch(0x90, "abc")
+    a.b(0x29, 0x05, 0xC9, 0x04)
+    a.branch(0x90, "done")
+    a.b(0xE9, 0x02)
+    a.label("done")
+    a.b(0x60)
+    a.label("abc")
+    a.b(0x4A, 0x29, 0x03, 0x60)
     return a.finish()
 
 
@@ -706,6 +723,7 @@ FINAL_AI_DISPATCH_HELPER, FINAL_AI_DISPATCH_PANEL_HELPER, FINAL_AI_DISPATCH_ENTR
 FINAL_PARENT_SPEED_GUARD = _build_parent_speed_guard()
 FINAL_PANEL_TYPE_CLASSIFIER = _build_panel_type_classifier(CPU_FINAL_PANEL_TYPE_CLASSIFIER_TAIL)
 FINAL_PANEL_TYPE_CLASSIFIER_TAIL = _build_panel_type_classifier_tail()
+FINAL_PANEL_ANIM_DIR_HELPER = _build_panel_anim_dir_helper()
 FINAL_STAGE_PROPERTY_HOOK = _build_stage_property_hook()
 FINAL_STAGE_ANIM_HOOK = _build_stage_anim_hook()
 assert len(FINAL_FIRE_COMMON) <= len(panel_monster_variant.CAVE_FIRE_3WAY)
@@ -727,6 +745,7 @@ assert len(FINAL_PANEL_TYPE_CLASSIFIER) <= 0x1E
 assert len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL) <= 0x14
 assert len(FINAL_STAGE_PROPERTY_HOOK) <= len(panel_monster_variant.CAVE_PROPERTY_HOOK)
 assert len(FINAL_STAGE_ANIM_HOOK) <= len(panel_monster_variant.CAVE_ANIM_HOOK)
+assert len(FINAL_PANEL_ANIM_DIR_HELPER) <= 0x11
 
 
 def panel_variant_bullet_placement_report() -> dict[str, int]:
@@ -791,6 +810,8 @@ def panel_variant_ai_wrapper_report() -> dict[str, int]:
         "parent_field_clear_helper_size": len(FINAL_PARENT_FIELD_CLEAR_HELPER),
         "parent_speed_guard_off": OFF_FINAL_PARENT_SPEED_GUARD,
         "parent_speed_guard_size": len(FINAL_PARENT_SPEED_GUARD),
+        "panel_anim_dir_helper_off": OFF_FINAL_PANEL_ANIM_DIR_HELPER,
+        "panel_anim_dir_helper_size": len(FINAL_PANEL_ANIM_DIR_HELPER),
         "right_entry_cpu": FINAL_AI_WRAPPER_ENTRIES["right"],
         "left_entry_cpu": FINAL_AI_WRAPPER_ENTRIES["left"],
         "up_entry_cpu": FINAL_AI_WRAPPER_ENTRIES["up"],
@@ -808,6 +829,7 @@ def panel_variant_split_placement_report() -> dict[str, object]:
         ("parent_speed_guard", OFF_FINAL_PARENT_SPEED_GUARD, len(FINAL_PARENT_SPEED_GUARD), FINAL_PARENT_SPEED_GUARD_CAPACITY),
         ("panel_type_classifier", OFF_FINAL_PANEL_TYPE_CLASSIFIER, len(FINAL_PANEL_TYPE_CLASSIFIER), 0x1E),
         ("panel_type_classifier_tail", OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL, len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL), 0x14),
+        ("panel_anim_dir_helper", OFF_FINAL_PANEL_ANIM_DIR_HELPER, len(FINAL_PANEL_ANIM_DIR_HELPER), 0x11),
         ("fire_common", panel_monster_variant.OFF_FIRE_3WAY, len(FINAL_FIRE_COMMON), len(panel_monster_variant.CAVE_FIRE_3WAY)),
         ("state0_interval_helper", OFF_FINAL_STATE0_INTERVAL_HELPER, len(FINAL_STATE0_INTERVAL_HELPER), 0x12),
         ("group_ram_offset_helper", OFF_FINAL_GROUP_RAM_OFFSET_HELPER, len(FINAL_GROUP_RAM_OFFSET_HELPER), 0x17),
@@ -1135,6 +1157,17 @@ def _validate_final_split_signatures(
             ),
         ),
         (
+            OFF_FINAL_PANEL_ANIM_DIR_HELPER,
+            FINAL_PANEL_ANIM_DIR_HELPER,
+            "Panel Variant final animation direction helper",
+            (
+                panel_monster_variant.CAVE_BULLET_HOOK[
+                    OFF_FINAL_PANEL_ANIM_DIR_HELPER - panel_monster_variant.OFF_BULLET_HOOK:
+                    OFF_FINAL_PANEL_ANIM_DIR_HELPER - panel_monster_variant.OFF_BULLET_HOOK + len(FINAL_PANEL_ANIM_DIR_HELPER)
+                ],
+            ),
+        ),
+        (
             panel_monster_variant.OFF_FIRE_3WAY,
             FINAL_FIRE_COMMON,
             "Panel Variant final common fire loop",
@@ -1290,6 +1323,7 @@ def apply_panel_monster_v2_runtime(
         OFF_FINAL_GROUP_RAM_OFFSET_HELPER + len(FINAL_GROUP_RAM_OFFSET_HELPER_WRITE),
         OFF_FINAL_SHARED_AI_WRAPPER + len(FINAL_SHARED_AI_WRAPPER),
         OFF_FINAL_FIRE_MARKER_TABLE + len(FINAL_FIRE_MARKER_TABLE),
+        OFF_FINAL_PANEL_ANIM_DIR_HELPER + len(FINAL_PANEL_ANIM_DIR_HELPER),
         SETTINGS_TABLE_END,
         panel_monster_variant.OFF_ANIM_HOOK + len(FINAL_STAGE_ANIM_HOOK),
     )
@@ -1349,6 +1383,7 @@ def apply_panel_monster_v2_runtime(
         (OFF_FINAL_PARENT_SPEED_GUARD, FINAL_PARENT_SPEED_GUARD_WRITE, "Panel Variant final parent speed guard"),
         (OFF_FINAL_PANEL_TYPE_CLASSIFIER, FINAL_PANEL_TYPE_CLASSIFIER, "Panel Variant final shared Panel type classifier"),
         (OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL, FINAL_PANEL_TYPE_CLASSIFIER_TAIL, "Panel Variant final shared Panel type classifier tail"),
+        (OFF_FINAL_PANEL_ANIM_DIR_HELPER, FINAL_PANEL_ANIM_DIR_HELPER, "Panel Variant final animation direction helper"),
         (panel_monster_variant.OFF_FIRE_3WAY, FINAL_FIRE_COMMON, "Panel Variant final common fire loop"),
         (panel_monster_variant.OFF_FIRE_3WAY + len(FINAL_FIRE_COMMON), FINAL_FIRE_COMMON_TAIL_CLEAR, "Panel Variant final common fire loop tail clear"),
         (OFF_FINAL_STATE0_INTERVAL_HELPER, final_state0_interval_helper, "Panel Variant final interval helper"),
@@ -2120,6 +2155,14 @@ def _validate_pmv2_classifier_runtime_contract() -> None:
             FINAL_PANEL_TYPE_CLASSIFIER_TAIL,
             bytes((0xC9, shifted_id)),
         )
+    required_patterns["borrowed Panel animation direction mask"] = (
+        FINAL_PANEL_ANIM_DIR_HELPER,
+        bytes((0x29, 0x05, 0xC9, 0x04)),
+    )
+    required_patterns["A/B/C Panel animation direction shift"] = (
+        FINAL_PANEL_ANIM_DIR_HELPER,
+        bytes((0x4A, 0x29, 0x03, 0x60)),
+    )
     for name, (blob, pattern) in required_patterns.items():
         if pattern not in blob:
             raise PanelMonsterStageVariantError(
@@ -2134,6 +2177,7 @@ RESERVED_SPANS = (
     (OFF_FINAL_PARENT_SPEED_GUARD, len(FINAL_PARENT_SPEED_GUARD)),
     (OFF_FINAL_PANEL_TYPE_CLASSIFIER, len(FINAL_PANEL_TYPE_CLASSIFIER)),
     (OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL, len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL)),
+    (OFF_FINAL_PANEL_ANIM_DIR_HELPER, len(FINAL_PANEL_ANIM_DIR_HELPER)),
     (panel_monster_variant.OFF_FIRE_3WAY, len(FINAL_FIRE_COMMON)),
     (OFF_FINAL_STATE0_INTERVAL_HELPER, len(FINAL_STATE0_INTERVAL_HELPER)),
     (OFF_FINAL_GROUP_RAM_OFFSET_HELPER, len(FINAL_GROUP_RAM_OFFSET_HELPER)),

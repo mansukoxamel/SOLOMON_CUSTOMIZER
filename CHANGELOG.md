@@ -4,6 +4,10 @@
 - Gitで取得したローカル作業ツリー向けに、`origin/main` を確認してfast-forward更新する `update_from_github.bat` を追加した。
 - `update_from_github.bat` のfetch時はGitの自動GCを無効化し、packファイル削除確認で停止しにくいようにした。
 
+## v0.8.382 (2026-06-27) 強化パネルモンスターの表示向きを修正
+- 2-way/3-way Panel Monster の右向き/上向きが左向き/下向き表示になる問題を修正した。
+- Panel Variant animation direction helper を追加し、旧2-way/3-way IDとA/B/C IDで別の向き計算を使うようにした。
+
 ## v0.8.381 (2026-06-27) 保存前警告を調整
 - Stage 50では正規構成として鍵削除状態を使うため、鍵削除時の扉残り警告を出さないようにした。
 - Stage 49/50に鍵がある場合と、Stage 49に扉がある場合の保存前警告を追加した。
