@@ -14,6 +14,7 @@ from PyQt5.QtWidgets import (
 
 from ..nes import palette as pal
 from ..nes.tile import NES_GFX_TILE_BYTE_SIZE, NesTile
+from ..core.i18n import t
 from .file_dialog_compat import get_file, get_path
 
 
@@ -283,7 +284,7 @@ class PixelEditorDialog(QDialog):
         super().__init__(parent)
         if parent is not None:
             self.setFont(parent.font())
-        self.setWindowTitle("16x16ピクセル編集")
+        self.setWindowTitle(t("pixel.title", "16x16ピクセル編集"))
         self.resize(760, 620)
         self.rom = rom
         self._app_config = app_config
@@ -408,19 +409,19 @@ class PixelEditorDialog(QDialog):
         root = QVBoxLayout(self)
 
         top = QHBoxLayout()
-        top.addWidget(QLabel("フレーム:"))
+        top.addWidget(QLabel(t("pixel.frame", "フレーム:")))
         self.frame_combo = QComboBox()
         self.frame_combo.setMinimumWidth(380)
         self._populate_frame_combo()
         self.frame_combo.currentIndexChanged.connect(self._on_frame_changed)
         top.addWidget(self.frame_combo, 1)
 
-        self.duplicates_chk = QCheckBox("重複参照も表示")
-        self.duplicates_chk.setToolTip("同じleft/right/attrを参照するROMフレームも個別に表示")
+        self.duplicates_chk = QCheckBox(t("pixel.show_duplicates", "重複参照も表示"))
+        self.duplicates_chk.setToolTip(t("pixel.show_duplicates.tooltip", "同じleft/right/attrを参照するROMフレームも個別に表示"))
         self.duplicates_chk.toggled.connect(self._on_duplicate_mode_changed)
         top.addWidget(self.duplicates_chk)
 
-        top.addWidget(QLabel("CHRバンク:"))
+        top.addWidget(QLabel(t("pixel.chr_bank", "CHRバンク:")))
         self.bank_combo = QComboBox()
         for bank in range(self.bank_count):
             self.bank_combo.addItem(f"Bank {bank}", bank)
@@ -428,15 +429,15 @@ class PixelEditorDialog(QDialog):
         self.bank_combo.currentIndexChanged.connect(self._on_bank_changed)
         top.addWidget(self.bank_combo)
 
-        top.addWidget(QLabel("表示パレット:"))
+        top.addWidget(QLabel(t("pixel.palette", "表示パレット:")))
         self.palette_combo = QComboBox()
-        self.palette_combo.addItem("属性から自動")
+        self.palette_combo.addItem(t("pixel.palette.auto", "属性から自動"))
         for label in PALETTE_LABELS:
             self.palette_combo.addItem(label)
         self.palette_combo.currentIndexChanged.connect(self._refresh_palette_ui)
         top.addWidget(self.palette_combo)
 
-        top.addWidget(QLabel("拡大:"))
+        top.addWidget(QLabel(t("pixel.zoom", "拡大:")))
         self.zoom_spin = QSpinBox()
         self.zoom_spin.setRange(12, 36)
         self.zoom_spin.setValue(24)
@@ -456,7 +457,7 @@ class PixelEditorDialog(QDialog):
         main.addWidget(self.canvas, 0, Qt.AlignTop)
 
         side = QVBoxLayout()
-        side.addWidget(QLabel("ペン:"))
+        side.addWidget(QLabel(t("pixel.pen", "ペン:")))
         brush_row = QHBoxLayout()
         self.brush_group = QButtonGroup(self)
         self.brush_buttons = []
@@ -477,54 +478,54 @@ class PixelEditorDialog(QDialog):
         side.addWidget(self.info_label)
 
         history_row = QHBoxLayout()
-        self.undo_btn = QPushButton("元に戻す")
-        self.undo_btn.setToolTip("直前の編集を戻す (Ctrl+Z)")
+        self.undo_btn = QPushButton(t("pixel.undo", "元に戻す"))
+        self.undo_btn.setToolTip(t("pixel.undo.tooltip", "直前の編集を戻す (Ctrl+Z)"))
         self.undo_btn.clicked.connect(self._undo)
         history_row.addWidget(self.undo_btn)
-        self.redo_btn = QPushButton("やり直し")
-        self.redo_btn.setToolTip("戻した編集をやり直す (Ctrl+Y / Ctrl+Shift+Z)")
+        self.redo_btn = QPushButton(t("pixel.redo", "やり直し"))
+        self.redo_btn.setToolTip(t("pixel.redo.tooltip", "戻した編集をやり直す (Ctrl+Y / Ctrl+Shift+Z)"))
         self.redo_btn.clicked.connect(self._redo)
         history_row.addWidget(self.redo_btn)
         side.addLayout(history_row)
 
         flip_row = QHBoxLayout()
-        self.flip_h_btn = QPushButton("左右反転")
-        self.flip_h_btn.setToolTip("選択範囲があれば範囲内、なければ16x16全体を左右反転")
+        self.flip_h_btn = QPushButton(t("main.selection.flip_horizontal", "左右反転"))
+        self.flip_h_btn.setToolTip(t("pixel.flip_h.tooltip", "選択範囲があれば範囲内、なければ16x16全体を左右反転"))
         self.flip_h_btn.clicked.connect(self._flip_horizontal)
         flip_row.addWidget(self.flip_h_btn)
-        self.flip_v_btn = QPushButton("上下反転")
-        self.flip_v_btn.setToolTip("選択範囲があれば範囲内、なければ16x16全体を上下反転")
+        self.flip_v_btn = QPushButton(t("main.selection.flip_vertical", "上下反転"))
+        self.flip_v_btn.setToolTip(t("pixel.flip_v.tooltip", "選択範囲があれば範囲内、なければ16x16全体を上下反転"))
         self.flip_v_btn.clicked.connect(self._flip_vertical)
         flip_row.addWidget(self.flip_v_btn)
         side.addLayout(flip_row)
 
-        import_btn = QPushButton("画像取込...")
-        import_btn.setToolTip("画像を16x16へ縮小し、現在の表示パレットの最寄り色へ変換")
+        import_btn = QPushButton(t("pixel.import", "画像取込..."))
+        import_btn.setToolTip(t("pixel.import.tooltip", "画像を16x16へ縮小し、現在の表示パレットの最寄り色へ変換"))
         import_btn.clicked.connect(self._import_image)
         side.addWidget(import_btn)
 
-        export_btn = QPushButton("PNG保存...")
-        export_btn.setToolTip("現在の16x16作業内容をPNGで保存")
+        export_btn = QPushButton(t("pixel.export", "PNG保存..."))
+        export_btn.setToolTip(t("pixel.export.tooltip", "現在の16x16作業内容をPNGで保存"))
         export_btn.clicked.connect(self._export_png)
         side.addWidget(export_btn)
 
-        clear_btn = QPushButton("クリア")
-        clear_btn.setToolTip("作業中の16x16をパレットインデックス0で消去")
+        clear_btn = QPushButton(t("pixel.clear", "クリア"))
+        clear_btn.setToolTip(t("pixel.clear.tooltip", "作業中の16x16をパレットインデックス0で消去"))
         clear_btn.clicked.connect(self._clear_pixels)
         side.addWidget(clear_btn)
 
-        reload_btn = QPushButton("ROMから再読込")
-        reload_btn.setToolTip("選択フレームの現在のROM内容を読み直す")
+        reload_btn = QPushButton(t("pixel.reload", "ROMから再読込"))
+        reload_btn.setToolTip(t("pixel.reload.tooltip", "選択フレームの現在のROM内容を読み直す"))
         reload_btn.clicked.connect(self._reload_frame)
         side.addWidget(reload_btn)
 
-        apply_btn = QPushButton("ROMへ書込")
-        apply_btn.setToolTip("作業中の16x16を対応CHRタイルへ書き込む")
+        apply_btn = QPushButton(t("pixel.apply", "ROMへ書込"))
+        apply_btn.setToolTip(t("pixel.apply.tooltip", "作業中の16x16を対応CHRタイルへ書き込む"))
         apply_btn.clicked.connect(self._apply_to_rom)
         side.addWidget(apply_btn)
 
         side.addStretch()
-        close_btn = QPushButton("閉じる")
+        close_btn = QPushButton(t("common.close", "閉じる"))
         close_btn.clicked.connect(self.reject)
         side.addWidget(close_btn)
         main.addLayout(side, 1)
@@ -541,7 +542,7 @@ class PixelEditorDialog(QDialog):
             self.redo_btn.setEnabled(False)
             self.flip_h_btn.setEnabled(False)
             self.flip_v_btn.setEnabled(False)
-            self.info_label.setText("編集できる16x16 ROMフレームが見つかりません。")
+            self.info_label.setText(t("pixel.no_frames", "編集できる16x16 ROMフレームが見つかりません。"))
         self._update_history_buttons()
 
     @staticmethod
@@ -656,8 +657,12 @@ class PixelEditorDialog(QDialog):
     def _on_frame_changed(self):
         if self._has_pending_changes():
             ans = QMessageBox.question(
-                self, "未書込の編集",
-                "現在の作業内容はまだROMへ書き込まれていません。破棄してフレームを切り替えますか？",
+                self,
+                t("pixel.pending.title", "未書込の編集"),
+                t(
+                    "pixel.pending.frame",
+                    "現在の作業内容はまだROMへ書き込まれていません。破棄してフレームを切り替えますか？",
+                ),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -672,8 +677,12 @@ class PixelEditorDialog(QDialog):
     def _on_duplicate_mode_changed(self, checked: bool):
         if self._has_pending_changes():
             ans = QMessageBox.question(
-                self, "未書込の編集",
-                "現在の作業内容はまだROMへ書き込まれていません。破棄して表示形式を切り替えますか？",
+                self,
+                t("pixel.pending.title", "未書込の編集"),
+                t(
+                    "pixel.pending.view_mode",
+                    "現在の作業内容はまだROMへ書き込まれていません。破棄して表示形式を切り替えますか？",
+                ),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -698,8 +707,12 @@ class PixelEditorDialog(QDialog):
             return
         if self._has_pending_changes():
             ans = QMessageBox.question(
-                self, "未書込の編集",
-                "現在の作業内容はまだROMへ書き込まれていません。破棄してCHRバンクを切り替えますか？",
+                self,
+                t("pixel.pending.title", "未書込の編集"),
+                t(
+                    "pixel.pending.bank",
+                    "現在の作業内容はまだROMへ書き込まれていません。破棄してCHRバンクを切り替えますか？",
+                ),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -929,8 +942,9 @@ class PixelEditorDialog(QDialog):
     def _reload_frame(self):
         if self._has_pending_changes():
             ans = QMessageBox.question(
-                self, "再読込",
-                "現在の作業内容を破棄してROMから読み直しますか？",
+                self,
+                t("pixel.reload.title", "再読込"),
+                t("pixel.reload.confirm", "現在の作業内容を破棄してROMから読み直しますか？"),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -962,14 +976,18 @@ class PixelEditorDialog(QDialog):
     def _import_image(self):
         path = get_file(
             self,
-            title="16x16画像を取り込み",
+            title=t("pixel.import_dialog.title", "16x16画像を取り込み"),
             filter="Images (*.png *.bmp *.jpg *.jpeg);;All files (*)",
         )
         if not path:
             return
         img = QImage(path)
         if img.isNull():
-            QMessageBox.critical(self, "画像取込失敗", "画像を読み込めませんでした。")
+            QMessageBox.critical(
+                self,
+                t("pixel.import_failed.title", "画像取込失敗"),
+                t("pixel.import_failed.body", "画像を読み込めませんでした。"),
+            )
             return
         img = img.convertToFormat(QImage.Format_ARGB32)
         if img.width() != 16 or img.height() != 16:
@@ -990,7 +1008,7 @@ class PixelEditorDialog(QDialog):
     def _export_png(self):
         path = get_path(
             self,
-            title="16x16 PNGを保存",
+            title=t("pixel.export_dialog.title", "16x16 PNGを保存"),
             filter="PNG (*.png);;All files (*)",
             mode="save",
             directory="pixel_16x16.png",
@@ -1011,7 +1029,11 @@ class PixelEditorDialog(QDialog):
                     else:
                         img.setPixelColor(x, y, QColor(*rgb))
         if not img.save(path, "PNG"):
-            QMessageBox.critical(self, "PNG保存失敗", "PNGを書き出せませんでした。")
+            QMessageBox.critical(
+                self,
+                t("pixel.export_failed.title", "PNG保存失敗"),
+                t("pixel.export_failed.body", "PNGを書き出せませんでした。"),
+            )
 
     def _apply_to_rom(self):
         if self._entry is None:
@@ -1020,7 +1042,7 @@ class PixelEditorDialog(QDialog):
             self._pixels = self.canvas.pixels()
             self._write_entry_pixels(self._entry)
         except Exception as exc:
-            QMessageBox.critical(self, "書込失敗", f"{type(exc).__name__}: {exc}")
+            QMessageBox.critical(self, t("pixel.apply_failed.title", "書込失敗"), f"{type(exc).__name__}: {exc}")
             return
         self._loaded_pixels = self._copy_pixels(self._pixels)
         self._changed = True
@@ -1081,8 +1103,9 @@ class PixelEditorDialog(QDialog):
     def reject(self):
         if self._has_pending_changes():
             ans = QMessageBox.question(
-                self, "閉じる",
-                "ROMへ書き込んでいない作業内容があります。破棄して閉じますか？",
+                self,
+                t("pixel.close.title", "閉じる"),
+                t("pixel.close.confirm", "現在の作業内容はまだROMへ書き込まれていません。破棄して閉じますか？"),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )

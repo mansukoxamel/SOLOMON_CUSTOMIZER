@@ -1546,6 +1546,170 @@ _TRANSLATIONS = {
         "ja": "パレット設定を読み込みました:\n{name}",
         "en": "Loaded palette settings:\n{name}",
     },
+    "pixel.title": {
+        "ja": "16x16ピクセル編集",
+        "en": "16x16 Pixel Editor",
+    },
+    "pixel.frame": {
+        "ja": "フレーム:",
+        "en": "Frame:",
+    },
+    "pixel.show_duplicates": {
+        "ja": "重複参照も表示",
+        "en": "Show duplicate references",
+    },
+    "pixel.show_duplicates.tooltip": {
+        "ja": "同じleft/right/attrを参照するROMフレームも個別に表示",
+        "en": "Also show ROM frames that reference the same left/right/attr individually.",
+    },
+    "pixel.chr_bank": {
+        "ja": "CHRバンク:",
+        "en": "CHR Bank:",
+    },
+    "pixel.palette": {
+        "ja": "表示パレット:",
+        "en": "Display Palette:",
+    },
+    "pixel.palette.auto": {
+        "ja": "属性から自動",
+        "en": "Auto from Attr",
+    },
+    "pixel.zoom": {
+        "ja": "拡大:",
+        "en": "Zoom:",
+    },
+    "pixel.pen": {
+        "ja": "ペン:",
+        "en": "Pen:",
+    },
+    "pixel.undo": {
+        "ja": "元に戻す",
+        "en": "Undo",
+    },
+    "pixel.undo.tooltip": {
+        "ja": "直前の編集を戻す (Ctrl+Z)",
+        "en": "Undo the previous edit (Ctrl+Z).",
+    },
+    "pixel.redo": {
+        "ja": "やり直し",
+        "en": "Redo",
+    },
+    "pixel.redo.tooltip": {
+        "ja": "戻した編集をやり直す (Ctrl+Y / Ctrl+Shift+Z)",
+        "en": "Redo the reverted edit (Ctrl+Y / Ctrl+Shift+Z).",
+    },
+    "pixel.flip_h.tooltip": {
+        "ja": "選択範囲があれば範囲内、なければ16x16全体を左右反転",
+        "en": "Flip the selection horizontally, or the full 16x16 image if there is no selection.",
+    },
+    "pixel.flip_v.tooltip": {
+        "ja": "選択範囲があれば範囲内、なければ16x16全体を上下反転",
+        "en": "Flip the selection vertically, or the full 16x16 image if there is no selection.",
+    },
+    "pixel.import": {
+        "ja": "画像取込...",
+        "en": "Import Image...",
+    },
+    "pixel.import.tooltip": {
+        "ja": "画像を16x16へ縮小し、現在の表示パレットの最寄り色へ変換",
+        "en": "Scale an image to 16x16 and convert it to the nearest colors in the current display palette.",
+    },
+    "pixel.export": {
+        "ja": "PNG保存...",
+        "en": "Save PNG...",
+    },
+    "pixel.export.tooltip": {
+        "ja": "現在の16x16作業内容をPNGで保存",
+        "en": "Save the current 16x16 work image as PNG.",
+    },
+    "pixel.clear": {
+        "ja": "クリア",
+        "en": "Clear",
+    },
+    "pixel.clear.tooltip": {
+        "ja": "作業中の16x16をパレットインデックス0で消去",
+        "en": "Clear the current 16x16 work image with palette index 0.",
+    },
+    "pixel.reload": {
+        "ja": "ROMから再読込",
+        "en": "Reload from ROM",
+    },
+    "pixel.reload.tooltip": {
+        "ja": "選択フレームの現在のROM内容を読み直す",
+        "en": "Reload the selected frame from the current ROM data.",
+    },
+    "pixel.apply": {
+        "ja": "ROMへ書込",
+        "en": "Write to ROM",
+    },
+    "pixel.apply.tooltip": {
+        "ja": "作業中の16x16を対応CHRタイルへ書き込む",
+        "en": "Write the current 16x16 work image to the corresponding CHR tiles.",
+    },
+    "pixel.no_frames": {
+        "ja": "編集できる16x16 ROMフレームが見つかりません。",
+        "en": "No editable 16x16 ROM frames were found.",
+    },
+    "pixel.pending.title": {
+        "ja": "未書込の編集",
+        "en": "Unsaved Pixel Edit",
+    },
+    "pixel.pending.frame": {
+        "ja": "現在の作業内容はまだROMへ書き込まれていません。破棄してフレームを切り替えますか？",
+        "en": "The current work has not been written to the ROM yet. Discard it and switch frames?",
+    },
+    "pixel.pending.view_mode": {
+        "ja": "現在の作業内容はまだROMへ書き込まれていません。破棄して表示形式を切り替えますか？",
+        "en": "The current work has not been written to the ROM yet. Discard it and switch display mode?",
+    },
+    "pixel.pending.bank": {
+        "ja": "現在の作業内容はまだROMへ書き込まれていません。破棄してCHRバンクを切り替えますか？",
+        "en": "The current work has not been written to the ROM yet. Discard it and switch CHR banks?",
+    },
+    "pixel.reload.title": {
+        "ja": "再読込",
+        "en": "Reload",
+    },
+    "pixel.reload.confirm": {
+        "ja": "現在の作業内容を破棄してROMから読み直しますか？",
+        "en": "Discard the current work and reload it from ROM?",
+    },
+    "pixel.import_dialog.title": {
+        "ja": "16x16画像を取り込み",
+        "en": "Import 16x16 Image",
+    },
+    "pixel.import_failed.title": {
+        "ja": "画像取込失敗",
+        "en": "Image Import Failed",
+    },
+    "pixel.import_failed.body": {
+        "ja": "画像を読み込めませんでした。",
+        "en": "Could not load the image.",
+    },
+    "pixel.export_dialog.title": {
+        "ja": "16x16 PNGを保存",
+        "en": "Save 16x16 PNG",
+    },
+    "pixel.export_failed.title": {
+        "ja": "PNG保存失敗",
+        "en": "PNG Save Failed",
+    },
+    "pixel.export_failed.body": {
+        "ja": "PNGを書き出せませんでした。",
+        "en": "Could not write the PNG.",
+    },
+    "pixel.apply_failed.title": {
+        "ja": "書込失敗",
+        "en": "Write Failed",
+    },
+    "pixel.close.title": {
+        "ja": "閉じる",
+        "en": "Close",
+    },
+    "pixel.close.confirm": {
+        "ja": "ROMへ書き込んでいない作業内容があります。破棄して閉じますか？",
+        "en": "The current work has not been written to the ROM yet. Discard it and close?",
+    },
     "main.action.restart_app": {
         "ja": "アプリを再起動します",
         "en": "The application will restart",
