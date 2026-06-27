@@ -1243,6 +1243,9 @@ class TitleScreenDialog(QDialog):
         self._ending_mode.currentIndexChanged.connect(
             self._on_ending_mode_changed)
         top.addWidget(self._ending_mode)
+        self._ending_condition = QLabel("")
+        self._ending_condition.setMinimumWidth(220)
+        top.addWidget(self._ending_condition)
         top.addStretch()
         preview_col.addLayout(top)
 
@@ -1378,6 +1381,18 @@ class TitleScreenDialog(QDialog):
         self._refresh_ending_preview()
 
     def _on_ending_mode_changed(self, *_):
+        conditions = {
+            "PrincessTrue": "条件: 王女あり / 両方取得",
+            "PrincessNormal": "条件: 王女あり / 片方取得",
+            "PrincessBad": "条件: 王女あり / 取得なし",
+            "True": "条件: 王女なし / 両方取得",
+            "Normal": "条件: 王女なし / 片方取得",
+            "Bad": "条件: 王女なし / 取得なし",
+        }
+        mode = self._ending_mode.currentData()
+        label = getattr(self, "_ending_condition", None)
+        if label is not None:
+            label.setText(conditions.get(mode, ""))
         visible = set(TS.ending_text_edit_indices(self._ending_mode.currentData()))
         for i, widgets in enumerate(getattr(self, "_ending_text_row_widgets", [])):
             show = i in visible
