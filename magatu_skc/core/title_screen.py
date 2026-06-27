@@ -1154,12 +1154,23 @@ _ENDING_TEXT_NAMES = (
     "True 3",
     "True 4",
 )
+_ENDING_PRINCESS_TEXT_NAMES = (
+    "Fairy 1",
+    "Fairy 2",
+)
 _ENDING_TEXT_SEQUENCES = {
     "Bad": (0, 1, 2),
     "Normal": (0, 1, 3, 4, 5, 6),
     "True": (0, 1, 3, 7, 8, 9),
+    "PrincessBad": (0, 1, 2),
+    "PrincessNormal": (0, 1, 3, 4, 5, 6),
+    "PrincessTrue": (0, 1, 3, 7, 8, 9),
 }
 _ENDING_TRUE_PREVIEW_ROW_SHIFT = 12
+_ENDING_PRINCESS_TEXT_BLOCKS = (
+    (0xBA25, 0x2864),
+    (0xBA40, 0x28A2),
+)
 _ENDING_TEXT_TILE_TO_CH = {
     0x24: " ",
     0x25: ",",
@@ -1247,9 +1258,43 @@ def _ending_text_display_tiles(rom_data, index: int) -> list[int]:
         f"エンディング文{int(index) + 1}の終端($00)が見つかりません。")
 
 
+def _ending_fixed_text_record(rom_data, start_cpu: int) -> tuple[list[int], list[int]]:
+    """Return (editable_file_positions, display_tiles) for fixed ending text."""
+    _verify_ending_text_target(rom_data)
+    start = _wjp_cf(start_cpu)
+    limit = min(_wjp_cf(_ENDING_TEXT_LIMIT_CPU), len(rom_data))
+    positions = []
+    tiles = []
+    p = start + 1
+    while p < limit:
+        b = int(rom_data[p]) & 0xFF
+        if b == 0x00:
+            if not positions:
+                raise EndingTextError(
+                    f"エンディング固定文 ${int(start_cpu):04X} に編集可能文字がありません。")
+            return positions, tiles
+        if b in _ENDING_TEXT_TILE_TO_CH:
+            positions.append(p)
+            tiles.append(b)
+        p += 1
+    raise EndingTextError(
+        f"エンディング固定文 ${int(start_cpu):04X} の終端($00)が見つかりません。")
+
+
+def _ending_fixed_display_tiles(rom_data, start_cpu: int) -> list[int]:
+    """Return raw display tiles for a fixed ending text block."""
+    _positions, tiles = _ending_fixed_text_record(rom_data, start_cpu)
+    return tiles
+
+
 def read_ending_text_messages(rom_data) -> list:
     """[(name, current, count, original_hint), ...] for ending text editor."""
     out = []
+    for name, (start_cpu, _ppu_addr) in zip(
+            _ENDING_PRINCESS_TEXT_NAMES, _ENDING_PRINCESS_TEXT_BLOCKS):
+        positions, _tiles = _ending_fixed_text_record(rom_data, start_cpu)
+        cur = _read_ending_text_at_positions(rom_data, positions)
+        out.append((name, cur, len(positions), cur))
     for i in range(_ENDING_TEXT_COUNT):
         _start, positions, _ppu = _ending_text_record(rom_data, i)
         cur = _read_ending_text_at_positions(rom_data, positions)
@@ -1260,37 +1305,45 @@ def read_ending_text_messages(rom_data) -> list:
 def write_ending_text_messages(rom_data, texts: list[str]) -> list:
     """Fixed-length ending text replacement. Control bytes stay untouched."""
     _verify_ending_text_target(rom_data)
-    if len(texts) != _ENDING_TEXT_COUNT:
+    expected = len(_ENDING_PRINCESS_TEXT_BLOCKS) + _ENDING_TEXT_COUNT
+    if len(texts) != expected:
         raise EndingTextError(
-            f"行数不正 ({len(texts)} != {_ENDING_TEXT_COUNT})。")
+            f"行数不正 ({len(texts)} != {expected})。")
     changes = []
     encoded = []
     records = []
-    for i, text in enumerate(texts):
+    names_and_records = []
+    for name, (start_cpu, _ppu_addr) in zip(
+            _ENDING_PRINCESS_TEXT_NAMES, _ENDING_PRINCESS_TEXT_BLOCKS):
+        positions, _tiles = _ending_fixed_text_record(rom_data, start_cpu)
+        names_and_records.append((name, positions))
+    for i in range(_ENDING_TEXT_COUNT):
         _start, positions, _ppu = _ending_text_record(rom_data, i)
+        names_and_records.append((_ENDING_TEXT_NAMES[i], positions))
+    for text, (name, positions) in zip(texts, names_and_records):
         raw = (text or "").upper()
         for ch in raw:
             if ch not in _ENDING_TEXT_SUPPORTED:
                 raise EndingTextError(
-                    f"{_ENDING_TEXT_NAMES[i]}: 使えない文字 {ch!r}。"
+                    f"{name}: 使えない文字 {ch!r}。"
                     "英大文字 A-Z / スペース / , ' \" のみ使えます。")
         if len(raw) > len(positions):
             raise EndingTextError(
-                f"{_ENDING_TEXT_NAMES[i]}: {len(raw)}字は長すぎます"
+                f"{name}: {len(raw)}字は長すぎます"
                 f"(最大 {len(positions)}字)。")
         raw = raw.ljust(len(positions), " ")
         encoded.append([
             _ending_text_char_to_tile(ch, rom_data[p])
             for ch, p in zip(raw, positions)
         ])
-        records.append(positions)
-    for i, positions in enumerate(records):
+        records.append((name, positions))
+    for i, (name, positions) in enumerate(records):
         before = bytes(rom_data[p] for p in positions)
         after = bytes(encoded[i])
         if before != after:
             for p, b in zip(positions, after):
                 rom_data[p] = b
-            changes.append(f"エンディング {_ENDING_TEXT_NAMES[i]} 更新")
+            changes.append(f"エンディング {name} 更新")
     return changes
 
 
@@ -1300,9 +1353,12 @@ def ending_text_preview_entries(rom_data, mode: str = "Normal") -> list:
     if key not in _ENDING_TEXT_SEQUENCES:
         key = "Normal"
     out = []
+    if key.startswith("Princess"):
+        for start_cpu, ppu_addr in _ENDING_PRINCESS_TEXT_BLOCKS:
+            out.append((ppu_addr, _ending_fixed_display_tiles(rom_data, start_cpu), None))
     for text_index in _ENDING_TEXT_SEQUENCES[key]:
         _start, _positions, ppu_addr = _ending_text_record(rom_data, text_index)
-        if key == "True" and text_index in (7, 8, 9):
+        if key in ("True", "PrincessTrue") and text_index in (7, 8, 9):
             ppu_addr = 0x2800 + (
                 ((ppu_addr - 0x2800) + _ENDING_TRUE_PREVIEW_ROW_SHIFT * 32)
                 & 0x03FF

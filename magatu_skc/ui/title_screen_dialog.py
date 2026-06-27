@@ -197,6 +197,17 @@ class TitlePreviewLabel(QLabel):
         super().wheelEvent(event)
 
 
+class EndingPreviewLabel(QLabel):
+    zoom_wheel = pyqtSignal(int)
+
+    def wheelEvent(self, event):
+        if event.modifiers() & Qt.ControlModifier:
+            self.zoom_wheel.emit(1 if event.angleDelta().y() > 0 else -1)
+            event.accept()
+            return
+        super().wheelEvent(event)
+
+
 class TitleChrTilePickerLabel(QLabel):
     tile_selected = pyqtSignal(int)
     tile_hovered = pyqtSignal(int)
@@ -1222,19 +1233,24 @@ class TitleScreenDialog(QDialog):
         top = QHBoxLayout()
         top.addWidget(QLabel("表示:"))
         self._ending_mode = QComboBox()
-        self._ending_mode.addItem("Bad Ending", "Bad")
-        self._ending_mode.addItem("Good Ending", "Normal")
-        self._ending_mode.addItem("True Ending", "True")
-        self._ending_mode.setCurrentIndex(1)
+        self._ending_mode.addItem("True Ending", "PrincessTrue")
+        self._ending_mode.addItem("Good Ending A", "PrincessNormal")
+        self._ending_mode.addItem("Good Ending B", "PrincessBad")
+        self._ending_mode.addItem("Bad Ending A", "True")
+        self._ending_mode.addItem("Bad Ending B", "Normal")
+        self._ending_mode.addItem("Worst Ending", "Bad")
+        self._ending_mode.setCurrentIndex(5)
         self._ending_mode.currentIndexChanged.connect(
             self._refresh_ending_preview)
         top.addWidget(self._ending_mode)
         top.addStretch()
         preview_col.addLayout(top)
 
-        self._ending_preview = QLabel()
+        self._ending_preview = EndingPreviewLabel()
         self._ending_preview.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self._ending_preview.setStyleSheet("background:#000;")
+        self._ending_preview.zoom_wheel.connect(self._on_ending_zoom_wheel)
+        self._ending_zoom = 3
         ending_scroll = QScrollArea()
         ending_scroll.setWidgetResizable(True)
         ending_wrap = QWidget()
@@ -1275,22 +1291,31 @@ class TitleScreenDialog(QDialog):
         return tab
 
     def _build_ending_preview_image(self):
-        grid = TS.decode_ending_base_grid(self._rom)
+        mode = self._ending_mode.currentData()
+        clear_background = mode in ("PrincessTrue", "True")
+        grid = [] if clear_background else TS.decode_ending_base_grid(self._rom)
         entries = TS.ending_text_preview_entries(
-            self._rom, self._ending_mode.currentData())
+            self._rom, mode)
         tiles = TS.get_chr_bank3_tiles(self._rom)
         pal = self._title_palette()
-        attr = self._ending_attributes()
+        attr = self._ending_attributes(clear_background)
         img = QImage(_IMG_W, _IMG_H, QImage.Format_RGB32)
         painter = None
         try:
             painter = QPainter(img)
-            for cell, stream in enumerate(grid):
-                row = cell // _NT_W
-                col = cell % _NT_W
-                ti = (_BG_BASE + int(stream)) & 0x1FF
-                self._draw_ending_tile(
-                    painter, tiles[ti], col * 8, row * 8, pal, attr)
+            if clear_background:
+                blank = tiles[(_BG_BASE + 0x24) & 0x1FF]
+                for row in range(_IMG_H // 8):
+                    for col in range(_NT_W):
+                        self._draw_ending_tile(
+                            painter, blank, col * 8, row * 8, pal, attr)
+            else:
+                for cell, stream in enumerate(grid):
+                    row = cell // _NT_W
+                    col = cell % _NT_W
+                    ti = (_BG_BASE + int(stream)) & 0x1FF
+                    self._draw_ending_tile(
+                        painter, tiles[ti], col * 8, row * 8, pal, attr)
             for ppu_addr, text_tiles, _text_index in entries:
                 idx = (int(ppu_addr) - 0x2800) & 0x03FF
                 x = (idx % _NT_W) * 8
@@ -1313,11 +1338,13 @@ class TitleScreenDialog(QDialog):
                 if not (0 <= dx < _IMG_W and 0 <= dy < _IMG_H):
                     continue
                 pal_no = self._attr_palette_no(attr, dy // 8, dx // 8)
-                nes_idx = pal[pal_no * 4 + pi]
+                nes_idx = pal[0] if pi == 0 else pal[pal_no * 4 + pi]
                 painter.fillRect(dx, dy, 1, 1, QColor(*NES_COLORS[nes_idx & 0x3F]))
 
-    def _ending_attributes(self):
+    def _ending_attributes(self, clear_background=False):
         """Use title colors except the top logo band used by ending text."""
+        if clear_background:
+            return [0] * 64
         attr = list(self._title_attributes())
         for row in range(6, 14):
             for col in range(_NT_W):
@@ -1335,12 +1362,17 @@ class TitleScreenDialog(QDialog):
         except Exception as e:
             preview.setText(f"プレビュー不可: {type(e).__name__}: {e}")
             return
-        zoom = 3
+        zoom = int(getattr(self, "_ending_zoom", 3))
         pm = QPixmap.fromImage(img).scaled(
             _IMG_W * zoom, _IMG_H * zoom, Qt.KeepAspectRatio, Qt.FastTransformation)
         self._draw_preview_grid(pm, zoom)
         preview.setPixmap(pm)
         preview.setFixedSize(pm.size())
+
+    def _on_ending_zoom_wheel(self, step):
+        cur = int(getattr(self, "_ending_zoom", 3))
+        self._ending_zoom = max(1, min(8, cur + int(step)))
+        self._refresh_ending_preview()
 
     @staticmethod
     def _shift_title_display_image(img: QImage) -> QImage:
