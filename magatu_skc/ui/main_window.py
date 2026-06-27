@@ -54,6 +54,7 @@ from ..core.config import (
 from ..core import (
     saver, ips, wall_color_hack, stage50_book_color, stage_ext, save_validation,
 )
+from ..core.i18n import t
 from ..gfx.tile_renderer import TileRenderer
 from ..gfx.level_renderer import LevelRenderer
 from ..nes.config_loader import SkcConfig
@@ -1497,41 +1498,43 @@ class MainWindow(QMainWindow):
         left_layout = QVBoxLayout(left_widget)
 
         # ファイル操作
-        file_group = QGroupBox("ファイル")
+        file_group = QGroupBox(t("main.file.group", "ファイル"))
         fl = QVBoxLayout(file_group)
-        self.btn_open = QPushButton("ROM読込")
-        self.btn_open.setToolTip("ROMを開きます。(Ctrl+O)")
+        self.btn_open = QPushButton(t("main.file.open_rom", "ROM読込"))
+        self.btn_open.setToolTip(t("main.file.open_rom.tooltip", "ROMを開きます。(Ctrl+O)"))
         self.btn_open.clicked.connect(self._on_open_rom)
         fl.addWidget(self.btn_open)
 
         # 再起動・履歴ボタン
         btn_row = QHBoxLayout()
-        self.btn_restart = QPushButton("再起動")
-        self.btn_restart.setToolTip("アプリを再起動")
+        self.btn_restart = QPushButton(t("main.file.restart", "再起動"))
+        self.btn_restart.setToolTip(t("main.file.restart.tooltip", "アプリを再起動"))
         self.btn_restart.clicked.connect(self._on_restart_app)
         btn_row.addWidget(self.btn_restart, 1)
 
-        self.btn_history = QPushButton("履歴")
-        self.btn_history.setToolTip("最近開いたROMから選択")
+        self.btn_history = QPushButton(t("main.file.history", "履歴"))
+        self.btn_history.setToolTip(t("main.file.history.tooltip", "最近開いたROMから選択"))
         self.btn_history.clicked.connect(self._on_show_history)
         btn_row.addWidget(self.btn_history, 1)
         fl.addLayout(btn_row)
 
-        self.lbl_rom = QLabel("(未読込)")
+        self.lbl_rom = QLabel(t("main.file.no_rom", "(未読込)"))
         self.lbl_rom.setWordWrap(False)
         self.lbl_rom.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         self.lbl_rom.setMinimumWidth(0)
         self.lbl_rom.setTextInteractionFlags(Qt.TextSelectableByMouse)
         rom_info_row = QHBoxLayout()
         rom_info_row.addWidget(self.lbl_rom, 1)
-        self.btn_rom_validation = QPushButton("不整合")
-        self.btn_rom_validation.setToolTip("読み込んだROMの不整合らしき配置を一覧表示")
+        self.btn_rom_validation = QPushButton(t("main.file.validation", "不整合"))
+        self.btn_rom_validation.setToolTip(
+            t("main.file.validation.tooltip", "読み込んだROMの不整合らしき配置を一覧表示")
+        )
         self.btn_rom_validation.setVisible(False)
         self.btn_rom_validation.clicked.connect(self._on_show_rom_validation)
         rom_info_row.addWidget(self.btn_rom_validation, 0, Qt.AlignTop)
         fl.addLayout(rom_info_row)
 
-        self.btn_readonly_migrate = QPushButton("データ移行")
+        self.btn_readonly_migrate = QPushButton(t("main.file.migrate", "データ移行"))
         self.btn_readonly_migrate.setObjectName("readonlyMigrateButton")
         self.btn_readonly_migrate.setStyleSheet(
             "QPushButton#readonlyMigrateButton {"
@@ -1545,20 +1548,19 @@ class MainWindow(QMainWindow):
             "background:#4a1922;"
             "}"
         )
-        self.btn_readonly_migrate.setToolTip(
-            "このROMのステージを編集可能ROMへ移します。"
-            "全てを完全に移行できるとは限りません。"
-        )
+        self.btn_readonly_migrate.setToolTip(t("main.file.migrate.tooltip"))
         self.btn_readonly_migrate.setVisible(False)
         self.btn_readonly_migrate.clicked.connect(self._on_readonly_data_migration)
         fl.addWidget(self.btn_readonly_migrate)
 
         # 保存系は横2列に (改造ROM保存 / IPSパッチ出力)
-        self.btn_save_rom = QPushButton("ROM保存")
-        self.btn_save_rom.setToolTip("現在の編集内容をROMとして保存します。(Ctrl+S)")
+        self.btn_save_rom = QPushButton(t("main.file.save_rom", "ROM保存"))
+        self.btn_save_rom.setToolTip(
+            t("main.file.save_rom.tooltip", "現在の編集内容をROMとして保存します。(Ctrl+S)")
+        )
         self.btn_save_rom.clicked.connect(self._on_save_rom)
         self.btn_save_rom.setEnabled(False)
-        self.btn_save_ips = QPushButton("IPSパッチ出力")
+        self.btn_save_ips = QPushButton(t("main.file.save_ips", "IPSパッチ出力"))
         self.btn_save_ips.clicked.connect(self._on_save_ips)
         self.btn_save_ips.setEnabled(False)
         _save_row = QHBoxLayout()
@@ -1566,12 +1568,12 @@ class MainWindow(QMainWindow):
         _save_row.addWidget(self.btn_save_ips)
         fl.addLayout(_save_row)
 
-        self.btn_test_play = self._create_test_play_button("▶ テストプレイ")
+        self.btn_test_play = self._create_test_play_button(t("main.file.test_play", "▶ テストプレイ"))
         fl.addWidget(self.btn_test_play)
 
         stage_scope_row = QHBoxLayout()
-        self.rb_stage_current = QRadioButton("現在のステージ")
-        self.rb_stage_all = QRadioButton("すべてのステージ")
+        self.rb_stage_current = QRadioButton(t("main.file.scope.current", "現在のステージ"))
+        self.rb_stage_all = QRadioButton(t("main.file.scope.all", "すべてのステージ"))
         self.rb_stage_current.setChecked(True)
         self._stage_scope_group = QButtonGroup(self)
         self._stage_scope_group.addButton(self.rb_stage_current)
@@ -1581,14 +1583,17 @@ class MainWindow(QMainWindow):
         fl.addLayout(stage_scope_row)
 
         stage_btn_row = QHBoxLayout()
-        self.btn_stage_load = QPushButton("ステージデータ読込")
+        self.btn_stage_load = QPushButton(t("main.file.stage_load", "ステージデータ読込"))
         self.btn_stage_load.clicked.connect(self._on_stage_data_load)
         self.btn_stage_load.setEnabled(False)
         stage_btn_row.addWidget(self.btn_stage_load)
 
-        self.btn_stage_save = QPushButton("ステージデータ保存")
+        self.btn_stage_save = QPushButton(t("main.file.stage_save", "ステージデータ保存"))
         self.btn_stage_save.setToolTip(
-            "選択した範囲のステージデータPNGを保存します。Ctrl+Eは現在ステージを保存します。"
+            t(
+                "main.file.stage_save.tooltip",
+                "選択した範囲のステージデータPNGを保存します。Ctrl+Eは現在ステージを保存します。",
+            )
         )
         self.btn_stage_save.clicked.connect(self._on_stage_data_save)
         self.btn_stage_save.setEnabled(False)
@@ -1961,7 +1966,12 @@ class MainWindow(QMainWindow):
         button = QPushButton(text)
         button.setObjectName("testPlayButton")
         button.setMinimumHeight(30)
-        button.setToolTip("左クリック: 既定エミュレータで起動 / 右クリック: エミュレータを選んで起動")
+        button.setToolTip(
+            t(
+                "main.file.test_play.tooltip",
+                "左クリック: 既定エミュレータで起動 / 右クリック: エミュレータを選んで起動",
+            )
+        )
         button.clicked.connect(self._on_test_play)
         button.setContextMenuPolicy(Qt.CustomContextMenu)
         button.customContextMenuRequested.connect(
@@ -2792,16 +2802,24 @@ class MainWindow(QMainWindow):
     def _on_open_rom(self):
         filter_str = "NES ROMs / ZIP (*.nes *.zip);;NES ROMs (*.nes);;ZIP archives (*.zip);;All files (*)"
         from .file_dialog_compat import get_file
-        path = get_file(self, title="NES ROM を選択", filter=filter_str)
+        path = get_file(
+            self,
+            title=t("main.file.open_dialog.title", "NES ROM を選択"),
+            filter=filter_str,
+        )
 
         if not path:
             return
-        if not self._confirm_replace_current_work("別のROMを開きます"):
+        if not self._confirm_replace_current_work(
+            t("main.file.action.open_another", "別のROMを開きます")
+        ):
             return
         self.load_rom(path)
 
     def _on_rom_dropped(self, path: str):
-        if not self._confirm_replace_current_work("ドロップされたROMを開きます"):
+        if not self._confirm_replace_current_work(
+            t("main.file.action.open_dropped", "ドロップされたROMを開きます")
+        ):
             return
         self.load_rom(path)
 
@@ -2810,15 +2828,23 @@ class MainWindow(QMainWindow):
             return True
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Warning)
-        box.setWindowTitle("未保存の変更")
-        box.setText("現在の編集内容はまだ保存されていません。")
+        box.setWindowTitle(t("main.unsaved.title", "未保存の変更"))
+        box.setText(t("main.unsaved.text", "現在の編集内容はまだ保存されていません。"))
         box.setInformativeText(
-            f"{action_label}。\n"
-            "保存せずに続行すると、現在の編集内容は破棄されます。"
+            t(
+                "main.unsaved.informative",
+                "{action}。\n保存せずに続行すると、現在の編集内容は破棄されます。",
+            ).format(action=action_label)
         )
-        save_btn = box.addButton("保存して続行", QMessageBox.AcceptRole)
-        discard_btn = box.addButton("破棄して続行", QMessageBox.DestructiveRole)
-        cancel_btn = box.addButton("キャンセル", QMessageBox.RejectRole)
+        save_btn = box.addButton(
+            t("main.unsaved.save_continue", "保存して続行"),
+            QMessageBox.AcceptRole,
+        )
+        discard_btn = box.addButton(
+            t("main.unsaved.discard_continue", "破棄して続行"),
+            QMessageBox.DestructiveRole,
+        )
+        cancel_btn = box.addButton(t("common.cancel", "キャンセル"), QMessageBox.RejectRole)
         box.setDefaultButton(cancel_btn)
         box.exec_()
         clicked = box.clickedButton()

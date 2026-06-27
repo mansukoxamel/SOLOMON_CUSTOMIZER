@@ -415,6 +415,132 @@ _TRANSLATIONS = {
         "ja": "音楽データ表示不可",
         "en": "Sound Data View Unavailable",
     },
+    "main.file.group": {
+        "ja": "ファイル",
+        "en": "File",
+    },
+    "main.file.open_rom": {
+        "ja": "ROM読込",
+        "en": "Open ROM",
+    },
+    "main.file.open_rom.tooltip": {
+        "ja": "ROMを開きます。(Ctrl+O)",
+        "en": "Open a ROM. (Ctrl+O)",
+    },
+    "main.file.restart": {
+        "ja": "再起動",
+        "en": "Restart",
+    },
+    "main.file.restart.tooltip": {
+        "ja": "アプリを再起動",
+        "en": "Restart the application",
+    },
+    "main.file.history": {
+        "ja": "履歴",
+        "en": "History",
+    },
+    "main.file.history.tooltip": {
+        "ja": "最近開いたROMから選択",
+        "en": "Choose from recently opened ROMs",
+    },
+    "main.file.no_rom": {
+        "ja": "(未読込)",
+        "en": "(No ROM loaded)",
+    },
+    "main.file.validation": {
+        "ja": "不整合",
+        "en": "Issues",
+    },
+    "main.file.validation.tooltip": {
+        "ja": "読み込んだROMの不整合らしき配置を一覧表示",
+        "en": "List placements that look inconsistent in the loaded ROM",
+    },
+    "main.file.migrate": {
+        "ja": "データ移行",
+        "en": "Migrate Data",
+    },
+    "main.file.migrate.tooltip": {
+        "ja": (
+            "このROMのステージを編集可能ROMへ移します。"
+            "全てを完全に移行できるとは限りません。"
+        ),
+        "en": (
+            "Move this ROM's stages into an editable ROM. "
+            "Some data may not migrate perfectly."
+        ),
+    },
+    "main.file.save_rom": {
+        "ja": "ROM保存",
+        "en": "Save ROM",
+    },
+    "main.file.save_rom.tooltip": {
+        "ja": "現在の編集内容をROMとして保存します。(Ctrl+S)",
+        "en": "Save the current edits as a ROM. (Ctrl+S)",
+    },
+    "main.file.save_ips": {
+        "ja": "IPSパッチ出力",
+        "en": "Export IPS Patch",
+    },
+    "main.file.test_play": {
+        "ja": "▶ テストプレイ",
+        "en": "▶ Test Play",
+    },
+    "main.file.test_play.tooltip": {
+        "ja": "左クリック: 既定エミュレータで起動 / 右クリック: エミュレータを選んで起動",
+        "en": "Left click: launch with the default emulator / Right click: choose an emulator",
+    },
+    "main.file.scope.current": {
+        "ja": "現在のステージ",
+        "en": "Current Stage",
+    },
+    "main.file.scope.all": {
+        "ja": "すべてのステージ",
+        "en": "All Stages",
+    },
+    "main.file.stage_load": {
+        "ja": "ステージデータ読込",
+        "en": "Load Stage Data",
+    },
+    "main.file.stage_save": {
+        "ja": "ステージデータ保存",
+        "en": "Save Stage Data",
+    },
+    "main.file.stage_save.tooltip": {
+        "ja": "選択した範囲のステージデータPNGを保存します。Ctrl+Eは現在ステージを保存します。",
+        "en": "Save stage-data PNGs for the selected scope. Ctrl+E saves the current stage.",
+    },
+    "main.file.open_dialog.title": {
+        "ja": "NES ROM を選択",
+        "en": "Select NES ROM",
+    },
+    "main.file.action.open_another": {
+        "ja": "別のROMを開きます",
+        "en": "Another ROM will be opened",
+    },
+    "main.file.action.open_dropped": {
+        "ja": "ドロップされたROMを開きます",
+        "en": "The dropped ROM will be opened",
+    },
+    "main.unsaved.title": {
+        "ja": "未保存の変更",
+        "en": "Unsaved Changes",
+    },
+    "main.unsaved.text": {
+        "ja": "現在の編集内容はまだ保存されていません。",
+        "en": "The current edits have not been saved yet.",
+    },
+    "main.unsaved.informative": {
+        "ja": "{action}。\n保存せずに続行すると、現在の編集内容は破棄されます。",
+        "en": "{action}.\nIf you continue without saving, the current edits will be discarded.",
+    },
+    "main.unsaved.save_continue": {
+        "ja": "保存して続行",
+        "en": "Save and Continue",
+    },
+    "main.unsaved.discard_continue": {
+        "ja": "破棄して続行",
+        "en": "Discard and Continue",
+    },
     "common.close": {
         "ja": "閉じる",
         "en": "Close",
