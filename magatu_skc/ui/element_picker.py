@@ -8,6 +8,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QMimeData, QRectF, QTimer
 from PyQt5.QtGui import QPixmap, QIcon, QImage, QDrag, QColor
 
+from ..core.i18n import t
+
 # 選択モード
 MODE_BLOCK = "block"
 MODE_ITEM = "item"
@@ -53,6 +55,10 @@ BLOCK_PICKER_LABELS = {
     BLOCK_PASSABLE_BROWN: "すり抜ける茶色ブロック",
     BLOCK_SOLID_BROWN: "壊せない茶色ブロック",
 }
+
+
+def block_picker_label(value) -> str:
+    return t(f"element_picker.block.{value}", BLOCK_PICKER_LABELS.get(value, str(value)))
 
 
 # アイテムフラグ
@@ -538,7 +544,7 @@ class _MirrorRow(QListWidget):
         item_size = _picker_cell_size(self._icon_size)
         for i in range(MIRROR_ENEMY_SET_MAX):
             it = QListWidgetItem(QIcon(), "")
-            it.setToolTip(f"スロット{i + 1}: 空")
+            it.setToolTip(t("element_picker.slot.empty", "スロット{slot}: 空").format(slot=i + 1))
             it.setSizeHint(item_size)
             self.addItem(it)
         self.setFixedHeight(self._icon_size + GRID_PAD * 2 + 6)
@@ -624,7 +630,10 @@ class _MirrorRow(QListWidget):
         self._codes[idx] = code
         it = self.item(idx)
         it.setIcon(icon)
-        it.setToolTip(f"スロット{idx + 1}: {tooltip}")
+        it.setToolTip(t("element_picker.slot.value", "スロット{slot}: {text}").format(
+            slot=idx + 1,
+            text=tooltip,
+        ))
         self.slot_changed.emit()
 
     def clear_slot(self, idx: int):
@@ -633,7 +642,7 @@ class _MirrorRow(QListWidget):
         self._codes[idx] = 0
         it = self.item(idx)
         it.setIcon(QIcon())
-        it.setToolTip(f"スロット{idx + 1}: 空")
+        it.setToolTip(t("element_picker.slot.empty", "スロット{slot}: 空").format(slot=idx + 1))
         self.slot_changed.emit()
 
     def keyPressEvent(self, e):
@@ -669,8 +678,11 @@ class MirrorEnemyPanel(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 2, 0, 2)
         layout.setSpacing(0)
-        lbl = QLabel("<small>ミラー出現敵</small>")
-        lbl.setToolTip("ピッカーからD&Dで登録 / Delで削除")
+        lbl = QLabel(t("element_picker.mirror_enemies.html", "<small>ミラー出現敵</small>"))
+        lbl.setToolTip(t(
+            "element_picker.mirror_enemies.tooltip",
+            "ピッカーからD&Dで登録 / Delで削除",
+        ))
         layout.addWidget(lbl)
         for m in range(2):
             row_layout = QHBoxLayout()
@@ -693,7 +705,7 @@ class MirrorEnemyPanel(QWidget):
             row.slot_changed.connect(self.enemies_changed.emit)
             row_layout.addWidget(row, 1)
             self._rows.append(row)
-            btn = QPushButton("切替")
+            btn = QPushButton(t("element_picker.toggle.button", "切替"))
             btn.setObjectName("mirrorActiveToggleButton")
             btn.setMinimumWidth(max(48, btn.sizeHint().width()))
             btn.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
@@ -731,12 +743,18 @@ class MirrorEnemyPanel(QWidget):
             row.setToolTip("")
             label.setToolTip("")
         else:
-            tip = "ミラー詳細設定の出現タイミングが全OFFのため、この敵セットは出現しません。"
+            tip = t(
+                "element_picker.mirror_disabled.tooltip",
+                "ミラー詳細設定の出現タイミングが全OFFのため、この敵セットは出現しません。",
+            )
             row.setToolTip(tip)
             label.setToolTip(tip)
         btn = self._toggle_buttons[mirror_no]
-        btn.setText("切替")
-        btn.setToolTip(f"M{mirror_no + 1} の出現状態を切り替えます。")
+        btn.setText(t("element_picker.toggle.button", "切替"))
+        btn.setToolTip(t(
+            "element_picker.mirror_toggle.tooltip",
+            "M{mirror} の出現状態を切り替えます。",
+        ).format(mirror=mirror_no + 1))
         btn.setStyleSheet("")
 
     def set_mirror_active_states(self, states: list):
@@ -826,7 +844,10 @@ class FavoritesBar(QListWidget):
         for i in range(FAVORITES_COUNT):
             it = QListWidgetItem(QIcon(), "")
             key = (i + 1) % FAVORITES_COUNT  # 1,2,3,4,5,6,7,8,9,0
-            it.setToolTip(f"スロット {key}: 空 (D&Dで登録)")
+            it.setToolTip(t(
+                "element_picker.favorite.slot.empty",
+                "スロット {key}: 空 (D&Dで登録)",
+            ).format(key=key))
             it.setSizeHint(item_size)
             self.addItem(it)
         # 高さは2行分 + マージン
@@ -909,7 +930,10 @@ class FavoritesBar(QListWidget):
         it = self.item(idx)
         it.setIcon(icon)
         key = (idx + 1) % FAVORITES_COUNT
-        it.setToolTip(f"スロット {key}: {tooltip_text}")
+        it.setToolTip(t(
+            "element_picker.favorite.slot.value",
+            "スロット {key}: {text}",
+        ).format(key=key, text=tooltip_text))
         self.favorites_changed.emit(list(self._slots))
 
     def clear_slot(self, idx: int):
@@ -919,7 +943,10 @@ class FavoritesBar(QListWidget):
         it = self.item(idx)
         it.setIcon(QIcon())
         key = (idx + 1) % FAVORITES_COUNT
-        it.setToolTip(f"スロット {key}: 空 (D&Dで登録)")
+        it.setToolTip(t(
+            "element_picker.favorite.slot.empty",
+            "スロット {key}: 空 (D&Dで登録)",
+        ).format(key=key))
         self.favorites_changed.emit(list(self._slots))
 
     def get_slot(self, idx: int):
@@ -978,7 +1005,10 @@ class BonusItemPanel(QListWidget):
         item_size = _picker_cell_size(self._icon_size)
         for i in range(BONUS_ITEM_COUNT):
             it = QListWidgetItem(QIcon(), "")
-            it.setToolTip(f"スロット#{i}: 空")
+            it.setToolTip(t(
+                "element_picker.bonus.slot.empty",
+                "スロット#{slot}: 空",
+            ).format(slot=i))
             it.setSizeHint(item_size)
             self.addItem(it)
         self.setFixedHeight((self._icon_size + GRID_PAD * 2) * 2 + 12)
@@ -1164,25 +1194,25 @@ class ElementPicker(QWidget):
         layout = QVBoxLayout(self)
 
         # 配置フラグ（常時表示）
-        self.flag_group = QGroupBox("アイテム状態")
+        self.flag_group = QGroupBox(t("element_picker.item_state.group", "アイテム状態"))
         fl = QHBoxLayout(self.flag_group)
         fl.setContentsMargins(0, 12, 0, 0)
         fl.setSpacing(0)
         self.flag_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         self.flag_btns = QButtonGroup(self)
-        self.rb_flag_normal = FullWidthRadioButton("通常")
-        self.rb_flag_hidden = FullWidthRadioButton("隠し")
-        self.rb_flag_in_block = FullWidthRadioButton("BL内")
-        self.rb_flag_white_in_block = FullWidthRadioButton("白BL")
-        self.rb_flag_visible_in_block = FullWidthRadioButton("透BL")
-        self.rb_flag_cracked_in_block = FullWidthRadioButton("ひびBL")
+        self.rb_flag_normal = FullWidthRadioButton(t("element_picker.item_state.normal", "通常"))
+        self.rb_flag_hidden = FullWidthRadioButton(t("element_picker.item_state.hidden", "隠し"))
+        self.rb_flag_in_block = FullWidthRadioButton(t("element_picker.item_state.in_block.short", "BL内"))
+        self.rb_flag_white_in_block = FullWidthRadioButton(t("element_picker.item_state.white_in_block.short", "白BL"))
+        self.rb_flag_visible_in_block = FullWidthRadioButton(t("element_picker.item_state.visible_in_block.short", "透BL"))
+        self.rb_flag_cracked_in_block = FullWidthRadioButton(t("element_picker.item_state.cracked_in_block.short", "ひびBL"))
         for rb, flag, tooltip in [
-            (self.rb_flag_normal, ITEM_FLAG_NORMAL, "通常"),
-            (self.rb_flag_hidden, ITEM_FLAG_HIDDEN, "隠し"),
-            (self.rb_flag_in_block, ITEM_FLAG_IN_BLOCK, "ブロック内"),
-            (self.rb_flag_white_in_block, ITEM_FLAG_WHITE_IN_BLOCK, "白ブロック内"),
-            (self.rb_flag_visible_in_block, ITEM_FLAG_VISIBLE_IN_BLOCK, "透明ブロック内"),
-            (self.rb_flag_cracked_in_block, ITEM_FLAG_CRACKED_IN_BLOCK, "ひび割れブロック内"),
+            (self.rb_flag_normal, ITEM_FLAG_NORMAL, t("element_picker.item_state.normal", "通常")),
+            (self.rb_flag_hidden, ITEM_FLAG_HIDDEN, t("element_picker.item_state.hidden", "隠し")),
+            (self.rb_flag_in_block, ITEM_FLAG_IN_BLOCK, t("element_picker.item_state.in_block", "ブロック内")),
+            (self.rb_flag_white_in_block, ITEM_FLAG_WHITE_IN_BLOCK, t("element_picker.item_state.white_in_block", "白ブロック内")),
+            (self.rb_flag_visible_in_block, ITEM_FLAG_VISIBLE_IN_BLOCK, t("element_picker.item_state.visible_in_block", "透明ブロック内")),
+            (self.rb_flag_cracked_in_block, ITEM_FLAG_CRACKED_IN_BLOCK, t("element_picker.item_state.cracked_in_block", "ひび割れブロック内")),
         ]:
             self.flag_btns.addButton(rb)
             rb.setToolTip(tooltip)
@@ -1194,7 +1224,7 @@ class ElementPicker(QWidget):
         self._update_flag_controls(MODE_BLOCK, BLOCK_BROWN)
 
         # 敵スピード（常時表示、敵モード時のみ意味あり）
-        self.speed_group = QGroupBox("敵スピード")
+        self.speed_group = QGroupBox(t("element_picker.enemy_speed.group", "敵スピード"))
         sl = QHBoxLayout(self.speed_group)
         sl.setContentsMargins(0, 12, 0, 0)
         sl.setSpacing(0)
@@ -1229,7 +1259,12 @@ class ElementPicker(QWidget):
 
         self._picker_lists = []
         self._category_labels = []
-        categories = ["ブロック", "メタアイテム", "アイテム", "モンスター"]
+        categories = [
+            t("element_picker.category.blocks", "ブロック"),
+            t("element_picker.category.meta_items", "メタアイテム"),
+            t("element_picker.category.items", "アイテム"),
+            t("element_picker.category.monsters", "モンスター"),
+        ]
         for cat_idx, cat_name in enumerate(categories):
             lbl = QLabel(f"<small><b>{cat_name}</b></small>")
             lbl.setContentsMargins(2, 2, 0, 0)
@@ -1290,8 +1325,11 @@ class ElementPicker(QWidget):
         fav_page = QWidget()
         fav_lay = QVBoxLayout(fav_page)
         fav_lay.setContentsMargins(0, 0, 0, 0)
-        fav_label = QLabel("<small>お気に入り</small>")
-        fav_label.setToolTip("D&Dで登録 / 1〜0キーで選択 / Delで削除")
+        fav_label = QLabel(t("element_picker.favorites.html", "<small>お気に入り</small>"))
+        fav_label.setToolTip(t(
+            "element_picker.favorites.tooltip",
+            "D&Dで登録 / 1〜0キーで選択 / Delで削除",
+        ))
         fav_label.setMinimumWidth(0)
         fav_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         fav_lay.addWidget(fav_label)
@@ -1305,7 +1343,10 @@ class ElementPicker(QWidget):
         bonus_page = QWidget()
         bonus_lay = QVBoxLayout(bonus_page)
         bonus_lay.setContentsMargins(0, 0, 0, 0)
-        bonus_label = QLabel("<small>ボーナスステージ アイテム16種 (ピッカーからD&Dで入替)</small>")
+        bonus_label = QLabel(t(
+            "element_picker.bonus_items.html",
+            "<small>ボーナスステージ アイテム16種 (ピッカーからD&Dで入替)</small>",
+        ))
         bonus_label.setMinimumWidth(0)
         bonus_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         bonus_lay.addWidget(bonus_label)
@@ -1691,18 +1732,24 @@ class ElementPicker(QWidget):
         try:
             # カテゴリ0: ブロック
             for val in self._block_order:
-                label = BLOCK_PICKER_LABELS.get(val, str(val))
+                label = block_picker_label(val)
                 self._add_picker_item(0, MODE_BLOCK, val, label, self._make_block_icon(val))
 
             # カテゴリ1: キャラ（プレイヤー / 鍵 / 扉 / ミラー）
-            for label, val in [
-                ("プレイヤースタート", "start"),
-                ("鍵", "key"),
-                ("扉", "door"),
-                ("ミラー1 (Spawn1)", "mirror1"),
-                ("ミラー2 (Spawn2)", "mirror2"),
+            for key, label, val in [
+                ("start", "プレイヤースタート", "start"),
+                ("key", "鍵", "key"),
+                ("door", "扉", "door"),
+                ("mirror1", "ミラー1 (Spawn1)", "mirror1"),
+                ("mirror2", "ミラー2 (Spawn2)", "mirror2"),
             ]:
-                self._add_picker_item(1, MODE_META, val, label, self._make_meta_icon(val))
+                self._add_picker_item(
+                    1,
+                    MODE_META,
+                    val,
+                    t(f"element_picker.meta.{key}", label),
+                    self._make_meta_icon(val),
+                )
 
             # カテゴリ2: アイテム (名前は item_desc 単一ソースから解決)
             for code in ITEMS_LIST:
