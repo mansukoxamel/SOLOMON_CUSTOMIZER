@@ -202,6 +202,7 @@ class _UndoHistoryDialog(QDialog):
         self._last_followed_target_index = None
         self.setWindowTitle(t("main.undo_history.title", "Undo/Redo履歴"))
         self.resize(920, 520)
+        self._owner._restore_undo_history_dialog_geometry(self)
 
         layout = QVBoxLayout(self)
         self.summary_label = QLabel("")
@@ -371,6 +372,10 @@ class _UndoHistoryDialog(QDialog):
                 self._owner._build_undo_history_rows(),
                 len(self._owner._undo_stack),
             )
+
+    def closeEvent(self, event):
+        self._owner._save_undo_history_dialog_geometry(self)
+        super().closeEvent(event)
 
 
 class _XInputGamepad(ctypes.Structure):
@@ -1220,6 +1225,10 @@ class MainWindow(QMainWindow):
             "pixel_editor_y",
             "pixel_editor_w",
             "pixel_editor_h",
+            "undo_history_dlg_x",
+            "undo_history_dlg_y",
+            "undo_history_dlg_w",
+            "undo_history_dlg_h",
         )
         return {key: self._app_config.get(key) for key in keys}
 
@@ -13799,6 +13808,37 @@ class MainWindow(QMainWindow):
             "is_current_after": target_index == current_index,
             "is_redo": is_redo,
         }
+
+    def _restore_undo_history_dialog_geometry(self, dialog):
+        cfg = self._app_config
+        try:
+            w = int(cfg.get("undo_history_dlg_w", 920) or 920)
+            h = int(cfg.get("undo_history_dlg_h", 520) or 520)
+        except (TypeError, ValueError):
+            w, h = 920, 520
+        if w >= 300 and h >= 200:
+            dialog.resize(w, h)
+        try:
+            x = int(cfg.get("undo_history_dlg_x", -1))
+            y = int(cfg.get("undo_history_dlg_y", -1))
+        except (TypeError, ValueError):
+            return
+        if x < 0 or y < 0:
+            return
+        for screen in QApplication.screens():
+            if screen.geometry().contains(x + 50, y + 50):
+                dialog.move(x, y)
+                return
+
+    def _save_undo_history_dialog_geometry(self, dialog):
+        if dialog is None:
+            return
+        geo = dialog.frameGeometry()
+        self._app_config["undo_history_dlg_x"] = int(geo.x())
+        self._app_config["undo_history_dlg_y"] = int(geo.y())
+        self._app_config["undo_history_dlg_w"] = int(dialog.width())
+        self._app_config["undo_history_dlg_h"] = int(dialog.height())
+        save_config(self._app_config)
 
     def _on_show_undo_history(self):
         if not self._undo_stack and not self._redo_stack:
