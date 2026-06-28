@@ -1631,6 +1631,134 @@ _TRANSLATIONS = {
         "ja": "Redo: {label} (履歴 {count} 件)",
         "en": "Redo: {label} ({count} history entries)",
     },
+    "main.undo_history.button": {
+        "ja": "Undo一覧",
+        "en": "Undo List",
+    },
+    "main.undo_history.button.tooltip": {
+        "ja": "Undo/Redo履歴を一覧表示し、ダブルクリックで履歴位置へジャンプ",
+        "en": "Show Undo/Redo history and double-click to jump to a history position.",
+    },
+    "main.undo_history.title": {
+        "ja": "Undo/Redo履歴",
+        "en": "Undo/Redo History",
+    },
+    "main.undo_history.summary": {
+        "ja": "現在位置: {current} / {total}  （ダブルクリックでその履歴位置へ移動）",
+        "en": "Current position: {current} / {total}  (Double-click to jump to that history position)",
+    },
+    "main.undo_history.col.state": {
+        "ja": "状態",
+        "en": "State",
+    },
+    "main.undo_history.col.no": {
+        "ja": "No.",
+        "en": "No.",
+    },
+    "main.undo_history.col.time": {
+        "ja": "時刻",
+        "en": "Time",
+    },
+    "main.undo_history.col.stage": {
+        "ja": "対象",
+        "en": "Target",
+    },
+    "main.undo_history.col.action": {
+        "ja": "操作",
+        "en": "Action",
+    },
+    "main.undo_history.col.detail": {
+        "ja": "座標/詳細",
+        "en": "Position / Detail",
+    },
+    "main.undo_history.jump": {
+        "ja": "選択位置へ移動",
+        "en": "Jump to Selection",
+    },
+    "main.undo_history.state.applied": {
+        "ja": "適用済み",
+        "en": "Applied",
+    },
+    "main.undo_history.state.redo": {
+        "ja": "Redo可能",
+        "en": "Redo",
+    },
+    "main.undo_history.state.current_after": {
+        "ja": "現在位置",
+        "en": "Current",
+    },
+    "main.undo_history.action.generic": {
+        "ja": "編集",
+        "en": "Edit",
+    },
+    "main.undo_history.action.place": {
+        "ja": "配置",
+        "en": "Place",
+    },
+    "main.undo_history.action.place_block": {
+        "ja": "ブロック配置",
+        "en": "Place block",
+    },
+    "main.undo_history.action.place_item": {
+        "ja": "アイテム配置",
+        "en": "Place item",
+    },
+    "main.undo_history.action.place_enemy": {
+        "ja": "敵配置",
+        "en": "Place enemy",
+    },
+    "main.undo_history.action.place_meta": {
+        "ja": "メタ配置",
+        "en": "Place meta object",
+    },
+    "main.undo_history.action.delete": {
+        "ja": "削除",
+        "en": "Delete",
+    },
+    "main.undo_history.action.move": {
+        "ja": "移動",
+        "en": "Move",
+    },
+    "main.undo_history.action.paste": {
+        "ja": "貼り付け",
+        "en": "Paste",
+    },
+    "main.undo_history.action.stage_png_load": {
+        "ja": "ステージPNG読込",
+        "en": "Load stage PNG",
+    },
+    "main.undo_history.action.clear_level": {
+        "ja": "ステージクリア",
+        "en": "Clear stage",
+    },
+    "main.undo_history.detail.tile": {
+        "ja": "座標 {tile}",
+        "en": "Position {tile}",
+    },
+    "main.undo_history.detail.origin": {
+        "ja": "起点",
+        "en": "Origin",
+    },
+    "main.undo_history.detail.target": {
+        "ja": "対象: {target}",
+        "en": "Target: {target}",
+    },
+    "main.undo_history.detail.move": {
+        "ja": "{target}: {src} -> {dst}",
+        "en": "{target}: {src} -> {dst}",
+    },
+    "main.undo_history.positions": {
+        "ja": "座標: {positions}",
+        "en": "Positions: {positions}",
+    },
+    "main.undo_history.already_here": {
+        "ja": "すでに選択した履歴位置です",
+        "en": "Already at the selected history position.",
+    },
+    "main.undo_history.jump.done": {
+        "ja": "Undo履歴位置へ移動しました: {current} / {total}",
+        "en": "Jumped to Undo history position: {current} / {total}",
+    },
     "item_replace.state.normal": {
         "ja": "通常",
         "en": "Normal",

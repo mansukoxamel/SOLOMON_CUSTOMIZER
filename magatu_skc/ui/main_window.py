@@ -2,6 +2,7 @@
 import base64
 import copy
 import ctypes
+import datetime
 import json
 import os
 import subprocess
@@ -15,7 +16,8 @@ from PyQt5.QtWidgets import (
     QPushButton, QSpinBox, QFileDialog, QMessageBox, QSplitter,
     QGroupBox, QComboBox, QCheckBox, QListWidget, QApplication,
     QToolBar, QAction, QRadioButton, QButtonGroup, QShortcut, QToolButton,
-    QSizePolicy, QMenu
+    QSizePolicy, QMenu, QDialog, QTableWidget, QTableWidgetItem, QHeaderView,
+    QAbstractItemView, QDialogButtonBox
 )
 from PyQt5.QtCore import Qt, QSize, QEvent, QTimer, QUrl, QPoint
 from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor, QPainter, QPen, QImage
@@ -93,6 +95,113 @@ class _StageNumberLabel(QLabel):
             event.accept()
             return
         super().wheelEvent(event)
+
+
+class _UndoHistoryDialog(QDialog):
+    def __init__(self, owner, rows: list[dict], current_index: int, parent=None):
+        super().__init__(parent)
+        self._owner = owner
+        self.setWindowTitle(t("main.undo_history.title", "Undo/Redo履歴"))
+        self.resize(920, 520)
+
+        layout = QVBoxLayout(self)
+        self.summary_label = QLabel("")
+        layout.addWidget(self.summary_label)
+
+        self.table = QTableWidget(0, 6, self)
+        self.table.setHorizontalHeaderLabels([
+            t("main.undo_history.col.no", "No."),
+            t("main.undo_history.col.state", "状態"),
+            t("main.undo_history.col.time", "時刻"),
+            t("main.undo_history.col.stage", "対象"),
+            t("main.undo_history.col.action", "操作"),
+            t("main.undo_history.col.detail", "座標/詳細"),
+        ])
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.table.verticalHeader().setVisible(False)
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(5, QHeaderView.Stretch)
+
+        self.table.cellDoubleClicked.connect(self._jump_from_row)
+        layout.addWidget(self.table, 1)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Close, self)
+        self.jump_button = buttons.addButton(
+            t("main.undo_history.jump", "選択位置へ移動"),
+            QDialogButtonBox.ActionRole,
+        )
+        self.jump_button.clicked.connect(self._jump_selected)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        self.update_rows(rows, current_index)
+
+    def update_rows(self, rows: list[dict], current_index: int):
+        self.summary_label.setText(
+            t(
+                "main.undo_history.summary",
+                "現在位置: {current} / {total}  （ダブルクリックでその履歴位置へ移動）",
+            ).format(current=current_index, total=len(rows))
+        )
+        self.table.setSortingEnabled(False)
+        self.table.setRowCount(len(rows))
+        current_row = None
+        for row_no, row in enumerate(rows):
+            target_index = int(row["target_index"])
+            if target_index == current_index:
+                current_row = row_no
+            for col_no, key in enumerate(("seq", "state", "time", "stage", "action", "detail")):
+                item = QTableWidgetItem(str(row.get(key, "")))
+                item.setData(Qt.UserRole, target_index)
+                if row.get("is_current_after"):
+                    item.setBackground(QColor("#12361f"))
+                elif row.get("is_redo"):
+                    item.setBackground(QColor("#2f2a12"))
+                self.table.setItem(row_no, col_no, item)
+        if rows:
+            if current_row is None:
+                current_row = max(0, min(len(rows) - 1, current_index - 1))
+            self.table.selectRow(current_row)
+            item = self.table.item(current_row, 0)
+            if item is not None:
+                self.table.scrollToItem(item, QAbstractItemView.PositionAtCenter)
+        self.table.setSortingEnabled(False)
+
+    def _target_index_for_row(self, row: int) -> int | None:
+        item = self.table.item(row, 0)
+        if item is None:
+            return None
+        try:
+            return int(item.data(Qt.UserRole))
+        except Exception:
+            return None
+
+    def _jump_from_row(self, row: int, _col: int):
+        target_index = self._target_index_for_row(row)
+        if target_index is not None:
+            self._owner._jump_undo_history_to_index(target_index)
+            self.update_rows(
+                self._owner._build_undo_history_rows(),
+                len(self._owner._undo_stack),
+            )
+
+    def _jump_selected(self):
+        rows = self.table.selectionModel().selectedRows()
+        if not rows:
+            return
+        target_index = self._target_index_for_row(rows[0].row())
+        if target_index is not None:
+            self._owner._jump_undo_history_to_index(target_index)
+            self.update_rows(
+                self._owner._build_undo_history_rows(),
+                len(self._owner._undo_stack),
+            )
 
 
 class _XInputGamepad(ctypes.Structure):
@@ -392,6 +501,8 @@ class MainWindow(QMainWindow):
         self._undo_stack: list = []
         self._redo_stack: list = []
         self._undo_limit = DEFAULT_UNDO_LIMIT
+        self._undo_sequence_next = 1
+        self._undo_history_dialog = None
 
         # 操作ログ（メモリ上に蓄積、closeEventで保存）
         from datetime import datetime
@@ -1573,6 +1684,13 @@ class MainWindow(QMainWindow):
         self.btn_history.clicked.connect(self._on_show_history)
         btn_row.addWidget(self.btn_history, 1)
         fl.addLayout(btn_row)
+
+        self.btn_undo_history = QPushButton(t("main.undo_history.button", "Undo一覧"))
+        self.btn_undo_history.setToolTip(
+            t("main.undo_history.button.tooltip", "Undo/Redo履歴を一覧表示し、ダブルクリックで履歴位置へジャンプ")
+        )
+        self.btn_undo_history.clicked.connect(self._on_show_undo_history)
+        fl.addWidget(self.btn_undo_history)
 
         self.lbl_rom = QLabel(t("main.file.no_rom", "(未読込)"))
         self.lbl_rom.setWordWrap(False)
@@ -5498,7 +5616,10 @@ class MainWindow(QMainWindow):
                 t("main.stage_png.error.parse_failed", "ステージデータの解析に失敗しました"),
             )
             return False
-        self._push_undo()
+        self._push_undo(
+            action=t("main.undo_history.action.stage_png_load", "ステージPNG読込"),
+            detail=Path(path).name,
+        )
         self.levels[self.current_level_no] = lv
         self._apply_stage_level_meta_positions_from_xml(root, self.current_level_no)
         self._apply_stage_conditional_breakable_positions_from_xml(root, self.current_level_no)
@@ -6566,6 +6687,121 @@ class MainWindow(QMainWindow):
         }
         return labels.get(key, key)
 
+    def _block_label_for_history(self, lv, tile) -> str:
+        _block_id, label = self._block_info_for_tile(lv, tile)
+        if label:
+            return label
+        try:
+            wall = lv.tiles[tile[1]][tile[0]]
+        except Exception:
+            return t("main.deleted_kind.block", "ブロック")
+        return {
+            Wall.BROWN: t("main.hover.block.brown", "茶色ブロック"),
+            Wall.WHITE: t("main.hover.block.white", "白ブロック"),
+            Wall.BROWN_WHITE: t("main.hover.block.breakable_white", "壊せる白ブロック"),
+        }.get(wall, t("main.deleted_kind.block", "ブロック"))
+
+    def _picker_history_label(self, mode, value) -> str:
+        if mode == MODE_ITEM:
+            try:
+                return self._display_item_desc(int(value) & 0x3F)
+            except Exception:
+                return t("main.deleted_kind.item", "アイテム")
+        if mode == MODE_ENEMY:
+            try:
+                return self._display_enemy_desc(int(value) & 0xFF)
+            except Exception:
+                return t("main.deleted_kind.enemy", "敵")
+        if mode == MODE_META:
+            return self._meta_value_label(value)
+        if mode == MODE_BLOCK:
+            labels = {
+                BLOCK_NONE: t("main.hover.block.none", "空白"),
+                BLOCK_BROWN: t("main.hover.block.brown", "茶色ブロック"),
+                BLOCK_WHITE: t("main.hover.block.white", "白ブロック"),
+                BLOCK_BROWN_WHITE: t("main.hover.block.breakable_white", "壊せる白ブロック"),
+                BLOCK_CRACKED: t("main.hover.block.cracked", "ひび割れブロック"),
+                BLOCK_BREAKABLE_WHITE: t("main.hover.block.breakable_white", "壊せる白ブロック"),
+                BLOCK_INVISIBLE_BREAKABLE: t("main.hover.block.invisible_breakable", "壊せる透明ブロック"),
+                BLOCK_PASSABLE_WHITE: t("main.hover.block.passable_white", "すり抜ける白ブロック"),
+                BLOCK_INVISIBLE_SOLID: t("main.hover.block.invisible_solid", "壊せない透明ブロック"),
+                BLOCK_PASSABLE_BROWN: t("main.hover.block.passable_brown", "すり抜ける茶色ブロック"),
+                BLOCK_SOLID_BROWN: t("main.hover.block.solid_brown", "壊せない茶色ブロック"),
+            }
+            return labels.get(value, t("main.deleted_kind.block", "ブロック"))
+        return t("main.undo_history.action.generic", "編集")
+
+    def _delete_history_labels_at(self, lv, tile, can_delete_key=False, can_delete_door=False) -> list[str]:
+        labels = []
+        if can_delete_key:
+            labels.append(self._meta_value_label("key"))
+        if can_delete_door:
+            labels.append(self._meta_value_label("door"))
+        for item in getattr(lv, "items", []) or []:
+            if tuple(getattr(item, "position", (-1, -1))) == tuple(tile):
+                labels.append(self._display_item_desc(int(item.element_no) & 0x3F))
+        for enemy in getattr(lv, "enemies", []) or []:
+            if tuple(getattr(enemy, "position", (-1, -1))) == tuple(tile):
+                labels.append(self._display_enemy_desc(int(enemy.element_no) & 0xFF))
+        marker_names = (
+            "breakable_white_cells",
+            "cracked_block_cells",
+            "invisible_breakable_cells",
+            "passable_white_cells",
+            "invisible_solid_cells",
+            "passable_brown_cells",
+            "solid_brown_cells",
+            "visible_in_block_item_cells",
+        )
+        has_runtime_marker = any(tile in getattr(lv, name, set()) for name in marker_names)
+        if lv.tiles[tile[1]][tile[0]] != Wall.NONE or has_runtime_marker:
+            labels.append(self._block_label_for_history(lv, tile))
+        return labels
+
+    def _format_history_targets(self, labels: list[str]) -> str:
+        if not labels:
+            return ""
+        return t("main.undo_history.detail.target", "対象: {target}").format(
+            target=", ".join(labels)
+        )
+
+    def _latest_undo_entry(self):
+        return self._undo_stack[-1] if self._undo_stack else None
+
+    def _annotate_undo_entry(self, entry, action=None, detail=None, positions=None):
+        if not isinstance(entry, dict):
+            return
+        if action:
+            entry["action"] = str(action)
+        if detail:
+            entry["detail"] = str(detail)
+        if positions:
+            entry["positions"] = [
+                [int(pos[0]), int(pos[1])]
+                for pos in positions
+                if pos is not None and len(pos) >= 2
+            ]
+        self._refresh_undo_history_dialog()
+
+    def _set_move_history(self, mp, target_pos):
+        if not isinstance(mp, dict):
+            return
+        entry = mp.get("undo_entry")
+        source_pos = mp.get("from_pos")
+        label = mp.get("history_label") or t("main.undo_history.action.generic", "編集")
+        if entry is None or source_pos is None or target_pos is None:
+            return
+        self._annotate_undo_entry(
+            entry,
+            action=t("main.undo_history.action.move", "移動"),
+            detail=t("main.undo_history.detail.move", "{target}: {src} -> {dst}").format(
+                target=label,
+                src=tuple(source_pos),
+                dst=tuple(target_pos),
+            ),
+            positions=[source_pos, target_pos],
+        )
+
     def _update_info(self):
         if not self.levels:
             return
@@ -6622,6 +6858,7 @@ class MainWindow(QMainWindow):
             )
             return
         lv = self.levels[self.current_level_no]
+        mode, value = self.picker.get_current()
 
         undo_stack_before = list(self._undo_stack)
         redo_stack_before = list(self._redo_stack)
@@ -6632,9 +6869,17 @@ class MainWindow(QMainWindow):
             self._redo_stack = redo_stack_before
             self._set_dirty(dirty_before_undo)
 
-        self._push_undo()
-
-        mode, value = self.picker.get_current()
+        action_by_mode = {
+            MODE_BLOCK: t("main.undo_history.action.place_block", "ブロック配置"),
+            MODE_ITEM: t("main.undo_history.action.place_item", "アイテム配置"),
+            MODE_ENEMY: t("main.undo_history.action.place_enemy", "敵配置"),
+            MODE_META: t("main.undo_history.action.place_meta", "メタ配置"),
+        }
+        self._push_undo(
+            action=action_by_mode.get(mode, t("main.undo_history.action.place", "配置")),
+            detail=self._format_history_targets([self._picker_history_label(mode, value)]),
+            positions=[tile],
+        )
 
         if mode == MODE_BLOCK:
             passable_block_values = (BLOCK_NONE, BLOCK_PASSABLE_WHITE, BLOCK_PASSABLE_BROWN)
@@ -7344,6 +7589,7 @@ class MainWindow(QMainWindow):
         seal_block_combo = self._solomon_seal_block_combo_at(lv, self.current_level_no, tile)
         if seal_block_combo is not None:
             self._push_undo()
+            undo_entry = self._latest_undo_entry()
             self._move_pending = {
                 "kind": "seal_block",
                 "ref": seal_block_combo["meta"],
@@ -7353,6 +7599,9 @@ class MainWindow(QMainWindow):
                 "current_pos": tile,
                 "prev_wall_at_current": Wall.NONE,
                 "prev_markers_at_current": set(),
+                "undo_entry": undo_entry,
+                "from_pos": tile,
+                "history_label": f"{seal_block_combo['meta'].description} + {self._block_label_for_history(lv, tile)}",
             }
             self.statusBar().showMessage(
                 t(
@@ -7368,6 +7617,7 @@ class MainWindow(QMainWindow):
         idx = lv.get_item_index(tile)
         if idx >= 0:
             self._push_undo()
+            undo_entry = self._latest_undo_entry()
             item = lv.items[idx]
             move_absorb_flag = self._detach_item_absorb_state_for_move(lv, item, tile)
             self._move_pending = {
@@ -7375,6 +7625,9 @@ class MainWindow(QMainWindow):
                 "ref": item,
                 "move_absorb_flag": move_absorb_flag,
                 "current_pos": tile,
+                "undo_entry": undo_entry,
+                "from_pos": tile,
+                "history_label": self._display_item_desc(int(item.element_no) & 0x3F),
             }
             self.statusBar().showMessage(t("main.status.drag_item", "アイテムを掴み中 → ドラッグで移動"), 0)
             self._refresh_view()
@@ -7383,7 +7636,16 @@ class MainWindow(QMainWindow):
         idx = lv.get_enemy_index(tile)
         if idx >= 0:
             self._push_undo()
-            self._move_pending = {"kind": "enemy", "ref": lv.enemies[idx]}
+            undo_entry = self._latest_undo_entry()
+            enemy = lv.enemies[idx]
+            self._move_pending = {
+                "kind": "enemy",
+                "ref": enemy,
+                "current_pos": tile,
+                "undo_entry": undo_entry,
+                "from_pos": tile,
+                "history_label": self._display_enemy_desc(int(enemy.element_no) & 0xFF),
+            }
             self.statusBar().showMessage(t("main.status.drag_enemy", "敵を掴み中 → ドラッグで移動"), 0)
             return
 
@@ -7392,7 +7654,15 @@ class MainWindow(QMainWindow):
             for bi, bpos in enumerate(self._bonus_positions):
                 if bpos == tile:
                     self._push_undo()
-                    self._move_pending = {"kind": "bonus", "index": bi}
+                    undo_entry = self._latest_undo_entry()
+                    self._move_pending = {
+                        "kind": "bonus",
+                        "index": bi,
+                        "current_pos": tile,
+                        "undo_entry": undo_entry,
+                        "from_pos": tile,
+                        "history_label": t("main.status.drag_bonus", "ボーナススポット[{index}] を掴み中 → ドラッグで移動").format(index=bi),
+                    }
                     self.statusBar().showMessage(
                         t(
                             "main.status.drag_bonus",
@@ -7405,13 +7675,18 @@ class MainWindow(QMainWindow):
         special_marker = self._conditional_breakable_marker_at(tile)
         if special_marker is not None:
             self._push_undo()
+            undo_entry = self._latest_undo_entry()
+            group_label = self._conditional_breakable_group_label(special_marker["group"])
+            label = self._conditional_breakable_marker_label(special_marker["sub"])
             self._move_pending = {
                 "kind": "conditional_breakable",
                 "group": special_marker["group"],
                 "sub": special_marker["sub"],
+                "current_pos": tile,
+                "undo_entry": undo_entry,
+                "from_pos": tile,
+                "history_label": f"{group_label} {label}",
             }
-            group_label = self._conditional_breakable_group_label(special_marker["group"])
-            label = self._conditional_breakable_marker_label(special_marker["sub"])
             self.statusBar().showMessage(
                 t(
                     "main.status.drag_conditional_breakable",
@@ -7425,15 +7700,20 @@ class MainWindow(QMainWindow):
         bomb_jack_marker = self._bomb_jack_marker_at(tile)
         if bomb_jack_marker is not None:
             self._push_undo()
-            self._move_pending = {
-                "kind": "bomb_jack",
-                "sub": bomb_jack_marker,
-            }
+            undo_entry = self._latest_undo_entry()
             label = (
                 t("main.status.bomb_jack.trigger", "頭突き判定")
                 if bomb_jack_marker == "trigger" else
                 t("main.status.bomb_jack.spawn", "出現先")
             )
+            self._move_pending = {
+                "kind": "bomb_jack",
+                "sub": bomb_jack_marker,
+                "current_pos": tile,
+                "undo_entry": undo_entry,
+                "from_pos": tile,
+                "history_label": f"Mighty Bomb Jack {label}",
+            }
             self.statusBar().showMessage(
                 t(
                     "main.status.drag_bomb_jack",
@@ -7445,7 +7725,7 @@ class MainWindow(QMainWindow):
             return
 
         if lv.fixed_start_pos == tile:
-            self._move_pending = {"kind": "meta", "sub": "start"}
+            self._move_pending = {"kind": "meta", "sub": "start", "current_pos": tile}
         elif lv.fixed_key_pos == tile and not lv.is_key_removed():
             self._move_pending = {
                 "kind": "meta",
@@ -7459,16 +7739,24 @@ class MainWindow(QMainWindow):
                 "current_pos": tile,
             }
         elif lv.demon_mirrors[0].position == tile:
-            self._move_pending = {"kind": "meta", "sub": "mirror1"}
+            self._move_pending = {"kind": "meta", "sub": "mirror1", "current_pos": tile}
         elif lv.demon_mirrors[1].position == tile:
-            self._move_pending = {"kind": "meta", "sub": "mirror2"}
+            self._move_pending = {"kind": "meta", "sub": "mirror2", "current_pos": tile}
 
         # ソロモンの紋章（level_meta_items）
         if self._move_pending is None and self.config:
             for mi in self.config.level_meta_items:
                 if mi.level_no == self.current_level_no and mi.position == tile and mi.rom_offset >= 0:
                     self._push_undo()
-                    self._move_pending = {"kind": "seal", "ref": mi}
+                    undo_entry = self._latest_undo_entry()
+                    self._move_pending = {
+                        "kind": "seal",
+                        "ref": mi,
+                        "current_pos": tile,
+                        "undo_entry": undo_entry,
+                        "from_pos": tile,
+                        "history_label": mi.description,
+                    }
                     self.statusBar().showMessage(
                         t("main.status.drag_named", "{name} を掴み中 → ドラッグで移動").format(name=mi.description),
                         0,
@@ -7478,6 +7766,12 @@ class MainWindow(QMainWindow):
 
         if self._move_pending:
             self._push_undo()
+            undo_entry = self._latest_undo_entry()
+            self._move_pending["undo_entry"] = undo_entry
+            self._move_pending["from_pos"] = tile
+            self._move_pending["history_label"] = self._meta_value_label(
+                self._move_pending.get("sub")
+            )
             sub = self._move_pending.get("sub")
             if sub == "key":
                 self._move_pending["move_absorb_flag"] = (
@@ -7509,6 +7803,8 @@ class MainWindow(QMainWindow):
         )
         if wall != Wall.NONE or has_runtime_marker:
             self._push_undo()
+            undo_entry = self._latest_undo_entry()
+            block_history_label = self._block_label_for_history(lv, tile)
             runtime_markers = self._pop_runtime_markers_at(lv, tile)
             self._move_pending = {
                 "kind": "block",
@@ -7519,6 +7815,9 @@ class MainWindow(QMainWindow):
                 # 元位置は今クリアしたので NONE
                 "prev_wall_at_current": Wall.NONE,
                 "prev_markers_at_current": set(),
+                "undo_entry": undo_entry,
+                "from_pos": tile,
+                "history_label": block_history_label,
             }
             # 元位置を空白に
             lv.tiles[ty][tx] = Wall.NONE
@@ -7633,6 +7932,8 @@ class MainWindow(QMainWindow):
             elif kind == "item":
                 mp["current_pos"] = tile
             mp["ref"].position = tile
+            if kind == "enemy":
+                mp["current_pos"] = tile
         elif kind == "meta":
             sub = mp["sub"]
             if sub == "key":
@@ -7675,10 +7976,13 @@ class MainWindow(QMainWindow):
                     self._show_actor_block_overlap_message(tile)
                     return
                 lv.fixed_start_pos = tile
+                mp["current_pos"] = tile
             elif sub == "mirror1":
                 lv.demon_mirrors[0].position = tile
+                mp["current_pos"] = tile
             elif sub == "mirror2":
                 lv.demon_mirrors[1].position = tile
+                mp["current_pos"] = tile
         elif kind == "seal":
             if not self._solomon_seal_can_move_to_tile(lv, tile):
                 self._show_solomon_seal_move_rejected_message(lv, tile)
@@ -7713,12 +8017,15 @@ class MainWindow(QMainWindow):
         elif kind == "bonus":
             bi = mp["index"]
             self._bonus_positions[bi] = tile
+            mp["current_pos"] = tile
             # _bonus_items も再構築（レンダラー用）
             self._rebuild_bonus_items_from_positions()
         elif kind == "conditional_breakable":
             self._move_conditional_breakable_marker(mp["group"], mp["sub"], tile)
+            mp["current_pos"] = tile
         elif kind == "bomb_jack":
             self._move_bomb_jack_marker(mp["sub"], tile)
+            mp["current_pos"] = tile
         elif kind == "block":
             if self._tile_has_actor_for_block_move(lv, tile):
                 self._show_actor_block_overlap_message(tile)
@@ -7782,6 +8089,14 @@ class MainWindow(QMainWindow):
                 self._refresh_thumbnails_after_edit()
             elif kind == "bonus":
                 self._write_bonus_positions_to_rom()
+                idx = self._move_pending.get("index")
+                pos = None
+                if idx is not None and getattr(self, "_bonus_positions", None):
+                    try:
+                        pos = self._bonus_positions[int(idx)]
+                    except Exception:
+                        pos = self._move_pending.get("current_pos")
+                self._set_move_history(self._move_pending, pos)
                 self.statusBar().showMessage(t("main.status.bonus_move_complete", "ボーナススポット移動完了"), 2000)
                 self._refresh_thumbnails_after_edit()
             elif kind == "seal":
@@ -7789,6 +8104,7 @@ class MainWindow(QMainWindow):
                 if self.rom and mi.rom_offset >= 0 and mi.rom_offset < len(self.rom.data):
                     from ..core.element import byte_from_position
                     self.rom.data[mi.rom_offset] = byte_from_position(mi.position)
+                self._set_move_history(self._move_pending, mi.position)
                 self.statusBar().showMessage(
                     t("main.status.move_named_complete", "{name} 移動完了 → {pos}").format(
                         name=mi.description,
@@ -7802,6 +8118,7 @@ class MainWindow(QMainWindow):
                 if self.rom and mi.rom_offset >= 0 and mi.rom_offset < len(self.rom.data):
                     from ..core.element import byte_from_position
                     self.rom.data[mi.rom_offset] = byte_from_position(mi.position)
+                self._set_move_history(self._move_pending, mi.position)
                 self.statusBar().showMessage(
                     t(
                         "main.status.move_named_block_complete",
@@ -7815,6 +8132,7 @@ class MainWindow(QMainWindow):
                 sub = self._move_pending.get("sub")
                 positions = self._conditional_breakable_positions(group) or {}
                 pos = positions.get(sub)
+                self._set_move_history(self._move_pending, pos)
                 group_label = self._conditional_breakable_group_label(group)
                 label = self._conditional_breakable_marker_label(sub)
                 self.statusBar().showMessage(
@@ -7829,6 +8147,7 @@ class MainWindow(QMainWindow):
                 sub = self._move_pending.get("sub")
                 positions = self._bomb_jack_positions() or {}
                 pos = positions.get(sub)
+                self._set_move_history(self._move_pending, pos)
                 label = (
                     t("main.status.bomb_jack.trigger", "頭突き判定")
                     if sub == "trigger" else
@@ -7847,10 +8166,27 @@ class MainWindow(QMainWindow):
                 item = self._move_pending.get("ref")
                 if item is not None and item.is_in_block():
                     lv.set_block(Wall.NONE, item.position)
+                if item is not None:
+                    self._set_move_history(self._move_pending, item.position)
                 self.statusBar().showMessage(t("main.status.item_move_complete", "アイテム移動完了"), 2000)
                 self._refresh_thumbnails_after_edit()
             elif kind == "meta" and self._move_pending.get("sub") in ("key", "door"):
                 self._finish_key_door_drag_absorb_state()
+                self._set_move_history(self._move_pending, self._move_pending.get("current_pos"))
+                self.statusBar().showMessage(t("main.status.move_complete", "移動完了"), 2000)
+                self._refresh_thumbnails_after_edit()
+            elif kind == "enemy":
+                enemy = self._move_pending.get("ref")
+                if enemy is not None:
+                    self._set_move_history(self._move_pending, enemy.position)
+                self.statusBar().showMessage(t("main.status.move_complete", "移動完了"), 2000)
+                self._refresh_thumbnails_after_edit()
+            elif kind == "block":
+                self._set_move_history(self._move_pending, self._move_pending.get("current_pos"))
+                self.statusBar().showMessage(t("main.status.move_complete", "移動完了"), 2000)
+                self._refresh_thumbnails_after_edit()
+            elif kind == "meta":
+                self._set_move_history(self._move_pending, self._move_pending.get("current_pos"))
                 self.statusBar().showMessage(t("main.status.move_complete", "移動完了"), 2000)
                 self._refresh_thumbnails_after_edit()
             else:
@@ -7981,7 +8317,17 @@ class MainWindow(QMainWindow):
                         break
                 idx = next_idx
 
-        self._push_undo()
+        history_labels = self._delete_history_labels_at(
+            lv,
+            tile,
+            can_delete_key=can_delete_key,
+            can_delete_door=can_delete_door,
+        )
+        self._push_undo(
+            action=t("main.undo_history.action.delete", "削除"),
+            detail=self._format_history_targets(history_labels),
+            positions=[tile],
+        )
         if not getattr(self, '_suppress_next_undo', False):
             self._right_drag_has_undo = True
 
@@ -9136,7 +9482,11 @@ class MainWindow(QMainWindow):
         if self._clip_has_key_door_item_overlap(self.levels[self.current_level_no], self._clipboard, ox, oy):
             self._show_key_door_item_overlap_message((ox, oy))
             return
-        self._push_undo()
+        self._push_undo(
+            action=t("main.undo_history.action.paste", "貼り付け"),
+            detail=t("main.undo_history.detail.origin", "起点"),
+            positions=[(ox, oy)],
+        )
         self._paste_clipboard_at(self._clipboard, ox, oy)
         self._refresh_key_enemy_spin_range()
         self._refresh_fairy_enemy_spin_range()
@@ -9689,6 +10039,10 @@ class MainWindow(QMainWindow):
         self.btn_restart.setToolTip(t("main.file.restart.tooltip", "アプリを再起動"))
         self.btn_history.setText(t("main.file.history", "履歴"))
         self.btn_history.setToolTip(t("main.file.history.tooltip", "最近開いたROMから選択"))
+        self.btn_undo_history.setText(t("main.undo_history.button", "Undo一覧"))
+        self.btn_undo_history.setToolTip(
+            t("main.undo_history.button.tooltip", "Undo/Redo履歴を一覧表示し、ダブルクリックで履歴位置へジャンプ")
+        )
         self.btn_rom_validation.setToolTip(
             t("main.file.validation.tooltip", "読み込んだROMの不整合らしき配置を一覧表示")
         )
@@ -9936,6 +10290,9 @@ class MainWindow(QMainWindow):
             "focus_level_no": int(focus_level_no),
             "levels": [],
         }
+        for key in ("created_at", "sequence_no", "action", "detail", "positions"):
+            if isinstance(entry, dict) and key in entry:
+                data[key] = copy.deepcopy(entry[key])
         for level_no in level_nos:
             elem = level_to_xml_element(levels[level_no])
             data["levels"].append({
@@ -9965,6 +10322,9 @@ class MainWindow(QMainWindow):
             "focus_level_no": focus_level_no,
             "levels": levels,
         }
+        for key in ("created_at", "sequence_no", "action", "detail", "positions"):
+            if key in data:
+                entry[key] = copy.deepcopy(data[key])
         rom_b64 = data.get("rom_data_b64")
         if rom_b64:
             entry["rom_data"] = base64.b64decode(str(rom_b64).encode("ascii"), validate=True)
@@ -9976,6 +10336,7 @@ class MainWindow(QMainWindow):
             "format_version": 1,
             "app_version": __version__,
             "undo_limit": int(self._undo_limit),
+            "undo_sequence_next": int(self._undo_sequence_next),
             "undo": [self._serialize_undo_entry(e) for e in self._undo_stack[-self._undo_limit:]],
             "redo": [self._serialize_undo_entry(e) for e in self._redo_stack[-self._undo_limit:]],
         }
@@ -10002,6 +10363,17 @@ class MainWindow(QMainWindow):
             ]
             self._undo_stack = undo
             self._redo_stack = redo
+            max_sequence_no = 0
+            for entry in undo + redo:
+                if isinstance(entry, dict):
+                    try:
+                        max_sequence_no = max(max_sequence_no, int(entry.get("sequence_no", 0)))
+                    except Exception:
+                        pass
+            self._undo_sequence_next = max(
+                int(payload.get("undo_sequence_next", 1) or 1),
+                max_sequence_no + 1,
+            )
             self._log(
                 f"Undo/Redo履歴を復元: undo={len(undo)}, redo={len(redo)}"
             )
@@ -12733,7 +13105,10 @@ class MainWindow(QMainWindow):
             )
             return
 
-        self._push_undo()
+        self._push_undo(
+            action=t("main.undo_history.action.clear_level", "ステージクリア"),
+            detail=label,
+        )
 
         if mode in ("all", "blocks"):
             for y in range(c.LEVEL_H):
@@ -12786,14 +13161,27 @@ class MainWindow(QMainWindow):
 
     # ====== Undo / Redo ======
 
-    def _push_undo(self):
+    def _push_undo(self, action: str | None = None, detail: str | None = None, positions=None):
         """編集前に呼び出して、現在のレベルのスナップショットをスタックに積む
 
         ドラッグ塗り/消し中は _suppress_next_undo フラグでスキップ。
         """
-        self._push_undo_levels([self.current_level_no], focus_level_no=self.current_level_no)
+        self._push_undo_levels(
+            [self.current_level_no],
+            focus_level_no=self.current_level_no,
+            action=action,
+            detail=detail,
+            positions=positions,
+        )
 
-    def _push_undo_levels(self, level_nos, focus_level_no=None):
+    def _push_undo_levels(
+        self,
+        level_nos,
+        focus_level_no=None,
+        action: str | None = None,
+        detail: str | None = None,
+        positions=None,
+    ):
         if not self.levels:
             return
         if self._is_read_only():
@@ -12819,7 +13207,20 @@ class MainWindow(QMainWindow):
                 level_no: copy.deepcopy(self.levels[level_no])
                 for level_no in valid_level_nos
             },
+            "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
+            "sequence_no": int(self._undo_sequence_next),
         }
+        self._undo_sequence_next += 1
+        if action:
+            entry["action"] = str(action)
+        if detail:
+            entry["detail"] = str(detail)
+        if positions:
+            entry["positions"] = [
+                [int(pos[0]), int(pos[1])]
+                for pos in positions
+                if pos is not None and len(pos) >= 2
+            ]
         if self.rom is not None:
             entry["rom_data"] = bytes(self.rom.data)
         self._undo_stack.append(entry)
@@ -12829,6 +13230,7 @@ class MainWindow(QMainWindow):
         self._redo_stack.clear()
         # 未保存マーク
         self._set_dirty(True)
+        self._refresh_undo_history_dialog()
 
     def _set_dirty(self, dirty: bool):
         """未保存フラグを更新してタイトルバーに反映"""
@@ -12853,6 +13255,161 @@ class MainWindow(QMainWindow):
         else:
             self.setWindowTitle(base)
 
+    def _undo_history_entry_action(self, entry) -> str:
+        if isinstance(entry, dict):
+            action = str(entry.get("action", "")).strip()
+            if action:
+                return action
+        return t("main.undo_history.action.generic", "編集")
+
+    def _undo_history_entry_time(self, entry) -> str:
+        if isinstance(entry, dict):
+            raw = str(entry.get("created_at", "")).strip()
+            if raw:
+                try:
+                    dt = datetime.datetime.fromisoformat(raw)
+                    return dt.strftime("%H:%M:%S")
+                except ValueError:
+                    return raw
+        return ""
+
+    def _undo_history_entry_detail(self, entry) -> str:
+        parts = []
+        if isinstance(entry, dict):
+            detail = str(entry.get("detail", "")).strip()
+            positions = entry.get("positions") or []
+            pos_labels = []
+            for pos in positions:
+                try:
+                    pos_labels.append(f"({int(pos[0])},{int(pos[1])})")
+                except Exception:
+                    continue
+            if detail:
+                normalized_detail = detail.replace(" ", "")
+                has_same_position = any(label in normalized_detail for label in pos_labels)
+                if not (
+                    has_same_position
+                    and (
+                        normalized_detail.startswith("座標")
+                        or normalized_detail.lower().startswith("position")
+                    )
+                ):
+                    parts.append(detail)
+            if pos_labels:
+                normalized_parts = " ".join(parts).replace(" ", "")
+                all_positions_in_detail = all(label in normalized_parts for label in pos_labels)
+                if not all_positions_in_detail:
+                    parts.append(t("main.undo_history.positions", "座標: {positions}").format(
+                        positions=", ".join(pos_labels)
+                    ))
+        return " / ".join(parts)
+
+    def _ensure_undo_sequence_numbers(self):
+        for entry in list(self._undo_stack) + list(reversed(self._redo_stack)):
+            if not isinstance(entry, dict):
+                continue
+            try:
+                current = int(entry.get("sequence_no", 0))
+            except Exception:
+                current = 0
+            if current <= 0:
+                entry["sequence_no"] = int(self._undo_sequence_next)
+                self._undo_sequence_next += 1
+
+    def _undo_history_entry_sequence_label(self, entry) -> str:
+        if isinstance(entry, dict):
+            try:
+                value = int(entry.get("sequence_no", 0))
+            except Exception:
+                value = 0
+            if value > 0:
+                return str(value)
+        return ""
+
+    def _build_undo_history_rows(self) -> list[dict]:
+        self._ensure_undo_sequence_numbers()
+        current_index = len(self._undo_stack)
+        entries = list(self._undo_stack) + list(reversed(self._redo_stack))
+        rows = []
+        for index, entry in enumerate(entries):
+            levels = self._undo_entry_levels(entry)
+            level_nos = sorted(levels.keys())
+            target_index = index + 1
+            if index < current_index:
+                state = t("main.undo_history.state.applied", "適用済み")
+                is_redo = False
+            else:
+                state = t("main.undo_history.state.redo", "Redo可能")
+                is_redo = True
+            if target_index == current_index:
+                state = t("main.undo_history.state.current_after", "現在位置")
+            rows.append({
+                "target_index": target_index,
+                "seq": self._undo_history_entry_sequence_label(entry),
+                "state": state,
+                "time": self._undo_history_entry_time(entry),
+                "stage": self._undo_entry_label(level_nos) if level_nos else "",
+                "action": self._undo_history_entry_action(entry),
+                "detail": self._undo_history_entry_detail(entry),
+                "is_current_after": target_index == current_index,
+                "is_redo": is_redo,
+            })
+        return rows
+
+    def _on_show_undo_history(self):
+        if not self._undo_stack and not self._redo_stack:
+            self.statusBar().showMessage(t("main.undo.empty", "Undo履歴なし"), 2000)
+            return
+        if self._undo_history_dialog is None:
+            dialog = _UndoHistoryDialog(
+                self,
+                self._build_undo_history_rows(),
+                len(self._undo_stack),
+                self,
+            )
+            dialog.setModal(False)
+            dialog.finished.connect(lambda _result: setattr(self, "_undo_history_dialog", None))
+            self._undo_history_dialog = dialog
+        else:
+            self._undo_history_dialog.update_rows(
+                self._build_undo_history_rows(),
+                len(self._undo_stack),
+            )
+        self._undo_history_dialog.show()
+        self._undo_history_dialog.raise_()
+        self._undo_history_dialog.activateWindow()
+
+    def _refresh_undo_history_dialog(self):
+        dialog = getattr(self, "_undo_history_dialog", None)
+        if dialog is None or not dialog.isVisible():
+            return
+        if not self._undo_stack and not self._redo_stack:
+            dialog.update_rows([], 0)
+            return
+        dialog.update_rows(self._build_undo_history_rows(), len(self._undo_stack))
+
+    def _jump_undo_history_to_index(self, target_index: int):
+        total = len(self._undo_stack) + len(self._redo_stack)
+        target_index = max(0, min(int(target_index), total))
+        current_index = len(self._undo_stack)
+        if target_index == current_index:
+            self.statusBar().showMessage(
+                t("main.undo_history.already_here", "すでに選択した履歴位置です"),
+                2000,
+            )
+            return
+        while len(self._undo_stack) > target_index:
+            self._on_undo()
+        while len(self._undo_stack) < target_index and self._redo_stack:
+            self._on_redo()
+        self.statusBar().showMessage(
+            t(
+                "main.undo_history.jump.done",
+                "Undo履歴位置へ移動しました: {current} / {total}",
+            ).format(current=len(self._undo_stack), total=total),
+            3000,
+        )
+
     def _on_undo(self):
         if not self._undo_stack or not self.levels:
             self.statusBar().showMessage(t("main.undo.empty", "Undo履歴なし"), 2000)
@@ -12875,6 +13432,7 @@ class MainWindow(QMainWindow):
             ),
             2500,
         )
+        self._refresh_undo_history_dialog()
 
     def _on_redo(self):
         if not self._redo_stack or not self.levels:
@@ -12896,11 +13454,14 @@ class MainWindow(QMainWindow):
             ),
             2500,
         )
+        self._refresh_undo_history_dialog()
 
     def _clear_undo_history(self):
         """ROM読込/XML読込時にUndo履歴をリセット"""
         self._undo_stack.clear()
         self._redo_stack.clear()
+        self._undo_sequence_next = 1
+        self._refresh_undo_history_dialog()
 
     def _undo_entry_levels(self, entry):
         if isinstance(entry, dict) and "levels" in entry:
@@ -12941,6 +13502,10 @@ class MainWindow(QMainWindow):
                 for level_no in level_nos
             },
         }
+        if isinstance(entry, dict):
+            for key in ("created_at", "sequence_no", "action", "detail", "positions"):
+                if key in entry:
+                    snapshot[key] = copy.deepcopy(entry[key])
         if self.rom is not None:
             snapshot["rom_data"] = bytes(self.rom.data)
         return snapshot
