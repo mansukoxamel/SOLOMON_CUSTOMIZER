@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (
     QPushButton, QSpinBox, QFileDialog, QMessageBox, QSplitter,
     QGroupBox, QComboBox, QCheckBox, QListWidget, QApplication,
     QToolBar, QAction, QRadioButton, QButtonGroup, QShortcut, QToolButton,
-    QSizePolicy
+    QSizePolicy, QMenu
 )
 from PyQt5.QtCore import Qt, QSize, QEvent, QTimer, QUrl, QPoint
 from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor, QPainter, QPen, QImage
@@ -2005,6 +2005,13 @@ class MainWindow(QMainWindow):
         )
         self.chk_fire_reset.toggled.connect(self._on_meta_fire_reset_toggled)
         form.addRow("", self.chk_fire_reset)
+        for checkbox, restriction_key in (
+            (self.chk_no_bfire, "no_bfire"),
+            (self.chk_no_astone, "no_astone"),
+            (self.chk_dark, "dark"),
+            (self.chk_fire_reset, "fire_reset"),
+        ):
+            self._setup_stage_restriction_context_menu(checkbox, restriction_key)
 
         self.spin_key_enemy = QSpinBox()
         self.spin_key_enemy.setRange(0, c.ENEMY_COUNT_MAX)
@@ -11086,6 +11093,127 @@ class MainWindow(QMainWindow):
 
     def _on_panel_variant_setting_changed(self, key):
         return
+
+    def _setup_stage_restriction_context_menu(self, checkbox, restriction_key: str):
+        checkbox.setContextMenuPolicy(Qt.CustomContextMenu)
+        checkbox.customContextMenuRequested.connect(
+            lambda pos, w=checkbox, k=restriction_key: self._show_stage_restriction_context_menu(w, k, pos)
+        )
+
+    def _normal_stage_level_nos(self):
+        return list(range(min(c.LEVEL_COUNT, len(self.levels or []))))
+
+    def _stage_restriction_label(self, key: str) -> str:
+        labels = {
+            "no_bfire": t("main.stage.no_bfire", "Bボタン（ファイア）禁止"),
+            "no_astone": t("main.stage.no_astone", "Aボタン(換石)禁止"),
+            "dark": t("main.stage.dark", "暗闇モード"),
+            "fire_reset": t("main.stage.fire_reset", "開始時にファイヤー所持をリセット"),
+        }
+        return labels.get(key, key)
+
+    def _stage_restriction_ui_value(self, key: str) -> bool:
+        widgets = {
+            "no_bfire": self.chk_no_bfire,
+            "no_astone": self.chk_no_astone,
+            "dark": self.chk_dark,
+            "fire_reset": self.chk_fire_reset,
+        }
+        return widgets[key].isChecked()
+
+    def _stage_restriction_level_value(self, level, key: str) -> bool:
+        from ..core import room_flags as _rf
+        from ..core import stage_ext as _se
+        if key == "no_bfire":
+            return bool(level.room_flags & _rf.BIT_NO_BFIRE)
+        if key == "no_astone":
+            return bool(level.room_flags & _rf.BIT_NO_ASTONE)
+        if key == "dark":
+            return bool(level.room_flags & _rf.BIT_DARK)
+        if key == "fire_reset":
+            return _se.fire_reset_enabled(level)
+        raise KeyError(key)
+
+    def _set_stage_restriction_level_value(self, level, key: str, enabled: bool) -> None:
+        from ..core import room_flags as _rf
+        from ..core import stage_ext as _se
+        if key == "no_bfire":
+            if enabled:
+                level.room_flags |= _rf.BIT_NO_BFIRE
+            else:
+                level.room_flags &= ~_rf.BIT_NO_BFIRE
+            return
+        if key == "no_astone":
+            if enabled:
+                level.room_flags |= _rf.BIT_NO_ASTONE
+            else:
+                level.room_flags &= ~_rf.BIT_NO_ASTONE
+            return
+        if key == "dark":
+            if enabled:
+                level.room_flags |= _rf.BIT_DARK
+            else:
+                level.room_flags &= ~_rf.BIT_DARK
+            return
+        if key == "fire_reset":
+            _se.set_fire_reset_enabled(level, enabled)
+            return
+        raise KeyError(key)
+
+    def _show_stage_restriction_context_menu(self, checkbox, restriction_key: str, pos):
+        if not self.levels:
+            return
+        menu = QMenu(self)
+        label = self._stage_restriction_label(restriction_key)
+        apply_action = menu.addAction(
+            t(
+                "main.stage.restrictions.apply_one_all",
+                "現在の状態を全53面に適用（{name}）",
+            ).format(name=label)
+        )
+        action = menu.exec_(checkbox.mapToGlobal(pos))
+        if action == apply_action:
+            self._apply_stage_restrictions_to_all([restriction_key])
+
+    def _apply_stage_restrictions_to_all(self, keys):
+        if not self.levels:
+            return
+        if self._reject_read_only_edit():
+            return
+        level_nos = self._normal_stage_level_nos()
+        if not level_nos:
+            return
+        values = {key: self._stage_restriction_ui_value(key) for key in keys}
+        changed_levels = [
+            level_no
+            for level_no in level_nos
+            if any(
+                self._stage_restriction_level_value(self.levels[level_no], key) != values[key]
+                for key in values
+            )
+        ]
+        if not changed_levels:
+            self.statusBar().showMessage(
+                t("main.stage.restrictions.apply_all_no_change", "全53面はすでに同じ設定です"),
+                2500,
+            )
+            return
+        self._push_undo_levels(changed_levels, focus_level_no=self.current_level_no)
+        for level_no in changed_levels:
+            level = self.levels[level_no]
+            for key, enabled in values.items():
+                self._set_stage_restriction_level_value(level, key, enabled)
+        self._load_meta_to_ui()
+        self._refresh_changed_stages(changed_levels)
+        key = next(iter(values))
+        detail = self._stage_restriction_label(key)
+        self.statusBar().showMessage(
+            t(
+                "main.stage.restrictions.apply_all_done",
+                "{name}を全53面へ適用しました（{count}面変更 / Ctrl+Zで戻せます）",
+            ).format(name=detail, count=len(changed_levels)),
+            4000,
+        )
 
     def _on_meta_tileset_changed(self, val):
         if self._meta_loading or not self.levels:

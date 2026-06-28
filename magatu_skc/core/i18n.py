@@ -1108,6 +1108,18 @@ _TRANSLATIONS = {
         "ja": "この面を開始した時に、前の面から持ち越したファイヤー/スーパーの所持を0にします。",
         "en": "When this stage starts, reset fire/super fire carried over from the previous stage.",
     },
+    "main.stage.restrictions.apply_one_all": {
+        "ja": "現在の状態を全53面に適用（{name}）",
+        "en": "Apply current state to all 53 stages ({name})",
+    },
+    "main.stage.restrictions.apply_all_no_change": {
+        "ja": "全53面はすでに同じ設定です",
+        "en": "All 53 stages already have the same setting.",
+    },
+    "main.stage.restrictions.apply_all_done": {
+        "ja": "{name}を全53面へ適用しました（{count}面変更 / Ctrl+Zで戻せます）",
+        "en": "Applied {name} to all 53 stages ({count} changed / Ctrl+Z to undo).",
+    },
     "main.stage.none": {
         "ja": "(なし)",
         "en": "(None)",
