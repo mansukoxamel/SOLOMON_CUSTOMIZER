@@ -3649,7 +3649,7 @@ class MainWindow(QMainWindow):
             auto_expanded = False
             self.original_rom_data = loaded_rom_data
             if not read_only_mode and not rom.is_expanded():
-                from ..core import m66_expander
+                from ..core import m66_expander, m66
                 m66_expander.expand_rom(rom, levels)
                 auto_expanded = True
                 if imported_stage49_breakable:
@@ -3676,6 +3676,7 @@ class MainWindow(QMainWindow):
                         self._log(
                             "JP版特殊処理補正: Stage 52/53 の無条件壊せる白ブロック生成コードを無効化"
                         )
+                levels = m66.load_all_levels_m66(rom)
 
             # JP ROM is normalized to the internal wide-title format after
             # mapper66 expansion. This must run after expand_rom(), because
@@ -6960,6 +6961,102 @@ class MainWindow(QMainWindow):
     def _latest_undo_entry(self):
         return self._undo_stack[-1] if self._undo_stack else None
 
+    def _tile_edit_state(self, lv, tile: tuple):
+        x, y = tile
+        markers = tuple(sorted(
+            name for name in self._runtime_marker_names()
+            if tile in getattr(lv, name, set())
+        ))
+        items = tuple(
+            int(item.element_no)
+            for item in lv.items
+            if item.position == tile
+        )
+        enemies = tuple(
+            int(enemy.element_no)
+            for enemy in lv.enemies
+            if enemy.position == tile
+        )
+        meta = []
+        if lv.fixed_start_pos == tile:
+            meta.append(("start",))
+        if not lv.is_key_removed() and lv.fixed_key_pos == tile:
+            meta.append(("key", int(getattr(lv, "key_status", 0))))
+        if not lv.is_door_removed() and lv.fixed_door_pos == tile:
+            meta.append(("door", int(getattr(lv, "room_flags", 0))))
+        for index, mirror in enumerate(lv.demon_mirrors):
+            if mirror.position == tile:
+                meta.append((
+                    f"mirror{index + 1}",
+                    int(getattr(mirror, "schedule_no", 0)),
+                    int(getattr(mirror, "monster_set_no", 0)),
+                ))
+        seal = self._solomon_seal_meta_at(self.current_level_no, tile)
+        if seal is not None:
+            meta.append(("seal", int(getattr(seal, "rom_offset", -1))))
+        return (
+            lv.tiles[y][x],
+            markers,
+            items,
+            enemies,
+            tuple(meta),
+        )
+
+    def _make_pending_undo_entry(
+        self,
+        level_nos,
+        focus_level_no=None,
+        action: str | None = None,
+        detail: str | None = None,
+        positions=None,
+    ):
+        if getattr(self, "_suppress_next_undo", False):
+            return None
+        valid_level_nos = sorted({
+            int(level_no)
+            for level_no in level_nos
+            if 0 <= int(level_no) < len(self.levels)
+        })
+        if not valid_level_nos:
+            return None
+        if focus_level_no not in valid_level_nos:
+            focus_level_no = valid_level_nos[0]
+        entry = {
+            "focus_level_no": int(focus_level_no),
+            "levels": {
+                level_no: copy.deepcopy(self.levels[level_no])
+                for level_no in valid_level_nos
+            },
+            "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
+        }
+        if action:
+            entry["action"] = str(action)
+        if detail:
+            entry["detail"] = str(detail)
+        if positions:
+            entry["positions"] = [
+                [int(pos[0]), int(pos[1])]
+                for pos in positions
+                if pos is not None and len(pos) >= 2
+            ]
+        if self.rom is not None:
+            entry["rom_data"] = bytes(self.rom.data)
+        return entry
+
+    def _commit_pending_undo_entry(self, entry):
+        if not isinstance(entry, dict):
+            return
+        entry["sequence_no"] = int(self._undo_sequence_next)
+        self._undo_sequence_next += 1
+        self._undo_stack.append(entry)
+        popped = False
+        if len(self._undo_stack) > self._undo_limit:
+            self._undo_stack.pop(0)
+            popped = True
+        self._redo_stack.clear()
+        self._set_dirty(True)
+        self._refresh_undo_history_dialog(latest_only=True)
+
     def _annotate_undo_entry(self, entry, action=None, detail=None, positions=None):
         if not isinstance(entry, dict):
             return
@@ -6973,7 +7070,7 @@ class MainWindow(QMainWindow):
                 for pos in positions
                 if pos is not None and len(pos) >= 2
             ]
-        self._refresh_undo_history_dialog(after_push=True, popped_oldest=popped)
+        self._refresh_undo_history_dialog(latest_only=True)
 
     def _entry_position_set(self, entry) -> set[tuple[int, int]]:
         positions = set()
@@ -7040,6 +7137,12 @@ class MainWindow(QMainWindow):
         source_pos = mp.get("from_pos")
         label = mp.get("history_label") or t("main.undo_history.action.generic", "編集")
         if entry is None or source_pos is None or target_pos is None:
+            return
+        if tuple(source_pos) == tuple(target_pos):
+            if self._undo_stack and self._undo_stack[-1] is entry:
+                self._undo_stack.pop()
+                self._set_dirty(bool(mp.get("dirty_before_move", self._dirty)))
+                self._refresh_undo_history_dialog()
             return
         self._annotate_undo_entry(
             entry,
@@ -7110,14 +7213,8 @@ class MainWindow(QMainWindow):
         lv = self.levels[self.current_level_no]
         mode, value = self.picker.get_current()
 
-        undo_stack_before = list(self._undo_stack)
-        redo_stack_before = list(self._redo_stack)
-        dirty_before_undo = self._dirty
-
         def restore_rejected_click_edit():
-            self._undo_stack = undo_stack_before
-            self._redo_stack = redo_stack_before
-            self._set_dirty(dirty_before_undo)
+            return
 
         action_by_mode = {
             MODE_BLOCK: t("main.undo_history.action.place_block", "ブロック配置"),
@@ -7125,14 +7222,16 @@ class MainWindow(QMainWindow):
             MODE_ENEMY: t("main.undo_history.action.place_enemy", "敵配置"),
             MODE_META: t("main.undo_history.action.place_meta", "メタ配置"),
         }
-        self._push_undo(
+        before_tile_state = self._tile_edit_state(lv, tile)
+        pending_undo_entry = self._make_pending_undo_entry(
+            [self.current_level_no],
+            focus_level_no=self.current_level_no,
             action=action_by_mode.get(mode, t("main.undo_history.action.place", "配置")),
             detail=self._format_history_targets([self._picker_history_label(mode, value)]),
             positions=[tile],
         )
-        entry = self._latest_undo_entry()
-        if isinstance(entry, dict):
-            entry["history_count"] = 1
+        if isinstance(pending_undo_entry, dict):
+            pending_undo_entry["history_count"] = 1
 
         if mode == MODE_BLOCK:
             passable_block_values = (BLOCK_NONE, BLOCK_PASSABLE_WHITE, BLOCK_PASSABLE_BROWN)
@@ -7168,6 +7267,20 @@ class MainWindow(QMainWindow):
             if value not in passable_block_values and lv.fixed_start_pos == tile:
                 self.statusBar().showMessage(
                     t("main.edit.block_on_start", "スタート位置にブロックは置けません {tile}").format(
+                        tile=tile
+                    ),
+                    2500,
+                )
+                restore_rejected_click_edit()
+                return
+
+            if (
+                value == BLOCK_WHITE
+                and not lv.is_key_removed()
+                and lv.fixed_key_pos == tile
+            ):
+                self.statusBar().showMessage(
+                    t("main.edit.white_block_on_key", "鍵の位置に白ブロックは置けません {tile}").format(
                         tile=tile
                     ),
                     2500,
@@ -7782,6 +7895,10 @@ class MainWindow(QMainWindow):
                 block_kind = self._apply_mirror_block_flag_to_tile(lv, tile, self.picker.get_item_flag())
                 self._warn_demon_mirror_real_block_enemy_fall(lv, tile, block_kind)
 
+        after_tile_state = self._tile_edit_state(lv, tile)
+        if after_tile_state == before_tile_state:
+            return False
+        self._commit_pending_undo_entry(pending_undo_entry)
         self._refresh_view()
         self._refresh_thumbnails_after_edit()
         return True
@@ -7804,6 +7921,7 @@ class MainWindow(QMainWindow):
             self._show_col15_locked_message()
             return
         lv = self.levels[self.current_level_no]
+        dirty_before_move = self._dirty
         self._move_pending = None  # リセット
 
         # 選択範囲内をクリック → 選択全体を移動
@@ -7855,6 +7973,7 @@ class MainWindow(QMainWindow):
                 "prev_markers_at_current": set(),
                 "undo_entry": undo_entry,
                 "from_pos": tile,
+                "dirty_before_move": dirty_before_move,
                 "history_label": f"{seal_block_combo['meta'].description} + {self._block_label_for_history(lv, tile)}",
             }
             self.statusBar().showMessage(
@@ -7881,6 +8000,7 @@ class MainWindow(QMainWindow):
                 "current_pos": tile,
                 "undo_entry": undo_entry,
                 "from_pos": tile,
+                "dirty_before_move": dirty_before_move,
                 "history_label": self._display_item_desc(int(item.element_no) & 0x3F),
             }
             self.statusBar().showMessage(t("main.status.drag_item", "アイテムを掴み中 → ドラッグで移動"), 0)
@@ -7898,6 +8018,7 @@ class MainWindow(QMainWindow):
                 "current_pos": tile,
                 "undo_entry": undo_entry,
                 "from_pos": tile,
+                "dirty_before_move": dirty_before_move,
                 "history_label": self._display_enemy_desc(int(enemy.element_no) & 0xFF),
             }
             self.statusBar().showMessage(t("main.status.drag_enemy", "敵を掴み中 → ドラッグで移動"), 0)
@@ -7915,6 +8036,7 @@ class MainWindow(QMainWindow):
                         "current_pos": tile,
                         "undo_entry": undo_entry,
                         "from_pos": tile,
+                        "dirty_before_move": dirty_before_move,
                         "history_label": t("main.status.drag_bonus", "ボーナススポット[{index}] を掴み中 → ドラッグで移動").format(index=bi),
                     }
                     self.statusBar().showMessage(
@@ -7939,6 +8061,7 @@ class MainWindow(QMainWindow):
                 "current_pos": tile,
                 "undo_entry": undo_entry,
                 "from_pos": tile,
+                "dirty_before_move": dirty_before_move,
                 "history_label": f"{group_label} {label}",
             }
             self.statusBar().showMessage(
@@ -7966,6 +8089,7 @@ class MainWindow(QMainWindow):
                 "current_pos": tile,
                 "undo_entry": undo_entry,
                 "from_pos": tile,
+                "dirty_before_move": dirty_before_move,
                 "history_label": f"Mighty Bomb Jack {label}",
             }
             self.statusBar().showMessage(
@@ -8009,6 +8133,7 @@ class MainWindow(QMainWindow):
                         "current_pos": tile,
                         "undo_entry": undo_entry,
                         "from_pos": tile,
+                        "dirty_before_move": dirty_before_move,
                         "history_label": mi.description,
                     }
                     self.statusBar().showMessage(
@@ -8023,6 +8148,7 @@ class MainWindow(QMainWindow):
             undo_entry = self._latest_undo_entry()
             self._move_pending["undo_entry"] = undo_entry
             self._move_pending["from_pos"] = tile
+            self._move_pending["dirty_before_move"] = dirty_before_move
             self._move_pending["history_label"] = self._meta_value_label(
                 self._move_pending.get("sub")
             )
@@ -8071,6 +8197,7 @@ class MainWindow(QMainWindow):
                 "prev_markers_at_current": set(),
                 "undo_entry": undo_entry,
                 "from_pos": tile,
+                "dirty_before_move": dirty_before_move,
                 "history_label": block_history_label,
             }
             # 元位置を空白に

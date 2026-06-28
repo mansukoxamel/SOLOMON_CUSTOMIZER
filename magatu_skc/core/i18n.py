@@ -1413,6 +1413,10 @@ _TRANSLATIONS = {
         "ja": "スタート位置にブロックは置けません {tile}",
         "en": "Cannot place a block on the start position {tile}",
     },
+    "main.edit.white_block_on_key": {
+        "ja": "鍵の位置に白ブロックは置けません {tile}",
+        "en": "Cannot place a white block on the key position {tile}",
+    },
     "main.edit.block_on_door": {
         "ja": "扉位置にブロックは置けません {tile}",
         "en": "Cannot place a block on the door position {tile}",
