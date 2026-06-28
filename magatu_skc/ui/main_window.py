@@ -42,6 +42,7 @@ from ..core.config import (
     GAMEPAD_BUTTON_OPTIONS,
     DEFAULT_SHORTCUTS,
     SHORTCUT_DEFINITIONS,
+    shortcut_display_label,
     normalize_int_setting,
     normalize_gamepad_shortcuts,
     normalize_emulators,
@@ -12938,8 +12939,9 @@ Tab/Shift+Tab系は、ホバー位置のアイテム/鍵/扉状態を順送り/�
             key_text = str(shortcuts.get(action, default) or "").strip()
             if not key_text:
                 continue
+            display_label = shortcut_display_label(action, label)
             bindings[key_text] = {
-                "description": label,
+                "description": display_label,
                 "category": self._keyboard_map_category(action),
             }
         return bindings

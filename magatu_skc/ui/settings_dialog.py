@@ -24,6 +24,7 @@ from ..core.config import (
     MIN_AUTOSAVE_KEEP_COUNT,
     MIN_UNDO_LIMIT,
     SHORTCUT_DEFINITIONS,
+    shortcut_display_label,
     DEFAULT_SHORTCUTS,
     GAMEPAD_BUTTON_OPTIONS,
     DEFAULT_GAMEPAD_SHORTCUTS,
@@ -419,7 +420,7 @@ class SettingsDialog(QDialog):
             rl.addWidget(pad_btn)
             self._shortcut_edits[key] = edit
             self._gamepad_combos[key] = combo
-            sf.addRow(label + ":", row)
+            sf.addRow(shortcut_display_label(key, label) + ":", row)
         shortcut_scroll = QScrollArea()
         shortcut_scroll.setWidgetResizable(True)
         shortcut_scroll.setWidget(shortcut_group)
@@ -482,7 +483,8 @@ class SettingsDialog(QDialog):
         key_owner = {}
         pad_owner = {}
         labels_by_key = {
-            key: label for key, label, _default in SHORTCUT_DEFINITIONS
+            key: shortcut_display_label(key, label)
+            for key, label, _default in SHORTCUT_DEFINITIONS
         }
         for key, _label, _default in SHORTCUT_DEFINITIONS:
             text = self._shortcut_edits[key].keySequence().toString(

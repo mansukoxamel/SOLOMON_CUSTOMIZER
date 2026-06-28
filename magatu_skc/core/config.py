@@ -88,6 +88,11 @@ SHORTCUT_DEFINITIONS = [
 ]
 DEFAULT_SHORTCUTS = {key: default for key, _label, default in SHORTCUT_DEFINITIONS}
 
+
+def shortcut_display_label(action: str, fallback: str = "") -> str:
+    from .i18n import t
+    return t(f"shortcut.label.{action}", fallback or str(action))
+
 GAMEPAD_BUTTON_OPTIONS = [
     ("", "未割当"),
     ("A", "A"),
