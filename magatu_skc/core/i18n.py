@@ -1691,6 +1691,14 @@ _TRANSLATIONS = {
         "ja": "現在位置",
         "en": "Current",
     },
+    "main.undo_history.state.initial": {
+        "ja": "初期状態",
+        "en": "Initial",
+    },
+    "main.undo_history.action.initial": {
+        "ja": "初期状態",
+        "en": "Initial state",
+    },
     "main.undo_history.action.generic": {
         "ja": "編集",
         "en": "Edit",
@@ -1762,6 +1770,10 @@ _TRANSLATIONS = {
     "main.undo_history.detail.move": {
         "ja": "{target}: {src} -> {dst}",
         "en": "{target}: {src} -> {dst}",
+    },
+    "main.undo_history.detail.initial": {
+        "ja": "ROM読込直後",
+        "en": "After ROM load",
     },
     "main.undo_history.positions": {
         "ja": "座標: {positions}",

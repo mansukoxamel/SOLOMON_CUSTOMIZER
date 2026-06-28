@@ -175,12 +175,14 @@ class _UndoHistoryTableModel(QAbstractTableModel):
         total: int,
         dropped_oldest: bool,
     ) -> bool:
-        expected_rows = total if dropped_oldest else total - 1
+        expected_rows = total + 1 if dropped_oldest else total
         if total <= 0 or len(self._rows) != expected_rows:
             return False
         if dropped_oldest:
-            self.beginRemoveRows(QModelIndex(), 0, 0)
-            self._rows.pop(0)
+            if len(self._rows) <= 1:
+                return False
+            self.beginRemoveRows(QModelIndex(), 1, 1)
+            self._rows.pop(1)
             self.endRemoveRows()
         if previous_current_row is not None and self._rows:
             row_no = len(self._rows) - 1
@@ -193,6 +195,11 @@ class _UndoHistoryTableModel(QAbstractTableModel):
         self._rows.append(new_current_row)
         self.endInsertRows()
         return True
+
+    def target_index_for_row(self, row: int) -> int | None:
+        if 0 <= row < len(self._rows):
+            return row
+        return None
 
 
 class _UndoHistoryDialog(QDialog):
@@ -236,20 +243,27 @@ class _UndoHistoryDialog(QDialog):
         layout.addWidget(buttons)
         self.update_rows(rows, current_index)
 
+    def _row_for_target_index(self, target_index: int) -> int:
+        for row_no in range(self.model.rowCount()):
+            if self.model.target_index_for_row(row_no) == target_index:
+                return row_no
+        return max(0, min(self.model.rowCount() - 1, target_index))
+
     def update_rows(self, rows: list[dict], current_index: int):
         t0 = time.perf_counter()
         row_count = len(rows)
+        total = max(0, row_count - 1)
         self.summary_label.setText(
             t(
                 "main.undo_history.summary",
                 "現在位置: {current} / {total}  （ダブルクリックでその履歴位置へ移動）",
-            ).format(current=current_index, total=row_count)
+            ).format(current=current_index, total=total)
         )
         t_summary = time.perf_counter()
         self.model.set_rows(rows)
         t_fill = time.perf_counter()
         if rows:
-            current_row = max(0, min(row_count - 1, current_index - 1))
+            current_row = self._row_for_target_index(current_index)
             if self._last_followed_target_index != current_index:
                 self.table.selectRow(current_row)
                 self.table.scrollTo(self.model.index(current_row, 0), QAbstractItemView.PositionAtCenter)
@@ -281,13 +295,13 @@ class _UndoHistoryDialog(QDialog):
                 "現在位置: {current} / {total}  （ダブルクリックでその履歴位置へ移動）",
             ).format(current=current_index, total=total)
         )
-        if self.model.rowCount() != total or total <= 0:
+        if self.model.rowCount() != total + 1 or total <= 0:
             _undo_perf_log(
                 "dialog.update_current_row fallback_needed "
                 f"table_rows={self.model.rowCount()} total={total} current={current_index}"
             )
             return False
-        row_no = max(0, min(total - 1, current_index - 1))
+        row_no = self._row_for_target_index(current_index)
         if not self.model.update_current_row(row, row_no):
             return False
         self.table.selectRow(row_no)
@@ -311,7 +325,7 @@ class _UndoHistoryDialog(QDialog):
         dropped_oldest: bool,
     ):
         t0 = time.perf_counter()
-        expected_rows = total if dropped_oldest else total - 1
+        expected_rows = total + 1 if dropped_oldest else total
         if total <= 0 or self.model.rowCount() != expected_rows:
             _undo_perf_log(
                 "dialog.update_after_push fallback_needed "
@@ -333,9 +347,10 @@ class _UndoHistoryDialog(QDialog):
             dropped_oldest,
         ):
             return False
-        self.table.selectRow(total - 1)
+        row_no = self._row_for_target_index(current_index)
+        self.table.selectRow(row_no)
         if self._last_followed_target_index != current_index:
-            self.table.scrollTo(self.model.index(total - 1, 0), QAbstractItemView.PositionAtCenter)
+            self.table.scrollTo(self.model.index(row_no, 0), QAbstractItemView.PositionAtCenter)
             self._last_followed_target_index = current_index
         t_done = time.perf_counter()
         _undo_perf_log(
@@ -348,9 +363,7 @@ class _UndoHistoryDialog(QDialog):
         return True
 
     def _target_index_for_row(self, row: int) -> int | None:
-        if 0 <= row < self.model.rowCount():
-            return row + 1
-        return None
+        return self.model.target_index_for_row(row)
 
     def _jump_from_index(self, index):
         target_index = self._target_index_for_row(index.row())
@@ -13753,7 +13766,7 @@ class MainWindow(QMainWindow):
         t_seq = time.perf_counter()
         current_index = len(self._undo_stack)
         entries = list(self._undo_stack) + list(reversed(self._redo_stack))
-        rows = []
+        rows = [self._undo_history_initial_row(current_index)]
         for index, entry in enumerate(entries):
             levels = self._undo_entry_levels(entry)
             level_nos = sorted(levels.keys())
@@ -13786,6 +13799,23 @@ class MainWindow(QMainWindow):
             f"total_ms={(t_done - t0) * 1000:.3f}"
         )
         return rows
+
+    def _undo_history_initial_row(self, current_index: int) -> dict:
+        return {
+            "target_index": 0,
+            "seq": "",
+            "state": (
+                t("main.undo_history.state.current_after", "現在位置")
+                if current_index == 0
+                else t("main.undo_history.state.initial", "初期状態")
+            ),
+            "time": "",
+            "stage": "",
+            "action": t("main.undo_history.action.initial", "初期状態"),
+            "detail": t("main.undo_history.detail.initial", "ROM読込直後"),
+            "is_current_after": current_index == 0,
+            "is_redo": False,
+        }
 
     def _undo_history_row_for_entry(self, entry, target_index: int, current_index: int) -> dict:
         levels = self._undo_entry_levels(entry)
@@ -13841,9 +13871,6 @@ class MainWindow(QMainWindow):
         save_config(self._app_config)
 
     def _on_show_undo_history(self):
-        if not self._undo_stack and not self._redo_stack:
-            self.statusBar().showMessage(t("main.undo.empty", "Undo履歴なし"), 2000)
-            return
         if self._undo_history_dialog is None:
             dialog = _UndoHistoryDialog(
                 self,
@@ -13874,7 +13901,7 @@ class MainWindow(QMainWindow):
         if dialog is None or not dialog.isVisible():
             return
         if not self._undo_stack and not self._redo_stack:
-            dialog.update_rows([], 0)
+            dialog.update_rows(self._build_undo_history_rows(), 0)
             return
         current_index = len(self._undo_stack)
         if latest_only and self._undo_stack and not self._redo_stack:
