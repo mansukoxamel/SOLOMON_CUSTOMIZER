@@ -6,7 +6,9 @@
 
 ファミコン版『ソロモンの鍵』を、ステージ編集からゲーム挙動の調整まで扱えるカスタマイザーです。  
 
-![SOLOMON_CUSTOMIZER main window](docs/images/readme_main_window.png)
+![SOLOMON_CUSTOMIZER main window](docs/images/readme_main_window1.png)
+
+<img src="docs/images/readme_main_window2.png" alt="SOLOMON_CUSTOMIZER stage settings" width="50%">
 
 ## 目玉機能
 
