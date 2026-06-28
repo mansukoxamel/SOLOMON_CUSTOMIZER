@@ -41,6 +41,9 @@ TILES_PER_BANK = CHR_BANK_SIZE // NES_GFX_TILE_BYTE_SIZE  # 512
 TITLE_PRG_OFF = 0x4BC3          # = 0x10 + ($CBB3 - 0x8000)
 TITLE_PRG_END = 0x4F01          # = 0x10 + ($CEF1 - 0x8000) (排他)
 TITLE_PRG_LEN = TITLE_PRG_END - TITLE_PRG_OFF   # 830B
+TITLE_PALETTE_SCRIPT_OFF = 0x10 + (0x958A - 0x8000)
+TITLE_PALETTE_SCRIPT_OFF_US = 0x10 + (0x95F3 - 0x8000)
+TITLE_PALETTE_SCRIPT_LEN = 16
 
 SUPPORTED_REGIONS = ("JP", "US", "JP66", "US66")
 _INTERNAL_WIDE_BOOT_OFF = 0x10 + (0xCC4F - 0x8000)
@@ -434,32 +437,12 @@ def encode_len_stream(cells, base: int = ARCADE_NT_BASE) -> bytes:
 
 # 当方 wide デコーダ ($CC4F) の先頭署名 (LDY#0/LDA($00),Y/CMP#$2F)
 _WA_DEC_SIG = bytes.fromhex("A000B100C92F")
-_US_ARCADE_DEC_OFF = 0x10 + (0xCBA6 - 0x8000)
-_US_ARCADE_DEC_SIG = bytes.fromhex("AC0220A000840284")
-_US_ARCADE_ATTR_OFF = 0x10 + (0xCCAF - 0x8000)
-_US_ARCADE_ATTR_LEN = 21
-
-
-def _is_us_arcade_title_hack(rom_data) -> bool:
-    if len(rom_data) < _US_ARCADE_DEC_OFF + len(_US_ARCADE_DEC_SIG):
-        return False
-    if bytes(rom_data[_US_ARCADE_DEC_OFF:
-                      _US_ARCADE_DEC_OFF + len(_US_ARCADE_DEC_SIG)]) != \
-            _US_ARCADE_DEC_SIG:
-        return False
-    try:
-        return (len(decode_arcade_stream(rom_data, 0x10 + (0xCD5F - 0x8000)))
-                >= 100 and
-                len(decode_arcade_stream(rom_data, 0x10 + (0xCDF5 - 0x8000)))
-                >= 150)
-    except Exception:
-        return False
 
 
 def is_wide_normalized(rom_data) -> bool:
     """この ROM のタイトルが当方 wide 形式へ正規化済か。
       ・新機構 (RAM-trampoline): $CC4F = bootstrap (_WT_BOOT_SIG)
-      ・旧 in-place (apply_wide_arcade_title): $CC4F = decoder
+      ・旧 in-place: $CC4F = decoder
         (_WA_DEC_SIG)
     どちらでも True (decode_title_grid 側で機構を判別)。"""
     o = 0x10 + (0xCC4F - 0x8000)
@@ -769,75 +752,6 @@ def apply_title_top_image_from_png(rom_data, cells) -> list:
     ] + msgs
 
 
-def transcode_title(target_rom, source_rom) -> list:
-    """★タイトル相互移植 (本命): source のタイトルを target へ。
-
-    リージョンを両 ROM で自動判定し、各版の ★対応ピース位置へ
-    バイトを verbatim コピー:
-      ・nametable (配置, 402B)  ・attribute (色区分, 21B)
-      ・CHR bank3 (タイル絵, 8192B)
-    コードは一切コピーしない (各版の描画コードが自分の位置の
-    データを読むため、US↔JP どちらの向きでも崩れない)。
-
-    JP/US で各ピースは ★同一長ゆえ超過不可能。位置+署名 二重検証、
-    非対応/破損/長さ不一致は TitleScreenError で中止 (フォールバック
-    禁止)。CRC は無関係 (既知ピースのコピーゆえ要求しない)。
-
-    戻り値=変更説明リスト。
-    """
-    dst_region = _verify(target_rom)
-    src_region = _verify(source_rom)
-    db = region_mod.base_region(dst_region)
-    sb = region_mod.base_region(src_region)
-    if sb not in _TITLE_PIECES or db not in _TITLE_PIECES:
-        raise TitleScreenError(
-            f"タイトルピース表が無い region (src={sb}/dst={db})。"
-            "JP/US のみ対応。中止。")
-    src_t = _TITLE_PIECES[sb]
-    dst_t = _TITLE_PIECES[db]
-    changed = []
-    any_diff = False
-
-    # --- PRG ピース (nametable / attribute): file offset 不変 ---
-    for name in ("nametable", "attribute"):
-        s_off, s_len = src_t[name]
-        d_off, d_len = dst_t[name]
-        if s_len != d_len:                      # 設計上一致するはず
-            raise TitleScreenError(
-                f"{name} 長さ不一致 (src {s_len} != dst {d_len})。"
-                "解析前提崩れのため中止。")
-        if s_off + s_len > len(source_rom) or d_off + d_len > len(target_rom):
-            raise TitleScreenError(
-                f"{name} が ROM 範囲外。破損の可能性ゆえ中止。")
-        blk = bytes(source_rom[s_off:s_off + s_len])
-        if bytes(target_rom[d_off:d_off + d_len]) != blk:
-            target_rom[d_off:d_off + d_len] = blk
-            any_diff = True
-        changed.append(
-            f"{name} {sb}→{db} (dst 0x{d_off:X} ← src 0x{s_off:X}, "
-            f"{s_len}B)")
-
-    # --- CHR bank3 (タイル絵): 動的 offset ---
-    s_c = chr_bank3_offset(source_rom)
-    d_c = chr_bank3_offset(target_rom)
-    if s_c + CHR_BANK_SIZE > len(source_rom) or \
-            d_c + CHR_BANK_SIZE > len(target_rom):
-        raise TitleScreenError("CHR bank3 が ROM 範囲外。中止。")
-    cblk = bytes(source_rom[s_c:s_c + CHR_BANK_SIZE])
-    if bytes(target_rom[d_c:d_c + CHR_BANK_SIZE]) != cblk:
-        target_rom[d_c:d_c + CHR_BANK_SIZE] = cblk
-        any_diff = True
-    changed.append(
-        f"CHR bank3 (絵) {sb}→{db} (dst 0x{d_c:X} ← src 0x{s_c:X}, "
-        f"{CHR_BANK_SIZE}B)")
-
-    if not any_diff:
-        return [f"タイトルは移植元({sb})と同一でした (変更なし)。"]
-    changed.append(
-        "※色(パレット)は移植先の元のまま (v1)。配置・絵は移植済。")
-    return changed
-
-
 def _stock_title_streams_for_import(rom_data):
     """Return two stock title grids and the base region for JP/US sources."""
     region = _verify(rom_data)
@@ -872,23 +786,76 @@ def _wide_title_streams_for_import(rom_data):
     return grid, [None] * _NT_CELLS
 
 
-def _us_arcade_title_streams_for_import(rom_data):
-    """Decode the known US arcade-title hack stream layout."""
-    grids = []
-    for cpu in (0xCD5F, 0xCDF5):
-        grid = [None] * _NT_CELLS
-        for addr, tile in decode_arcade_stream(
-                rom_data, 0x10 + (cpu - 0x8000)):
-            idx = addr - ARCADE_NT_BASE
-            if 0 <= idx < _NT_CELLS:
-                grid[idx] = tile
-        grids.append(grid)
-    # The US arcade hack also writes an 18-cell fixed strip from code
-    # ($CBC3 -> PPU $29A6, tile $63-$74). It is part of the banner art, not
-    # present in either stream, so merge it into block A before transcoding.
-    for k in range(18):
-        grids[0][_WJP_CBC3_STRIP0 + k] = 0x63 + k
-    return grids[0], grids[1]
+def _top_title_attr_table_for_import(source_rom, source_kind: str,
+                                     target_rom) -> bytes:
+    """Merge source title attributes only over the 256x64 top title band."""
+    if source_kind == "wide":
+        src_table = _wt_read_title_attr_table_or_default(source_rom)
+    else:
+        src_table = _wt_attr_table_default(source_rom)
+    src_attr = _expanded_attr_from_table(src_table)
+    dst_attr = _expanded_attr_from_table(
+        _wt_read_title_attr_table_or_default(target_rom))
+    br0 = _TITLE_TOP_ROW0 // 2
+    br1 = (_TITLE_TOP_ROW0 + _TITLE_TOP_ROWS - 1) // 2
+    for br in range(br0, br1 + 1):
+        for bc in range(_WT_TITLE_ATTR_BLOCK_W):
+            idx = br * _WT_TITLE_ATTR_BLOCK_W + bc
+            dst_attr[idx] = src_attr[idx]
+    return _pack_expanded_attr_table(dst_attr)
+
+
+def _read_title_palette_for_import(rom_data) -> list[int]:
+    """Read the 16 BG palette bytes used by the source title screen."""
+    region = _verify(rom_data)
+    base = region_mod.base_region(region)
+    candidates = []
+    if base == "JP":
+        candidates.append(TITLE_PALETTE_SCRIPT_OFF)
+    elif base == "US":
+        candidates.append(TITLE_PALETTE_SCRIPT_OFF_US)
+    start = 0
+    sig = bytes((0x3F, 0x00, 0x4F))
+    while True:
+        pos = bytes(rom_data).find(sig, start)
+        if pos < 0:
+            break
+        candidates.append(pos)
+        start = pos + 1
+    seen = set()
+    for off in candidates:
+        if off in seen:
+            continue
+        seen.add(off)
+        if off + 3 + TITLE_PALETTE_SCRIPT_LEN > len(rom_data):
+            continue
+        if bytes(rom_data[off:off + 3]) != sig:
+            continue
+        return [
+            int(rom_data[off + 3 + i]) & 0x3F
+            for i in range(TITLE_PALETTE_SCRIPT_LEN)
+        ]
+    raise TitleScreenError("source title palette script was not found.")
+
+
+def _write_title_palette_from_import(target_rom, colors) -> bool:
+    """Write the 16 imported title BG palette bytes into the JP target script."""
+    off = TITLE_PALETTE_SCRIPT_OFF
+    if off + 3 + TITLE_PALETTE_SCRIPT_LEN > len(target_rom):
+        raise TitleScreenError("target title palette script is outside ROM.")
+    if bytes(target_rom[off:off + 2]) != bytes((0x3F, 0x00)):
+        raise TitleScreenError("target title palette script signature mismatch.")
+    ctrl = int(target_rom[off + 2]) & 0xFF
+    if not (ctrl & 0x40) or (ctrl & 0x3F) + 1 < TITLE_PALETTE_SCRIPT_LEN:
+        raise TitleScreenError("target title palette script length is not 16 bytes.")
+    changed = False
+    for i, color in enumerate(colors[:TITLE_PALETTE_SCRIPT_LEN]):
+        val = int(color) & 0x3F
+        pos = off + 3 + i
+        if (int(target_rom[pos]) & 0x3F) != val:
+            target_rom[pos] = val
+            changed = True
+    return changed
 
 
 def _wt_title_oam_table_file() -> int:
@@ -1707,15 +1674,14 @@ def transcode_title(target_rom, source_rom) -> list:
     if is_wide_normalized(source_rom):
         grid_a, grid_b = _wide_title_streams_for_import(source_rom)
         source_kind = "wide"
-    elif _is_us_arcade_title_hack(source_rom):
-        grid_a, grid_b = _us_arcade_title_streams_for_import(source_rom)
-        source_kind = "us-arcade"
     else:
         _base, grid_a, grid_b = _stock_title_streams_for_import(source_rom)
         source_kind = "stock"
 
+    title_attr_table = _top_title_attr_table_for_import(
+        source_rom, source_kind, target_rom)
     len_a, len_b = _write_wide_title_streams_for_import(
-        target_rom, grid_a, grid_b)
+        target_rom, grid_a, grid_b, title_attr_table=title_attr_table)
 
     s_chr = chr_bank3_offset(source_rom)
     d_chr = chr_bank3_offset(target_rom)
@@ -1724,42 +1690,18 @@ def transcode_title(target_rom, source_rom) -> list:
         raise TitleScreenError("CHR bank3 is outside the ROM range.")
     target_rom[d_chr:d_chr + CHR_BANK_SIZE] = \
         bytes(source_rom[s_chr:s_chr + CHR_BANK_SIZE])
-
-    dst_attr_off, dst_attr_len = _TITLE_PIECES["JP"]["attribute"]
-    color_msgs = []
-    if source_kind == "us-arcade":
-        if _US_ARCADE_ATTR_OFF + _US_ARCADE_ATTR_LEN > len(source_rom):
-            raise TitleScreenError(
-                "US arcade title attribute table is outside the source ROM.")
-        if dst_attr_len != _US_ARCADE_ATTR_LEN:
-            raise TitleScreenError(
-                "internal error: JP title attribute size is not 21 bytes.")
-        target_rom[dst_attr_off:dst_attr_off + dst_attr_len] = \
-            bytes(source_rom[_US_ARCADE_ATTR_OFF:
-                             _US_ARCADE_ATTR_OFF + _US_ARCADE_ATTR_LEN])
-        color_msgs.append("arcade attribute copied: $CCAF -> $CD58")
-        for off, before, after_bytes in _WJP_COLOR:
-            if bytes(target_rom[off:off + len(before)]) == before:
-                target_rom[off:off + len(after_bytes)] = after_bytes
-                color_msgs.append(f"arcade color patch applied at 0x{off:X}")
-            else:
-                color_msgs.append(
-                    f"arcade color patch skipped at 0x{off:X} "
-                    "(signature mismatch)")
-    else:
-        src_attr_off, src_attr_len = _TITLE_PIECES[sb]["attribute"]
-        if src_attr_len == dst_attr_len:
-            target_rom[dst_attr_off:dst_attr_off + dst_attr_len] = \
-                bytes(source_rom[src_attr_off:src_attr_off + src_attr_len])
+    palette = _read_title_palette_for_import(source_rom)
+    palette_changed = _write_title_palette_from_import(target_rom, palette)
 
     after = decode_title_grid(target_rom)
     msg = [
         f"title imported: {src_region} {source_kind} -> {dst_region} wide",
         f"bank1 streams: A={len_a}B / B={len_b}B, cells={after['cells']}",
         f"CHR bank3 copied: 0x{s_chr:X} -> 0x{d_chr:X} ({CHR_BANK_SIZE}B)",
+        "title BG palette imported: "
+        + ("changed" if palette_changed else "already identical"),
         "target remains mapper66 wide-title; bank0 Room Flag cave is untouched.",
     ]
-    msg.extend(color_msgs)
     return msg
 
 
@@ -1868,18 +1810,10 @@ def patched_rom_from_ips(base_rom, ips_bytes: bytes) -> bytearray:
 
 
 # ============================================================
-# Phase2: 広域 arcade タイトル移植 (JP) — R196-R201 / 実機確定
+# Phase2: wide-title stream decoder assembly helpers
 # ============================================================
-# 確定 recipe (build_TitleWide_JP_v9.py = 実機検証済 CRC0BF323D8):
-#   v3広域描画 (decoder@$CC4F / banner+$CBC3固定帯@$CEA3 /
-#   山@JP cave / $CCB6 ptr→cave / CHR=arcade) + $CD58←arcade
-#   $CCAF (必須) + 色4点。全パッチ ★before署名検証・不一致は中止。
-# ★著作権: arcade の CHR/stream/attribute は ★ユーザー所有の
-#   arcade ROM から抽出 (ツールに埋め込まない)。埋め込むのは
-#   当方 6502 デコーダと色 patch 定数 (graphics でない) のみ。
-# ★JP 専用: cave/番地が JP 固有。US へは適用しない (region gate)。
-# ★PRG offset は file 値 (mapper66 拡張後も <0x8010 は verbatim
-#   ゆえ不変)。CHR bank3 のみ chr_bank3_offset() で動的算出。
+# The old US arcade title import path has been removed.  These tables are only
+# used to assemble the app's current JP mapper66 wide-title LEN stream decoder.
 
 _WA_SZ = {"LDYi": 2, "CMPi": 2, "ADCi": 2, "LDAz": 2, "STAz": 2,
           "INCz": 2, "LDAiy": 2, "ADCz": 2, "LDAa": 3, "STAa": 3,
@@ -1892,19 +1826,6 @@ _WA_OPC = {"LDYi": 0xA0, "CMPi": 0xC9, "ADCi": 0x69, "LDAz": 0xA5,
            "JMPABS": 0x4C, "BEQ": 0xF0, "BNE": 0xD0, "BCC": 0x90,
            "INY": 0xC8, "CLC": 0x18, "TYA": 0x98, "TAX": 0xAA,
            "DEX": 0xCA, "RTS": 0x60}
-_WA_ARCADE_PROG = [
-    ("LDYi", 0), ("CMD",), ("LDAiy", 0), ("CMPi", 0x2F),
-    ("BEQ", "DONE"), ("STAz", 3), ("INY",), ("LDAiy", 0),
-    ("STAz", 2), ("LDAz", 0), ("CLC",), ("ADCi", 2),
-    ("STAz", 0), ("BCC", "H1"), ("INCz", 1), ("H1",),
-    ("LDAa", 0x2002), ("LDAz", 3), ("STAa", 0x2006),
-    ("LDAz", 2), ("STAa", 0x2006), ("LDAa", 0x0300),
-    ("STAa", 0x2000), ("LDYi", 0), ("RUN",), ("LDAiy", 0),
-    ("CMPi", 0x30), ("BCC", "ENDR"), ("STAa", 0x2007), ("INY",),
-    ("BNE", "RUN"), ("ENDR",), ("TYA",), ("CLC",), ("ADCz", 0),
-    ("STAz", 0), ("BCC", "E1"), ("INCz", 1), ("E1",),
-    ("LDYi", 0), ("JMP", "CMD"), ("DONE",), ("LDXa", 0x2002),
-    ("RTS",)]
 _WA_LEN_PROG = [
     ("LDYi", 0), ("CMD",), ("LDAiy", 0), ("CMPi", LEN_STREAM_TERM),
     ("BEQ", "DONE"), ("STAz", 3), ("INY",), ("LDAiy", 0),
@@ -1925,16 +1846,6 @@ _WJP_SIG = {
     0xCEA3: bytes.fromhex("5926D7D4D6D1"),
     0xCE08: bytes.fromhex("5306E8"),
 }
-_WJP_COLOR = [
-    (0x156D, bytes.fromhex("E650"), bytes.fromhex("EA49")),
-    (0x1579, bytes.fromhex("240B1E1D1D1817"),
-     bytes.fromhex("00000000000000")),
-    (0x15A6, bytes.fromhex("273C30"), bytes.fromhex("2C2716")),
-    (0x15AB, bytes.fromhex("02"), bytes.fromhex("16")),
-]
-_WJP_CD58_BEFORE = bytes.fromhex(
-    "F5F5F5F5F7FFFFFF565A5A9A77FFFFFF6FAFAFAF7F")
-_WJP_CBC3_STRIP0 = 0x29A6 - ARCADE_NT_BASE      # =422 (固定帯先頭cell)
 
 
 def _wjp_cf(cpu):
@@ -2602,131 +2513,6 @@ def _assemble_wa_decoder(base_cpu=0xCC4F, prog=None):
             code += bytes([it[1] & 0xFF, (it[1] >> 8) & 0xFF])
             pc += 3
     return bytes(code)
-
-
-def _wa_grid(src, start_cpu):
-    w = decode_arcade_stream(src, _wjp_cf(start_cpu))
-    g = [None] * _NT_CELLS
-    for a, t in w:
-        i = a - ARCADE_NT_BASE
-        if 0 <= i < _NT_CELLS:
-            g[i] = t
-    return g, len(w)
-
-
-def apply_wide_arcade_title(target_rom, source_rom) -> list:
-    """★広域 arcade タイトルを ★JP ROM(target) へ移植。
-    arcade の絵/配置(CHR bank3 / stream block1+2 / $CCAF
-    attribute)は ★source_rom(ユーザー所有の arcade-wide-title
-    ROM)から抽出。当方 6502 デコーダ + 色 patch 定数のみ埋め込み。
-    全パッチ before 署名検証、不一致は TitleScreenError で中止
-    (フォールバック禁止)。確定 recipe(R201 /
-    build_TitleWide_JP_v9.py、実機検証 CRC0BF323D8)と byte 等価。
-
-    制約: target は ★JP/JP66 のみ (cave/番地が JP 固有。US$9604
-    相当を JP 同番地に当てると破壊ゆえ US 不可)。
-    """
-    raise TitleScreenError(
-        "apply_wide_arcade_title is disabled: the old v9 recipe writes to "
-        "the bank0 Room Flag cave. Use normalize_title_to_wide() and "
-        "transcode_title() instead.")
-    tgt_region = _verify(target_rom)
-    src_region = _verify(source_rom)
-    if region_mod.base_region(tgt_region) != "JP":
-        raise TitleScreenError(
-            "広域 arcade タイトルは ★JP ROM 専用です "
-            f"(対象 region={tgt_region})。US 等には適用不可"
-            "(cave/番地が JP 固有)。")
-
-    g1, n1 = _wa_grid(source_rom, 0xCD5F)
-    g2, n2 = _wa_grid(source_rom, 0xCDF5)
-    if n1 < 100 or n2 < 150:
-        raise TitleScreenError(
-            f"移植元が arcade 広域タイトル ROM ではありません "
-            f"(block1={n1}/block2={n2} writes、期待 ≳135/≳233)。"
-            "アーケード版バナー適用済の所有 ROM を指定してください。")
-    s_chr = chr_bank3_offset(source_rom)
-    s_ccaf = _wjp_cf(0xCCAF)
-    if s_chr + CHR_BANK_SIZE > len(source_rom) or \
-            s_ccaf + 21 > len(source_rom):
-        raise TitleScreenError("移植元 ROM が小さすぎます。中止。")
-
-    for cpu, sig in _WJP_SIG.items():
-        o = _wjp_cf(cpu)
-        if bytes(target_rom[o:o+len(sig)]) != sig:
-            raise TitleScreenError(
-                f"対象 JP ROM の ${cpu:04X} が想定(clean JP)と"
-                "不一致。改造/別版の可能性ゆえ中止 (本機能は "
-                "clean JP / 本アプリ把握の JP のみ)。")
-    cd58_o = _wjp_cf(0xCD58)
-    if bytes(target_rom[cd58_o:cd58_o+21]) != _WJP_CD58_BEFORE:
-        raise TitleScreenError(
-            "$CD58(attribute)が clean JP と不一致。中止。")
-    for off, before, _aft in _WJP_COLOR:
-        if bytes(target_rom[off:off+len(before)]) != before:
-            raise TitleScreenError(
-                f"色 patch 0x{off:X} が想定 before と不一致。中止。")
-
-    o, e, r0, best = _wjp_cf(0xBBDE), _wjp_cf(0xC200), None, None
-    while o < e:
-        if target_rom[o] == 0xEA:
-            if r0 is None:
-                r0 = o
-            if o - r0 + 1 >= 280:
-                best = r0
-                break
-        else:
-            r0 = None
-        o += 1
-    if best is None:
-        raise TitleScreenError(
-            "JP cave ($BBDE-$C1FF 280B 連続$EA) 未確保。中止。")
-    cave_cpu = 0x8000 + (best - 0x10)
-
-    code = _assemble_wa_decoder(0xCC4F)
-    if len(code) > _wjp_cf(0xCCB6) - _wjp_cf(0xCC4F):
-        raise TitleScreenError("内部エラー: デコーダ枠超過。")
-
-    gb = list(g1)
-    for k in range(18):
-        gb[_WJP_CBC3_STRIP0 + k] = 0x63 + k          # tile $63..$74
-    banner = encode_arcade_stream(gb)
-    mount = encode_arcade_stream(g2)
-    cap_cea3 = _wjp_cf(0xCF9A) - _wjp_cf(0xCEA3)
-    ci, carun = best, 0
-    while target_rom[ci] == 0xEA:
-        carun += 1
-        ci += 1
-    if len(banner) > cap_cea3:
-        raise TitleScreenError(
-            f"banner {len(banner)}B が枠 {cap_cea3}B 超過。中止。")
-    if len(mount) > carun:
-        raise TitleScreenError(
-            f"山 {len(mount)}B が cave {carun}B 超過。中止。")
-
-    t_chr = chr_bank3_offset(target_rom)
-    if t_chr + CHR_BANK_SIZE > len(target_rom):
-        raise TitleScreenError("対象 CHR bank3 が範囲外。中止。")
-    target_rom[_wjp_cf(0xCC4F):_wjp_cf(0xCC4F)+len(code)] = code
-    target_rom[_wjp_cf(0xCEA3):_wjp_cf(0xCEA3)+len(banner)] = banner
-    target_rom[best:best+len(mount)] = bytes(mount)
-    target_rom[_wjp_cf(0xCCBA)] = cave_cpu & 0xFF
-    target_rom[_wjp_cf(0xCCBE)] = (cave_cpu >> 8) & 0xFF
-    target_rom[t_chr:t_chr+CHR_BANK_SIZE] = \
-        bytes(source_rom[s_chr:s_chr+CHR_BANK_SIZE])
-    target_rom[cd58_o:cd58_o+21] = \
-        bytes(source_rom[s_ccaf:s_ccaf+21])
-    for off, _bf, after in _WJP_COLOR:
-        target_rom[off:off+len(after)] = after
-
-    return [
-        f"広域 arcade タイトルを JP へ移植 ({src_region}→"
-        f"{tgt_region})。decoder@$CC4F / banner@$CEA3 "
-        f"({len(banner)}B) / 山@${cave_cpu:04X} ({len(mount)}B) / "
-        f"$CCB6→cave / CHR bank3 / $CD58←$CCAF / 色4点。",
-        "※実機/エミュで要確認 (タイトル / 1面前 SHRINE-ROOM / "
-        "ゲーム内 / デモ・コンティニュー)。",
-    ]
 
 
 def _grid_from_cc4f(rom, start_cpu):
