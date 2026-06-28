@@ -1643,6 +1643,14 @@ _TRANSLATIONS = {
         "ja": "Undo/Redo履歴を一覧表示し、ダブルクリックで履歴位置へジャンプ",
         "en": "Show Undo/Redo history and double-click to jump to a history position.",
     },
+    "main.undo.button.tooltip": {
+        "ja": "1つ前の編集状態へ戻る",
+        "en": "Undo one edit.",
+    },
+    "main.redo.button.tooltip": {
+        "ja": "Undoした編集状態へ進む",
+        "en": "Redo one edit.",
+    },
     "main.undo_history.title": {
         "ja": "Undo/Redo履歴",
         "en": "Undo/Redo History",

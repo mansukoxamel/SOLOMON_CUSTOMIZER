@@ -1896,12 +1896,47 @@ class MainWindow(QMainWindow):
         btn_row.addWidget(self.btn_history, 1)
         fl.addLayout(btn_row)
 
+        undo_row = QHBoxLayout()
+        undo_row.setSpacing(2)
         self.btn_undo_history = QPushButton(t("main.undo_history.button", "Undo一覧"))
         self.btn_undo_history.setToolTip(
             t("main.undo_history.button.tooltip", "Undo/Redo履歴を一覧表示し、ダブルクリックで履歴位置へジャンプ")
         )
         self.btn_undo_history.clicked.connect(self._on_show_undo_history)
-        fl.addWidget(self.btn_undo_history)
+        undo_row.addWidget(self.btn_undo_history, 1)
+
+        self.btn_undo_step = QToolButton()
+        self.btn_undo_step.setObjectName("undoStepButton")
+        self.btn_undo_step.setText("◀")
+        self.btn_undo_step.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        self.btn_undo_step.setToolTip(t("main.undo.button.tooltip", "1つ前の編集状態へ戻る"))
+        self.btn_undo_step.setAutoRaise(True)
+        self.btn_undo_step.setFixedSize(48, 24)
+        self.btn_undo_step.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.btn_undo_step.setStyleSheet(
+            "QToolButton#undoStepButton { color: #54ff4d; }"
+            "QToolButton#undoStepButton:disabled { color: #555555; }"
+        )
+        self.btn_undo_step.clicked.connect(self._on_undo)
+        self.btn_undo_step.setEnabled(False)
+        undo_row.addWidget(self.btn_undo_step)
+
+        self.btn_redo_step = QToolButton()
+        self.btn_redo_step.setObjectName("redoStepButton")
+        self.btn_redo_step.setText("▶")
+        self.btn_redo_step.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        self.btn_redo_step.setToolTip(t("main.redo.button.tooltip", "Undoした編集状態へ進む"))
+        self.btn_redo_step.setAutoRaise(True)
+        self.btn_redo_step.setFixedSize(48, 24)
+        self.btn_redo_step.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.btn_redo_step.setStyleSheet(
+            "QToolButton#redoStepButton { color: #54ff4d; }"
+            "QToolButton#redoStepButton:disabled { color: #555555; }"
+        )
+        self.btn_redo_step.clicked.connect(self._on_redo)
+        self.btn_redo_step.setEnabled(False)
+        undo_row.addWidget(self.btn_redo_step)
+        fl.addLayout(undo_row)
 
         self.lbl_rom = QLabel(t("main.file.no_rom", "(未読込)"))
         self.lbl_rom.setWordWrap(False)
@@ -2107,7 +2142,7 @@ class MainWindow(QMainWindow):
 
         # 編集ツール (2列グリッド)
         from PyQt5.QtWidgets import (
-            QToolButton, QMenu as _QMenu, QGridLayout as _QGrid)
+            QMenu as _QMenu, QGridLayout as _QGrid)
         edit_group = QGroupBox(t("main.tools.group", "編集ツール"))
         el = _QGrid(edit_group)
         el.setColumnStretch(0, 1)
@@ -2414,7 +2449,13 @@ class MainWindow(QMainWindow):
             if isinstance(widget, QGroupBox):
                 widget.setMinimumWidth(0)
             if isinstance(widget, (QLabel, QPushButton, QToolButton, QCheckBox, QRadioButton)):
-                if widget.objectName() in ("leftFormLabel", "tilesetRadio", "tilesetLockLabel"):
+                if widget.objectName() in (
+                    "leftFormLabel",
+                    "tilesetRadio",
+                    "tilesetLockLabel",
+                    "undoStepButton",
+                    "redoStepButton",
+                ):
                     continue
                 widget.setMinimumWidth(0)
                 policy = widget.sizePolicy()
@@ -7077,6 +7118,7 @@ class MainWindow(QMainWindow):
             popped = True
         self._redo_stack.clear()
         self._set_dirty(True)
+        self._update_undo_redo_buttons()
         self._refresh_undo_history_dialog(latest_only=True)
 
     def _annotate_undo_entry(self, entry, action=None, detail=None, positions=None):
@@ -7164,6 +7206,7 @@ class MainWindow(QMainWindow):
             if self._undo_stack and self._undo_stack[-1] is entry:
                 self._undo_stack.pop()
                 self._set_dirty(bool(mp.get("dirty_before_move", self._dirty)))
+                self._update_undo_redo_buttons()
                 self._refresh_undo_history_dialog()
             return
         self._annotate_undo_entry(
@@ -10453,6 +10496,8 @@ class MainWindow(QMainWindow):
         self.btn_undo_history.setToolTip(
             t("main.undo_history.button.tooltip", "Undo/Redo履歴を一覧表示し、ダブルクリックで履歴位置へジャンプ")
         )
+        self.btn_undo_step.setToolTip(t("main.undo.button.tooltip", "1つ前の編集状態へ戻る"))
+        self.btn_redo_step.setToolTip(t("main.redo.button.tooltip", "Undoした編集状態へ進む"))
         self.btn_rom_validation.setToolTip(
             t("main.file.validation.tooltip", "読み込んだROMの不整合らしき配置を一覧表示")
         )
@@ -10787,6 +10832,7 @@ class MainWindow(QMainWindow):
             self._log(
                 f"Undo/Redo履歴を復元: undo={len(undo)}, redo={len(redo)}"
             )
+            self._update_undo_redo_buttons()
             return True
         except Exception as e:
             self._clear_undo_history()
@@ -13650,6 +13696,7 @@ class MainWindow(QMainWindow):
         # 未保存マーク
         self._set_dirty(True)
         t_dirty = time.perf_counter()
+        self._update_undo_redo_buttons()
         self._refresh_undo_history_dialog()
         t_refresh = time.perf_counter()
         _undo_perf_log(
@@ -13993,9 +14040,17 @@ class MainWindow(QMainWindow):
             3000,
         )
 
+    def _update_undo_redo_buttons(self):
+        can_use_history = bool(self.levels)
+        if hasattr(self, "btn_undo_step"):
+            self.btn_undo_step.setEnabled(can_use_history and bool(self._undo_stack))
+        if hasattr(self, "btn_redo_step"):
+            self.btn_redo_step.setEnabled(can_use_history and bool(self._redo_stack))
+
     def _on_undo(self):
         if not self._undo_stack or not self.levels:
             self.statusBar().showMessage(t("main.undo.empty", "Undo履歴なし"), 2000)
+            self._update_undo_redo_buttons()
             return
         entry = self._undo_stack.pop()
         # 現在状態を redo に push
@@ -14015,11 +14070,13 @@ class MainWindow(QMainWindow):
             ),
             2500,
         )
+        self._update_undo_redo_buttons()
         self._refresh_undo_history_dialog()
 
     def _on_redo(self):
         if not self._redo_stack or not self.levels:
             self.statusBar().showMessage(t("main.redo.empty", "Redo履歴なし"), 2000)
+            self._update_undo_redo_buttons()
             return
         entry = self._redo_stack.pop()
         self._undo_stack.append(self._snapshot_current_for_undo_entry(entry))
@@ -14037,6 +14094,7 @@ class MainWindow(QMainWindow):
             ),
             2500,
         )
+        self._update_undo_redo_buttons()
         self._refresh_undo_history_dialog()
 
     def _clear_undo_history(self):
@@ -14044,6 +14102,7 @@ class MainWindow(QMainWindow):
         self._undo_stack.clear()
         self._redo_stack.clear()
         self._undo_sequence_next = 1
+        self._update_undo_redo_buttons()
         self._refresh_undo_history_dialog()
 
     def _undo_entry_levels(self, entry):
