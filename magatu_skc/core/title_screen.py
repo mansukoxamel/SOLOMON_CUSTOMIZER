@@ -41,6 +41,9 @@ TILES_PER_BANK = CHR_BANK_SIZE // NES_GFX_TILE_BYTE_SIZE  # 512
 TITLE_PRG_OFF = 0x4BC3          # = 0x10 + ($CBB3 - 0x8000)
 TITLE_PRG_END = 0x4F01          # = 0x10 + ($CEF1 - 0x8000) (排他)
 TITLE_PRG_LEN = TITLE_PRG_END - TITLE_PRG_OFF   # 830B
+TITLE_PALETTE_SCRIPT_OFF = 0x10 + (0x958A - 0x8000)
+TITLE_PALETTE_SCRIPT_OFF_US = 0x10 + (0x95F3 - 0x8000)
+TITLE_PALETTE_SCRIPT_LEN = 16
 
 SUPPORTED_REGIONS = ("JP", "US", "JP66", "US66")
 _INTERNAL_WIDE_BOOT_OFF = 0x10 + (0xCC4F - 0x8000)
@@ -800,6 +803,59 @@ def _top_title_attr_table_for_import(source_rom, source_kind: str,
             idx = br * _WT_TITLE_ATTR_BLOCK_W + bc
             dst_attr[idx] = src_attr[idx]
     return _pack_expanded_attr_table(dst_attr)
+
+
+def _read_title_palette_for_import(rom_data) -> list[int]:
+    """Read the 16 BG palette bytes used by the source title screen."""
+    region = _verify(rom_data)
+    base = region_mod.base_region(region)
+    candidates = []
+    if base == "JP":
+        candidates.append(TITLE_PALETTE_SCRIPT_OFF)
+    elif base == "US":
+        candidates.append(TITLE_PALETTE_SCRIPT_OFF_US)
+    start = 0
+    sig = bytes((0x3F, 0x00, 0x4F))
+    while True:
+        pos = bytes(rom_data).find(sig, start)
+        if pos < 0:
+            break
+        candidates.append(pos)
+        start = pos + 1
+    seen = set()
+    for off in candidates:
+        if off in seen:
+            continue
+        seen.add(off)
+        if off + 3 + TITLE_PALETTE_SCRIPT_LEN > len(rom_data):
+            continue
+        if bytes(rom_data[off:off + 3]) != sig:
+            continue
+        return [
+            int(rom_data[off + 3 + i]) & 0x3F
+            for i in range(TITLE_PALETTE_SCRIPT_LEN)
+        ]
+    raise TitleScreenError("source title palette script was not found.")
+
+
+def _write_title_palette_from_import(target_rom, colors) -> bool:
+    """Write the 16 imported title BG palette bytes into the JP target script."""
+    off = TITLE_PALETTE_SCRIPT_OFF
+    if off + 3 + TITLE_PALETTE_SCRIPT_LEN > len(target_rom):
+        raise TitleScreenError("target title palette script is outside ROM.")
+    if bytes(target_rom[off:off + 2]) != bytes((0x3F, 0x00)):
+        raise TitleScreenError("target title palette script signature mismatch.")
+    ctrl = int(target_rom[off + 2]) & 0xFF
+    if not (ctrl & 0x40) or (ctrl & 0x3F) + 1 < TITLE_PALETTE_SCRIPT_LEN:
+        raise TitleScreenError("target title palette script length is not 16 bytes.")
+    changed = False
+    for i, color in enumerate(colors[:TITLE_PALETTE_SCRIPT_LEN]):
+        val = int(color) & 0x3F
+        pos = off + 3 + i
+        if (int(target_rom[pos]) & 0x3F) != val:
+            target_rom[pos] = val
+            changed = True
+    return changed
 
 
 def _wt_title_oam_table_file() -> int:
@@ -1634,12 +1690,16 @@ def transcode_title(target_rom, source_rom) -> list:
         raise TitleScreenError("CHR bank3 is outside the ROM range.")
     target_rom[d_chr:d_chr + CHR_BANK_SIZE] = \
         bytes(source_rom[s_chr:s_chr + CHR_BANK_SIZE])
+    palette = _read_title_palette_for_import(source_rom)
+    palette_changed = _write_title_palette_from_import(target_rom, palette)
 
     after = decode_title_grid(target_rom)
     msg = [
         f"title imported: {src_region} {source_kind} -> {dst_region} wide",
         f"bank1 streams: A={len_a}B / B={len_b}B, cells={after['cells']}",
         f"CHR bank3 copied: 0x{s_chr:X} -> 0x{d_chr:X} ({CHR_BANK_SIZE}B)",
+        "title BG palette imported: "
+        + ("changed" if palette_changed else "already identical"),
         "target remains mapper66 wide-title; bank0 Room Flag cave is untouched.",
     ]
     return msg
