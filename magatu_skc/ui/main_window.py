@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import xml.etree.ElementTree as ET
 from html import escape
 from pathlib import Path
@@ -16,10 +17,10 @@ from PyQt5.QtWidgets import (
     QPushButton, QSpinBox, QFileDialog, QMessageBox, QSplitter,
     QGroupBox, QComboBox, QCheckBox, QListWidget, QApplication,
     QToolBar, QAction, QRadioButton, QButtonGroup, QShortcut, QToolButton,
-    QSizePolicy, QMenu, QDialog, QTableWidget, QTableWidgetItem, QHeaderView,
+    QSizePolicy, QMenu, QDialog, QTableView, QHeaderView,
     QAbstractItemView, QDialogButtonBox
 )
-from PyQt5.QtCore import Qt, QSize, QEvent, QTimer, QUrl, QPoint
+from PyQt5.QtCore import Qt, QSize, QEvent, QTimer, QUrl, QPoint, QAbstractTableModel, QModelIndex
 from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor, QPainter, QPen, QImage
 from PyQt5.QtMultimedia import QSoundEffect
 
@@ -77,6 +78,7 @@ from .rom_validation_dialog import RomValidationDialog
 
 APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
 WINDOW_STATE_DEBUG_ENV = "SOLOMON_WINDOW_STATE_DEBUG"
+UNDO_PERF_LOG_ENV = "SOLOMON_UNDO_PERF_LOG"
 
 
 class _StageNumberLabel(QLabel):
@@ -97,10 +99,107 @@ class _StageNumberLabel(QLabel):
         super().wheelEvent(event)
 
 
+class _UndoHistoryTableModel(QAbstractTableModel):
+    COLUMNS = (
+        ("seq", "main.undo_history.col.no", "No."),
+        ("state", "main.undo_history.col.state", "状態"),
+        ("time", "main.undo_history.col.time", "時刻"),
+        ("stage", "main.undo_history.col.stage", "面"),
+        ("action", "main.undo_history.col.action", "操作"),
+        ("detail", "main.undo_history.col.detail", "座標/詳細"),
+    )
+
+    def __init__(self, rows: list[dict] | None = None, parent=None):
+        super().__init__(parent)
+        self._rows = list(rows or [])
+
+    def rowCount(self, parent=QModelIndex()):
+        if parent.isValid():
+            return 0
+        return len(self._rows)
+
+    def columnCount(self, parent=QModelIndex()):
+        if parent.isValid():
+            return 0
+        return len(self.COLUMNS)
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return None
+        row_no = index.row()
+        col_no = index.column()
+        if not (0 <= row_no < len(self._rows) and 0 <= col_no < len(self.COLUMNS)):
+            return None
+        row = self._rows[row_no]
+        if role == Qt.DisplayRole:
+            key = self.COLUMNS[col_no][0]
+            return str(row.get(key, ""))
+        if role == Qt.BackgroundRole:
+            if row.get("is_current_after"):
+                return QColor("#12361f")
+            if row.get("is_redo"):
+                return QColor("#2f2a12")
+        return None
+
+    def headerData(self, section, orientation, role=Qt.DisplayRole):
+        if role != Qt.DisplayRole:
+            return None
+        if orientation == Qt.Horizontal and 0 <= section < len(self.COLUMNS):
+            _key, i18n_key, fallback = self.COLUMNS[section]
+            return t(i18n_key, fallback)
+        return None
+
+    def flags(self, index):
+        if not index.isValid():
+            return Qt.NoItemFlags
+        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+
+    def set_rows(self, rows: list[dict]):
+        self.beginResetModel()
+        self._rows = list(rows)
+        self.endResetModel()
+
+    def update_current_row(self, row: dict, row_no: int) -> bool:
+        if not (0 <= row_no < len(self._rows)):
+            return False
+        self._rows[row_no] = row
+        left = self.index(row_no, 0)
+        right = self.index(row_no, len(self.COLUMNS) - 1)
+        self.dataChanged.emit(left, right, [Qt.DisplayRole, Qt.BackgroundRole])
+        return True
+
+    def append_after_push(
+        self,
+        previous_current_row: dict | None,
+        new_current_row: dict,
+        total: int,
+        dropped_oldest: bool,
+    ) -> bool:
+        expected_rows = total if dropped_oldest else total - 1
+        if total <= 0 or len(self._rows) != expected_rows:
+            return False
+        if dropped_oldest:
+            self.beginRemoveRows(QModelIndex(), 0, 0)
+            self._rows.pop(0)
+            self.endRemoveRows()
+        if previous_current_row is not None and self._rows:
+            row_no = len(self._rows) - 1
+            self._rows[row_no] = previous_current_row
+            left = self.index(row_no, 0)
+            right = self.index(row_no, len(self.COLUMNS) - 1)
+            self.dataChanged.emit(left, right, [Qt.DisplayRole, Qt.BackgroundRole])
+        insert_at = len(self._rows)
+        self.beginInsertRows(QModelIndex(), insert_at, insert_at)
+        self._rows.append(new_current_row)
+        self.endInsertRows()
+        return True
+
+
 class _UndoHistoryDialog(QDialog):
     def __init__(self, owner, rows: list[dict], current_index: int, parent=None):
         super().__init__(parent)
         self._owner = owner
+        self._last_followed_target_index = None
         self.setWindowTitle(t("main.undo_history.title", "Undo/Redo履歴"))
         self.resize(920, 520)
 
@@ -108,15 +207,9 @@ class _UndoHistoryDialog(QDialog):
         self.summary_label = QLabel("")
         layout.addWidget(self.summary_label)
 
-        self.table = QTableWidget(0, 6, self)
-        self.table.setHorizontalHeaderLabels([
-            t("main.undo_history.col.no", "No."),
-            t("main.undo_history.col.state", "状態"),
-            t("main.undo_history.col.time", "時刻"),
-            t("main.undo_history.col.stage", "対象"),
-            t("main.undo_history.col.action", "操作"),
-            t("main.undo_history.col.detail", "座標/詳細"),
-        ])
+        self.model = _UndoHistoryTableModel([], self)
+        self.table = QTableView(self)
+        self.table.setModel(self.model)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -129,7 +222,7 @@ class _UndoHistoryDialog(QDialog):
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(5, QHeaderView.Stretch)
 
-        self.table.cellDoubleClicked.connect(self._jump_from_row)
+        self.table.doubleClicked.connect(self._jump_from_index)
         layout.addWidget(self.table, 1)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Close, self)
@@ -143,47 +236,123 @@ class _UndoHistoryDialog(QDialog):
         self.update_rows(rows, current_index)
 
     def update_rows(self, rows: list[dict], current_index: int):
+        t0 = time.perf_counter()
+        row_count = len(rows)
         self.summary_label.setText(
             t(
                 "main.undo_history.summary",
                 "現在位置: {current} / {total}  （ダブルクリックでその履歴位置へ移動）",
-            ).format(current=current_index, total=len(rows))
+            ).format(current=current_index, total=row_count)
         )
-        self.table.setSortingEnabled(False)
-        self.table.setRowCount(len(rows))
-        current_row = None
-        for row_no, row in enumerate(rows):
-            target_index = int(row["target_index"])
-            if target_index == current_index:
-                current_row = row_no
-            for col_no, key in enumerate(("seq", "state", "time", "stage", "action", "detail")):
-                item = QTableWidgetItem(str(row.get(key, "")))
-                item.setData(Qt.UserRole, target_index)
-                if row.get("is_current_after"):
-                    item.setBackground(QColor("#12361f"))
-                elif row.get("is_redo"):
-                    item.setBackground(QColor("#2f2a12"))
-                self.table.setItem(row_no, col_no, item)
+        t_summary = time.perf_counter()
+        self.model.set_rows(rows)
+        t_fill = time.perf_counter()
         if rows:
-            if current_row is None:
-                current_row = max(0, min(len(rows) - 1, current_index - 1))
-            self.table.selectRow(current_row)
-            item = self.table.item(current_row, 0)
-            if item is not None:
-                self.table.scrollToItem(item, QAbstractItemView.PositionAtCenter)
-        self.table.setSortingEnabled(False)
+            current_row = max(0, min(row_count - 1, current_index - 1))
+            if self._last_followed_target_index != current_index:
+                self.table.selectRow(current_row)
+                self.table.scrollTo(self.model.index(current_row, 0), QAbstractItemView.PositionAtCenter)
+                self._last_followed_target_index = current_index
+            else:
+                selected = self.table.selectionModel().selectedRows()
+                current_selected = selected[0].row() if selected else -1
+                if current_selected != current_row:
+                    self.table.selectRow(current_row)
+            t_select = time.perf_counter()
+        else:
+            t_select = t_fill
+        t_done = time.perf_counter()
+        _undo_perf_log(
+            "dialog.update_rows "
+            f"rows={row_count} current={current_index} "
+            f"summary_ms={(t_summary - t0) * 1000:.3f} "
+            f"model_ms={(t_fill - t_summary) * 1000:.3f} "
+            f"select_scroll_ms={(t_select - t_fill) * 1000:.3f} "
+            f"enable_ms={(t_done - t_select) * 1000:.3f} "
+            f"total_ms={(t_done - t0) * 1000:.3f}"
+        )
+
+    def update_current_row(self, row: dict, current_index: int, total: int):
+        t0 = time.perf_counter()
+        self.summary_label.setText(
+            t(
+                "main.undo_history.summary",
+                "現在位置: {current} / {total}  （ダブルクリックでその履歴位置へ移動）",
+            ).format(current=current_index, total=total)
+        )
+        if self.model.rowCount() != total or total <= 0:
+            _undo_perf_log(
+                "dialog.update_current_row fallback_needed "
+                f"table_rows={self.model.rowCount()} total={total} current={current_index}"
+            )
+            return False
+        row_no = max(0, min(total - 1, current_index - 1))
+        if not self.model.update_current_row(row, row_no):
+            return False
+        self.table.selectRow(row_no)
+        if self._last_followed_target_index != current_index:
+            self.table.scrollTo(self.model.index(row_no, 0), QAbstractItemView.PositionAtCenter)
+            self._last_followed_target_index = current_index
+        t_done = time.perf_counter()
+        _undo_perf_log(
+            "dialog.update_current_row "
+            f"row={row_no} total={total} current={current_index} "
+            f"total_ms={(t_done - t0) * 1000:.3f}"
+        )
+        return True
+
+    def update_after_push(
+        self,
+        previous_current_row: dict | None,
+        new_current_row: dict,
+        current_index: int,
+        total: int,
+        dropped_oldest: bool,
+    ):
+        t0 = time.perf_counter()
+        expected_rows = total if dropped_oldest else total - 1
+        if total <= 0 or self.model.rowCount() != expected_rows:
+            _undo_perf_log(
+                "dialog.update_after_push fallback_needed "
+                f"table_rows={self.model.rowCount()} expected={expected_rows} "
+                f"total={total} current={current_index} dropped={dropped_oldest}"
+            )
+            return False
+        self.summary_label.setText(
+            t(
+                "main.undo_history.summary",
+                "現在位置: {current} / {total}  （ダブルクリックでその履歴位置へ移動）",
+            ).format(current=current_index, total=total)
+        )
+        t_summary = time.perf_counter()
+        if not self.model.append_after_push(
+            previous_current_row,
+            new_current_row,
+            total,
+            dropped_oldest,
+        ):
+            return False
+        self.table.selectRow(total - 1)
+        if self._last_followed_target_index != current_index:
+            self.table.scrollTo(self.model.index(total - 1, 0), QAbstractItemView.PositionAtCenter)
+            self._last_followed_target_index = current_index
+        t_done = time.perf_counter()
+        _undo_perf_log(
+            "dialog.update_after_push "
+            f"total={total} current={current_index} dropped={dropped_oldest} "
+            f"summary_ms={(t_summary - t0) * 1000:.3f} "
+            f"update_ms={(t_done - t_summary) * 1000:.3f} "
+            f"total_ms={(t_done - t0) * 1000:.3f}"
+        )
+        return True
 
     def _target_index_for_row(self, row: int) -> int | None:
-        item = self.table.item(row, 0)
-        if item is None:
-            return None
-        try:
-            return int(item.data(Qt.UserRole))
-        except Exception:
-            return None
+        if 0 <= row < self.model.rowCount():
+            return row + 1
+        return None
 
-    def _jump_from_row(self, row: int, _col: int):
-        target_index = self._target_index_for_row(row)
+    def _jump_from_index(self, index):
+        target_index = self._target_index_for_row(index.row())
         if target_index is not None:
             self._owner._jump_undo_history_to_index(target_index)
             self.update_rows(
@@ -288,6 +457,26 @@ _ENEMY_HORIZONTAL_MIRROR = {
     for pair in _ENEMY_HORIZONTAL_MIRROR_PAIRS
     for code, other in (pair, (pair[1], pair[0]))
 }
+
+
+def _undo_perf_log_enabled() -> bool:
+    value = str(os.environ.get(UNDO_PERF_LOG_ENV, "")).strip().lower()
+    return value in ("1", "true", "yes", "on")
+
+
+def _undo_perf_log(message: str):
+    if not _undo_perf_log_enabled():
+        return
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    line = f"[{stamp}] {message}"
+    print(line, flush=True)
+    try:
+        path = Path(__file__).parent.parent.parent / "logs" / "undo_history_perf.log"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except Exception as e:
+        print(f"[{stamp}] undo_perf_log_write_failed: {type(e).__name__}: {e}", flush=True)
 
 
 def _mirror_enemy_code_horizontal(code: int) -> int:
@@ -6765,6 +6954,9 @@ class MainWindow(QMainWindow):
             target=", ".join(labels)
         )
 
+    def _format_history_count(self, count: int) -> str:
+        return t("main.undo_history.detail.count", "{count}個").format(count=int(count))
+
     def _latest_undo_entry(self):
         return self._undo_stack[-1] if self._undo_stack else None
 
@@ -6781,7 +6973,65 @@ class MainWindow(QMainWindow):
                 for pos in positions
                 if pos is not None and len(pos) >= 2
             ]
-        self._refresh_undo_history_dialog()
+        self._refresh_undo_history_dialog(after_push=True, popped_oldest=popped)
+
+    def _entry_position_set(self, entry) -> set[tuple[int, int]]:
+        positions = set()
+        if not isinstance(entry, dict):
+            return positions
+        for pos in entry.get("positions") or []:
+            try:
+                positions.add((int(pos[0]), int(pos[1])))
+            except Exception:
+                continue
+        return positions
+
+    def _set_entry_positions(self, entry, positions: set[tuple[int, int]]):
+        if not isinstance(entry, dict):
+            return
+        entry["positions"] = [
+            [int(x), int(y)]
+            for x, y in sorted(positions)
+        ]
+
+    def _extend_continuous_history(self, kind: str, tile, amount: int = 1):
+        t0 = time.perf_counter()
+        entry = self._latest_undo_entry()
+        if not isinstance(entry, dict):
+            return
+        if kind == "place":
+            positions = self._entry_position_set(entry)
+            before = len(positions)
+            try:
+                positions.add((int(tile[0]), int(tile[1])))
+            except Exception:
+                return
+            count = len(positions)
+            if count <= before:
+                return
+            self._set_entry_positions(entry, positions)
+            entry["history_count"] = count
+            entry["action"] = t("main.undo_history.action.continuous_place", "連続配置")
+        elif kind == "delete":
+            count = int(entry.get("history_count", 0) or 0) + max(0, int(amount))
+            if count <= 0:
+                return
+            entry["history_count"] = count
+            entry["action"] = t("main.undo_history.action.continuous_delete", "連続削除")
+        else:
+            return
+        entry["detail"] = self._format_history_count(int(entry.get("history_count", 0) or 0))
+        entry["hide_positions"] = True
+        t_mutate = time.perf_counter()
+        self._refresh_undo_history_dialog(latest_only=True)
+        t_refresh = time.perf_counter()
+        _undo_perf_log(
+            "extend_continuous_history "
+            f"kind={kind} count={entry.get('history_count')} "
+            f"mutate_ms={(t_mutate - t0) * 1000:.3f} "
+            f"refresh_ms={(t_refresh - t_mutate) * 1000:.3f} "
+            f"total_ms={(t_refresh - t0) * 1000:.3f}"
+        )
 
     def _set_move_history(self, mp, target_pos):
         if not isinstance(mp, dict):
@@ -6880,6 +7130,9 @@ class MainWindow(QMainWindow):
             detail=self._format_history_targets([self._picker_history_label(mode, value)]),
             positions=[tile],
         )
+        entry = self._latest_undo_entry()
+        if isinstance(entry, dict):
+            entry["history_count"] = 1
 
         if mode == MODE_BLOCK:
             passable_block_values = (BLOCK_NONE, BLOCK_PASSABLE_WHITE, BLOCK_PASSABLE_BROWN)
@@ -7531,6 +7784,7 @@ class MainWindow(QMainWindow):
 
         self._refresh_view()
         self._refresh_thumbnails_after_edit()
+        return True
 
     # ====== Ctrl+左ドラッグでの要素移動 ======
 
@@ -8328,6 +8582,9 @@ class MainWindow(QMainWindow):
             detail=self._format_history_targets(history_labels),
             positions=[tile],
         )
+        entry = self._latest_undo_entry()
+        if isinstance(entry, dict) and not getattr(self, '_suppress_next_undo', False):
+            entry["history_count"] = max(1, len(history_labels))
         if not getattr(self, '_suppress_next_undo', False):
             self._right_drag_has_undo = True
 
@@ -8392,6 +8649,8 @@ class MainWindow(QMainWindow):
                 ),
                 2000,
             )
+            if getattr(self, '_suppress_next_undo', False):
+                self._extend_continuous_history("delete", tile, amount=len(deleted))
         self._refresh_view()
         self._refresh_thumbnails_after_edit()
 
@@ -8399,9 +8658,11 @@ class MainWindow(QMainWindow):
         """ドラッグ塗り（左ボタン押しっぱなし）— undoは press 時の1回だけ"""
         self._suppress_next_undo = True
         try:
-            self._on_tile_clicked(button, tile, modifiers)
+            changed = self._on_tile_clicked(button, tile, modifiers)
         finally:
             self._suppress_next_undo = False
+        if changed:
+            self._extend_continuous_history("place", tile)
 
     def _on_tile_erased(self, tile: tuple):
         """ドラッグ消し（右ボタン押しっぱなし）— undoは press 時の1回だけ"""
@@ -10290,7 +10551,7 @@ class MainWindow(QMainWindow):
             "focus_level_no": int(focus_level_no),
             "levels": [],
         }
-        for key in ("created_at", "sequence_no", "action", "detail", "positions"):
+        for key in ("created_at", "sequence_no", "action", "detail", "positions", "history_count", "hide_positions"):
             if isinstance(entry, dict) and key in entry:
                 data[key] = copy.deepcopy(entry[key])
         for level_no in level_nos:
@@ -10322,7 +10583,7 @@ class MainWindow(QMainWindow):
             "focus_level_no": focus_level_no,
             "levels": levels,
         }
-        for key in ("created_at", "sequence_no", "action", "detail", "positions"):
+        for key in ("created_at", "sequence_no", "action", "detail", "positions", "history_count", "hide_positions"):
             if key in data:
                 entry[key] = copy.deepcopy(data[key])
         rom_b64 = data.get("rom_data_b64")
@@ -13182,6 +13443,7 @@ class MainWindow(QMainWindow):
         detail: str | None = None,
         positions=None,
     ):
+        t0 = time.perf_counter()
         if not self.levels:
             return
         if self._is_read_only():
@@ -13201,12 +13463,15 @@ class MainWindow(QMainWindow):
             return
         if focus_level_no not in valid_level_nos:
             focus_level_no = valid_level_nos[0]
+        t_valid = time.perf_counter()
+        level_snapshots = {
+            level_no: copy.deepcopy(self.levels[level_no])
+            for level_no in valid_level_nos
+        }
+        t_levels = time.perf_counter()
         entry = {
             "focus_level_no": int(focus_level_no),
-            "levels": {
-                level_no: copy.deepcopy(self.levels[level_no])
-                for level_no in valid_level_nos
-            },
+            "levels": level_snapshots,
             "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
             "sequence_no": int(self._undo_sequence_next),
         }
@@ -13223,14 +13488,34 @@ class MainWindow(QMainWindow):
             ]
         if self.rom is not None:
             entry["rom_data"] = bytes(self.rom.data)
+        t_rom = time.perf_counter()
         self._undo_stack.append(entry)
+        popped = False
         if len(self._undo_stack) > self._undo_limit:
             self._undo_stack.pop(0)
+            popped = True
+        t_stack = time.perf_counter()
         # 新規編集時は redo はクリア
         self._redo_stack.clear()
+        t_redo = time.perf_counter()
         # 未保存マーク
         self._set_dirty(True)
+        t_dirty = time.perf_counter()
         self._refresh_undo_history_dialog()
+        t_refresh = time.perf_counter()
+        _undo_perf_log(
+            "push_undo_levels "
+            f"levels={valid_level_nos} undo_len={len(self._undo_stack)} "
+            f"redo_len={len(self._redo_stack)} limit={self._undo_limit} popped={popped} "
+            f"validate_ms={(t_valid - t0) * 1000:.3f} "
+            f"level_copy_ms={(t_levels - t_valid) * 1000:.3f} "
+            f"rom_copy_ms={(t_rom - t_levels) * 1000:.3f} "
+            f"stack_ms={(t_stack - t_rom) * 1000:.3f} "
+            f"redo_clear_ms={(t_redo - t_stack) * 1000:.3f} "
+            f"dirty_ms={(t_dirty - t_redo) * 1000:.3f} "
+            f"history_refresh_ms={(t_refresh - t_dirty) * 1000:.3f} "
+            f"total_ms={(t_refresh - t0) * 1000:.3f}"
+        )
 
     def _set_dirty(self, dirty: bool):
         """未保存フラグを更新してタイトルバーに反映"""
@@ -13295,7 +13580,7 @@ class MainWindow(QMainWindow):
                     )
                 ):
                     parts.append(detail)
-            if pos_labels:
+            if pos_labels and not entry.get("hide_positions"):
                 normalized_parts = " ".join(parts).replace(" ", "")
                 all_positions_in_detail = all(label in normalized_parts for label in pos_labels)
                 if not all_positions_in_detail:
@@ -13327,7 +13612,9 @@ class MainWindow(QMainWindow):
         return ""
 
     def _build_undo_history_rows(self) -> list[dict]:
+        t0 = time.perf_counter()
         self._ensure_undo_sequence_numbers()
+        t_seq = time.perf_counter()
         current_index = len(self._undo_stack)
         entries = list(self._undo_stack) + list(reversed(self._redo_stack))
         rows = []
@@ -13354,7 +13641,37 @@ class MainWindow(QMainWindow):
                 "is_current_after": target_index == current_index,
                 "is_redo": is_redo,
             })
+        t_done = time.perf_counter()
+        _undo_perf_log(
+            "build_undo_history_rows "
+            f"undo={len(self._undo_stack)} redo={len(self._redo_stack)} rows={len(rows)} "
+            f"seq_ms={(t_seq - t0) * 1000:.3f} "
+            f"rows_ms={(t_done - t_seq) * 1000:.3f} "
+            f"total_ms={(t_done - t0) * 1000:.3f}"
+        )
         return rows
+
+    def _undo_history_row_for_entry(self, entry, target_index: int, current_index: int) -> dict:
+        levels = self._undo_entry_levels(entry)
+        level_nos = sorted(levels.keys())
+        is_redo = target_index > current_index
+        if target_index == current_index:
+            state = t("main.undo_history.state.current_after", "現在位置")
+        elif is_redo:
+            state = t("main.undo_history.state.redo", "Redo可能")
+        else:
+            state = t("main.undo_history.state.applied", "適用済み")
+        return {
+            "target_index": target_index,
+            "seq": self._undo_history_entry_sequence_label(entry),
+            "state": state,
+            "time": self._undo_history_entry_time(entry),
+            "stage": self._undo_entry_label(level_nos) if level_nos else "",
+            "action": self._undo_history_entry_action(entry),
+            "detail": self._undo_history_entry_detail(entry),
+            "is_current_after": target_index == current_index,
+            "is_redo": is_redo,
+        }
 
     def _on_show_undo_history(self):
         if not self._undo_stack and not self._redo_stack:
@@ -13379,14 +13696,86 @@ class MainWindow(QMainWindow):
         self._undo_history_dialog.raise_()
         self._undo_history_dialog.activateWindow()
 
-    def _refresh_undo_history_dialog(self):
+    def _refresh_undo_history_dialog(
+        self,
+        latest_only: bool = False,
+        after_push: bool = False,
+        popped_oldest: bool = False,
+    ):
+        t0 = time.perf_counter()
         dialog = getattr(self, "_undo_history_dialog", None)
         if dialog is None or not dialog.isVisible():
             return
         if not self._undo_stack and not self._redo_stack:
             dialog.update_rows([], 0)
             return
-        dialog.update_rows(self._build_undo_history_rows(), len(self._undo_stack))
+        current_index = len(self._undo_stack)
+        if latest_only and self._undo_stack and not self._redo_stack:
+            self._ensure_undo_sequence_numbers()
+            t_seq = time.perf_counter()
+            row = self._undo_history_row_for_entry(
+                self._undo_stack[-1],
+                current_index,
+                current_index,
+            )
+            t_row = time.perf_counter()
+            if dialog.update_current_row(row, current_index, len(self._undo_stack)):
+                t_update = time.perf_counter()
+                _undo_perf_log(
+                    "refresh_undo_history_dialog latest_only "
+                    f"undo={len(self._undo_stack)} current={current_index} "
+                    f"seq_ms={(t_seq - t0) * 1000:.3f} "
+                    f"row_ms={(t_row - t_seq) * 1000:.3f} "
+                    f"update_ms={(t_update - t_row) * 1000:.3f} "
+                    f"total_ms={(t_update - t0) * 1000:.3f}"
+                )
+                return
+        if after_push and self._undo_stack and not self._redo_stack:
+            self._ensure_undo_sequence_numbers()
+            t_seq = time.perf_counter()
+            current_index = len(self._undo_stack)
+            previous_current_row = None
+            if current_index >= 2:
+                previous_current_row = self._undo_history_row_for_entry(
+                    self._undo_stack[-2],
+                    current_index - 1,
+                    current_index,
+                )
+            new_current_row = self._undo_history_row_for_entry(
+                self._undo_stack[-1],
+                current_index,
+                current_index,
+            )
+            t_row = time.perf_counter()
+            if dialog.update_after_push(
+                previous_current_row,
+                new_current_row,
+                current_index,
+                len(self._undo_stack),
+                popped_oldest,
+            ):
+                t_update = time.perf_counter()
+                _undo_perf_log(
+                    "refresh_undo_history_dialog after_push "
+                    f"undo={len(self._undo_stack)} current={current_index} "
+                    f"popped={popped_oldest} "
+                    f"seq_ms={(t_seq - t0) * 1000:.3f} "
+                    f"row_ms={(t_row - t_seq) * 1000:.3f} "
+                    f"update_ms={(t_update - t_row) * 1000:.3f} "
+                    f"total_ms={(t_update - t0) * 1000:.3f}"
+                )
+                return
+        rows = self._build_undo_history_rows()
+        t_rows = time.perf_counter()
+        dialog.update_rows(rows, current_index)
+        t_update = time.perf_counter()
+        _undo_perf_log(
+            "refresh_undo_history_dialog full "
+            f"rows={len(rows)} current={current_index} "
+            f"build_ms={(t_rows - t0) * 1000:.3f} "
+            f"update_ms={(t_update - t_rows) * 1000:.3f} "
+            f"total_ms={(t_update - t0) * 1000:.3f}"
+        )
 
     def _jump_undo_history_to_index(self, target_index: int):
         total = len(self._undo_stack) + len(self._redo_stack)
@@ -13503,7 +13892,7 @@ class MainWindow(QMainWindow):
             },
         }
         if isinstance(entry, dict):
-            for key in ("created_at", "sequence_no", "action", "detail", "positions"):
+            for key in ("created_at", "sequence_no", "action", "detail", "positions", "history_count", "hide_positions"):
                 if key in entry:
                     snapshot[key] = copy.deepcopy(entry[key])
         if self.rom is not None:

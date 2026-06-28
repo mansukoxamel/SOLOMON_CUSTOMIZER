@@ -1660,8 +1660,8 @@ _TRANSLATIONS = {
         "en": "Time",
     },
     "main.undo_history.col.stage": {
-        "ja": "対象",
-        "en": "Target",
+        "ja": "面",
+        "en": "Stage",
     },
     "main.undo_history.col.action": {
         "ja": "操作",
@@ -1695,6 +1695,10 @@ _TRANSLATIONS = {
         "ja": "配置",
         "en": "Place",
     },
+    "main.undo_history.action.continuous_place": {
+        "ja": "連続配置",
+        "en": "Paint",
+    },
     "main.undo_history.action.place_block": {
         "ja": "ブロック配置",
         "en": "Place block",
@@ -1714,6 +1718,10 @@ _TRANSLATIONS = {
     "main.undo_history.action.delete": {
         "ja": "削除",
         "en": "Delete",
+    },
+    "main.undo_history.action.continuous_delete": {
+        "ja": "連続削除",
+        "en": "Erase",
     },
     "main.undo_history.action.move": {
         "ja": "移動",
@@ -1742,6 +1750,10 @@ _TRANSLATIONS = {
     "main.undo_history.detail.target": {
         "ja": "対象: {target}",
         "en": "Target: {target}",
+    },
+    "main.undo_history.detail.count": {
+        "ja": "{count}個",
+        "en": "{count} items",
     },
     "main.undo_history.detail.move": {
         "ja": "{target}: {src} -> {dst}",
