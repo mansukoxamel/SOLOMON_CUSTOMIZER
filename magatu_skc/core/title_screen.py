@@ -783,6 +783,25 @@ def _wide_title_streams_for_import(rom_data):
     return grid, [None] * _NT_CELLS
 
 
+def _top_title_attr_table_for_import(source_rom, source_kind: str,
+                                     target_rom) -> bytes:
+    """Merge source title attributes only over the 256x64 top title band."""
+    if source_kind == "wide":
+        src_table = _wt_read_title_attr_table_or_default(source_rom)
+    else:
+        src_table = _wt_attr_table_default(source_rom)
+    src_attr = _expanded_attr_from_table(src_table)
+    dst_attr = _expanded_attr_from_table(
+        _wt_read_title_attr_table_or_default(target_rom))
+    br0 = _TITLE_TOP_ROW0 // 2
+    br1 = (_TITLE_TOP_ROW0 + _TITLE_TOP_ROWS - 1) // 2
+    for br in range(br0, br1 + 1):
+        for bc in range(_WT_TITLE_ATTR_BLOCK_W):
+            idx = br * _WT_TITLE_ATTR_BLOCK_W + bc
+            dst_attr[idx] = src_attr[idx]
+    return _pack_expanded_attr_table(dst_attr)
+
+
 def _wt_title_oam_table_file() -> int:
     dec = _wt_current_decoder_bytes()
     return _WT_DEC_FILE + len(dec) - _WT_TITLE_SLOT_TABLE_BYTES
@@ -1603,8 +1622,10 @@ def transcode_title(target_rom, source_rom) -> list:
         _base, grid_a, grid_b = _stock_title_streams_for_import(source_rom)
         source_kind = "stock"
 
+    title_attr_table = _top_title_attr_table_for_import(
+        source_rom, source_kind, target_rom)
     len_a, len_b = _write_wide_title_streams_for_import(
-        target_rom, grid_a, grid_b)
+        target_rom, grid_a, grid_b, title_attr_table=title_attr_table)
 
     s_chr = chr_bank3_offset(source_rom)
     d_chr = chr_bank3_offset(target_rom)
@@ -1613,12 +1634,6 @@ def transcode_title(target_rom, source_rom) -> list:
         raise TitleScreenError("CHR bank3 is outside the ROM range.")
     target_rom[d_chr:d_chr + CHR_BANK_SIZE] = \
         bytes(source_rom[s_chr:s_chr + CHR_BANK_SIZE])
-
-    dst_attr_off, dst_attr_len = _TITLE_PIECES["JP"]["attribute"]
-    src_attr_off, src_attr_len = _TITLE_PIECES[sb]["attribute"]
-    if src_attr_len == dst_attr_len:
-        target_rom[dst_attr_off:dst_attr_off + dst_attr_len] = \
-            bytes(source_rom[src_attr_off:src_attr_off + src_attr_len])
 
     after = decode_title_grid(target_rom)
     msg = [
