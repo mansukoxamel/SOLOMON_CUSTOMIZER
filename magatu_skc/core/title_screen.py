@@ -1424,7 +1424,7 @@ def read_title_push_start_text(rom_data) -> str:
 
 
 def _center_title_push_start_text(raw: str) -> str:
-    raw = " ".join((raw or "").split())
+    raw = (raw or "")
     pad = _TITLE_PUSH_TEXT_LEN - len(raw)
     if pad <= 0:
         return raw
@@ -1433,7 +1433,7 @@ def _center_title_push_start_text(raw: str) -> str:
 
 
 def _title_text_line_32(raw: str, *, display_shift_compensate: bool = False) -> str:
-    raw = " ".join((raw or "").split())
+    raw = (raw or "")
     pad = 32 - len(raw)
     if pad <= 0:
         return raw[:32]
@@ -1456,7 +1456,6 @@ def set_title_push_start_text(rom_data, text: str) -> list:
             raise TitleScreenError(
                 f"unsupported title text character {ch!r}; "
                 "use A-Z, 0-9, space, comma, period, and double quote.")
-    raw = " ".join(raw.split())
     if len(raw) > 32:
         raise TitleScreenError("PUSH START text is too long; maximum is 32 characters.")
     line = _title_text_line_32(raw, display_shift_compensate=True)
@@ -1624,7 +1623,6 @@ def add_title_text_line(rom_data, text: str, row: int = _TITLE_TEXT_ROW) -> list
             raise TitleScreenError(
                 f"unsupported title text character {ch!r}; "
                 "use A-Z, 0-9, space, comma, period, and double quote.")
-    raw = " ".join(raw.split())
     if len(raw) > 32:
         raise TitleScreenError("title text is too long; maximum is 32 characters.")
 

@@ -4117,20 +4117,36 @@ class TitleScreenDialog(QDialog):
 
         dlg = QDialog(self)
         dlg.setWindowTitle(t("title_screen.text.dialog_title", "タイトル文字編集"))
+        dlg.setMinimumWidth(660)
         lay = QVBoxLayout(dlg)
-        lay.addWidget(QLabel(
+        note = QLabel(
             t(
-                "title_screen.text.extra_label",
-                "追加文字 (A-Z / 0-9 / スペース / , . \"、最大32文字)",
-            )))
+                "title_screen.text.input_note",
+                "A-Z / 0-9 / スペース / , . \" が使えます。最大32文字。",
+            ))
+        note.setStyleSheet("color:#888; font-size:11px;")
+        lay.addWidget(note)
+        extra_head = QHBoxLayout()
+        extra_head.addWidget(QLabel(
+            t("title_screen.text.extra_short_label", "追加文字")))
+        extra_count = QLabel("")
+        extra_count.setStyleSheet("color:#c33;")
+        extra_count.setMinimumWidth(56)
+        extra_head.addStretch()
+        extra_head.addWidget(extra_count)
+        lay.addLayout(extra_head)
         extra_edit = QLineEdit(cur_extra[:32])
         extra_edit.setMaxLength(32)
         lay.addWidget(extra_edit)
-        lay.addWidget(QLabel(
-            t(
-                "title_screen.text.push_label",
-                "PUSH START位置の固定文字 (A-Z / 0-9 / スペース / , . \"、最大32文字)",
-            )))
+        push_head = QHBoxLayout()
+        push_head.addWidget(QLabel(
+            t("title_screen.text.push_short_label", "PUSH START位置の固定文字")))
+        push_count = QLabel("")
+        push_count.setStyleSheet("color:#c33;")
+        push_count.setMinimumWidth(56)
+        push_head.addStretch()
+        push_head.addWidget(push_count)
+        lay.addLayout(push_head)
         push_combo = QComboBox()
         push_combo.setEditable(True)
         for text in _TITLE_PUSH_TEXT_PRESETS:
@@ -4150,8 +4166,13 @@ class TitleScreenDialog(QDialog):
         snap = bytes(self._rom)
         preview_changes = []
 
+        def update_counts():
+            extra_count.setText(f"{len(extra_edit.text())} / 32")
+            push_count.setText(f"{len(push_combo.currentText())} / 32")
+
         def apply_preview():
             nonlocal preview_changes
+            update_counts()
             self._rom[:] = snap
             try:
                 changes = []
@@ -4185,6 +4206,7 @@ class TitleScreenDialog(QDialog):
             restore_editor_geometry()
             return True
 
+        update_counts()
         extra_edit.textChanged.connect(lambda *_: apply_preview())
         push_combo.currentTextChanged.connect(lambda *_: apply_preview())
 
