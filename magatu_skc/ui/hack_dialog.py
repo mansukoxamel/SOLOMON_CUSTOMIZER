@@ -916,29 +916,69 @@ class HackDialog(QDialog):
         gvf = QFormLayout(gargoyle_variant_group)
         _setup_enemy_group(self, gargoyle_variant_group, gvf, 71, (0x7A, 0x7E))
         self._gargoyle_variant_ok = False
-        self.combo_gargoyle_variant_offset = QComboBox()
+        gv_settings = {
+            "speed1_preset": gargoyle_variant.DEFAULT_SPEED1_PRESET,
+            "cooldown1_frames": gargoyle_variant.DEFAULT_SPEED1_COOLDOWN_FRAMES,
+            "speed2_preset": gargoyle_variant.DEFAULT_SPEED2_PRESET,
+            "cooldown2_frames": gargoyle_variant.FIXED_SPEED2_COOLDOWN_FRAMES,
+        }
         try:
-            cur_gv_offset = gargoyle_variant.current_second_offset(rom.data)
+            gv_settings = gargoyle_variant.current_settings(rom.data)
             self._gargoyle_variant_ok = True
         except gargoyle_variant.GargoyleVariantError as e:
-            cur_gv_offset = gargoyle_variant.DEFAULT_SECOND_OFFSET
             note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             gvf.addRow(note)
 
-        for value in gargoyle_variant.SECOND_OFFSET_PRESETS:
-            label = f"{value}px" + (t("hack_dialog.standard_suffix", "（標準）") if value == gargoyle_variant.DEFAULT_SECOND_OFFSET else "")
-            self.combo_gargoyle_variant_offset.addItem(label, value)
-        self._set_combo_data(self.combo_gargoyle_variant_offset, cur_gv_offset)
-        self.combo_gargoyle_variant_offset.setEnabled(self._gargoyle_variant_ok)
-        gvf.addRow(t("hack_dialog.gargoyle_variant.offset.label", "2発目の位置:"), self.combo_gargoyle_variant_offset)
+        def make_gv_speed_combo(value: int) -> QComboBox:
+            combo = QComboBox()
+            for preset, (label, _marker) in gargoyle_variant.BULLET_SPEED_PRESETS.items():
+                combo.addItem(label, preset)
+            self._set_combo_data(combo, value)
+            return combo
+
+        self.combo_gargoyle_variant_speed1 = make_gv_speed_combo(gv_settings["speed1_preset"])
+        self.spin_gargoyle_variant_cooldown1 = QSpinBox()
+        self.spin_gargoyle_variant_cooldown1.setRange(0, 255)
+        self.spin_gargoyle_variant_cooldown1.setSuffix(t("hack_dialog.frame.suffix", " フレーム"))
+        self.spin_gargoyle_variant_cooldown1.setValue(gv_settings["cooldown1_frames"])
+        row_gv1 = QWidget()
+        row_gv1_layout = QHBoxLayout(row_gv1)
+        row_gv1_layout.setContentsMargins(0, 0, 0, 0)
+        row_gv1_layout.setSpacing(4)
+        row_gv1_layout.addWidget(QLabel(t("hack_dialog.gargoyle_variant.speed.label", "速度")))
+        row_gv1_layout.addWidget(self.combo_gargoyle_variant_speed1, 1)
+        row_gv1_layout.addWidget(QLabel(t("hack_dialog.gargoyle_variant.cooldown.label", "クールダウン")))
+        row_gv1_layout.addWidget(self.spin_gargoyle_variant_cooldown1, 1)
+        gvf.addRow(t("hack_dialog.gargoyle_variant.row.speed1", "7A/7B:"), row_gv1)
+
+        self.combo_gargoyle_variant_speed2 = make_gv_speed_combo(gv_settings["speed2_preset"])
+        self.spin_gargoyle_variant_cooldown2 = QSpinBox()
+        self.spin_gargoyle_variant_cooldown2.setRange(0, 0)
+        self.spin_gargoyle_variant_cooldown2.setSuffix(t("hack_dialog.frame.suffix", " フレーム"))
+        self.spin_gargoyle_variant_cooldown2.setValue(gargoyle_variant.FIXED_SPEED2_COOLDOWN_FRAMES)
+        self.spin_gargoyle_variant_cooldown2.setEnabled(False)
+        row_gv2 = QWidget()
+        row_gv2_layout = QHBoxLayout(row_gv2)
+        row_gv2_layout.setContentsMargins(0, 0, 0, 0)
+        row_gv2_layout.setSpacing(4)
+        row_gv2_layout.addWidget(QLabel(t("hack_dialog.gargoyle_variant.speed.label", "速度")))
+        row_gv2_layout.addWidget(self.combo_gargoyle_variant_speed2, 1)
+        row_gv2_layout.addWidget(QLabel(t("hack_dialog.gargoyle_variant.cooldown.label", "クールダウン")))
+        row_gv2_layout.addWidget(self.spin_gargoyle_variant_cooldown2, 1)
+        gvf.addRow(t("hack_dialog.gargoyle_variant.row.speed2", "7E/7F:"), row_gv2)
+
+        if not self._gargoyle_variant_ok:
+            self.combo_gargoyle_variant_speed1.setEnabled(False)
+            self.spin_gargoyle_variant_cooldown1.setEnabled(False)
+            self.combo_gargoyle_variant_speed2.setEnabled(False)
 
         gvhint = QLabel(
             t(
                 "hack_dialog.gargoyle_variant.hint",
-                "強化ガーゴイル(7A/7B/7E/7F)の2発目だけを調整します。"
-                "1発目は原作の弾生成処理をそのまま使います。",
+                "強化ガーゴイル(7A/7B/7E/7F)は原作と同じく1発だけ撃ちます。"
+                "速度は4択。7E/7Fのクールダウンは0F固定です。",
             ))
         gvhint.setWordWrap(True)
         gvhint.setStyleSheet("color:#888; font-size:11px;")
@@ -1261,6 +1301,14 @@ class HackDialog(QDialog):
             values[f"{key}_speed"] = int(combo.currentData())
             values[f"{key}_interval"] = int(spin.value())
         return normalize_panel_variant_settings(values)
+
+    def _gargoyle_variant_settings_from_ui(self) -> dict:
+        return {
+            "speed1_preset": int(self.combo_gargoyle_variant_speed1.currentData()),
+            "cooldown1_frames": int(self.spin_gargoyle_variant_cooldown1.value()),
+            "speed2_preset": int(self.combo_gargoyle_variant_speed2.currentData()),
+            "cooldown2_frames": gargoyle_variant.FIXED_SPEED2_COOLDOWN_FRAMES,
+        }
 
     def _on_spark_pause_digit_changed(self, _state):
         selected = self._selected_spark_pause_digits()
@@ -1856,7 +1904,7 @@ class HackDialog(QDialog):
             "golem_snappy": self.chk_golem_snappy.isChecked(),
             "gargoyle_snappy": self.chk_gargoyle_snappy.isChecked(),
             "gargoyle_cooldown_frames": self.spin_gargoyle_cooldown.value(),
-            "gargoyle_variant_second_offset": self._combo_data(self.combo_gargoyle_variant_offset),
+            "gargoyle_variant_settings": self._gargoyle_variant_settings_from_ui(),
             "dragon_snappy": self.chk_dragon_snappy.isChecked(),
             "shared_monster_walk_multiplier": self._combo_data(self.combo_shared_walk),
             "neul_ghost_speed_multiplier": self._combo_data(self.combo_neul_ghost_speed),
@@ -1964,6 +2012,32 @@ class HackDialog(QDialog):
                 self._set_combo_data(combo, values[f"{name}_speed"])
                 spin.setValue(values[f"{name}_interval"])
             if self._panel_variant_settings_from_ui() != old:
+                changed.append(label)
+
+        def set_gargoyle_variant_settings(key, label):
+            if not has(key) or not getattr(self, "_gargoyle_variant_ok", False):
+                return
+            raw = settings[key]
+            if not isinstance(raw, dict):
+                return
+            old = self._gargoyle_variant_settings_from_ui()
+            try:
+                speed1 = gargoyle_variant.normalize_speed_preset(
+                    raw.get("speed1_preset", gargoyle_variant.DEFAULT_SPEED1_PRESET)
+                )
+                cooldown1 = gargoyle_variant.normalize_cooldown(
+                    raw.get("cooldown1_frames", gargoyle_variant.DEFAULT_SPEED1_COOLDOWN_FRAMES)
+                )
+                speed2 = gargoyle_variant.normalize_speed_preset(
+                    raw.get("speed2_preset", gargoyle_variant.DEFAULT_SPEED2_PRESET)
+                )
+            except gargoyle_variant.GargoyleVariantError:
+                return
+            self._set_combo_data(self.combo_gargoyle_variant_speed1, speed1)
+            self.spin_gargoyle_variant_cooldown1.setValue(cooldown1)
+            self._set_combo_data(self.combo_gargoyle_variant_speed2, speed2)
+            self.spin_gargoyle_variant_cooldown2.setValue(gargoyle_variant.FIXED_SPEED2_COOLDOWN_FRAMES)
+            if self._gargoyle_variant_settings_from_ui() != old:
                 changed.append(label)
 
         set_spin("start_stage", self.spin_stage, t("hack_dialog.setting.start_stage", "開始ステージ"))
@@ -2100,7 +2174,7 @@ class HackDialog(QDialog):
         set_check("golem_snappy", self.chk_golem_snappy, t("hack_dialog.setting.golem_snappy", "ゴーレム キビキビ"))
         set_check("gargoyle_snappy", self.chk_gargoyle_snappy, t("hack_dialog.setting.gargoyle_snappy", "ガーゴイル キビキビ"))
         set_spin("gargoyle_cooldown_frames", self.spin_gargoyle_cooldown, t("hack_dialog.setting.gargoyle_cooldown", "ガーゴイル クールダウン"))
-        set_combo("gargoyle_variant_second_offset", self.combo_gargoyle_variant_offset, t("hack_dialog.setting.gargoyle_variant_offset", "強化ガーゴイル 2発目位置"))
+        set_gargoyle_variant_settings("gargoyle_variant_settings", t("hack_dialog.setting.gargoyle_variant", "強化ガーゴイル"))
         set_check("dragon_snappy", self.chk_dragon_snappy, t("hack_dialog.setting.dragon_snappy", "ドラゴン キビキビ"))
         set_combo("shared_monster_walk_multiplier", self.combo_shared_walk, t("hack_dialog.setting.shared_walk", "共通歩行速度"))
         set_combo("neul_ghost_speed_multiplier", self.combo_neul_ghost_speed, t("hack_dialog.setting.neul_ghost_speed", "ゴースト＆ヌエル移動速度"))
@@ -2431,19 +2505,15 @@ class HackDialog(QDialog):
         # 強化ガーゴイル
         if getattr(self, "_gargoyle_variant_ok", False):
             try:
-                selected_offset = self.combo_gargoyle_variant_offset.currentData()
-                should_apply = (
-                    gargoyle_variant.is_applied(d)
-                    or selected_offset != gargoyle_variant.DEFAULT_SECOND_OFFSET
+                gv_settings = self._gargoyle_variant_settings_from_ui()
+                gvch = gargoyle_variant.apply(
+                    d,
+                    gv_settings["speed1_preset"],
+                    gv_settings["cooldown1_frames"],
+                    gv_settings["speed2_preset"],
                 )
-                if should_apply:
-                    gvch = gargoyle_variant.apply(
-                        d,
-                        second_offset=selected_offset,
-                        second_speed=gargoyle_variant.DEFAULT_SECOND_SPEED,
-                    )
-                    if gvch:
-                        applied.append(t("hack_dialog.applied.gargoyle_variant", "強化ガーゴイル: {changes}").format(changes=" / ".join(gvch)))
+                if gvch:
+                    applied.append(t("hack_dialog.applied.gargoyle_variant", "強化ガーゴイル: {changes}").format(changes=" / ".join(gvch)))
             except gargoyle_variant.GargoyleVariantError as e:
                 QMessageBox.warning(self, t("hack_dialog.error.gargoyle_variant", "強化ガーゴイル設定失敗"), str(e))
                 return
@@ -2650,8 +2720,18 @@ class HackDialog(QDialog):
             self.spin_gargoyle_cooldown.setValue(0x50)
         if getattr(self, "_gargoyle_variant_ok", False):
             self._set_combo_data(
-                self.combo_gargoyle_variant_offset,
-                gargoyle_variant.DEFAULT_SECOND_OFFSET,
+                self.combo_gargoyle_variant_speed1,
+                gargoyle_variant.DEFAULT_SPEED1_PRESET,
+            )
+            self.spin_gargoyle_variant_cooldown1.setValue(
+                gargoyle_variant.DEFAULT_SPEED1_COOLDOWN_FRAMES
+            )
+            self._set_combo_data(
+                self.combo_gargoyle_variant_speed2,
+                gargoyle_variant.DEFAULT_SPEED2_PRESET,
+            )
+            self.spin_gargoyle_variant_cooldown2.setValue(
+                gargoyle_variant.FIXED_SPEED2_COOLDOWN_FRAMES
             )
         if self._dragon_ok:
             self.chk_dragon_snappy.setChecked(False)

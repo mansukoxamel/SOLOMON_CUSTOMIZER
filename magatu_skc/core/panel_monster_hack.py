@@ -78,9 +78,18 @@ def detect_region(rom_data) -> str:
                 ]
             ) == SPARK_PROPERTY_HOOK_CURRENT_BODY
         )
+        has_final_interval_hook = (
+            region == "JP"
+            and len(rom_data) >= FINAL_INTERVAL_HOOK_OFF + len(FINAL_INTERVAL_HOOK)
+            and bytes(rom_data[FINAL_INTERVAL_HOOK_OFF:FINAL_INTERVAL_HOOK_OFF + len(FINAL_INTERVAL_HOOK)])
+            == FINAL_INTERVAL_HOOK
+        )
         if (
-            bytes(rom_data[o["sig_off"]:end]) == o["sig"]
-            and (has_original_fire or has_variant_hook or has_orig_panel_spark_hybrid)
+            (
+                bytes(rom_data[o["sig_off"]:end]) == o["sig"]
+                and (has_original_fire or has_variant_hook or has_orig_panel_spark_hybrid)
+            )
+            or has_final_interval_hook
         ):
             return region
     raise PanelMonsterHackError(

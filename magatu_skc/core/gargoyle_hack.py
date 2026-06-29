@@ -67,6 +67,14 @@ def is_snappy(rom_data) -> bool:
 def current_cooldown(rom_data) -> int:
     """Return the Gargoyle post-shot cooldown frame threshold."""
     region = detect_region(rom_data)
+    if region == "JP":
+        from . import gargoyle_variant
+        hook = bytes(rom_data[
+            gargoyle_variant.OFF_HOOK_COOLDOWN:
+            gargoyle_variant.OFF_HOOK_COOLDOWN + len(gargoyle_variant.HOOK_COOLDOWN)
+        ])
+        if hook == gargoyle_variant.HOOK_COOLDOWN:
+            return int(rom_data[gargoyle_variant.OFF_CAVE_COOLDOWN_NORMAL_VALUE])
     return int(rom_data[_OFF[region]["cooldown"]])
 
 
@@ -109,6 +117,18 @@ def apply_cooldown(rom_data, frames: int) -> list[str]:
             f"ガーゴイルのクールダウンは {COOLDOWN_MIN}-{COOLDOWN_MAX} フレームで指定してください。"
         )
     region = detect_region(rom_data)
+    if region == "JP":
+        from . import gargoyle_variant
+        hook = bytes(rom_data[
+            gargoyle_variant.OFF_HOOK_COOLDOWN:
+            gargoyle_variant.OFF_HOOK_COOLDOWN + len(gargoyle_variant.HOOK_COOLDOWN)
+        ])
+        if hook == gargoyle_variant.HOOK_COOLDOWN:
+            off = gargoyle_variant.OFF_CAVE_COOLDOWN_NORMAL_VALUE
+            if rom_data[off] == frames:
+                return []
+            rom_data[off] = frames & 0xFF
+            return [f"発射後クールダウン→{frames}F"]
     off = _OFF[region]["cooldown"]
     if rom_data[off] == frames:
         return []

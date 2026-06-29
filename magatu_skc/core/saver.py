@@ -287,7 +287,7 @@ def save_levels_to_rom(
     _run_save_step("Panel Monster variant runtime検証/適用", panel_monster_variant.apply, rom.data)
     _run_save_step("Spark Ball variant runtime検証/適用", spark_ball_variant.apply, rom.data)
     _run_save_step("drop pickup guard検証/適用", drop_pickup_guard.apply, rom.data)
-    _run_save_step("Gargoyle 2-shot runtime検証/適用", gargoyle_variant.apply, rom.data)
+    _run_save_step("Gargoyle slow-Bullet runtime検証/適用", gargoyle_variant.apply, rom.data)
     if rom.is_expanded():
         _run_save_step("Solomon Seal block-state検証/適用", solomon_seal_block.apply, rom.data, levels)
     _run_save_step("wide-title trampoline RAM移行", title_screen.migrate_wide_title_trampoline_ram, rom.data)

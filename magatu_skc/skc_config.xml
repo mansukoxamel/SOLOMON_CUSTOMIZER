@@ -333,12 +333,12 @@
 
     <enemy no="0x78" description="Gargoyle (right, speed 1)" animation="66" />
     <enemy no="0x79" description="Gargoyle (left, speed 1)" animation="46" />
-    <enemy no="0x7a" description="Gargoyle 2-shot (right, speed 1)" animation="66" />
-    <enemy no="0x7b" description="Gargoyle 2-shot (left, speed 1)" animation="46" />
+    <enemy no="0x7a" description="Enhanced Gargoyle A (right)" animation="66" />
+    <enemy no="0x7b" description="Enhanced Gargoyle A (left)" animation="46" />
     <enemy no="0x7c" description="Gargoyle (right, speed 2)" animation="66" />
     <enemy no="0x7d" description="Gargoyle (left, speed 2)" animation="46" />
-    <enemy no="0x7e" description="Gargoyle 2-shot (right, speed 2)" animation="66" />
-    <enemy no="0x7f" description="Gargoyle 2-shot (left, speed 2)" animation="46" />
+    <enemy no="0x7e" description="Enhanced Gargoyle B (right)" animation="66" />
+    <enemy no="0x7f" description="Enhanced Gargoyle B (left)" animation="46" />
 
     <enemy no="0x80" description="Red Flame" animation="48" />
     <enemy no="0x81" description="White Flame" animation="47" />
