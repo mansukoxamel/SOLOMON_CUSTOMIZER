@@ -3329,11 +3329,16 @@ class TitleScreenDialog(QDialog):
         self._show_title_palette_panel()
 
     def _on_save_image(self):
-        path, _ = QFileDialog.getSaveFileName(
+        from .file_dialog_compat import get_path
+        path = get_path(
             self,
-            t("title_screen.save_image.dialog_title", "タイトル画面を画像保存"),
-            "title_screen.png",
-            "PNG (*.png);;BMP (*.bmp)")
+            title=t("title_screen.save_image.dialog_title", "タイトル画面を画像保存"),
+            directory="title_screen.png",
+            filter="PNG (*.png);;BMP (*.bmp)",
+            mode="save",
+            app_config=self._app_config,
+            config_key="title_screen_image_save",
+        )
         if not path:
             return
         img = self._build_image(color=False)
@@ -3353,11 +3358,16 @@ class TitleScreenDialog(QDialog):
             ).format(width=_IMG_W, height=_IMG_H, path=path))
 
     def _on_save_top_image_legacy_unused(self):
-        path, _ = QFileDialog.getSaveFileName(
+        from .file_dialog_compat import get_path
+        path = get_path(
             self,
-            t("title_screen.save_top.dialog_title", "タイトル上部PNGを保存"),
-            "title_top_256x64.png",
-            "PNG (*.png);;BMP (*.bmp)")
+            title=t("title_screen.save_top.dialog_title", "タイトル上部PNGを保存"),
+            directory="title_top_256x64.png",
+            filter="PNG (*.png);;BMP (*.bmp)",
+            mode="save",
+            app_config=self._app_config,
+            config_key="title_top_png_save",
+        )
         if not path:
             return
         img = self._build_image(color=True).copy(0, _TOP_Y, _IMG_W, _TOP_H)
@@ -3378,9 +3388,16 @@ class TitleScreenDialog(QDialog):
     def _on_save_top_image(self):
         self._cancel_palette_block_context()
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Save Top PNG", f"title_top_256x64_{stamp}.png",
-            "PNG (*.png);;BMP (*.bmp)")
+        from .file_dialog_compat import get_path
+        path = get_path(
+            self,
+            title="Save Top PNG",
+            directory=f"title_top_256x64_{stamp}.png",
+            filter="PNG (*.png);;BMP (*.bmp)",
+            mode="save",
+            app_config=self._app_config,
+            config_key="title_top_png_save",
+        )
         if not path:
             return
         path = self._ensure_timestamped_png(path, stamp)
@@ -3977,7 +3994,13 @@ class TitleScreenDialog(QDialog):
 
     def _pick_open(self, title, filt):
         from .file_dialog_compat import get_file
-        return get_file(self, title=title, filter=filt)
+        return get_file(
+            self,
+            title=title,
+            filter=filt,
+            app_config=self._app_config,
+            config_key="title_source_rom_open",
+        )
 
     def _on_transcode_title(self):
         self._cancel_palette_block_context()

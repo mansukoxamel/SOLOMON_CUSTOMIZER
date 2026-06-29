@@ -167,11 +167,13 @@ class RomDiffDialog(QDialog):
         return {"root": root, "title": label, "image": image}
 
     def _browse(self, target: QLineEdit):
-        path, _ = QFileDialog.getOpenFileName(
+        from .file_dialog_compat import get_file
+        path = get_file(
             self,
-            t("rom_diff.open.title", "比較するROM/ZIPを選択"),
-            "",
-            "ROM / ZIP (*.nes *.zip);;All files (*.*)",
+            title=t("rom_diff.open.title", "比較するROM/ZIPを選択"),
+            filter="ROM / ZIP (*.nes *.zip);;All files (*.*)",
+            app_config=self._app_config,
+            config_key="rom_diff_open",
         )
         if path:
             target.setText(path)

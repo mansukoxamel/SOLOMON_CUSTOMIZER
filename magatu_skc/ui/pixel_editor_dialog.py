@@ -978,6 +978,8 @@ class PixelEditorDialog(QDialog):
             self,
             title=t("pixel.import_dialog.title", "16x16画像を取り込み"),
             filter="Images (*.png *.bmp *.jpg *.jpeg);;All files (*)",
+            app_config=self._app_config,
+            config_key="pixel_editor_image",
         )
         if not path:
             return
@@ -1012,6 +1014,8 @@ class PixelEditorDialog(QDialog):
             filter="PNG (*.png);;All files (*)",
             mode="save",
             directory="pixel_16x16.png",
+            app_config=self._app_config,
+            config_key="pixel_editor_image",
         )
         if not path:
             return

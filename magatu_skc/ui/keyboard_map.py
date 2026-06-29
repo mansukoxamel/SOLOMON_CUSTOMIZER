@@ -979,6 +979,8 @@ class KeyboardMapDialog(QDialog):
         folder = get_folder(
             self,
             title=t("keyboard_map.save_png.folder_title", "保存先フォルダを選択"),
+            app_config=getattr(self.parent(), "_app_config", None),
+            config_key="keyboard_map_png",
         )
         if not folder:
             return

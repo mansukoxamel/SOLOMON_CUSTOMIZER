@@ -1342,11 +1342,15 @@ class StatsDialog(QDialog):
             parent.statusBar().showMessage(msg, 3000)
 
     def _on_export_csv(self):
-        path, _ = QFileDialog.getSaveFileName(
+        from .file_dialog_compat import get_path
+        path = get_path(
             self,
-            t("stats_dialog.csv.save_title", "CSV出力先"),
-            "level_stats.csv",
-            t("common.file_filter.csv", "CSV files (*.csv);;All files (*)"),
+            title=t("stats_dialog.csv.save_title", "CSV出力先"),
+            directory="level_stats.csv",
+            filter=t("common.file_filter.csv", "CSV files (*.csv);;All files (*)"),
+            mode="save",
+            app_config=self._app_config,
+            config_key="stats_csv_export",
         )
         if not path:
             return

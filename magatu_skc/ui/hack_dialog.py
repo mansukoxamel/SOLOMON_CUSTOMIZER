@@ -2194,11 +2194,15 @@ class HackDialog(QDialog):
         return changed
 
     def _on_export_global_settings(self):
-        path, _ = QFileDialog.getSaveFileName(
+        from .file_dialog_compat import get_path
+        path = get_path(
             self,
-            t("hack_dialog.export.title", "共通設定をエクスポート"),
-            f"solomon_global_settings_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-            t("common.file_filter.json", "JSON (*.json);;All Files (*)"),
+            title=t("hack_dialog.export.title", "共通設定をエクスポート"),
+            directory=f"solomon_global_settings_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+            filter=t("common.file_filter.json", "JSON (*.json);;All Files (*)"),
+            mode="save",
+            app_config=self._app_config,
+            config_key="global_settings_json",
         )
         if not path:
             return
@@ -2234,11 +2238,13 @@ class HackDialog(QDialog):
         )
         if ans != QMessageBox.Yes:
             return
-        path, _ = QFileDialog.getOpenFileName(
+        from .file_dialog_compat import get_file
+        path = get_file(
             self,
-            t("hack_dialog.import.title", "共通設定をインポート"),
-            "",
-            t("common.file_filter.json", "JSON (*.json);;All Files (*)"),
+            title=t("hack_dialog.import.title", "共通設定をインポート"),
+            filter=t("common.file_filter.json", "JSON (*.json);;All Files (*)"),
+            app_config=self._app_config,
+            config_key="global_settings_json",
         )
         if not path:
             return

@@ -609,6 +609,9 @@ class SettingsDialog(QDialog):
                 "Images (*.png *.ico *.jpg *.bmp);;All files (*)",
             ),
             directory=self.edit_icon.text(),
+            app_config=self.config,
+            config_key="settings_icon",
+            persist_config=False,
         )
         if path:
             self.edit_icon.setText(path)
@@ -623,6 +626,9 @@ class SettingsDialog(QDialog):
                 "Executables (*.exe);;All files (*)",
             ),
             directory=self.edit_emu.text(),
+            app_config=self.config,
+            config_key="settings_emulator",
+            persist_config=False,
         )
         if path:
             self.edit_emu.setText(path)

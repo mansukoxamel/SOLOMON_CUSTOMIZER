@@ -3312,6 +3312,8 @@ class MainWindow(QMainWindow):
             self,
             title=t("main.file.open_dialog.title", "NES ROM を選択"),
             filter=filter_str,
+            app_config=self._app_config,
+            config_key="rom_open",
         )
 
         if not path:
@@ -3479,6 +3481,8 @@ class MainWindow(QMainWindow):
             self,
             title=t("main.migration.target_dialog.title", "移行先の編集可能ROMを選択"),
             filter="NES ROMs / ZIP (*.nes *.zip);;NES ROMs (*.nes);;ZIP archives (*.zip);;All files (*)",
+            app_config=self._app_config,
+            config_key="rom_migration_target",
         )
         if not base_path:
             return
@@ -4398,11 +4402,15 @@ class MainWindow(QMainWindow):
             src_name = src_name.split(" (in ")[0]
         stem = Path(src_name).stem
         default_name = f"{stem}_{ts}.nes"
-        path, _ = QFileDialog.getSaveFileName(
+        from .file_dialog_compat import get_path
+        path = get_path(
             self,
-            t("main.rom.save_dialog.title", "改造ROMの保存先"),
-            self._default_save_path(default_name),
-            "NES ROMs (*.nes);;All files (*)"
+            title=t("main.rom.save_dialog.title", "改造ROMの保存先"),
+            directory=self._default_save_path(default_name),
+            filter="NES ROMs (*.nes);;All files (*)",
+            mode="save",
+            app_config=self._app_config,
+            config_key="rom_save",
         )
         if not path:
             return False
@@ -4681,6 +4689,8 @@ class MainWindow(QMainWindow):
             self,
             title=t("main.ips.base_dialog.title", "原本ROM（市販吸出し）を選択"),
             filter="*.nes",
+            app_config=self._app_config,
+            config_key="ips_base_rom",
         )
         if not base_path:
             return
@@ -4715,11 +4725,15 @@ class MainWindow(QMainWindow):
             src_name = src_name.split(" (in ")[0]
         stem = Path(src_name).stem
         default_name = f"{stem}_{ts}.ips"
-        path, _ = QFileDialog.getSaveFileName(
+        from .file_dialog_compat import get_path
+        path = get_path(
             self,
-            t("main.ips.save_dialog.title", "IPSパッチ保存"),
-            self._default_save_path(default_name),
-            "IPS Patch (*.ips);;All files (*)"
+            title=t("main.ips.save_dialog.title", "IPSパッチ保存"),
+            directory=self._default_save_path(default_name),
+            filter="IPS Patch (*.ips);;All files (*)",
+            mode="save",
+            app_config=self._app_config,
+            config_key="ips_save",
         )
         if not path:
             return
@@ -5215,11 +5229,15 @@ class MainWindow(QMainWindow):
         stage_no = self.current_level_no + 1
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         default_name = f"level_{stage_no:02d}_{ts}.png"
-        path, _ = QFileDialog.getSaveFileName(
+        from .file_dialog_compat import get_path
+        path = get_path(
             self,
-            t("main.stage_png.save_dialog.title", "ステージデータPNGの保存先"),
-            self._default_save_path(default_name),
-            "PNG Images (*.png);;All files (*)"
+            title=t("main.stage_png.save_dialog.title", "ステージデータPNGの保存先"),
+            directory=self._default_save_path(default_name),
+            filter="PNG Images (*.png);;All files (*)",
+            mode="save",
+            app_config=self._app_config,
+            config_key="stage_png_export",
         )
         if not path:
             return
@@ -5771,6 +5789,8 @@ class MainWindow(QMainWindow):
             self,
             title=t("main.compare.stage_png.open.title", "比較するステージPNGを選択"),
             filter="*.png",
+            app_config=self._app_config,
+            config_key="stage_png_compare",
         )
         if not path:
             return
@@ -5915,6 +5935,8 @@ class MainWindow(QMainWindow):
             self,
             title=t("main.stage_png.open_current.title", "ステージデータPNGを選択"),
             filter="*.png",
+            app_config=self._app_config,
+            config_key="stage_png_open",
         )
         if not path:
             return
@@ -5936,6 +5958,8 @@ class MainWindow(QMainWindow):
         folder = get_folder(
             self,
             title=t("main.stage_png.open_all.title", "ステージデータPNGフォルダを選択"),
+            app_config=self._app_config,
+            config_key="stage_png_folder",
         )
         if not folder:
             return

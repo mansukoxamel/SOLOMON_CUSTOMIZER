@@ -701,6 +701,9 @@ class PaletteDialog(QDialog):
             title=t("palette.save_dialog.title", "パレット設定を画像保存"),
             filter="PNG Images (*.png);;All files (*)",
             mode="save",
+            directory="palette_settings.png",
+            app_config=self._app_config,
+            config_key="palette_settings",
         )
         if not path:
             return
@@ -801,6 +804,8 @@ class PaletteDialog(QDialog):
             self,
             title=t("palette.load_dialog.title", "パレット設定を読み込み"),
             filter="Palette PNG (*.png);;Legacy JSON (*.json);;All files (*)",
+            app_config=self._app_config,
+            config_key="palette_settings",
         )
         if not path:
             return
