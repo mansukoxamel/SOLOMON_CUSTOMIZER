@@ -22,6 +22,7 @@ from ..core import panel_monster_stage_variant
 from ..core import panel_bullet_speed_fix
 from ..core import demo_stage_hack
 from ..core import dragon_hack
+from ..core import shared_flame_start_wait
 from ..core import demonhead_hack
 from ..core import golem_hack
 from ..core import golem_speed
@@ -69,6 +70,13 @@ def _enemy_group_pixmap(tile_renderer, config, enemy_code: int) -> QPixmap:
     return QPixmap.fromImage(bg)
 
 
+def _pixmap_signature(pixmap: QPixmap):
+    image = pixmap.toImage()
+    bits = image.constBits()
+    bits.setsize(image.byteCount())
+    return (image.width(), image.height(), image.format(), bytes(bits))
+
+
 def _setup_enemy_group(dialog, group, form, sort_key: int, enemy_codes=()):
     group.setProperty("enemy_sort_key", sort_key)
     if not enemy_codes:
@@ -77,10 +85,15 @@ def _setup_enemy_group(dialog, group, form, sort_key: int, enemy_codes=()):
     lay = QHBoxLayout(row)
     lay.setContentsMargins(0, 0, 0, 2)
     lay.setSpacing(4)
+    seen_icons = set()
     for code in enemy_codes:
         pix = _enemy_group_pixmap(dialog.tile_renderer, dialog.config, code)
         if pix.isNull():
             continue
+        signature = _pixmap_signature(pix)
+        if signature in seen_icons:
+            continue
+        seen_icons.add(signature)
         lbl = QLabel()
         lbl.setFixedSize(36, 36)
         lbl.setPixmap(pix)
@@ -1018,6 +1031,45 @@ class HackDialog(QDialog):
             self.chk_dragon_snappy.setEnabled(False)
         layout.addWidget(dragon_group)
 
+        # ====== ドラゴン/サラマンダー共通 火吐き開始待ち ======
+        flame_group = QGroupBox(t("hack_dialog.group.shared_flame_wait", "ドラゴン/サラマンダー 火吐き開始待ち"))
+        flame_group.setProperty("settings_category", "敵・AI")
+        flame_f = QFormLayout(flame_group)
+        _setup_enemy_group(self, flame_group, flame_f, 61, (0x68, 0x5C))
+        self.spin_shared_flame_wait = QSpinBox()
+        self.spin_shared_flame_wait.setRange(
+            shared_flame_start_wait.MIN_WAIT,
+            shared_flame_start_wait.MAX_WAIT,
+        )
+        self.spin_shared_flame_wait.setSuffix(t("hack_dialog.frame.suffix", " フレーム"))
+        self._shared_flame_wait_ok = False
+        try:
+            self.spin_shared_flame_wait.setValue(
+                shared_flame_start_wait.current_wait(rom.data))
+            self._shared_flame_wait_ok = True
+        except shared_flame_start_wait.SharedFlameStartWaitError as e:
+            note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
+            note.setWordWrap(True)
+            note.setStyleSheet("color:#c33;")
+            flame_f.addRow(note)
+        if self._shared_flame_wait_ok:
+            flame_f.addRow(
+                t("hack_dialog.shared_flame_wait.label", "待ち時間:"),
+                self.spin_shared_flame_wait,
+            )
+            flame_hint = QLabel(
+                t(
+                    "hack_dialog.shared_flame_wait.hint",
+                    "ドラゴン/サラマンダーが火炎を出し始めるまでの待ち時間です。"
+                    "原作は24F。小さいほど早く吐き、255Fにすると大きく遅れます。",
+                ))
+            flame_hint.setWordWrap(True)
+            flame_hint.setStyleSheet("color:#888; font-size:11px;")
+            flame_f.addRow(flame_hint)
+        else:
+            self.spin_shared_flame_wait.setEnabled(False)
+        layout.addWidget(flame_group)
+
         # クリア画面 (THANK YOU DANA) のキャラ差し替え
         cs_group = QGroupBox(t("hack_dialog.group.clear_screen_char", "クリア画面のキャラ (おめでとう画面の2体)"))
         cs_group.setProperty("settings_category", "画面・演出")
@@ -1906,6 +1958,7 @@ class HackDialog(QDialog):
             "gargoyle_cooldown_frames": self.spin_gargoyle_cooldown.value(),
             "gargoyle_variant_settings": self._gargoyle_variant_settings_from_ui(),
             "dragon_snappy": self.chk_dragon_snappy.isChecked(),
+            "shared_flame_start_wait_frames": self.spin_shared_flame_wait.value(),
             "shared_monster_walk_multiplier": self._combo_data(self.combo_shared_walk),
             "neul_ghost_speed_multiplier": self._combo_data(self.combo_neul_ghost_speed),
             "spark_ball_speed_multiplier": self._combo_data(self.combo_spark_ball_speed),
@@ -1934,6 +1987,7 @@ class HackDialog(QDialog):
             "gargoyle": bool(getattr(self, "_gargoyle_ok", False)),
             "gargoyle_variant": bool(getattr(self, "_gargoyle_variant_ok", False)),
             "dragon": bool(getattr(self, "_dragon_ok", False)),
+            "shared_flame_start_wait": bool(getattr(self, "_shared_flame_wait_ok", False)),
             "golem_speed": bool(getattr(self, "_golem_spd_ok", False)),
             "neul_ghost_speed": bool(getattr(self, "_neul_ghost_spd_ok", False)),
             "spark_ball_speed": bool(getattr(self, "_spark_ball_spd_ok", False)),
@@ -2176,6 +2230,7 @@ class HackDialog(QDialog):
         set_spin("gargoyle_cooldown_frames", self.spin_gargoyle_cooldown, t("hack_dialog.setting.gargoyle_cooldown", "ガーゴイル クールダウン"))
         set_gargoyle_variant_settings("gargoyle_variant_settings", t("hack_dialog.setting.gargoyle_variant", "強化ガーゴイル"))
         set_check("dragon_snappy", self.chk_dragon_snappy, t("hack_dialog.setting.dragon_snappy", "ドラゴン キビキビ"))
+        set_spin("shared_flame_start_wait_frames", self.spin_shared_flame_wait, t("hack_dialog.setting.shared_flame_wait", "火吐き開始待ち"))
         set_combo("shared_monster_walk_multiplier", self.combo_shared_walk, t("hack_dialog.setting.shared_walk", "共通歩行速度"))
         set_combo("neul_ghost_speed_multiplier", self.combo_neul_ghost_speed, t("hack_dialog.setting.neul_ghost_speed", "ゴースト＆ヌエル移動速度"))
         set_combo("spark_ball_speed_multiplier", self.combo_spark_ball_speed, t("hack_dialog.setting.spark_ball_speed", "スパークボール移動速度"))
@@ -2533,6 +2588,16 @@ class HackDialog(QDialog):
                     applied.append(t("hack_dialog.applied.dragon", "ドラゴン: {changes}").format(changes=" / ".join(drch)))
             except dragon_hack.DragonHackError as e:
                 QMessageBox.warning(self, t("hack_dialog.error.dragon", "ドラゴン改造失敗"), str(e))
+
+        # ドラゴン/サラマンダー共通 火吐き開始待ち
+        if getattr(self, "_shared_flame_wait_ok", False):
+            try:
+                sfch = shared_flame_start_wait.apply(
+                    d, self.spin_shared_flame_wait.value())
+                if sfch:
+                    applied.append(t("hack_dialog.applied.shared_flame_wait", "火吐き開始待ち: {changes}").format(changes=" / ".join(sfch)))
+            except shared_flame_start_wait.SharedFlameStartWaitError as e:
+                QMessageBox.warning(self, t("hack_dialog.error.shared_flame_wait", "火吐き開始待ち設定失敗"), str(e))
 
         # 共通歩行速度 (Golem/Dragon/Gargoyle s0)
         if self._golem_spd_ok:
