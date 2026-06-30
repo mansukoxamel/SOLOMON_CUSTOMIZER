@@ -10,7 +10,7 @@ feature.  This module is for the newer global-parameterized A/B/C families:
 
 Current scope:
   - hook the state0 firing interval compare at $A575/$A579;
-  - keep the state1 pre-shot mouth delay at the stock $10;
+  - keep the state1 pre-shot fire gate at the stock $10;
   - write one fixed PRG1 A/B/C speed+interval table on every expanded-ROM save;
   - copy that table to $0740-$0745 during room load so the PRG0 fire path stays
     small and does not branch over stage contents.
@@ -367,7 +367,6 @@ def _build_final_fire_marker_table() -> bytes:
 
 
 def _build_final_fire_common(
-    fire_delay: int,
     marker_table_cpu: int,
     static_marker_cpu: int,
     dynamic_marker_cpu: int,
@@ -386,7 +385,8 @@ def _build_final_fire_common(
     a.label("two_entry")
     a.b(0xA2, 0x00)
     a.label("start")
-    a.b(0xA0, 0x01, 0xB1, 0x2C, 0xC9, fire_delay & 0xFF)
+    # Keep the pre-shot fire gate at the stock Panel Monster value.
+    a.b(0xA0, 0x01, 0xB1, 0x2C, 0xC9, panel_monster_variant.ORIG_FIRE_DELAY)
     a.branch(0x90, "rts")
     a.label("loop")
     a.b(0x8A, 0x48)
@@ -677,7 +677,6 @@ PREVIOUS_STAGE_DISPATCH_HELPER = _build_previous_stage_dispatch_helper(
     panel_monster_variant.CPU_FIRE_3WAY + 0x04,
 )
 FINAL_FIRE_COMMON = _build_final_fire_common(
-    panel_monster_variant.ORIG_FIRE_DELAY,
     CPU_FINAL_FIRE_MARKER_TABLE,
     CPU_FINAL_STATIC_MARKER_HELPER,
     CPU_FINAL_DYNAMIC_SPEED_MARKER_HELPER,

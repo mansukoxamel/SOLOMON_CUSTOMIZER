@@ -78,8 +78,7 @@ ORIG_PANEL_FIRE = bytes.fromhex(
     "a0 01 b1 2c c9 10 90 16 a0 03 b1 2e 29 03 aa 20 76 ae "
     "a0 03 98 31 2e 91 2e 88 a9 00 91 2c 60"
 )
-ORIG_FIRE_DELAY = 0x10
-SNAPPY_FIRE_DELAY = 0x01
+ORIG_FIRE_DELAY = 0x10  # Panel Monster state1 fire gate, kept stock.
 ORIG_BULLET_MOVE_HOOK = bytes.fromhex("20 01 b2")
 ORIG_AI_DEMON = _word(0xB208)
 ORIG_AI_SARAM = _word(0xB038)
@@ -178,18 +177,11 @@ def _relocate_fire(raw: bytearray, base_cpu: int, helper_off: int, exit_off: int
     return bytes(blob)
 
 
-def _with_fire_delay(blob: bytes, fire_delay: int) -> bytes:
-    out = bytearray(blob)
-    if len(out) > 5 and out[4] == 0xC9:
-        out[5] = fire_delay & 0xFF
-    return bytes(out)
+def _build_fire_3way() -> bytes:
+    return _build_fire_common()
 
 
-def _build_fire_3way(fire_delay: int) -> bytes:
-    return _build_fire_common(fire_delay)
-
-
-def _build_fire_common(fire_delay: int) -> bytes:
+def _build_fire_common() -> bytes:
     a = _Asm()
     # Entry points set X = marker table offset: 0=2-way, 3=3-way, 7=normal.
     a.label("normal_entry")
@@ -199,7 +191,8 @@ def _build_fire_common(fire_delay: int) -> bytes:
     a.label("two_entry")
     a.b(0xA2, 0x00)
     a.label("start")
-    a.b(0xA0, 0x01, 0xB1, 0x2C, 0xC9, fire_delay & 0xFF)
+    # Keep the pre-shot fire gate at the stock Panel Monster value.
+    a.b(0xA0, 0x01, 0xB1, 0x2C, 0xC9, ORIG_FIRE_DELAY)
     a.branch(0x90, "rts")
     a.label("loop")
     a.b(0x8A, 0x48)                   # save marker-table offset
@@ -251,7 +244,7 @@ def _build_fire_common(fire_delay: int) -> bytes:
     return bytes(blob)
 
 
-CAVE_FIRE_3WAY = _build_fire_common(ORIG_FIRE_DELAY)
+CAVE_FIRE_3WAY = _build_fire_common()
 CPU_FIRE_NORMAL_ENTRY = CPU_FIRE_3WAY
 CPU_FIRE_THREE_ENTRY = CPU_FIRE_3WAY + 0x04
 CPU_FIRE_TWO_ENTRY = CPU_FIRE_3WAY + 0x08
@@ -259,7 +252,7 @@ CPU_FIRE_COMMON_MARKER = CPU_FIRE_3WAY + 0x58  # legacy 3-way helper address
 CPU_FIRE_COMMON_EXIT = CPU_FIRE_3WAY + 0x64    # legacy 3-way exit address
 
 
-def _build_fire_2way(fire_delay: int = ORIG_FIRE_DELAY) -> bytes:
+def _build_fire_2way() -> bytes:
     blob = bytearray(_relocate_fire(
         RAW_FIRE_2WAY[:0x39],
         CPU_FIRE_2WAY,
@@ -270,14 +263,13 @@ def _build_fire_2way(fire_delay: int = ORIG_FIRE_DELAY) -> bytes:
         helper_cpu=CPU_FIRE_COMMON_MARKER,
         exit_cpu=CPU_FIRE_COMMON_EXIT,
     ))
-    blob[5] = fire_delay & 0xFF
     blob[0x07] = 0x39 - 0x08       # BCC -> local RTS when the fire timer is not ready.
     blob[0x1B] = 0x36 - 0x1C       # BCC -> local JMP common exit on second-slot failure.
     blob.append(0x60)
     return bytes(blob)
 
 
-CAVE_FIRE_2WAY = _build_fire_2way(ORIG_FIRE_DELAY)
+CAVE_FIRE_2WAY = _build_fire_2way()
 CPU_FIRE_NORMAL = CPU_BULLET_HOOK + 0x50
 OFF_FIRE_NORMAL = _cf(CPU_FIRE_NORMAL)
 
@@ -425,11 +417,7 @@ CAVE_BULLET_HOOK = _build_bullet_hook()
 CAVE_BULLET_HOOK_SLOT = CAVE_BULLET_HOOK
 
 
-def _build_fire_normal(fire_delay: int) -> bytes:
-    return _with_fire_delay(ORIG_PANEL_FIRE, fire_delay)
-
-
-CAVE_FIRE_NORMAL = _build_fire_normal(ORIG_FIRE_DELAY)
+CAVE_FIRE_NORMAL = ORIG_PANEL_FIRE
 CAVE_AI_DEMON_WRAPPER = _build_demon_ai_wrapper()
 CAVE_AI_SARAM_WRAPPER = _build_saram_ai_wrapper()
 CAVE_PROPERTY_HOOK = _build_property_hook()
@@ -460,41 +448,11 @@ def _expect_or_hooked(rom_data, off: int, orig: bytes, hook: bytes, name: str,
     )
 
 
-def _is_panel_fire_with_delay(cur: bytes) -> bool:
-    return (
-        len(cur) == len(ORIG_PANEL_FIRE)
-        and cur[:5] == ORIG_PANEL_FIRE[:5]
-        and cur[6:] == ORIG_PANEL_FIRE[6:]
-        and cur[5] in (ORIG_FIRE_DELAY, SNAPPY_FIRE_DELAY)
-    )
-
-
 def _is_orig_panel_fire_with_current_spark_property(cur: bytes) -> bool:
     return (
         cur[:3] == ORIG_PANEL_FIRE[:3]
         and cur[3:3 + len(SPARK_PROPERTY_HOOK_CURRENT_BODY)] == SPARK_PROPERTY_HOOK_CURRENT_BODY
     )
-
-
-def _current_panel_fire_delay(rom_data) -> int:
-    cur = bytes(rom_data[OFF_HOOK_PANEL_FIRE:OFF_HOOK_PANEL_FIRE + len(ORIG_PANEL_FIRE)])
-    if _is_panel_fire_with_delay(cur):
-        return cur[5]
-    if cur[:len(HOOK_PANEL_FIRE_HEAD)] == HOOK_PANEL_FIRE_HEAD:
-        if (
-            len(rom_data) > OFF_FIRE_3WAY + 15
-            and rom_data[OFF_FIRE_3WAY:OFF_FIRE_3WAY + 3] == bytes((0xA2, 0x07, 0xD0))
-            and rom_data[OFF_FIRE_3WAY + 14] == 0xC9
-        ):
-            value = rom_data[OFF_FIRE_3WAY + 15]
-            if value in (ORIG_FIRE_DELAY, SNAPPY_FIRE_DELAY):
-                return value
-        for off in (OFF_FIRE_NORMAL, OFF_FIRE_2WAY, OFF_FIRE_3WAY):
-            if len(rom_data) > off + 5 and rom_data[off + 4] == 0xC9:
-                value = rom_data[off + 5]
-                if value in (ORIG_FIRE_DELAY, SNAPPY_FIRE_DELAY):
-                    return value
-    return ORIG_FIRE_DELAY
 
 
 def _write_blob(rom_data, off: int, blob: bytes, changed: list[str], name: str) -> None:
@@ -522,15 +480,11 @@ def apply(rom_data) -> list[str]:
 
     fire_site = bytes(rom_data[OFF_HOOK_PANEL_FIRE:OFF_HOOK_PANEL_FIRE + len(ORIG_PANEL_FIRE)])
     if not (
-        _is_panel_fire_with_delay(fire_site)
+        fire_site == ORIG_PANEL_FIRE
         or fire_site[:len(HOOK_PANEL_FIRE_HEAD)] == HOOK_PANEL_FIRE_HEAD
         or _is_orig_panel_fire_with_current_spark_property(fire_site)
     ):
         _expect_or_hooked(rom_data, OFF_HOOK_PANEL_FIRE, ORIG_PANEL_FIRE, HOOK_PANEL_FIRE, "$A556")
-    fire_delay = _current_panel_fire_delay(rom_data)
-    cave_fire_normal = _build_fire_normal(fire_delay)
-    cave_fire_2way = _build_fire_2way(fire_delay)
-    cave_fire_3way = _build_fire_3way(fire_delay)
     _expect_or_hooked(rom_data, OFF_HOOK_BULLET_MOVE, ORIG_BULLET_MOVE_HOOK, HOOK_BULLET_MOVE, "$AFBC")
     _expect_or_hooked(
         rom_data,
@@ -558,7 +512,7 @@ def apply(rom_data) -> list[str]:
     for off, blob, name in (
         (OFF_FIRE_DISPATCH, CAVE_FIRE_DISPATCH, "Panel Monster variant fire dispatch $BCD2"),
         (OFF_AI_SARAM_WRAPPER, CAVE_AI_SARAM_WRAPPER, "Panel Monster variant Saramandor-ID AI wrapper $BC5B"),
-        (OFF_FIRE_3WAY, cave_fire_3way, "Panel Monster common fire loop $BD88"),
+        (OFF_FIRE_3WAY, CAVE_FIRE_3WAY, "Panel Monster common fire loop $BD88"),
         (OFF_BULLET_HOOK, CAVE_BULLET_HOOK_SLOT, "Panel Monster diagonal Bullet hook $BF69"),
         (OFF_AI_DEMON_WRAPPER, CAVE_AI_DEMON_WRAPPER, "Panel Monster Demonhead-ID AI wrapper $C146"),
         (OFF_PROPERTY_HOOK, CAVE_PROPERTY_HOOK, "Panel Monster type-specific property hook $DBDF"),
@@ -566,11 +520,11 @@ def apply(rom_data) -> list[str]:
     ):
         _write_blob(rom_data, off, blob, changed, name)
     _clear_old_blob_if_present(
-        rom_data, OFF_FIRE_NORMAL, cave_fire_normal, changed,
+        rom_data, OFF_FIRE_NORMAL, CAVE_FIRE_NORMAL, changed,
         "reclaim old Panel Monster normal fire copy",
     )
     _clear_old_blob_if_present(
-        rom_data, OFF_FIRE_2WAY, cave_fire_2way, changed,
+        rom_data, OFF_FIRE_2WAY, CAVE_FIRE_2WAY, changed,
         "reclaim old Panel Monster 2-way fire cave",
     )
 
