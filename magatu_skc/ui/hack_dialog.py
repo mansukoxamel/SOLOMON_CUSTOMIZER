@@ -1001,14 +1001,14 @@ class HackDialog(QDialog):
             drf.addRow(note)
 
         self.chk_dragon_snappy = QCheckBox(
-            t("hack_dialog.dragon.snappy", "キビキビ動作（攻撃前の待ちを最小化）"))
+            t("hack_dialog.dragon.snappy", "キビキビ動作（方向転換の待ちを最小化）"))
         if self._dragon_ok:
             self.chk_dragon_snappy.setChecked(
                 dragon_hack.is_snappy(rom.data))
             drf.addRow(self.chk_dragon_snappy)
             dhint = QLabel(t(
                 "hack_dialog.dragon.hint",
-                "ONでドラゴン固有の攻撃前待ち1箇所を$01にします。"
+                "ONでドラゴン固有の方向転換待ち1箇所を$01にします。"
                 "サラマンダー共有の火吐き開始waitは変更しません。",
             ))
             dhint.setWordWrap(True)

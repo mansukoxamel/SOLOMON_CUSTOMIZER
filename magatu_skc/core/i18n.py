@@ -3271,10 +3271,10 @@ _TRANSLATIONS = {
         "en": "Enhanced Gargoyle (7A/7B/7E/7F) fires one shot like the original. Speed has four presets. 7E/7F cooldown is fixed at 0F.",
     },
     "hack_dialog.group.dragon": {"ja": "ドラゴン", "en": "Dragon"},
-    "hack_dialog.dragon.snappy": {"ja": "キビキビ動作（攻撃前の待ちを最小化）", "en": "Snappy behavior (minimize the pre-attack wait)"},
+    "hack_dialog.dragon.snappy": {"ja": "キビキビ動作（方向転換の待ちを最小化）", "en": "Snappy behavior (minimize the turn-around wait)"},
     "hack_dialog.dragon.hint": {
-        "ja": "ONでドラゴン固有の攻撃前待ち1箇所を$01にします。サラマンダー共有の火吐き開始waitは変更しません。",
-        "en": "When ON, changes Dragon's unique pre-attack wait to $01. The fire-breath start wait shared with Saramandor is not changed.",
+        "ja": "ONでドラゴン固有の方向転換待ち1箇所を$01にします。サラマンダー共有の火吐き開始waitは変更しません。",
+        "en": "When ON, changes Dragon's unique turn-around wait to $01. The fire-breath start wait shared with Saramandor is not changed.",
     },
     "hack_dialog.group.clear_screen_char": {"ja": "クリア画面のキャラ (おめでとう画面の2体)", "en": "Clear Screen Characters (Two Congratulations-Screen Sprites)"},
     "hack_dialog.clear_screen_char.label": {"ja": "表示キャラ:", "en": "Displayed character:"},
