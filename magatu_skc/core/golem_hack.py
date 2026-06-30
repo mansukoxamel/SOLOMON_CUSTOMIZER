@@ -5,30 +5,28 @@ CLAUDE.md ルール準拠:
   - 改造前に AI_GOLEM シグネチャを検証、失敗時 GolemHackError でパッチ中止
 
 Codex解析 + ROMバイト全項目検証で確定 (2026-05-16):
-  ゴーレム (type $70-$77, AI $AD11) の State 遷移には4つの「待ちフレーム」がある。
-  これを最小化すると「視認→即反応・方向転換・移動再開」= キビキビ動作になる。
+  ゴーレム (type $70-$77, AI $AD11) の State 遷移には複数の「待ちフレーム」がある。
+  現在のキビキビ動作では State4/State5 の待ちだけを最小化する。
   ※ 移動速度そのもの ($AD5F/$AD95/$AE0F の #$01) は速度値兼 behavior bit
     マスクのため $02 にすると無限ループ。触らない。速度UPは別途 (golem speed)。
 
-キビキビ4箇所 (CMP/CPX #imm / BCC 待ちしきい値):
-  $AD33 State0 初期待ち   原作 $0C
-  $AD41 State0 起動待ち   原作 $1B
+キビキビ2箇所 (CMP #imm / BCC 待ちしきい値):
   $AD90 State4 視認後復帰  原作 $0C
   $AE0A State5 復帰/反転   原作 $18
-  → 全て $01 で実質待ちゼロ (実機確認: 正常動作・劇的に機敏)
+  → 全て $01 で実質待ちゼロ
 """
 
 # region → wait offsets / 原作値 / シグネチャ
 _OFF = {
     "JP": {
-        "waits":  [0x2D43, 0x2D51, 0x2DA0, 0x2E1A],
-        "orig":   [0x0C,   0x1B,   0x0C,   0x18],
+        "waits":  [0x2DA0, 0x2E1A],
+        "orig":   [0x0C,   0x18],
         "sig_off": 0x2D21,  # AI_GOLEM $AD11 dispatch (待ちバイト不含・一意)
         "sig":     bytes.fromhex("20 01 b2 20 a9 8e 25 ad c8 ae 30 ae"),
     },
     "US": {  # JP +$140 (再配置ゾーン、JSR先差で sig 別)
-        "waits":  [0x2E83, 0x2E91, 0x2EE0, 0x2F5A],
-        "orig":   [0x0C,   0x1B,   0x0C,   0x18],
+        "waits":  [0x2EE0, 0x2F5A],
+        "orig":   [0x0C,   0x18],
         "sig_off": 0x2E61,
         "sig":     bytes.fromhex("20 41 b3 20 a9 8e 65 ae 08 b0 70 af"),
     },
@@ -55,7 +53,7 @@ def detect_region(rom_data) -> str:
 
 
 def is_snappy(rom_data) -> bool:
-    """キビキビ動作が適用済みか (4箇所すべて SNAPPY_VALUE か)"""
+    """キビキビ動作が適用済みか (対象箇所すべて SNAPPY_VALUE か)"""
     region = detect_region(rom_data)
     o = _OFF[region]
     return all(rom_data[off] == SNAPPY_VALUE for off in o["waits"])
@@ -72,7 +70,7 @@ def apply(rom_data, snappy: bool) -> list:
                 rom_data[off] = SNAPPY_VALUE
                 changed.append(f"待ち${off:04X}→$01")
         if changed:
-            return ["キビキビ動作ON (待ち4箇所→$01)"]
+            return ["キビキビ動作ON (視認後復帰/方向転換待ち2箇所→$01)"]
         return []
     else:
         for off, orig in zip(o["waits"], o["orig"]):

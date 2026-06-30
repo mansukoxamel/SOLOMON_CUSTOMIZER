@@ -3220,8 +3220,8 @@ _TRANSLATIONS = {
     },
     "hack_dialog.group.golem": {"ja": "ゴーレム", "en": "Golem"},
     "hack_dialog.golem.snappy": {
-        "ja": "キビキビ動作（視認→即反応・方向転換・移動再開、隙を最小化）",
-        "en": "Snappy behavior (minimize delay for detection, turning, and movement restart)",
+        "ja": "キビキビ動作（視認後復帰・方向転換の待ちを最小化）",
+        "en": "Snappy behavior (minimize post-detection recovery and turn-around waits)",
     },
     "hack_dialog.group.shared_walk": {"ja": "ゴーレム/ドラゴン/ガーゴイル歩行速度", "en": "Golem / Dragon / Gargoyle Walk Speed"},
     "hack_dialog.shared_walk.label": {"ja": "歩行速度:", "en": "Walk speed:"},

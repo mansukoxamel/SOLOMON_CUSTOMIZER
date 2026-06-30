@@ -680,7 +680,7 @@ class HackDialog(QDialog):
             glf.addRow(note)
 
         self.chk_golem_snappy = QCheckBox(
-            t("hack_dialog.golem.snappy", "キビキビ動作（視認→即反応・方向転換・移動再開、隙を最小化）"))
+            t("hack_dialog.golem.snappy", "キビキビ動作（視認後復帰・方向転換の待ちを最小化）"))
         if self._golem_ok:
             self.chk_golem_snappy.setChecked(golem_hack.is_snappy(rom.data))
             glf.addRow(self.chk_golem_snappy)
