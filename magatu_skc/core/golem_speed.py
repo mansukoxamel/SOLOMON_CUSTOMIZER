@@ -5,8 +5,6 @@ Mesen実機ブレークポイント解析で真のレバーを特定 (2026-05-16
 behavior→speed-index 表経由で参照される (Yvel,Xvel) ペアの Xvel を変える。
 
 確定レバー (JP/US 共通 file offset):
-  Golem s1 (type $74-$77) 通常歩行 : $DBC8/$DBCA = file 0x5BD8/0x5BDA (原作 $13/$6D, ±0.594)
-  Golem s1 特攻(Dana視認)         : $DBD4/$DBD6 = file 0x5BE4/0x5BE6 (原作 $26/$5A, ±1.188)
   共通 s0 通常歩行                : $DBD0/$DBD2 = file 0x5BE0/0x5BE2 (原作 $0C/$74, ±0.375)
 
 速度 = SUB_8689 の V*8/256 符号拡張。実効上限 ≈ ±2.0 px/f。
@@ -15,16 +13,10 @@ $40 ちょうどは SUB_8AC0 の「速度更新スキップ」マーカーのた
 """
 
 # JP/US 共通 file offset (速度テーブル本体は再配置されない)
-OFF_S1_WALK_P = 0x5BD8   # $DBC8 idx$17 Xvel
-OFF_S1_WALK_N = 0x5BDA   # $DBCA idx$18 Xvel
-OFF_S1_CHG_P  = 0x5BE4   # $DBD4 idx$1D Xvel
-OFF_S1_CHG_N  = 0x5BE6   # $DBD6 idx$1E Xvel
 OFF_S0_WALK_P = 0x5BE0   # $DBD0 idx$1B Xvel
 OFF_S0_WALK_N = 0x5BE2   # $DBD2 idx$1C Xvel
 
 ORIG = {
-    OFF_S1_WALK_P: 0x13, OFF_S1_WALK_N: 0x6D,
-    OFF_S1_CHG_P:  0x26, OFF_S1_CHG_N:  0x5A,
     OFF_S0_WALK_P: 0x0C, OFF_S0_WALK_N: 0x74,
 }
 
@@ -75,24 +67,10 @@ def verify(rom_data) -> None:
         )
 
 
-def current_golem_walk_mult(rom_data) -> float:
-    verify(rom_data)
-    cur = _eff(rom_data[OFF_S1_WALK_P])
-    base = _eff(ORIG[OFF_S1_WALK_P])
-    return round(cur / base, 2) if base else 1.0
-
-
 def current_shared_walk_mult(rom_data) -> float:
     verify(rom_data)
     cur = _eff(rom_data[OFF_S0_WALK_P])
     base = _eff(ORIG[OFF_S0_WALK_P])
-    return round(cur / base, 2) if base else 1.0
-
-
-def current_charge_mult(rom_data) -> float:
-    verify(rom_data)
-    cur = _eff(rom_data[OFF_S1_CHG_P])
-    base = _eff(ORIG[OFF_S1_CHG_P])
     return round(cur / base, 2) if base else 1.0
 
 
@@ -108,24 +86,6 @@ def _apply_pair(rom_data, off_p, off_n, mult, changed):
         rom_data[off_p] = np_; changed.append(f"${0x8000+off_p-0x10:04X}=${np_:02X}")
     if rom_data[off_n] != nn:
         rom_data[off_n] = nn; changed.append(f"${0x8000+off_n-0x10:04X}=${nn:02X}")
-
-
-def apply(rom_data, shared_walk_mult: float, golem_walk_mult: float, charge_mult: float) -> list:
-    """共有s0歩行、Golem s1歩行、Golem s1特攻の倍率を適用。"""
-    verify(rom_data)
-    changed = []
-    # 共有歩行: Golem / Dragon / Gargoyle s0
-    _apply_pair(rom_data, OFF_S0_WALK_P, OFF_S0_WALK_N, shared_walk_mult, changed)
-    # Golem s1 歩行
-    _apply_pair(rom_data, OFF_S1_WALK_P, OFF_S1_WALK_N, golem_walk_mult, changed)
-    # Golem s1 特攻
-    _apply_pair(rom_data, OFF_S1_CHG_P, OFF_S1_CHG_N, charge_mult, changed)
-    if not changed:
-        return []
-    return [
-        f"共通歩行{shared_walk_mult:g}x / ゴーレム歩行{golem_walk_mult:g}x / "
-        f"特攻{charge_mult:g}x ({len(changed)}バイト)"
-    ]
 
 
 def apply_shared_walk(rom_data, shared_walk_mult: float) -> list:
