@@ -5,12 +5,13 @@ Mesen実機ブレークポイント解析で真のレバーを特定 (2026-05-16
 behavior→speed-index 表経由で参照される (Yvel,Xvel) ペアの Xvel を変える。
 
 確定レバー (JP/US 共通 file offset):
-  共通 s1 通常歩行                : $DBC8/$DBCA = file 0x5BD8/0x5BDA (原作 $13/$6D, ±0.594)
-  共通 s0 通常歩行                : $DBD0/$DBD2 = file 0x5BE0/0x5BE2 (原作 $0C/$74, ±0.375)
+  共通 s1 普通の移動              : $DBC8/$DBCA = file 0x5BD8/0x5BDA (原作 $13/$6D, ±0.594)
+  共通 s0 普通の移動              : $DBD0/$DBD2 = file 0x5BE0/0x5BE2 (原作 $0C/$74, ±0.375)
+  Golem s1 特攻                  : $DBD4/$DBD6 = file 0x5BE4/0x5BE6 (原作 $26/$5A, ±1.188)
 
 速度 = SUB_8689 の V*8/256 符号拡張。実効上限 ≈ ±2.0 px/f。
 $40 ちょうどは SUB_8AC0 の「速度更新スキップ」マーカーのため使用禁止 (敵が止まる)。
-※ s0/s1 通常歩行は Golem / Dragon / Gargoyle で共有されるため、UIでも共通設定として扱う。
+※ Golem / Dragon / Gargoyle の移動速度設定として、普通の移動と Golem 特攻を同倍率で扱う。
 """
 
 # JP/US 共通 file offset (速度テーブル本体は再配置されない)
@@ -18,10 +19,13 @@ OFF_S1_WALK_P = 0x5BD8   # $DBC8 idx$17 Xvel
 OFF_S1_WALK_N = 0x5BDA   # $DBCA idx$18 Xvel
 OFF_S0_WALK_P = 0x5BE0   # $DBD0 idx$1B Xvel
 OFF_S0_WALK_N = 0x5BE2   # $DBD2 idx$1C Xvel
+OFF_S1_CHARGE_P = 0x5BE4 # $DBD4 idx$1D Xvel
+OFF_S1_CHARGE_N = 0x5BE6 # $DBD6 idx$1E Xvel
 
 ORIG = {
     OFF_S1_WALK_P: 0x13, OFF_S1_WALK_N: 0x6D,
     OFF_S0_WALK_P: 0x0C, OFF_S0_WALK_N: 0x74,
+    OFF_S1_CHARGE_P: 0x26, OFF_S1_CHARGE_N: 0x5A,
 }
 
 SIG_OFF = 0x5BA9   # $DB99 速度テーブル先頭 (改造対象不含・JP/US一意確認済)
@@ -93,13 +97,15 @@ def _apply_pair(rom_data, off_p, off_n, mult, changed):
 
 
 def apply_shared_walk(rom_data, shared_walk_mult: float) -> list:
-    """Golem / Dragon / Gargoyle s0/s1 shared normal walk speed."""
+    """Golem / Dragon / Gargoyle movement speed."""
     verify(rom_data)
     changed = []
     _apply_pair(
         rom_data, OFF_S1_WALK_P, OFF_S1_WALK_N, shared_walk_mult, changed)
     _apply_pair(
         rom_data, OFF_S0_WALK_P, OFF_S0_WALK_N, shared_walk_mult, changed)
+    _apply_pair(
+        rom_data, OFF_S1_CHARGE_P, OFF_S1_CHARGE_N, shared_walk_mult, changed)
     if not changed:
         return []
-    return [f"共通歩行{shared_walk_mult:g}x ({len(changed)}バイト)"]
+    return [f"共通移動{shared_walk_mult:g}x ({len(changed)}バイト)"]

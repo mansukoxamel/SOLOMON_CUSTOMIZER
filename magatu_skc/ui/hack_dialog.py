@@ -688,8 +688,8 @@ class HackDialog(QDialog):
             self.chk_golem_snappy.setEnabled(False)
         layout.addWidget(golem_group)
 
-        # ====== 共通歩行速度 ======
-        shared_speed_group = QGroupBox(t("hack_dialog.group.shared_walk", "ゴーレム/ドラゴン/ガーゴイル歩行速度"))
+        # ====== 共通移動速度 ======
+        shared_speed_group = QGroupBox(t("hack_dialog.group.shared_walk", "ゴーレム/ドラゴン/ガーゴイル移動速度"))
         shared_speed_group.setProperty("settings_category", "敵・AI")
         ssf = QFormLayout(shared_speed_group)
         _setup_enemy_group(self, shared_speed_group, ssf, 55, (0x70, 0x68, 0x78))
@@ -713,11 +713,10 @@ class HackDialog(QDialog):
                 if abs(self.combo_shared_walk.itemData(i) - csw) < 0.01:
                     self.combo_shared_walk.setCurrentIndex(i)
                     break
-            ssf.addRow(t("hack_dialog.shared_walk.label", "歩行速度:"), self.combo_shared_walk)
+            ssf.addRow(t("hack_dialog.shared_walk.label", "移動速度:"), self.combo_shared_walk)
             sshint = QLabel(t(
                 "hack_dialog.shared_walk.hint",
-                "Golem/Dragon/Gargoyle の s0/s1 通常歩行が同じ速度で連動します。"
-                "ゴーレム専用の突進速度は変更しません。",
+                "Golem/Dragon/Gargoyle の移動速度が同じ倍率で変わります。",
             ))
             sshint.setWordWrap(True)
             sshint.setStyleSheet("color:#888; font-size:11px;")
@@ -2599,15 +2598,15 @@ class HackDialog(QDialog):
             except shared_flame_start_wait.SharedFlameStartWaitError as e:
                 QMessageBox.warning(self, t("hack_dialog.error.shared_flame_wait", "火吐き開始待ち設定失敗"), str(e))
 
-        # 共通歩行速度 (Golem/Dragon/Gargoyle s0/s1)
+        # 共通移動速度 (Golem/Dragon/Gargoyle)
         if self._golem_spd_ok:
             try:
                 gsch = golem_speed.apply_shared_walk(
                     d, self.combo_shared_walk.currentData())
                 if gsch:
-                    applied.append(t("hack_dialog.applied.shared_walk", "共通歩行速度: {changes}").format(changes=" / ".join(gsch)))
+                    applied.append(t("hack_dialog.applied.shared_walk", "共通移動速度: {changes}").format(changes=" / ".join(gsch)))
             except golem_speed.GolemSpeedError as e:
-                QMessageBox.warning(self, t("hack_dialog.error.shared_walk", "共通歩行速度改造失敗"), str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.shared_walk", "共通移動速度改造失敗"), str(e))
 
         # ゴースト＆ヌエル移動速度
         if self._neul_ghost_spd_ok:
