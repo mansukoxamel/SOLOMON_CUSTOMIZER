@@ -3226,8 +3226,8 @@ _TRANSLATIONS = {
     "hack_dialog.group.shared_walk": {"ja": "ゴーレム/ドラゴン/ガーゴイル歩行速度", "en": "Golem / Dragon / Gargoyle Walk Speed"},
     "hack_dialog.shared_walk.label": {"ja": "歩行速度:", "en": "Walk speed:"},
     "hack_dialog.shared_walk.hint": {
-        "ja": "Golem/Dragon/Gargoyle の s0 通常歩行が同じ速度で連動します。ゴーレム専用の歩行速度・突進速度は混乱を避けるため一旦表示しません。",
-        "en": "The s0 normal walking speed for Golem, Dragon, and Gargoyle changes together. Golem-only walk and charge speeds are hidden for now to avoid confusion.",
+        "ja": "Golem/Dragon/Gargoyle の s0/s1 通常歩行が同じ速度で連動します。ゴーレム専用の突進速度は変更しません。",
+        "en": "The s0/s1 normal walking speeds for Golem, Dragon, and Gargoyle change together. Golem-only charge speed is not changed.",
     },
     "hack_dialog.group.neul_ghost_speed": {"ja": "ゴースト＆ヌエル移動速度", "en": "Ghost & Neul Move Speed"},
     "hack_dialog.move_speed.label": {"ja": "移動速度:", "en": "Move speed:"},

@@ -716,8 +716,8 @@ class HackDialog(QDialog):
             ssf.addRow(t("hack_dialog.shared_walk.label", "歩行速度:"), self.combo_shared_walk)
             sshint = QLabel(t(
                 "hack_dialog.shared_walk.hint",
-                "Golem/Dragon/Gargoyle の s0 通常歩行が同じ速度で連動します。"
-                "ゴーレム専用の歩行速度・突進速度は混乱を避けるため一旦表示しません。",
+                "Golem/Dragon/Gargoyle の s0/s1 通常歩行が同じ速度で連動します。"
+                "ゴーレム専用の突進速度は変更しません。",
             ))
             sshint.setWordWrap(True)
             sshint.setStyleSheet("color:#888; font-size:11px;")
@@ -2599,7 +2599,7 @@ class HackDialog(QDialog):
             except shared_flame_start_wait.SharedFlameStartWaitError as e:
                 QMessageBox.warning(self, t("hack_dialog.error.shared_flame_wait", "火吐き開始待ち設定失敗"), str(e))
 
-        # 共通歩行速度 (Golem/Dragon/Gargoyle s0)
+        # 共通歩行速度 (Golem/Dragon/Gargoyle s0/s1)
         if self._golem_spd_ok:
             try:
                 gsch = golem_speed.apply_shared_walk(
