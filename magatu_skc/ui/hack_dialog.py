@@ -863,12 +863,12 @@ class HackDialog(QDialog):
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             dhf.addRow(note)
-        self.chk_demonhead_snappy = QCheckBox(t("hack_dialog.demonhead.snappy", "キビキビ動作（反転後の溜めを最小化）"))
+        self.chk_demonhead_snappy = QCheckBox(t("hack_dialog.demonhead.snappy", "キビキビ動作（方向転換の待ちを最小化）"))
         if self._demonhead_ok:
             self.chk_demonhead_snappy.setChecked(
                 demonhead_hack.is_snappy(rom.data))
             dhf.addRow(self.chk_demonhead_snappy)
-            dhhint = QLabel(t("hack_dialog.demonhead.hint", "Demonheadが増殖/反転した直後の待ち $0F を $01 にします。"))
+            dhhint = QLabel(t("hack_dialog.demonhead.hint", "Demonheadの方向転換待ち $0F を $01 にします。"))
             dhhint.setWordWrap(True)
             dhhint.setStyleSheet("color:#888; font-size:11px;")
             dhf.addRow(dhhint)

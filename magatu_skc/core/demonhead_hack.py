@@ -48,5 +48,5 @@ def apply(rom_data, snappy: bool) -> list[str]:
     rom_data[off] = target
     cpu = 0x8000 + off - 0x10
     if snappy:
-        return [f"キビキビ動作ON (反転後待ち ${cpu:04X}→01)"]
-    return [f"キビキビ動作OFF (反転後待ち ${cpu:04X}→原作)"]
+        return [f"キビキビ動作ON (方向転換待ち ${cpu:04X}→01)"]
+    return [f"キビキビ動作OFF (方向転換待ち ${cpu:04X}→原作)"]

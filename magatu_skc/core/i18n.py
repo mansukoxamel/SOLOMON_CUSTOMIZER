@@ -3248,8 +3248,8 @@ _TRANSLATIONS = {
         "en": "Pause variants (6A/6B/6E/6F) stop on the selected LIFE hundreds digits. Transparency variants (72/73/76/77) change their transparency cycle through the frame-counter AND mask.",
     },
     "hack_dialog.group.demonhead": {"ja": "デーモンヘッド", "en": "Demon Head"},
-    "hack_dialog.demonhead.snappy": {"ja": "キビキビ動作（反転後の溜めを最小化）", "en": "Snappy behavior (minimize the delay after reversing)"},
-    "hack_dialog.demonhead.hint": {"ja": "Demonheadが増殖/反転した直後の待ち $0F を $01 にします。", "en": "Changes the $0F wait just after Demon Head multiplies or reverses to $01."},
+    "hack_dialog.demonhead.snappy": {"ja": "キビキビ動作（方向転換の待ちを最小化）", "en": "Snappy behavior (minimize the turn-around wait)"},
+    "hack_dialog.demonhead.hint": {"ja": "Demonheadの方向転換待ち $0F を $01 にします。", "en": "Changes Demon Head's $0F turn-around wait to $01."},
     "hack_dialog.group.gargoyle": {"ja": "ガーゴイル", "en": "Gargoyle"},
     "hack_dialog.gargoyle.snappy": {"ja": "キビキビ動作（検知後・発射直前・復帰待ちを最小化）", "en": "Snappy behavior (minimize detection, pre-shot, and recovery waits)"},
     "hack_dialog.gargoyle.cooldown.tooltip": {
