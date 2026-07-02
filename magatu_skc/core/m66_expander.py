@@ -16,6 +16,10 @@ from .level import Level
 
 # C++ Constants_application.h より
 ROM_M66_FILE_SIZE = 98320  # 96KB + 16バイトiNESヘッダ
+LOADTIME_PRG0_CLEAR_START = 0x6010
+LOADTIME_PRG0_CLEAR_LENGTH = 0x1000
+ITEM_POINTER_LOADER_OLD = bytes.fromhex("AE2804BD1CEA8530BD51EA8531")
+ITEM_POINTER_LOADER_CONST_0790 = bytes.fromhex("A9908530A9078531EAEAEAEAEA")
 
 
 def _resolve_table_entry(rom_data: bytes, table_offset: int, count: int, index: int) -> int:
@@ -105,6 +109,28 @@ def _require_jp_standard_rom(src: bytes, region: str):
             "mapper66変換は確認済みの日本版オリジナル通常ROM専用です。"
             f"CRC32={crc32_hex(src)} は通常編集対象外です。"
         )
+
+
+def _clear_legacy_prg0_level_area(result: bytearray):
+    """Clear obsolete original level-data area after JP mapper66 expansion.
+
+    The old item pointer table at $EA1C/$EA51 is removed together with
+    $E000-$EFFF, so the PRG0 loader must use the mapper66 staging pointer
+    $0790 directly.
+    """
+    loader_off = bytes(result).find(ITEM_POINTER_LOADER_OLD)
+    if loader_off < 0:
+        raise ValueError("mapper66 item pointer loader signature was not found.")
+    if bytes(result).find(ITEM_POINTER_LOADER_OLD, loader_off + 1) >= 0:
+        raise ValueError("mapper66 item pointer loader signature is ambiguous.")
+    result[loader_off:loader_off + len(ITEM_POINTER_LOADER_OLD)] = (
+        ITEM_POINTER_LOADER_CONST_0790
+    )
+    start = LOADTIME_PRG0_CLEAR_START
+    end = start + LOADTIME_PRG0_CLEAR_LENGTH
+    if len(result) < end:
+        raise ValueError("mapper66 expanded ROM is too short for PRG0 clear.")
+    result[start:end] = bytes([0xEA]) * LOADTIME_PRG0_CLEAR_LENGTH
 
 
 def change_mapper(src: bytes, region: str = "JP") -> bytearray:
@@ -324,6 +350,7 @@ def expand_rom(rom, levels: list):
     stage_ext.patch_table(new_data, levels)
     special_process.disable_falling_fairy_subroutine(new_data, src_region)
     m66.patch_breakable_white_data(new_data, levels)
+    _clear_legacy_prg0_level_area(new_data)
 
     # rom オブジェクトを書き換え
     rom.data = new_data

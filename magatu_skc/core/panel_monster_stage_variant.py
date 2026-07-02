@@ -982,6 +982,8 @@ def _expect_signature(rom_data: bytearray, off: int, name: str,
     cur = bytes(rom_data[off:off + size])
     if cur in accepted:
         return
+    if 0x6010 <= off and off + size <= 0x7010 and cur == _fill(0xEA, size):
+        return
     expected = " / ".join(sig.hex(" ") for sig in accepted[:3])
     if len(accepted) > 3:
         expected += " / ..."
