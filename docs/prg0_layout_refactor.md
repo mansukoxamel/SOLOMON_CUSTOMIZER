@@ -88,7 +88,7 @@ PRG0追加プログラム側から見た一覧。
 
 | module | 4096B内 entries | 4096B内 raw | 4096B外 entries | 4096B外 raw |
 |---|---:|---:|---:|---:|
-| `final_stage_redirect` | 0 | 0B | 1 | 13B |
+| `final_stage_redirect` | 1 | 13B | 0 | 0B |
 | `gargoyle_variant` | 0 | 0B | 3 | 90B |
 | `key_enemy_runtime` | 1 | 15B | 14 | 271B |
 | `panel_monster_stage_variant` | 10 | 365B | 11 | 327B |
@@ -116,7 +116,7 @@ PRG0追加プログラム側から見た一覧。
 | Panel Monster A/B/C final runtime | `panel_monster_stage_variant` | 4096B内とbank0 caveに広く分散 | 692B raw | 最大の整理対象。速度、AI、弾、classifier、markerを機能単位に分ける。 |
 | Gargoyle variant | `gargoyle_variant` | bank0 cave `0x3D0B-0x3D88` | 90B | まとまっている。移すならhook先3か所を更新するだけか確認する。 |
 | Saramandor variant | `saramandor_variant` | bank0 cave `0x3E10-0x3F4F` | 165B | まとまっているが複数hookから入る。移動候補だが優先度は中。 |
-| Final stage redirect | `final_stage_redirect` | `0x3D28-0x3D34` | 13B | 小さい。単独で移すより周辺整理時に扱う。 |
+| Final stage redirect | `final_stage_redirect` | `0x6342-0x634E` | 13B | 4096B先頭側へ移動済み。旧 `0x3D28-0x3D34` は新規出力では書かない。 |
 | Solomon Seal block helper | `solomon_seal_block` | `0x7005-0x700F` | 11B | 4096B末尾に既にいる。仮置き末尾設計と相性がよい。 |
 | Wide title / ending PRG0 helper | `title_screen` | `0x3719-0x371B`, `0x4C5F-0x4CB5` | 90B | タイトル処理の所有領域。一般的な移動候補から外す。 |
 
@@ -387,6 +387,8 @@ PRG0追加プログラム側から見た一覧。
 
 - Spark Ball系は pause、AI wrapper、animation、透明OAM hide が複数箇所に散っている。
 - `0x2569` property selector は原作コード差し替えに近いため、今回の「追加routine集約」から外す。
+- `0x2569-0x257D` は、現時点では敵property取得の原作処理経路に近い場所へ差し込まれている可能性があると見ている。
+- ただしこれは未確定。後で確認して単なる追加routineの置き忘れだった場合は、Panel/Spark property selector整理の対象として4096B跡地側へ移す候補にする。
 - 残り7断片はSpark Ball機能単位でまとめられ、検証もSpark Ball系として一括で行える。
 
 移動前:
@@ -438,6 +440,48 @@ PRG0追加プログラム側から見た一覧。
 - `0x2569` property selectorは移動しないこと。
 - 旧7断片へ消去・復元・互換目的の書き込みを入れないこと。
 
+## Final stage redirect 移動結果
+
+`final_stage_redirect.py` の13B runtimeを、bank0 cave側から4096B跡地の先頭側へ移す。
+
+理由:
+
+- Panel Monster系ではなく、単独機能の小routineとして切り出せる。
+- 呼び出し元は `$C6F5` の `JSR` 1か所だけで、移動後は `JSR $E332` に変える。
+- 旧配置 `0x3D28-0x3D34` はGargoyle周辺のbank0 cave内にあり、今後の周辺整理でぶつかりやすい。
+
+移動前:
+
+| part | old file | old CPU | size |
+|---|---:|---:|---:|
+| final-stage redirect runtime | `0x3D28-0x3D34` | `$BD18-$BD24` | 13B |
+
+移動後:
+
+| part | new file | new CPU | size |
+|---|---:|---:|---:|
+| final-stage redirect runtime | `0x6342-0x634E` | `$E332-$E33E` | 13B |
+| free | `0x634F-0x6366` | `$E33F-$E356` | 24B |
+
+合計:
+
+- 旧配置: 13B
+- 新本体: 13B
+- 直後の空き: 24B
+- この候補で使う範囲: `0x6342-0x6366`
+- 次の配置開始候補: `0x6367`
+
+新規配置では使わなくなる旧候補:
+
+- `0x3D28-0x3D34`
+- 既存ROM救済や旧配置掃除のために、ここを保存時に自動で上書きしない。
+
+実装で確認すること:
+
+- `$C6F5` clear後hookが新 `$E332` を指すこと。
+- runtime内の戻り先が原作 `$C70E` のままであること。
+- `0x3D28-0x3D34` へ消去・復元・互換目的の書き込みを入れないこと。
+
 ## 4096B跡地内の現行予約
 
 | file | CPU | size | 原作状態 | module |
@@ -447,6 +491,7 @@ PRG0追加プログラム側から見た一覧。
 | `0x610E-0x622B` | `$E0FE-$E21B` | 286B | `EA` | `key_enemy_runtime` |
 | `0x6244-0x6267` | `$E234-$E257` | 36B | `EA` | `room_flags.visible_item_inblock` |
 | `0x6280-0x6329` | `$E270-$E319` | 170B | `EA` | `spark_ball_variant` |
+| `0x6342-0x634E` | `$E332-$E33E` | 13B | `EA` | `final_stage_redirect` |
 | `0x67A3-0x67B3` | `$E793-$E7A3` | 17B | mixed | `panel_monster_stage_variant` |
 | `0x67B4-0x67D0` | `$E7A4-$E7C0` | 29B | mixed | `panel_monster_stage_variant` |
 | `0x67D1-0x6817` | `$E7C1-$E807` | 71B | mixed | `panel_monster_stage_variant` |
@@ -463,7 +508,7 @@ PRG0追加プログラム側から見た一覧。
 
 ## 跡地外の主な整理候補
 
-跡地外のPRG0予約は、実占有で1165Bある。
+跡地外のPRG0予約は、実占有で1152Bある。
 このうち、機能的に場所依存が薄い小routineは4096B側へ集約できる可能性がある。
 
 最初に重点確認する範囲:
@@ -501,7 +546,7 @@ PRG0追加プログラム側から見た一覧。
 
 ## 現時点の判断
 
-4096B跡地内の現行予約748Bと、跡地外の実占有1165Bを単純合算しても1913B。
+4096B跡地内の現行予約761Bと、跡地外の実占有1152Bを単純合算しても1913B。
 重複や場所固定を除けば、場所依存のない追加routineは4096B跡地へ収まる可能性が高い。
 
 ただし、すべてを機械的に移動してよいわけではない。
