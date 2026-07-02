@@ -99,19 +99,14 @@ OFF_ANIM_META_DRAGON_FAST = 0x512E
 ORIG_DRAGON_ANIM_META = _word(0xD4CA)
 SPARK_ANIM_META = _word(0xD35A)
 
-CPU_AI_DRAGON_SLOW_WRAPPER = _cpu(0x3FE8)  # $BFD8
-CPU_AI_DRAGON_FAST_WRAPPER_OLD = _cpu(0x4008)  # $BFF8, v0.6.129-v0.6.130
-CPU_AI_DRAGON_FAST_WRAPPER_OLD2 = _cpu(0x4018) # $C008, v0.6.131-v0.6.133
-CPU_AI_DRAGON_FAST_WRAPPER = _cpu(0x3D36)      # $BD26
-CPU_AI_GOLEM_WRAPPER_OLD = _cpu(0x0BF2)        # $8BE2, v0.7.53-v0.7.69
-CPU_AI_GOLEM_WRAPPER = _cpu(0x681C)            # $E80C, original 00-fill
-CPU_PAUSE_HOOK_OLD = _cpu(0x4048)              # $C038, v0.6.131-v0.6.133
-CPU_PAUSE_HOOK = _cpu(0x6FD4)                  # $EFC4
-CPU_PROPERTY_HOOK_OLD = _cpu(0x3E72)           # $BE62, v0.6.130-v0.7.52
+CPU_AI_DRAGON_SLOW_WRAPPER = _cpu(0x6280)  # $E270
+CPU_AI_DRAGON_FAST_WRAPPER = _cpu(0x6290)      # $E280
+CPU_AI_GOLEM_WRAPPER = _cpu(0x62A0)            # $E290
+CPU_PAUSE_HOOK = _cpu(0x62B7)                  # $E2A7
 CPU_PROPERTY_HOOK = _cpu(0x2569)               # $A559
-CPU_ANIM_HOOK = _cpu(0x4FEE)                   # $CFDE
-CPU_ANIM_SPARK_SET = _cpu(0x3EFA)              # $BEEA
-CPU_OAM_HIDE_HOOK = _cpu(0x3ED7)               # $BEC7
+CPU_ANIM_HOOK = _cpu(0x62E8)                   # $E2D8
+CPU_ANIM_SPARK_SET = _cpu(0x62FF)              # $E2EF
+CPU_OAM_HIDE_HOOK = _cpu(0x6308)               # $E2F8
 CPU_PANEL_PROPERTY_HOOK = _cpu(0x5BEF)         # $DBDF
 CPU_PANEL_ANIM_HOOK = _cpu(0x40D2)             # $C0C2
 
@@ -122,7 +117,6 @@ DEFAULT_TRANSPARENCY_PERIOD = 0x40
 
 OFF_AI_DRAGON_SLOW_WRAPPER = _cf(CPU_AI_DRAGON_SLOW_WRAPPER)
 OFF_AI_DRAGON_FAST_WRAPPER = _cf(CPU_AI_DRAGON_FAST_WRAPPER)
-OFF_AI_GOLEM_WRAPPER_OLD = _cf(CPU_AI_GOLEM_WRAPPER_OLD)
 OFF_AI_GOLEM_WRAPPER = _cf(CPU_AI_GOLEM_WRAPPER)
 OFF_PAUSE_HOOK = _cf(CPU_PAUSE_HOOK)
 OFF_PROPERTY_HOOK = _cf(CPU_PROPERTY_HOOK)
@@ -263,6 +257,16 @@ CAVE_PROPERTY_HOOK = _build_property_hook()
 CAVE_ANIM_HOOK = _build_anim_hook()
 CAVE_ANIM_SPARK_SET = _build_anim_spark_set()
 CAVE_OAM_HIDE_HOOK = _build_oam_hide_hook()
+OFF_SPARK_BALL_FREE = OFF_OAM_HIDE_HOOK + len(CAVE_OAM_HIDE_HOOK)
+SPARK_BALL_FREE_LEN = 24
+assert OFF_AI_DRAGON_FAST_WRAPPER == OFF_AI_DRAGON_SLOW_WRAPPER + len(CAVE_AI_DRAGON_SLOW_WRAPPER)
+assert OFF_AI_GOLEM_WRAPPER == OFF_AI_DRAGON_FAST_WRAPPER + len(CAVE_AI_DRAGON_FAST_WRAPPER)
+assert OFF_PAUSE_HOOK == OFF_AI_GOLEM_WRAPPER + len(CAVE_AI_GOLEM_WRAPPER)
+assert OFF_ANIM_HOOK == OFF_PAUSE_HOOK + len(CAVE_PAUSE_HOOK)
+assert OFF_ANIM_SPARK_SET == OFF_ANIM_HOOK + len(CAVE_ANIM_HOOK)
+assert OFF_OAM_HIDE_HOOK == OFF_ANIM_SPARK_SET + len(CAVE_ANIM_SPARK_SET)
+assert OFF_SPARK_BALL_FREE == OFF_OAM_HIDE_HOOK + len(CAVE_OAM_HIDE_HOOK)
+assert SPARK_BALL_FREE_LEN == 24
 
 RESERVED_SPANS = (
     (OFF_AI_DRAGON_SLOW_WRAPPER, len(CAVE_AI_DRAGON_SLOW_WRAPPER)),
@@ -351,24 +355,14 @@ def apply(rom_data, pause_digits=None, transparency_period=None) -> list[str]:
 
     for off, hooks, name in (
         (OFF_AI_DRAGON_SLOW, (_word(CPU_AI_DRAGON_SLOW_WRAPPER),), "$A358"),
-        (OFF_AI_DRAGON_FAST, (
-            _word(CPU_AI_DRAGON_FAST_WRAPPER),
-            _word(CPU_AI_DRAGON_FAST_WRAPPER_OLD),
-            _word(CPU_AI_DRAGON_FAST_WRAPPER_OLD2),
-        ), "$A35A"),
+        (OFF_AI_DRAGON_FAST, (_word(CPU_AI_DRAGON_FAST_WRAPPER),), "$A35A"),
     ):
         cur = bytes(rom_data[off:off + 2])
         if cur not in (ORIG_AI_DRAGON, *hooks):
             raise SparkBallVariantError(f"{name} AI table signature mismatch: got {cur.hex(' ')}")
     for off, hooks, name in (
-        (OFF_AI_GOLEM_SLOW, (
-            _word(CPU_AI_GOLEM_WRAPPER),
-            _word(CPU_AI_GOLEM_WRAPPER_OLD),
-        ), "$A35C"),
-        (OFF_AI_GOLEM_FAST, (
-            _word(CPU_AI_GOLEM_WRAPPER),
-            _word(CPU_AI_GOLEM_WRAPPER_OLD),
-        ), "$A35E"),
+        (OFF_AI_GOLEM_SLOW, (_word(CPU_AI_GOLEM_WRAPPER),), "$A35C"),
+        (OFF_AI_GOLEM_FAST, (_word(CPU_AI_GOLEM_WRAPPER),), "$A35E"),
     ):
         cur = bytes(rom_data[off:off + 2])
         if cur not in (ORIG_AI_GOLEM, *hooks):
@@ -377,14 +371,12 @@ def apply(rom_data, pause_digits=None, transparency_period=None) -> list[str]:
     changed: list[str] = []
     cur_ab13 = bytes(rom_data[OFF_AB13:OFF_AB13 + 3])
     hook_ab13 = bytes((0x4C, CPU_PAUSE_HOOK & 0xFF, (CPU_PAUSE_HOOK >> 8) & 0xFF))
-    hook_ab13_old = bytes((0x4C, CPU_PAUSE_HOOK_OLD & 0xFF, (CPU_PAUSE_HOOK_OLD >> 8) & 0xFF))
-    if cur_ab13 not in (ORIG_AB13_HEAD, hook_ab13, hook_ab13_old):
+    if cur_ab13 not in (ORIG_AB13_HEAD, hook_ab13):
         raise SparkBallVariantError(f"$AB13 signature mismatch: got {cur_ab13.hex(' ')}")
     hook_a2cc = bytes((0x20, CPU_PROPERTY_HOOK & 0xFF, (CPU_PROPERTY_HOOK >> 8) & 0xFF))
-    hook_a2cc_old = bytes((0x20, CPU_PROPERTY_HOOK_OLD & 0xFF, (CPU_PROPERTY_HOOK_OLD >> 8) & 0xFF))
     hook_a2cc_panel = bytes((0x20, CPU_PANEL_PROPERTY_HOOK & 0xFF, (CPU_PANEL_PROPERTY_HOOK >> 8) & 0xFF))
     cur_a2cc = bytes(rom_data[OFF_A2CC:OFF_A2CC + len(ORIG_A2CC_HEAD)])
-    if cur_a2cc not in (ORIG_A2CC_HEAD, hook_a2cc, hook_a2cc_old, hook_a2cc_panel):
+    if cur_a2cc not in (ORIG_A2CC_HEAD, hook_a2cc, hook_a2cc_panel):
         raise SparkBallVariantError(f"$A2CC property signature mismatch: got {cur_a2cc.hex(' ')}")
     hook_8b05 = bytes((0x20, CPU_ANIM_HOOK & 0xFF, (CPU_ANIM_HOOK >> 8) & 0xFF))
     anim_patch = hook_8b05 + bytes((0xEA,)) * (len(ORIG_8B05_HEAD) - len(hook_8b05))
@@ -404,36 +396,28 @@ def apply(rom_data, pause_digits=None, transparency_period=None) -> list[str]:
         OFF_AI_DRAGON_SLOW_WRAPPER,
         CAVE_AI_DRAGON_SLOW_WRAPPER,
         changed,
-        "Spark Ball Dragon-ID slow AI wrapper $BFD8",
+        "Spark Ball Dragon-ID slow AI wrapper $E270",
     )
     _write_blob(
         rom_data,
         OFF_AI_DRAGON_FAST_WRAPPER,
         CAVE_AI_DRAGON_FAST_WRAPPER,
         changed,
-        "Spark Ball Dragon-ID fast AI wrapper $BD26",
+        "Spark Ball Dragon-ID fast AI wrapper $E280",
     )
     _write_blob(
         rom_data,
         OFF_AI_GOLEM_WRAPPER,
         CAVE_AI_GOLEM_WRAPPER,
         changed,
-        "Transparent Spark Ball Golem-ID AI wrapper $E80C",
+        "Transparent Spark Ball Golem-ID AI wrapper $E290",
     )
-    if bytes(rom_data[OFF_AI_GOLEM_WRAPPER_OLD:OFF_AI_GOLEM_WRAPPER_OLD + len(CAVE_AI_GOLEM_WRAPPER)]) == CAVE_AI_GOLEM_WRAPPER:
-        _write_blob(
-            rom_data,
-            OFF_AI_GOLEM_WRAPPER_OLD,
-            bytes([0xEA] * len(CAVE_AI_GOLEM_WRAPPER)),
-            changed,
-            "clear old Transparent Spark Ball Golem-ID AI wrapper $8BE2",
-        )
     _write_blob(
         rom_data,
         OFF_PAUSE_HOOK,
         pause_hook,
         changed,
-        "Spark Ball Dragon-ID pause hook $EFC4",
+        "Spark Ball Dragon-ID pause hook $E2A7",
     )
     _write_blob(
         rom_data,
@@ -447,21 +431,21 @@ def apply(rom_data, pause_digits=None, transparency_period=None) -> list[str]:
         OFF_ANIM_HOOK,
         CAVE_ANIM_HOOK,
         changed,
-        "Spark Ball Dragon-ID animation hook $CFDE",
+        "Spark Ball Dragon-ID animation hook $E2D8",
     )
     _write_blob(
         rom_data,
         OFF_ANIM_SPARK_SET,
         CAVE_ANIM_SPARK_SET,
         changed,
-        "Spark Ball Dragon-ID animation setter $BEEA",
+        "Spark Ball Dragon-ID animation setter $E2EF",
     )
     _write_blob(
         rom_data,
         OFF_OAM_HIDE_HOOK,
         oam_hide_hook,
         changed,
-        "Transparent Spark Ball OAM hide hook $D026",
+        "Transparent Spark Ball OAM hide hook $E2F8",
     )
     _write_blob(rom_data, OFF_AI_DRAGON_SLOW, _word(CPU_AI_DRAGON_SLOW_WRAPPER), changed, "$A358 Spark Ball Dragon-ID AI")
     _write_blob(rom_data, OFF_AI_DRAGON_FAST, _word(CPU_AI_DRAGON_FAST_WRAPPER), changed, "$A35A Spark Ball Dragon-ID AI")

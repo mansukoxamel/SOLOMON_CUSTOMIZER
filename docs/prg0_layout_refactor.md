@@ -378,6 +378,66 @@ PRG0追加プログラム側から見た一覧。
 - 新空き `0x6268-0x627F` を本体reserveとして扱わないこと。
 - 旧2断片へ消去・復元・互換目的の書き込みを入れないこと。
 
+## Spark Ball runtime 移動結果
+
+`spark_ball_variant.py` の追加routineのうち、property selector `0x2569` 以外を
+7断片から1本体へまとめる。
+
+理由:
+
+- Spark Ball系は pause、AI wrapper、animation、透明OAM hide が複数箇所に散っている。
+- `0x2569` property selector は原作コード差し替えに近いため、今回の「追加routine集約」から外す。
+- 残り7断片はSpark Ball機能単位でまとめられ、検証もSpark Ball系として一括で行える。
+
+移動前:
+
+| part | old file | old CPU | size |
+|---|---:|---:|---:|
+| Dragon slow AI wrapper | `0x3FE8-0x3FF7` | `$BFD8-$BFE7` | 16B |
+| Dragon fast AI wrapper | `0x3D36-0x3D45` | `$BD26-$BD35` | 16B |
+| Transparent Golem-ID AI wrapper | `0x681C-0x6832` | `$E80C-$E822` | 23B |
+| pause hook | `0x6FD4-0x7004` | `$EFC4-$EFF4` | 49B |
+| animation hook | `0x4FEE-0x5004` | `$CFDE-$CFF4` | 23B |
+| animation setter | `0x3EFA-0x3F02` | `$BEEA-$BEF2` | 9B |
+| transparent OAM hide hook | `0x3ED7-0x3EF8` | `$BEC7-$BEE8` | 34B |
+
+移動後:
+
+| part | new file | new CPU | size |
+|---|---:|---:|---:|
+| packed Spark Ball runtime | `0x6280-0x6329` | `$E270-$E319` | 170B |
+| free | `0x632A-0x6341` | `$E31A-$E331` | 24B |
+
+合計:
+
+- 旧分散配置: 170B
+- 新本体: 170B
+- 直後の空き: 24B
+- この候補で使う範囲: `0x6280-0x6341`
+- 次の配置開始候補: `0x6342`
+
+新規配置では使わなくなる旧候補:
+
+- `0x3FE8-0x3FF7`
+- `0x3D36-0x3D45`
+- `0x681C-0x6832`
+- `0x6FD4-0x7004`
+- `0x4FEE-0x5004`
+- `0x3EFA-0x3F02`
+- `0x3ED7-0x3EF8`
+- 既存ROM救済や旧配置掃除のために、ここを保存時に自動で上書きしない。
+
+実装で確認すること:
+
+- Dragon/Golem AI tableが新 `$E270/$E280/$E290` を指すこと。
+- `$AB13` pause dispatchが新 `$E2A7` を指すこと。
+- `$8B05` animation dispatchが新 `$E2D8` を指すこと。
+- animation hook内のSpark setter JMPが新 `$E2EF` を指すこと。
+- `$85FA` transparent OAM dispatchが新 `$E2F8` を指すこと。
+- pause digit設定とtransparent period設定のROM内offsetが、新pause/OAM routine内の相対位置で読めること。
+- `0x2569` property selectorは移動しないこと。
+- 旧7断片へ消去・復元・互換目的の書き込みを入れないこと。
+
 ## 4096B跡地内の現行予約
 
 | file | CPU | size | 原作状態 | module |
@@ -386,10 +446,10 @@ PRG0追加プログラム側から見た一覧。
 | `0x60CC-0x60F5` | `$E0BC-$E0E5` | 42B | `EA` | `m66.initial_draw_low_classifier` |
 | `0x610E-0x622B` | `$E0FE-$E21B` | 286B | `EA` | `key_enemy_runtime` |
 | `0x6244-0x6267` | `$E234-$E257` | 36B | `EA` | `room_flags.visible_item_inblock` |
+| `0x6280-0x6329` | `$E270-$E319` | 170B | `EA` | `spark_ball_variant` |
 | `0x67A3-0x67B3` | `$E793-$E7A3` | 17B | mixed | `panel_monster_stage_variant` |
 | `0x67B4-0x67D0` | `$E7A4-$E7C0` | 29B | mixed | `panel_monster_stage_variant` |
 | `0x67D1-0x6817` | `$E7C1-$E807` | 71B | mixed | `panel_monster_stage_variant` |
-| `0x681C-0x6832` | `$E80C-$E822` | 23B | `00` | `spark_ball_variant` |
 | `0x6833-0x6882` | `$E823-$E872` | 80B | mixed | `panel_monster_stage_variant` |
 | `0x68AC-0x68BB` | `$E89C-$E8AB` | 16B | `00` | `panel_monster_stage_variant` |
 | `0x68C4-0x68FE` | `$E8B4-$E8EE` | 59B | mixed | `panel_monster_stage_variant` |
@@ -397,14 +457,13 @@ PRG0追加プログラム側から見た一覧。
 | `0x696C-0x697E` | `$E95C-$E96E` | 19B | `00` | `panel_monster_stage_variant` |
 | `0x697F-0x699E` | `$E96F-$E98E` | 32B | mixed | `panel_monster_stage_variant` |
 | `0x69D4-0x69DF` | `$E9C4-$E9CF` | 12B | `00` | `panel_monster_stage_variant` |
-| `0x6FD4-0x7004` | `$EFC4-$EFF4` | 49B | `EA` | `spark_ball_variant` |
 | `0x7005-0x700F` | `$EFF5-$EFFF` | 11B | `EA` | `solomon_seal_block` |
 
 この範囲は、最終的には4096B先頭側へ詰め直して、routine本体と直後の空きを別管理する候補にする。
 
 ## 跡地外の主な整理候補
 
-跡地外のPRG0予約は、実占有で1299Bある。
+跡地外のPRG0予約は、実占有で1165Bある。
 このうち、機能的に場所依存が薄い小routineは4096B側へ集約できる可能性がある。
 
 最初に重点確認する範囲:
@@ -442,7 +501,7 @@ PRG0追加プログラム側から見た一覧。
 
 ## 現時点の判断
 
-4096B跡地内の現行予約650Bと、跡地外の実占有1263Bを単純合算しても1913B。
+4096B跡地内の現行予約748Bと、跡地外の実占有1165Bを単純合算しても1913B。
 重複や場所固定を除けば、場所依存のない追加routineは4096B跡地へ収まる可能性が高い。
 
 ただし、すべてを機械的に移動してよいわけではない。
