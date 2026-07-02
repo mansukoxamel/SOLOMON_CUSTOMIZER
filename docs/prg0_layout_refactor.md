@@ -210,18 +210,64 @@ PRG0追加プログラム側から見た一覧。
 - `PTR_TABLE` が新scriptアドレスを指すこと。
 - `$9061` hook が新 `CPU_MAIN = $E000` を呼ぶこと。
 
+## Initial draw low classifier 移動結果
+
+`m66.py` のひび割れブロック内アイテム用初期描画低値分類helperを、
+4断片から1本体へまとめる。
+
+理由:
+
+- 現行の48Bは、空き断片へ分散配置するために遠距離JMPを含んでいる。
+- ブロック系処理は今後の整理でぶつかる可能性が高い。
+- ひび割れ/透明ブロック系は仕様確認しながら扱う必要があるため、小さい単位で先に移す。
+- 容量圧縮が主目的ではなく、断片削減と管理しやすさを優先する。
+
+移動前:
+
+| part | old file | old CPU | size |
+|---|---:|---:|---:|
+| helper body | `0x6774-0x6789` | `$E764-$E779` | 22B |
+| cont1 | `0x6798-0x67A1` | `$E788-$E791` | 10B |
+| cont2 | `0x63FC-0x6403` | `$E3EC-$E3F3` | 8B |
+| mask table | `0x62ED-0x62F4` | `$E2DD-$E2E4` | 8B |
+
+移動後:
+
+| part | new file | new CPU | size |
+|---|---:|---:|---:|
+| packed helper + table | `0x60CC-0x60F5` | `$E0BC-$E0E5` | 42B |
+| free | `0x60F6-0x610D` | `$E0E6-$E0FD` | 24B |
+
+合計:
+
+- 旧分散配置: 48B
+- 新本体: 42B
+- 直後の空き: 24B
+- この候補で使う範囲: `0x60CC-0x610D`
+- 次の配置開始候補: `0x610E`
+
+新規配置では使わなくなる旧候補:
+
+- `0x62ED-0x62F4`
+- `0x63FC-0x6403`
+- `0x6774-0x6789`
+- `0x6798-0x67A1`
+- 既存ROM救済や旧配置掃除のために、ここを保存時に自動で上書きしない。
+
+実装で確認すること:
+
+- `$9620` hook が新 `CPU_HELPER = $E0BC` を呼ぶこと。
+- packed helper内のtable参照が新 `CPU_TABLE = $E0DE` を指すこと。
+- 新本体 `0x60CC-0x60F5` が、他の `RESERVED_SPANS` と重ならないこと。
+- 新空き `0x60F6-0x610D` を本体reserveとして扱わないこと。
+- 旧4断片へ消去・復元・互換目的の書き込みを入れないこと。
+
 ## 4096B跡地内の現行予約
 
 | file | CPU | size | 原作状態 | module |
 |---|---:|---:|---|---|
-| `0x60CC-0x60D0` | `$E0BC-$E0C0` | 5B | `00` | `stage_announcement` |
-| `0x60FC-0x6108` | `$E0EC-$E0F8` | 13B | `00` | `stage_announcement` |
-| `0x612C-0x6138` | `$E11C-$E128` | 13B | `00` | `stage_announcement` |
-| `0x618C-0x619A` | `$E17C-$E18A` | 15B | `00` | `stage_announcement` |
-| `0x61BC-0x61C8` | `$E1AC-$E1B8` | 13B | `00` | `stage_announcement` |
-| `0x61EC-0x61F7` | `$E1DC-$E1E7` | 12B | `00` | `stage_announcement` |
-| `0x639C-0x63B4` | `$E38C-$E3A4` | 25B | `00` | `stage_announcement` |
-| `0x63CC-0x63E3` | `$E3BC-$E3D3` | 24B | `00` | `stage_announcement` |
+| `0x6010-0x60B3` | `$E000-$E0A3` | 164B | `EA` | `stage_announcement` |
+| `0x60CC-0x60F5` | `$E0BC-$E0E5` | 42B | `EA` | `m66.initial_draw_low_classifier` |
 | `0x6465-0x6473` | `$E455-$E463` | 15B | `00` | `key_enemy_runtime` |
 | `0x657C-0x658A` | `$E56C-$E57A` | 15B | `00` | `stage_announcement` |
 | `0x66FC-0x670B` | `$E6EC-$E6FB` | 16B | `00` | `stage_announcement` |
