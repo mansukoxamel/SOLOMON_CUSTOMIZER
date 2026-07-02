@@ -331,6 +331,53 @@ PRG0追加プログラム側から見た一覧。
 - 新空き `0x622C-0x6243` を本体reserveとして扱わないこと。
 - `_migrate_old_layout()`、旧hook受け入れ、旧配置消去を入れないこと。
 
+## Visible item in-block runtime 移動結果
+
+`room_flags.py` の透明ブロック内アイテムruntimeを、
+2断片から1本体へまとめる。
+
+理由:
+
+- `0x675C-0x6773` と `0x678C-0x6797` は、どちらも `$C0F0` の特殊セル変換scannerから使われる同一機能の小routine。
+- helper内部の相対分岐で旧 `$E77C` extensionへ飛ぶ構造だったため、離れた2断片として置く必要はない。
+- 4096B跡地の先頭側へ寄せることで、後続の `0x67xx` 周辺整理時にぶつかる小断片を減らせる。
+
+移動前:
+
+| part | old file | old CPU | size |
+|---|---:|---:|---:|
+| visible item bitmask helper | `0x675C-0x6773` | `$E74C-$E763` | 24B |
+| white in-block runtime extension | `0x678C-0x6797` | `$E77C-$E787` | 12B |
+
+移動後:
+
+| part | new file | new CPU | size |
+|---|---:|---:|---:|
+| packed visible item in-block runtime | `0x6244-0x6267` | `$E234-$E257` | 36B |
+| free | `0x6268-0x627F` | `$E258-$E26F` | 24B |
+
+合計:
+
+- 旧分散配置: 36B
+- 新本体: 36B
+- 直後の空き: 24B
+- この候補で使う範囲: `0x6244-0x627F`
+- 次の配置開始候補: `0x6280`
+
+新規配置では使わなくなる旧候補:
+
+- `0x675C-0x6773`
+- `0x678C-0x6797`
+- 既存ROM救済や旧配置掃除のために、ここを保存時に自動で上書きしない。
+
+実装で確認すること:
+
+- `$C0F0` scanner内の `JSR` が新 `$E234` を指すこと。
+- helper内部の `BCC` が新 `$E24C` extensionへ届くこと。
+- 新本体 `0x6244-0x6267` が、他の予約と重ならないこと。
+- 新空き `0x6268-0x627F` を本体reserveとして扱わないこと。
+- 旧2断片へ消去・復元・互換目的の書き込みを入れないこと。
+
 ## 4096B跡地内の現行予約
 
 | file | CPU | size | 原作状態 | module |
@@ -338,6 +385,7 @@ PRG0追加プログラム側から見た一覧。
 | `0x6010-0x60B3` | `$E000-$E0A3` | 164B | `EA` | `stage_announcement` |
 | `0x60CC-0x60F5` | `$E0BC-$E0E5` | 42B | `EA` | `m66.initial_draw_low_classifier` |
 | `0x610E-0x622B` | `$E0FE-$E21B` | 286B | `EA` | `key_enemy_runtime` |
+| `0x6244-0x6267` | `$E234-$E257` | 36B | `EA` | `room_flags.visible_item_inblock` |
 | `0x67A3-0x67B3` | `$E793-$E7A3` | 17B | mixed | `panel_monster_stage_variant` |
 | `0x67B4-0x67D0` | `$E7A4-$E7C0` | 29B | mixed | `panel_monster_stage_variant` |
 | `0x67D1-0x6817` | `$E7C1-$E807` | 71B | mixed | `panel_monster_stage_variant` |
@@ -394,7 +442,7 @@ PRG0追加プログラム側から見た一覧。
 
 ## 現時点の判断
 
-4096B跡地内の現行予約614Bと、跡地外の実占有1299Bを単純合算しても1913B。
+4096B跡地内の現行予約650Bと、跡地外の実占有1263Bを単純合算しても1913B。
 重複や場所固定を除けば、場所依存のない追加routineは4096B跡地へ収まる可能性が高い。
 
 ただし、すべてを機械的に移動してよいわけではない。

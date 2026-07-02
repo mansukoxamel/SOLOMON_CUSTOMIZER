@@ -80,7 +80,7 @@ verbatim コピーするため file offset 不変):
 #                                 $0744=C speed / $0745=C interval。
 #   $0750-$0767 VISIBLE_INBLOCK_ITEM_MASK 透明ブロック内アイテムbitmask 予約済(使用中)
 #                               ・mapper66 loader がPRG1 0xF860 tableから24Bコピー。
-#                               ・$E74C helper がNMI中に破壊的shiftで参照。
+#                               ・$E234 helper がNMI中に破壊的shiftで参照。
 #   $0768-$076F CRACKED_INBLOCK_LIST ひび割れブロック内アイテム位置リスト
 #                               予約済(使用中)
 #                               ・mapper66 loader がPRG1 visible-item slot末尾8B
@@ -225,9 +225,9 @@ OFF_DOORTAB     = 0x4190   # $C180  DoorCellTable (64B; mapper66ではStageExt�
 OFF_TABLE       = 0x41D0   # $C1C0  RoomFlagTable (64B; mapper66ではStageExtへ移設)
 OFF_DARK_CAVE   = 0x3C90   # $BC80  DARK / runtime dispatch
 OFF_TEMPO       = 0x3CE0   # $BCD0  全体共通テンポ 2B [LIGHT, PERIOD]
-OFF_VISIBLE_INBLOCK_HELPER = 0x675C  # $E74C  visible item bitmask -> white in-block helper
+OFF_VISIBLE_INBLOCK_HELPER = 0x6244  # $E234  visible item bitmask -> white in-block helper
 VISIBLE_INBLOCK_HELPER_CAPACITY = 0x18
-OFF_WHITE_INBLOCK_RUNTIME_EXT = 0x678C  # $E77C  mask-clear white in-block live-grid lowering
+OFF_WHITE_INBLOCK_RUNTIME_EXT = OFF_VISIBLE_INBLOCK_HELPER + VISIBLE_INBLOCK_HELPER_CAPACITY  # $E24C
 OFF_BW_CAVE     = 0x4100   # $C0F0  runtime special-cell scanner
 OFF_CAVE_FREE0  = 0x3BEE   # $BBDE  (cave 空き判定の起点)
 OFF_CAVE_FREE1  = 0x4210   # $C200  (cave 空き判定の終点)
@@ -277,14 +277,14 @@ assert len(DARK_CAVE_BLOB) == DARK_CAVE_RESERVED_SIZE
 #   $A4 -> $F8  solid brown
 # Direct white in-block item lowering must not use the apparent $DB61 zero area:
 # it is enemy state-speed data reached through the $D9D3 pointer table.
-# $E74C consumes the visible-item mask for every cell. When the mask bit is set,
+# $E234 consumes the visible-item mask for every cell. When the mask bit is set,
 # the original path still converts normal/cracked mask cells to $C0+item. When
-# the mask bit is clear, it branches to $E77C; direct $C0-$F7 white in-block
+# the mask bit is clear, it branches to $E24C; direct $C0-$F7 white in-block
 # item cells have already been drawn as white, so only the live grid is lowered
 # to $80-$B7 for the normal two-hit block-item flow. Existing $80-$BF cells are
 # stored back unchanged by the same path.
 BW_CAVE = bytes.fromhex(
-    "20e495ad78072960f026a018a2c0204ce7c901f024c940"
+    "20e495ad78072960f026a018a2c02034e2c901f024c940"
     "f018c9a4f014c950f014c9f9f010c9faf014c9a3f010"
     "cad0de60a9f8d00aa990d006a9d0d002a9109d1303d0e9"
 )
@@ -294,11 +294,15 @@ BW_CAVE_BLOB = BW_CAVE + bytes([0xEA] * (BW_CAVE_RESERVED_SIZE - len(BW_CAVE)))
 assert len(BW_CAVE_BLOB) == BW_CAVE_RESERVED_SIZE
 
 VISIBLE_INBLOCK_HELPER = bytes.fromhex(
-    "8a2907d00188b950070a995007bd1303901e09c09d130360"
+    "8a2907d00188b950070a995007bd1303900609c09d130360"
 )
 assert len(VISIBLE_INBLOCK_HELPER) <= VISIBLE_INBLOCK_HELPER_CAPACITY
 WHITE_INBLOCK_RUNTIME_EXT = bytes.fromhex("1009c9f8b00529bf9d130360")
 assert len(WHITE_INBLOCK_RUNTIME_EXT) == 12
+OFF_VISIBLE_INBLOCK_FREE = OFF_WHITE_INBLOCK_RUNTIME_EXT + len(WHITE_INBLOCK_RUNTIME_EXT)
+VISIBLE_INBLOCK_FREE_LEN = 24
+assert OFF_WHITE_INBLOCK_RUNTIME_EXT == OFF_VISIBLE_INBLOCK_HELPER + len(VISIBLE_INBLOCK_HELPER)
+assert VISIBLE_INBLOCK_FREE_LEN == 24
 # 全体共通テンポ既定: 明45フレ / 暗100フレ → PERIOD=145
 TEMPO_DEFAULT = bytes([45, 145])  # [LIGHT, PERIOD(=LIGHT+DARK)]
 
@@ -665,10 +669,10 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
     if fixed_runtime or runtime_needed:
         if bytes(rom_data[OFF_VISIBLE_INBLOCK_HELPER:OFF_VISIBLE_INBLOCK_HELPER + len(VISIBLE_INBLOCK_HELPER)]) != VISIBLE_INBLOCK_HELPER:
             rom_data[OFF_VISIBLE_INBLOCK_HELPER:OFF_VISIBLE_INBLOCK_HELPER + len(VISIBLE_INBLOCK_HELPER)] = VISIBLE_INBLOCK_HELPER
-            changed.append("VisibleInBlock helper 注入 ($E74C)")
+            changed.append("VisibleInBlock helper 注入 ($E234)")
         if bytes(rom_data[OFF_WHITE_INBLOCK_RUNTIME_EXT:OFF_WHITE_INBLOCK_RUNTIME_EXT + len(WHITE_INBLOCK_RUNTIME_EXT)]) != WHITE_INBLOCK_RUNTIME_EXT:
             rom_data[OFF_WHITE_INBLOCK_RUNTIME_EXT:OFF_WHITE_INBLOCK_RUNTIME_EXT + len(WHITE_INBLOCK_RUNTIME_EXT)] = WHITE_INBLOCK_RUNTIME_EXT
-            changed.append("WhiteInBlock runtime extension 注入 ($E77C)")
+            changed.append("WhiteInBlock runtime extension 注入 ($E24C)")
         if bytes(rom_data[OFF_BW_CAVE:OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE]) != BW_CAVE_BLOB:
             rom_data[OFF_BW_CAVE:OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE] = BW_CAVE_BLOB
             changed.append("BreakableWhite cave 注入 ($C0F0)")
