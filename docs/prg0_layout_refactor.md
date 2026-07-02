@@ -262,15 +262,82 @@ PRG0追加プログラム側から見た一覧。
 - 新空き `0x60F6-0x610D` を本体reserveとして扱わないこと。
 - 旧4断片へ消去・復元・互換目的の書き込みを入れないこと。
 
+## Key/Fairy enemy runtime 移動結果
+
+`key_enemy_runtime.py` の敵から鍵が出るruntimeを、
+15断片から1本体へまとめる。
+
+理由:
+
+- `0x6465-0x6473` の15Bだけでなく、鍵敵runtime全体が多数の小断片に分散している。
+- 旧配置はbank0 caveや4096B跡地外にも散っており、今後のPRG0整理で何度もぶつかる。
+- 敵から鍵が出る処理は機能単位で一体なので、断片単位ではなくruntime全体をまとめる方が安全に管理できる。
+- `_migrate_old_layout()` は旧ROM救済・旧配置掃除なので、原作ROMからの新規保存だけを対象にする今回の方針から外す。
+
+移動前:
+
+| part | old file | old CPU | size |
+|---|---:|---:|---:|
+| item tile recorder | `0x3C27-0x3C2D` | `$BC17-$BC1D` | 7B |
+| status writer | `0x3C52-0x3C57` | `$BC42-$BC47` | 6B |
+| fall-death handler | `0x3CC8-0x3CDD` | `$BCB8-$BCCD` | 22B |
+| defeat chunks | `0x3E3F-0x3E4C / 0x3E84-0x3E8D / 0x3EA4-0x3EAE / 0x3EC6-0x3ECC / 0x3F03-0x3F0F / 0x3FFD-0x400E / 0x4201-0x420F` | mixed | 88B |
+| door-light helper | `0x3F60-0x3F78` | `$BF50-$BF68` | 25B |
+| dropped-key handler | `0x4190-0x41E5` | `$C180-$C1D5` | 86B |
+| initial-slot binder | `0x41E6-0x41FF` | `$C1D6-$C1EF` | 26B |
+| fall-slot compare | `0x5005-0x500F` | `$CFF5-$CFFF` | 11B |
+| status value helper | `0x6465-0x6473` | `$E455-$E463` | 15B |
+
+移動後:
+
+| part | new file | new CPU | size |
+|---|---:|---:|---:|
+| packed key/fairy enemy runtime | `0x610E-0x622B` | `$E0FE-$E21B` | 286B |
+| free | `0x622C-0x6243` | `$E21C-$E233` | 24B |
+
+合計:
+
+- 旧分散配置: 286B
+- 新本体: 286B
+- 直後の空き: 24B
+- この候補で使う範囲: `0x610E-0x6243`
+- 次の配置開始候補: `0x6244`
+
+新規配置では使わなくなる旧候補:
+
+- `0x3C27-0x3C2D`
+- `0x3C52-0x3C57`
+- `0x3CC8-0x3CDD`
+- `0x3E3F-0x3E4C`
+- `0x3E84-0x3E8D`
+- `0x3EA4-0x3EAE`
+- `0x3EC6-0x3ECC`
+- `0x3F03-0x3F0F`
+- `0x3F60-0x3F78`
+- `0x3FFD-0x400E`
+- `0x4190-0x41E5`
+- `0x41E6-0x41FF`
+- `0x4201-0x420F`
+- `0x5005-0x500F`
+- `0x6465-0x6473`
+- 既存ROM救済や旧配置掃除のために、ここを保存時に自動で上書きしない。
+
+実装で確認すること:
+
+- 各hookが新runtime内のCPUアドレスを指すこと。
+- dropped-key handler内の内部分岐先が新本体内アドレスを指すこと。
+- fall-death handlerが新 `CPU_FALL_KEY_COMPARE = $E211` と新 `CPU_ENEMY_DEFEAT + 3` を呼ぶこと。
+- 新本体 `0x610E-0x622B` が、他の `RESERVED_SPANS` と重ならないこと。
+- 新空き `0x622C-0x6243` を本体reserveとして扱わないこと。
+- `_migrate_old_layout()`、旧hook受け入れ、旧配置消去を入れないこと。
+
 ## 4096B跡地内の現行予約
 
 | file | CPU | size | 原作状態 | module |
 |---|---:|---:|---|---|
 | `0x6010-0x60B3` | `$E000-$E0A3` | 164B | `EA` | `stage_announcement` |
 | `0x60CC-0x60F5` | `$E0BC-$E0E5` | 42B | `EA` | `m66.initial_draw_low_classifier` |
-| `0x6465-0x6473` | `$E455-$E463` | 15B | `00` | `key_enemy_runtime` |
-| `0x657C-0x658A` | `$E56C-$E57A` | 15B | `00` | `stage_announcement` |
-| `0x66FC-0x670B` | `$E6EC-$E6FB` | 16B | `00` | `stage_announcement` |
+| `0x610E-0x622B` | `$E0FE-$E21B` | 286B | `EA` | `key_enemy_runtime` |
 | `0x67A3-0x67B3` | `$E793-$E7A3` | 17B | mixed | `panel_monster_stage_variant` |
 | `0x67B4-0x67D0` | `$E7A4-$E7C0` | 29B | mixed | `panel_monster_stage_variant` |
 | `0x67D1-0x6817` | `$E7C1-$E807` | 71B | mixed | `panel_monster_stage_variant` |
