@@ -89,6 +89,113 @@ PRG0追加プログラム側から見た一覧。
 この表を最初の移動候補リストの入口にする。
 原作差分は、この一覧に漏れた追加処理や、実際のhook/即値変更の検証に使う。
 
+## 機能単位の初期分類
+
+実装定義から拾った追加プログラムを、機能単位で仮分類する。
+ここではまだ移動しない。移動可否の判断材料を作る段階。
+
+| 機能 | 主なmodule | 現在位置 | 量 | 初期判断 |
+|---|---|---|---:|---|
+| Stage start announcement | `stage_announcement` | 主に4096B内、`KEY_GATE`だけ `0x33D0-0x33DC` | 164B | 4096B側へ集約しやすい候補。分割scriptsとmain/draw/tableをまとめ直す対象。 |
+| Key/Fairy enemy runtime | `key_enemy_runtime` | bank0 cave中心、1片だけ4096B内、1片は `0x5005-0x500F` | 286B raw | 分割が多い。機能単位ではまとめたいが、複数hookから入るので呼び出し元確認が必要。 |
+| Spark Ball variant | `spark_ball_variant` | bank0 cave、`0x2569`、`0x4FEE`、4096B末尾 | 191B raw | `0x2569` はメイン側差し込みに近いので要注意。AI wrapper類は移動候補。 |
+| Panel Monster base variant | `panel_monster_variant` | bank0 cave、`0x5BEF`、`0x40D2` | 396B raw | `panel_monster_stage_variant` が上書きする箇所あり。旧/基礎runtimeと最終runtimeを分けて判断する。 |
+| Panel Monster A/B/C final runtime | `panel_monster_stage_variant` | 4096B内とbank0 caveに広く分散 | 692B raw | 最大の整理対象。速度、AI、弾、classifier、markerを機能単位に分ける。 |
+| Gargoyle variant | `gargoyle_variant` | bank0 cave `0x3D0B-0x3D88` | 90B | まとまっている。移すならhook先3か所を更新するだけか確認する。 |
+| Saramandor variant | `saramandor_variant` | bank0 cave `0x3E10-0x3F4F` | 165B | まとまっているが複数hookから入る。移動候補だが優先度は中。 |
+| Final stage redirect | `final_stage_redirect` | `0x3D28-0x3D34` | 13B | 小さい。単独で移すより周辺整理時に扱う。 |
+| Solomon Seal block helper | `solomon_seal_block` | `0x7005-0x700F` | 11B | 4096B末尾に既にいる。仮置き末尾設計と相性がよい。 |
+| Wide title / ending PRG0 helper | `title_screen` | `0x3719-0x371B`, `0x4C5F-0x4CB5` | 90B | タイトル処理の所有領域。一般的な移動候補から外す。 |
+
+## 最初に見るべき移動候補
+
+現時点では、いきなり最大のPanel runtimeへ手を入れない。
+先に小さく、機能単位が見えやすいものから確認する。
+
+優先候補:
+
+1. `stage_announcement`
+   - 理由: 大半が4096B内にあり、分割scriptsをまとめる目的と合う。
+   - 注意: `OFF_KEY_GATE = 0x33D0` だけ4096B外なので、呼び出し元と分岐距離を確認する。
+2. `spark_ball_variant` のAI wrapper類
+   - 理由: wrapper本体は小さく、場所依存が薄い可能性がある。
+   - 注意: `0x2569` property selector はメイン側差し込みに近いので、最初の移動対象にしない。
+3. `gargoyle_variant`
+   - 理由: 90Bでまとまっている。
+   - 注意: hook先と設定値読み書きが移動後も追従するか確認する。
+
+後回し:
+
+- `panel_monster_stage_variant`
+  - 理由: 最大かつ複数機能が絡む。先に小さい移動で手順を固める。
+- `title_screen`
+  - 理由: wide title所有領域であり、PRG0汎用整理とは別扱い。
+- 即値変更・hook命令本体
+  - 理由: routine本体ではない。移動対象ではなく参照更新対象。
+
+## Stage announcement 仮移動案
+
+最初の具体候補として `stage_announcement` を見る。
+
+理由:
+
+- 合計164Bで小さい。
+- 大半は既に4096B跡地内にある。
+- 4096B外に出ているのは `KEY_GATE` 13Bだけ。
+- `MAIN`、`DRAW`、`KEY_GATE`、`PTR_TABLE` は生成時にCPUアドレスを埋め込む構造なので、定数を変えれば追従できる可能性が高い。
+- 相対分岐は各routine内部だけで閉じている。
+
+注意:
+
+- `$9061` hook は残る。これはroutine本体ではなく呼び出し元変更。
+- CHRの `K/P` タイル追加はPRG0整理対象ではない。
+- `KEY_GATE` は現在 `0x33D0-0x33DC` にあるため、ここを空けられる可能性がある。
+
+4096B先頭側の移動案:
+
+4096B跡地は `0x6010` から上へ詰める。
+各追加routineは本体と、その直後の空きを別管理する。
+空きは空きとして扱い、routine本体のreserveとは書かない。
+
+`stage_announcement` は本体164Bの直後に24Bの空きを置く。
+この24Bは将来別処理が入る可能性があるため、管理簿では独立した空きとして見えるようにする。
+
+| part | new file | new CPU | size |
+|---|---:|---:|---:|
+| `MAIN` | `0x6010-0x6027` | `$E000-$E017` | 24B |
+| `MASK_TABLE` | `0x6028-0x602C` | `$E018-$E01C` | 5B |
+| `DRAW` | `0x602D-0x6045` | `$E01D-$E035` | 25B |
+| `PTR_TABLE` | `0x6046-0x6051` | `$E036-$E041` | 12B |
+| `KEY_GATE` | `0x6052-0x605E` | `$E042-$E04E` | 13B |
+| `DARK ROOM` | `0x605F-0x606B` | `$E04F-$E05B` | 13B |
+| `FIRE LOSS` | `0x606C-0x6078` | `$E05C-$E068` | 13B |
+| `HIDDEN DOOR` | `0x6079-0x6087` | `$E069-$E077` | 15B |
+| `FIRE SEALED` | `0x6088-0x6096` | `$E078-$E086` | 15B |
+| `SPELL SEALED` | `0x6097-0x60A6` | `$E087-$E096` | 16B |
+| `KEY ENEMY` | `0x60A7-0x60B3` | `$E097-$E0A3` | 13B |
+| free | `0x60B4-0x60CB` | `$E0A4-$E0BB` | 24B |
+
+合計:
+
+- `stage_announcement` 本体: 164B
+- 直後の空き: 24B
+- この候補で使う範囲: `0x6010-0x60CB`
+- 次の配置開始候補: `0x60CC`
+
+移動で空く場所:
+
+- 4096B内の旧分散箇所: 151Bぶん
+- 4096B外 `0x33D0-0x33DC`: 13B
+
+実装前に確認すること:
+
+- 新本体 `0x6010-0x60B3` が、他の `RESERVED_SPANS` と重ならないこと。
+- 新空き `0x60B4-0x60CB` を本体reserveとして扱わないこと。
+- `MAIN` 内の `CPU_MASK_TABLE`、`CPU_DRAW`、`CPU_KEY_GATE` が新アドレスへ更新されること。
+- `DRAW` 内の `CPU_PTR_TABLE` が新アドレスへ更新されること。
+- `PTR_TABLE` が新scriptアドレスを指すこと。
+- `$9061` hook が新 `CPU_MAIN = $E000` を呼ぶこと。
+
 ## 4096B跡地内の現行予約
 
 | file | CPU | size | 原作状態 | module |
@@ -118,7 +225,7 @@ PRG0追加プログラム側から見た一覧。
 | `0x6FD4-0x7004` | `$EFC4-$EFF4` | 49B | `EA` | `spark_ball_variant` |
 | `0x7005-0x700F` | `$EFF5-$EFFF` | 11B | `EA` | `solomon_seal_block` |
 
-この範囲は、最終的には末尾側へ仮置きして、先頭側から連続空きを作る候補にする。
+この範囲は、最終的には4096B先頭側へ詰め直して、routine本体と直後の空きを別管理する候補にする。
 
 ## 跡地外の主な整理候補
 
