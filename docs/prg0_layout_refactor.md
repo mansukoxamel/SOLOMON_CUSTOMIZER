@@ -252,6 +252,7 @@ PRG0追加プログラム側から見た一覧。
 - `0x63FC-0x6403`
 - `0x6774-0x6789`
 - `0x6798-0x67A1`
+- 現行では `0x6774-0x677F` はPanel Variant final block内、`0x6798-0x67A1` はRoomFlag packed cave runtime内で再利用済み。
 - 既存ROM救済や旧配置掃除のために、ここを保存時に自動で上書きしない。
 
 実装で確認すること:
@@ -338,7 +339,7 @@ PRG0追加プログラム側から見た一覧。
 
 理由:
 
-- `0x675C-0x6773` と `0x678C-0x6797` は、どちらも `$C0F0` の特殊セル変換scannerから使われる同一機能の小routine。
+- `0x675C-0x6773` と `0x678C-0x6797` は、どちらも当時の `$C0F0` 特殊セル変換scannerから使われる同一機能の小routine。
 - helper内部の相対分岐で旧 `$E77C` extensionへ飛ぶ構造だったため、離れた2断片として置く必要はない。
 - 4096B跡地の先頭側へ寄せることで、後続の `0x67xx` 周辺整理時にぶつかる小断片を減らせる。
 
@@ -368,11 +369,12 @@ PRG0追加プログラム側から見た一覧。
 
 - `0x675C-0x6773`
 - `0x678C-0x6797`
+- 現行では `0x675C-0x6773` はPanel Variant final block内、`0x678C-0x6797` はPanel直後24B buffer内。
 - 既存ROM救済や旧配置掃除のために、ここを保存時に自動で上書きしない。
 
 実装で確認すること:
 
-- `$C0F0` scanner内の `JSR` が新 `$E234` を指すこと。
+- 当時の `$C0F0` / 現行 `$E81D` scanner内の `JSR` が新 `$E234` を指すこと。
 - helper内部の `BCC` が新 `$E24C` extensionへ届くこと。
 - 新本体 `0x6244-0x6267` が、他の予約と重ならないこと。
 - 新空き `0x6268-0x627F` を本体reserveとして扱わないこと。
@@ -424,6 +426,7 @@ PRG0追加プログラム側から見た一覧。
 - `0x3D36-0x3D45`
 - `0x681C-0x6832`
 - `0x6FD4-0x7004`
+- 現行では `0x681C-0x6832` はRoomFlag packed cave runtime内、`0x6FD4-0x7004` はRoomFlag後の大きな空き `0x6871-0x7004` 内。
 - `0x4FEE-0x5004`
 - `0x3EFA-0x3F02`
 - `0x3ED7-0x3EF8`
@@ -605,15 +608,17 @@ PRG0追加プログラム側から見た一覧。
 | part | new file | new CPU | size |
 |---|---:|---:|---:|
 | Panel Variant final runtime block | `0x6496-0x677F` | `$E486-$E76F` | 746B |
-| free | `0x6780-0x67A2` | `$E770-$E792` | 35B |
+| free buffer | `0x6780-0x6797` | `$E770-$E787` | 24B |
+| RoomFlag packed cave runtime | `0x6798-0x6870` | `$E788-$E860` | 217B |
 
 合計:
 
 - A/B/C final runtime実体: 746B
 - 新ブロック予約: 746B
-- 直後の空き: 35B
-- この候補で使う範囲: `0x6496-0x67A2`
-- 次の配置開始候補: `0x6780` ではなく、旧 `0x67A3` 予約を残すため当面は `0x6780-0x67A2` を小空きとして扱う。
+- Panel直後の緩衝空き: 24B (`0x6780-0x6797`)
+- RoomFlag cave runtime: 217B (`0x6798-0x6870`)
+- RoomFlag後の空き: 1940B (`0x6871-0x7004`)
+- この候補で使う範囲: `0x6496-0x6870`
 - RAM新規使用: なし
 - PRG1新規使用: なし
 
@@ -632,7 +637,8 @@ PRG0追加プログラム側から見た一覧。
 - 新ブロック `0x6496-0x677F` が他の予約と重ならないこと。
 - `0x40D2-0x40FF` と `0x5BEF-0x5C0A` へ新規出力で書かないこと。
 - Spark Ball property/animation selectorのPanel fallback先が `$E73A` / `$E748` を指すこと。
-- 新空き `0x6780-0x67A2` を本体reserveとして扱わないこと。
+- 新空き `0x6780-0x6797` を本体reserveとして扱わないこと。
+- RoomFlag packed cave runtimeが `0x6798-0x6870` に収まり、Panel Variant final blockと重ならないこと。
 - 旧base 396Bへ新規出力で書かないこと。
 - 旧A/B/C final断片へ消去・復元・互換目的の書き込みを入れないこと。
 
@@ -642,6 +648,48 @@ PRG0追加プログラム側から見た一覧。
 - これは「RAMを使わないと成立しない仕様」というより、PRG0不足を回避するために一部設定を部屋ロード時RAMへ逃がした設計。
 - 将来RAM不足が問題になった場合は、Panel Variant の `$0740-$0745` 使用と PRG1 settings table を整理対象にする。
 - ただし今は動作中の仕様なので、PRG0整理作業のついでに勝手に消さない。RAM整理を目的にした別作業で、使用量、代替配置、PRG0増加量を出して判断する。
+
+## RoomFlag cave runtime ブロック
+
+`room_flags.py` のbank0 cave runtimeを、Panel Variant final runtime直後の24Bを空けた後ろへ集約する。
+
+理由:
+
+- 旧bank0 cave側にRoomFlag小routineが散っていて、今後の整理対象と混ざりやすい。
+- 画像上の連続空き `0x6780-0x7004` を、24B緩衝 + RoomFlag本体 + 残り空きとして台帳と実装で一致させる。
+- 旧ROM救済や旧配置掃除はしない。新規保存ROMで旧位置へ書かなくなるだけ。
+
+移動後:
+
+| part | old file | old CPU | new file | new CPU | size |
+|---|---:|---:|---:|---:|---:|
+| Panel直後 buffer | - | - | `0x6780-0x6797` | `$E770-$E787` | 24B |
+| LOADER | `0x3BF0-0x3C1D` | `$BBE0-$BC0D` | `0x6798-0x67C5` | `$E788-$E7B5` | 46B |
+| MAGICGATE | `0x3C30-0x3C51` | `$BC20-$BC41` | `0x67C6-0x67E7` | `$E7B6-$E7D7` | 34B |
+| DOORPREDRAW | `0x3C60-0x3C6A` | `$BC50-$BC5A` | `0x67E8-0x67F2` | `$E7D8-$E7E2` | 11B |
+| DARK | `0x3C90-0x3CC7` | `$BC80-$BCB7` | `0x67F3-0x682A` | `$E7E3-$E81A` | 56B |
+| dark tempo | `0x3CE0-0x3CE1` | `$BCD0-$BCD1` | `0x682B-0x682C` | `$E81B-$E81C` | 2B |
+| special-cell scanner | `0x4100-0x4143` | `$C0F0-$C133` | `0x682D-0x6870` | `$E81D-$E860` | 68B |
+| free | - | - | `0x6871-0x7004` | `$E861-$EFF4` | 1940B |
+
+合計:
+
+- RoomFlag runtime実体: 217B
+- Panel直後の緩衝空き: 24B
+- `0x6780-0x7004` の元空き: 2181B
+- 移動後の残り空き: 1940B
+- RAM新規使用: なし
+- PRG1新規使用: なし
+
+実装で確認すること:
+
+- `$9071` hook が `$E788` を指すこと。
+- `$8326` hook が `$E7B6` を指すこと。
+- `$91CC` hook が `$E7D8` を指すこと。
+- `$8055` hook が `$E7E3` を指すこと。
+- `$909A` hook が `$E81D` を指すこと。
+- DARK tempo比較が `$E81B/$E81C` を参照すること。
+- 旧RoomFlag配置へ新規出力で書かないこと。
 
 ## 4096B跡地内の現行予約
 
@@ -656,17 +704,9 @@ PRG0追加プログラム側から見た一覧。
 | `0x6367-0x63C0` | `$E357-$E3B0` | 90B | `EA` | `gargoyle_variant` |
 | `0x63D9-0x647D` | `$E3C9-$E46D` | 165B | `EA` | `saramandor_variant` |
 | `0x6496-0x677F` | `$E486-$E76F` | 746B | `EA` | `panel_monster_stage_variant` |
-| `0x6780-0x67A2` | `$E770-$E792` | 35B | `EA`/`00` | free |
-| `0x67A3-0x67B3` | `$E793-$E7A3` | 17B | mixed | `panel_monster_stage_variant` |
-| `0x67B4-0x67D0` | `$E7A4-$E7C0` | 29B | mixed | `panel_monster_stage_variant` |
-| `0x67D1-0x6817` | `$E7C1-$E807` | 71B | mixed | `panel_monster_stage_variant` |
-| `0x6833-0x6882` | `$E823-$E872` | 80B | mixed | `panel_monster_stage_variant` |
-| `0x68AC-0x68BB` | `$E89C-$E8AB` | 16B | `00` | `panel_monster_stage_variant` |
-| `0x68C4-0x68FE` | `$E8B4-$E8EE` | 59B | mixed | `panel_monster_stage_variant` |
-| `0x693C-0x6959` | `$E92C-$E949` | 30B | mixed | `panel_monster_stage_variant` |
-| `0x696C-0x697E` | `$E95C-$E96E` | 19B | `00` | `panel_monster_stage_variant` |
-| `0x697F-0x699E` | `$E96F-$E98E` | 32B | mixed | `panel_monster_stage_variant` |
-| `0x69D4-0x69DF` | `$E9C4-$E9CF` | 12B | `00` | `panel_monster_stage_variant` |
+| `0x6780-0x6797` | `$E770-$E787` | 24B | `EA` | free buffer |
+| `0x6798-0x6870` | `$E788-$E860` | 217B | `EA` | `room_flags.packed_cave_runtime` |
+| `0x6871-0x7004` | `$E861-$EFF4` | 1940B | `EA` | free |
 | `0x7005-0x700F` | `$EFF5-$EFFF` | 11B | `EA` | `solomon_seal_block` |
 
 この範囲は、最終的には4096B先頭側へ詰め直して、routine本体と直後の空きを別管理する候補にする。
