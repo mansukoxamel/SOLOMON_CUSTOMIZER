@@ -301,6 +301,24 @@ class SettingsDialog(QDialog):
         btn_browse.clicked.connect(self._browse_emu)
         emu_row.addWidget(btn_browse)
         lf.addRow(t("settings.emulator.path.label", "実行ファイル:"), emu_wrap)
+
+        bin_wrap = QWidget()
+        bin_row = QHBoxLayout(bin_wrap)
+        bin_row.setContentsMargins(0, 0, 0, 0)
+        self.edit_binary_editor = QLineEdit(
+            str(self.config.get("binary_editor_path", "") or "")
+        )
+        self.edit_binary_editor.setPlaceholderText(
+            t(
+                "settings.binary_editor.path.placeholder",
+                "例: D:/tools/MAGATU_BINARY_EDITOR/MAGATU_BINARY_EDITOR.py",
+            )
+        )
+        bin_row.addWidget(self.edit_binary_editor, 1)
+        btn_binary = QPushButton(t("common.browse", "参照..."))
+        btn_binary.clicked.connect(self._browse_binary_editor)
+        bin_row.addWidget(btn_binary)
+        lf.addRow(t("settings.binary_editor.path.label", "バイナリエディタ:"), bin_wrap)
         general_layout.addWidget(link_group)
         self._refresh_emulator_combo()
 
@@ -636,6 +654,23 @@ class SettingsDialog(QDialog):
                 self.edit_emu_name.setText(Path(path).stem)
             self._update_current_emulator()
 
+    def _browse_binary_editor(self):
+        from .file_dialog_compat import get_file
+        path = get_file(
+            self,
+            title=t("settings.binary_editor.open_title", "バイナリエディタを選択"),
+            filter=t(
+                "settings.binary_editor.file_filter",
+                "Applications / Python (*.exe *.py *.pyw);;All files (*)",
+            ),
+            directory=self.edit_binary_editor.text(),
+            app_config=self.config,
+            config_key="settings_binary_editor",
+            persist_config=False,
+        )
+        if path:
+            self.edit_binary_editor.setText(path)
+
     def _current_emulator_index(self):
         emu_id = self.cmb_emulators.currentData()
         for i, emu in enumerate(self._emulators):
@@ -785,6 +820,7 @@ class SettingsDialog(QDialog):
         self.config["stage_png_show_secrets"] = (
             self.chk_stage_png_show_secrets.isChecked()
         )
+        self.config["binary_editor_path"] = self.edit_binary_editor.text().strip()
         self.config["autosave_keep_count"] = self.spin_autosave_keep_count.value()
         self.config["undo_limit"] = self.spin_undo_limit.value()
         for key, _label in MARKER_COLOR_ROWS:

@@ -670,7 +670,7 @@ PRG0追加プログラム側から見た一覧。
 | DARK | `0x3C90-0x3CC7` | `$BC80-$BCB7` | `0x67F3-0x682A` | `$E7E3-$E81A` | 56B |
 | dark tempo | `0x3CE0-0x3CE1` | `$BCD0-$BCD1` | `0x682B-0x682C` | `$E81B-$E81C` | 2B |
 | special-cell scanner | `0x4100-0x4143` | `$C0F0-$C133` | `0x682D-0x6870` | `$E81D-$E860` | 68B |
-| free | - | - | `0x6871-0x7004` | `$E861-$EFF4` | 1940B |
+| free (RoomFlag単体時点) | - | - | `0x6871-0x7004` | `$E861-$EFF4` | 1940B |
 
 合計:
 
@@ -678,7 +678,7 @@ PRG0追加プログラム側から見た一覧。
 - Panel直後の緩衝空き: 24B
 - `0x6780-0x7004` の元空き: 2181B
 - RoomFlag単体移動直後の残り空き: 1940B
-- 後続のGap fix移動後は `0x6871-0x6888` buffer、`0x6889-0x6910` gap_fix、`0x6911-0x7004` free。
+- 後続のwide-title idle-demo cleanup / Gap fix移動後は `0x6871-0x6879` wide-title stub、`0x687A-0x6888` buffer、`0x6889-0x6910` gap_fix、`0x6911-0x7004` free。
 - RAM新規使用: なし
 - PRG1新規使用: なし
 
@@ -707,14 +707,16 @@ PRG0追加プログラム側から見た一覧。
 
 | part | old file | old CPU | new file | new CPU | size |
 |---|---:|---:|---:|---:|---:|
-| RoomFlag後 buffer | - | - | `0x6871-0x6888` | `$E861-$E878` | 24B |
+| wide-title idle-demo cleanup | `0x3C1E-0x3C26` | `$BC0E-$BC16` | `0x6871-0x6879` | `$E861-$E869` | 9B |
+| RoomFlag後 buffer | - | - | `0x687A-0x6888` | `$E86A-$E878` | 15B |
 | gap_fix runtime | `0x4010-0x4097` | `$C000-$C087` | `0x6889-0x6910` | `$E879-$E900` | 136B |
 | free | - | - | `0x6911-0x7004` | `$E901-$EFF4` | 1780B |
 
 合計:
 
 - Gap fix runtime実体: 136B
-- RoomFlag後の緩衝空き: 24B
+- wide-title idle-demo cleanup実体: 9B
+- RoomFlag後の緩衝空き: 15B
 - RoomFlag後の元空き: 1940B
 - 移動後の残り空き: 1780B
 - RAM新規使用: なし
@@ -743,7 +745,8 @@ PRG0追加プログラム側から見た一覧。
 | `0x6496-0x677F` | `$E486-$E76F` | 746B | `EA` | `panel_monster_stage_variant` |
 | `0x6780-0x6797` | `$E770-$E787` | 24B | `EA` | free buffer |
 | `0x6798-0x6870` | `$E788-$E860` | 217B | `EA` | `room_flags.packed_cave_runtime` |
-| `0x6871-0x6888` | `$E861-$E878` | 24B | `EA` | free buffer |
+| `0x6871-0x6879` | `$E861-$E869` | 9B | `EA` | `title_screen.wide_title_idle_demo_cleanup` |
+| `0x687A-0x6888` | `$E86A-$E878` | 15B | `EA` | free buffer |
 | `0x6889-0x6910` | `$E879-$E900` | 136B | `EA` | `gap_fix` |
 | `0x6911-0x7004` | `$E901-$EFF4` | 1780B | `EA` | free |
 | `0x7005-0x700F` | `$EFF5-$EFFF` | 11B | `EA` | `solomon_seal_block` |

@@ -1923,9 +1923,12 @@ _WT_CALLERB_SIG = bytes.fromhex("207396A9A38500A9CE8501204FCC")
 _WT_BOOT_SIG = bytes.fromhex("A20DBD5DCC9D2C07CA10F74C2C07")
 _WT_BOOT_SIG_LEGACY_03C0 = bytes.fromhex("A20DBD5DCC9DC003CA10F74CC003")
 _WT_IDLE_DEMO_TIMEOUT_CPU = 0xCB9E
-_WT_IDLE_DEMO_CLEAR_STUB_CPU = 0xBC0E
+_WT_IDLE_DEMO_CLEAR_STUB_CPU = 0xE861
 _WT_IDLE_DEMO_TIMEOUT_ORIG = bytes.fromhex("A918205F8D")
-_WT_IDLE_DEMO_TIMEOUT_HOOK = bytes.fromhex("200EBCEAEA")
+_WT_IDLE_DEMO_TIMEOUT_HOOK_OLD = bytes.fromhex("200EBCEAEA")
+_WT_IDLE_DEMO_TIMEOUT_HOOK = (
+    bytes.fromhex("20") + _word(_WT_IDLE_DEMO_CLEAR_STUB_CPU) + bytes.fromhex("EAEA")
+)
 _WT_IDLE_DEMO_CLEAR_STUB = (
     bytes.fromhex("20") + _word(_WT_TITLE_OAM_CLEAR_CPU) +
     bytes.fromhex("A918205F8D60")
@@ -1942,6 +1945,7 @@ _WT_STOCK_CC4F_DECODER = bytes.fromhex(
 RESERVED_SPANS = (
     (_wjp_cf(0xCC4F), 28),                         # title RAM bootstrap
     (_wjp_cf(_WT_TITLE_OAM_CLEAR_CPU), 7),
+    (_wjp_cf(_WT_IDLE_DEMO_CLEAR_STUB_CPU), len(_WT_IDLE_DEMO_CLEAR_STUB)),
     (_wjp_cf(_WT_ENDING_CALL_CPU), 3),
     (_wjp_cf(_WT_ENDING_HELPER_CPU), 52),
     (_WT_DEC_FILE, _WT_WIDE_END - _WT_DEC_FILE),
@@ -2006,7 +2010,11 @@ def _wt_install_idle_demo_cleanup(rom_data) -> bool:
     hook_off = _wjp_cf(_WT_IDLE_DEMO_TIMEOUT_CPU)
     stub_off = _wjp_cf(_WT_IDLE_DEMO_CLEAR_STUB_CPU)
     cur_hook = bytes(rom_data[hook_off:hook_off + len(_WT_IDLE_DEMO_TIMEOUT_ORIG)])
-    if cur_hook not in (_WT_IDLE_DEMO_TIMEOUT_ORIG, _WT_IDLE_DEMO_TIMEOUT_HOOK):
+    if cur_hook not in (
+            _WT_IDLE_DEMO_TIMEOUT_ORIG,
+            _WT_IDLE_DEMO_TIMEOUT_HOOK,
+            _WT_IDLE_DEMO_TIMEOUT_HOOK_OLD,
+    ):
         raise TitleScreenError(
             f"title idle demo timeout signature mismatch at "
             f"${_WT_IDLE_DEMO_TIMEOUT_CPU:04X}: got {cur_hook.hex(' ')}")

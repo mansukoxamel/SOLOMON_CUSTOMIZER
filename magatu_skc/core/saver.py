@@ -275,7 +275,7 @@ def save_levels_to_rom(
         spark_ball_variant, gargoyle_variant,
         stage_ext, key_enemy_runtime, stage_announcement, title_screen,
         drop_pickup_guard, special_process, solomon_seal_block,
-        final_stage_redirect,
+        final_stage_redirect, gap_fix,
     )
     from .element import byte_from_position
     # IMPORTANT: this apply order is part of the ROM layout contract.
@@ -289,6 +289,12 @@ def save_levels_to_rom(
     _run_save_step("Gargoyle slow-Bullet runtime検証/適用", gargoyle_variant.apply, rom.data)
     if rom.is_expanded():
         _run_save_step("Solomon Seal block-state検証/適用", solomon_seal_block.apply, rom.data, levels)
+    _run_save_step(
+        "Gap fix runtime固定配置検証/適用",
+        gap_fix.apply,
+        rom.data,
+        gap_fix.is_applied(rom.data),
+    )
     _run_save_step("wide-title trampoline RAM移行", title_screen.migrate_wide_title_trampoline_ram, rom.data)
     _run_save_step("wide-title idle demo cleanup検証/適用", title_screen.apply_wide_title_idle_demo_cleanup, rom.data)
     _run_save_step(

@@ -32,7 +32,7 @@ verbatim コピーするため file offset 不変):
   $9071 フック        file 0x1081  "20 4B 97" -> "20 88 E7" (LOADER)
   $8326 フック        file 0x0336  "A5 28 6A" -> "20 B6 E7" (MAGICGATE)
   $91CC フック        file 0x11DC  "20 53 9D" -> "20 D8 E7" (DOORPREDRAW)
-  LOADER     cave $E788  file 0x6798  (46B; plus 9B idle-demo cleanup at $BC0E)
+  LOADER     cave $E788  file 0x6798  (46B; wide-title idle cleanup now $E861)
   MAGICGATE  cave $E7B6  file 0x67C6  (34B)
   DOORPREDRAW cave $E7D8 file 0x67E8  (11B)
   DoorCellTable  $C180  file 0x4190  (64B、扉マスindex)
@@ -241,7 +241,8 @@ OFF_WHITE_INBLOCK_RUNTIME_EXT = OFF_VISIBLE_INBLOCK_HELPER + VISIBLE_INBLOCK_HEL
 OFF_BW_CAVE     = 0x682D   # $E81D  runtime special-cell scanner
 OFF_CAVE_FREE0  = 0x3BEE   # $BBDE  (cave 空き判定の起点)
 OFF_CAVE_FREE1  = 0x4210   # $C200  (cave 空き判定の終点)
-OFF_TITLE_IDLE_DEMO_CLEAR = 0x3C1E  # $BC0E  wide-title idle demo cleanup (9B)
+OFF_TITLE_IDLE_DEMO_CLEAR = 0x6871  # $E861  wide-title idle demo cleanup (9B)
+OFF_TITLE_IDLE_DEMO_CLEAR_OLD = 0x3C1E  # $BC0E old wide-title idle cleanup slot
 TITLE_IDLE_DEMO_CLEAR_SIZE = 9
 
 CPU_LOADER_CAVE = _cpu(OFF_LOADER_CAVE)
@@ -474,6 +475,7 @@ def _verify(rom_data) -> None:
         (OFF_MAGIC_CAVE, len(MAGIC_CAVE)),
         (OFF_DOOR_CAVE, len(DOOR_CAVE)),
         (OFF_TITLE_IDLE_DEMO_CLEAR, TITLE_IDLE_DEMO_CLEAR_SIZE),
+        (OFF_TITLE_IDLE_DEMO_CLEAR_OLD, TITLE_IDLE_DEMO_CLEAR_SIZE),
         *table_spans,
         (_gf.OFF_CAVE, len(_gf.CAVE)),       # gap_fix 共存
         (OFF_DARK_CAVE, DARK_CAVE_RESERVED_SIZE),  # 暗闇 cave

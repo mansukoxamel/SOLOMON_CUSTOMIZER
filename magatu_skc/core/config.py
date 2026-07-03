@@ -39,6 +39,7 @@ SHORTCUT_DEFINITIONS = [
     ("save_stage_png", "現在ステージのステージデータPNG保存", "Ctrl+E"),
     ("stage_jump", "ステージ番号ジャンプ", "Ctrl+L"),
     ("show_stats", "全ステージ統計", "Ctrl+I"),
+    ("open_binary_editor", "バイナリエディタで開く", "Ctrl+B"),
     ("test_play", "テストプレイ", "P"),
     ("stage_prev", "前のステージ", "PgUp"),
     ("stage_next", "次のステージ", "PgDown"),
@@ -224,6 +225,7 @@ DEFAULT_CONFIG = {
     # 外部連携
     "emulators": DEFAULT_EMULATORS,
     "default_emulator_id": "",
+    "binary_editor_path": "",
     "test_play_quick_start": True,
     "stage_png_show_secrets": True,
     # ピッカーのお気に入り（10スロット, [mode, value] or null）

@@ -70,7 +70,7 @@ def parse_enemy_sets_std(rom_data: bytes, region: str) -> list:
 
 
 _REGION_PATCH_OFFSETS = {
-    "JP": {"nop3": 6162, "sub1": 6534, "zero48": 16370, "byte_0d30": 3376,
+    "JP": {"nop3": 6162, "sub1": 6534, "byte_0d30": 3376,
            "tbl_5c10": 23568, "tbl_5c20": 23584, "tbl_5c30": 23600, "tbl_5c41": 23617,
            "lvl_lo": 23804, "lvl_hi": 23857, "lvl2_lo": 27180, "lvl2_hi": 27233},
 }
@@ -234,10 +234,6 @@ def change_mapper(src: bytes, region: str = "JP") -> bytearray:
     result[p["tbl_5c30"] + 1] = 200
     result[p["tbl_5c41"]] = 7
     result[p["tbl_5c41"] + 1] = 7
-
-    # 48バイト消去
-    for i in range(48):
-        result[p["zero48"] + i] = 0
 
     return result
 
