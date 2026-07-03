@@ -262,7 +262,7 @@
     </div>
     <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
     <div class="note">
-      <b>棚卸メモ:</b> 2026-07-04 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約696B。Final-stage redirect runtimeは <code>$E332</code> へ移動済み。Gargoyle runtimeは <code>$E357</code> へ移動済み。Saramandor runtimeは <code>$E3C9</code> へ移動済み。Panel Variant final runtimeは <code>$E486-$E76F</code> へ移動済み。RoomFlag cave runtimeは <code>$E788-$E860</code> へ移動済み。Gap fix runtimeは <code>$E879-$E900</code> へ移動済み。旧Panel base runtimeは新規出力では書かない。
+      <b>棚卸メモ:</b> 2026-07-04 現行production予約スパン検査では、bank0 cave <code>$BBE2-$C1FF</code> 1,566B のうち未予約692B。Final-stage redirect runtimeは <code>$E332</code> へ移動済み。Gargoyle runtimeは <code>$E357</code> へ移動済み。Saramandor runtimeは <code>$E3C9</code> へ移動済み。Panel Variant final runtimeは <code>$E486-$E76F</code> へ移動済み。RoomFlag cave runtimeは <code>$E788-$E860</code> へ移動済み。Gap fix runtimeは <code>$E879-$E900</code> へ移動済み。旧Panel base runtimeは新規出力では書かない。
       Key/Fairy enemy runtimeは <code>0x610E-0x622B</code> へ集約済み。旧配置跡は新規出力で書かず、保存時にも掃除しない。
       実装側の許容スパン上は過去に <code>0x4190-0x420D</code> が expanded table span と key enemy で重複していたため、旧配置を読む時は重複を二重加算しない union で扱う。
     </div>
@@ -271,11 +271,20 @@
       過去prototypeの <code>0x3C6B-0x3CA9</code>, <code>0x3D52-0x3D90</code>, <code>0x4098-0x40BD</code> 直置き案は使わない。
       現行は <code>0x6496-0x677F</code> の新ブロックとPRG1 loader/settingsを使い、<code>panel_monster_stage_variant.RESERVED_SPANS</code> を正とする。
     </div>
+    <div class="note">
+      <b>Imported item bitmap cleanup:</b>
+      <code>0x3BC2-0x3BD9</code> / <code>$BBB2-$BBC9</code> はLv20 Bat Symbol 24B bitmap、
+      <code>0x3BDA-0x3BF1</code> / <code>$BBCA-$BBE1</code> はLv30 Blue Opal 24B bitmap。
+      原作では通常item streamへ入りきらない大量アイテムをこのbitmap特殊処理で配置する。
+      customizerは読込時に <code>_apply_item_bitmasks()</code> で通常編集可能なitemsへ取り込み、
+      <code>_clear_item_bitmasks()</code> で元bitmapを<code>00</code>クリアする。
+      保存時は <code>disable_imported_item_bitmask_processes()</code> で原作bitmap特殊処理もNOP化するため、
+      ここは追加プログラムではなく取り込み済みsource bitmapの無効化跡。
+    </div>
     <h3>bank0 cave 未予約ギャップ</h3>
     <table>
       <tr><th>file offset</th><th>CPU</th><th>Size</th><th>扱い</th></tr>
-      <tr><td class="num">0x3BEE-0x3BEF</td><td class="num">$BBDE-$BBDF</td><td class="num">2B</td><td>原作00埋め。断片。基本は埋め草用。</td></tr>
-      <tr><td class="num">0x3BF0-0x3C1D</td><td class="num">$BBE0-$BC0D</td><td class="num">46B</td><td>旧RoomFlag LOADER候補跡。現行runtimeは <code>$E788</code> へ移動済み。新規出力ではroom_flags.pyを書かない。</td></tr>
+      <tr><td class="num">0x3BF2-0x3C1D</td><td class="num">$BBE2-$BC0D</td><td class="num">44B</td><td>旧RoomFlag LOADER候補跡。現行runtimeは <code>$E788</code> へ移動済み。新規出力ではroom_flags.pyを書かない。直前 <code>0x3BC2-0x3BF1</code> はitem bitmap cleanup領域のため空きに含めない。</td></tr>
       <tr><td class="num">0x3C2E-0x3C2F</td><td class="num">$BC1E-$BC1F</td><td class="num">2B</td><td>原作EA埋め。MAGICGATE直前の断片。</td></tr>
       <tr><td class="num">0x3C30-0x3C51</td><td class="num">$BC20-$BC41</td><td class="num">34B</td><td>旧RoomFlag MAGICGATE候補跡。現行runtimeは <code>$E7B6</code> へ移動済み。新規出力ではroom_flags.pyを書かない。</td></tr>
       <tr><td class="num">0x3C58-0x3C5F</td><td class="num">$BC48-$BC4F</td><td class="num">8B</td><td>Key/Fairy enemy status writerの予約縮小で回収。DOORPREDRAW直前の短い断片。</td></tr>
@@ -305,11 +314,12 @@
       <tr><td class="num">0x4100-0x4143</td><td class="num">$C0F0-$C133</td><td class="num">68B</td><td>旧RoomFlag special-cell scanner候補跡。現行runtimeは <code>$E81D</code> へ移動済み。新規出力ではroom_flags.pyを書かない。</td></tr>
       <tr><td class="num">0x414F-0x4152</td><td class="num">$C13F-$C142</td><td class="num">4B</td><td>Panel Monster fire marker table移動後の残り。短い非常用候補。</td></tr>
       <tr><td class="num">0x418F</td><td class="num">$C17F</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>696B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。Final-stage redirect runtimeを <code>$E332</code>、Gargoyle runtimeを <code>$E357</code>、Saramandor runtimeを <code>$E3C9</code>、RoomFlag cave runtimeを <code>$E788-$E860</code>、Gap fix runtimeを <code>$E879-$E900</code> へ移動した後の断片合計。</td></tr>
+      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>692B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。Final-stage redirect runtimeを <code>$E332</code>、Gargoyle runtimeを <code>$E357</code>、Saramandor runtimeを <code>$E3C9</code>、RoomFlag cave runtimeを <code>$E788-$E860</code>、Gap fix runtimeを <code>$E879-$E900</code> へ移動した後の断片合計。<code>0x3BC2-0x3BF1</code> はitem bitmap cleanup領域のため空きに含めない。</td></tr>
     </table>
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
-      <tr><td>空き</td><td class="num">0x3BF0-0x3C1D</td><td class="num">$BBE0-$BC0D</td><td class="num">46B</td><td>旧RoomFlag LOADER候補跡。現行LOADERは <code>$E788</code> へ移動済み。新規出力ではroom_flags.pyを書かない。</td></tr>
+      <tr><td>元bitmapクリア</td><td class="num">0x3BC2-0x3BF1</td><td class="num">$BBB2-$BBE1</td><td class="num">48B</td><td>Lv20 Bat Symbol 24B + Lv30 Blue Opal 24B の原作item_bitmask。読込時に通常itemsへ取り込み後、二重生成防止のため <code>00</code> クリア。空き扱いしない。</td></tr>
+      <tr><td>空き</td><td class="num">0x3BF2-0x3C1D</td><td class="num">$BBE2-$BC0D</td><td class="num">44B</td><td>旧RoomFlag LOADER候補跡。現行LOADERは <code>$E788</code> へ移動済み。新規出力ではroom_flags.pyを書かない。</td></tr>
       <tr><td>空き</td><td class="num">0x3C1E-0x3C26</td><td class="num">$BC0E-$BC16</td><td class="num">9B</td><td>旧Wide title idle-demo cleanup候補跡。現行stubは <code>$E861</code> へ移動済み。新規出力ではtitle_screen.pyを書かない。</td></tr>
       <tr><td>Wide title OAM clear helper</td><td class="num">0x4C7B-0x4C81</td><td class="num">$CC6B-$CC71</td><td class="num">7B</td><td>Wide-title-owned title-code helper. This is not free cave space: after wide-title normalization, `$CC4F-$CC6A` is replaced by the 28B bootstrap, so the following stock title drawing code body `$CC6B-$CCB5` is dead/owned by wide-title. This helper runs the stock title clear at `$CC18`, then calls the original all-main-slot clear helper `$CB5A`. Manual Start at `$CBB3` and idle-demo cleanup at `$E861` call this helper. Generic PRG0 cave, NMI hook, and DARK area usage: 0B.</td></tr>
       <tr><td>Wide title ending draw hook</td><td class="num">0x3719-0x371B / 0x4C82-0x4CB5</td><td class="num">$B709-$B70B / $CC72-$CCA5</td><td class="num">3B + 52B</td><td>Ending-only split. The original ending call now jumps to a title-independent PRG1 renderer, returns to bank0, then runs the stock `$965F` PPU restore path. Title editable streams and title attribute-table suppression do not affect the ending screen.</td></tr>
