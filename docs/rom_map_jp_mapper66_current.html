@@ -198,9 +198,12 @@
       <tr><td>空き</td><td><code>final_stage_redirect.py</code></td><td class="num">0x634F-0x6366</td><td class="num">$E33F-$E356</td><td class="num">24B</td><td>EA埋め</td><td>Final-stage redirect直後の空き。final_stage_redirect本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
       <tr><td>小routine</td><td><code>gargoyle_variant.py</code></td><td class="num">0x6367-0x63C0</td><td class="num">$E357-$E3B0</td><td class="num">90B</td><td>EA埋め</td><td>強化ガーゴイルruntimeを1ブロックへ集約。materialize gate、cooldown gate、cooldown tailを含む。<code>$AE6F</code> と <code>$AE48</code> のhook先。</td></tr>
       <tr><td>空き</td><td><code>gargoyle_variant.py</code></td><td class="num">0x63C1-0x63D8</td><td class="num">$E3B1-$E3C8</td><td class="num">24B</td><td>EA埋め</td><td>Gargoyle runtime直後の空き。gargoyle_variant本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
+      <tr><td>小routine</td><td><code>saramandor_variant.py</code></td><td class="num">0x63D9-0x647D</td><td class="num">$E3C9-$E46D</td><td class="num">165B</td><td>EA埋め</td><td>Saramandor #2 Bullet variant runtimeを1ブロックへ集約。spawn setup、substatus、flame behavior、distance checkを含む。<code>$B105</code>、<code>$B0A9</code>、<code>$B0C6</code>、<code>$B1E9</code> のhook先。</td></tr>
+      <tr><td>空き</td><td><code>saramandor_variant.py</code></td><td class="num">0x647E-0x6495</td><td class="num">$E46E-$E485</td><td class="num">24B</td><td>EA埋め</td><td>Saramandor runtime直後の空き。saramandor_variant本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
       <tr><td>空き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x681C-0x6832 / 0x6FD4-0x7004 / 0x4FEE-0x5004 / 0x3EFA-0x3F02 / 0x3ED7-0x3EF8 / 0x3FE8-0x3FF7 / 0x3D36-0x3D45</td><td class="num">mixed</td><td class="num">170B</td><td>00/EA埋め</td><td>旧Spark Ball追加routine候補跡。新規出力ではspark_ball_variantを書かない。保存時に掃除しない。</td></tr>
       <tr><td>空き</td><td><code>final_stage_redirect.py</code></td><td class="num">0x3D28-0x3D34</td><td class="num">$BD18-$BD24</td><td class="num">13B</td><td>EA埋め</td><td>旧Final-stage redirect runtime候補跡。新規出力ではfinal_stage_redirectを書かない。保存時に掃除しない。</td></tr>
       <tr><td>空き</td><td><code>gargoyle_variant.py</code></td><td class="num">0x3D0B-0x3D26 / 0x3D4B-0x3D88</td><td class="num">$BCFB-$BD16 / $BD3B-$BD78</td><td class="num">90B</td><td>00/EA埋め</td><td>旧Gargoyle追加routine候補跡。新規出力ではgargoyle_variantを書かない。保存時に掃除しない。</td></tr>
+      <tr><td>空き</td><td><code>saramandor_variant.py</code></td><td class="num">0x3E10-0x3E3E / 0x3E50-0x3E71 / 0x3E90-0x3EA3 / 0x3F10-0x3F4F</td><td class="num">$BE00-$BE2E / $BE40-$BE61 / $BE80-$BE93 / $BF00-$BF3F</td><td class="num">165B</td><td>00/EA埋め</td><td>旧Saramandor追加routine候補跡。新規出力ではsaramandor_variantを書かない。保存時に掃除しない。</td></tr>
       <tr><td>既存データ断片上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x67A3-0x67B3</td><td class="num">$E793-$E7A3</td><td class="num">17B</td><td>原作データ断片</td><td>Panel Variant parent field clear helper。原作バイトは <code>00 08 21 00 01 00 01 00 01 00 01 00 01 40 01 01 01</code> で、<code>ORIG_FINAL_PARENT_FIELD_CLEAR_HELPER</code> と照合済み。00埋め/空きとして扱わない。</td></tr>
       <tr><td>既存tail上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x67D1-0x6817</td><td class="num">$E7C1-$E807</td><td class="num">71B</td><td>原作tail data</td><td>Panel Monster v2 Bullet entry helper。<code>$BF69</code> からJMPし、2-way/3-way spread markerとspeed markerを同じ入口で処理する。</td></tr>
       <tr><td>既存データ断片上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x693C-0x6959</td><td class="num">$E92C-$E949</td><td class="num">30B</td><td>原作データ断片</td><td>Panel Variant A/B/C-only group offset helper。原作バイト末尾に非00値 <code>40 04 00 00 00 01 1C 71 36 D9</code> を含み、<code>ORIG_FINAL_ABC_GROUP_OFFSET_HELPER</code> と照合済み。00埋め/空きとして扱わない。</td></tr>
@@ -234,18 +237,18 @@
       <div class="seg free" style="width:.32%"></div>
       <div class="seg free" style="width:4.59%">old garg</div>
       <div class="seg cave" style="width:7.64%">PM fire</div>
-      <div class="seg cave" style="width:2.99%">Saram</div>
+      <div class="seg free" style="width:2.99%">old saram</div>
       <div class="seg free" style="width:1.08%"></div>
       <div class="seg hook" style="width:1.59%">PV interval</div>
       <div class="seg free" style="width:.32%"></div>
-      <div class="seg cave" style="width:1.27%">Saram</div>
+      <div class="seg free" style="width:1.27%">old saram</div>
       <div class="seg free" style="width:.76%"></div>
-      <div class="seg cave" style="width:1.40%">Saram</div>
+      <div class="seg free" style="width:1.40%">old saram</div>
       <div class="seg free" style="width:.64%"></div>
-      <div class="seg cave" style="width:2.68%">Saram</div>
+      <div class="seg free" style="width:2.68%">old saram</div>
       <div class="seg free" style="width:.57%">old spark</div>
       <div class="seg free" style="width:.83%"></div>
-      <div class="seg cave" style="width:4.08%">Saram range</div>
+      <div class="seg free" style="width:4.08%">old saram</div>
       <div class="seg free" style="width:1.02%"></div>
       <div class="seg free" style="width:1.59%"></div>
       <div class="seg cave" style="width:4.97%">PM bullet</div>
@@ -264,7 +267,7 @@
     </div>
     <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
     <div class="note">
-      <b>棚卸メモ:</b> 2026-06-20 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約178B。Final-stage redirect runtimeは <code>$E332</code> へ移動済み。Gargoyle runtimeは <code>$E357</code> へ移動済み。Panel Variant final split runtime と Panel Monster / Variant animation hook はproduction予約として含める。
+      <b>棚卸メモ:</b> 2026-06-20 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約343B。Final-stage redirect runtimeは <code>$E332</code> へ移動済み。Gargoyle runtimeは <code>$E357</code> へ移動済み。Saramandor runtimeは <code>$E3C9</code> へ移動済み。Panel Variant final split runtime と Panel Monster / Variant animation hook はproduction予約として含める。
       Key/Fairy enemy runtimeは <code>0x610E-0x622B</code> へ集約済み。旧配置跡は新規出力で書かず、保存時にも掃除しない。
       実装側の許容スパン上は過去に <code>0x4190-0x420D</code> が expanded table span と key enemy で重複していたため、旧配置を読む時は重複を二重加算しない union で扱う。
     </div>
@@ -286,17 +289,21 @@
       <tr><td class="num">0x3D46-0x3D96</td><td class="num">$BD36-$BD86</td><td class="num">81B</td><td>旧Gargoyle slow-Bullet gate/tail候補跡62Bと、その前後の断片。新規出力ではgargoyle_variantを書かない。</td></tr>
       <tr><td class="num">0x3D97</td><td class="num">$BD87</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x3E0A-0x3E0F</td><td class="num">$BDFA-$BDFF</td><td class="num">6B</td><td>Panel Monster v2 final common fire loopの実予約が114Bであるため回収。短い非常用候補。</td></tr>
+      <tr><td class="num">0x3E10-0x3E3E</td><td class="num">$BE00-$BE2E</td><td class="num">47B</td><td>旧Saramandor spawn setup候補跡。新規出力ではsaramandor_variantを書かない。</td></tr>
       <tr><td class="num">0x3E4D-0x3E4F</td><td class="num">$BE3D-$BE3F</td><td class="num">3B</td><td>原作EA埋め。断片。</td></tr>
+      <tr><td class="num">0x3E50-0x3E71</td><td class="num">$BE40-$BE61</td><td class="num">34B</td><td>旧Saramandor substatus候補跡。新規出力ではsaramandor_variantを書かない。</td></tr>
       <tr><td class="num">0x3E8E-0x3E8F</td><td class="num">$BE7E-$BE7F</td><td class="num">2B</td><td>原作EA埋め。断片。</td></tr>
+      <tr><td class="num">0x3E90-0x3EA3</td><td class="num">$BE80-$BE93</td><td class="num">20B</td><td>旧Saramandor flame behavior候補跡。新規出力ではsaramandor_variantを書かない。</td></tr>
       <tr><td class="num">0x3EB7-0x3EBB</td><td class="num">$BEA7-$BEAB</td><td class="num">5B</td><td>Panel Variant group RAM offset helper圧縮で回収。短い非常用候補。</td></tr>
       <tr><td class="num">0x3ECD-0x3ED3</td><td class="num">$BEBD-$BEC3</td><td class="num">7B</td><td>Panel Monster speed select helper撤去で回収。短い非常用候補。</td></tr>
       <tr><td class="num">0x3EF9</td><td class="num">$BEE9</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
+      <tr><td class="num">0x3F10-0x3F4F</td><td class="num">$BF00-$BF3F</td><td class="num">64B</td><td>旧Saramandor distance check候補跡。新規出力ではsaramandor_variantを書かない。</td></tr>
       <tr><td class="num">0x3FC7-0x3FC9</td><td class="num">$BFB7-$BFB9</td><td class="num">3B</td><td>旧Panel Monster Bullet hook slotの予約縮小で回収。Panel type classifier直前の断片。</td></tr>
       <tr><td class="num">0x3FF8-0x3FFC</td><td class="num">$BFE8-$BFEC</td><td class="num">5B</td><td>原作EA埋め。Spark Ball slow AI wrapperのID判定圧縮で回収。直後はkey enemy chunk。</td></tr>
       <tr><td class="num">0x400F</td><td class="num">$BFFF</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
       <tr><td class="num">0x414F-0x4152</td><td class="num">$C13F-$C142</td><td class="num">4B</td><td>Panel Monster fire marker table移動後の残り。短い非常用候補。</td></tr>
       <tr><td class="num">0x418F</td><td class="num">$C17F</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>178B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。Final-stage redirect runtimeを <code>$E332</code>、Gargoyle runtimeを <code>$E357</code> へ移動した後の断片合計。</td></tr>
+      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>343B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。Final-stage redirect runtimeを <code>$E332</code>、Gargoyle runtimeを <code>$E357</code>、Saramandor runtimeを <code>$E3C9</code> へ移動した後の断片合計。</td></tr>
     </table>
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
@@ -318,7 +325,7 @@
       <tr><td>空き</td><td class="num">0x3D36-0x3D4A</td><td class="num">$BD26-$BD3A</td><td class="num">21B</td><td>旧Spark Ball fast AI wrapper候補跡16Bと、その後ろの断片。新規出力ではspark_ball_variantを書かない。</td></tr>
       <tr><td>空き</td><td class="num">0x3D4B-0x3D96</td><td class="num">$BD3B-$BD86</td><td class="num">76B</td><td>旧Gargoyle slow-Bullet gate/tail候補跡62Bと、その後ろの断片。現行runtimeは <code>$E357</code> へ移動済み。新規出力ではgargoyle_variantを書かない。</td></tr>
       <tr><td>Panel Monster common fire loop</td><td class="num">0x3D98-0x3E09</td><td class="num">$BD88-$BDF9</td><td class="num">114B</td><td>Panel Monster v2 final shared normal / 2-way / 3-way fire routine. Entry points: normal <code>$BD88</code>, 3-way <code>$BD8C</code>, 2-way <code>$BD90</code>. The former tail <code>$BDFA-$BDFF</code> is tracked as free.</td></tr>
-      <tr><td>Saramandor variant caves</td><td class="num">0x3E10-0x3E3E / 0x3E50-0x3E71 / 0x3E90-0x3EA3 / 0x3F10-0x3F4F</td><td class="num">$BE00-$BE2E / $BE40-$BE61 / $BE80-$BE93 / $BF00-$BF3F</td><td class="num">165B</td><td>Spawn, substatus, flame-behavior, and #2-only distance-check helpers. `$5E/$5F/$62/$63` all use normal Bullet speed and X reaction threshold `$60`.</td></tr>
+      <tr><td>空き</td><td class="num">0x3E10-0x3E3E / 0x3E50-0x3E71 / 0x3E90-0x3EA3 / 0x3F10-0x3F4F</td><td class="num">$BE00-$BE2E / $BE40-$BE61 / $BE80-$BE93 / $BF00-$BF3F</td><td class="num">165B</td><td>旧Saramandor追加runtime候補跡。現行runtimeは <code>$E3C9</code> へ移動済み。新規出力ではsaramandor_variantを書かない。</td></tr>
       <tr><td>空き</td><td class="num">0x3E3F-0x3E4C</td><td class="num">$BE2F-$BE3C</td><td class="num">14B</td><td>旧Key enemy defeat entry候補跡。新規出力ではkey_enemy_runtimeを書かない。</td></tr>
       <tr><td>Panel Variant state0 interval helper</td><td class="num">0x3E72-0x3E83</td><td class="num">$BE62-$BE73</td><td class="num">18B</td><td>発射間隔比較。A/B/C-only group offset helperを経由し、A/B/C以外は原作比較へ戻す。</td></tr>
       <tr><td>空き</td><td class="num">0x3E84-0x3E8D</td><td class="num">$BE74-$BE7D</td><td class="num">10B</td><td>旧Key enemy defeat chunk候補跡。新規出力ではkey_enemy_runtimeを書かない。</td></tr>

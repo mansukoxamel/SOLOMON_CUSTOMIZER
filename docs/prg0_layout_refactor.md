@@ -534,6 +534,61 @@ PRG0追加プログラム側から見た一覧。
 - 新空き `0x63C1-0x63D8` を本体reserveとして扱わないこと。
 - 旧3断片へ消去・復元・互換目的の書き込みを入れないこと。
 
+## Saramandor variant 移動結果
+
+`saramandor_variant.py` のSaramandor #2 Bullet variant runtimeを、
+4断片から1本体へまとめる。
+
+理由:
+
+- Saramandor系は spawn setup、substatus、flame behavior、distance check の4断片に分かれている。
+- 4断片は同一機能で、hook先から個別entryへ入るだけなので、機能単位で連続配置できる。
+- bank0 caveの `$BE00-$BF3F` 周辺はPanel Variantや旧Key/Spark跡と隣接しており、今後の整理でぶつかりやすい。
+- Panel Monster本体より小さく、Gargoyleの次に単独で確認しやすい。
+
+移動前:
+
+| part | old file | old CPU | size |
+|---|---:|---:|---:|
+| spawn setup | `0x3E10-0x3E3E` | `$BE00-$BE2E` | 47B |
+| substatus | `0x3E50-0x3E71` | `$BE40-$BE61` | 34B |
+| flame behavior | `0x3E90-0x3EA3` | `$BE80-$BE93` | 20B |
+| distance check | `0x3F10-0x3F4F` | `$BF00-$BF3F` | 64B |
+
+移動後:
+
+| part | new file | new CPU | size |
+|---|---:|---:|---:|
+| packed Saramandor runtime | `0x63D9-0x647D` | `$E3C9-$E46D` | 165B |
+| free | `0x647E-0x6495` | `$E46E-$E485` | 24B |
+
+合計:
+
+- 旧分散配置: 165B
+- 新本体: 165B
+- 直後の空き: 24B
+- この候補で使う範囲: `0x63D9-0x6495`
+- 次の配置開始候補: `0x6496`
+
+新規配置では使わなくなる旧候補:
+
+- `0x3E10-0x3E3E`
+- `0x3E50-0x3E71`
+- `0x3E90-0x3EA3`
+- `0x3F10-0x3F4F`
+- 既存ROM救済や旧配置掃除のために、ここを保存時に自動で上書きしない。
+
+実装で確認すること:
+
+- `$B105` spawn hook が新 `$E3C9` を呼ぶこと。
+- `$B0A9` substatus hook が新 `$E3F8` を呼ぶこと。
+- `$B0C6` flame behavior hook が新 `$E41A` を呼ぶこと。
+- `$B1E9` distance hook が新 `$E42E` へJMPすること。
+- `$B121` child mark restore、`$AFD1` bullet init、`$866D` speed guard受け入れは今回の移動で変えないこと。
+- 新本体 `0x63D9-0x647D` が、他の予約と重ならないこと。
+- 新空き `0x647E-0x6495` を本体reserveとして扱わないこと。
+- 旧4断片へ消去・復元・互換目的の書き込みを入れないこと。
+
 ## 4096B跡地内の現行予約
 
 | file | CPU | size | 原作状態 | module |
@@ -545,6 +600,7 @@ PRG0追加プログラム側から見た一覧。
 | `0x6280-0x6329` | `$E270-$E319` | 170B | `EA` | `spark_ball_variant` |
 | `0x6342-0x634E` | `$E332-$E33E` | 13B | `EA` | `final_stage_redirect` |
 | `0x6367-0x63C0` | `$E357-$E3B0` | 90B | `EA` | `gargoyle_variant` |
+| `0x63D9-0x647D` | `$E3C9-$E46D` | 165B | `EA` | `saramandor_variant` |
 | `0x67A3-0x67B3` | `$E793-$E7A3` | 17B | mixed | `panel_monster_stage_variant` |
 | `0x67B4-0x67D0` | `$E7A4-$E7C0` | 29B | mixed | `panel_monster_stage_variant` |
 | `0x67D1-0x6817` | `$E7C1-$E807` | 71B | mixed | `panel_monster_stage_variant` |
