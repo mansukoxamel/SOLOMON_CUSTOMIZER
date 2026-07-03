@@ -271,20 +271,19 @@ def save_levels_to_rom(
     # 位置+署名ダブル検証付き、検証失敗時は RoomFlagError で中止 (saver
     # の SaveError と同様、呼び元でメッセージ表示)。全0なら原作復元。
     from . import (
-        room_flags, saramandor_variant, panel_monster_variant,
-        panel_monster_stage_variant, spark_ball_variant, gargoyle_variant,
+        room_flags, saramandor_variant, panel_monster_stage_variant,
+        spark_ball_variant, gargoyle_variant,
         stage_ext, key_enemy_runtime, stage_announcement, title_screen,
         drop_pickup_guard, special_process, solomon_seal_block,
         final_stage_redirect,
     )
     from .element import byte_from_position
     # IMPORTANT: this apply order is part of the ROM layout contract.
-    # panel_monster_stage_variant is a final replacement for parts of
-    # panel_monster_variant, and its PRG1 loader supersedes stage_ext's loader.
+    # panel_monster_stage_variant owns the current Panel runtime, and its PRG1
+    # loader supersedes stage_ext's loader.
     # If these calls are reordered, the later writer can overwrite the final
     # hooks/loader and break Panel Variant enemies or room-load cache copying.
     _run_save_step("Saramandor variant runtime検証/適用", saramandor_variant.apply, rom.data)
-    _run_save_step("Panel Monster variant runtime検証/適用", panel_monster_variant.apply, rom.data)
     _run_save_step("Spark Ball variant runtime検証/適用", spark_ball_variant.apply, rom.data)
     _run_save_step("drop pickup guard検証/適用", drop_pickup_guard.apply, rom.data)
     _run_save_step("Gargoyle slow-Bullet runtime検証/適用", gargoyle_variant.apply, rom.data)

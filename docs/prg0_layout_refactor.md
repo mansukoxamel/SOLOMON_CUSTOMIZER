@@ -112,8 +112,8 @@ PRG0追加プログラム側から見た一覧。
 | Stage start announcement | `stage_announcement` | 主に4096B内、`KEY_GATE`だけ `0x33D0-0x33DC` | 164B | 4096B側へ集約しやすい候補。分割scriptsとmain/draw/tableをまとめ直す対象。 |
 | Key/Fairy enemy runtime | `key_enemy_runtime` | bank0 cave中心、1片だけ4096B内、1片は `0x5005-0x500F` | 286B raw | 分割が多い。機能単位ではまとめたいが、複数hookから入るので呼び出し元確認が必要。 |
 | Spark Ball variant | `spark_ball_variant` | bank0 cave、`0x2569`、`0x4FEE`、4096B末尾 | 191B raw | `0x2569` はメイン側差し込みに近いので要注意。AI wrapper類は移動候補。 |
-| Panel Monster base variant | `panel_monster_variant` | bank0 cave、`0x5BEF`、`0x40D2` | 396B raw | `panel_monster_stage_variant` が上書きする箇所あり。旧/基礎runtimeと最終runtimeを分けて判断する。 |
-| Panel Monster A/B/C final runtime | `panel_monster_stage_variant` | 4096B内とbank0 caveに広く分散 | 692B raw | 最大の整理対象。速度、AI、弾、classifier、markerを機能単位に分ける。 |
+| Panel Monster base variant | `panel_monster_variant` | bank0 cave、`0x5BEF`、`0x40D2` | 396B raw | 新規保存ROMでは書かない。旧base候補跡は保存時に掃除しない。 |
+| Panel Monster A/B/C final runtime | `panel_monster_stage_variant` | `0x6496-0x6749` + PRG1 loader/settings | 692B raw + 102B PRG1 | 現行Panel runtime。速度、AI、弾、classifier、markerを新cleanupブロックへ集約。 |
 | Gargoyle variant | `gargoyle_variant` | bank0 cave `0x3D0B-0x3D88` | 90B | まとまっている。移すならhook先3か所を更新するだけか確認する。 |
 | Saramandor variant | `saramandor_variant` | bank0 cave `0x3E10-0x3F4F` | 165B | まとまっているが複数hookから入る。移動候補だが優先度は中。 |
 | Final stage redirect | `final_stage_redirect` | `0x6342-0x634E` | 13B | 4096B先頭側へ移動済み。旧 `0x3D28-0x3D34` は新規出力では書かない。 |
@@ -589,15 +589,15 @@ PRG0追加プログラム側から見た一覧。
 - 新空き `0x647E-0x6495` を本体reserveとして扱わないこと。
 - 旧4断片へ消去・復元・互換目的の書き込みを入れないこと。
 
-## Panel Variant final runtime 試作ブロック
+## Panel Variant final runtime ブロック
 
 `panel_monster_stage_variant.py` のA/B/C Panel Variant final runtimeを、
 既存の旧Panel配置へ上書きせず、4096B跡地の新しい空きへ一式で書く。
 
 理由:
 
-- 旧Panel配置を直接崩す前に、新しい空きへ丸ごと置いてhookだけ切り替える。
-- 動作確認が取れた後で、旧Panel/旧final断片の書き込み停止と空き回収を別段階で判断できる。
+- 旧Panel base runtime 396Bは新規保存ROMでは書かない。
+- A/B/C final runtimeと通常Panel/Borrowed Panelのhookは、この新ブロックへ切り替える。
 - 今回は旧ROM救済や旧配置掃除はしない。
 
 移動後:
@@ -619,11 +619,11 @@ PRG0追加プログラム側から見た一覧。
 
 この段階の差し引き:
 
-- 旧base Panel runtimeはまだ書く。
-- 旧A/B/C final runtime断片は、このA/B/C applyでは新ブロックへ切り替える。
-- 旧base + 新A/B/C final + PRG1の予約unionは1190B。
+- 旧base Panel runtime 396Bは新規出力では書かない。
+- 旧A/B/C final runtime断片も、このA/B/C applyでは新ブロックへ切り替える。
+- 新A/B/C final + PRG1の予約unionは794B。
 - 変更前の旧base+旧A/B/C final+PRG1の予約unionは1005B。
-- 試作段階では+185B。動作確認後、旧base側の書き込み停止や旧断片回収で次に削る。
+- 旧base停止後は-211B。
 
 実装で確認すること:
 
@@ -631,6 +631,7 @@ PRG0追加プログラム側から見た一覧。
 - `$AFBB` Bullet hook が新 `$E737` を呼ぶこと。
 - 新ブロック `0x6496-0x6749` が他の予約と重ならないこと。
 - 新空き `0x674A-0x67A2` を本体reserveとして扱わないこと。
+- 旧base 396Bへ新規出力で書かないこと。
 - 旧A/B/C final断片へ消去・復元・互換目的の書き込みを入れないこと。
 
 ## 4096B跡地内の現行予約

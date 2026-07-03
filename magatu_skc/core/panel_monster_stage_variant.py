@@ -242,6 +242,13 @@ HOOK_PREVIOUS_PANEL_FIRE_WITH_SPARK_PROPERTY = (
         - len(spark_ball_variant.CAVE_PROPERTY_HOOK)
     ))
 )
+ORIG_PANEL_FIRE_WITH_SPARK_PROPERTY = (
+    panel_monster_variant.ORIG_PANEL_FIRE[:3]
+    + spark_ball_variant.CAVE_PROPERTY_HOOK
+    + panel_monster_variant.ORIG_PANEL_FIRE[
+        3 + len(spark_ball_variant.CAVE_PROPERTY_HOOK):
+    ]
+)
 HOOK_PANEL_FIRE_WITH_SPARK_PROPERTY = (
     HOOK_FINAL_PANEL_FIRE_HEAD
     + spark_ball_variant.CAVE_PROPERTY_HOOK
@@ -1053,6 +1060,7 @@ def _validate_final_split_signatures(
         (
             panel_monster_variant.ORIG_PANEL_FIRE,
             panel_monster_variant.HOOK_PANEL_FIRE,
+            ORIG_PANEL_FIRE_WITH_SPARK_PROPERTY,
             HOOK_PREVIOUS_PANEL_FIRE_WITH_SPARK_PROPERTY,
             HOOK_PANEL_FIRE_WITH_SPARK_PROPERTY,
         ),
