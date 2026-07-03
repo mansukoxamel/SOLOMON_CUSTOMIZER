@@ -113,7 +113,7 @@ PRG0追加プログラム側から見た一覧。
 | Key/Fairy enemy runtime | `key_enemy_runtime` | bank0 cave中心、1片だけ4096B内、1片は `0x5005-0x500F` | 286B raw | 分割が多い。機能単位ではまとめたいが、複数hookから入るので呼び出し元確認が必要。 |
 | Spark Ball variant | `spark_ball_variant` | bank0 cave、`0x2569`、`0x4FEE`、4096B末尾 | 191B raw | `0x2569` はメイン側差し込みに近いので要注意。AI wrapper類は移動候補。 |
 | Panel Monster base variant | `panel_monster_variant` | bank0 cave、`0x5BEF`、`0x40D2` | 396B raw | 新規保存ROMでは書かない。旧base候補跡は保存時に掃除しない。 |
-| Panel Monster A/B/C final runtime | `panel_monster_stage_variant` | `0x6496-0x6749` + PRG1 loader/settings | 692B raw + 102B PRG1 | 現行Panel runtime。速度、AI、弾、classifier、markerを新cleanupブロックへ集約。 |
+| Panel Monster A/B/C final runtime | `panel_monster_stage_variant` | `0x6496-0x677F` + PRG1 loader/settings | 746B raw + 102B PRG1 | 現行Panel runtime。速度、AI、弾、classifier、marker、property/animation hook本体を新cleanupブロックへ集約。Spark selectorは既存位置でPanel fallback先だけ新hookへ向ける。 |
 | Gargoyle variant | `gargoyle_variant` | bank0 cave `0x3D0B-0x3D88` | 90B | まとまっている。移すならhook先3か所を更新するだけか確認する。 |
 | Saramandor variant | `saramandor_variant` | bank0 cave `0x3E10-0x3F4F` | 165B | まとまっているが複数hookから入る。移動候補だが優先度は中。 |
 | Final stage redirect | `final_stage_redirect` | `0x6342-0x634E` | 13B | 4096B先頭側へ移動済み。旧 `0x3D28-0x3D34` は新規出力では書かない。 |
@@ -604,16 +604,16 @@ PRG0追加プログラム側から見た一覧。
 
 | part | new file | new CPU | size |
 |---|---:|---:|---:|
-| Panel Variant final runtime trial block | `0x6496-0x6749` | `$E486-$E739` | 692B |
-| free | `0x674A-0x67A2` | `$E73A-$E792` | 89B |
+| Panel Variant final runtime block | `0x6496-0x677F` | `$E486-$E76F` | 746B |
+| free | `0x6780-0x67A2` | `$E770-$E792` | 35B |
 
 合計:
 
-- A/B/C final runtime実体: 692B
-- 新ブロック予約: 692B
-- 直後の空き: 89B
+- A/B/C final runtime実体: 746B
+- 新ブロック予約: 746B
+- 直後の空き: 35B
 - この候補で使う範囲: `0x6496-0x67A2`
-- 次の配置開始候補: `0x674A` ではなく、旧 `0x67A3` 予約を残すため当面は `0x674A-0x67A2` を小空きとして扱う。
+- 次の配置開始候補: `0x6780` ではなく、旧 `0x67A3` 予約を残すため当面は `0x6780-0x67A2` を小空きとして扱う。
 - RAM新規使用: なし
 - PRG1新規使用: なし
 
@@ -621,18 +621,27 @@ PRG0追加プログラム側から見た一覧。
 
 - 旧base Panel runtime 396Bは新規出力では書かない。
 - 旧A/B/C final runtime断片も、このA/B/C applyでは新ブロックへ切り替える。
-- 新A/B/C final + PRG1の予約unionは794B。
+- 新A/B/C final + PRG1の予約unionは848B。
 - 変更前の旧base+旧A/B/C final+PRG1の予約unionは1005B。
-- 旧base停止後は-211B。
+- 旧base停止後は-157B。
 
 実装で確認すること:
 
 - `$A556` fire hook が新 `$E486` を指すこと。
 - `$AFBB` Bullet hook が新 `$E737` を呼ぶこと。
-- 新ブロック `0x6496-0x6749` が他の予約と重ならないこと。
-- 新空き `0x674A-0x67A2` を本体reserveとして扱わないこと。
+- 新ブロック `0x6496-0x677F` が他の予約と重ならないこと。
+- `0x40D2-0x40FF` と `0x5BEF-0x5C0A` へ新規出力で書かないこと。
+- Spark Ball property/animation selectorのPanel fallback先が `$E73A` / `$E748` を指すこと。
+- 新空き `0x6780-0x67A2` を本体reserveとして扱わないこと。
 - 旧base 396Bへ新規出力で書かないこと。
 - 旧A/B/C final断片へ消去・復元・互換目的の書き込みを入れないこと。
+
+将来の整理メモ:
+
+- Panel Variant の PRG1 loader/settings と RAM `$0740-$0745` は、当時PRG0の空きが足りなかったため、PRG0側の処理量を減らす目的で導入した。
+- これは「RAMを使わないと成立しない仕様」というより、PRG0不足を回避するために一部設定を部屋ロード時RAMへ逃がした設計。
+- 将来RAM不足が問題になった場合は、Panel Variant の `$0740-$0745` 使用と PRG1 settings table を整理対象にする。
+- ただし今は動作中の仕様なので、PRG0整理作業のついでに勝手に消さない。RAM整理を目的にした別作業で、使用量、代替配置、PRG0増加量を出して判断する。
 
 ## 4096B跡地内の現行予約
 
@@ -646,8 +655,8 @@ PRG0追加プログラム側から見た一覧。
 | `0x6342-0x634E` | `$E332-$E33E` | 13B | `EA` | `final_stage_redirect` |
 | `0x6367-0x63C0` | `$E357-$E3B0` | 90B | `EA` | `gargoyle_variant` |
 | `0x63D9-0x647D` | `$E3C9-$E46D` | 165B | `EA` | `saramandor_variant` |
-| `0x6496-0x6749` | `$E486-$E739` | 692B | `EA` | `panel_monster_stage_variant` |
-| `0x674A-0x67A2` | `$E73A-$E792` | 89B | `EA`/`00` | free |
+| `0x6496-0x677F` | `$E486-$E76F` | 746B | `EA` | `panel_monster_stage_variant` |
+| `0x6780-0x67A2` | `$E770-$E792` | 35B | `EA`/`00` | free |
 | `0x67A3-0x67B3` | `$E793-$E7A3` | 17B | mixed | `panel_monster_stage_variant` |
 | `0x67B4-0x67D0` | `$E7A4-$E7C0` | 29B | mixed | `panel_monster_stage_variant` |
 | `0x67D1-0x6817` | `$E7C1-$E807` | 71B | mixed | `panel_monster_stage_variant` |
@@ -671,7 +680,7 @@ PRG0追加プログラム側から見た一覧。
 
 - `0x3C27-0x420F`: bank0 cave 系。複数敵runtimeとPanel系が集中している。
 - `0x4FEE-0x500F`: Spark Ball animation / key enemy compare 系。
-- `0x5BEF-0x5C0A`: Panel/Spark property selector。
+- `0x5BEF-0x5C0A`: 旧Panel property hook候補跡。新規出力では書かない。
 - `0x2569-0x257D`: Spark Ball property selector。原作命令上の差し込みに近いので要注意。
 - `0x4C5F-0x4CB5`: wide title 系。タイトル処理所有領域なので、一般空き扱いしない。
 

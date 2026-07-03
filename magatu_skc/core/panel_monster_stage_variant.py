@@ -185,6 +185,10 @@ OFF_FINAL_BULLET_SPEED_APPLY = 0x66C9  # CPU $E6B9, new cleanup runtime block
 CPU_FINAL_BULLET_SPEED_APPLY = _cpu(OFF_FINAL_BULLET_SPEED_APPLY)
 OFF_FINAL_BULLET_SPEED_HOOK = 0x6747  # CPU $E737, new cleanup runtime block
 CPU_FINAL_BULLET_SPEED_HOOK = _cpu(OFF_FINAL_BULLET_SPEED_HOOK)
+OFF_FINAL_STAGE_PROPERTY_HOOK = 0x674A  # CPU $E73A, new cleanup runtime block
+CPU_FINAL_STAGE_PROPERTY_HOOK = _cpu(OFF_FINAL_STAGE_PROPERTY_HOOK)
+OFF_FINAL_STAGE_ANIM_HOOK = 0x6758  # CPU $E748, new cleanup runtime block
+CPU_FINAL_STAGE_ANIM_HOOK = _cpu(OFF_FINAL_STAGE_ANIM_HOOK)
 OFF_FINAL_BULLET_SPEED_EXTRA_HELPER = 0x6612  # CPU $E602, new cleanup runtime block
 CPU_FINAL_BULLET_SPEED_EXTRA_HELPER = _cpu(OFF_FINAL_BULLET_SPEED_EXTRA_HELPER)
 OFF_FINAL_STAGE_DISPATCH_HELPER = 0x673C  # CPU $E72C, new cleanup runtime block
@@ -263,6 +267,28 @@ HOOK_8B05_SPARK_ANIM = (
     bytes.fromhex("20")
     + _word(spark_ball_variant.CPU_ANIM_HOOK)
     + bytes([0xEA] * (len(panel_monster_variant.HOOK_8B05) - 3))
+)
+
+
+def _retarget_spark_panel_fallback(blob: bytes, old_cpu: int, new_cpu: int) -> bytes:
+    old_jmp = bytes.fromhex("4c") + _word(old_cpu)
+    new_jmp = bytes.fromhex("4c") + _word(new_cpu)
+    if blob.count(old_jmp) != 1:
+        raise PanelMonsterStageVariantError(
+            f"Spark selector fallback target mismatch: {old_jmp.hex(' ')}"
+        )
+    return blob.replace(old_jmp, new_jmp, 1)
+
+
+FINAL_SPARK_PROPERTY_HOOK = _retarget_spark_panel_fallback(
+    spark_ball_variant.CAVE_PROPERTY_HOOK,
+    spark_ball_variant.CPU_PANEL_PROPERTY_HOOK,
+    CPU_FINAL_STAGE_PROPERTY_HOOK,
+)
+FINAL_SPARK_ANIM_HOOK = _retarget_spark_panel_fallback(
+    spark_ball_variant.CAVE_ANIM_HOOK,
+    spark_ball_variant.CPU_PANEL_ANIM_HOOK,
+    CPU_FINAL_STAGE_ANIM_HOOK,
 )
 def _build_group_ram_offset_helper(cpu_base: int) -> bytes:
     a = _Asm()
@@ -767,6 +793,8 @@ assert len(FINAL_PANEL_TYPE_CLASSIFIER) <= 0x1E
 assert len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL) <= 0x14
 assert len(FINAL_STAGE_PROPERTY_HOOK) <= len(panel_monster_variant.CAVE_PROPERTY_HOOK)
 assert len(FINAL_STAGE_ANIM_HOOK) <= len(panel_monster_variant.CAVE_ANIM_HOOK)
+assert OFF_FINAL_STAGE_PROPERTY_HOOK + len(FINAL_STAGE_PROPERTY_HOOK) == OFF_FINAL_STAGE_ANIM_HOOK
+assert OFF_FINAL_STAGE_ANIM_HOOK + len(FINAL_STAGE_ANIM_HOOK) <= 0x6780
 assert len(FINAL_PANEL_ANIM_DIR_HELPER) <= 0x11
 
 
@@ -1311,7 +1339,23 @@ def _validate_final_split_signatures(
             ),
         ),
         (
-            panel_monster_variant.OFF_PROPERTY_HOOK,
+            spark_ball_variant.OFF_PROPERTY_HOOK,
+            FINAL_SPARK_PROPERTY_HOOK,
+            "Spark property selector Panel fallback",
+            (
+                spark_ball_variant.CAVE_PROPERTY_HOOK,
+            ),
+        ),
+        (
+            spark_ball_variant.OFF_ANIM_HOOK,
+            FINAL_SPARK_ANIM_HOOK,
+            "Spark animation selector Panel fallback",
+            (
+                spark_ball_variant.CAVE_ANIM_HOOK,
+            ),
+        ),
+        (
+            OFF_FINAL_STAGE_PROPERTY_HOOK,
             FINAL_STAGE_PROPERTY_HOOK,
             "Panel Variant final property hook",
             (
@@ -1320,7 +1364,7 @@ def _validate_final_split_signatures(
             ),
         ),
         (
-            panel_monster_variant.OFF_ANIM_HOOK,
+            OFF_FINAL_STAGE_ANIM_HOOK,
             FINAL_STAGE_ANIM_HOOK,
             "Panel Variant final animation hook",
             (
@@ -1356,7 +1400,7 @@ def apply_panel_monster_v2_runtime(
         OFF_FINAL_FIRE_MARKER_TABLE + len(FINAL_FIRE_MARKER_TABLE),
         OFF_FINAL_PANEL_ANIM_DIR_HELPER + len(FINAL_PANEL_ANIM_DIR_HELPER),
         SETTINGS_TABLE_END,
-        panel_monster_variant.OFF_ANIM_HOOK + len(FINAL_STAGE_ANIM_HOOK),
+        OFF_FINAL_STAGE_ANIM_HOOK + len(FINAL_STAGE_ANIM_HOOK),
     )
     if len(rom_data) < min_len:
         raise PanelMonsterStageVariantError("ROM is too short for Panel Monster v2 runtime.")
@@ -1429,8 +1473,10 @@ def apply_panel_monster_v2_runtime(
         (OFF_FINAL_SHARED_AI_WRAPPER, FINAL_SHARED_AI_WRAPPER, "Panel Variant final shared AI wrapper"),
         (OFF_FINAL_FIRE_MARKER_TABLE, FINAL_FIRE_MARKER_TABLE, "Panel Variant final fire marker table"),
         (OFF_FINAL_BULLET_SPEED_HOOK, v2_speed["bullet_speed_hook"], "Panel Variant v2 Bullet speed hook"),
-        (panel_monster_variant.OFF_PROPERTY_HOOK, FINAL_STAGE_PROPERTY_HOOK, "Panel Variant final property hook"),
-        (panel_monster_variant.OFF_ANIM_HOOK, FINAL_STAGE_ANIM_HOOK, "Panel Variant final animation hook"),
+        (spark_ball_variant.OFF_PROPERTY_HOOK, FINAL_SPARK_PROPERTY_HOOK, "Spark property selector Panel fallback"),
+        (spark_ball_variant.OFF_ANIM_HOOK, FINAL_SPARK_ANIM_HOOK, "Spark animation selector Panel fallback"),
+        (OFF_FINAL_STAGE_PROPERTY_HOOK, FINAL_STAGE_PROPERTY_HOOK, "Panel Variant final property hook"),
+        (OFF_FINAL_STAGE_ANIM_HOOK, FINAL_STAGE_ANIM_HOOK, "Panel Variant final animation hook"),
     ):
         _write_blob(rom_data, off, blob, changed, name)
     speed_changes = panel_bullet_speed_fix.apply(
@@ -2222,6 +2268,8 @@ RESERVED_SPANS = (
     (OFF_FINAL_SHARED_AI_WRAPPER, len(FINAL_SHARED_AI_WRAPPER)),
     (OFF_FINAL_FIRE_MARKER_TABLE, len(FINAL_FIRE_MARKER_TABLE)),
     (OFF_FINAL_BULLET_SPEED_HOOK, _v2_split_speed_reserved_sizes()["bullet_speed_hook"]),
+    (OFF_FINAL_STAGE_PROPERTY_HOOK, len(FINAL_STAGE_PROPERTY_HOOK)),
+    (OFF_FINAL_STAGE_ANIM_HOOK, len(FINAL_STAGE_ANIM_HOOK)),
     (OFF_PRG1_RUNTIME_LOADER, 0x60),
     (SETTINGS_TABLE_OFFSET, SETTINGS_TABLE_LENGTH),
 )
