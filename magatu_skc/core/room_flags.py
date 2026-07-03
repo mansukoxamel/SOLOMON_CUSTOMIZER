@@ -444,9 +444,8 @@ def _verify(rom_data) -> None:
                 "あるため中止します。"
             )
     # cave 空き: 原作(EA/00) / 既注入の各 cave・table は許容。
-    # ★gap_fix(原作バグ回避 横穴侵入安定化) の cave も同 bank0 予約帯
-    #   ($BBDE-$C1FF)内の room_flags 非使用中間帯 $C000(file0x4010,136B)
-    #   に置くため、両機能を同時適用できるよう許容スパンに含める。
+    # ★gap_fix(原作バグ回避 横穴侵入安定化) の cave も4096B跡地側に
+    #   置くため、両機能を同時適用できるよう許容スパンに含める。
     from . import gap_fix as _gf
     from . import gargoyle_variant as _gv
     from . import panel_monster_variant as _pmv

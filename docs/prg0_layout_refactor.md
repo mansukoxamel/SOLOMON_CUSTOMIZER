@@ -426,7 +426,7 @@ PRG0追加プログラム側から見た一覧。
 - `0x3D36-0x3D45`
 - `0x681C-0x6832`
 - `0x6FD4-0x7004`
-- 現行では `0x681C-0x6832` はRoomFlag packed cave runtime内、`0x6FD4-0x7004` はRoomFlag後の大きな空き `0x6871-0x7004` 内。
+- 現行では `0x681C-0x6832` はRoomFlag packed cave runtime内、`0x6FD4-0x7004` はGap fix後の大きな空き `0x6911-0x7004` 内。
 - `0x4FEE-0x5004`
 - `0x3EFA-0x3F02`
 - `0x3ED7-0x3EF8`
@@ -677,7 +677,8 @@ PRG0追加プログラム側から見た一覧。
 - RoomFlag runtime実体: 217B
 - Panel直後の緩衝空き: 24B
 - `0x6780-0x7004` の元空き: 2181B
-- 移動後の残り空き: 1940B
+- RoomFlag単体移動直後の残り空き: 1940B
+- 後続のGap fix移動後は `0x6871-0x6888` buffer、`0x6889-0x6910` gap_fix、`0x6911-0x7004` free。
 - RAM新規使用: なし
 - PRG1新規使用: なし
 
@@ -690,6 +691,42 @@ PRG0追加プログラム側から見た一覧。
 - `$909A` hook が `$E81D` を指すこと。
 - DARK tempo比較が `$E81B/$E81C` を参照すること。
 - 旧RoomFlag配置へ新規出力で書かないこと。
+
+## Gap fix runtime ブロック
+
+`gap_fix.py` の落下中横穴侵入安定化runtimeを、RoomFlag packed cave runtime直後の24Bを空けた後ろへ移す。
+
+理由:
+
+- CAVE本体は保存ROM構造固定のため毎回同じ位置へ書く。
+- チェックボックスON/OFFは `$8784` hook を `JMP $E879` にするか原作命令へ戻すかだけで切り替える。
+- CAVE本体は内部絶対JMPなしで、hook `$8784` のJMP先だけを新CPUへ変えれば移動できる。
+- 旧ROM救済や旧配置掃除はしない。新規保存ROMで旧位置へ書かなくなるだけ。
+
+移動後:
+
+| part | old file | old CPU | new file | new CPU | size |
+|---|---:|---:|---:|---:|---:|
+| RoomFlag後 buffer | - | - | `0x6871-0x6888` | `$E861-$E878` | 24B |
+| gap_fix runtime | `0x4010-0x4097` | `$C000-$C087` | `0x6889-0x6910` | `$E879-$E900` | 136B |
+| free | - | - | `0x6911-0x7004` | `$E901-$EFF4` | 1780B |
+
+合計:
+
+- Gap fix runtime実体: 136B
+- RoomFlag後の緩衝空き: 24B
+- RoomFlag後の元空き: 1940B
+- 移動後の残り空き: 1780B
+- RAM新規使用: なし
+- PRG1新規使用: なし
+
+実装で確認すること:
+
+- チェックON時は `$8784` hook が `JMP $E879` (`4C 79 E8`) を指すこと。
+- チェックOFF時も新本体 `0x6889-0x6910` は書かれ、`$8784` hook は原作 `A0 0B 91` のままであること。
+- 新本体 `0x6889-0x6910` が他の予約と重ならないこと。
+- 旧 `0x4010-0x4097` へ新規出力で書かないこと。
+- 落下中に左右を押して横穴へ入る挙動が維持されること。
 
 ## 4096B跡地内の現行予約
 
@@ -706,7 +743,9 @@ PRG0追加プログラム側から見た一覧。
 | `0x6496-0x677F` | `$E486-$E76F` | 746B | `EA` | `panel_monster_stage_variant` |
 | `0x6780-0x6797` | `$E770-$E787` | 24B | `EA` | free buffer |
 | `0x6798-0x6870` | `$E788-$E860` | 217B | `EA` | `room_flags.packed_cave_runtime` |
-| `0x6871-0x7004` | `$E861-$EFF4` | 1940B | `EA` | free |
+| `0x6871-0x6888` | `$E861-$E878` | 24B | `EA` | free buffer |
+| `0x6889-0x6910` | `$E879-$E900` | 136B | `EA` | `gap_fix` |
+| `0x6911-0x7004` | `$E901-$EFF4` | 1780B | `EA` | free |
 | `0x7005-0x700F` | `$EFF5-$EFFF` | 11B | `EA` | `solomon_seal_block` |
 
 この範囲は、最終的には4096B先頭側へ詰め直して、routine本体と直後の空きを別管理する候補にする。

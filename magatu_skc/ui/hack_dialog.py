@@ -2678,11 +2678,10 @@ class HackDialog(QDialog):
         if getattr(self, "_gapfix_ok", False):
             want = self.chk_gapfix.isChecked()
             try:
-                if want != gap_fix.is_applied(d):
-                    gch = gap_fix.apply(d, want)
-                    if gch:
-                        applied.append(
-                            t("hack_dialog.applied.gap_fix", "横穴侵入安定化 {state}").format(state=("ON" if want else "OFF")))
+                gch = gap_fix.apply(d, want)
+                if gch:
+                    applied.append(
+                        t("hack_dialog.applied.gap_fix", "横穴侵入安定化 {state}").format(state=("ON" if want else "OFF")))
             except gap_fix.GapFixError as e:
                 QMessageBox.warning(self, t("hack_dialog.error.gap_fix", "横穴侵入安定化 失敗"), str(e))
 

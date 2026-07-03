@@ -127,7 +127,7 @@
       <tr><td class="num">0x17F5-0x1803</td><td>Mapper66 key cell value patch</td><td>原作の鍵セル初期配置を、通常 `$06` / 茶ブロック内 `$86` / 隠し `$46` / 白ブロック内 `$C6` に展開する。</td></tr>
       <tr><td class="num">0x2569-0x257D</td><td>Spark Ball property selector</td><td>現行Spark Ball property selector。borrowed Dragon/Golem Spark IDsはここで <code>$19</code> を返し、それ以外はPanel/stock selector <code>$DBDF</code> へ渡す。</td></tr>
       <tr><td class="num">0x33D0-0x33DC</td><td>空き</td><td>旧Stage start announcement key gate配置候補跡。新規出力ではstage_announcementを書かない。</td></tr>
-      <tr><td class="num">0x3BEE-0x420F</td><td>bank0 cave</td><td>gap_fix、強化敵系、旧RoomFlag候補跡の整理対象。詳細は次節。</td></tr>
+      <tr><td class="num">0x3BEE-0x420F</td><td>bank0 cave</td><td>強化敵系、旧gap_fix/旧RoomFlag候補跡の整理対象。詳細は次節。</td></tr>
       <tr><td class="num">0x4FEE-0x5004</td><td>空き</td><td>旧Spark Ball animation hook候補跡。新規出力ではspark_ball_variantを書かない。</td></tr>
       <tr><td class="num">0x5AC9-0x5ADC</td><td>Original enemy state-speed data</td><td>`$DAB9-$DACC` は `$D9D3` ポインタ表経由で Saramandor などの敵状態別速度indexとして読まれる。ゼロ埋めに見えても空きではない。</td></tr>
       <tr><td class="num">0x5B71-0x5B84</td><td>Original enemy state-speed data</td><td>`$DB61-$DB74` は `$D9D3` ポインタ表経由で敵状態別の速度indexとして読まれる。ゼロ埋めに見えても空きではない。</td></tr>
@@ -148,7 +148,9 @@
       <tr><td class="num">0x6496-0x677F</td><td>Panel Variant final runtime block</td><td><code>$E486-$E76F</code>。A/B/C final runtime本体746B。fire/Bullet/AI/classifier/property/animation hook本体を含む。Spark selectorは既存位置でPanel fallback先だけこのブロックへ向ける。</td></tr>
       <tr><td class="num">0x6780-0x6797</td><td>空き</td><td>Panel Variant final runtime直後の24B空き。panel_monster_stage_variant本体reserveとは扱わず、次runtimeとの緩衝に残す。</td></tr>
       <tr><td class="num">0x6798-0x6870</td><td>RoomFlag packed cave runtime</td><td><code>$E788-$E860</code>。LOADER/MAGICGATE/DOORPREDRAW/DARK/tempo/special-cell scannerを217Bで集約。</td></tr>
-      <tr><td class="num">0x6871-0x7004</td><td>空き</td><td>RoomFlag packed cave runtime後の1,940B空き。現時点では本体reserveとは扱わない。</td></tr>
+      <tr><td class="num">0x6871-0x6888</td><td>空き</td><td>RoomFlag packed cave runtime直後の24B空き。room_flags.py本体reserveとは扱わず、次runtimeとの緩衝に残す。</td></tr>
+      <tr><td class="num">0x6889-0x6910</td><td>Gap fix packed cave runtime</td><td><code>$E879-$E900</code>。落下中の横穴侵入安定化runtime 136Bを固定配置。チェックON時だけ <code>$8784</code> hookが <code>JMP $E879</code> を指す。</td></tr>
+      <tr><td class="num">0x6911-0x7004</td><td>空き</td><td>Gap fix packed cave runtime後の1,780B空き。現時点では本体reserveとは扱わない。</td></tr>
       <tr><td class="num">0x9019-0x904C</td><td>mapper66 respawn direct-cell copy helper</td><td>`$9009` loader helper。死亡後の `$F0-$F3` 白ブロック内one-shotだけを `$F9` へ落とし、通常の茶ブロック内one-shotは従来通り `$90` へ落とす。</td></tr>
       <tr><td class="num">0x904D-0x908F</td><td>Cracked in-block one-shot respawn helper</td><td>`$903D` PRG1 loader helper。死亡後だけ `$0768-$076F` のひび割れ位置リストを見て、描画前に下地セルを `$01` へ戻し、対応mask bitを192セルindexへ変換して消す。</td></tr>
       <tr><td class="num">0x7005-0x700F</td><td>Solomon Seal block helper</td><td>`$BB90` の紋章セル書き込みから呼ぶ11Bヘルパ。StageExt loader がコピーした `$077D` を見て、原作 `$60` / 茶ブロック内 `$A0` / 白ブロック内 `$E0` を書く。</td></tr>
@@ -168,7 +170,7 @@
       <tr><td>既存処理差し替え</td><td><code>m66.py</code></td><td class="num">0x17F5-0x1803</td><td class="num">$97E5-$97F3</td><td class="num">15B</td><td>原作コード</td><td>鍵状態から初期セル値を作る処理。白ブロック内鍵の <code>$C0</code> 状態を <code>$C6</code> に対応させる。</td></tr>
       <tr><td>既存処理差し替え</td><td><code>spark_ball_variant.py</code></td><td class="num">0x2569-0x257D</td><td class="num">$A559-$A56D</td><td class="num">21B</td><td>原作コード/データ</td><td>Spark Ball property selector。ID判定を圧縮済み。</td></tr>
       <tr><td>空き</td><td><code>stage_announcement.py</code></td><td class="num">0x33D0-0x33DC</td><td class="num">$B3C0-$B3CC</td><td class="num">13B</td><td>EA埋め</td><td>旧開始画面アナウンス KEY ENEMY gate配置候補跡。新規出力ではstage_announcementを書かない。</td></tr>
-      <tr><td>bank0 cave</td><td>複数モジュール</td><td class="num">0x3BEE-0x420F</td><td class="num">$BBDE-$C1FF</td><td class="num">1,570B</td><td>00/EA混在</td><td>gap_fix、強化敵、旧RoomFlag候補跡、runtime block override。旧Key/Fairy enemy配置跡は空き候補として拡大図に残す。</td></tr>
+      <tr><td>bank0 cave</td><td>複数モジュール</td><td class="num">0x3BEE-0x420F</td><td class="num">$BBDE-$C1FF</td><td class="num">1,570B</td><td>00/EA混在</td><td>強化敵、旧gap_fix/旧RoomFlag候補跡、runtime block override。旧Key/Fairy enemy配置跡は空き候補として拡大図に残す。</td></tr>
       <tr><td>空き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x4FEE-0x5004</td><td class="num">$CFDE-$CFF4</td><td class="num">23B</td><td>EA埋め</td><td>旧Spark Ball animation hook候補跡。新規出力ではspark_ball_variantを書かない。保存時に掃除しない。</td></tr>
       <tr><td>原作データ</td><td><code>original ROM</code></td><td class="num">0x5BC5-0x5BEE</td><td class="num">$DBB5-$DBDE</td><td class="num">42B</td><td>原作速度テーブル</td><td>Golem/Demonhead などの通常敵も使う共有速度データ。Panel Variant の no-drift 対策としてゼロ化しない。Panel Variant A/B/C 適用時は通常Panel Bulletの左右速度バグ修正として該当4バイトのみ <code>$3F/$41</code> presetへ更新する。</td></tr>
       <tr><td>空き</td><td><code>panel_monster_variant.py</code></td><td class="num">0x5BEF-0x5C0A</td><td class="num">$DBDF-$DBFA</td><td class="num">28B</td><td>EA埋め</td><td>旧Panel property hook候補跡。現行Panel property hook本体は <code>$E73A</code> へ移動。新規出力では書かない。保存時に掃除しない。</td></tr>
@@ -194,7 +196,9 @@
       <tr><td>小routine</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x6496-0x677F</td><td class="num">$E486-$E76F</td><td class="num">746B</td><td>EA埋め</td><td>Panel Variant final runtimeブロック。A/B/C finalの速度、AI、弾、classifier、marker、property/animation hook本体を含む。</td></tr>
       <tr><td>空き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x6780-0x6797</td><td class="num">$E770-$E787</td><td class="num">24B</td><td>EA埋め</td><td>Panel Variant final runtime直後の空き。panel_monster_stage_variant本体reserveとは扱わず、次runtimeとの緩衝に残す。</td></tr>
       <tr><td>小routine</td><td><code>room_flags.py</code></td><td class="num">0x6798-0x6870</td><td class="num">$E788-$E860</td><td class="num">217B</td><td>EA埋め</td><td>RoomFlag cave runtimeを集約。LOADER 46B、MAGICGATE 34B、DOORPREDRAW 11B、DARK 56B、tempo 2B、special-cell scanner 68B。</td></tr>
-      <tr><td>空き</td><td><code>room_flags.py</code></td><td class="num">0x6871-0x7004</td><td class="num">$E861-$EFF4</td><td class="num">1,940B</td><td>EA埋め</td><td>RoomFlag packed cave runtime後の空き。room_flags.py本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
+      <tr><td>空き</td><td><code>room_flags.py</code></td><td class="num">0x6871-0x6888</td><td class="num">$E861-$E878</td><td class="num">24B</td><td>EA埋め</td><td>RoomFlag packed cave runtime直後の空き。room_flags.py本体reserveとは扱わず、次runtimeとの緩衝に残す。</td></tr>
+      <tr><td>小routine</td><td><code>gap_fix.py</code></td><td class="num">0x6889-0x6910</td><td class="num">$E879-$E900</td><td class="num">136B</td><td>EA埋め</td><td>落下中の横穴侵入安定化runtimeを固定配置。チェックON時だけ <code>$8784</code> hookは <code>JMP $E879</code> を指し、OFF時は原作命令に戻す。</td></tr>
+      <tr><td>空き</td><td><code>gap_fix.py</code></td><td class="num">0x6911-0x7004</td><td class="num">$E901-$EFF4</td><td class="num">1,780B</td><td>EA埋め</td><td>Gap fix packed cave runtime後の空き。gap_fix.py本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
       <tr><td>空き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x4FEE-0x5004 / 0x3EFA-0x3F02 / 0x3ED7-0x3EF8 / 0x3FE8-0x3FF7 / 0x3D36-0x3D45</td><td class="num">mixed</td><td class="num">98B</td><td>00/EA埋め</td><td>旧Spark Ball追加routine候補跡。4096B末尾側の旧候補跡はRoomFlag移動後の大きな空きに統合して扱う。新規出力ではspark_ball_variantを書かない。保存時に掃除しない。</td></tr>
       <tr><td>空き</td><td><code>final_stage_redirect.py</code></td><td class="num">0x3D28-0x3D34</td><td class="num">$BD18-$BD24</td><td class="num">13B</td><td>EA埋め</td><td>旧Final-stage redirect runtime候補跡。新規出力ではfinal_stage_redirectを書かない。保存時に掃除しない。</td></tr>
       <tr><td>空き</td><td><code>gargoyle_variant.py</code></td><td class="num">0x3D0B-0x3D26 / 0x3D4B-0x3D88</td><td class="num">$BCFB-$BD16 / $BD3B-$BD78</td><td class="num">90B</td><td>00/EA埋め</td><td>旧Gargoyle追加routine候補跡。新規出力ではgargoyle_variantを書かない。保存時に掃除しない。</td></tr>
@@ -209,15 +213,15 @@
     <h3>file 0x3BEE-0x420F / CPU $BBDE-$C1FF / 1,570B</h3>
     <div class="bar zoom">
       <div class="seg free" style="width:.13%"></div>
-      <div class="seg cave" style="width:2.93%">LOADER<br><small>46B</small></div>
+      <div class="seg free" style="width:2.93%">old RF<br><small>46B</small></div>
       <div class="seg hook" style="width:.57%">title demo</div>
       <div class="seg free" style="width:1.15%"></div>
-      <div class="seg cave" style="width:2.17%">MAGIC<br><small>34B</small></div>
+      <div class="seg free" style="width:2.17%">old RF<br><small>34B</small></div>
       <div class="seg free" style="width:.89%"></div>
-      <div class="seg cave" style="width:.70%">DOOR</div>
+      <div class="seg free" style="width:.70%">old RF</div>
       <div class="seg free" style="width:2.29%">old PM AI</div>
       <div class="seg free" style="width:.06%"></div>
-      <div class="seg cave" style="width:3.57%">DARK<br><small>56B</small></div>
+      <div class="seg free" style="width:3.57%">old RF<br><small>56B</small></div>
       <div class="seg free" style="width:1.66%"></div>
       <div class="seg free" style="width:1.97%">old PM dispatch</div>
       <div class="seg free" style="width:.96%"></div>
@@ -244,10 +248,10 @@
       <div class="seg free" style="width:2.10%"></div>
       <div class="seg free" style="width:1.34%">old spark</div>
       <div class="seg free" style="width:1.21%"></div>
-      <div class="seg cave" style="width:8.66%">gap_fix</div>
+      <div class="seg free" style="width:8.66%">old gap</div>
       <div class="seg hook" style="width:3.70%">PV speed</div>
       <div class="seg free" style="width:2.93%">old PM anim</div>
-      <div class="seg cave" style="width:4.27%">special cell</div>
+      <div class="seg free" style="width:4.27%">old RF</div>
       <div class="seg hook" style="width:1.21%">PV dispatch</div>
       <div class="seg free" style="width:3.63%">old PM Demon</div>
       <div class="seg free" style="width:.06%"></div>
@@ -256,7 +260,7 @@
     </div>
     <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
     <div class="note">
-      <b>棚卸メモ:</b> 2026-07-04 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約560B。Final-stage redirect runtimeは <code>$E332</code> へ移動済み。Gargoyle runtimeは <code>$E357</code> へ移動済み。Saramandor runtimeは <code>$E3C9</code> へ移動済み。Panel Variant final runtimeは <code>$E486-$E76F</code> へ移動済み。RoomFlag cave runtimeは <code>$E788-$E860</code> へ移動済み。旧Panel base runtimeは新規出力では書かない。
+      <b>棚卸メモ:</b> 2026-07-04 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約696B。Final-stage redirect runtimeは <code>$E332</code> へ移動済み。Gargoyle runtimeは <code>$E357</code> へ移動済み。Saramandor runtimeは <code>$E3C9</code> へ移動済み。Panel Variant final runtimeは <code>$E486-$E76F</code> へ移動済み。RoomFlag cave runtimeは <code>$E788-$E860</code> へ移動済み。Gap fix runtimeは <code>$E879-$E900</code> へ移動済み。旧Panel base runtimeは新規出力では書かない。
       Key/Fairy enemy runtimeは <code>0x610E-0x622B</code> へ集約済み。旧配置跡は新規出力で書かず、保存時にも掃除しない。
       実装側の許容スパン上は過去に <code>0x4190-0x420D</code> が expanded table span と key enemy で重複していたため、旧配置を読む時は重複を二重加算しない union で扱う。
     </div>
@@ -295,10 +299,11 @@
       <tr><td class="num">0x3FC7-0x3FC9</td><td class="num">$BFB7-$BFB9</td><td class="num">3B</td><td>旧Panel Monster Bullet hook slotの予約縮小で回収。Panel type classifier直前の断片。</td></tr>
       <tr><td class="num">0x3FF8-0x3FFC</td><td class="num">$BFE8-$BFEC</td><td class="num">5B</td><td>原作EA埋め。Spark Ball slow AI wrapperのID判定圧縮で回収。直後はkey enemy chunk。</td></tr>
       <tr><td class="num">0x400F</td><td class="num">$BFFF</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
+      <tr><td class="num">0x4010-0x4097</td><td class="num">$C000-$C087</td><td class="num">136B</td><td>旧Gap fix runtime候補跡。現行の固定配置先は <code>$E879</code>。新規出力ではgap_fix.pyを書かない。</td></tr>
       <tr><td class="num">0x4100-0x4143</td><td class="num">$C0F0-$C133</td><td class="num">68B</td><td>旧RoomFlag special-cell scanner候補跡。現行runtimeは <code>$E81D</code> へ移動済み。新規出力ではroom_flags.pyを書かない。</td></tr>
       <tr><td class="num">0x414F-0x4152</td><td class="num">$C13F-$C142</td><td class="num">4B</td><td>Panel Monster fire marker table移動後の残り。短い非常用候補。</td></tr>
       <tr><td class="num">0x418F</td><td class="num">$C17F</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>560B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。Final-stage redirect runtimeを <code>$E332</code>、Gargoyle runtimeを <code>$E357</code>、Saramandor runtimeを <code>$E3C9</code>、RoomFlag cave runtimeを <code>$E788-$E860</code> へ移動した後の断片合計。</td></tr>
+      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>696B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。Final-stage redirect runtimeを <code>$E332</code>、Gargoyle runtimeを <code>$E357</code>、Saramandor runtimeを <code>$E3C9</code>、RoomFlag cave runtimeを <code>$E788-$E860</code>、Gap fix runtimeを <code>$E879-$E900</code> へ移動した後の断片合計。</td></tr>
     </table>
     <table>
       <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
@@ -333,7 +338,7 @@
       <tr><td>空き</td><td class="num">0x3F79-0x3FC6</td><td class="num">$BF69-$BFB6</td><td class="num">78B</td><td>旧Panel Bullet hook本体候補跡。現行Panel Bullet hookは <code>$AFBB</code> から <code>$E737</code> を呼ぶ。新規出力ではpanel_monster_variantを書かない。保存時に掃除しない。</td></tr>
       <tr><td>Panel Variant type classifier main</td><td class="num">0x3FCA-0x3FE4</td><td class="num">$BFBA-$BFD4</td><td class="num">27B</td><td>Shared visual/property classifier for older enhanced Panel Monster IDs and A/B/C Panel Variant IDs.</td></tr>
       <tr><td>空き</td><td class="num">0x3FE8-0x3FF7</td><td class="num">$BFD8-$BFE7</td><td class="num">16B</td><td>旧Spark Ball slow AI wrapper候補跡。新規出力ではspark_ball_variantを書かない。</td></tr>
-      <tr><td>gap_fix cave</td><td class="num">0x4010-0x4097</td><td class="num">$C000-$C087</td><td class="num">136B</td><td class="ok">No overlap with Spark Ball variants or key enemies as of v0.6.158.</td></tr>
+      <tr><td>空き</td><td class="num">0x4010-0x4097</td><td class="num">$C000-$C087</td><td class="num">136B</td><td>旧Gap fix runtime候補跡。現行の固定配置先は <code>$E879</code>。新規出力ではgap_fix.pyを書かない。</td></tr>
       <tr><td>空き</td><td class="num">0x4098-0x40CF</td><td class="num">$C088-$C0BF</td><td class="num">56B</td><td>旧Panel Bullet speed decode候補跡。現行Panel runtimeは <code>$E486-$E76F</code> へ移動。新規出力ではpanel_monster_stage_variantを書かない。保存時に掃除しない。</td></tr>
       <tr><td>空き</td><td class="num">0x40D2-0x40FF</td><td class="num">$C0C2-$C0EF</td><td class="num">46B</td><td>旧Panel animation hook候補跡。現行Panel animation hook本体は <code>$E748</code> へ移動。新規出力ではpanel_monster_stage_variantを書かない。保存時に掃除しない。</td></tr>
       <tr><td>空き</td><td class="num">0x40FA-0x40FF</td><td class="num">$C0EA-$C0EF</td><td class="num">6B</td><td>旧Panel animation hook候補跡の残り。保存時に掃除しない。</td></tr>
