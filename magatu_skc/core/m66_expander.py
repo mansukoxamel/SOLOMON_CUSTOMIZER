@@ -184,7 +184,9 @@ def change_mapper(src: bytes, region: str = "JP") -> bytearray:
     result[nop3 + 1] = 234
     result[nop3 + 2] = 234
 
-    # レベルテーブル (53レベル分)
+    # Enemy pointer table (53 levels): original PRG0 pointers ($DD56..)
+    # are redirected to RAM $07A0, where the mapper66 loader stages the
+    # current level's enemy bytes from the fixed PRG1 level record.
     for i in range(m66.COUNT_M66_LEVELS):
         result[p["lvl_lo"] + i] = 160
         result[p["lvl_hi"] + i] = 7
