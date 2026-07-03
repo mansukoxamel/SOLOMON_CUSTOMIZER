@@ -482,6 +482,58 @@ PRG0追加プログラム側から見た一覧。
 - runtime内の戻り先が原作 `$C70E` のままであること。
 - `0x3D28-0x3D34` へ消去・復元・互換目的の書き込みを入れないこと。
 
+## Gargoyle variant 移動結果
+
+`gargoyle_variant.py` の強化ガーゴイルruntimeを、
+3断片から1本体へまとめる。
+
+理由:
+
+- Gargoyle系は cooldown gate、materialize gate、cooldown tail の3断片に分かれている。
+- 3断片は同一機能で、hook先2か所から入るだけなので、機能単位で連続配置できる。
+- bank0 caveの `$BCFB-$BD78` 周辺はPanel/Spark/Final-stageの整理候補と隣接しており、今後の整理でぶつかりやすい。
+- 既存の相対分岐は、新しい連続配置では `BEQ +0` で直後のtailへ落とせる。
+
+移動前:
+
+| part | old file | old CPU | size |
+|---|---:|---:|---:|
+| enhanced cooldown gate | `0x3D0B-0x3D26` | `$BCFB-$BD16` | 28B |
+| slow-Bullet gate | `0x3D4B-0x3D7E` | `$BD3B-$BD6E` | 52B |
+| enhanced cooldown tail | `0x3D7F-0x3D88` | `$BD6F-$BD78` | 10B |
+
+移動後:
+
+| part | new file | new CPU | size |
+|---|---:|---:|---:|
+| packed Gargoyle runtime | `0x6367-0x63C0` | `$E357-$E3B0` | 90B |
+| free | `0x63C1-0x63D8` | `$E3B1-$E3C8` | 24B |
+
+合計:
+
+- 旧分散配置: 90B
+- 新本体: 90B
+- 直後の空き: 24B
+- この候補で使う範囲: `0x6367-0x63D8`
+- 次の配置開始候補: `0x63D9`
+
+新規配置では使わなくなる旧候補:
+
+- `0x3D0B-0x3D26`
+- `0x3D4B-0x3D7E`
+- `0x3D7F-0x3D88`
+- 既存ROM救済や旧配置掃除のために、ここを保存時に自動で上書きしない。
+
+実装で確認すること:
+
+- `$AE6F` materialize hook が新 `$E357` を指すこと。
+- `$AE48` cooldown hook が新 `$E38B` を指すこと。
+- `gargoyle_hack.py` の通常cooldown読み書きが新runtime内の値を読むこと。
+- cooldown gate末尾の `BEQ` が新 `$E3A7` tailへ届くこと。
+- 新本体 `0x6367-0x63C0` が、他の予約と重ならないこと。
+- 新空き `0x63C1-0x63D8` を本体reserveとして扱わないこと。
+- 旧3断片へ消去・復元・互換目的の書き込みを入れないこと。
+
 ## 4096B跡地内の現行予約
 
 | file | CPU | size | 原作状態 | module |
@@ -492,6 +544,7 @@ PRG0追加プログラム側から見た一覧。
 | `0x6244-0x6267` | `$E234-$E257` | 36B | `EA` | `room_flags.visible_item_inblock` |
 | `0x6280-0x6329` | `$E270-$E319` | 170B | `EA` | `spark_ball_variant` |
 | `0x6342-0x634E` | `$E332-$E33E` | 13B | `EA` | `final_stage_redirect` |
+| `0x6367-0x63C0` | `$E357-$E3B0` | 90B | `EA` | `gargoyle_variant` |
 | `0x67A3-0x67B3` | `$E793-$E7A3` | 17B | mixed | `panel_monster_stage_variant` |
 | `0x67B4-0x67D0` | `$E7A4-$E7C0` | 29B | mixed | `panel_monster_stage_variant` |
 | `0x67D1-0x6817` | `$E7C1-$E807` | 71B | mixed | `panel_monster_stage_variant` |
