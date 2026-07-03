@@ -589,6 +589,50 @@ PRG0追加プログラム側から見た一覧。
 - 新空き `0x647E-0x6495` を本体reserveとして扱わないこと。
 - 旧4断片へ消去・復元・互換目的の書き込みを入れないこと。
 
+## Panel Variant final runtime 試作ブロック
+
+`panel_monster_stage_variant.py` のA/B/C Panel Variant final runtimeを、
+既存の旧Panel配置へ上書きせず、4096B跡地の新しい空きへ一式で書く。
+
+理由:
+
+- 旧Panel配置を直接崩す前に、新しい空きへ丸ごと置いてhookだけ切り替える。
+- 動作確認が取れた後で、旧Panel/旧final断片の書き込み停止と空き回収を別段階で判断できる。
+- 今回は旧ROM救済や旧配置掃除はしない。
+
+移動後:
+
+| part | new file | new CPU | size |
+|---|---:|---:|---:|
+| Panel Variant final runtime trial block | `0x6496-0x6749` | `$E486-$E739` | 692B |
+| free | `0x674A-0x67A2` | `$E73A-$E792` | 89B |
+
+合計:
+
+- A/B/C final runtime実体: 692B
+- 新ブロック予約: 692B
+- 直後の空き: 89B
+- この候補で使う範囲: `0x6496-0x67A2`
+- 次の配置開始候補: `0x674A` ではなく、旧 `0x67A3` 予約を残すため当面は `0x674A-0x67A2` を小空きとして扱う。
+- RAM新規使用: なし
+- PRG1新規使用: なし
+
+この段階の差し引き:
+
+- 旧base Panel runtimeはまだ書く。
+- 旧A/B/C final runtime断片は、このA/B/C applyでは新ブロックへ切り替える。
+- 旧base + 新A/B/C final + PRG1の予約unionは1190B。
+- 変更前の旧base+旧A/B/C final+PRG1の予約unionは1005B。
+- 試作段階では+185B。動作確認後、旧base側の書き込み停止や旧断片回収で次に削る。
+
+実装で確認すること:
+
+- `$A556` fire hook が新 `$E486` を指すこと。
+- `$AFBB` Bullet hook が新 `$E737` を呼ぶこと。
+- 新ブロック `0x6496-0x6749` が他の予約と重ならないこと。
+- 新空き `0x674A-0x67A2` を本体reserveとして扱わないこと。
+- 旧A/B/C final断片へ消去・復元・互換目的の書き込みを入れないこと。
+
 ## 4096B跡地内の現行予約
 
 | file | CPU | size | 原作状態 | module |
@@ -601,6 +645,8 @@ PRG0追加プログラム側から見た一覧。
 | `0x6342-0x634E` | `$E332-$E33E` | 13B | `EA` | `final_stage_redirect` |
 | `0x6367-0x63C0` | `$E357-$E3B0` | 90B | `EA` | `gargoyle_variant` |
 | `0x63D9-0x647D` | `$E3C9-$E46D` | 165B | `EA` | `saramandor_variant` |
+| `0x6496-0x6749` | `$E486-$E739` | 692B | `EA` | `panel_monster_stage_variant` |
+| `0x674A-0x67A2` | `$E73A-$E792` | 89B | `EA`/`00` | free |
 | `0x67A3-0x67B3` | `$E793-$E7A3` | 17B | mixed | `panel_monster_stage_variant` |
 | `0x67B4-0x67D0` | `$E7A4-$E7C0` | 29B | mixed | `panel_monster_stage_variant` |
 | `0x67D1-0x6817` | `$E7C1-$E807` | 71B | mixed | `panel_monster_stage_variant` |
