@@ -289,6 +289,26 @@
       <tr><td class="num">0x69B9-0x7004</td><td class="num">$E9A9-$EFF4</td><td class="num">1,612B</td><td>Free</td></tr>
       <tr><td class="num">0x7005-0x700F</td><td class="num">$EFF5-$EFFF</td><td class="num">11B</td><td>Solomon Seal block helper</td></tr>
     </table>
+    <h3>4096B outside legacy EA suppressions</h3>
+    <div class="note">
+      <b>現物差分確認メモ:</b>
+      The ranges below are outside the 4096B runtime block, but they are not leftover added runtime bodies.
+      They are short suppressions of old stock-side behavior that would otherwise run twice or overwrite the mapper66/wide-title result.
+      When checking a generated ROM against the original JP ROM, treat these as intentional legacy-stop sites.
+    </div>
+    <table>
+      <tr><th>Range</th><th>CPU</th><th>Size</th><th>New bytes</th><th>Reason</th></tr>
+      <tr><td class="num">0x3490-0x349F</td><td class="num">$B480-$B48F</td><td class="num">16B</td><td><code>EA x16</code></td><td>Stage 20 stock SP2 item bitmap routine disabled after importing the item bitmap into editable stage data, preventing duplicate placement.</td></tr>
+      <tr><td class="num">0x353F-0x354E</td><td class="num">$B52F-$B53E</td><td class="num">16B</td><td><code>EA x16</code></td><td>Stage 30 stock SP2 item bitmap routine disabled after importing the item bitmap into editable stage data, preventing duplicate placement.</td></tr>
+      <tr><td class="num">0x359F-0x35A1</td><td class="num">$B58F-$B591</td><td class="num">3B</td><td><code>EA EA EA</code></td><td>Stage 49 stock hard-coded breakable-white-block write disabled; the cells are imported into editable stage data.</td></tr>
+      <tr><td class="num">0x35E8-0x35EA</td><td class="num">$B5D8-$B5DA</td><td class="num">3B</td><td><code>EA EA EA</code></td><td>Stage 52/53 stock hard-coded breakable-white-block write disabled; the cells are imported into editable stage data.</td></tr>
+      <tr><td class="num">0x360D-0x360F</td><td class="num">$B5FD-$B5FF</td><td class="num">3B</td><td><code>EA EA EA</code></td><td>Stage 52/53 stock hard-coded breakable-white-block write disabled; the cells are imported into editable stage data.</td></tr>
+      <tr><td class="num">0x3626-0x362E</td><td class="num">$B616-$B61E</td><td class="num">9B</td><td><code>EA x9</code></td><td>Stage 50 stock hard-coded breakable-white-block writes disabled; the cells are imported into editable stage data.</td></tr>
+      <tr><td class="num">0x4CE8-0x4CEA</td><td class="num">$CCD8-$CCDA</td><td class="num">3B</td><td><code>EA EA EA</code></td><td>Wide-title legacy attribute write suppressed so it does not overwrite the bank1 64-byte title attribute table.</td></tr>
+      <tr><td class="num">0x4DCE-0x4DD0</td><td class="num">$CDBE-$CDC0</td><td class="num">3B</td><td><code>EA EA EA</code></td><td>Wide-title legacy attribute write suppressed so it does not overwrite the bank1 64-byte title attribute table.</td></tr>
+      <tr><td class="num">0x4DE6-0x4DE8</td><td class="num">$CDD6-$CDD8</td><td class="num">3B</td><td><code>EA EA EA</code></td><td>Wide-title legacy attribute write suppressed so it does not overwrite the bank1 64-byte title attribute table.</td></tr>
+      <tr><td class="num">0x4DF9-0x4DFB</td><td class="num">$CDE9-$CDEB</td><td class="num">3B</td><td><code>EA EA EA</code></td><td>Wide-title legacy attribute write suppressed so it does not overwrite the bank1 64-byte title attribute table.</td></tr>
+    </table>
   </div>
 
 
