@@ -702,15 +702,16 @@ PRG0追加プログラム側から見た一覧。
 
 | part | old file | old CPU | new file | new CPU | size |
 |---|---:|---:|---:|---:|---:|
-| Warp Mirror Mode runtime | `0x6A56-0x6AB4` | `$EA46-$EAA4` | `0x6A56-0x6AD5` | `$EA46-$EAC5` | 128B |
-| free after warp runtime | `0x6AB5-0x7004` | `$EAA5-$EFF4` | `0x6AD6-0x7004` | `$EAC6-$EFF4` | 1327B |
+| buffer before Warp Mirror Mode runtime | - | - | `0x6A56-0x6A6D` | `$EA46-$EA5D` | 24B |
+| Warp Mirror Mode runtime | `0x6A56-0x6AB4` | `$EA46-$EAA4` | `0x6A6E-0x6AED` | `$EA5E-$EADD` | 128B |
+| free after warp runtime | `0x6AB5-0x7004` | `$EAA5-$EFF4` | `0x6AEE-0x7004` | `$EADE-$EFF4` | 1303B |
 | PRG1 stage flag helper | - | - | `0x8A76-0x8A81` | `$8A66-$8A71` | 12B |
 | PanelVariant PRG1 reserve | `0x8A76-0x8E7F` | `$8A66-$8E6F` | `0x8A82-0x8E7F` | `$8A72-$8E6F` | 1022B |
 
 合計:
 
 - PRG0 runtime実体: 95B -> 128B (+33B)
-- PRG0後続空き: 1360B -> 1327B
+- PRG0後続空き: 1360B -> 1303B
 - PRG1新規使用: 12B
 - PRG1 PanelVariant reserve: 1034B -> 1022B
 - RAM新規使用: なし。既存 `$0770` を bit5=mode / bit6=cooldown に再定義。
