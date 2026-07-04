@@ -48,23 +48,23 @@ OFF_HOOK_ITEM_TILE_READ = _cf(0xC54E)
 OFF_HOOK_KEY_HANDLER = _cf(0xC663)
 OFF_HOOK_FALL_FAIRY = _cf(0xAF06)
 
-CPU_ENEMY_INIT = 0xC1D6
-CPU_ENEMY_STATUS = 0xBC42
-CPU_ENEMY_DEFEAT = 0xBE2F
-CPU_ENEMY_DEFEAT_MATCH1 = 0xBFED
-CPU_ENEMY_DEFEAT_MATCH2 = 0xC1F1
-CPU_ENEMY_DEFEAT_MATCH3 = 0xBE74
-CPU_ENEMY_DEFEAT_MATCH4 = 0xBE94
-CPU_ENEMY_DEFEAT_MATCH5 = 0xBEF3
-CPU_ENEMY_DEFEAT_MATCH6 = 0xBEB6
-CPU_DOOR_LIGHT_POS = 0xBF50
-CPU_ITEM_TILE_READ = 0xBC17
-CPU_KEY_HANDLER = 0xC180
-CPU_FALL_KEY_HANDLER = 0xBCB8
-CPU_ENEMY_STATUS_VALUE = 0xE455
-CPU_FALL_KEY_COMPARE = 0xCFF5
-OLD_CPU_ENEMY_DEFEAT_MATCH2 = 0xC1EF
-OLD_CPU_FALL_KEY_COMPARE = 0xE44C
+CPU_ENEMY_INIT = 0xE0FE
+CPU_ENEMY_STATUS = 0xE118
+CPU_ENEMY_STATUS_VALUE = 0xE11E
+CPU_ENEMY_DEFEAT = 0xE12D
+CPU_ENEMY_DEFEAT_MATCH1 = 0xE13B
+CPU_ENEMY_DEFEAT_MATCH2 = 0xE14D
+CPU_ENEMY_DEFEAT_MATCH3 = 0xE15C
+CPU_ENEMY_DEFEAT_MATCH4 = 0xE166
+CPU_ENEMY_DEFEAT_MATCH5 = 0xE171
+CPU_ENEMY_DEFEAT_MATCH6 = 0xE17E
+CPU_DOOR_LIGHT_POS = 0xE185
+CPU_ITEM_TILE_READ = 0xE19E
+CPU_KEY_HANDLER = 0xE1A5
+CPU_FALL_KEY_HANDLER = 0xE1FB
+CPU_FALL_KEY_COMPARE = 0xE211
+OFF_KEY_ENEMY_FREE = _cf(0xE21C)
+KEY_ENEMY_FREE_LEN = 24
 
 OFF_ENEMY_INIT = _cf(CPU_ENEMY_INIT)
 OFF_ENEMY_STATUS = _cf(CPU_ENEMY_STATUS)
@@ -81,39 +81,27 @@ OFF_KEY_HANDLER = _cf(CPU_KEY_HANDLER)
 OFF_FALL_KEY_HANDLER = _cf(CPU_FALL_KEY_HANDLER)
 OFF_ENEMY_STATUS_VALUE = _cf(CPU_ENEMY_STATUS_VALUE)
 OFF_FALL_KEY_COMPARE = _cf(CPU_FALL_KEY_COMPARE)
-OLD_OFF_ENEMY_DEFEAT_MATCH2 = _cf(OLD_CPU_ENEMY_DEFEAT_MATCH2)
-OLD_OFF_FALL_KEY_COMPARE = _cf(OLD_CPU_FALL_KEY_COMPARE)
-
-OLD_CPU_ENEMY_DEFEAT = 0xC021
-OLD_CPU_DOOR_LIGHT_POS = 0xC06A
-OLD_OFF_ENEMY_DEFEAT = _cf(OLD_CPU_ENEMY_DEFEAT)
-OLD_OFF_DOOR_LIGHT_POS = _cf(OLD_CPU_DOOR_LIGHT_POS)
 
 ORIG_M66_LOADER_TAIL = stage_ext.ORIG_M66_LOADER_TAIL
 HOOK_M66_LOADER_TAIL = stage_ext.HOOK_M66_LOADER_TAIL
 
 ORIG_ENEMY_INIT = bytes.fromhex("20 ea b2")
 HOOK_ENEMY_INIT = bytes((0x20, CPU_ENEMY_INIT & 0xFF, CPU_ENEMY_INIT >> 8))
-OLD_HOOK_ENEMY_INIT_C000 = bytes((0x20, 0x00, 0xC0))
 
 ORIG_ENEMY_STATUS = bytes.fromhex("a9 80 91 04")
 HOOK_ENEMY_STATUS = bytes((0x20, CPU_ENEMY_STATUS & 0xFF, CPU_ENEMY_STATUS >> 8, 0xEA))
 
 ORIG_ENEMY_DEFEAT = bytes.fromhex("20 1c 9d")
 HOOK_ENEMY_DEFEAT = bytes((0x20, CPU_ENEMY_DEFEAT & 0xFF, CPU_ENEMY_DEFEAT >> 8))
-OLD_HOOK_ENEMY_DEFEAT = bytes((0x20, OLD_CPU_ENEMY_DEFEAT & 0xFF, OLD_CPU_ENEMY_DEFEAT >> 8))
-OLD_HOOK_ENEMY_DEFEAT_C029 = bytes((0x20, 0x29, 0xC0))
 
 ORIG_DOOR_LIGHT_POS = bytes.fromhex("b1 30 85 04")
 HOOK_DOOR_LIGHT_POS = bytes((0x20, CPU_DOOR_LIGHT_POS & 0xFF, CPU_DOOR_LIGHT_POS >> 8, 0xEA))
-OLD_HOOK_DOOR_LIGHT_POS = bytes((0x20, OLD_CPU_DOOR_LIGHT_POS & 0xFF, OLD_CPU_DOOR_LIGHT_POS >> 8, 0xEA))
 
 ORIG_ITEM_TILE_READ = bytes.fromhex("bd 04 03")
 HOOK_ITEM_TILE_READ = bytes((0x20, CPU_ITEM_TILE_READ & 0xFF, CPU_ITEM_TILE_READ >> 8))
 
 ORIG_KEY_HANDLER = bytes.fromhex("a0 05 b1 30 a8")
 HOOK_KEY_HANDLER = bytes((0x20, CPU_KEY_HANDLER & 0xFF, CPU_KEY_HANDLER >> 8, 0xEA, 0xEA))
-OLD_HOOK_KEY_HANDLER_C0F0 = bytes((0x20, 0xF0, 0xC0, 0xEA, 0xEA))
 
 ORIG_FALL_FAIRY = bytes.fromhex("a0 03 b9")
 HOOK_FALL_FAIRY = bytes((0x4C, CPU_FALL_KEY_HANDLER & 0xFF, CPU_FALL_KEY_HANDLER >> 8))
@@ -134,58 +122,11 @@ def _build_enemy_init() -> bytes:
     )
 
 
-OLD_ENEMY_INIT_STACK_LEAK = bytes.fromhex(
-    "20 ea b2"
-    "8a 48"
-    "ad 2b 07 c9 ff f0 10"
-    "ad 29 07 cd 2b 07 d0 05"
-    "68 aa 8e 2a 07 8a 48"
-    "ee 29 07"
-    "68 aa 60"
-)
-
-OLD_ENEMY_INIT_STACK_BALANCED = bytes.fromhex(
-    "20 ea b2"
-    "8a 48"
-    "ad 2b 07 c9 ff f0 0f"
-    "ad 29 07 cd 2b 07 d0 07"
-    "68 aa 8e 2a 07 8a 48"
-    "ee 29 07"
-    "68 aa 60"
-)
-
-
-OLD_ENEMY_INIT_PREWRITE_FALL_FLAG = bytes.fromhex(
-    "20 ea b2"
-    "8a 48"
-    "ad 2b 07 c9 ff f0 0f"
-    "ad 29 07 cd 2b 07 d0 07"
-    "68 aa 8e 2a 07 8a 48"
-    "a0 00 b1 04 09 40 91 04"
-    "ee 29 07"
-    "68 aa 60"
-)
-
-OLD_ENEMY_INIT_SELECTED_KEY = bytes.fromhex(
-    "20 ea b2"
-    "ad 2b 07 c9 ff f0 0b"
-    "ad 29 07 cd 2b 07 d0 03"
-    "8e 2a 07"
-    "ee 29 07"
-    "60"
-)
-
-
 def _build_enemy_status() -> bytes:
     return (
         bytes((0x20, CPU_ENEMY_STATUS_VALUE & 0xFF, CPU_ENEMY_STATUS_VALUE >> 8))
         + bytes.fromhex("91 04 60")
     )
-
-
-OLD_ENEMY_STATUS_SELECTED_KEY = bytes.fromhex(
-    "a9 80 ec 2a 07 d0 02 a9 c0 91 04 60"
-)
 
 
 def _build_enemy_status_value() -> bytes:
@@ -262,13 +203,6 @@ def _build_door_light_pos() -> bytes:
     )
 
 
-OLD_DOOR_LIGHT_POS = bytes.fromhex(
-    "98 c9 06 d0 10 ad 24 07 f0 0b"
-    "38 e9 01 85 04 a9 00 8d 24 07 60"
-    "b1 30 85 04 60"
-)
-
-
 def _build_item_tile_read() -> bytes:
     return bytes.fromhex("8e 25 07 bd 04 03 60")
 
@@ -310,13 +244,6 @@ def _build_fall_key_handler() -> bytes:
     return bytes(blob)
 
 
-OLD_FALL_KEY_HANDLER_SELECTED_KEY = bytes.fromhex(
-    "ad 2a 07 30 08"
-    "85 02 20 32 be 4c 76 b3"
-    "a0 03 b9 11 af 91 2e 88 10 f8 60"
-)
-
-
 def _build_fall_key_compare() -> bytes:
     return bytes.fromhex(
         # AF06 is reached from the current enemy's sub-slot pointer in $2C.
@@ -354,6 +281,9 @@ RESERVED_SPANS = (
     (OFF_FALL_KEY_COMPARE, len(FALL_KEY_COMPARE)),
 )
 
+assert OFF_KEY_ENEMY_FREE == OFF_FALL_KEY_COMPARE + len(FALL_KEY_COMPARE)
+assert KEY_ENEMY_FREE_LEN == 24
+
 
 def _expect(rom_data, off: int, orig: bytes, hook: bytes, name: str, extra: tuple[bytes, ...] = ()) -> None:
     cur = bytes(rom_data[off:off + len(orig)])
@@ -375,8 +305,6 @@ def _ensure_available(rom_data, off: int, blob: bytes, name: str) -> None:
     cur = bytes(rom_data[off:off + len(blob)])
     if cur == blob:
         return
-    if off == OFF_KEY_HANDLER and len(rom_data) == 0x18010:
-        return
     if all(b in (0xEA, 0x00) for b in cur):
         return
     raise KeyEnemyRuntimeError(
@@ -385,73 +313,19 @@ def _ensure_available(rom_data, off: int, blob: bytes, name: str) -> None:
     )
 
 
-def _migrate_old_layout(rom_data, changed: list[str]) -> None:
-    old_key_handler = _build_key_handler_at(0xC0F0)
-    legacy_enemy_defeat = bytes.fromhex(
-        "20 1c 9d"
-        "a5 02 48"
-        "ad 2a 07 c9 ff f0 38 c5 02 d0 34"
-        "20 4a b1"
-        "a0 07 b1 00 18 69 08 85 04"
-        "a0 0a b1 00 18 69 08 85 05"
-        "20 8a 91"
-        "8a 18 69 01 8d 23 07 8d 24 07"
-        "8a 85 02 a9 06 85 03 9d 04 03"
-        "20 53 9d"
-        "a9 ff 8d 2a 07"
-        "68 85 02 60"
-    )
-    legacy_fall_handler = bytearray.fromhex(
-        "ad 2a 07 30 08"
-        "85 02 20 2c c0 4c 76 b3"
-        "a0 03 b9 11 af 91 2e 88 10 f8 60"
-    )
-    old_match2 = bytes.fromhex(
-        "a0 0a b1 00 18 69 08 85 05"
-        "20 8a 91"
-        "4c 74 be"
-    )
-    old_fall_key_compare = bytes.fromhex("a5 02 cd 2a 07 60")
-    for off, blob, name in (
-        (OFF_ENEMY_INIT, OLD_ENEMY_INIT_SELECTED_KEY, "current key enemy binder"),
-        (OFF_ENEMY_STATUS, OLD_ENEMY_STATUS_SELECTED_KEY, "current key enemy status writer"),
-        (OLD_OFF_ENEMY_DEFEAT_MATCH2, old_match2, "current key enemy shifted defeat chunk source"),
-        (OFF_FALL_KEY_HANDLER, OLD_FALL_KEY_HANDLER_SELECTED_KEY, "current key enemy fall handler"),
-        (OLD_OFF_FALL_KEY_COMPARE, old_fall_key_compare, "old key enemy fall-slot compare helper"),
-        (_cf(0xC000), OLD_ENEMY_INIT_STACK_LEAK, "legacy key enemy binder at $C000"),
-        (_cf(0xC000), OLD_ENEMY_INIT_STACK_BALANCED, "legacy key enemy binder at $C000"),
-        (_cf(0xC000), OLD_ENEMY_INIT_PREWRITE_FALL_FLAG, "legacy prewrite fall-flag binder at $C000"),
-        (_cf(0xC029), legacy_enemy_defeat, "legacy key enemy defeat dropper at $C029"),
-        (OFF_FALL_KEY_HANDLER, bytes(legacy_fall_handler), "legacy key enemy fall handler"),
-        (OFF_ENEMY_INIT, OLD_ENEMY_INIT_STACK_LEAK, "old key enemy stack-leak binder"),
-        (OFF_ENEMY_INIT, OLD_ENEMY_INIT_STACK_BALANCED, "old key enemy stack-balanced binder"),
-        (OFF_ENEMY_INIT, OLD_ENEMY_INIT_PREWRITE_FALL_FLAG, "old prewrite fall-flag binder"),
-        (OLD_OFF_ENEMY_DEFEAT, ENEMY_DEFEAT, "old key enemy defeat dropper"),
-        (OLD_OFF_DOOR_LIGHT_POS, OLD_DOOR_LIGHT_POS, "old key enemy door-light helper"),
-        (_cf(0xC0F0), old_key_handler, "old key enemy dropped-key handler"),
-    ):
-        if bytes(rom_data[off:off + len(blob)]) == blob:
-            rom_data[off:off + len(blob)] = b"\xEA" * len(blob)
-            changed.append(f"clear {name}")
-
-
 def apply(rom_data) -> list[str]:
     if rom_data is None or len(rom_data) < OFF_KEY_HANDLER + len(KEY_HANDLER):
         raise KeyEnemyRuntimeError("ROM is too short for key enemy runtime patch.")
 
     _expect(rom_data, OFF_M66_LOADER_TAIL, ORIG_M66_LOADER_TAIL, HOOK_M66_LOADER_TAIL, "mapper66 loader tail")
-    _expect(rom_data, OFF_HOOK_ENEMY_INIT, ORIG_ENEMY_INIT, HOOK_ENEMY_INIT, "$95C5 enemy init",
-            (OLD_HOOK_ENEMY_INIT_C000,))
+    _expect(rom_data, OFF_HOOK_ENEMY_INIT, ORIG_ENEMY_INIT, HOOK_ENEMY_INIT, "$95C5 enemy init")
     _expect(rom_data, OFF_HOOK_ENEMY_STATUS, ORIG_ENEMY_STATUS, HOOK_ENEMY_STATUS, "$95CA enemy status")
-    _expect(rom_data, OFF_HOOK_ENEMY_DEFEAT, ORIG_ENEMY_DEFEAT, HOOK_ENEMY_DEFEAT, "$C267 enemy defeat",
-            (OLD_HOOK_ENEMY_DEFEAT, OLD_HOOK_ENEMY_DEFEAT_C029))
-    _expect(rom_data, OFF_HOOK_DOOR_LIGHT_POS, ORIG_DOOR_LIGHT_POS, HOOK_DOOR_LIGHT_POS, "$C3A8 door-light pos", (OLD_HOOK_DOOR_LIGHT_POS,))
+    _expect(rom_data, OFF_HOOK_ENEMY_DEFEAT, ORIG_ENEMY_DEFEAT, HOOK_ENEMY_DEFEAT, "$C267 enemy defeat")
+    _expect(rom_data, OFF_HOOK_DOOR_LIGHT_POS, ORIG_DOOR_LIGHT_POS, HOOK_DOOR_LIGHT_POS, "$C3A8 door-light pos")
     _expect(rom_data, OFF_HOOK_ITEM_TILE_READ, ORIG_ITEM_TILE_READ, HOOK_ITEM_TILE_READ, "$C54E item tile read")
-    _expect(rom_data, OFF_HOOK_KEY_HANDLER, ORIG_KEY_HANDLER, HOOK_KEY_HANDLER, "$C663 key handler",
-            (OLD_HOOK_KEY_HANDLER_C0F0,))
+    _expect(rom_data, OFF_HOOK_KEY_HANDLER, ORIG_KEY_HANDLER, HOOK_KEY_HANDLER, "$C663 key handler")
     _expect(rom_data, OFF_HOOK_FALL_FAIRY, ORIG_FALL_FAIRY, HOOK_FALL_FAIRY, "$AF06 fall fairy")
     changed: list[str] = []
-    _migrate_old_layout(rom_data, changed)
     for off, blob, name in (
         (OFF_PRG1_STAGE_EXT_COPY, PRG1_STAGE_EXT_COPY, "key enemy StageExt loader"),
         (OFF_ENEMY_INIT, ENEMY_INIT, "key enemy initial-slot binder"),

@@ -146,6 +146,16 @@ _TRANSLATIONS = {
     "settings.emulator.path.placeholder": {"ja": "例: D:/emu/fceux/fceux.exe", "en": "Example: D:/emu/fceux/fceux.exe"},
     "settings.emulator.open_title": {"ja": "エミュレータを選択", "en": "Select Emulator"},
     "settings.emulator.default_name": {"ja": "エミュレータ {index}", "en": "Emulator {index}"},
+    "settings.binary_editor.path.label": {"ja": "バイナリエディタ:", "en": "Binary editor:"},
+    "settings.binary_editor.path.placeholder": {
+        "ja": "例: D:/tools/MAGATU_BINARY_EDITOR/MAGATU_BINARY_EDITOR.py",
+        "en": "Example: D:/tools/MAGATU_BINARY_EDITOR/MAGATU_BINARY_EDITOR.py",
+    },
+    "settings.binary_editor.open_title": {"ja": "バイナリエディタを選択", "en": "Select Binary Editor"},
+    "settings.binary_editor.file_filter": {
+        "ja": "Applications / Python (*.exe *.py *.pyw);;All files (*)",
+        "en": "Applications / Python (*.exe *.py *.pyw);;All files (*)",
+    },
     "settings.group.workflow": {"ja": "テストプレイ・PNG出力", "en": "Test Play / PNG Export"},
     "settings.quick_test.label": {"ja": "クイックテストプレイ:", "en": "Quick test play:"},
     "settings.quick_test.checkbox": {"ja": "タイトル画面と開始待ちを省略する", "en": "Skip title screen and start wait"},
@@ -209,6 +219,7 @@ _TRANSLATIONS = {
     },
     "shortcut.label.stage_jump": {"ja": "ステージ番号ジャンプ", "en": "Jump to Stage Number"},
     "shortcut.label.show_stats": {"ja": "全ステージ統計", "en": "All-Stage Statistics"},
+    "shortcut.label.open_binary_editor": {"ja": "バイナリエディタで開く", "en": "Open in Binary Editor"},
     "shortcut.label.test_play": {"ja": "テストプレイ", "en": "Test Play"},
     "shortcut.label.stage_prev": {"ja": "前のステージ", "en": "Previous Stage"},
     "shortcut.label.stage_next": {"ja": "次のステージ", "en": "Next Stage"},
@@ -2591,6 +2602,30 @@ _TRANSLATIONS = {
     "main.testplay.emulator_launch_failed": {
         "ja": "エミュ起動失敗",
         "en": "Emulator Launch Failed",
+    },
+    "main.binary_editor.unset.title": {
+        "ja": "バイナリエディタ未設定",
+        "en": "Binary Editor Not Configured",
+    },
+    "main.binary_editor.unset.body": {
+        "ja": "F9 設定画面でバイナリエディタの実行ファイルまたはPythonファイルを登録してください。",
+        "en": "Register a binary editor executable or Python file in Settings (F9).",
+    },
+    "main.binary_editor.missing.title": {
+        "ja": "バイナリエディタが見つかりません",
+        "en": "Binary Editor Not Found",
+    },
+    "main.binary_editor.prepare_failed.title": {
+        "ja": "バイナリエディタ用ROM作成失敗",
+        "en": "Binary Editor ROM Preparation Failed",
+    },
+    "main.binary_editor.launched": {
+        "ja": "バイナリエディタで開きました: {path}{suffix}",
+        "en": "Opened in binary editor: {path}{suffix}",
+    },
+    "main.binary_editor.launch_failed.title": {
+        "ja": "バイナリエディタ起動失敗",
+        "en": "Binary Editor Launch Failed",
     },
     "main.ips.base_dialog.title": {
         "ja": "原本ROM（市販吸出し）を選択",

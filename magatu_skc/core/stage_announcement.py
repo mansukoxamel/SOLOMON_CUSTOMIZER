@@ -28,11 +28,13 @@ def _word(cpu: int) -> bytes:
 OFF_HOOK_START_UPDATE = _cf(0x9061)
 ORIG_START_UPDATE = bytes.fromhex("20 5e 91")
 
-OFF_MAIN = 0x63CC
-OFF_MASK_TABLE = 0x60CC
-OFF_DRAW = 0x639C
-OFF_PTR_TABLE = 0x61EC
-OFF_KEY_GATE = 0x33D0
+OFF_MAIN = 0x6010
+OFF_MASK_TABLE = 0x6028
+OFF_DRAW = 0x602D
+OFF_PTR_TABLE = 0x6046
+OFF_KEY_GATE = 0x6052
+OFF_FREE_AFTER_STAGE_ANNOUNCEMENT = 0x60B4
+FREE_AFTER_STAGE_ANNOUNCEMENT_LEN = 24
 
 CPU_MAIN = _cpu(OFF_MAIN)
 CPU_MASK_TABLE = _cpu(OFF_MASK_TABLE)
@@ -60,12 +62,12 @@ P_TILE_BYTES = bytes.fromhex("fc f2 f2 f2 fc f0 00 00 fc f2 f2 f2 fc f0 00 00")
 
 
 SCRIPT_SPECS = (
-    (0x60FC, 21, 4, "DARK ROOM"),
-    (0x612C, 23, 4, "FIRE LOSS"),
-    (0x618C, 21, 17, "HIDDEN DOOR"),
-    (0x657C, 23, 17, "FIRE SEALED"),
-    (0x66FC, 25, 17, "SPELL SEALED"),
-    (0x61BC, 25, 4, "KEY ENEMY"),
+    (0x605F, 21, 4, "DARK ROOM"),
+    (0x606C, 23, 4, "FIRE LOSS"),
+    (0x6079, 21, 17, "HIDDEN DOOR"),
+    (0x6088, 23, 17, "FIRE SEALED"),
+    (0x6097, 25, 17, "SPELL SEALED"),
+    (0x60A7, 25, 4, "KEY ENEMY"),
 )
 
 ROOM_FLAG_MASKS = bytes((
@@ -160,6 +162,11 @@ RESERVED_SPANS = (
     (OFF_KEY_GATE, len(KEY_GATE)),
     *[(off, len(script)) for off, script, _text in SCRIPTS],
 )
+
+assert OFF_FREE_AFTER_STAGE_ANNOUNCEMENT == OFF_KEY_GATE + len(KEY_GATE) + sum(
+    len(script) for _off, script, _text in SCRIPTS
+)
+assert FREE_AFTER_STAGE_ANNOUNCEMENT_LEN == 24
 
 
 def _chr_start(rom_data: bytes) -> int:

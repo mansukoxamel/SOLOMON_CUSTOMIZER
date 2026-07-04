@@ -94,12 +94,12 @@
     <tr><td>bank marker bytes</td><td class="num">0x00FF-0x0102</td><td class="num">$80EF-$80F2</td><td><code>00 01 02 03</code> (JP原本は <code>10 11 12 13</code>)</td><td>skchain由来mapper66初期変換のbank値テーブル。l_a1/l_a2系のbank切替処理が参照する固定値として扱う。</td><td><code>change_mapper()</code></td></tr>
     <tr><td>single byte patch</td><td class="num">0x0D30</td><td class="num">$8D20</td><td><code>00</code> (JP原本は <code>96</code>)</td><td>skchain由来mapper66初期変換の固定byte。JP CRCで入口を固定しているため、未確認ROMへは適用しない。</td><td><code>change_mapper()</code></td></tr>
     <tr><td>NOP x3</td><td class="num">0x1812-0x1814</td><td class="num">$9802-$9804</td><td><code>EA EA EA</code> (JP原本ASMは <code>STA $0304,X</code>)</td><td>元の画面/レベルバッファ書込の一部を無効化し、mapper66用loader側の固定データ展開と衝突しないようにする。</td><td><code>change_mapper()</code></td></tr>
-    <tr><td>l_a1 subroutine</td><td class="num">0x1986-0x19A5</td><td class="num">$9976-$9995</td><td>32B routine。自己参照絶対アドレスはJP配置から動的生成。</td><td>PRG0側からmapper66 bank/PRG1処理へ渡るための小routine。内部に配置依存アドレスを持つため、JP offset専用で生成する。</td><td><code>change_mapper()</code></td></tr>
+    <tr><td>l_a1 hook/body</td><td class="num">0x1985-0x1987 / 0x6998-0x69B8</td><td class="num">$9975-$9977 / $E988-$E9A8</td><td><code>JMP $E988</code> + 33B routine。自己参照絶対アドレスは配置先から動的生成。</td><td>原作の部屋grid初期化入口 <code>$9975</code> から、PRG1固定level loaderへ渡るmapper66 bank-switch entryへ飛ばす。旧 <code>$9978-$9995</code> は原作バイトのまま維持する。</td><td><code>change_mapper()</code></td></tr>
     <tr><td>mirror rate pointers</td><td class="num">0x5C10-0x5C11 / 0x5C20-0x5C21</td><td class="num">$DC00-$DC11</td><td><code>80 88</code> / <code>07 07</code> = <code>$0780</code>, <code>$0788</code></td><td>原作のmirror rate pointer table先頭を、mapper66用の固定RAM staging先へ向ける。元データは変換前に読み出し、PRG1のmirror/drop scheduleへ展開する。</td><td><code>change_mapper()</code> / <code>patch_mirror_drop_schedule_bytes()</code></td></tr>
     <tr><td>mirror enemy pointers</td><td class="num">0x5C30-0x5C31 / 0x5C41-0x5C42</td><td class="num">$DC20-$DC32</td><td><code>C0 C8</code> / <code>07 07</code> = <code>$07C0</code>, <code>$07C8</code></td><td>原作のmirror enemy pointer table先頭を、mapper66用の固定RAM staging先へ向ける。元敵セットは変換前に読み出し、各m66 level recordへ展開する。</td><td><code>change_mapper()</code> / <code>patch_mirror_enemy_set_bytes()</code></td></tr>
-    <tr><td>enemy pointer table</td><td class="num">0x5CFC-0x5D64</td><td class="num">$DCEC-$DD54</td><td>53 entries all <code>$07A0</code></td><td>原作の可変長enemy data pointer tableを、mapper66の固定level data処理で使うRAM staging先へ向ける。</td><td><code>change_mapper()</code> / <code>m66.save_all_levels_m66()</code></td></tr>
+    <tr><td>enemy pointer table</td><td class="num">0x5CFC-0x5D65</td><td class="num">$DCEC-$DD55</td><td>106B。lo 53 entries all <code>A0</code>, hi 53 entries all <code>07</code> = <code>$07A0</code></td><td>原作では53面分の可変長enemy data pointer tableで、<code>$DD56</code> などPRG0内の敵データを指す。mapper66では敵データ本体をPRG1の固定level recordへ移し、loaderが現ステージ分をRAM <code>$07A0</code> へ展開するため、原作敵生成routine <code>$95A1</code> の参照先だけRAM stagingへ向け直す。コード本体ではなく参照アドレス変更。</td><td><code>change_mapper()</code> / <code>m66.save_all_levels_m66()</code></td></tr>
     <tr><td>item pointer table</td><td class="num">0x6A2C-0x6A94</td><td class="num">$EA1C-$EA84</td><td>53 entries all <code>$0790</code></td><td>原作の可変長item data pointer tableを、mapper66の固定level data処理で使うRAM staging先へ向ける。</td><td><code>change_mapper()</code> / <code>m66.save_all_levels_m66()</code></td></tr>
-    <tr><td>bank0 cave clear</td><td class="num">0x3FF2-0x4021</td><td class="num">$BFE2-$C011</td><td>48B <code>00</code> (JP原本はEA埋め)</td><td>skchain由来mapper66初期変換の空き領域クリア。現行保存時はこの周辺をSpark Ball / Key enemy / gap_fixなどの予約済みroutineが上書きするため、空き扱いしない。</td><td><code>change_mapper()</code> / 保存時各モジュール</td></tr>
+    <tr><td>bank0 boundary cave</td><td class="num">0x3FF2-0x4021</td><td class="num">$BFE2-$C011</td><td>48B <code>EA</code>維持 (skchain由来ROMは<code>00</code>)</td><td>32KB PRG内の16KB境界前後にある原作EA埋め。現行customizerのmapper66初期変換では原作コピーのまま維持する。skchain由来ROM判定では、同位置の<code>00</code>埋めをskchain固有の特徴として扱う。</td><td><code>change_mapper()</code> / <code>is_skchain_us66_data()</code></td></tr>
     <tr><td>l_a2 loader</td><td class="num">0x8010-0x80C3</td><td class="num">PRG1 $8000-$80B3</td><td>180B mapper66 loader</td><td>拡張PRG1先頭に配置されるmapper66 level loader。固定192セル形式では <code>$C0-$EF</code> を白ブロック内raw-copy窓として保持する一方、死亡後の <code>$F0-$F3</code> one-shot白ブロック内アイテムはPRG1 helper <code>$9009</code> で中身なし壊せる白ブロック <code>$F9</code> へ落とす。透明ブロック内mask copy slotはPRG1 helper <code>$8E70</code> を呼ぶ。</td><td><code>change_mapper()</code>; 後続のwide titleは0x80D0以降を使用</td></tr>
     <tr><td>mapper66 loader tail hook</td><td class="num">0x80C4-0x80C6</td><td class="num">PRG1 $80B4-$80B6</td><td>3B hook</td><td>StageExt / Panel Variant runtime loaderへの <code>JMP $8A00</code>。透明ブロック内mask copyはこのtailを踏まない。</td><td>保存時各runtime loader</td></tr>
     <tr><td>loader guard</td><td class="num">0x80C7-0x80CF</td><td class="num">PRG1 $80B7-$80BF</td><td>9B initial zero-fill</td><td>l_a2 loader直後のguard。wide title decoder/dataは0x80D0から開始し、このguardを踏まない。</td><td><code>change_mapper()</code></td></tr>
@@ -115,43 +115,49 @@
     <div class="bar">
       <div class="seg orig" style="width:46.80%">元ゲームコード/データ<br><small>$8000-$BBDD</small></div>
       <div class="seg cave" style="width:4.79%">bank0 cave<br><small>$BBDE-$C1FF</small></div>
-      <div class="seg orig" style="width:27.15%">元PRG</div>
-      <div class="seg hook" style="width:.09%"><span class="tiny">anim hook</span></div>
-      <div class="seg orig" style="width:24.18%">元PRG</div>
-      <div class="seg hook" style="width:.17%"><span class="tiny">pause hook</span></div>
-      <div class="seg orig" style="width:1.82%">元PRG</div>
+      <div class="seg orig" style="width:25.34%">元PRG</div>
+      <div class="seg hook" style="width:.70%"><span class="tiny">Spark/Final packed</span></div>
+      <div class="seg orig" style="width:27.37%">元PRG</div>
     </div>
-    <div class="labels"><span>$8000</span><span>$BBDE</span><span>$C1FF</span><span>$CFDE</span><span>$EFC4</span><span>$FFFF</span></div>
+    <div class="labels"><span>$8000</span><span>$BBDE</span><span>$C1FF</span><span>$E270</span><span>$E356</span><span>$FFFF</span></div>
     <table>
       <tr><th>範囲</th><th>用途</th><th>説明</th></tr>
       <tr><td class="num">0x0010-0x3BED</td><td>元PRG</td><td>ゲーム本体コード/既存テーブル。</td></tr>
       <tr><td class="num">0x0BF2-0x0C03 / 0x0C04-0x0C0D</td><td>Initial magic / lives routines</td><td>`$8BE2` は開始時魔法、`$8BF4` は初期残数用。開始画面アナウンスから分離済み。</td></tr>
       <tr><td class="num">0x17F5-0x1803</td><td>Mapper66 key cell value patch</td><td>原作の鍵セル初期配置を、通常 `$06` / 茶ブロック内 `$86` / 隠し `$46` / 白ブロック内 `$C6` に展開する。</td></tr>
-      <tr><td class="num">0x2569-0x257D</td><td>Spark Ball property selector</td><td>現行Spark Ball property selector。borrowed Dragon/Golem Spark IDsはここで <code>$19</code> を返し、それ以外はPanel/stock selector <code>$DBDF</code> へ渡す。</td></tr>
-      <tr><td class="num">0x33D0-0x33DC</td><td>Stage start announcement key gate</td><td>`KEY ENEMY` 用の `$072B` 判定。</td></tr>
-      <tr><td class="num">0x3BEE-0x420F</td><td>bank0 cave</td><td>RoomFlag、gap_fix、強化敵系の主戦場。詳細は次節。</td></tr>
-      <tr><td class="num">0x4FEE-0x5004</td><td>Spark Ball animation hook</td><td>PRG0後半のEA埋め領域を利用。23B。</td></tr>
+      <tr><td class="num">0x2569-0x257D</td><td>Panel Monster original fire body area</td><td>原作ではPanel Monster発射処理の途中。現行出力では <code>$A556-$A558</code> の3BだけPanel final fire hookへ置き換え、<code>$A559-$A574</code> は原作バイトのまま残す。ここにSpark Ball property selector本体は置かない。</td></tr>
+      <tr><td class="num">0x33D0-0x33DC</td><td>空き</td><td>旧Stage start announcement key gate配置候補跡。新規出力ではstage_announcementを書かない。</td></tr>
+      <tr><td class="num">0x3BEE-0x420F</td><td>bank0 cave</td><td>強化敵系、旧gap_fix/旧RoomFlag候補跡の整理対象。詳細は次節。</td></tr>
+      <tr><td class="num">0x4FEE-0x5004</td><td>空き</td><td>旧Spark Ball animation hook候補跡。新規出力ではspark_ball_variantを書かない。</td></tr>
       <tr><td class="num">0x5AC9-0x5ADC</td><td>Original enemy state-speed data</td><td>`$DAB9-$DACC` は `$D9D3` ポインタ表経由で Saramandor などの敵状態別速度indexとして読まれる。ゼロ埋めに見えても空きではない。</td></tr>
       <tr><td class="num">0x5B71-0x5B84</td><td>Original enemy state-speed data</td><td>`$DB61-$DB74` は `$D9D3` ポインタ表経由で敵状態別の速度indexとして読まれる。ゼロ埋めに見えても空きではない。</td></tr>
       <tr><td class="num">0x5BC5-0x5BEE</td><td>Original enemy speed table</td><td>原作の敵速度テーブル。Golem/Demonhead なども参照するため、Panel Variant 用には上書きしない。</td></tr>
-      <tr><td class="num">0x5BEF-0x5C0A</td><td>Panel Monster property selector</td><td>Panel Monster borrowed-ID property selector。Spark Ball property selectorからのフォールスルー先でもある。</td></tr>
-      <tr><td class="num">0x63CC-0x63E3 / 0x60CC-0x60D0</td><td>Stage start announcement main / masks</td><td>`$9061` フック先。`$0778` のルームフラグから開始画面アナウンスを条件描画し、最後に原作 `$915E` へ戻す。</td></tr>
-      <tr><td class="num">0x639C-0x63B4 / 0x61EC-0x61F7</td><td>Stage start announcement draw helper</td><td>`$9471` 互換の待機を行う開始画面アナウンス用PPU scriptポインタ共有ヘルパ。</td></tr>
-      <tr><td class="num">0x60FC-0x6108 / 0x612C-0x6138 / 0x618C-0x619A / 0x61BC-0x61C8 / 0x657C-0x658A / 0x66FC-0x670B</td><td>Stage start announcement scripts</td><td>`DARK ROOM` / `FIRE LOSS` / `HIDDEN DOOR` / `KEY ENEMY` / `FIRE SEALED` / `SPELL SEALED`。</td></tr>
-      <tr><td class="num">0x67B4-0x67D0</td><td>Panel Variant parent speed guard</td><td>`$866D` hook target。`$8AC0` 後に共通Panel type classifierでA/B/Cと借用Panel IDを判定し、親速度・サブピクセルを消す。</td></tr>
-      <tr><td class="num">0x67D1-0x6817</td><td>Panel Monster v2 Bullet entry helper</td><td>`$BF69` Bullet state2 hookから入る短い入口。`$80-$84` spread markerを処理し、plus/minus/speed tailへ分岐する。0x681C以降のTransparent Spark Ball領域には入らない。</td></tr>
-      <tr><td class="num">0x675C-0x6773</td><td>Visible item in-block helper</td><td>`$E74C` NMI helper。`$0750-$0767` の24B bitmaskを破壊的にshiftし、maskありセルは白ブロック内アイテムへ差し替え、maskなしセルは `$E77C` へ分岐する。</td></tr>
-      <tr><td class="num">0x678C-0x6797</td><td>White in-block runtime extension</td><td>`$E77C` helper。maskなしの直接 `$C0-$F7` 白ブロック内アイテムだけ、初期描画後の生グリッドを `$80-$B7` へ落として2段階破壊にする。</td></tr>
-      <tr><td class="num">0x69D4-0x69DF</td><td>Panel Variant final AI dispatch panel tail</td><td>`$E9C4` helper。`0x678C-0x6797` の White in-block runtime extension との重複を避けるため移設。ASM文字列検索、原作ROMポインタ検索、6502 absolute/indexed operandスキャンで `$E9C4-$E9CF` への原作参照なしを確認。</td></tr>
+      <tr><td class="num">0x5BEF-0x5C0A</td><td>空き</td><td>旧Panel property hook候補跡。現行Panel property hook本体は <code>$E73A</code> へ移動。新規出力では書かない。保存時に掃除しない。</td></tr>
+      <tr><td class="num">0x6010-0x60B3</td><td>Stage start announcement packed routine</td><td>`$9061` フック先を `$E000` に移し、main / masks / draw helper / pointer table / key gate / scriptsを先頭側へ連続配置する。合計164B。</td></tr>
+      <tr><td class="num">0x60B4-0x60CB</td><td>空き</td><td>Stage start announcement直後の24B空き。stage_announcement本体reserveとは扱わない。</td></tr>
+      <tr><td class="num">0x60CC-0x60F5</td><td>Initial draw low classifier packed helper</td><td>ひび割れブロック内アイテム用の初期描画低値分類helper。旧4断片48Bを42Bへ連続配置し、tableは同一ブロック内 `$E0DE` を参照する。</td></tr>
+      <tr><td class="num">0x60F6-0x610D</td><td>空き</td><td>Initial draw low classifier直後の24B空き。m66.py本体reserveとは扱わない。</td></tr>
+      <tr><td class="num">0x610E-0x622B</td><td>Key/Fairy enemy runtime packed helper</td><td>敵から鍵が出るruntime一式。旧15断片286Bを1ブロックへ集約。</td></tr>
+      <tr><td class="num">0x622C-0x6243</td><td>空き</td><td>Key/Fairy enemy runtime直後の24B空き。key_enemy_runtime本体reserveとは扱わない。</td></tr>
+      <tr><td class="num">0x6244-0x6267</td><td>Visible item in-block packed helper</td><td>`$E234` helper + `$E24C` extension。旧2断片36Bを1ブロックへ集約。</td></tr>
+      <tr><td class="num">0x6268-0x627F</td><td>空き</td><td>Visible item in-block runtime直後の24B空き。room_flags.py本体reserveとは扱わない。</td></tr>
+      <tr><td class="num">0x6280-0x633E</td><td>Spark Ball runtime packed helpers</td><td>`$E270-$E32E`。Spark Ball追加routine 8断片191Bを1ブロックへ集約。property selectorは <code>$E31A</code>。</td></tr>
+      <tr><td class="num">0x633F-0x6341</td><td>空き</td><td>Spark Ball runtime直後の残り3B空き。</td></tr>
+      <tr><td class="num">0x6342-0x634E</td><td>Final-stage redirect packed helper</td><td>`$E332-$E33E`。旧 `$BD18` の13B runtimeを4096B跡地先頭側へ移動。`$C6F5` hookは `JSR $E332` を指す。</td></tr>
+      <tr><td class="num">0x634F-0x6366</td><td>空き</td><td>Final-stage redirect直後の24B空き。final_stage_redirect本体reserveとは扱わない。</td></tr>
+      <tr><td class="num">0x6496-0x677F</td><td>Panel Variant final runtime block</td><td><code>$E486-$E76F</code>。A/B/C final runtime本体746B。fire/Bullet/AI/classifier/property/animation hook本体を含む。Spark selectorは <code>$E31A</code> に置き、Panel fallback先だけこのブロックへ向ける。</td></tr>
+      <tr><td class="num">0x6780-0x6797</td><td>空き</td><td>Panel Variant final runtime直後の24B空き。panel_monster_stage_variant本体reserveとは扱わず、次runtimeとの緩衝に残す。</td></tr>
+      <tr><td class="num">0x6798-0x6870</td><td>RoomFlag packed cave runtime</td><td><code>$E788-$E860</code>。LOADER/MAGICGATE/DOORPREDRAW/DARK/tempo/special-cell scannerを217Bで集約。</td></tr>
+      <tr><td class="num">0x6871-0x6879</td><td>Wide title idle-demo cleanup</td><td><code>$E861-$E869</code>。Title timeout-only stub 9B。<code>$CB9E</code> から呼び、<code>$E935</code> のwide-title clear helper後に原作action <code>$18</code> を予約する。</td></tr>
+      <tr><td class="num">0x687A-0x6888</td><td>空き</td><td>RoomFlag packed cave runtimeとGap fix runtimeの間に残す15B空き。</td></tr>
+      <tr><td class="num">0x6889-0x6910</td><td>Gap fix packed cave runtime</td><td><code>$E879-$E900</code>。落下中の横穴侵入安定化runtime 136Bを固定配置。チェックON時だけ <code>$8784</code> hookが <code>JMP $E879</code> を指す。</td></tr>
+      <tr><td class="num">0x6911-0x6928</td><td>空き</td><td>Gap fix packed cave runtime直後の24B空き。次runtimeとの緩衝に残す。</td></tr>
+      <tr><td class="num">0x6929-0x697F</td><td>Wide title PRG0 helpers</td><td><code>$E919-$E96F</code>。旧 <code>$CC4F-$CCA5</code> のwide-title helper本体87Bを集約。bootstrap 28B、title OAM clear helper 7B、ending helper 52B。<code>$CC4F-$CCB5</code> は原作decoderへ戻す。</td></tr>
+      <tr><td class="num">0x6980-0x6997</td><td>空き</td><td>Wide title PRG0 helpers直後の24B空き。次runtimeとの緩衝に残す。</td></tr>
+      <tr><td class="num">0x6998-0x69B8</td><td>mapper66 l_a1 body</td><td><code>$E988-$E9A8</code>。旧 <code>$9975-$9995</code> のmapper66 bank-switch entry本体33Bを集約。旧 <code>$9975</code> は <code>JMP $E988</code> を指す。</td></tr>
+      <tr><td class="num">0x69B9-0x7004</td><td>空き</td><td>mapper66 l_a1 body後の1,612B空き。現時点では本体reserveとは扱わない。</td></tr>
       <tr><td class="num">0x9019-0x904C</td><td>mapper66 respawn direct-cell copy helper</td><td>`$9009` loader helper。死亡後の `$F0-$F3` 白ブロック内one-shotだけを `$F9` へ落とし、通常の茶ブロック内one-shotは従来通り `$90` へ落とす。</td></tr>
       <tr><td class="num">0x904D-0x908F</td><td>Cracked in-block one-shot respawn helper</td><td>`$903D` PRG1 loader helper。死亡後だけ `$0768-$076F` のひび割れ位置リストを見て、描画前に下地セルを `$01` へ戻し、対応mask bitを192セルindexへ変換して消す。</td></tr>
-      <tr><td class="num">0x681C-0x6832</td><td>Transparent Spark Ball Golem-ID AI wrapper</td><td>原作00埋め領域を利用。`$A35C/$A35E` から呼ばれる透明Spark Ball用Golem-ID wrapper。</td></tr>
-      <tr><td class="num">0x6833-0x6882</td><td>Panel Monster v2 Bullet speed tables + fast loop</td><td>Velocity table, extra-step count table, and shared 2x/3x substep loop. Samples <code>$AC39</code> after each extra step and returns on wall collision without entering the stock impact/destruction path.</td></tr>
-      <tr><td class="num">0x68AC-0x68BB</td><td>Panel Variant dynamic speed marker helper</td><td>Panel Variant Bullet speed marker helper. The old speed select helper is inlined here, and marker writes use the shared static marker helper.</td></tr>
-      <tr><td class="num">0x68BC-0x68C3</td><td>Recovered PRG0 emergency reserve</td><td>8B recovered from dynamic speed marker helper compression. Short emergency candidate only.</td></tr>
-      <tr><td class="num">0x68C4-0x68FE</td><td>Panel Variant shared AI wrapper</td><td>A/B/Cとborrowed Panel IDのdirection normalize。現行実体59B。</td></tr>
-      <tr><td class="num">0x697F-0x699E</td><td>Panel Monster v2 Bullet entry tail helper</td><td>`$67D1` entry helperから分岐するminus/plus/speed tail。2-way/3-wayのspread adjustと、`$88-$8B` speed markerのdecode/fast loop呼び出しを置く。</td></tr>
-      <tr><td class="num">0x6FD4-0x7004</td><td>Spark Ball pause hook</td><td>PRG0後半のEA埋め領域を利用。49B。</td></tr>
       <tr><td class="num">0x7005-0x700F</td><td>Solomon Seal block helper</td><td>`$BB90` の紋章セル書き込みから呼ぶ11Bヘルパ。StageExt loader がコピーした `$077D` を見て、原作 `$60` / 茶ブロック内 `$A0` / 白ブロック内 `$E0` を書く。</td></tr>
     </table>
     <h3>PRG0 モジュール別上書き棚卸し</h3>
@@ -164,169 +170,135 @@
     </div>
     <table>
       <tr><th>分類</th><th>モジュール</th><th>file offset</th><th>CPU</th><th>Size</th><th>原作状態</th><th>用途</th></tr>
-      <tr><td>小routine</td><td><code>initial_magic.py</code> / <code>initial_lives.py</code></td><td class="num">0x0BF2-0x0C0D</td><td class="num">$8BE2-$8BFD</td><td class="num">28B</td><td>EA埋め</td><td>開始時魔法数、初期残数。Transparent Spark Ball Golem-ID wrapper は <code>$E80C</code> へ退避済み。</td></tr>
+      <tr><td>小routine</td><td><code>initial_magic.py</code> / <code>initial_lives.py</code></td><td class="num">0x0BF2-0x0C0D</td><td class="num">$8BE2-$8BFD</td><td class="num">28B</td><td>EA埋め</td><td>開始時魔法数、初期残数。旧Transparent Spark Ball Golem-ID wrapper跡は <code>$E80C</code> から <code>$E290</code> へ移動済み。</td></tr>
       <tr><td>小routine</td><td><code>solomon_seal_block.py</code></td><td class="num">0x7005-0x700F</td><td class="num">$EFF5-$EFFF</td><td class="num">11B</td><td>EA埋め</td><td>ソロモンの紋章セル書き込みヘルパ。<code>$077D</code> の部屋別上書き値が0なら原作通り <code>$60</code>、非0ならその値を <code>$0304,Y</code> へ書く。</td></tr>
       <tr><td>既存処理差し替え</td><td><code>m66.py</code></td><td class="num">0x17F5-0x1803</td><td class="num">$97E5-$97F3</td><td class="num">15B</td><td>原作コード</td><td>鍵状態から初期セル値を作る処理。白ブロック内鍵の <code>$C0</code> 状態を <code>$C6</code> に対応させる。</td></tr>
-      <tr><td>既存処理差し替え</td><td><code>spark_ball_variant.py</code></td><td class="num">0x2569-0x257D</td><td class="num">$A559-$A56D</td><td class="num">21B</td><td>原作コード/データ</td><td>Spark Ball property selector。ID判定を圧縮済み。</td></tr>
-      <tr><td>小routine</td><td><code>stage_announcement.py</code></td><td class="num">0x33D0-0x33DC</td><td class="num">$B3C0-$B3CC</td><td class="num">13B</td><td>EA埋め</td><td>開始画面アナウンスの KEY ENEMY gate。</td></tr>
-      <tr><td>bank0 cave</td><td>複数モジュール</td><td class="num">0x3BEE-0x420F</td><td class="num">$BBDE-$C1FF</td><td class="num">1,570B</td><td>00/EA混在</td><td>RoomFlag、強化敵、gap_fix、Key enemy、runtime block override。詳細は bank0 cave 拡大図。</td></tr>
-      <tr><td>小routine</td><td><code>spark_ball_variant.py</code></td><td class="num">0x4FEE-0x5004</td><td class="num">$CFDE-$CFF4</td><td class="num">23B</td><td>EA埋め</td><td>Spark Ball animation hook。ID判定を圧縮済み。</td></tr>
+      <tr><td>既存処理差し替え</td><td><code>m66_expander.py</code></td><td class="num">0x1985-0x1987</td><td class="num">$9975-$9977</td><td class="num">3B</td><td>原作コード</td><td>部屋grid初期化入口を <code>JMP $E988</code> へ変更。旧 <code>$9978-$9995</code> は原作バイトのまま。</td></tr>
+      <tr><td>既存処理差し替え</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x2566-0x2568</td><td class="num">$A556-$A558</td><td class="num">3B</td><td>原作コード</td><td>Panel Monster発射処理入口だけをPanel final fire hookへ変更。後続の原作fire本体 <code>$A559-$A574</code> は残す。</td></tr>
+      <tr><td>空き</td><td><code>stage_announcement.py</code></td><td class="num">0x33D0-0x33DC</td><td class="num">$B3C0-$B3CC</td><td class="num">13B</td><td>EA埋め</td><td>旧開始画面アナウンス KEY ENEMY gate配置候補跡。新規出力ではstage_announcementを書かない。</td></tr>
+      <tr><td>bank0 cave</td><td>複数モジュール</td><td class="num">0x3BEE-0x420F</td><td class="num">$BBDE-$C1FF</td><td class="num">1,570B</td><td>00/EA混在</td><td>強化敵、旧gap_fix/旧RoomFlag候補跡、runtime block override。旧Key/Fairy enemy配置跡は空き候補として拡大図に残す。</td></tr>
+      <tr><td>空き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x4FEE-0x5004</td><td class="num">$CFDE-$CFF4</td><td class="num">23B</td><td>EA埋め</td><td>旧Spark Ball animation hook候補跡。新規出力ではspark_ball_variantを書かない。保存時に掃除しない。</td></tr>
       <tr><td>原作データ</td><td><code>original ROM</code></td><td class="num">0x5BC5-0x5BEE</td><td class="num">$DBB5-$DBDE</td><td class="num">42B</td><td>原作速度テーブル</td><td>Golem/Demonhead などの通常敵も使う共有速度データ。Panel Variant の no-drift 対策としてゼロ化しない。Panel Variant A/B/C 適用時は通常Panel Bulletの左右速度バグ修正として該当4バイトのみ <code>$3F/$41</code> presetへ更新する。</td></tr>
-      <tr><td>小routine</td><td><code>panel_monster_variant.py</code></td><td class="num">0x5BEF-0x5C0A</td><td class="num">$DBDF-$DBFA</td><td class="num">28B</td><td>EA埋め</td><td>Panel/Spark property selector。</td></tr>
-      <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x60CC-0x60D0</td><td class="num">$E0BC-$E0C0</td><td class="num">5B</td><td>00埋め</td><td>開始画面アナウンス mask table。</td></tr>
-      <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x60FC-0x6108 / 0x612C-0x6138 / 0x618C-0x619A / 0x61BC-0x61C8</td><td class="num">$E0EC / $E11C / $E17C / $E1AC</td><td class="num">54B</td><td>00埋め</td><td>DARK ROOM、FIRE LOSS、HIDDEN DOOR、KEY ENEMY scripts。</td></tr>
-      <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x61EC-0x61F7</td><td class="num">$E1DC-$E1E7</td><td class="num">12B</td><td>00埋め</td><td>開始画面アナウンス pointer table。</td></tr>
-      <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x639C-0x63B4 / 0x63CC-0x63E3</td><td class="num">$E38C-$E3A4 / $E3BC-$E3D3</td><td class="num">49B</td><td>00埋め</td><td>draw helper / main routine。</td></tr>
-      <tr><td>00埋め上書き</td><td><code>key_enemy_runtime.py</code></td><td class="num">0x6465-0x6473 / 0x5005-0x500F</td><td class="num">$E455-$E463 / $CFF5-$CFFF</td><td class="num">26B</td><td>00/EA埋め</td><td>Key/Fairy enemy runtime helper。selected key/fairy status value と fall-death key sub-slot compare。</td></tr>
-      <tr><td>00埋め上書き</td><td><code>stage_announcement.py</code></td><td class="num">0x657C-0x658A / 0x66FC-0x670B</td><td class="num">$E56C-$E57A / $E6EC-$E6FB</td><td class="num">31B</td><td>00埋め</td><td>FIRE SEALED、SPELL SEALED scripts。</td></tr>
-      <tr><td>00埋め上書き</td><td><code>room_flags.py</code></td><td class="num">0x675C-0x6773 / 0x678C-0x6797</td><td class="num">$E74C-$E763 / $E77C-$E787</td><td class="num">36B</td><td>00埋め</td><td>Visible item in-block helper。<code>$0750-$0767</code> の24B bitmaskをNMI走査中に破壊的shiftし、maskありセルを <code>$C0+item</code> へ変換する。maskなしの直接 <code>$C0-$F7</code> 白ブロック内アイテムは <code>$80-$B7</code> へ落として2段階破壊にする。</td></tr>
-      <tr><td>00埋め上書き</td><td><code>m66.py</code></td><td class="num">0x62ED-0x62F4 / 0x63FC-0x6403 / 0x6774-0x6789 / 0x6798-0x67A1</td><td class="num">$E2DD-$E2E4 / $E3EC-$E3F3 / $E764-$E779 / $E788-$E791</td><td class="num">48B</td><td>00埋め</td><td>ひび割れブロック内アイテム用の初期描画低値分類ヘルパ。既存の透明ブロック内maskを読み、<code>$40-$7F</code> かつmaskありのセルだけひび割れ表示へ分類する。</td></tr>
-      <tr><td>00埋め上書き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x681C-0x6832</td><td class="num">$E80C-$E822</td><td class="num">23B</td><td>00埋め</td><td>Transparent Spark Ball Golem-ID AI wrapper。旧配置 <code>$8BE2</code> は initial magic / lives と衝突するため使用しない。</td></tr>
-      <tr><td>既存データ断片上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x67A3-0x67B3</td><td class="num">$E793-$E7A3</td><td class="num">17B</td><td>原作データ断片</td><td>Panel Variant parent field clear helper。原作バイトは <code>00 08 21 00 01 00 01 00 01 00 01 00 01 40 01 01 01</code> で、<code>ORIG_FINAL_PARENT_FIELD_CLEAR_HELPER</code> と照合済み。00埋め/空きとして扱わない。</td></tr>
-      <tr><td>既存tail上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x67D1-0x6817</td><td class="num">$E7C1-$E807</td><td class="num">71B</td><td>原作tail data</td><td>Panel Monster v2 Bullet entry helper。<code>$BF69</code> からJMPし、2-way/3-way spread markerとspeed markerを同じ入口で処理する。</td></tr>
-      <tr><td>既存データ断片上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x693C-0x6959</td><td class="num">$E92C-$E949</td><td class="num">30B</td><td>原作データ断片</td><td>Panel Variant A/B/C-only group offset helper。原作バイト末尾に非00値 <code>40 04 00 00 00 01 1C 71 36 D9</code> を含み、<code>ORIG_FINAL_ABC_GROUP_OFFSET_HELPER</code> と照合済み。00埋め/空きとして扱わない。</td></tr>
-      <tr><td>00埋め上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x696C-0x697E</td><td class="num">$E95C-$E96E</td><td class="num">19B</td><td>00埋め</td><td>Panel Variant final AI dispatch helper。原作全00であることと保存ROM上の書き込み結果を照合済み。<code>RESERVED_SPANS</code> 管理下のため空きとして扱わない。</td></tr>
-      <tr><td>既存tail上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x697F-0x699E</td><td class="num">$E96F-$E98E</td><td class="num">32B</td><td>原作tail data</td><td>Panel Monster v2 Bullet entry tail helper。minus/plus位置補正とspeed decode/fast loop tail。</td></tr>
-        <tr><td>既存tail上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x3F7C-0x3F8F</td><td class="num">$BF6C-$BF7F</td><td class="num">20B</td><td>旧Panel Bullet hook本体跡</td><td>Panel Variant type classifier tail。旧配置 <code>$DAB9</code> はSaramandor state-speed tableと重複していたため使用禁止。</td></tr>
-        <tr><td>00埋め上書き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x69D4-0x69DF</td><td class="num">$E9C4-$E9CF</td><td class="num">12B</td><td>00埋め</td><td>Panel Variant final AI dispatch panel tail。<code>room_flags.py</code> の <code>$E77C</code> White in-block runtime extension との重複回避のため移設。</td></tr>
-      <tr><td>小routine</td><td><code>spark_ball_variant.py</code></td><td class="num">0x6FD4-0x7004</td><td class="num">$EFC4-$EFF4</td><td class="num">49B</td><td>EA埋め</td><td>Spark Ball pause hook。ID判定を圧縮済み。</td></tr>
+      <tr><td>空き</td><td><code>panel_monster_variant.py</code></td><td class="num">0x5BEF-0x5C0A</td><td class="num">$DBDF-$DBFA</td><td class="num">28B</td><td>EA埋め</td><td>旧Panel property hook候補跡。現行Panel property hook本体は <code>$E73A</code> へ移動。新規出力では書かない。保存時に掃除しない。</td></tr>
+      <tr><td>小routine</td><td><code>stage_announcement.py</code></td><td class="num">0x6010-0x60B3</td><td class="num">$E000-$E0A3</td><td class="num">164B</td><td>EA埋め</td><td>開始画面アナウンス本体。main / masks / draw helper / pointer table / key gate / scriptsを連続配置する。</td></tr>
+      <tr><td>空き</td><td><code>stage_announcement.py</code></td><td class="num">0x60B4-0x60CB</td><td class="num">$E0A4-$E0BB</td><td class="num">24B</td><td>EA埋め</td><td>開始画面アナウンス直後の空き。stage_announcement本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
+      <tr><td>旧候補跡</td><td><code>stage_announcement.py</code></td><td class="num">0x60CC-0x60D0 / 0x60FC-0x6108 / 0x612C-0x6138 / 0x618C-0x619A / 0x61BC-0x61C8 / 0x639C-0x63B4 / 0x63CC-0x63E3 / 0x657C-0x658A / 0x66FC-0x670B</td><td class="num">$E0BC / $E0EC / $E11C / $E17C / $E1AC / $E38C / $E3BC / $E56C / $E6EC</td><td class="num">151B</td><td>EA埋め</td><td>旧開始画面アナウンス分散配置候補跡。新規出力ではstage_announcementを書かない。先頭側の一部は現行のm66/key_enemy_runtime連続配置で再利用済み。</td></tr>
+      <tr><td>小routine</td><td><code>key_enemy_runtime.py</code></td><td class="num">0x610E-0x622B</td><td class="num">$E0FE-$E21B</td><td class="num">286B</td><td>EA埋め</td><td>Key/Fairy enemy runtimeを1ブロックへ集約。初期slot bind、status writer、defeat dropper、door-light、pickup tile recorder、dropped-key handler、fall-death handler、fall-slot compareを含む。</td></tr>
+      <tr><td>空き</td><td><code>key_enemy_runtime.py</code></td><td class="num">0x622C-0x6243</td><td class="num">$E21C-$E233</td><td class="num">24B</td><td>EA埋め</td><td>Key/Fairy enemy runtime直後の空き。key_enemy_runtime本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
+      <tr><td>空き</td><td><code>key_enemy_runtime.py</code></td><td class="num">0x6465-0x6473 / 0x5005-0x500F</td><td class="num">$E455-$E463 / $CFF5-$CFFF</td><td class="num">26B</td><td>00/EA埋め</td><td>旧Key/Fairy enemy runtime小断片候補跡。新規出力ではkey_enemy_runtimeを書かない。保存時に掃除しない。</td></tr>
+      <tr><td>小routine</td><td><code>room_flags.py</code></td><td class="num">0x6244-0x6267</td><td class="num">$E234-$E257</td><td class="num">36B</td><td>EA埋め</td><td>Visible item in-block helperを1ブロックへ集約。<code>$0750-$0767</code> の24B bitmaskをNMI走査中に破壊的shiftし、maskありセルを <code>$C0+item</code> へ変換する。maskなしの直接 <code>$C0-$F7</code> 白ブロック内アイテムは <code>$80-$B7</code> へ落として2段階破壊にする。</td></tr>
+      <tr><td>空き</td><td><code>room_flags.py</code></td><td class="num">0x6268-0x627F</td><td class="num">$E258-$E26F</td><td class="num">24B</td><td>EA埋め</td><td>Visible item in-block runtime直後の空き。room_flags.py本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
+      <tr><td>小routine</td><td><code>m66.py</code></td><td class="num">0x60CC-0x60F5</td><td class="num">$E0BC-$E0E5</td><td class="num">42B</td><td>EA埋め</td><td>ひび割れブロック内アイテム用の初期描画低値分類helper。旧4断片の遠距離JMPを外し、table <code>01 02 04 08 10 20 40 80</code> を同一ブロック末尾に置く。</td></tr>
+      <tr><td>空き</td><td><code>m66.py</code></td><td class="num">0x60F6-0x610D</td><td class="num">$E0E6-$E0FD</td><td class="num">24B</td><td>EA埋め</td><td>Initial draw low classifier直後の空き。m66.py本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
+      <tr><td>空き</td><td><code>m66.py</code></td><td class="num">0x62ED-0x62F4 / 0x63FC-0x6403</td><td class="num">$E2DD-$E2E4 / $E3EC-$E3F3</td><td class="num">16B</td><td>00埋め</td><td>旧Initial draw low classifier分散配置候補跡。旧0x67xx側は現行Panel Variant block/RoomFlag packed runtime側で再利用済み。新規出力ではm66.pyを書かない。保存時に掃除しない。</td></tr>
+      <tr><td>小routine</td><td><code>spark_ball_variant.py</code></td><td class="num">0x6280-0x633E</td><td class="num">$E270-$E32E</td><td class="num">191B</td><td>EA埋め</td><td>Spark Ball追加routineを1ブロックへ集約。Dragon slow/fast AI、transparent Golem AI、pause hook、property selector、animation hook/setter、transparent OAM hideを含む。</td></tr>
+      <tr><td>空き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x633F-0x6341</td><td class="num">$E32F-$E331</td><td class="num">3B</td><td>EA埋め</td><td>Spark Ball runtime直後の残り空き。</td></tr>
+      <tr><td>小routine</td><td><code>final_stage_redirect.py</code></td><td class="num">0x6342-0x634E</td><td class="num">$E332-$E33E</td><td class="num">13B</td><td>EA埋め</td><td>最終面リダイレクトruntimeをbank0 cave側 <code>$BD18</code> から移動。<code>$077A</code> bit7を見て、クリア後の次ステージ番号 <code>$0428</code> を原作最終面へ差し替える。</td></tr>
+      <tr><td>空き</td><td><code>final_stage_redirect.py</code></td><td class="num">0x634F-0x6366</td><td class="num">$E33F-$E356</td><td class="num">24B</td><td>EA埋め</td><td>Final-stage redirect直後の空き。final_stage_redirect本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
+      <tr><td>小routine</td><td><code>gargoyle_variant.py</code></td><td class="num">0x6367-0x63C0</td><td class="num">$E357-$E3B0</td><td class="num">90B</td><td>EA埋め</td><td>強化ガーゴイルruntimeを1ブロックへ集約。materialize gate、cooldown gate、cooldown tailを含む。<code>$AE6F</code> と <code>$AE48</code> のhook先。</td></tr>
+      <tr><td>空き</td><td><code>gargoyle_variant.py</code></td><td class="num">0x63C1-0x63D8</td><td class="num">$E3B1-$E3C8</td><td class="num">24B</td><td>EA埋め</td><td>Gargoyle runtime直後の空き。gargoyle_variant本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
+      <tr><td>小routine</td><td><code>saramandor_variant.py</code></td><td class="num">0x63D9-0x647D</td><td class="num">$E3C9-$E46D</td><td class="num">165B</td><td>EA埋め</td><td>Saramandor #2 Bullet variant runtimeを1ブロックへ集約。spawn setup、substatus、flame behavior、distance checkを含む。<code>$B105</code>、<code>$B0A9</code>、<code>$B0C6</code>、<code>$B1E9</code> のhook先。</td></tr>
+      <tr><td>空き</td><td><code>saramandor_variant.py</code></td><td class="num">0x647E-0x6495</td><td class="num">$E46E-$E485</td><td class="num">24B</td><td>EA埋め</td><td>Saramandor runtime直後の空き。saramandor_variant本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
+      <tr><td>小routine</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x6496-0x677F</td><td class="num">$E486-$E76F</td><td class="num">746B</td><td>EA埋め</td><td>Panel Variant final runtimeブロック。A/B/C finalの速度、AI、弾、classifier、marker、property/animation hook本体を含む。</td></tr>
+      <tr><td>空き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x6780-0x6797</td><td class="num">$E770-$E787</td><td class="num">24B</td><td>EA埋め</td><td>Panel Variant final runtime直後の空き。panel_monster_stage_variant本体reserveとは扱わず、次runtimeとの緩衝に残す。</td></tr>
+      <tr><td>小routine</td><td><code>room_flags.py</code></td><td class="num">0x6798-0x6870</td><td class="num">$E788-$E860</td><td class="num">217B</td><td>EA埋め</td><td>RoomFlag cave runtimeを集約。LOADER 46B、MAGICGATE 34B、DOORPREDRAW 11B、DARK 56B、tempo 2B、special-cell scanner 68B。</td></tr>
+      <tr><td>小routine</td><td><code>title_screen.py</code></td><td class="num">0x6871-0x6879</td><td class="num">$E861-$E869</td><td class="num">9B</td><td>EA埋め</td><td>Wide title idle-demo cleanup。<code>$CB9E</code> のtimeout-only pathから呼ばれ、<code>$E935</code> のwide-title clear helper後に原作action <code>$18</code> を予約する。</td></tr>
+      <tr><td>空き</td><td><code>room_flags.py</code></td><td class="num">0x687A-0x6888</td><td class="num">$E86A-$E878</td><td class="num">15B</td><td>EA埋め</td><td>RoomFlag packed cave runtimeとGap fix runtimeの間に残す空き。</td></tr>
+      <tr><td>小routine</td><td><code>gap_fix.py</code></td><td class="num">0x6889-0x6910</td><td class="num">$E879-$E900</td><td class="num">136B</td><td>EA埋め</td><td>落下中の横穴侵入安定化runtimeを固定配置。チェックON時だけ <code>$8784</code> hookは <code>JMP $E879</code> を指し、OFF時は原作命令に戻す。</td></tr>
+      <tr><td>空き</td><td><code>gap_fix.py</code></td><td class="num">0x6911-0x6928</td><td class="num">$E901-$E918</td><td class="num">24B</td><td>EA埋め</td><td>Gap fix packed cave runtime直後の空き。次runtimeとの緩衝に残す。</td></tr>
+      <tr><td>小routine</td><td><code>title_screen.py</code></td><td class="num">0x6929-0x697F</td><td class="num">$E919-$E96F</td><td class="num">87B</td><td>EA埋め</td><td>Wide title PRG0 helpers。bootstrap <code>$E919-$E934</code>、title OAM clear helper <code>$E935-$E93B</code>、ending helper <code>$E93C-$E96F</code>。<code>$CCC1/$CD8B</code> は <code>JSR $E919</code>、<code>$CBB3/$E861</code> は <code>JSR $E935</code>、<code>$B709</code> は <code>JSR $E93C</code> を指す。</td></tr>
+      <tr><td>空き</td><td><code>title_screen.py</code></td><td class="num">0x6980-0x6997</td><td class="num">$E970-$E987</td><td class="num">24B</td><td>EA埋め</td><td>Wide title PRG0 helpers直後の空き。次runtimeとの緩衝に残す。</td></tr>
+      <tr><td>小routine</td><td><code>m66_expander.py</code></td><td class="num">0x6998-0x69B8</td><td class="num">$E988-$E9A8</td><td class="num">33B</td><td>EA埋め</td><td>mapper66 l_a1 body。RAM <code>$07D0</code> へbank-switch stubをコピーし、PRG1 loader <code>$8001</code> を呼んでPRG0へ戻る。旧 <code>$9975</code> は <code>JMP $E988</code>。</td></tr>
+      <tr><td>空き</td><td><code>m66_expander.py</code></td><td class="num">0x69B9-0x7004</td><td class="num">$E9A9-$EFF4</td><td class="num">1,612B</td><td>EA埋め</td><td>mapper66 l_a1 body後の空き。m66_expander.py本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
+      <tr><td>空き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x4FEE-0x5004 / 0x3EFA-0x3F02 / 0x3ED7-0x3EF8 / 0x3FE8-0x3FF7 / 0x3D36-0x3D45</td><td class="num">mixed</td><td class="num">98B</td><td>00/EA埋め</td><td>旧Spark Ball追加routine候補跡。4096B末尾側の旧候補跡はRoomFlag移動後の大きな空きに統合して扱う。新規出力ではspark_ball_variantを書かない。保存時に掃除しない。</td></tr>
+      <tr><td>空き</td><td><code>final_stage_redirect.py</code></td><td class="num">0x3D28-0x3D34</td><td class="num">$BD18-$BD24</td><td class="num">13B</td><td>EA埋め</td><td>旧Final-stage redirect runtime候補跡。新規出力ではfinal_stage_redirectを書かない。保存時に掃除しない。</td></tr>
+      <tr><td>空き</td><td><code>gargoyle_variant.py</code></td><td class="num">0x3D0B-0x3D26 / 0x3D4B-0x3D88</td><td class="num">$BCFB-$BD16 / $BD3B-$BD78</td><td class="num">90B</td><td>00/EA埋め</td><td>旧Gargoyle追加routine候補跡。新規出力ではgargoyle_variantを書かない。保存時に掃除しない。</td></tr>
+      <tr><td>空き</td><td><code>saramandor_variant.py</code></td><td class="num">0x3E10-0x3E3E / 0x3E50-0x3E71 / 0x3E90-0x3EA3 / 0x3F10-0x3F4F</td><td class="num">$BE00-$BE2E / $BE40-$BE61 / $BE80-$BE93 / $BF00-$BF3F</td><td class="num">165B</td><td>00/EA埋め</td><td>旧Saramandor追加routine候補跡。新規出力ではsaramandor_variantを書かない。保存時に掃除しない。</td></tr>
+      <tr><td>旧候補跡</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x68AC-0x68BB / 0x68C4-0x68FE / 0x693C-0x6959 / 0x696C-0x699E / 0x69D4-0x69DF</td><td class="num">mixed</td><td class="num">mixed</td><td>mixed/00</td><td>旧Panel Variant final runtime分散候補跡。現行では一部をGap fix runtimeとWide title PRG0 helpersが再利用済み。空き容量としては4096B連続表の現行予約を正とする。</td></tr>
+        <tr><td>空き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x3F7C-0x3F8F</td><td class="num">$BF6C-$BF7F</td><td class="num">20B</td><td>旧Panel Bullet hook本体跡</td><td>旧Panel Variant type classifier tail候補跡。現行A/B/C final runtimeは <code>$E486-$E76F</code> へ移動。新規出力ではpanel_monster_stage_variantを書かない。保存時に掃除しない。</td></tr>
     </table>
   </div>
 
-  <h2>3. bank0 cave 拡大図</h2>
+  <h2>3. 4096B runtime layout</h2>
   <div class="map">
-    <h3>file 0x3BEE-0x420F / CPU $BBDE-$C1FF / 1,570B</h3>
+    <h3>file 0x6010-0x700F / CPU $E000-$EFFF / 4,096B</h3>
     <div class="bar zoom">
-      <div class="seg free" style="width:.13%"></div>
-      <div class="seg cave" style="width:2.93%">LOADER<br><small>46B</small></div>
-      <div class="seg hook" style="width:.57%">title demo</div>
-      <div class="seg free" style="width:1.15%"></div>
-      <div class="seg cave" style="width:2.17%">MAGIC<br><small>34B</small></div>
-      <div class="seg free" style="width:.89%"></div>
-      <div class="seg cave" style="width:.70%">DOOR</div>
-      <div class="seg cave" style="width:2.29%">PM AI</div>
-      <div class="seg free" style="width:.06%"></div>
-      <div class="seg cave" style="width:3.57%">DARK<br><small>56B</small></div>
-      <div class="seg free" style="width:1.66%"></div>
-      <div class="seg cave" style="width:1.97%">PM dispatch</div>
-      <div class="seg free" style="width:.96%"></div>
-      <div class="seg cave" style="width:2.42%">Gargoyle</div>
-      <div class="seg hook" style="width:1.34%">Spark fast</div>
-      <div class="seg free" style="width:.32%"></div>
-      <div class="seg cave" style="width:4.59%">Gargoyle body</div>
-      <div class="seg cave" style="width:7.64%">PM fire</div>
-      <div class="seg cave" style="width:2.99%">Saram</div>
-      <div class="seg free" style="width:1.08%"></div>
-      <div class="seg hook" style="width:1.59%">PV interval</div>
-      <div class="seg free" style="width:.32%"></div>
-      <div class="seg cave" style="width:1.27%">Saram</div>
-      <div class="seg free" style="width:.76%"></div>
-      <div class="seg cave" style="width:1.40%">Saram</div>
-      <div class="seg free" style="width:.64%"></div>
-      <div class="seg cave" style="width:2.68%">Saram</div>
-      <div class="seg hook" style="width:.57%">Spark set</div>
-      <div class="seg free" style="width:.83%"></div>
-      <div class="seg cave" style="width:4.08%">Saram range</div>
-      <div class="seg free" style="width:1.02%"></div>
-      <div class="seg free" style="width:1.59%"></div>
-      <div class="seg cave" style="width:4.97%">PM bullet</div>
-      <div class="seg free" style="width:2.10%"></div>
-      <div class="seg hook" style="width:1.34%">Spark slow</div>
-      <div class="seg free" style="width:1.21%"></div>
-      <div class="seg cave" style="width:8.66%">gap_fix</div>
-      <div class="seg hook" style="width:3.70%">PV speed</div>
-      <div class="seg cave" style="width:2.93%">PM anim</div>
-      <div class="seg cave" style="width:4.27%">special cell</div>
-      <div class="seg hook" style="width:1.21%">PV dispatch</div>
-      <div class="seg cave" style="width:3.63%">PM Demon</div>
-      <div class="seg free" style="width:.06%"></div>
-      <div class="seg cave" style="width:5.48%">key pickup</div>
-      <div class="seg cave" style="width:2.68%">key binder</div>
+      <div class="seg hook" style="width:4.00%">stage announce<br><small>164B</small></div>
+      <div class="seg free" style="width:.59%">24B</div>
+      <div class="seg hook" style="width:1.03%">draw<br><small>42B</small></div>
+      <div class="seg free" style="width:.59%">24B</div>
+      <div class="seg hook" style="width:6.98%">key/fairy<br><small>286B</small></div>
+      <div class="seg free" style="width:.59%">24B</div>
+      <div class="seg hook" style="width:.88%">item<br><small>36B</small></div>
+      <div class="seg free" style="width:.59%">24B</div>
+      <div class="seg hook" style="width:4.66%">spark<br><small>191B</small></div>
+      <div class="seg free" style="width:.07%"><span class="tiny">3B</span></div>
+      <div class="seg hook" style="width:.32%"><span class="tiny">final</span></div>
+      <div class="seg free" style="width:.59%">24B</div>
+      <div class="seg hook" style="width:2.20%">garg<br><small>90B</small></div>
+      <div class="seg free" style="width:.59%">24B</div>
+      <div class="seg hook" style="width:4.03%">saram<br><small>165B</small></div>
+      <div class="seg free" style="width:.59%">24B</div>
+      <div class="seg hook" style="width:18.21%">Panel final<br><small>746B</small></div>
+      <div class="seg free" style="width:.59%">24B</div>
+      <div class="seg hook" style="width:5.30%">RoomFlag<br><small>217B</small></div>
+      <div class="seg hook" style="width:.22%"><span class="tiny">title</span></div>
+      <div class="seg free" style="width:.37%"><span class="tiny">15B</span></div>
+      <div class="seg hook" style="width:3.32%">gap fix<br><small>136B</small></div>
+      <div class="seg free" style="width:.59%">24B</div>
+      <div class="seg hook" style="width:2.12%">wide title<br><small>87B</small></div>
+      <div class="seg free" style="width:.59%">24B</div>
+      <div class="seg hook" style="width:.81%">l_a1<br><small>33B</small></div>
+      <div class="seg free" style="width:39.36%">free<br><small>1,612B</small></div>
+      <div class="seg hook" style="width:.27%"><span class="tiny">seal</span></div>
     </div>
-    <div class="labels"><span>$BBDE</span><span>$BD00</span><span>$BE00</span><span>$BF00</span><span>$C000</span><span>$C100</span><span>$C1FF</span></div>
+    <div class="labels"><span>$E000</span><span>$E200</span><span>$E400</span><span>$E600</span><span>$E800</span><span>$EA00</span><span>$EC00</span><span>$EE00</span><span>$EFFF</span></div>
     <div class="note">
-      <b>棚卸メモ:</b> 2026-06-20 現行production予約スパン検査では、bank0 cave <code>$BBDE-$C1FF</code> 1,570B のうち未予約47B。Final-stage redirect runtimeで13B使用後の断片合計。Panel Variant final split runtime と Panel Monster / Variant animation hook はproduction予約として含める。
-      実装側の許容スパン上は <code>0x4190-0x420D</code> が expanded table span と key enemy で重複するため、空き計算は重複を二重加算しない union で扱う。
+      <b>4096B runtime block:</b>
+      This is the current PRG0 runtime aggregation area.
+      The old bank0 cave zoom map was removed because it no longer represents the active runtime placement.
     </div>
-    <div class="note">
-      <b>Panel Variant final placement:</b>
-      過去prototypeの <code>0x3C6B-0x3CA9</code>, <code>0x3D52-0x3D90</code>, <code>0x4098-0x40BD</code> 直置き案は使わない。
-      現行は既存Panel系routine置換と小断片配置で分割し、<code>panel_monster_stage_variant.RESERVED_SPANS</code> を正とする。
-    </div>
-    <h3>bank0 cave 未予約ギャップ</h3>
     <table>
-      <tr><th>file offset</th><th>CPU</th><th>Size</th><th>扱い</th></tr>
-      <tr><td class="num">0x3BEE-0x3BEF</td><td class="num">$BBDE-$BBDF</td><td class="num">2B</td><td>原作00埋め。断片。基本は埋め草用。</td></tr>
-      <tr><td class="num">0x3C2E-0x3C2F</td><td class="num">$BC1E-$BC1F</td><td class="num">2B</td><td>原作EA埋め。MAGICGATE直前の断片。</td></tr>
-      <tr><td class="num">0x3C58-0x3C5F</td><td class="num">$BC48-$BC4F</td><td class="num">8B</td><td>Key/Fairy enemy status writerの予約縮小で回収。DOORPREDRAW直前の短い断片。</td></tr>
-      <tr><td class="num">0x3C8F</td><td class="num">$BC7F</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num">0x3CDE-0x3CDF</td><td class="num">$BCCE-$BCCF</td><td class="num">2B</td><td>Key enemy fall-death handlerの予約縮小で回収。Dark tempo直前の断片。</td></tr>
-      <tr><td class="num">0x3D35</td><td class="num">$BD25</td><td class="num">1B</td><td>Final-stage redirect runtime配置後の残り断片。</td></tr>
-      <tr><td class="num">0x3D46-0x3D4A</td><td class="num">$BD36-$BD3A</td><td class="num">5B</td><td>原作EA埋め。Spark Ball fast AI wrapperのID判定圧縮で回収。直後はGargoyle slow-Bullet gate。</td></tr>
-      <tr><td class="num">0x3D97</td><td class="num">$BD87</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num">0x3E0A-0x3E0F</td><td class="num">$BDFA-$BDFF</td><td class="num">6B</td><td>Panel Monster v2 final common fire loopの実予約が114Bであるため回収。短い非常用候補。</td></tr>
-      <tr><td class="num">0x3E4D-0x3E4F</td><td class="num">$BE3D-$BE3F</td><td class="num">3B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num">0x3E8E-0x3E8F</td><td class="num">$BE7E-$BE7F</td><td class="num">2B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num">0x3EB7-0x3EBB</td><td class="num">$BEA7-$BEAB</td><td class="num">5B</td><td>Panel Variant group RAM offset helper圧縮で回収。短い非常用候補。</td></tr>
-      <tr><td class="num">0x3ECD-0x3ED3</td><td class="num">$BEBD-$BEC3</td><td class="num">7B</td><td>Panel Monster speed select helper撤去で回収。短い非常用候補。</td></tr>
-      <tr><td class="num">0x3EF9</td><td class="num">$BEE9</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num">0x3FC7-0x3FC9</td><td class="num">$BFB7-$BFB9</td><td class="num">3B</td><td>旧Panel Monster Bullet hook slotの予約縮小で回収。Panel type classifier直前の断片。</td></tr>
-      <tr><td class="num">0x3FF8-0x3FFC</td><td class="num">$BFE8-$BFEC</td><td class="num">5B</td><td>原作EA埋め。Spark Ball slow AI wrapperのID判定圧縮で回収。直後はkey enemy chunk。</td></tr>
-      <tr><td class="num">0x400F</td><td class="num">$BFFF</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num">0x414F-0x4152</td><td class="num">$C13F-$C142</td><td class="num">4B</td><td>Panel Monster fire marker table移動後の残り。短い非常用候補。</td></tr>
-      <tr><td class="num">0x418F</td><td class="num">$C17F</td><td class="num">1B</td><td>原作EA埋め。断片。</td></tr>
-      <tr><td class="num"><b>合計</b></td><td class="num">-</td><td class="num"><b>47B</b></td><td>現行production予約とPanel Variant tail予約を除いた合計。Final-stage redirect runtimeで13B使用後の断片合計。</td></tr>
+      <tr><th>Range</th><th>CPU</th><th>Size</th><th>Use</th></tr>
+      <tr><td class="num">0x6010-0x60B3</td><td class="num">$E000-$E0A3</td><td class="num">164B</td><td>Stage start announcement</td></tr>
+      <tr><td class="num">0x60CC-0x60F5</td><td class="num">$E0BC-$E0E5</td><td class="num">42B</td><td>Initial draw low classifier</td></tr>
+      <tr><td class="num">0x610E-0x622B</td><td class="num">$E0FE-$E21B</td><td class="num">286B</td><td>Key/Fairy enemy runtime</td></tr>
+      <tr><td class="num">0x6244-0x6267</td><td class="num">$E234-$E257</td><td class="num">36B</td><td>Visible item in-block helper</td></tr>
+      <tr><td class="num">0x6280-0x633E</td><td class="num">$E270-$E32E</td><td class="num">191B</td><td>Spark Ball runtime</td></tr>
+      <tr><td class="num">0x6342-0x634E</td><td class="num">$E332-$E33E</td><td class="num">13B</td><td>Final-stage redirect</td></tr>
+      <tr><td class="num">0x6367-0x63C0</td><td class="num">$E357-$E3B0</td><td class="num">90B</td><td>Gargoyle runtime</td></tr>
+      <tr><td class="num">0x63D9-0x647D</td><td class="num">$E3C9-$E46D</td><td class="num">165B</td><td>Saramandor runtime</td></tr>
+      <tr><td class="num">0x6496-0x677F</td><td class="num">$E486-$E76F</td><td class="num">746B</td><td>Panel Variant final runtime</td></tr>
+      <tr><td class="num">0x6798-0x6870</td><td class="num">$E788-$E860</td><td class="num">217B</td><td>RoomFlag packed cave runtime</td></tr>
+      <tr><td class="num">0x6871-0x6879</td><td class="num">$E861-$E869</td><td class="num">9B</td><td>Wide title idle-demo cleanup</td></tr>
+      <tr><td class="num">0x6889-0x6910</td><td class="num">$E879-$E900</td><td class="num">136B</td><td>Gap fix runtime</td></tr>
+      <tr><td class="num">0x6929-0x697F</td><td class="num">$E919-$E96F</td><td class="num">87B</td><td>Wide title PRG0 helpers</td></tr>
+      <tr><td class="num">0x6998-0x69B8</td><td class="num">$E988-$E9A8</td><td class="num">33B</td><td>mapper66 l_a1 body</td></tr>
+      <tr><td class="num">0x69B9-0x7004</td><td class="num">$E9A9-$EFF4</td><td class="num">1,612B</td><td>Free</td></tr>
+      <tr><td class="num">0x7005-0x700F</td><td class="num">$EFF5-$EFFF</td><td class="num">11B</td><td>Solomon Seal block helper</td></tr>
     </table>
+    <h3>4096B outside legacy EA suppressions</h3>
+    <div class="note">
+      <b>現物差分確認メモ:</b>
+      The ranges below are outside the 4096B runtime block, but they are not leftover added runtime bodies.
+      They are short suppressions of old stock-side behavior that would otherwise run twice or overwrite the mapper66/wide-title result.
+      When checking a generated ROM against the original JP ROM, treat these as intentional legacy-stop sites.
+    </div>
     <table>
-      <tr><th>用途</th><th>file offset</th><th>CPU</th><th>Size</th><th>備考</th></tr>
-      <tr><td>LOADER</td><td class="num">0x3BF0-0x3C1D</td><td class="num">$BBE0-$BC0D</td><td class="num">46B</td><td>Room flag loader. bit0/bit1 の2bit扉状態で扉セルへ $40/$80/$C0 を付与し、bit4 で持ち越しファイヤー `$042E/$042F` を消してHUDを再描画する。この範囲は原作JPの Level 30 Blue Opal bitmap <code>0x3BDA-0x3BF1</code> 末尾2Bと重なるため、mapper66保存時はStage 30のSP2 bitmap配置呼び出しを無効化済みであることが前提。</td></tr>
-      <tr><td>Wide title idle-demo cleanup</td><td class="num">0x3C1E-0x3C26</td><td class="num">$BC0E-$BC16</td><td class="num">9B</td><td>Title timeout-only stub: `JSR $CC6B`, then schedules the original action `$18`. Stops stale wide-title nametable/title OAM from flashing during attract-demo startup without touching the shared action table.</td></tr>
-      <tr><td>Wide title OAM clear helper</td><td class="num">0x4C7B-0x4C81</td><td class="num">$CC6B-$CC71</td><td class="num">7B</td><td>Wide-title-owned title-code helper. This is not free cave space: after wide-title normalization, `$CC4F-$CC6A` is replaced by the 28B bootstrap, so the following stock title drawing code body `$CC6B-$CCB5` is dead/owned by wide-title. This helper runs the stock title clear at `$CC18`, then calls the original all-main-slot clear helper `$CB5A`. Manual Start at `$CBB3` and idle-demo cleanup at `$BC0E` call this helper. Generic PRG0 cave, NMI hook, and DARK area usage: 0B.</td></tr>
-      <tr><td>Wide title ending draw hook</td><td class="num">0x3719-0x371B / 0x4C82-0x4CB5</td><td class="num">$B709-$B70B / $CC72-$CCA5</td><td class="num">3B + 52B</td><td>Ending-only split. The original ending call now jumps to a title-independent PRG1 renderer, returns to bank0, then runs the stock `$965F` PPU restore path. Title editable streams and title attribute-table suppression do not affect the ending screen.</td></tr>
-      <tr><td>Key enemy item-tile recorder</td><td class="num">0x3C27-0x3C2D</td><td class="num">$BC17-$BC1D</td><td class="num">7B</td><td>Key enemy runtime helper used by the dropped-key path. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
-      <tr><td>MAGICGATE</td><td class="num">0x3C30-0x3C51</td><td class="num">$BC20-$BC41</td><td class="num">34B</td><td>A/B magic gate restrictions.</td></tr>
-      <tr><td>Key/Fairy enemy status writer</td><td class="num">0x3C52-0x3C57</td><td class="num">$BC42-$BC47</td><td class="num">6B</td><td>Small writer stub for selected key/fairy enemy status. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
-      <tr><td>DOORPREDRAW</td><td class="num">0x3C60-0x3C6A</td><td class="num">$BC50-$BC5A</td><td class="num">11B</td><td>Hidden / brown in-block / white in-block door redraw guard.</td></tr>
-      <tr><td>Panel Monster Saramandor-ID AI wrapper</td><td class="num">0x3C6B-0x3C8E</td><td class="num">$BC5B-$BC7E</td><td class="num">36B</td><td>Panel Monster borrowed-ID routing.</td></tr>
-      <tr><td>DARK cave</td><td class="num">0x3C90-0x3CC7</td><td class="num">$BC80-$BCB7</td><td class="num">56B</td><td>Dark-room flashing logic.</td></tr>
-      <tr><td>Key/Fairy enemy fall-death handler</td><td class="num">0x3CC8-0x3CDD</td><td class="num">$BCB8-$BCCD</td><td class="num">22B</td><td>Key drop diversion only when the falling enemy is the selected key carrier; otherwise preserves the original fairy replacement. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
-      <tr><td>Dark tempo bytes</td><td class="num">0x3CE0-0x3CE1</td><td class="num">$BCD0-$BCD1</td><td class="num">2B</td><td>Global dark-room tempo bytes `[LIGHT, PERIOD]`. Reserved by `room_flags.TEMPO`.</td></tr>
-      <tr><td>Panel Monster fire dispatch</td><td class="num">0x3CE2-0x3D0A</td><td class="num">$BCD2-$BCFA</td><td class="num">41B</td><td>Normal / 2-way / 3-way / A/B/C fire dispatch. Absorbs the old 3B stage tail and 15B stage helper, reducing reserved PRG0 bytes by 8B.</td></tr>
-      <tr><td>Gargoyle enhanced cooldown gate</td><td class="num">0x3D0B-0x3D26</td><td class="num">$BCFB-$BD16</td><td class="num">28B</td><td>`$AE48` の発射後クールダウン比較を分岐。通常ガーゴイルは既存設定値、`$7A/$7B` はUI設定値、`$7E/$7F` は0F固定で扱う。通常側は範囲外JMPで `$AEC1` へ戻し、相対分岐距離の制限を避ける。</td></tr>
-      <tr><td>空き</td><td class="num">0x3D27</td><td class="num">$BD17</td><td class="num">1B</td><td>旧Gargoyle gate末尾の残り断片。</td></tr>
-      <tr><td>Final-stage redirect</td><td class="num">0x3D28-0x3D34</td><td class="num">$BD18-$BD24</td><td class="num">13B</td><td>StageExt byte0 bit4を部屋ロード時に <code>$077A</code> bit7へコピーし、クリア処理で立っていれば次ステージ番号 <code>$0428</code> を原作最終面 <code>$31</code> へ差し替える。Reserved through <code>final_stage_redirect.RESERVED_SPANS</code>.</td></tr>
-      <tr><td>Spark Ball fast AI wrapper</td><td class="num">0x3D36-0x3D45</td><td class="num">$BD26-$BD35</td><td class="num">16B</td><td>Relocated out of gap_fix range. ID判定を <code>AND #$FE</code> で圧縮済み。</td></tr>
-      <tr><td>Gargoyle slow-Bullet gate</td><td class="num">0x3D4B-0x3D7E</td><td class="num">$BD3B-$BD6E</td><td class="num">52B</td><td>全ガーゴイルで原作通り1発だけBulletを生成し、通常IDは子sub-slot[7]へ `$00`、`$7A/$7B` と `$7E/$7F` はUI設定に応じた速度マーカー `$88-$8B` を書く。sub-slot再利用時のマーカー残留を防ぐ。</td></tr>
-      <tr><td>Gargoyle enhanced cooldown tail</td><td class="num">0x3D7F-0x3D88</td><td class="num">$BD6F-$BD78</td><td class="num">10B</td><td>`$7A/$7B` のUI設定クールダウン比較と、クールダウン未到達時の原作return先。`$7E/$7F` は0F固定。</td></tr>
-      <tr><td>空き</td><td class="num">0x3D89-0x3D96</td><td class="num">$BD79-$BD86</td><td class="num">14B</td><td>旧Gargoyle 2-shot body末尾の残り断片。</td></tr>
-      <tr><td>Panel Monster common fire loop</td><td class="num">0x3D98-0x3E09</td><td class="num">$BD88-$BDF9</td><td class="num">114B</td><td>Panel Monster v2 final shared normal / 2-way / 3-way fire routine. Entry points: normal <code>$BD88</code>, 3-way <code>$BD8C</code>, 2-way <code>$BD90</code>. The former tail <code>$BDFA-$BDFF</code> is tracked as free.</td></tr>
-      <tr><td>Saramandor variant caves</td><td class="num">0x3E10-0x3E3E / 0x3E50-0x3E71 / 0x3E90-0x3EA3 / 0x3F10-0x3F4F</td><td class="num">$BE00-$BE2E / $BE40-$BE61 / $BE80-$BE93 / $BF00-$BF3F</td><td class="num">165B</td><td>Spawn, substatus, flame-behavior, and #2-only distance-check helpers. `$5E/$5F/$62/$63` all use normal Bullet speed and X reaction threshold `$60`.</td></tr>
-      <tr><td>Key enemy defeat entry</td><td class="num">0x3E3F-0x3E4C</td><td class="num">$BE2F-$BE3C</td><td class="num">14B</td><td>Relocated key-enemy defeat filter. Falls through to split chunks only for the selected key carrier.</td></tr>
-      <tr><td>Panel Variant state0 interval helper</td><td class="num">0x3E72-0x3E83</td><td class="num">$BE62-$BE73</td><td class="num">18B</td><td>発射間隔比較。A/B/C-only group offset helperを経由し、A/B/C以外は原作比較へ戻す。</td></tr>
-      <tr><td>Key enemy defeat chunk</td><td class="num">0x3E84-0x3E8D</td><td class="num">$BE74-$BE7D</td><td class="num">10B</td><td>Split key dropper chunk.</td></tr>
-      <tr><td>Spark Ball animation setter</td><td class="num">0x3EFA-0x3F02</td><td class="num">$BEEA-$BEF2</td><td class="num">9B</td><td>Helper used by animation hook.</td></tr>
-      <tr><td>Key enemy defeat chunks</td><td class="num">0x3EA4-0x3EAE / 0x3EC6-0x3ECC / 0x3F03-0x3F0F / 0x3FFD-0x400E</td><td class="num">$BE94 / $BEB6 / $BEF3 / $BFED</td><td class="num">49B</td><td>Split key dropper chunks placed in small verified gaps to avoid `gap_fix`.</td></tr>
-      <tr><td>Panel Variant group RAM offset helper</td><td class="num">0x3EAF-0x3EB6</td><td class="num">$BE9F-$BEA6</td><td class="num">8B</td><td>A/B/C group offset helperを呼び、state0 interval helperとdynamic marker helperへX offsetを渡す。</td></tr>
-      <tr><td>Spark Ball OAM hide hook</td><td class="num">0x3ED7-0x3EF8</td><td class="num">$BEC7-$BEE8</td><td class="num">34B</td><td>Transparent Spark Ball OAM post-draw hide hook. This is not free space.</td></tr>
-      <tr><td>Panel Variant static marker helper</td><td class="num">0x3F50-0x3F5B</td><td class="num">$BF40-$BF4B</td><td class="num">12B</td><td>原作EA埋めを上書き。slot pointer経由でstatic markerを書き、dynamic speed/static marker経路から使う。<code>RESERVED_SPANS</code> 管理下のため空きとして扱わない。</td></tr>
-      <tr><td>Key enemy door-light helper</td><td class="num">0x3F60-0x3F78</td><td class="num">$BF50-$BF68</td><td class="num">25B</td><td>Key enemy runtime helper for dropped-key door-light positioning. Reserved through `key_enemy_runtime.RESERVED_SPANS`.</td></tr>
-      <tr><td>Panel Monster v2 Bullet hook jump</td><td class="num">0x3F79-0x3F7B</td><td class="num">$BF69-$BF6B</td><td class="num">3B</td><td>Panel Monster v2 writes <code>JMP $E7C1</code> here. The former 78B legacy hook body was split out; only this 3B entry is active.</td></tr>
-        <tr><td>Panel Variant type classifier tail</td><td class="num">0x3F7C-0x3F8F</td><td class="num">$BF6C-$BF7F</td><td class="num">20B</td><td>旧Panel Monster diagonal Bullet hook slotの本体部分へ移設。<code>$DAB9</code> はSaramandor speed tableなので使用禁止。</td></tr>
-        <tr><td>Panel Variant animation direction helper</td><td class="num">0x3F90-0x3FA0</td><td class="num">$BF80-$BF90</td><td class="num">17B</td><td>旧Panel Monster diagonal Bullet hook slotの残りを使用。旧2-way/3-way IDとA/B/C Panel Variant IDを、それぞれ正しい表示向きへ変換する。</td></tr>
-        <tr><td>空き</td><td class="num">0x3FA1-0x3FC6</td><td class="num">$BF91-$BFB6</td><td class="num">38B</td><td>旧Panel Monster diagonal Bullet hook slotの残り。現行は先頭3Bの <code>JMP $E7C1</code>、type classifier tail 20B、animation direction helper 17B を使う。新規利用時は同じ変更でこのROM台帳と実装側 <code>RESERVED_SPANS</code> を更新する。</td></tr>
-      <tr><td>Panel Variant type classifier main</td><td class="num">0x3FCA-0x3FE4</td><td class="num">$BFBA-$BFD4</td><td class="num">27B</td><td>Shared visual/property classifier for older enhanced Panel Monster IDs and A/B/C Panel Variant IDs.</td></tr>
-      <tr><td>Spark Ball slow AI wrapper</td><td class="num">0x3FE8-0x3FF7</td><td class="num">$BFD8-$BFE7</td><td class="num">16B</td><td>Dragon-ID <code>$6A/$6B</code> routing. ID判定を <code>AND #$FE</code> で圧縮済み。</td></tr>
-      <tr><td>gap_fix cave</td><td class="num">0x4010-0x4097</td><td class="num">$C000-$C087</td><td class="num">136B</td><td class="ok">No overlap with Spark Ball variants or key enemies as of v0.6.158.</td></tr>
-      <tr><td>Panel Monster v2 Bullet speed decode</td><td class="num">0x4098-0x40CF</td><td class="num">$C088-$C0BF</td><td class="num">56B</td><td>Decodes Panel Bullet speed markers <code>$88-$8B</code>, writes the velocity preset, and loads the extra-step count. 1/4 and 1/2 use count 0; 2x and 3x use the shared fast loop with counts 1 and 2.</td></tr>
-      <tr><td>Panel Monster / Variant animation hook</td><td class="num">0x40D2-0x40FF</td><td class="num">$C0C2-$C0EF</td><td class="num">46B</td><td>Panel Monster type-specific animation hook. Panel Variant final split may replace the body; do not use as free space.</td></tr>
-      <tr><td>runtime special-cell scanner</td><td class="num">0x4100-0x4143</td><td class="num">$C0F0-$C133</td><td class="num">68B</td><td>Hook target for stage-start `$909A`. Calls original `$95E4` grid→nametable renderer first, then scans the visible grid and converts direct m66 special cell IDs: `$01->$D0`, `$F9->$90`, `$FA->$10`, `$40->$F8`, `$50->$90`, `$A3->$10`, `$A4->$F8`. Cells pass through `$E74C`; mask-converted cells become `$C0+item`, while direct `$C0-$F7` white in-block item cells branch to `$E77C` and become `$80-$B7`. This preserves special IDs for initial drawing and converts the live grid before the screen is shown.</td></tr>
-      <tr><td>Panel Monster fire marker table</td><td class="num">0x4144-0x414E</td><td class="num">$C134-$C13E</td><td class="num">11B</td><td>2-way / 3-way / A/B/C fire marker table relocated into the old stage dispatch helper slot.</td></tr>
-      <tr><td>Panel Monster Demonhead-ID AI wrapper</td><td class="num">0x4156-0x418E</td><td class="num">$C146-$C17E</td><td class="num">57B</td><td>Older Panel Monster borrowed-ID wrapper. When Panel Variant A/B/C runtime is active, `$A34C/$A34E/$A350` are redirected to the relocated `$E8B4` wrapper instead.</td></tr>
-      <tr><td>Key enemy dropped-key handler</td><td class="num">0x4190-0x41E5</td><td class="num">$C180-$C1D5</td><td class="num">86B</td><td>Relocated from `$C0F0` in v0.6.157. PRG0 DoorCellTable/RoomFlagTable moved to PRG1 StageExt runtime bytes.</td></tr>
-      <tr><td>Key/Fairy enemy binder / defeat chunk</td><td class="num">0x41E6-0x41FF / 0x4201-0x420F</td><td class="num">$C1D6-$C1EF / $C1F1-$C1FF</td><td class="num">41B</td><td>Initial-slot binder for key/fairy targets plus one split key-dropper chunk. Reclaimed from the former PRG0 RoomFlag/Door tables.</td></tr>
-      <tr><td>Expanded table tail padding</td><td class="num">0x4200</td><td class="num">$C1F0</td><td class="num">1B</td><td>Kept under the expanded DoorCell/RoomFlag table allowance; not counted as free production space.</td></tr>
+      <tr><th>Range</th><th>CPU</th><th>Size</th><th>New bytes</th><th>Reason</th></tr>
+      <tr><td class="num">0x3490-0x349F</td><td class="num">$B480-$B48F</td><td class="num">16B</td><td><code>EA x16</code></td><td>Stage 20 stock SP2 item bitmap routine disabled after importing the item bitmap into editable stage data, preventing duplicate placement.</td></tr>
+      <tr><td class="num">0x353F-0x354E</td><td class="num">$B52F-$B53E</td><td class="num">16B</td><td><code>EA x16</code></td><td>Stage 30 stock SP2 item bitmap routine disabled after importing the item bitmap into editable stage data, preventing duplicate placement.</td></tr>
+      <tr><td class="num">0x359F-0x35A1</td><td class="num">$B58F-$B591</td><td class="num">3B</td><td><code>EA EA EA</code></td><td>Stage 49 stock hard-coded breakable-white-block write disabled; the cells are imported into editable stage data.</td></tr>
+      <tr><td class="num">0x35E8-0x35EA</td><td class="num">$B5D8-$B5DA</td><td class="num">3B</td><td><code>EA EA EA</code></td><td>Stage 52/53 stock hard-coded breakable-white-block write disabled; the cells are imported into editable stage data.</td></tr>
+      <tr><td class="num">0x360D-0x360F</td><td class="num">$B5FD-$B5FF</td><td class="num">3B</td><td><code>EA EA EA</code></td><td>Stage 52/53 stock hard-coded breakable-white-block write disabled; the cells are imported into editable stage data.</td></tr>
+      <tr><td class="num">0x3626-0x362E</td><td class="num">$B616-$B61E</td><td class="num">9B</td><td><code>EA x9</code></td><td>Stage 50 stock hard-coded breakable-white-block writes disabled; the cells are imported into editable stage data.</td></tr>
+      <tr><td class="num">0x4CE8-0x4CEA</td><td class="num">$CCD8-$CCDA</td><td class="num">3B</td><td><code>EA EA EA</code></td><td>Wide-title legacy attribute write suppressed so it does not overwrite the bank1 64-byte title attribute table.</td></tr>
+      <tr><td class="num">0x4DCE-0x4DD0</td><td class="num">$CDBE-$CDC0</td><td class="num">3B</td><td><code>EA EA EA</code></td><td>Wide-title legacy attribute write suppressed so it does not overwrite the bank1 64-byte title attribute table.</td></tr>
+      <tr><td class="num">0x4DE6-0x4DE8</td><td class="num">$CDD6-$CDD8</td><td class="num">3B</td><td><code>EA EA EA</code></td><td>Wide-title legacy attribute write suppressed so it does not overwrite the bank1 64-byte title attribute table.</td></tr>
+      <tr><td class="num">0x4DF9-0x4DFB</td><td class="num">$CDE9-$CDEB</td><td class="num">3B</td><td><code>EA EA EA</code></td><td>Wide-title legacy attribute write suppressed so it does not overwrite the bank1 64-byte title attribute table.</td></tr>
     </table>
   </div>
+
 
   <h2>4. PRG1 全体</h2>
   <div class="map">
@@ -363,10 +335,10 @@
       <tr><td>l_a2 loader</td><td class="num">0x8010-0x80C3</td><td class="num">$8000-$80B3</td><td class="num">180B</td><td>mapper66 expanded loader. The <code>$C0-$EF</code> direct room cells bypass respawn normalization for white in-block item state, but <code>$F0-$F3</code> one-shot white in-block items enter the PRG1 respawn helper at <code>$9009</code> and become empty breakable white blocks <code>$F9</code> after death. The visible item mask slot at file <code>0x80A2</code> calls the PRG1 helper at <code>$8E70</code>.</td></tr>
       <tr><td>mapper66 loader tail hook</td><td class="num">0x80C4-0x80C6</td><td class="num">$80B4-$80B6</td><td class="num">3B</td><td>StageExt / Panel Variant runtime hook (<code>JMP $8A00</code>). Visible item mask code must not occupy this tail.</td></tr>
       <tr><td>loader guard</td><td class="num">0x80C7-0x80CF</td><td class="num">$80B7-$80BF</td><td class="num">9B</td><td>Guard bytes.</td></tr>
-      <tr><td>wide title decoder/data</td><td class="num">0x80D0-0x87FF</td><td class="num">$80C0-$87EF</td><td class="num">1,840B</td><td>Wide title decoder + title PPU attribute table (64B; 16x15 visible title color blocks plus offscreen padding) + blockA/blockB streams + 20-slot title character main-slot table. Current internal stream is <code>[HI][LO][LEN][TILE...]</code> with <code>$FF</code> terminator, so title text, BUILD stamps, and the editable PUSH START line can draw original font tiles <code>$00-$2F</code> without CHR bank3 glyph copies. Decoder writes the PRG1 title attribute table to PPU attribute memory for the full 256x240 title canvas, then copies the title-only character table into main entity slots 1-20 in PRG1; the stock per-frame OAM writer draws those slots normally. Slot20 ends at RAM <code>$0722</code>, so it does not overlap the wide-title RAM trampoline <code>$072C-$0739</code>. Title exit clears through the wide-title-owned helper at <code>$CC6B</code>, which calls the original all-main-slot clear helper <code>$CB5A</code>. No NMI hook, DARK hook, or generic PRG0 cave is used for this title display.</td></tr>
+      <tr><td>wide title decoder/data</td><td class="num">0x80D0-0x87FF</td><td class="num">$80C0-$87EF</td><td class="num">1,840B</td><td>Wide title decoder + title PPU attribute table (64B; 16x15 visible title color blocks plus offscreen padding) + blockA/blockB streams + 20-slot title character main-slot table. Current internal stream is <code>[HI][LO][LEN][TILE...]</code> with <code>$FF</code> terminator, so title text, BUILD stamps, and the editable PUSH START line can draw original font tiles <code>$00-$2F</code> without CHR bank3 glyph copies. Decoder writes the PRG1 title attribute table to PPU attribute memory for the full 256x240 title canvas, then copies the title-only character table into main entity slots 1-20 in PRG1; the stock per-frame OAM writer draws those slots normally. Slot20 ends at RAM <code>$0722</code>, so it does not overlap the wide-title RAM trampoline <code>$072C-$0739</code>. Title exit clears through the PRG0 helper at <code>$E935</code>, which calls the original all-main-slot clear helper <code>$CB5A</code>. No NMI hook, DARK hook, or generic PRG0 cave is used for this title display.</td></tr>
       <tr><td>StageExtTable</td><td class="num">0x8800-0x8A0F</td><td class="num">$87F0-$89FF</td><td class="num">528B</td><td>Per-stage extension settings: 16B header + 64 rooms x 8B. byte0 bit4=clear後に原作最終面へ送る、byte2=key enemy initial slot, byte3=fall-death fairy enemy initial slot. Also carries mapper66 runtime room flags and door-cell bytes copied to <code>$0778/$077C</code>; the room-load runtime copies byte0 bit4 to <code>$077A</code> bit7.</td></tr>
-      <tr><td>Panel Variant combined runtime loader</td><td class="num">0x8A10-0x8A6F</td><td class="num">$8A00-$8A5F</td><td class="num">96B</td><td>Mapper66 room-load helper. Preserves StageExt runtime copies, copies StageExt byte0 bit4 to <code>$077A</code> bit7, copies the Solomon Seal block-state byte to <code>$077D</code>, copies the 6B global A/B/C Panel Variant settings table to <code>$0740-$0745</code>, then jumps directly to the Transparent Seal suppress guard.</td></tr>
-      <tr><td>Panel Variant settings table</td><td class="num">0x8A70-0x8A75</td><td class="num">$8A60-$8A65</td><td class="num">6B</td><td>All-stage common A/B/C settings image: A speed/interval, B speed/interval, C speed/interval. Copied to RAM <code>$0740-$0745</code> by the runtime loader.</td></tr>
+      <tr><td>Panel Variant combined runtime loader</td><td class="num">0x8A10-0x8A6F</td><td class="num">$8A00-$8A5F</td><td class="num">96B</td><td>Mapper66 room-load helper. Preserves StageExt runtime copies, copies StageExt byte0 bit4 to <code>$077A</code> bit7, copies the Solomon Seal block-state byte to <code>$077D</code>, copies the 6B global A/B/C Panel Variant settings table to <code>$0740-$0745</code>, then jumps directly to the Transparent Seal suppress guard. This RAM/settings route was introduced to reduce PRG0 pressure; if RAM becomes tight later, treat <code>$0740-$0745</code> and this PRG1 settings path as a separate cleanup target.</td></tr>
+      <tr><td>Panel Variant settings table</td><td class="num">0x8A70-0x8A75</td><td class="num">$8A60-$8A65</td><td class="num">6B</td><td>All-stage common A/B/C settings image: A speed/interval, B speed/interval, C speed/interval. Copied to RAM <code>$0740-$0745</code> by the runtime loader. This is a PRG0-saving design choice, not a free RAM area; revisit it only in a RAM cleanup pass.</td></tr>
       <tr><td>PanelVariant PRG1 reserve</td><td class="num">0x8A76-0x8E7F</td><td class="num">$8A66-$8E6F</td><td class="num">1,034B</td><td>PRG1 reserve after the 6B global A/B/C settings image. Current runtime does not reference this area.</td></tr>
       <tr><td>Transparent/cracked item side-data copy helper</td><td class="num">0x8E80-0x8EAA</td><td class="num">$8E70-$8E9A</td><td class="num">43B</td><td>Copies the current room's 32B side slot from the PRG1 table to RAM <code>$0750-$076F</code> with page-crossing carry preserved. The first 24B are the visible-item mask; the last 8B are cracked in-block cell positions.</td></tr>
         <tr><td>Solomon Seal block-state table</td><td class="num">0x8EAB-0x8EEA</td><td class="num">$8E9B-$8EDA</td><td class="num">64B</td><td>1 byte per room. <code>$00</code>=original hidden seal, <code>$A0</code>=brown in-block seal, <code>$E0</code>=white in-block seal. Copied to RAM <code>$077D</code> by StageExt loader.</td></tr>
@@ -379,7 +351,7 @@
       <tr><td>bank1 reserve</td><td class="num">0xBB97-0xC00F</td><td class="num">$BB87-$BFFF</td><td class="num">1,145B</td><td>Small bank1 reserve.</td></tr>
       <tr><td>expanded level data</td><td class="num">0xC010-0xF50F</td><td class="num">$C000-$F4FF</td><td class="num">13,568B</td><td>53 rooms x 256B.</td></tr>
       <tr><td>mirror/drop schedule</td><td class="num">0xF510-0xF85F</td><td class="num">$F500-$F84F</td><td class="num">848B</td><td>53 rooms x mirror/drop bytes.</td></tr>
-      <tr><td>Visible/cracked item in-block runtime side slot</td><td class="num">0xF860-0xFEFF</td><td class="num">$F850-$FEEF</td><td class="num">1,696B</td><td>53 rooms x 32B slot. The first 24B are a 192-cell bitmask copied by the mapper66 loader helper to RAM <code>$0750-$0767</code>; the last 8B are cracked in-block cell positions copied to <code>$0768-$076F</code> and filled with <code>$FF</code> when unused. PRG0 helper <code>$E74C</code> converts marked normal-looking item cells to <code>$C0+item</code> after initial draw.</td></tr>
+      <tr><td>Visible/cracked item in-block runtime side slot</td><td class="num">0xF860-0xFEFF</td><td class="num">$F850-$FEEF</td><td class="num">1,696B</td><td>53 rooms x 32B slot. The first 24B are a 192-cell bitmask copied by the mapper66 loader helper to RAM <code>$0750-$0767</code>; the last 8B are cracked in-block cell positions copied to <code>$0768-$076F</code> and filled with <code>$FF</code> when unused. PRG0 helper <code>$E234</code> converts marked normal-looking item cells to <code>$C0+item</code> after initial draw.</td></tr>
       <tr><td>SOLOMON_CUSTOMIZER metadata stamp</td><td class="num">0xFF00-0xFF3F</td><td class="num">$FEF0-$FF2F</td><td class="num">64B</td><td><code>SOLOMON_CUSTOMIZER_META</code> + format + app version.</td></tr>
       <tr><td>bank1 tail reserve</td><td class="num">0xFF40-0xFFFF</td><td class="num">$FF30-$FFEF</td><td class="num">192B</td><td>Reserve before vectors.</td></tr>
       <tr><td>vectors copy</td><td class="num">0x10000-0x1000F</td><td class="num">$FFF0-$FFFF</td><td class="num">16B</td><td>Copied PRG vectors.</td></tr>

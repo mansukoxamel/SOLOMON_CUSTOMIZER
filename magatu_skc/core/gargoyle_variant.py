@@ -29,13 +29,13 @@ def _word(cpu: int) -> bytes:
 OFF_HOOK_MATERIALIZE = _cf(0xAE6F)
 OFF_HOOK_COOLDOWN = _cf(0xAE48)
 OFF_HOOK_OLD_WAIT = _cf(0xAF2B)
-OFF_CAVE_GATE = _cf(0xBD3B)
-OFF_CAVE_COOLDOWN = _cf(0xBCFB)
-OFF_CAVE_COOLDOWN_TAIL = _cf(0xBD6F)
+OFF_CAVE_GATE = _cf(0xE357)
+OFF_CAVE_COOLDOWN = OFF_CAVE_GATE + 0x34
+OFF_CAVE_COOLDOWN_TAIL = OFF_CAVE_COOLDOWN + 0x1C
 
-CPU_CAVE_GATE = 0xBD3B
-CPU_CAVE_COOLDOWN = 0xBCFB
-CPU_CAVE_COOLDOWN_TAIL = 0xBD6F
+CPU_CAVE_GATE = 0xE357
+CPU_CAVE_COOLDOWN = CPU_CAVE_GATE + 0x34
+CPU_CAVE_COOLDOWN_TAIL = CPU_CAVE_COOLDOWN + 0x1C
 
 BULLET_SPEED_MARKER_QUARTER = 0x88
 BULLET_SPEED_MARKER_HALF = 0x89
@@ -84,7 +84,7 @@ CAVE_COOLDOWN = bytes.fromhex(
     # Enhanced speed-2 IDs jump directly to the original post-cooldown path.
     "a0 01 b1 2e 29 fa c9 7a f0 0a"
     "e0 50 b0 03 4c c1 ae 4c 4c ae"
-    "b1 2e 29 04 d0 f7 f0 58"
+    "b1 2e 29 04 d0 f7 f0 00"
 )
 assert len(CAVE_COOLDOWN) == 28
 
@@ -114,9 +114,7 @@ OLD_TWO_BULLET_BODY = bytes.fromhex(
 )
 
 RESERVED_SPANS = (
-    (OFF_CAVE_GATE, len(CAVE_GATE)),
-    (OFF_CAVE_COOLDOWN, len(CAVE_COOLDOWN)),
-    (OFF_CAVE_COOLDOWN_TAIL, len(CAVE_COOLDOWN_TAIL)),
+    (OFF_CAVE_GATE, len(CAVE_GATE) + len(CAVE_COOLDOWN) + len(CAVE_COOLDOWN_TAIL)),
 )
 
 
@@ -331,20 +329,20 @@ def apply(
     )
 
     changed: list[str] = []
-    _write(rom_data, OFF_CAVE_GATE, gate_body, changed, "Gargoyle slow-Bullet gate $BD3B")
+    _write(rom_data, OFF_CAVE_GATE, gate_body, changed, "Gargoyle slow-Bullet gate $E357")
     _write(
         rom_data,
         OFF_CAVE_COOLDOWN,
         cooldown_body,
         changed,
-        "Gargoyle enhanced cooldown gate $BCFB",
+        "Gargoyle enhanced cooldown gate $E38B",
     )
     _write(
         rom_data,
         OFF_CAVE_COOLDOWN_TAIL,
         cooldown_tail,
         changed,
-        "Gargoyle enhanced cooldown tail $BD6F",
+        "Gargoyle enhanced cooldown tail $E3A7",
     )
     _write(
         rom_data,

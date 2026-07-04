@@ -46,8 +46,8 @@ TITLE_PALETTE_SCRIPT_OFF_US = 0x10 + (0x95F3 - 0x8000)
 TITLE_PALETTE_SCRIPT_LEN = 16
 
 SUPPORTED_REGIONS = ("JP", "US", "JP66", "US66")
-_INTERNAL_WIDE_BOOT_OFF = 0x10 + (0xCC4F - 0x8000)
-_INTERNAL_WIDE_BOOT_SIG = bytes.fromhex("A20DBD5DCC9DC003CA10F74CC003")
+_INTERNAL_WIDE_BOOT_OFF = 0x10 + (0xE919 - 0x8000)
+_INTERNAL_WIDE_BOOT_SIG = bytes.fromhex("A20DBD27E99D2C07CA10F74C2C07")
 
 
 class TitleScreenError(ValueError):
@@ -441,7 +441,7 @@ _WA_DEC_SIG = bytes.fromhex("A000B100C92F")
 
 def is_wide_normalized(rom_data) -> bool:
     """この ROM のタイトルが当方 wide 形式へ正規化済か。
-      ・新機構 (RAM-trampoline): $CC4F = bootstrap (_WT_BOOT_SIG)
+      ・新機構 (RAM-trampoline): $E919 = bootstrap (_WT_BOOT_SIG)
       ・旧 in-place: $CC4F = decoder
         (_WA_DEC_SIG)
     どちらでも True (decode_title_grid 側で機構を判別)。"""
@@ -1074,7 +1074,7 @@ def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b,
             raise TitleScreenError(
                 f"internal error: title stream write 0x{off:X}+{ln}B "
                 "overlaps the Room Flag bank0 cave band.")
-    target_rom[_wjp_cf(0xCC4F):_wjp_cf(0xCC4F) + len(boot)] = boot
+    _wt_install_bootstrap_and_restore_stock(target_rom, boot)
     target_rom[_WT_DEC_FILE:_WT_DEC_FILE + len(decoder)] = decoder
     for i in range(a_file, _WT_WIDE_END):
         target_rom[i] = 0
@@ -1871,9 +1871,9 @@ def _word(cpu):
 # ・SW = STA $BB86: bank0[file 0x3B96]=$FF (=LDX #$FF 即値・不変ROM
 #   定数, 読むだけ) / bank1[file 0xBB96]=予約$FF。bus競合: A AND $FF=A。
 #   $13=PRG1+CHR3 / $03=PRG0+CHR3 (CHR3固定=タイトル絵不変)。
-# ・呼出元 $CCB6 / $CD76 が JSR $CC4F 前に $9673(NMI off・$0300整合)、
+# ・呼出元 $CCB6 / $CD76 が JSR $E919 前に $9673(NMI off・$0300整合)、
 #   後に $965F(on)。trampoline は NMI off 窓の内側・$2000/$0300 不可侵。
-# ・JSR $CC4F は純サブルーチン: bootstrap→RAM_IN→bank1 decoder→
+# ・JSR $E919 は純サブルーチン: bootstrap→RAM_IN→bank1 decoder→
 #   RAM_OUT→RTS。スタック未改変で呼出元へ復帰。
 _WT_SW_CPU      = 0xBB86               # bus-conflict bank-switch 書込先
 _WT_SW_B0_OFF   = 0x3B96               # bank0 file (=$FF 固定・検証のみ)
@@ -1903,10 +1903,14 @@ _WT_LEGACY_ATTR_WRITE_SITES = (
     (0xCDE9, bytes.fromhex("8D0720")),  # CDF5 table loop
 )
 _WT_LEGACY_ATTR_WRITE_NOP = bytes.fromhex("EAEAEA")
-_WT_TITLE_OAM_CLEAR_CPU = 0xCC6B
+_WT_BOOT_CPU = 0xE919
+_WT_TITLE_OAM_CLEAR_CPU = 0xE935
 _WT_TITLE_START_CLEAR_CPU = 0xCBB3
 _WT_ENDING_CALL_CPU = 0xB709
-_WT_ENDING_HELPER_CPU = 0xCC72
+_WT_ENDING_HELPER_CPU = 0xE93C
+_WT_BOOT_CALL_A_CPU = 0xCCC1
+_WT_BOOT_CALL_B_CPU = 0xCD8B
+_WT_OLD_BOOT_CPU = 0xCC4F
 _WT_ENDING_DEC_FILE = 0x9090
 _WT_ENDING_DEC_CPU = 0x8000 + (_WT_ENDING_DEC_FILE - 0x8010)  # = $9080
 _WT_ENDING_RESERVED_END = 0x9280
@@ -1919,13 +1923,17 @@ _WT_PTRB_LO, _WT_PTRB_HI = 0xCD84, 0xCD88
 _WT_CALLERB_CPU = 0xCD80
 _WT_CALLERB_SIG = bytes.fromhex("207396A9A38500A9CE8501204FCC")
 # bootstrap コード部 (template を除く 14B・完全決定論=正規化済判定に使用)
-#   $CC4F: A2 0D / BD 5D CC / 9D 2C 07 / CA / 10 F7 / 4C 2C 07
-_WT_BOOT_SIG = bytes.fromhex("A20DBD5DCC9D2C07CA10F74C2C07")
+#   $E919: A2 0D / BD 27 E9 / 9D 2C 07 / CA / 10 F7 / 4C 2C 07
+_WT_BOOT_SIG = bytes.fromhex("A20DBD27E99D2C07CA10F74C2C07")
+_WT_BOOT_SIG_OLD_CC4F = bytes.fromhex("A20DBD5DCC9D2C07CA10F74C2C07")
 _WT_BOOT_SIG_LEGACY_03C0 = bytes.fromhex("A20DBD5DCC9DC003CA10F74CC003")
 _WT_IDLE_DEMO_TIMEOUT_CPU = 0xCB9E
-_WT_IDLE_DEMO_CLEAR_STUB_CPU = 0xBC0E
+_WT_IDLE_DEMO_CLEAR_STUB_CPU = 0xE861
 _WT_IDLE_DEMO_TIMEOUT_ORIG = bytes.fromhex("A918205F8D")
-_WT_IDLE_DEMO_TIMEOUT_HOOK = bytes.fromhex("200EBCEAEA")
+_WT_IDLE_DEMO_TIMEOUT_HOOK_OLD = bytes.fromhex("200EBCEAEA")
+_WT_IDLE_DEMO_TIMEOUT_HOOK = (
+    bytes.fromhex("20") + _word(_WT_IDLE_DEMO_CLEAR_STUB_CPU) + bytes.fromhex("EAEA")
+)
 _WT_IDLE_DEMO_CLEAR_STUB = (
     bytes.fromhex("20") + _word(_WT_TITLE_OAM_CLEAR_CPU) +
     bytes.fromhex("A918205F8D60")
@@ -1933,6 +1941,8 @@ _WT_IDLE_DEMO_CLEAR_STUB = (
 assert len(_WT_IDLE_DEMO_CLEAR_STUB) == 9
 _WT_ENDING_CALL_ORIG = bytes.fromhex("2076CD")
 _WT_ENDING_CALL_HOOK = bytes.fromhex("20") + _word(_WT_ENDING_HELPER_CPU)
+_WT_BOOT_CALL_ORIG = bytes.fromhex("204FCC")
+_WT_BOOT_CALL_HOOK = bytes.fromhex("20") + _word(_WT_BOOT_CPU)
 _WT_STOCK_CC4F_DECODER = bytes.fromhex(
     "AC0220A0008402840388C8B100302DAA9818650085009002E601"
     "A0008AE0409017E060900FE81004AE022060291F6503850310D6"
@@ -1940,22 +1950,23 @@ _WT_STOCK_CC4F_DECODER = bytes.fromhex(
     "6A6A29C005028D0620AD00038D002088C8B10010AD8D072030F6"
 )
 RESERVED_SPANS = (
-    (_wjp_cf(0xCC4F), 28),                         # title RAM bootstrap
-    (_wjp_cf(_WT_TITLE_OAM_CLEAR_CPU), 7),
+    (_wjp_cf(_WT_BOOT_CPU), 87),                   # title PRG0 helpers
+    (_wjp_cf(_WT_BOOT_CALL_A_CPU), 3),
+    (_wjp_cf(_WT_BOOT_CALL_B_CPU), 3),
+    (_wjp_cf(_WT_IDLE_DEMO_CLEAR_STUB_CPU), len(_WT_IDLE_DEMO_CLEAR_STUB)),
     (_wjp_cf(_WT_ENDING_CALL_CPU), 3),
-    (_wjp_cf(_WT_ENDING_HELPER_CPU), 52),
     (_WT_DEC_FILE, _WT_WIDE_END - _WT_DEC_FILE),
     (_WT_ENDING_DEC_FILE, _WT_ENDING_RESERVED_END - _WT_ENDING_DEC_FILE),
 )
 
 
 def _wt_has_current_ram_bootstrap(rom_data) -> bool:
-    o = _wjp_cf(0xCC4F)
+    o = _wjp_cf(_WT_BOOT_CPU)
     return bytes(rom_data[o:o + len(_WT_BOOT_SIG)]) == _WT_BOOT_SIG
 
 
 def _wt_has_legacy_03c0_bootstrap(rom_data) -> bool:
-    o = _wjp_cf(0xCC4F)
+    o = _wjp_cf(_WT_OLD_BOOT_CPU)
     return bytes(rom_data[o:o + len(_WT_BOOT_SIG_LEGACY_03C0)]) == \
         _WT_BOOT_SIG_LEGACY_03C0
 
@@ -1967,6 +1978,41 @@ def _wt_has_ram_bootstrap(rom_data) -> bool:
 
 def title_character_max() -> int:
     return _WT_TITLE_CHARACTER_MAX
+
+
+def _wt_install_bootstrap_and_restore_stock(rom_data, boot: bytes) -> bool:
+    """Install PRG0 wide-title helpers and restore the old $CC4F body."""
+    if len(boot) != 28:
+        raise TitleScreenError(
+            f"internal error: title bootstrap must be 28B, got {len(boot)}B.")
+    old_off = _wjp_cf(_WT_OLD_BOOT_CPU)
+    boot_off = _wjp_cf(_WT_BOOT_CPU)
+    old_cur = bytes(rom_data[old_off:old_off + len(_WT_STOCK_CC4F_DECODER)])
+    if old_cur != _WT_STOCK_CC4F_DECODER and \
+            not old_cur.startswith(_WT_BOOT_SIG_OLD_CC4F) and \
+            not old_cur.startswith(_WT_BOOT_SIG_LEGACY_03C0):
+        raise TitleScreenError(
+            f"title stock decoder restore signature mismatch at "
+            f"${_WT_OLD_BOOT_CPU:04X}: got {old_cur[:14].hex(' ')}")
+
+    changed = old_cur != _WT_STOCK_CC4F_DECODER or \
+        bytes(rom_data[boot_off:boot_off + len(boot)]) != boot
+    rom_data[old_off:old_off + len(_WT_STOCK_CC4F_DECODER)] = \
+        _WT_STOCK_CC4F_DECODER
+    rom_data[boot_off:boot_off + len(boot)] = boot
+
+    for call_cpu in (_WT_BOOT_CALL_A_CPU, _WT_BOOT_CALL_B_CPU):
+        call_off = _wjp_cf(call_cpu)
+        cur = bytes(rom_data[call_off:call_off + len(_WT_BOOT_CALL_ORIG)])
+        if cur not in (_WT_BOOT_CALL_ORIG, _WT_BOOT_CALL_HOOK):
+            raise TitleScreenError(
+                f"title bootstrap call signature mismatch at "
+                f"${call_cpu:04X}: got {cur.hex(' ')}")
+        if cur != _WT_BOOT_CALL_HOOK:
+            changed = True
+        rom_data[call_off:call_off + len(_WT_BOOT_CALL_HOOK)] = \
+            _WT_BOOT_CALL_HOOK
+    return changed
 
 
 def _wt_title_oam_default_table() -> bytes:
@@ -1988,7 +2034,7 @@ def migrate_wide_title_trampoline_ram(rom_data) -> list:
     if not _wt_has_legacy_03c0_bootstrap(rom_data):
         return []
     boot, _decoder = _wt_build_trampoline(_WT_DEC_CPU)
-    rom_data[_wjp_cf(0xCC4F):_wjp_cf(0xCC4F) + len(boot)] = boot
+    _wt_install_bootstrap_and_restore_stock(rom_data, boot)
     return [
         "wide-title RAM trampoline migrated: $03C0-$03CD -> $072C-$0739"
     ]
@@ -2006,7 +2052,11 @@ def _wt_install_idle_demo_cleanup(rom_data) -> bool:
     hook_off = _wjp_cf(_WT_IDLE_DEMO_TIMEOUT_CPU)
     stub_off = _wjp_cf(_WT_IDLE_DEMO_CLEAR_STUB_CPU)
     cur_hook = bytes(rom_data[hook_off:hook_off + len(_WT_IDLE_DEMO_TIMEOUT_ORIG)])
-    if cur_hook not in (_WT_IDLE_DEMO_TIMEOUT_ORIG, _WT_IDLE_DEMO_TIMEOUT_HOOK):
+    if cur_hook not in (
+            _WT_IDLE_DEMO_TIMEOUT_ORIG,
+            _WT_IDLE_DEMO_TIMEOUT_HOOK,
+            _WT_IDLE_DEMO_TIMEOUT_HOOK_OLD,
+    ):
         raise TitleScreenError(
             f"title idle demo timeout signature mismatch at "
             f"${_WT_IDLE_DEMO_TIMEOUT_CPU:04X}: got {cur_hook.hex(' ')}")
@@ -2051,7 +2101,7 @@ def _wt_title_oam_clear_helper() -> bytes:
 
 
 def _wt_install_title_oam_clear(rom_data) -> bool:
-    """Install the title-exit OAM clear hook in wide-title-owned code."""
+    """Install the title-exit OAM clear hook in the PRG0 helper block."""
     helper = _wt_title_oam_clear_helper()
     helper_off = _wjp_cf(_WT_TITLE_OAM_CLEAR_CPU)
     start_off = _wjp_cf(_WT_TITLE_START_CLEAR_CPU)
@@ -2140,7 +2190,7 @@ def _wt_ending_decoder_bytes() -> bytes:
 
 
 def _wt_ending_helper_bytes(ending_stream_cpu: int) -> bytes:
-    """Build the PRG0 $CC72 helper that jumps to the ending PRG1 renderer."""
+    """Build the PRG0 helper that jumps to the ending PRG1 renderer."""
     sw_lo, sw_hi = _WT_SW_CPU & 0xFF, (_WT_SW_CPU >> 8) & 0xFF
     d_lo, d_hi = _WT_ENDING_DEC_CPU & 0xFF, (_WT_ENDING_DEC_CPU >> 8) & 0xFF
     ram_tmpl = bytes([
@@ -2192,10 +2242,6 @@ def _wt_install_ending_draw_separation(rom_data,
     stream_cpu = 0x8000 + (stream_file - 0x8010)
     helper = _wt_ending_helper_bytes(stream_cpu)
     helper_off = _wjp_cf(_WT_ENDING_HELPER_CPU)
-    helper_limit = _wjp_cf(0xCCB6)
-    if helper_off + len(helper) > helper_limit:
-        raise TitleScreenError("internal error: ending helper exceeds $CC72 cave.")
-
     changed = (
         cur_call != _WT_ENDING_CALL_HOOK or
         bytes(rom_data[helper_off:helper_off + len(helper)]) != helper or
@@ -2403,10 +2449,10 @@ def set_title_attribute_expanded(rom_data, attr) -> list:
 def _wt_build_trampoline(decoder_cpu, *, title_oam: bool = True,
                          title_oam_table: bytes | bytearray | None = None,
                          title_attr_table: bytes | bytearray | None = None):
-    """bootstrap(bank0 $CC4F) と bank1 decoder バイト列を生成。
+    """bootstrap(bank0 $E919) と bank1 decoder バイト列を生成。
 
     戻り: (boot_bytes, decoder_bytes)
-      boot_bytes  : $CC4F に置く 28B (コピーstub14B + RAM template14B)
+      boot_bytes  : $E919 に置く 28B (コピーstub14B + RAM template14B)
       decoder_bytes: bank1 $80C0 に置く arcade decoder (末尾 JMP RAM_OUT)
     RAM template (boot 内に同梱・実行時 $072C へコピー):
       RAM_IN  @$072C 8B: A9 13 / 8D 86 BB / 4C <declo> <dechi>
@@ -2419,7 +2465,7 @@ def _wt_build_trampoline(decoder_cpu, *, title_oam: bool = True,
         0xA9, 0x03, 0x8D, sw_lo, sw_hi, 0x60,               # RAM_OUT 6B
     ])
     assert len(ram_tmpl) == 14
-    tmpl_cpu = 0xCC4F + 14                 # template はコード14B直後
+    tmpl_cpu = _WT_BOOT_CPU + 14           # template はコード14B直後
     t_lo, t_hi = tmpl_cpu & 0xFF, (tmpl_cpu >> 8) & 0xFF
     ri_lo, ri_hi = _WT_RAM_IN & 0xFF, (_WT_RAM_IN >> 8) & 0xFF
     boot_code = bytes([
@@ -2537,7 +2583,7 @@ def normalize_title_to_wide(rom) -> list:
       ・decoder 本体 + blockA/B stream は ★PRG bank1 空き
         (file 0x80D0〜) に配置。bank0 cave ($BBDE-$C1FF=Room Flag
         占有) は ★一切使わない。
-      ・$CC4F = bootstrap (RAM へ 14B trampoline をコピー→JMP)。
+      ・$E919 = bootstrap (RAM へ 14B trampoline をコピー→JMP)。
         RAM_IN が PRG bank1 へ切替 ($BB86 bus競合) → bank1 decoder
         → RAM_OUT が bank0 復帰 → RTS (純サブルーチン・スタック
         不可侵)。RAM 実行ゆえ bank 切替免疫。
@@ -2595,8 +2641,8 @@ def normalize_title_to_wide(rom) -> list:
     title_attr_table = _wt_attr_table_default(rom)
     boot, decoder = _wt_build_trampoline(
         _WT_DEC_CPU, title_attr_table=title_attr_table)
-    if len(boot) > _wjp_cf(0xCCB6) - _wjp_cf(0xCC4F):
-        raise TitleScreenError("内部エラー: bootstrap 枠超過。")
+    if len(boot) != 28:
+        raise TitleScreenError("内部エラー: bootstrap サイズ不正。")
     dec_file = _WT_DEC_FILE
     blkA_file = dec_file + len(decoder)
     blkB_file = blkA_file + len(blkA)
@@ -2620,7 +2666,10 @@ def normalize_title_to_wide(rom) -> list:
 
     # --- (5) Room Flag 占有帯に書込が一切無いことを保証 ---
     writes = [
-        (_wjp_cf(0xCC4F), len(boot)),
+        (_wjp_cf(_WT_BOOT_CPU), len(boot)),
+        (_wjp_cf(_WT_OLD_BOOT_CPU), len(_WT_STOCK_CC4F_DECODER)),
+        (_wjp_cf(_WT_BOOT_CALL_A_CPU), 3),
+        (_wjp_cf(_WT_BOOT_CALL_B_CPU), 3),
         (dec_file, len(decoder)),
         (blkA_file, len(blkA)),
         (blkB_file, len(blkB)),
@@ -2637,7 +2686,7 @@ def normalize_title_to_wide(rom) -> list:
 
     # --- (6) 全署名 OK。ここで初めて一括書込 (部分書込なし) ---
     out = bytearray(rom)
-    out[_wjp_cf(0xCC4F):_wjp_cf(0xCC4F)+len(boot)] = boot
+    _wt_install_bootstrap_and_restore_stock(out, boot)
     out[dec_file:dec_file+len(decoder)] = decoder
     out[blkA_file:blkA_file+len(blkA)] = blkA
     out[blkB_file:blkB_file+len(blkB)] = blkB
@@ -2651,7 +2700,7 @@ def normalize_title_to_wide(rom) -> list:
     _wt_install_legacy_attr_write_suppress(out)
     _wt_install_ending_draw_separation(out, _wt_ending_stock_stream(rom))
     # ★palette / CHR / 色 は ★非改変 (視覚同一)。
-    # Title OAM clear uses the wide-title-owned title code at $CC6B.
+    # Title OAM clear uses the PRG0 wide-title helper at $E935.
     # NMI hook / DARK code / generic bank0 cave are not used for this display.
 
     # --- (7) round-trip 自己検証: bank1 stream 再decode == 元 stock ---
@@ -2669,10 +2718,11 @@ def normalize_title_to_wide(rom) -> list:
     return [
         f"タイトルを stock→当方wide形式へ正規化 ({region}・"
         "見た目そのまま)。RAM-trampoline + bank1 機構: "
-        f"bootstrap@$CC4F ({len(boot)}B) / decoder@$"
+        f"bootstrap@${_WT_BOOT_CPU:04X} ({len(boot)}B) / decoder@$"
         f"{_WT_DEC_CPU:04X} / blockA@${blkA_cpu:04X} ({len(blkA)}B) "
         f"/ blockB@${blkB_cpu:04X} ({len(blkB)}B) / SW=$BB86 / "
-        f"RAM $072C。title OAM clear $CC6B ({len(_wt_title_oam_clear_helper())}B)・"
+        f"RAM $072C。title OAM clear ${_WT_TITLE_OAM_CLEAR_CPU:04X} "
+        f"({len(_wt_title_oam_clear_helper())}B)・"
         "bank1 attribute table writer有効・ending renderer分離・palette/CHR 非改変・round-trip "
         f"{len(rt)}セル一致で視覚同一を確認。",
         "※実機で要確認 (タイトルが stock と同一表示か / Room Flag/"

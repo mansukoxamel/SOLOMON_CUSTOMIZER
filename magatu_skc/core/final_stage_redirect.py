@@ -14,8 +14,8 @@ def _cf(cpu: int) -> int:
 
 OFF_HOOK_CLEAR_RESET = _cf(0xC6F5)
 OFF_SIG_AFTER_CLEAR_RESET = _cf(0xC6F8)
-OFF_CAVE = 0x3D28
-CPU_CAVE = 0xBD18
+OFF_CAVE = 0x6342
+CPU_CAVE = 0xE332
 
 ORIG_HOOK_CLEAR_RESET = bytes.fromhex("20 0e c7")
 HOOK_CLEAR_RESET = bytes((0x20, CPU_CAVE & 0xFF, CPU_CAVE >> 8))
@@ -40,7 +40,7 @@ def _verify(rom_data: bytes) -> None:
         raise FinalStageRedirectError(f"$C6F5 hook bytes are unexpected: {hook.hex(' ')}")
     cur = bytes(rom_data[OFF_CAVE:OFF_CAVE + len(CAVE)])
     if cur != CAVE and any(b not in (0xEA, 0x00) for b in cur):
-        raise FinalStageRedirectError(f"$BD18 cave is not free: {cur.hex(' ')}")
+        raise FinalStageRedirectError(f"$E332 cave is not free: {cur.hex(' ')}")
 
 
 def apply(rom_data: bytearray, levels: list) -> list[str]:
@@ -48,7 +48,7 @@ def apply(rom_data: bytearray, levels: list) -> list[str]:
     changed: list[str] = []
     if bytes(rom_data[OFF_CAVE:OFF_CAVE + len(CAVE)]) != CAVE:
         rom_data[OFF_CAVE:OFF_CAVE + len(CAVE)] = CAVE
-        changed.append("Final-stage redirect cave 注入 ($BD18)")
+        changed.append("Final-stage redirect cave 注入 ($E332)")
     if bytes(rom_data[OFF_HOOK_CLEAR_RESET:OFF_HOOK_CLEAR_RESET + len(HOOK_CLEAR_RESET)]) != HOOK_CLEAR_RESET:
         rom_data[OFF_HOOK_CLEAR_RESET:OFF_HOOK_CLEAR_RESET + len(HOOK_CLEAR_RESET)] = HOOK_CLEAR_RESET
         changed.append("$C6F5 final-stage redirect hook 有効化")

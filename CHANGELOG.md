@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.17 (2026-07-04) PRG0 runtime配置を4096B領域へ集約
+- Stage announcement、Key/Fairy、Visible item、Spark Ball、Final-stage、Gargoyle、Saramandor、Panel Variant、RoomFlag、Gap fix、Wide title、mapper66 l_a1などのPRG0追加runtimeを、旧ステージデータ跡地 `$E000-$EFFF` / file `0x6010-0x700F` へ集約した。
+- Panel Monster/Spark Ball/Wide titleなどの旧配置やin-place書き換えを整理し、4096B領域外は短いhook、即値/テーブル更新、旧原作処理のEA停止に限定されるようにした。
+- ROM管理簿を現行配置に合わせて更新し、4096B runtime内図と、4096B外に残る意図的なEA停止箇所を確認用に記録した。
+
 ## v0.9.16 (2026-07-02) PRG0旧ステージデータ跡地を初期化
 - リファクタリング前の前段階として、日本版原作ROMをmapper66 wide形式へ初期変換する時に、PRG0 bank0の旧ステージデータ跡地 `$E000-$EFFF` / file `0x6010-0x700F` を `EA` で初期化するようにした。
 - 旧item pointer tableを参照していたloaderを、mapper66固定ステージング先 `$0790` へ直接向けるようにした。

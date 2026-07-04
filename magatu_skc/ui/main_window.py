@@ -769,6 +769,12 @@ class MainWindow(QMainWindow):
         self.shortcut_show_stats.setContext(Qt.WindowShortcut)
         self.shortcut_show_stats.setAutoRepeat(False)
         self.shortcut_show_stats.activated.connect(self._on_show_stats)
+        self.shortcut_open_binary_editor = QShortcut(
+            self._shortcut_sequence("open_binary_editor"), self
+        )
+        self.shortcut_open_binary_editor.setContext(Qt.WindowShortcut)
+        self.shortcut_open_binary_editor.setAutoRepeat(False)
+        self.shortcut_open_binary_editor.activated.connect(self._on_open_binary_editor)
         self.shortcut_test_play = QShortcut(self._shortcut_sequence("test_play"), self)
         self.shortcut_test_play.setContext(Qt.WindowShortcut)
         self.shortcut_test_play.setAutoRepeat(False)
@@ -867,6 +873,7 @@ class MainWindow(QMainWindow):
             "save_stage_png": "shortcut_save_stage_png",
             "stage_jump": "shortcut_stage_jump",
             "show_stats": "shortcut_show_stats",
+            "open_binary_editor": "shortcut_open_binary_editor",
             "test_play": "shortcut_test_play",
             "stage_prev": "shortcut_stage_prev",
             "stage_next": "shortcut_stage_next",
@@ -901,6 +908,9 @@ class MainWindow(QMainWindow):
             return True
         if action == "show_stats":
             self._on_show_stats()
+            return True
+        if action == "open_binary_editor":
+            self._on_open_binary_editor()
             return True
         if action == "test_play":
             self._on_test_play()
@@ -4625,6 +4635,96 @@ class MainWindow(QMainWindow):
                 f"{type(e).__name__}: {e}",
             )
             self._log(f"テストプレイ失敗: {type(e).__name__}: {e}")
+
+    def _on_open_binary_editor(self):
+        """現在ステージのテストプレイROMを外部バイナリエディタで開く。"""
+        if not self.rom or not self.levels:
+            return
+        editor_path = str(self._app_config.get("binary_editor_path", "") or "").strip()
+        if not editor_path:
+            QMessageBox.warning(
+                self,
+                t("main.binary_editor.unset.title", "バイナリエディタ未設定"),
+                t(
+                    "main.binary_editor.unset.body",
+                    "F9 設定画面でバイナリエディタの実行ファイルまたはPythonファイルを登録してください。",
+                ),
+            )
+            return
+        editor = Path(editor_path)
+        if not editor.exists():
+            QMessageBox.warning(
+                self,
+                t("main.binary_editor.missing.title", "バイナリエディタが見つかりません"),
+                str(editor),
+            )
+            return
+        if self._is_read_only() and not self._can_readonly_test_play():
+            self._reject_read_only_edit()
+            return
+
+        import tempfile
+
+        original_data = bytearray(self.rom.data)
+        stage_no = self.current_level_no + 1
+        tmp_rom = None
+        build_msg = ""
+        try:
+            try:
+                if not self._is_read_only():
+                    before_title = self._read_current_title_text_line()
+                    saver.save_levels_to_rom(
+                        self.rom,
+                        self.levels,
+                        self._panel_variant_settings_for_save(),
+                        self._loaded_title_text_line,
+                    )
+                    after_title = self._read_current_title_text_line()
+                    build_msg = self._title_build_update_message(before_title, after_title)
+                    if build_msg:
+                        self._log(build_msg)
+                self._patch_testplay_start_stage(stage_no)
+                if (
+                    not self._is_read_only()
+                    and self._test_play_quick_start_enabled()
+                ):
+                    self._patch_testplay_fast_start()
+                tmpdir = Path(tempfile.gettempdir()) / "magatu_skc_testplay"
+                tmpdir.mkdir(parents=True, exist_ok=True)
+                tmp_rom = tmpdir / f"testplay_stage{stage_no:02d}.nes"
+                saver.write_rom_data(bytes(self.rom.data), str(tmp_rom))
+            finally:
+                self.rom.data = original_data
+        except Exception as e:
+            self._show_save_failure(
+                t("main.binary_editor.prepare_failed.title", "バイナリエディタ用ROM作成失敗"),
+                e,
+                t("main.binary_editor.prepare_failed.title", "バイナリエディタ用ROM作成失敗"),
+            )
+            return
+
+        try:
+            if editor.suffix.lower() in (".py", ".pyw"):
+                args = ["python", str(editor), str(tmp_rom)]
+            else:
+                args = [str(editor), str(tmp_rom)]
+            subprocess.Popen(args, cwd=str(editor.parent))
+            suffix = f" / {build_msg}" if build_msg else ""
+            self.statusBar().showMessage(
+                t(
+                    "main.binary_editor.launched",
+                    "バイナリエディタで開きました: {path}{suffix}",
+                ).format(path=tmp_rom, suffix=suffix),
+                5000,
+            )
+            self._log(f"バイナリエディタ起動: {' '.join(args)}")
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                t("main.binary_editor.launch_failed.title", "バイナリエディタ起動失敗"),
+                f"{type(e).__name__}: {e}",
+            )
+            self._log(f"バイナリエディタ起動失敗: {type(e).__name__}: {e}")
 
     def _can_readonly_test_play(self) -> bool:
         if not self.rom or not self._is_read_only():
@@ -11170,6 +11270,7 @@ class MainWindow(QMainWindow):
             "save_stage_png",
             "stage_jump",
             "show_stats",
+            "open_binary_editor",
         ):
             if self._event_matches_shortcut(event, action):
                 if self._trigger_shortcut_action(action):
@@ -14317,7 +14418,14 @@ Tab/Shift+Tab系は、ホバー位置のアイテム/鍵/扉状態を順送り/�
             "hover_info",
         }:
             return "display"
-        if action in {"help", "settings", "open_rom", "save_rom", "save_stage_png"}:
+        if action in {
+            "help",
+            "settings",
+            "open_rom",
+            "save_rom",
+            "save_stage_png",
+            "open_binary_editor",
+        }:
             return "system"
         if action.startswith("favorite_") or action.startswith("hover_item_"):
             return "ui"

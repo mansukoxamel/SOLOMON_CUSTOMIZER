@@ -25,18 +25,18 @@ CLAUDE.md準拠: (A)位置 + (B)署名 二重検証、不一致は GapFixError �
 
 ROM file offset (clean JP / 拡張ROM 共通。expander verbatim):
   file = 0x10 + (cpu - 0x8000)
-  $8784 フック  file 0x0794  "A0 0B 91" -> "4C 00 C0" (JMP $C000)
+  $8784 フック  file 0x0794  "A0 0B 91" -> "4C 79 E8" (JMP $E879)
   $877F 署名    file 0x078F  "A5 0A 6A 6A 6A"
-  cave $C000    file 0x4010  (136B、room_flags予約 $BBDE-$C1FF 内の
-                              room_flags非使用中間帯。両機能共存可)
+  cave $E879    file 0x6889  (136B、RoomFlag packed cave runtime直後24Bを
+                              空けた後ろへ移動)
 """
 
 OFF_HOOK   = 0x0794                       # $8784
 OFF_SIG    = 0x078F                       # $877F
 SIG        = bytes.fromhex("a5 0a 6a 6a 6a")
 ORIG       = bytes.fromhex("a0 0b 91")    # LDY #$0B / STA ($08),Y 先頭
-HOOK       = bytes.fromhex("4c 00 c0")    # JMP $C000
-OFF_CAVE   = 0x4010                       # $C000
+HOOK       = bytes.fromhex("4c 79 e8")    # JMP $E879
+OFF_CAVE   = 0x6889                       # $E879
 
 # v8 実機成功確定 cave (位置独立=内部絶対JMP無し、$C000へそのまま配置)
 CAVE = bytes.fromhex(
@@ -74,7 +74,7 @@ def _verify(rom_data) -> None:
     seg = bytes(rom_data[OFF_CAVE:OFF_CAVE + len(CAVE)])
     if seg != CAVE and not all(b in (0xEA, 0x00) for b in seg):
         raise GapFixError(
-            "cave $C000 が空きでありません。別改造と競合の可能性があるため中止します。"
+            "cave $E879 が空きでありません。別改造と競合の可能性があるため中止します。"
         )
 
 
@@ -85,15 +85,16 @@ def is_applied(rom_data) -> bool:
 
 def apply(rom_data, enable: bool) -> list:
     """横穴侵入安定化を適用/解除。検証→書込。変更内容 list を返す。
-    enable=True: cave注入+フック有効化 / False: フック原作復元。
+    cave本体は保存ROM構造固定のため常に書く。
+    enable=True: フック有効化 / False: フック原作復元。
     検証失敗は GapFixError (フォールバック禁止)。
     """
     _verify(rom_data)
     changed = []
+    if bytes(rom_data[OFF_CAVE:OFF_CAVE + len(CAVE)]) != CAVE:
+        rom_data[OFF_CAVE:OFF_CAVE + len(CAVE)] = CAVE
+        changed.append("cave $E879 注入")
     if enable:
-        if bytes(rom_data[OFF_CAVE:OFF_CAVE + len(CAVE)]) != CAVE:
-            rom_data[OFF_CAVE:OFF_CAVE + len(CAVE)] = CAVE
-            changed.append("cave $C000 注入")
         if bytes(rom_data[OFF_HOOK:OFF_HOOK + 3]) != HOOK:
             rom_data[OFF_HOOK:OFF_HOOK + 3] = HOOK
             changed.append("$8784 フック有効化 (横穴侵入安定化)")

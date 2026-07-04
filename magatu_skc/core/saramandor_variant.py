@@ -22,6 +22,10 @@ def _cf(cpu: int) -> int:
     return 0x10 + (cpu - 0x8000)
 
 
+def _word(cpu: int) -> bytes:
+    return bytes((cpu & 0xFF, (cpu >> 8) & 0xFF))
+
+
 # Hooks in bank0 PRG.  These offsets are unchanged after mapper66 expansion.
 OFF_HOOK_SPAWN_SETUP = _cf(0xB105)
 OFF_HOOK_SUBSTATUS = _cf(0xB0A9)
@@ -42,21 +46,25 @@ ORIG_DISTANCE_CHECK = bytes.fromhex(
     "88 b1 2c 0a b0 02 49 ff c9 10 60"
 )
 
-HOOK_SPAWN_SETUP = bytes.fromhex("20 00 be") + bytes([0xEA] * 11)
-HOOK_SUBSTATUS = bytes.fromhex("20 40 be") + bytes([0xEA] * 4)
-HOOK_FLAME_BEHAVIOR = bytes.fromhex("20 80 be")
+CPU_CAVE_SPAWN_SETUP = 0xE3C9
+CPU_CAVE_SUBSTATUS = CPU_CAVE_SPAWN_SETUP + 0x2F
+CPU_CAVE_FLAME_BEHAVIOR = CPU_CAVE_SUBSTATUS + 0x22
+CPU_CAVE_DISTANCE_CHECK = CPU_CAVE_FLAME_BEHAVIOR + 0x14
+
+HOOK_SPAWN_SETUP = bytes((0x20, *(_word(CPU_CAVE_SPAWN_SETUP)))) + bytes([0xEA] * 11)
+HOOK_SUBSTATUS = bytes((0x20, *(_word(CPU_CAVE_SUBSTATUS)))) + bytes([0xEA] * 4)
+HOOK_FLAME_BEHAVIOR = bytes((0x20, *(_word(CPU_CAVE_FLAME_BEHAVIOR))))
 BAD_HOOK_CHILD_MARK_CLEANUP = bytes.fromhex("20 9f be")
-HOOK_DISTANCE_CHECK = bytes.fromhex("4c 00 bf")
+HOOK_DISTANCE_CHECK = bytes((0x4C, *(_word(CPU_CAVE_DISTANCE_CHECK))))
 HOOK_PANEL_STAGE_SPEED_GUARD = bytes.fromhex("20 a4 e7")
 HOOK_PANEL_STAGE_SPEED_GUARD_OLD = bytes.fromhex("20 76 e8")
 
 
-# Cave layout.  $BE00-$BEFF is inside the JP bank0 cave and must be registered
-# as a reserved span in room_flags.py.
-OFF_CAVE_SPAWN_SETUP = _cf(0xBE00)
-OFF_CAVE_SUBSTATUS = _cf(0xBE40)
-OFF_CAVE_FLAME_BEHAVIOR = _cf(0xBE80)
-OFF_CAVE_DISTANCE_CHECK = _cf(0xBF00)
+# Packed PRG0 cleanup layout.
+OFF_CAVE_SPAWN_SETUP = _cf(CPU_CAVE_SPAWN_SETUP)
+OFF_CAVE_SUBSTATUS = _cf(CPU_CAVE_SUBSTATUS)
+OFF_CAVE_FLAME_BEHAVIOR = _cf(CPU_CAVE_FLAME_BEHAVIOR)
+OFF_CAVE_DISTANCE_CHECK = _cf(CPU_CAVE_DISTANCE_CHECK)
 
 CAVE_SPAWN_SETUP = bytes.fromhex(
     # If parent type is $5E/$5F/$62/$63, spawn Bullet type $20.
@@ -90,12 +98,18 @@ CAVE_DISTANCE_CHECK = bytes.fromhex(
     "a0 05 b1 2c 0a b0 02 49 ff c9 14 b0 0a"
     "88 b1 2c 0a b0 02 49 ff c9 10 60"
 )
+assert CPU_CAVE_SUBSTATUS == CPU_CAVE_SPAWN_SETUP + len(CAVE_SPAWN_SETUP)
+assert CPU_CAVE_FLAME_BEHAVIOR == CPU_CAVE_SUBSTATUS + len(CAVE_SUBSTATUS)
+assert CPU_CAVE_DISTANCE_CHECK == CPU_CAVE_FLAME_BEHAVIOR + len(CAVE_FLAME_BEHAVIOR)
 
 RESERVED_SPANS = (
-    (OFF_CAVE_SPAWN_SETUP, len(CAVE_SPAWN_SETUP)),
-    (OFF_CAVE_SUBSTATUS, len(CAVE_SUBSTATUS)),
-    (OFF_CAVE_FLAME_BEHAVIOR, len(CAVE_FLAME_BEHAVIOR)),
-    (OFF_CAVE_DISTANCE_CHECK, len(CAVE_DISTANCE_CHECK)),
+    (
+        OFF_CAVE_SPAWN_SETUP,
+        len(CAVE_SPAWN_SETUP)
+        + len(CAVE_SUBSTATUS)
+        + len(CAVE_FLAME_BEHAVIOR)
+        + len(CAVE_DISTANCE_CHECK),
+    ),
 )
 
 
@@ -153,10 +167,10 @@ def apply(rom_data) -> list[str]:
     _expect_or_hooked(rom_data, OFF_HOOK_DISTANCE_CHECK, ORIG_DISTANCE_CHECK, HOOK_DISTANCE_CHECK, "$B1E9")
 
     changed: list[str] = []
-    _write_blob(rom_data, OFF_CAVE_SPAWN_SETUP, CAVE_SPAWN_SETUP, changed, "Saramandor variant cave $BE00")
-    _write_blob(rom_data, OFF_CAVE_SUBSTATUS, CAVE_SUBSTATUS, changed, "Saramandor variant cave $BE40")
-    _write_blob(rom_data, OFF_CAVE_FLAME_BEHAVIOR, CAVE_FLAME_BEHAVIOR, changed, "Saramandor variant cave $BE80")
-    _write_blob(rom_data, OFF_CAVE_DISTANCE_CHECK, CAVE_DISTANCE_CHECK, changed, "Saramandor variant cave $BF00")
+    _write_blob(rom_data, OFF_CAVE_SPAWN_SETUP, CAVE_SPAWN_SETUP, changed, "Saramandor variant cave $E3C9")
+    _write_blob(rom_data, OFF_CAVE_SUBSTATUS, CAVE_SUBSTATUS, changed, "Saramandor variant cave $E3F8")
+    _write_blob(rom_data, OFF_CAVE_FLAME_BEHAVIOR, CAVE_FLAME_BEHAVIOR, changed, "Saramandor variant cave $E41A")
+    _write_blob(rom_data, OFF_CAVE_DISTANCE_CHECK, CAVE_DISTANCE_CHECK, changed, "Saramandor variant cave $E42E")
 
     _write_blob(rom_data, OFF_HOOK_SPAWN_SETUP, HOOK_SPAWN_SETUP, changed, "$B105 Saramandor spawn hook")
     _write_blob(rom_data, OFF_HOOK_SUBSTATUS, HOOK_SUBSTATUS, changed, "$B0A9 Saramandor substatus hook")

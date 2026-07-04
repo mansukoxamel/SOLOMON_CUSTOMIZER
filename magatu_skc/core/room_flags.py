@@ -29,12 +29,12 @@ CLAUDE.md 準拠:
 ROM レイアウト (clean JP / mapper66 拡張ROM 共通。expander は元 32KB PRG を
 verbatim コピーするため file offset 不変):
   file = 0x10 + (cpu - 0x8000)
-  $9071 フック        file 0x1081  "20 4B 97" -> "20 E0 BB" (LOADER)
-  $8326 フック        file 0x0336  "A5 28 6A" -> "20 20 BC" (MAGICGATE)
-  $91CC フック        file 0x11DC  "20 53 9D" -> "20 50 BC" (DOORPREDRAW)
-  LOADER     cave $BBE0  file 0x3BF0  (46B; plus 9B idle-demo cleanup at $BC0E)
-  MAGICGATE  cave $BC20  file 0x3C30  (34B)
-  DOORPREDRAW cave $BC50 file 0x3C60  (11B)
+  $9071 フック        file 0x1081  "20 4B 97" -> "20 88 E7" (LOADER)
+  $8326 フック        file 0x0336  "A5 28 6A" -> "20 B6 E7" (MAGICGATE)
+  $91CC フック        file 0x11DC  "20 53 9D" -> "20 D8 E7" (DOORPREDRAW)
+  LOADER     cave $E788  file 0x6798  (46B; wide-title idle cleanup now $E861)
+  MAGICGATE  cave $E7B6  file 0x67C6  (34B)
+  DOORPREDRAW cave $E7D8 file 0x67E8  (11B)
   DoorCellTable  $C180  file 0x4190  (64B、扉マスindex)
   RoomFlagTable  $C1C0  file 0x41D0  (64B、$0428 直接index、全$00=無改変)
 
@@ -80,7 +80,7 @@ verbatim コピーするため file offset 不変):
 #                                 $0744=C speed / $0745=C interval。
 #   $0750-$0767 VISIBLE_INBLOCK_ITEM_MASK 透明ブロック内アイテムbitmask 予約済(使用中)
 #                               ・mapper66 loader がPRG1 0xF860 tableから24Bコピー。
-#                               ・$E74C helper がNMI中に破壊的shiftで参照。
+#                               ・$E234 helper がNMI中に破壊的shiftで参照。
 #   $0768-$076F CRACKED_INBLOCK_LIST ひび割れブロック内アイテム位置リスト
 #                               予約済(使用中)
 #                               ・mapper66 loader がPRG1 visible-item slot末尾8B
@@ -197,6 +197,17 @@ PRG0_EFFECT_FLAGS = 0xFF & ~RUNTIME_ONLY_FLAGS
 
 ROOM_COUNT = 64  # RoomFlagTable サイズ ($0428 = $00..$34 / 53面+特殊)
 
+
+def _cpu(file_off: int) -> int:
+    raw = int(file_off) - 0x10
+    if raw < 0x4000:
+        return 0x8000 + raw
+    return 0xC000 + (raw & 0x3FFF)
+
+
+def _word(cpu: int) -> bytes:
+    return bytes((int(cpu) & 0xFF, (int(cpu) >> 8) & 0xFF))
+
 # ---- file offset (clean JP = 拡張ROM 共通) ----------------------------
 OFF_HOOK_9071   = 0x1081   # JSR $974B (3B)
 OFF_SIG_9074    = 0x1084   # 署名: 改造対象を含まない $9074〜
@@ -214,36 +225,45 @@ SIG_91C1        = bytes.fromhex("a2 02 c8 b1 30 d0 02 a2 35 86 03")
 ORIG_91CC       = bytes.fromhex("20 53 9d")  # JSR $9D53 (扉先行描画)
 OFF_HOOK_909A   = 0x10AA   # JSR $95E4 (grid -> nametable)
 ORIG_909A       = bytes.fromhex("20 e4 95")
-HOOK_909A_NEW   = bytes.fromhex("20 f0 c0")  # JSR $C0F0 (draw then convert)
 
 # ---- cave / table レイアウト (clean JP = 拡張ROM 共通) ----------------
 # 空き領域 $BBDE-$C1FF (file 0x3BEE-0x4210, 1570B, 全 EA/00 実機裏取り)
-OFF_LOADER_CAVE = 0x3BF0   # $BBE0  LOADER (46B)
-OFF_MAGIC_CAVE  = 0x3C30   # $BC20  MAGICGATE (34B)
-OFF_DOOR_CAVE   = 0x3C60   # $BC50  DOORPREDRAW (11B)
+OFF_LOADER_CAVE = 0x6798   # $E788  LOADER (46B)
+OFF_MAGIC_CAVE  = 0x67C6   # $E7B6  MAGICGATE (34B)
+OFF_DOOR_CAVE   = 0x67E8   # $E7D8  DOORPREDRAW (11B)
 OFF_DOORTAB     = 0x4190   # $C180  DoorCellTable (64B; mapper66ではStageExtへ移設)
 OFF_TABLE       = 0x41D0   # $C1C0  RoomFlagTable (64B; mapper66ではStageExtへ移設)
-OFF_DARK_CAVE   = 0x3C90   # $BC80  DARK / runtime dispatch
-OFF_TEMPO       = 0x3CE0   # $BCD0  全体共通テンポ 2B [LIGHT, PERIOD]
-OFF_VISIBLE_INBLOCK_HELPER = 0x675C  # $E74C  visible item bitmask -> white in-block helper
+OFF_DARK_CAVE   = 0x67F3   # $E7E3  DARK / runtime dispatch
+OFF_TEMPO       = 0x682B   # $E81B  全体共通テンポ 2B [LIGHT, PERIOD]
+OFF_VISIBLE_INBLOCK_HELPER = 0x6244  # $E234  visible item bitmask -> white in-block helper
 VISIBLE_INBLOCK_HELPER_CAPACITY = 0x18
-OFF_WHITE_INBLOCK_RUNTIME_EXT = 0x678C  # $E77C  mask-clear white in-block live-grid lowering
-OFF_BW_CAVE     = 0x4100   # $C0F0  runtime special-cell scanner
+OFF_WHITE_INBLOCK_RUNTIME_EXT = OFF_VISIBLE_INBLOCK_HELPER + VISIBLE_INBLOCK_HELPER_CAPACITY  # $E24C
+OFF_BW_CAVE     = 0x682D   # $E81D  runtime special-cell scanner
 OFF_CAVE_FREE0  = 0x3BEE   # $BBDE  (cave 空き判定の起点)
 OFF_CAVE_FREE1  = 0x4210   # $C200  (cave 空き判定の終点)
-OFF_TITLE_IDLE_DEMO_CLEAR = 0x3C1E  # $BC0E  wide-title idle demo cleanup (9B)
+OFF_TITLE_IDLE_DEMO_CLEAR = 0x6871  # $E861  wide-title idle demo cleanup (9B)
+OFF_TITLE_IDLE_DEMO_CLEAR_OLD = 0x3C1E  # $BC0E old wide-title idle cleanup slot
 TITLE_IDLE_DEMO_CLEAR_SIZE = 9
+
+CPU_LOADER_CAVE = _cpu(OFF_LOADER_CAVE)
+CPU_MAGIC_CAVE = _cpu(OFF_MAGIC_CAVE)
+CPU_DOOR_CAVE = _cpu(OFF_DOOR_CAVE)
+CPU_DARK_CAVE = _cpu(OFF_DARK_CAVE)
+CPU_TEMPO_LIGHT = _cpu(OFF_TEMPO)
+CPU_TEMPO_PERIOD = CPU_TEMPO_LIGHT + 1
+CPU_BW_CAVE = _cpu(OFF_BW_CAVE)
+HOOK_909A_NEW = bytes.fromhex("20") + _word(CPU_BW_CAVE)
 
 # 暗闇 NMI フック: $8055 LDA $0301 (PPUMASK shadow読込、毎フレNMI)
 OFF_HOOK_8055   = 0x0065   # $8055
 OFF_SIG_804B    = 0x005B   # 署名: 改造対象を含まない $804B〜 (10B)
 SIG_804B        = bytes.fromhex("bd ef 80 9d ef 80 a9 80 85 7d")
 ORIG_8055       = bytes.fromhex("ad 01 03")  # LDA $0301
-HOOK_8055_NEW   = bytes.fromhex("20 80 bc")  # JSR $BC80 (DARK cave)
+HOOK_8055_NEW   = bytes.fromhex("20") + _word(CPU_DARK_CAVE)
 
-# DARK cave @ $BC80: ROOMFLAGS bit3 & Dana実プレイ($057F>=$C0)
-#   の時だけ フェーズカウンタ $0779 を進め、$BCD0(LIGHT)未満=明
-#   (原 $0301)/ 以上=暗(bit3クリアでBG-off) / $BCD1(PERIOD)で0復帰。
+# DARK cave @ $E7E3: ROOMFLAGS bit3 & Dana実プレイ($057F>=$C0)
+#   の時だけ フェーズカウンタ $0779 を進め、$E81B(LIGHT)未満=明
+#   (原 $0301)/ 以上=暗(bit3クリアでBG-off) / $E81C(PERIOD)で0復帰。
 #   非該当時は $0779=0 リセット → 暗闇面は必ず「明」から開始。
 #   LOADER は非改変(独立)。$8058 STA $2001 が返り A を書く。
 #   ★R-fix(2026-05-18): ROOMFLAGS/フェーズカウンタを $0460/$0461 から
@@ -252,9 +272,12 @@ HOOK_8055_NEW   = bytes.fromhex("20 80 bc")  # JSR $BC80 (DARK cave)
 #     妖精取得音($0F)が無限ループした(実機 PC=$F2F7 サウンドが$0461
 #     書込を確認)。$0778/$0779 = entity 21slot 終端$0722 の後ろ +
 #     ramfree3_probe 285秒 沈黙確認の二重安全域。
-DARK_CAVE = bytes.fromhex(
-    "ad78072908f025ae7f05e0c0901eee7907ad7907cdd1bc9005a9008d7907"
-    "ad7907cdd0bc900bad010329f760a9008d7907ad010360"
+DARK_CAVE = (
+    bytes.fromhex("ad78072908f025ae7f05e0c0901eee7907ad7907cd")
+    + _word(CPU_TEMPO_PERIOD)
+    + bytes.fromhex("9005a9008d7907ad7907cd")
+    + _word(CPU_TEMPO_LIGHT)
+    + bytes.fromhex("900bad010329f760a9008d7907ad010360")
 )
 assert len(DARK_CAVE) == 53
 # 0x3CC8-0x3CDF is reserved by key_enemy_runtime's fall-death handler.
@@ -262,7 +285,7 @@ DARK_CAVE_RESERVED_SIZE = 0x38
 DARK_CAVE_BLOB = DARK_CAVE + bytes([0xEA] * (DARK_CAVE_RESERVED_SIZE - len(DARK_CAVE)))
 assert len(DARK_CAVE_BLOB) == DARK_CAVE_RESERVED_SIZE
 
-# Runtime block override routine @ $C0F0.
+# Runtime block override routine @ $E81D.
 # Replaces the stage-start $909A JSR $95E4 call. It first calls the original
 # grid -> nametable renderer, then converts the grid values before the screen is
 # shown. This preserves the special IDs for visual rendering while still giving
@@ -277,14 +300,14 @@ assert len(DARK_CAVE_BLOB) == DARK_CAVE_RESERVED_SIZE
 #   $A4 -> $F8  solid brown
 # Direct white in-block item lowering must not use the apparent $DB61 zero area:
 # it is enemy state-speed data reached through the $D9D3 pointer table.
-# $E74C consumes the visible-item mask for every cell. When the mask bit is set,
+# $E234 consumes the visible-item mask for every cell. When the mask bit is set,
 # the original path still converts normal/cracked mask cells to $C0+item. When
-# the mask bit is clear, it branches to $E77C; direct $C0-$F7 white in-block
+# the mask bit is clear, it branches to $E24C; direct $C0-$F7 white in-block
 # item cells have already been drawn as white, so only the live grid is lowered
 # to $80-$B7 for the normal two-hit block-item flow. Existing $80-$BF cells are
 # stored back unchanged by the same path.
 BW_CAVE = bytes.fromhex(
-    "20e495ad78072960f026a018a2c0204ce7c901f024c940"
+    "20e495ad78072960f026a018a2c02034e2c901f024c940"
     "f018c9a4f014c950f014c9f9f010c9faf014c9a3f010"
     "cad0de60a9f8d00aa990d006a9d0d002a9109d1303d0e9"
 )
@@ -294,20 +317,24 @@ BW_CAVE_BLOB = BW_CAVE + bytes([0xEA] * (BW_CAVE_RESERVED_SIZE - len(BW_CAVE)))
 assert len(BW_CAVE_BLOB) == BW_CAVE_RESERVED_SIZE
 
 VISIBLE_INBLOCK_HELPER = bytes.fromhex(
-    "8a2907d00188b950070a995007bd1303901e09c09d130360"
+    "8a2907d00188b950070a995007bd1303900609c09d130360"
 )
 assert len(VISIBLE_INBLOCK_HELPER) <= VISIBLE_INBLOCK_HELPER_CAPACITY
 WHITE_INBLOCK_RUNTIME_EXT = bytes.fromhex("1009c9f8b00529bf9d130360")
 assert len(WHITE_INBLOCK_RUNTIME_EXT) == 12
+OFF_VISIBLE_INBLOCK_FREE = OFF_WHITE_INBLOCK_RUNTIME_EXT + len(WHITE_INBLOCK_RUNTIME_EXT)
+VISIBLE_INBLOCK_FREE_LEN = 24
+assert OFF_WHITE_INBLOCK_RUNTIME_EXT == OFF_VISIBLE_INBLOCK_HELPER + len(VISIBLE_INBLOCK_HELPER)
+assert VISIBLE_INBLOCK_FREE_LEN == 24
 # 全体共通テンポ既定: 明45フレ / 暗100フレ → PERIOD=145
 TEMPO_DEFAULT = bytes([45, 145])  # [LIGHT, PERIOD(=LIGHT+DARK)]
 
 # ---- フック差替バイト -------------------------------------------------
-HOOK_9071_NEW = bytes.fromhex("20 e0 bb")  # JSR $BBE0 (LOADER)
-HOOK_8326_NEW = bytes.fromhex("20 20 bc")  # JSR $BC20 (MAGICGATE)
-HOOK_91CC_NEW = bytes.fromhex("20 50 bc")  # JSR $BC50 (DOORPREDRAW)
+HOOK_9071_NEW = bytes.fromhex("20") + _word(CPU_LOADER_CAVE)
+HOOK_8326_NEW = bytes.fromhex("20") + _word(CPU_MAGIC_CAVE)
+HOOK_91CC_NEW = bytes.fromhex("20") + _word(CPU_DOOR_CAVE)
 
-# LOADER cave @ $BBE0 (46B):
+# LOADER cave @ $E788 (46B):
 #   JSR $974B            ; 原処理(level load)再現
 #   LDX $0428 / LDA $C1C0,X / STA $0778   ; ROOMFLAGS ロード
 #   AND #$10             ; bit4 = ステージ開始時ファイヤー所持リセット?
@@ -332,7 +359,7 @@ assert 10 + LOADER_CAVE[9] == 21  # fire-reset skip lands on the door-state load
 assert 28 + LOADER_CAVE[27] == len(LOADER_CAVE) - 1  # no-door skip lands on RTS.
 assert LOADER_CAVE[-1] == 0x60
 
-# MAGICGATE cave @ $BC20 (34B): bit2=B火球禁止 / bit7=A換石禁止 (独立)
+# MAGICGATE cave @ $E7B6 (34B): bit2=B火球禁止 / bit7=A換石禁止 (独立)
 #   SE id $08: $13=B火球 / $11=A換石。該当 bit & 該当 SE のみ却下
 #         LDA $0778 / AND #$04 / BEQ chkA   ; bit2 B禁止?
 #         LDA $08 / CMP #$13 / BEQ reject    ; B火球なら却下
@@ -347,12 +374,19 @@ MAGIC_CAVE = bytes.fromhex(
     "a5 28 6a 60 68 68 38 60"
 )
 
-# DOORPREDRAW cave @ $BC40 (11B): 隠し/ブロック内扉は開始前画面の扉描画を抑止
+# DOORPREDRAW cave @ $E7D8 (11B): 隠し/ブロック内扉は開始前画面の扉描画を抑止
 #   LDA $0778 / AND #$03 / BNE skip       ; bit0/1 立ってたら扉を描かない
 #   JSR $9D53                              ; 通常=扉先行描画
 # skip: RTS                                ; ($91CF へ復帰)
 #   ★R-fix: ROOMFLAGS $0460→$0778 (サウンドRAM衝突回避)
 DOOR_CAVE = bytes.fromhex("ad 78 07 29 03 d0 03 20 53 9d 60")
+
+assert OFF_MAGIC_CAVE == OFF_LOADER_CAVE + len(LOADER_CAVE)
+assert OFF_DOOR_CAVE == OFF_MAGIC_CAVE + len(MAGIC_CAVE)
+assert OFF_DARK_CAVE == OFF_DOOR_CAVE + len(DOOR_CAVE)
+assert OFF_TEMPO == OFF_DARK_CAVE + DARK_CAVE_RESERVED_SIZE
+assert OFF_BW_CAVE == OFF_TEMPO + 2
+assert OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE == 0x6871
 
 
 BIT_FIRE_RESET = 0x10  # stage load clears carried fire scroll stock.
@@ -411,9 +445,8 @@ def _verify(rom_data) -> None:
                 "あるため中止します。"
             )
     # cave 空き: 原作(EA/00) / 既注入の各 cave・table は許容。
-    # ★gap_fix(原作バグ回避 横穴侵入安定化) の cave も同 bank0 予約帯
-    #   ($BBDE-$C1FF)内の room_flags 非使用中間帯 $C000(file0x4010,136B)
-    #   に置くため、両機能を同時適用できるよう許容スパンに含める。
+    # ★gap_fix(原作バグ回避 横穴侵入安定化) の cave も4096B跡地側に
+    #   置くため、両機能を同時適用できるよう許容スパンに含める。
     from . import gap_fix as _gf
     from . import gargoyle_variant as _gv
     from . import panel_monster_variant as _pmv
@@ -442,6 +475,7 @@ def _verify(rom_data) -> None:
         (OFF_MAGIC_CAVE, len(MAGIC_CAVE)),
         (OFF_DOOR_CAVE, len(DOOR_CAVE)),
         (OFF_TITLE_IDLE_DEMO_CLEAR, TITLE_IDLE_DEMO_CLEAR_SIZE),
+        (OFF_TITLE_IDLE_DEMO_CLEAR_OLD, TITLE_IDLE_DEMO_CLEAR_SIZE),
         *table_spans,
         (_gf.OFF_CAVE, len(_gf.CAVE)),       # gap_fix 共存
         (OFF_DARK_CAVE, DARK_CAVE_RESERVED_SIZE),  # 暗闇 cave
@@ -634,9 +668,9 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
     if fixed_runtime or prg0_needed:
         # cave コード注入
         for off, blob, name in (
-            (OFF_LOADER_CAVE, LOADER_CAVE, "LOADER ($BBE0)"),
-            (OFF_MAGIC_CAVE, MAGIC_CAVE, "MAGICGATE ($BC20)"),
-            (OFF_DOOR_CAVE, DOOR_CAVE, "DOORPREDRAW ($BC40)"),
+            (OFF_LOADER_CAVE, LOADER_CAVE, "LOADER ($E788)"),
+            (OFF_MAGIC_CAVE, MAGIC_CAVE, "MAGICGATE ($E7B6)"),
+            (OFF_DOOR_CAVE, DOOR_CAVE, "DOORPREDRAW ($E7D8)"),
         ):
             if bytes(rom_data[off:off + len(blob)]) != blob:
                 rom_data[off:off + len(blob)] = blob
@@ -665,13 +699,13 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
     if fixed_runtime or runtime_needed:
         if bytes(rom_data[OFF_VISIBLE_INBLOCK_HELPER:OFF_VISIBLE_INBLOCK_HELPER + len(VISIBLE_INBLOCK_HELPER)]) != VISIBLE_INBLOCK_HELPER:
             rom_data[OFF_VISIBLE_INBLOCK_HELPER:OFF_VISIBLE_INBLOCK_HELPER + len(VISIBLE_INBLOCK_HELPER)] = VISIBLE_INBLOCK_HELPER
-            changed.append("VisibleInBlock helper 注入 ($E74C)")
+            changed.append("VisibleInBlock helper 注入 ($E234)")
         if bytes(rom_data[OFF_WHITE_INBLOCK_RUNTIME_EXT:OFF_WHITE_INBLOCK_RUNTIME_EXT + len(WHITE_INBLOCK_RUNTIME_EXT)]) != WHITE_INBLOCK_RUNTIME_EXT:
             rom_data[OFF_WHITE_INBLOCK_RUNTIME_EXT:OFF_WHITE_INBLOCK_RUNTIME_EXT + len(WHITE_INBLOCK_RUNTIME_EXT)] = WHITE_INBLOCK_RUNTIME_EXT
-            changed.append("WhiteInBlock runtime extension 注入 ($E77C)")
+            changed.append("WhiteInBlock runtime extension 注入 ($E24C)")
         if bytes(rom_data[OFF_BW_CAVE:OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE]) != BW_CAVE_BLOB:
             rom_data[OFF_BW_CAVE:OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE] = BW_CAVE_BLOB
-            changed.append("BreakableWhite cave 注入 ($C0F0)")
+            changed.append("BreakableWhite cave 注入 ($E81D)")
         if bytes(rom_data[OFF_HOOK_909A:OFF_HOOK_909A + 3]) != HOOK_909A_NEW:
             rom_data[OFF_HOOK_909A:OFF_HOOK_909A + 3] = HOOK_909A_NEW
             changed.append("$909A (特殊セル変換) フック有効化")
@@ -685,7 +719,7 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
     if fixed_runtime or _dark_needed(room_flags):
         if bytes(rom_data[OFF_DARK_CAVE:OFF_DARK_CAVE + DARK_CAVE_RESERVED_SIZE]) != DARK_CAVE_BLOB:
             rom_data[OFF_DARK_CAVE:OFF_DARK_CAVE + DARK_CAVE_RESERVED_SIZE] = DARK_CAVE_BLOB
-            changed.append("DARK cave 注入 ($BC80)")
+            changed.append("DARK cave 注入 ($E7E3)")
         # テンポ: 空き(未設定)なら既定。設定済みなら保持(ユーザー値尊重)
         tseg = bytes(rom_data[OFF_TEMPO:OFF_TEMPO + 2])
         if all(b in (0xEA, 0x00) for b in tseg):
