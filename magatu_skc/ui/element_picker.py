@@ -174,7 +174,7 @@ ENEMIES_LIST = [
     (0x80, "Red Flame"),
     (0x81, "White Flame"),
     (0x84, "Ice Flame"),
-    (0x85, "Spark85"),
+    # (0x85, "Spark85"),  # Internal runtime is prepared; keep hidden from picker for now.
 ]
 
 

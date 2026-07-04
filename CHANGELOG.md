@@ -1,5 +1,11 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.20 (2026-07-05) Spark85 runtimeを内部準備
+- 新しい敵ID `$85` 向けのSpark85 runtimeを内部実装し、New enemy共通入口から `$84` Ice Flame / `$85` Spark85 を振り分けるようにした。
+- init共通入口で敵ID判定のためにAを壊していた問題を修正し、非Spark85では原作init `$9D1C` へ入る前に元のAを復元するようにした。
+- `$85` の配置UI行はコメントアウトで非表示にし、内部確認用にステージ表示・統計・敵ドロップ表示ではSpark Ball見た目へフォールバックできるようにした。
+- ROM管理簿を更新し、New enemy共通入口、Ice Flame本体、Spark85本体、Spark85前24B緩衝の配置を記録した。
+
 ## v0.9.19 (2026-07-04) Flame表示と再保存チェックを修正
 - White Flameの敵ピッカー表示を、BGパレット近似ではなく実ROM由来のSPR #3 + White Flame CHRへ合わせた。
 - Ice Flameの配置表示はruntimeで使うSPR #2基準に揃え、余計な色フィルターを使わない表示にした。
