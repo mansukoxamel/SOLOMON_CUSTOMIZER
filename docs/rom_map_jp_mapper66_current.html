@@ -255,36 +255,24 @@
     <div class="labels"><span>$E000</span><span>$E200</span><span>$E400</span><span>$E600</span><span>$E800</span><span>$EA00</span><span>$EC00</span><span>$EE00</span><span>$EFFF</span></div>
     <div class="note">
       <b>4096B runtime block:</b>
-      This is the current PRG0 runtime aggregation area. The small free gaps after each runtime are intentional buffers for short follow-up code in the same feature group.
+      This is the current PRG0 runtime aggregation area.
       The old bank0 cave zoom map was removed because it no longer represents the active runtime placement.
     </div>
     <table>
       <tr><th>Range</th><th>CPU</th><th>Size</th><th>Use</th></tr>
       <tr><td class="num">0x6010-0x60B3</td><td class="num">$E000-$E0A3</td><td class="num">164B</td><td>Stage start announcement</td></tr>
-      <tr><td class="num">0x60B4-0x60CB</td><td class="num">$E0A4-$E0BB</td><td class="num">24B</td><td>Free buffer</td></tr>
       <tr><td class="num">0x60CC-0x60F5</td><td class="num">$E0BC-$E0E5</td><td class="num">42B</td><td>Initial draw low classifier</td></tr>
-      <tr><td class="num">0x60F6-0x610D</td><td class="num">$E0E6-$E0FD</td><td class="num">24B</td><td>Free buffer</td></tr>
       <tr><td class="num">0x610E-0x622B</td><td class="num">$E0FE-$E21B</td><td class="num">286B</td><td>Key/Fairy enemy runtime</td></tr>
-      <tr><td class="num">0x622C-0x6243</td><td class="num">$E21C-$E233</td><td class="num">24B</td><td>Free buffer</td></tr>
       <tr><td class="num">0x6244-0x6267</td><td class="num">$E234-$E257</td><td class="num">36B</td><td>Visible item in-block helper</td></tr>
-      <tr><td class="num">0x6268-0x627F</td><td class="num">$E258-$E26F</td><td class="num">24B</td><td>Free buffer</td></tr>
       <tr><td class="num">0x6280-0x633E</td><td class="num">$E270-$E32E</td><td class="num">191B</td><td>Spark Ball runtime</td></tr>
-      <tr><td class="num">0x633F-0x6341</td><td class="num">$E32F-$E331</td><td class="num">3B</td><td>Free buffer</td></tr>
       <tr><td class="num">0x6342-0x634E</td><td class="num">$E332-$E33E</td><td class="num">13B</td><td>Final-stage redirect</td></tr>
-      <tr><td class="num">0x634F-0x6366</td><td class="num">$E33F-$E356</td><td class="num">24B</td><td>Free buffer</td></tr>
       <tr><td class="num">0x6367-0x63C0</td><td class="num">$E357-$E3B0</td><td class="num">90B</td><td>Gargoyle runtime</td></tr>
-      <tr><td class="num">0x63C1-0x63D8</td><td class="num">$E3B1-$E3C8</td><td class="num">24B</td><td>Free buffer</td></tr>
       <tr><td class="num">0x63D9-0x647D</td><td class="num">$E3C9-$E46D</td><td class="num">165B</td><td>Saramandor runtime</td></tr>
-      <tr><td class="num">0x647E-0x6495</td><td class="num">$E46E-$E485</td><td class="num">24B</td><td>Free buffer</td></tr>
       <tr><td class="num">0x6496-0x677F</td><td class="num">$E486-$E76F</td><td class="num">746B</td><td>Panel Variant final runtime</td></tr>
-      <tr><td class="num">0x6780-0x6797</td><td class="num">$E770-$E787</td><td class="num">24B</td><td>Free buffer</td></tr>
       <tr><td class="num">0x6798-0x6870</td><td class="num">$E788-$E860</td><td class="num">217B</td><td>RoomFlag packed cave runtime</td></tr>
       <tr><td class="num">0x6871-0x6879</td><td class="num">$E861-$E869</td><td class="num">9B</td><td>Wide title idle-demo cleanup</td></tr>
-      <tr><td class="num">0x687A-0x6888</td><td class="num">$E86A-$E878</td><td class="num">15B</td><td>Free buffer</td></tr>
       <tr><td class="num">0x6889-0x6910</td><td class="num">$E879-$E900</td><td class="num">136B</td><td>Gap fix runtime</td></tr>
-      <tr><td class="num">0x6911-0x6928</td><td class="num">$E901-$E918</td><td class="num">24B</td><td>Free buffer</td></tr>
       <tr><td class="num">0x6929-0x697F</td><td class="num">$E919-$E96F</td><td class="num">87B</td><td>Wide title PRG0 helpers</td></tr>
-      <tr><td class="num">0x6980-0x6997</td><td class="num">$E970-$E987</td><td class="num">24B</td><td>Free buffer</td></tr>
       <tr><td class="num">0x6998-0x69B8</td><td class="num">$E988-$E9A8</td><td class="num">33B</td><td>mapper66 l_a1 body</td></tr>
       <tr><td class="num">0x69B9-0x7004</td><td class="num">$E9A9-$EFF4</td><td class="num">1,612B</td><td>Free</td></tr>
       <tr><td class="num">0x7005-0x700F</td><td class="num">$EFF5-$EFFF</td><td class="num">11B</td><td>Solomon Seal block helper</td></tr>
