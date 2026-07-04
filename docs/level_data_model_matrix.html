@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Level Data Model Matrix - 敵/アイテム/ブロックID整理</title>
+<style>
+body{font-family:"Meiryo",sans-serif;line-height:1.75;max-width:1120px;margin:24px auto;padding:0 20px;color:#202124;background:#fafafa}
+h1{border-bottom:4px solid #315f72;padding-bottom:8px;margin-bottom:12px}
+h2{margin-top:34px;border-left:7px solid #315f72;padding:5px 0 5px 12px;background:#eaf2f5}
+h3{margin-top:24px;color:#244c5c}
+table{border-collapse:collapse;width:100%;margin:14px 0;background:white;font-size:14px}
+th,td{border:1px solid #b9c3c8;padding:7px 9px;text-align:left;vertical-align:top}
+th{background:#dfecef}
+code{font-family:Consolas,monospace;background:#edf0f2;padding:1px 4px;border-radius:3px}
+.lead{font-size:16px;background:white;border-left:6px solid #315f72;padding:12px 14px}
+.box{background:white;border:1px solid #c8d2d6;border-left:6px solid #65743a;padding:10px 14px;margin:14px 0}
+.warn{background:#fff8df;border-left:6px solid #b18400;padding:10px 14px;margin:14px 0}
+.enemy{background:#e8f1ff}.item{background:#eaf7ec}.block{background:#fff0e2}.meta{background:#f0ebff}.runtime{background:#eef1f4}
+.yes{color:#176b36;font-weight:bold}.no{color:#a3362d;font-weight:bold}.mid{color:#8a5b00;font-weight:bold}
+.chip{display:inline-block;border-radius:4px;padding:1px 6px;font-weight:bold}
+.c-enemy{background:#cfe2ff}.c-item{background:#ccebd2}.c-block{background:#ffd9b8}.c-meta{background:#ded5ff}.c-runtime{background:#dde3e8}
+.matrix th:first-child{width:150px}
+.matrix td:nth-child(2){width:170px}
+.bits{font-family:Consolas,monospace;font-size:13px}
+.small{font-size:13px;color:#4d5558}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:14px 0}
+.summary-card{background:white;border:1px solid #c8d2d6;border-top:6px solid #315f72;padding:10px 12px}
+.summary-card h3{margin:0 0 6px 0;color:#244c5c}
+.summary-card .big{font-size:22px;font-weight:bold}
+.id-card{background:white;border:1px solid #c8d2d6;margin:16px 0;padding:12px 14px}
+.id-card h3{margin-top:0}
+.id-grid{display:grid;grid-template-columns:minmax(160px,220px) 1fr;gap:8px 12px}
+.id-label{font-weight:bold;color:#244c5c}
+.id-values{font-family:Consolas,monospace;line-height:1.9;word-break:break-word}
+.id-values code{white-space:normal}
+.limit-note{background:#f6f8fa;border-left:5px solid #8a9aa3;padding:8px 10px;margin-top:10px}
+@media(max-width:720px){.id-grid{grid-template-columns:1fr}}
+pre{background:#1f2528;color:#e8eef0;padding:12px;border-radius:5px;overflow-x:auto;font-size:13px}
+</style>
+</head>
+<body>
+<h1>Level Data Model Matrix - 敵/アイテム/ブロックID整理</h1>
+
+<p class="lead">
+この資料は、SOLOMON_CUSTOMIZER が扱うステージ内要素を
+「敵」「アイテム」「ブロック」「メタ情報」に分け、
+原作ROMと mapper66 拡張ROMで何バイト単位のデータとして管理しているかを整理する。
+結論だけ言うと、<b>敵とアイテムはおおむね ID 1バイト + 位置 1バイト</b>、
+<b>原作ブロックは 1マス1バイトではなく2枚のbitmask</b>、
+<b>拡張ROM/runtimeでは扱いやすい1セル1バイト形式へ寄せている</b>。
+</p>
+
+<h2>1. 全体マトリックス</h2>
+<table class="matrix">
+<tr>
+  <th>分類</th>
+  <th>原作ROMでの主な単位</th>
+  <th>ID/種類</th>
+  <th>位置</th>
+  <th>終端/圧縮</th>
+  <th>Customizer内部表現</th>
+</tr>
+<tr class="enemy">
+  <td><span class="chip c-enemy">敵</span></td>
+  <td><code>[enemy_id][pos]</code><br>1体2バイト</td>
+  <td><span class="yes">1バイト</span><br><code>enemy.element_no</code></td>
+  <td><span class="yes">1バイト</span><br><code>((y+1)&lt;&lt;4)|x</code></td>
+  <td><code>00</code> で終端</td>
+  <td><code>LevelElement(ElementType.ENEMY, pos, element_no)</code></td>
+</tr>
+<tr class="item">
+  <td><span class="chip c-item">アイテム</span></td>
+  <td><code>[item_id][pos]</code><br>基本1個2バイト</td>
+  <td><span class="yes">1バイト</span><br>下位6bit=種類、上位bit=状態に使うことがある</td>
+  <td><span class="yes">1バイト</span><br><code>((y+1)&lt;&lt;4)|x</code></td>
+  <td><code>00</code> / <code>E0-EF</code> 終端、<code>C0-DF</code> 圧縮命令、<code>F0-FB</code> 星座</td>
+  <td><code>LevelElement(ElementType.ITEM, pos, element_no)</code></td>
+</tr>
+<tr class="block">
+  <td><span class="chip c-block">原作ブロック</span></td>
+  <td>茶bitmask 24B + 白bitmask 24B<br>合計48B/面</td>
+  <td><span class="no">種類ID 1バイトではない</span><br>2bit相当で4状態</td>
+  <td>16x12固定グリッドのbit位置</td>
+  <td>なし。固定長48B</td>
+  <td><code>Wall.NONE/BROWN/WHITE/BROWN_WHITE</code> の2次元配列</td>
+</tr>
+<tr class="runtime">
+  <td><span class="chip c-runtime">拡張/実行時セル</span></td>
+  <td>mapper66 拡張の固定セル領域やruntime変換表</td>
+  <td><span class="mid">1セル1バイト寄り</span><br><code>$F9</code>, <code>$FA</code>, <code>$C0+item</code> など</td>
+  <td>16x12固定グリッドのセル番号</td>
+  <td>部屋別固定長、mask、補助リストを併用</td>
+  <td>通常Wall + 追加set群<br><code>breakable_white_cells</code> 等</td>
+</tr>
+<tr class="meta">
+  <td><span class="chip c-meta">メタ情報</span></td>
+  <td>Item Data ヘッダ内の固定バイト</td>
+  <td>鍵状態、扉/鍵/開始位置、ミラー設定など</td>
+  <td>多くは位置1バイト</td>
+  <td>固定ヘッダ + アイテムストリーム</td>
+  <td><code>fixed_start_pos</code>, <code>fixed_key_pos</code>, <code>fixed_door_pos</code>, <code>DemonMirror</code></td>
+</tr>
+</table>
+
+<h2>2. ID範囲の見方: 原作実使用 / 形式上限 / 改造余地</h2>
+<div class="warn">
+<b>ここが重要:</b> 「原作で実際に使っているID」と「データ形式として表せるID数」は別。
+さらに「ゲーム側のAI/描画/取得処理まで意味を持つID」はまた別。
+下表は、JP原作ROM <code>ROM/Solomon no Kagi (J).nes</code> の実データを
+<code>load_all_levels()</code> と同じ読み方で集計した値を含む。
+</div>
+
+<div class="summary-grid">
+  <div class="summary-card enemy">
+    <h3>敵ID</h3>
+    <div class="big">原作実使用 38種類</div>
+    <p>保存形式だけなら <b>最大255種類</b>。<code>$00</code> は終端なので通常IDは <code>$01-$FF</code>。</p>
+  </div>
+  <div class="summary-card item">
+    <h3>アイテムID</h3>
+    <div class="big">原作ベース 34種類</div>
+    <p>現行形式のベースIDは下位6bitなので <b>最大64種類</b>。状態bit込みの原作実使用値は81種類。</p>
+  </div>
+  <div class="summary-card block">
+    <h3>原作ブロック</h3>
+    <div class="big">形式上 4状態</div>
+    <p>茶bit/白bitの2枚で表す。1セル1バイト化すれば最大256状態へ拡張可能。</p>
+  </div>
+</div>
+
+<div class="id-card enemy">
+  <h3><span class="chip c-enemy">敵ID</span> 原作実使用と上限</h3>
+  <div class="id-grid">
+    <div class="id-label">原作JP実使用</div>
+    <div>38種類。範囲は <code>$1C-$81</code> だが連続ではない。</div>
+    <div class="id-label">実使用ID</div>
+    <div class="id-values"><code>$1C, $1D, $24, $25, $26, $27, $28, $29, $2A, $2B, $2C, $2D, $2E, $2F, $30, $32, $34, $36, $3C, $3E, $40, $42, $44, $46, $48, $4D, $68, $69, $6D, $70, $71, $74, $75, $78, $79, $7D, $80, $81</code></div>
+    <div class="id-label">形式上限</div>
+    <div>敵IDフィールド自体は1バイト。ただし <code>$00</code> は敵リスト終端なので、通常の敵IDとして素直に使えるのは <b>最大255種類</b>、<code>$01-$FF</code>。</div>
+    <div class="id-label">さらに増やすなら</div>
+    <div>敵リストを「終端<code>$00</code>」ではなく「個数+配列」に変えるなら <code>$00</code> も敵IDにできる。IDを2バイト化すれば256種類を超えられるが、敵AI dispatch、グラフィック、当たり判定、生成処理、ミラー敵セットもまとめて拡張が必要。</div>
+  </div>
+  <div class="limit-note">ここでいう255種類は「保存形式が受けられる」上限であり、全IDが正しく動くという意味ではない。</div>
+</div>
+
+<div class="id-card item">
+  <h3><span class="chip c-item">アイテムID</span> 原作実使用と上限</h3>
+  <div class="id-grid">
+    <div class="id-label">原作JP実使用</div>
+    <div>状態bit込みの実使用値は81種類、範囲は <code>$04-$B3</code>。ベースアイテムとして見ると34種類。星座は別枠で12種類、<code>$F0-$FB</code>。</div>
+    <div class="id-label">ベース実使用ID</div>
+    <div class="id-values"><code>$04, $08, $0C, $0E, $11, $12, $13, $14, $15, $16, $17, $18, $19, $1B, $1C, $1D, $1E, $1F, $22, $25, $26, $27, $28, $29, $2A, $2B, $2C, $2D, $2E, $2F, $30, $31, $32, $33</code></div>
+    <div class="id-label">現行形式上限</div>
+    <div>通常アイテムは下位6bitがベースIDなので <b>最大64種類</b>、<code>$00-$3F</code>。ただし <code>$00</code> 単独はストリーム終端なので、通常可視アイテムとしては扱いに注意が必要。</div>
+    <div class="id-label">値域の消費</div>
+    <div><code>$40</code> と <code>$80</code> は隠し/ブロック内の状態bit。<code>$C0-$DF</code> は圧縮命令、<code>$E0-$EF</code> は終端、<code>$F0-$FB</code> は星座。</div>
+    <div class="id-label">さらに増やすなら</div>
+    <div>状態bit、圧縮命令、終端、星座を別フィールドへ逃がす形式に変えれば、アイテムID 1バイトを丸ごと <code>$00-$FF</code> の <b>256種類</b> に使える。それ以上はID 2バイト化。</div>
+  </div>
+  <div class="limit-note">増やす場合は、アイテム取得処理、描画、スコア/効果dispatch、PNG/XML保存形式、圧縮形式を同時に変える必要がある。</div>
+</div>
+
+<div class="id-card block">
+  <h3><span class="chip c-block">原作ブロック</span> 原作実使用と上限</h3>
+  <div class="id-grid">
+    <div class="id-label">原作JP実使用</div>
+    <div>読み込み後の分類では <code>NONE</code>, <code>BROWN</code>, <code>WHITE</code> の3種。茶bit+白bitの両方ONも形式上はあり、アプリでは白へ正規化する。</div>
+    <div class="id-label">形式上限</div>
+    <div>原作の地形形式は茶bit/白bitの2枚なので、1マスあたり2bit相当。形式上は <b>4状態</b>。</div>
+    <div class="id-label">さらに増やすなら</div>
+    <div>mapper66拡張ROMのように1セル1バイト化すれば、セル値としては最大256状態を持てる。ただしゲーム中で意味を持たせるには、描画、衝突、破壊、復元、死亡後再描画のruntimeが必要。</div>
+  </div>
+</div>
+
+<h2>3. 位置1バイトの共通ルール</h2>
+<div class="box">
+敵・アイテム・鍵・扉・開始位置・ミラー位置など、多くの「座標」は1バイトで表す。
+下位4bitがX、上位4bitがY+1。Yに+1が入るため、画面外や削除扱いを表す時は
+アプリ内部で <code>(0, -1)</code> のような形も使う。
+</div>
+<pre>位置byte = ((y + 1) &amp; 0x0F) &lt;&lt; 4 | (x &amp; 0x0F)
+x = byte &amp; 0x0F
+y = (byte &gt;&gt; 4) - 1</pre>
+
+<h2>4. 敵データ</h2>
+<table>
+<tr><th>項目</th><th>内容</th></tr>
+<tr><td>保存単位</td><td><code>[敵ID 1B][位置 1B]</code> の繰り返し</td></tr>
+<tr><td>終端</td><td><code>00</code>。敵IDが0ならそこで終了</td></tr>
+<tr><td>1体あたり</td><td>2バイト</td></tr>
+<tr><td>拡張ROM上限</td><td>現在の mapper66 local enemy data は <code>1 + 15*2 + 1 = 32B</code>、敵は最大15体</td></tr>
+<tr><td>アプリ内部</td><td><code>Level.enemies</code> に <code>LevelElement</code> として保持</td></tr>
+</table>
+<pre>[spawn lifetime 1B]
+[enemy_id][pos]
+[enemy_id][pos]
+...
+[00]</pre>
+
+<h2>5. アイテムデータ</h2>
+<table>
+<tr><th>値域</th><th>意味</th><th>注意</th></tr>
+<tr><td><code>00-3F</code></td><td>通常アイテム種類</td><td>基本のアイテムID</td></tr>
+<tr><td><code>40-7F</code></td><td>隠しアイテム</td><td>下位6bitがベースアイテムID</td></tr>
+<tr><td><code>80-BF</code></td><td>ブロック内アイテム</td><td>下位6bitがベースアイテムID</td></tr>
+<tr><td><code>C0-DF</code></td><td>原作ストリームでは圧縮命令</td><td>同じアイテムを複数置く命令。文脈が重要</td></tr>
+<tr><td><code>E0-EF</code></td><td>終端 + tileset情報</td><td>アイテム列の終わり</td></tr>
+<tr><td><code>F0-FB</code></td><td>星座背景</td><td>位置バイトを伴い、終端扱い</td></tr>
+</table>
+
+<h3>5.1 状態bitの見方</h3>
+<pre class="bits">base item id = element_no &amp; $3F
+$40 = hidden
+$80 = in block
+$C0 = white in-block / またはストリーム制御域</pre>
+
+<div class="warn">
+<b>注意:</b> <code>$C0</code> 以上は「白ブロック内アイテム」として扱う場面と、
+原作アイテムストリームの「圧縮/終端/星座」として扱う場面がある。
+単独の1バイトだけを見て決めず、読み出している場所と文脈を見る。
+</div>
+
+<h2>6. 原作ブロックデータ</h2>
+<p>
+原作ステージの地形は、16x12=192マスを1マスずつ1バイトで持っていない。
+茶ブロック用のbitmaskと白ブロック用のbitmaskを別々に持つ。
+それぞれ192bit=24Bなので、1面の地形は48B固定。
+</p>
+<table>
+<tr><th>茶bit</th><th>白bit</th><th>Customizer内部</th><th>意味</th></tr>
+<tr><td>0</td><td>0</td><td><code>Wall.NONE</code></td><td>空気</td></tr>
+<tr><td>1</td><td>0</td><td><code>Wall.BROWN</code></td><td>茶ブロック</td></tr>
+<tr><td>0</td><td>1</td><td><code>Wall.WHITE</code></td><td>白ブロック</td></tr>
+<tr><td>1</td><td>1</td><td><code>Wall.BROWN_WHITE</code></td><td>茶+白の複合状態。壊せる白系として扱う</td></tr>
+</table>
+
+<pre>1面の原作地形:
+  茶ブロックbitmask 24B
+  白ブロックbitmask 24B
+  合計 48B</pre>
+
+<h2>7. mapper66拡張ROMとruntimeセル</h2>
+<p>
+このカスタマイザーの通常編集対象は、アプリが生成する日本版 mapper66 wide-title 拡張ROM。
+拡張ROMでは、原作の圧縮/bitmaskだけでは表現しづらい特殊セルを扱うため、
+固定セル・mask・部屋別補助表を追加している。
+</p>
+<table>
+<tr><th>例</th><th>主な値/形式</th><th>目的</th></tr>
+<tr><td>白ブロック内アイテム</td><td><code>$C0 + item_id</code> 系</td><td>見た目は白ブロック、中身はアイテム</td></tr>
+<tr><td>壊せる白ブロック</td><td><code>$F9</code> runtime特殊セル</td><td>描画と実体変換を分ける</td></tr>
+<tr><td>すり抜ける白ブロック</td><td><code>$FA</code> runtime特殊セル</td><td>見た目だけ白、実体は空気</td></tr>
+<tr><td>ひび割れブロック</td><td><code>$01</code> + 補助リスト/mask</td><td>死亡後復帰や中身再注入を制御</td></tr>
+<tr><td>透明ブロック内アイテム</td><td>24B bitmask + 通常アイテム</td><td>通常アイテム表示をruntimeでブロック内へ変換</td></tr>
+</table>
+
+<h2>8. まとめ</h2>
+<table>
+<tr><th>質問</th><th>答え</th></tr>
+<tr><td>敵の種類は1バイト?</td><td><span class="yes">はい</span>。敵ID 1B + 位置1B。</td></tr>
+<tr><td>アイテムの種類は1バイト?</td><td><span class="yes">ほぼはい</span>。ただし上位bitに隠し/ブロック内状態が混ざり、<code>C0</code>以上は制御値にもなる。</td></tr>
+<tr><td>ブロックの種類は1バイト?</td><td><span class="no">原作ROMでは違う</span>。茶/白2枚のbitmaskで48B/面。</td></tr>
+<tr><td>拡張ROMでは?</td><td><span class="mid">1セル1バイトに近い扱いもある</span>。特殊セルやruntime変換のため、maskや補助表も併用する。</td></tr>
+</table>
+
+<p class="small">
+主な実装参照:
+<code>magatu_skc/core/constants.py</code>,
+<code>magatu_skc/core/element.py</code>,
+<code>magatu_skc/core/level.py</code>,
+<code>magatu_skc/core/m66.py</code>,
+<code>magatu_skc/core/xml_io.py</code>
+</p>
+</body>
+</html>
