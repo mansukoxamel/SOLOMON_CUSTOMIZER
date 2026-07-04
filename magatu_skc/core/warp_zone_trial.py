@@ -109,12 +109,13 @@ def _build_runtime(src1: int, src2: int) -> bytes:
     a.abs(0x8D, 0x0589)                # STA $0589
 
     a.label("common")
-    a.abs(0xAD, 0x0582)                # LDA $0582
-    a.b(0x29, 0x03)                    # AND #$03
-    a.b(0x09, 0x08)                    # ORA #$08: falling transition state
+    a.abs(0xAD, 0x0589)                # LDA $0589
+    a.b(0x2A)                          # ROL A: carry = destination X bit7
+    a.b(0xA9, 0x0A)                    # LDA #$0A
+    a.b(0x2A)                          # ROL A: stock stage-start state $14/$15
     a.abs(0x8D, 0x0582)                # STA $0582
-    a.b(0xA9, 0x10)                    # LDA #$10: small falling Y velocity
-    a.abs(0x8D, 0x0584)                # STA $0584
+    a.b(0xA9, 0xFF)                    # LDA #$FF
+    a.abs(0x8D, 0x0581)                # force stock velocity table refresh
     a.b(0xA9, 0x00)                    # LDA #$00
     for addr in (0x0585, 0x0587, 0x0588):
         a.abs(0x8D, addr)              # clear subpixel/horizontal velocity
