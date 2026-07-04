@@ -1,4 +1,4 @@
-"""Ice Flame ($84) runtime for mapper66 saved ROMs."""
+"""Ice Flame ($84) dedicated runtime body for mapper66 saved ROMs."""
 from __future__ import annotations
 
 from .element import ElementType
@@ -20,16 +20,10 @@ BUFFER_LEN = 24
 OFF_RUNTIME = 0x69D1
 
 CPU_AI_DISPATCH = 0xE9C1
-CPU_SETUP_META_LOAD = 0xE9D2
-CPU_INIT_STATUS = 0xE9EB
-CPU_ANIM_UPDATE = 0xEA17
-CPU_CLASSIFY = 0xBBEE
-CPU_SETUP_TABLE = 0xEA24
-CPU_STATUS_TABLE = 0xEA25
-CPU_BEHAVIOR_TABLE = 0xEA26
-CPU_FRAME1_TABLE = 0xEA27
-CPU_FRAME2_TABLE = 0xEA28
-CPU_ATTR_TABLE = 0xEA29
+CPU_SETUP_META_LOAD = 0xE9C4
+CPU_INIT_STATUS = 0xE9CD
+CPU_ANIM_UPDATE = 0xE9EA
+CPU_RUNTIME_END = 0xE9EB
 
 ORIG_AI_DISPATCH_CALL = bytes.fromhex("20 29 a3")
 HOOK_AI_DISPATCH_CALL = bytes((0x20, CPU_AI_DISPATCH & 0xFF, CPU_AI_DISPATCH >> 8))
@@ -45,79 +39,45 @@ HOOK_SETUP_META_LOAD = bytes((0x20, CPU_SETUP_META_LOAD & 0xFF, CPU_SETUP_META_L
 
 
 AI_DISPATCH_RUNTIME = bytes.fromhex(
-    "48"
-    "18"
-    "69 14"
-    f"20 {CPU_CLASSIFY & 0xFF:02x} {CPU_CLASSIFY >> 8:02x}"
-    "b0 04"
-    "68"
-    "4c a0 a5"
-    "68"
-    "4c 29 a3"
+    "4c a0 a5"      # JMP $A5A0 Flame-family AI
 )
 
 SETUP_META_RUNTIME = bytes.fromhex(
-    "a0 01"
-    "b1 08"
-    f"20 {CPU_CLASSIFY & 0xFF:02x} {CPU_CLASSIFY >> 8:02x}"
-    "b0 0a"
-    f"bd {CPU_SETUP_TABLE & 0xFF:02x} {CPU_SETUP_TABLE >> 8:02x}"
-    "85 0e"
-    "a8"
-    "b9 d3 d9"
-    "60"
-    "a4 0e"
-    "b9 d3 d9"
-    "60"
+    "a9 40"         # LDA #$40 setup group: Flame/Burn
+    "85 0e"         # STA $0E
+    "a8"            # TAY
+    "b9 d3 d9"      # LDA $D9D3,Y
+    "60"            # RTS
 )
 
 INIT_STATUS_RUNTIME = bytes.fromhex(
-    "20 1c 9d"
-    "a5 05"
-    f"20 {CPU_CLASSIFY & 0xFF:02x} {CPU_CLASSIFY >> 8:02x}"
-    "b0 21"
     "a0 00"
-    f"bd {CPU_STATUS_TABLE & 0xFF:02x} {CPU_STATUS_TABLE >> 8:02x}"
+    "a9 e0"         # status: active, contact enabled, fireball-killable
     "91 00"
     "a0 03"
-    f"bd {CPU_BEHAVIOR_TABLE & 0xFF:02x} {CPU_BEHAVIOR_TABLE >> 8:02x}"
+    "a9 14"         # behavior/state: White Flame steady state
     "91 00"
     "a0 11"
-    f"bd {CPU_FRAME1_TABLE & 0xFF:02x} {CPU_FRAME1_TABLE >> 8:02x}"
+    "a9 d6"         # fixed frame tile 1
     "91 00"
     "c8"
-    f"bd {CPU_FRAME2_TABLE & 0xFF:02x} {CPU_FRAME2_TABLE >> 8:02x}"
+    "a9 d4"         # fixed frame tile 2
     "91 00"
     "c8"
-    f"bd {CPU_ATTR_TABLE & 0xFF:02x} {CPU_ATTR_TABLE >> 8:02x}"
+    "a9 5a"         # fixed frame attr
     "91 00"
     "60"
 )
 
 ANIM_UPDATE_RUNTIME = bytes.fromhex(
-    "a0 01"
-    "b1 08"
-    f"20 {CPU_CLASSIFY & 0xFF:02x} {CPU_CLASSIFY >> 8:02x}"
-    "b0 01"
-    "60"
-    "4c 89 87"
+    "60"            # skip stock animation update for fixed Ice Flame frames
 )
-
-CLASSIFICATION_TABLES = bytes((
-    0x40,  # setup group: Flame/Burn
-    0xE0,  # status: active, contact enabled, fireball-killable
-    0x14,  # behavior/state: White Flame steady state
-    0xD6,  # fixed frame tile 1
-    0xD4,  # fixed frame tile 2
-    0x5A,  # fixed frame attr
-))
 
 RUNTIME = (
     AI_DISPATCH_RUNTIME
     + SETUP_META_RUNTIME
     + INIT_STATUS_RUNTIME
     + ANIM_UPDATE_RUNTIME
-    + CLASSIFICATION_TABLES
 )
 
 RESERVED_SPANS = ((OFF_RUNTIME, len(RUNTIME)),)
@@ -125,10 +85,9 @@ RESERVED_SPANS = ((OFF_RUNTIME, len(RUNTIME)),)
 assert len(AI_DISPATCH_RUNTIME) == CPU_SETUP_META_LOAD - CPU_AI_DISPATCH
 assert len(SETUP_META_RUNTIME) == CPU_INIT_STATUS - CPU_SETUP_META_LOAD
 assert len(INIT_STATUS_RUNTIME) == CPU_ANIM_UPDATE - CPU_INIT_STATUS
-assert len(ANIM_UPDATE_RUNTIME) == CPU_SETUP_TABLE - CPU_ANIM_UPDATE
-assert len(CLASSIFICATION_TABLES) == 6
-assert len(RUNTIME) == 105
-assert CPU_AI_DISPATCH + len(RUNTIME) == CPU_ATTR_TABLE + 1
+assert len(ANIM_UPDATE_RUNTIME) == CPU_RUNTIME_END - CPU_ANIM_UPDATE
+assert len(RUNTIME) == 42
+assert CPU_AI_DISPATCH + len(RUNTIME) == CPU_RUNTIME_END
 
 
 def levels_need_runtime(levels: list) -> bool:
@@ -139,24 +98,7 @@ def levels_need_runtime(levels: list) -> bool:
     return False
 
 
-def _expect_one(data: bytes | bytearray, off: int, allowed: tuple[bytes, ...], name: str) -> None:
-    size = len(allowed[0])
-    cur = bytes(data[off:off + size])
-    if cur not in allowed:
-        expected = " or ".join(blob.hex(" ") for blob in allowed)
-        raise IceFlameRuntimeError(
-            f"{name} signature mismatch at 0x{off:X}: expected {expected}, got {cur.hex(' ')}"
-        )
-
-
-def _write(data: bytearray, off: int, blob: bytes, changed: list[str], name: str) -> None:
-    cur = bytes(data[off:off + len(blob)])
-    if cur != blob:
-        data[off:off + len(blob)] = blob
-        changed.append(name)
-
-
 def apply(rom_data: bytearray) -> list[str]:
-    """Apply Ice Flame through the shared new-enemy entry layer."""
+    """Compatibility wrapper; shared dispatch is owned by new_enemy_runtime."""
     from . import new_enemy_runtime
     return new_enemy_runtime.apply(rom_data)

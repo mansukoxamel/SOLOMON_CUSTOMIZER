@@ -1,4 +1,4 @@
-"""Shared entry points and classifier for new enemy IDs in mapper66 saved ROMs."""
+"""Shared dispatch entries for new enemy IDs in mapper66 saved ROMs."""
 from __future__ import annotations
 
 from . import ice_flame_runtime as _ice
@@ -11,42 +11,61 @@ class NewEnemyRuntimeError(ValueError):
 ICE_FLAME_ID = _ice.NEW_ENEMY_ID
 
 OFF_AI_ENTRY = 0x3BF2      # CPU $BBE2
-OFF_SETUP_ENTRY = 0x3BF5   # CPU $BBE5
-OFF_INIT_ENTRY = 0x3BF8    # CPU $BBE8
-OFF_ANIM_ENTRY = 0x3BFB    # CPU $BBEB
-OFF_CLASSIFY = 0x3BFE      # CPU $BBEE
-
-ENTRY_SIZE = 3
-CLASSIFY_SIZE = 12
+OFF_SETUP_ENTRY = 0x3C12   # CPU $BC02
+OFF_INIT_ENTRY = 0x3C32    # CPU $BC22
+OFF_ANIM_ENTRY = 0x3C52    # CPU $BC42
 
 CPU_AI_ENTRY = 0xBBE2
-CPU_SETUP_ENTRY = 0xBBE5
-CPU_INIT_ENTRY = 0xBBE8
-CPU_ANIM_ENTRY = 0xBBEB
-CPU_CLASSIFY = 0xBBEE
+CPU_SETUP_ENTRY = 0xBC02
+CPU_INIT_ENTRY = 0xBC22
+CPU_ANIM_ENTRY = 0xBC42
 
-CLASSIFY_RUNTIME = bytes.fromhex(
-    "38"
-    "e9 84"
-    "c9 01"
-    "b0 03"
-    "aa"
-    "18"
-    "60"
-    "38"
-    "60"
+AI_ENTRY_RUNTIME = bytes.fromhex(
+    "48"            # PHA: preserve stock AI-dispatch input
+    "18"            # CLC
+    "69 14"         # ADC #$14 -> recover enemy type
+    "c9 84"         # CMP #$84
+    "f0 04"         # BEQ ice
+    "68"            # PLA
+    "4c 29 a3"      # JMP $A329 stock AI dispatcher
+    "68"            # ice: PLA
+    f"4c {_ice.CPU_AI_DISPATCH & 0xFF:02x} {_ice.CPU_AI_DISPATCH >> 8:02x}"
 )
 
-AI_ENTRY_RUNTIME = bytes((0x4C, _ice.CPU_AI_DISPATCH & 0xFF, _ice.CPU_AI_DISPATCH >> 8))
-SETUP_ENTRY_RUNTIME = bytes((0x4C, _ice.CPU_SETUP_META_LOAD & 0xFF, _ice.CPU_SETUP_META_LOAD >> 8))
-INIT_ENTRY_RUNTIME = bytes((0x4C, _ice.CPU_INIT_STATUS & 0xFF, _ice.CPU_INIT_STATUS >> 8))
-ANIM_ENTRY_RUNTIME = bytes((0x4C, _ice.CPU_ANIM_UPDATE & 0xFF, _ice.CPU_ANIM_UPDATE >> 8))
+SETUP_ENTRY_RUNTIME = bytes.fromhex(
+    "a0 01"         # LDY #$01
+    "b1 08"         # LDA ($08),Y -> main-slot type
+    "c9 84"         # CMP #$84
+    "f0 06"         # BEQ ice
+    "a4 0e"         # LDY $0E
+    "b9 d3 d9"      # LDA $D9D3,Y
+    "60"            # RTS
+    f"4c {_ice.CPU_SETUP_META_LOAD & 0xFF:02x} {_ice.CPU_SETUP_META_LOAD >> 8:02x}"
+)
+
+INIT_ENTRY_RUNTIME = bytes.fromhex(
+    "20 1c 9d"      # JSR $9D1C stock init
+    "a5 05"         # LDA $05 -> current enemy type during init
+    "c9 84"         # CMP #$84
+    "f0 01"         # BEQ ice
+    "60"            # RTS
+    f"4c {_ice.CPU_INIT_STATUS & 0xFF:02x} {_ice.CPU_INIT_STATUS >> 8:02x}"
+)
+
+ANIM_ENTRY_RUNTIME = bytes.fromhex(
+    "a0 01"         # LDY #$01
+    "b1 08"         # LDA ($08),Y -> main-slot type
+    "c9 84"         # CMP #$84
+    "f0 03"         # BEQ ice
+    "4c 89 87"      # JMP $8789 stock animation updater
+    f"4c {_ice.CPU_ANIM_UPDATE & 0xFF:02x} {_ice.CPU_ANIM_UPDATE >> 8:02x}"
+)
 
 ENTRY_RUNTIMES = (
-    (OFF_AI_ENTRY, AI_ENTRY_RUNTIME, "$BBE2 new enemy AI entry"),
-    (OFF_SETUP_ENTRY, SETUP_ENTRY_RUNTIME, "$BBE5 new enemy setup entry"),
-    (OFF_INIT_ENTRY, INIT_ENTRY_RUNTIME, "$BBE8 new enemy init entry"),
-    (OFF_ANIM_ENTRY, ANIM_ENTRY_RUNTIME, "$BBEB new enemy animation entry"),
+    (OFF_AI_ENTRY, AI_ENTRY_RUNTIME, "$BBE2 new enemy AI dispatch"),
+    (OFF_SETUP_ENTRY, SETUP_ENTRY_RUNTIME, "$BC02 new enemy setup dispatch"),
+    (OFF_INIT_ENTRY, INIT_ENTRY_RUNTIME, "$BC22 new enemy init dispatch"),
+    (OFF_ANIM_ENTRY, ANIM_ENTRY_RUNTIME, "$BC42 new enemy animation dispatch"),
 )
 
 HOOK_AI_DISPATCH_CALL = bytes((0x20, CPU_AI_ENTRY & 0xFF, CPU_AI_ENTRY >> 8))
@@ -55,20 +74,20 @@ HOOK_INIT_WRITE_CALL = bytes((0x20, CPU_INIT_ENTRY & 0xFF, CPU_INIT_ENTRY >> 8))
 HOOK_ANIM_UPDATE_CALL = bytes((0x20, CPU_ANIM_ENTRY & 0xFF, CPU_ANIM_ENTRY >> 8))
 
 RESERVED_SPANS = (
-    (OFF_AI_ENTRY, ENTRY_SIZE),
-    (OFF_SETUP_ENTRY, ENTRY_SIZE),
-    (OFF_INIT_ENTRY, ENTRY_SIZE),
-    (OFF_ANIM_ENTRY, ENTRY_SIZE),
-    (OFF_CLASSIFY, CLASSIFY_SIZE),
+    (OFF_AI_ENTRY, len(AI_ENTRY_RUNTIME)),
+    (OFF_SETUP_ENTRY, len(SETUP_ENTRY_RUNTIME)),
+    (OFF_INIT_ENTRY, len(INIT_ENTRY_RUNTIME)),
+    (OFF_ANIM_ENTRY, len(ANIM_ENTRY_RUNTIME)),
     *_ice.RESERVED_SPANS,
 )
 
-assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + ENTRY_SIZE
-assert OFF_INIT_ENTRY == OFF_SETUP_ENTRY + ENTRY_SIZE
-assert OFF_ANIM_ENTRY == OFF_INIT_ENTRY + ENTRY_SIZE
-assert OFF_CLASSIFY == OFF_ANIM_ENTRY + ENTRY_SIZE
-assert CPU_CLASSIFY == _ice.CPU_CLASSIFY
-assert len(CLASSIFY_RUNTIME) == CLASSIFY_SIZE
+assert len(AI_ENTRY_RUNTIME) == 16
+assert len(SETUP_ENTRY_RUNTIME) == 17
+assert len(INIT_ENTRY_RUNTIME) == 13
+assert len(ANIM_ENTRY_RUNTIME) == 14
+assert OFF_SETUP_ENTRY - OFF_AI_ENTRY == 0x20
+assert OFF_INIT_ENTRY - OFF_SETUP_ENTRY == 0x20
+assert OFF_ANIM_ENTRY - OFF_INIT_ENTRY == 0x20
 
 
 def levels_need_runtime(levels: list) -> bool:
@@ -102,10 +121,9 @@ def _write(data: bytearray, off: int, blob: bytes, changed: list[str], name: str
 
 
 def apply(rom_data: bytearray) -> list[str]:
-    """Apply shared new-enemy entries and the current Ice Flame runtime."""
+    """Apply shared new-enemy dispatch entries and the Ice Flame body."""
     max_end = max(
         _ice.OFF_RUNTIME + len(_ice.RUNTIME),
-        OFF_CLASSIFY + len(CLASSIFY_RUNTIME),
         max(off + len(blob) for off, blob, _name in ENTRY_RUNTIMES),
     )
     if rom_data is None or len(rom_data) < max_end:
@@ -144,7 +162,6 @@ def apply(rom_data: bytearray) -> list[str]:
     )
     for off, blob, name in ENTRY_RUNTIMES:
         _expect_blank_or(rom_data, off, blob, name)
-    _expect_blank_or(rom_data, OFF_CLASSIFY, CLASSIFY_RUNTIME, "$BBEE new enemy classifier")
 
     changed: list[str] = []
     _write(rom_data, _ice.OFF_AI_DISPATCH_CALL, HOOK_AI_DISPATCH_CALL, changed, "$A1C3 new enemy AI dispatch hook")
@@ -153,12 +170,11 @@ def apply(rom_data: bytearray) -> list[str]:
     _write(rom_data, _ice.OFF_SETUP_META_LOAD, HOOK_SETUP_META_LOAD, changed, "$8ACB new enemy setup group hook")
     for off, blob, name in ENTRY_RUNTIMES:
         _write(rom_data, off, blob, changed, name)
-    _write(rom_data, OFF_CLASSIFY, CLASSIFY_RUNTIME, changed, "$BBEE new enemy classifier")
     _write(
         rom_data,
         _ice.OFF_RUNTIME,
         _ice.RUNTIME,
         changed,
-        f"Ice Flame runtime ${_ice.CPU_AI_DISPATCH:04X}-${_ice.CPU_ATTR_TABLE:04X}",
+        f"Ice Flame runtime ${_ice.CPU_AI_DISPATCH:04X}-${_ice.CPU_RUNTIME_END - 1:04X}",
     )
     return changed
