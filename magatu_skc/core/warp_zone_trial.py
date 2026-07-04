@@ -22,7 +22,7 @@ ORIG_ITEM_CELL_HOOK = bytes.fromhex("20 5b c5")
 OFF_RUNTIME = 0x6A56
 CPU_RUNTIME = 0xEA46
 CPU_STOCK_ITEM_CHECK = 0xC55B
-CPU_COMMON_CLEAR = 0x0000
+RAM_WARP_COOLDOWN = 0x0770
 
 
 def _word(cpu: int) -> bytes:
@@ -62,52 +62,68 @@ class _Asm:
         return bytes(self.data)
 
 
-def _pixel_from_cell(cell: int, *, side: int) -> tuple[int, int]:
+def _pixel_above_cell(cell: int) -> tuple[int, int]:
     x = int(cell) & 0x0F
-    y = ((int(cell) >> 4) & 0x0F) - 1
-    out_x = max(0, min(15, x + int(side)))
-    return (out_x * 16, y * 16 + 8)
+    y = ((int(cell) >> 4) & 0x0F) - 2
+    out_y = max(0, y)
+    return (x * 16, out_y * 16 + 8)
 
 
 def _build_runtime(src1: int, src2: int) -> bytes:
-    # Mirror1 is on the right in stock stage 4, so appear to the right of
-    # mirror2.  Mirror2 appears to the left of mirror1.  This avoids instant
-    # return without allocating a cooldown RAM byte.
-    dst_for_src1 = _pixel_from_cell(src2, side=1)
-    dst_for_src2 = _pixel_from_cell(src1, side=-1)
+    dst_for_src1 = _pixel_above_cell(src2)
+    dst_for_src2 = _pixel_above_cell(src1)
 
     a = _Asm()
     a.b(0xC9, 0x05)                    # CMP #$05
-    a.rel(0xD0, "stock")               # BNE stock
+    a.rel(0xF0, "mirror_cell")         # BEQ mirror_cell
+    a.b(0x48)                          # PHA
+    a.b(0xA9, 0x00)                    # LDA #$00
+    a.abs(0x8D, RAM_WARP_COOLDOWN)     # clear cooldown after leaving mirror
+    a.b(0x68)                          # PLA
+    a.abs(0x4C, CPU_STOCK_ITEM_CHECK)  # JMP $C55B
+
+    a.label("mirror_cell")
+    a.abs(0xAD, RAM_WARP_COOLDOWN)     # LDA cooldown
+    a.rel(0xD0, "no_item")             # BNE no_item
     a.b(0xE0, src1)                    # CPX #src1
     a.rel(0xF0, "warp_to_2")           # BEQ warp_to_2
     a.b(0xE0, src2)                    # CPX #src2
     a.rel(0xF0, "warp_to_1")           # BEQ warp_to_1
-    a.label("stock")
-    a.abs(0x4C, CPU_STOCK_ITEM_CHECK)  # JMP $C55B
+    a.label("no_item")
+    a.b(0x60)                          # RTS
 
     a.label("warp_to_2")
+    a.b(0xA9, 0x01)                    # LDA #$01
+    a.abs(0x8D, RAM_WARP_COOLDOWN)     # set cooldown
     a.b(0xA9, dst_for_src1[1])         # LDA #Y
     a.abs(0x8D, 0x0586)                # STA $0586
     a.b(0xA9, dst_for_src1[0])         # LDA #X
     a.abs(0x8D, 0x0589)                # STA $0589
-    a.abs(0x4C, CPU_RUNTIME + 43)      # JMP common
+    a.abs(0x4C, CPU_RUNTIME)           # JMP common placeholder
 
     a.label("warp_to_1")
+    a.b(0xA9, 0x01)                    # LDA #$01
+    a.abs(0x8D, RAM_WARP_COOLDOWN)     # set cooldown
     a.b(0xA9, dst_for_src2[1])         # LDA #Y
     a.abs(0x8D, 0x0586)                # STA $0586
     a.b(0xA9, dst_for_src2[0])         # LDA #X
     a.abs(0x8D, 0x0589)                # STA $0589
 
     a.label("common")
+    a.abs(0xAD, 0x0582)                # LDA $0582
+    a.b(0x29, 0x03)                    # AND #$03
+    a.b(0x09, 0x08)                    # ORA #$08: falling transition state
+    a.abs(0x8D, 0x0582)                # STA $0582
+    a.b(0xA9, 0x10)                    # LDA #$10: small falling Y velocity
+    a.abs(0x8D, 0x0584)                # STA $0584
     a.b(0xA9, 0x00)                    # LDA #$00
-    for addr in (0x0584, 0x0585, 0x0587, 0x0588):
-        a.abs(0x8D, addr)              # clear velocity/subpixel
+    for addr in (0x0585, 0x0587, 0x0588):
+        a.abs(0x8D, addr)              # clear subpixel/horizontal velocity
     a.b(0x85, 0x02)                    # STA $02: no item action
     a.b(0x60)                          # RTS
     runtime = a.finish()
     common_cpu = CPU_RUNTIME + a.labels["common"]
-    runtime = runtime.replace(_word(CPU_RUNTIME + 43), _word(common_cpu), 1)
+    runtime = runtime.replace(_word(CPU_RUNTIME), _word(common_cpu), 1)
     return runtime
 
 
@@ -138,10 +154,9 @@ def _expect_blank_or(data: bytes | bytearray, off: int, blob: bytes, name: str) 
     if cur == blob or all(b in (0xEA, 0x00) for b in cur):
         return
     if (
-        len(cur) == len(blob)
-        and cur.startswith(bytes.fromhex("c9 05 d0 08 e0"))
-        and cur[12:15] == bytes.fromhex("4c 5b c5")
-        and cur[-15:] == blob[-15:]
+        cur.startswith(bytes.fromhex("c9 05 d0 08 e0"))
+        and bytes.fromhex("4c 5b c5") in cur[:24]
+        and all(b in (0xEA, 0x00) for b in cur[55:])
     ):
         return
     raise WarpZoneTrialError(

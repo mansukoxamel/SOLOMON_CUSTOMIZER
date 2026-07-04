@@ -87,7 +87,8 @@ verbatim コピーするため file offset 不変):
 #                                 からコピー。死亡後one-shot skipで消えた
 #                                 ひび割れ下地を描画前に$01へ戻し、
 #                                 対応mask bitも消して中身再注入を防ぐ。
-#   $0770-$0777 ENTITY_TAIL_CANDIDATE 補助候補8B          要probe
+#   $0770       WARP_ZONE_TRIAL_COOLDOWN mirror warp cooldown 検証予約
+#   $0771-$0777 ENTITY_TAIL_CANDIDATE 補助候補7B          要probe
 #   $0778       ROOMFLAGS       room flag table cache         予約済(使用中)
 #   $0779       DARK_PHASE      暗闇 明滅フェーズカウンタ      予約済(使用中)
 #   $077A       FINAL_STAGE_REDIRECT  current room final-stage redirect bit7,
@@ -130,7 +131,7 @@ verbatim コピーするため file offset 不変):
 #     → v0.7.72で旧特殊ブロック32Bリストを廃止し、v0.7.149時点で
 #        $0740-$074F はPanel Variant settings copyとして予約済み。
 #        $0750-$0767 は透明ブロック内アイテムruntime maskとして予約済み。
-#        $073A-$073F / $0768-$0777 は補助候補だが、
+#        $073A-$073F / $0771-$0777 は補助候補だが、
 #        沈黙でも構造保証は弱いので正式使用前に用途別probe必須。
 #   ・$0780-$07DF = probe で書込検出 = ★使用禁止。
 #
@@ -148,7 +149,7 @@ verbatim コピーするため file offset 不変):
 #   1. ★まず "増やさない" を検討。既存値から再計算できないか?
 #      例: room flag は $0428→$C1C0,X ROMテーブル再読込で RAM不要化可。
 #          暗闇周期も $043C/$043D(global frame counter)から導出余地。
-#   2. まとまったRAMが必要 → $0768-$0777 を候補にする。
+#   2. まとまったRAMが必要 → $0771-$0777 を候補にする。
 #      小フラグだけでも予約済み範囲は使わない。
 #      用途名を決めて上の表に追記してからコードで使う。
 #   3. 長期保存 / 毎NMI書込 / 複数バイト連続使用 → ★再プローブ必須
@@ -165,7 +166,8 @@ verbatim コピーするため file offset 不変):
 #   $0740-$074F PANEL_VARIANT_SETTINGS Panel stage-variant runtime settings copy, reserved in use
 #   $0750-$0767 VISIBLE_INBLOCK_ITEM_MASK visible item in-block runtime mask, reserved in use
 #   $0768-$076F CRACKED_INBLOCK_LIST   cracked in-block item cell list, reserved in use
-#   $0770-$0777 ENTITY_TAIL_CANDIDATE  secondary 8-byte candidate, probe before use
+#   $0770       WARP_ZONE_TRIAL_COOLDOWN mirror warp cooldown, trial reserved
+#   $0771-$0777 ENTITY_TAIL_CANDIDATE  secondary 7-byte candidate, probe before use
 #   $0778       ROOMFLAGS              room flag table cache, reserved in use
 #   $0779       DARK_PHASE             dark-room phase counter, reserved in use
 #   $077A       FINAL_STAGE_REDIRECT   bit7 redirects next stage to final room after clear

@@ -163,8 +163,8 @@
       <tr><td class="num">0x69D1-0x69FA</td><td>Ice Flame runtime body</td><td><code>$E9C1-$E9EA</code>。敵ID <code>$84</code> Ice Flame用のAI/setup/init/animation本体。敵ID分類はbank0 cave側のNew enemy受付4本が担当する。</td></tr>
       <tr><td class="num">0x69FB-0x6A12</td><td>空き</td><td>Spark85 runtime前の24B緩衝。spark85_runtime.py本体reserveとは扱わない。</td></tr>
       <tr><td class="num">0x6A13-0x6A55</td><td>Spark85 runtime body</td><td><code>$EA03-$EA45</code>。敵ID <code>$85</code> Spark85用のAI/init本体。敵ID分類はbank0 cave側のNew enemy受付が担当する。</td></tr>
-      <tr><td class="num">0x6A56-0x6A8C</td><td>Stage 4 mirror warp trial runtime</td><td><code>$EA46-$EA7C</code>。検証ブランチ限定。<code>$C551</code> のアイテムセル判定入口から呼び、ステージ4のミラー<code>$05</code>セル同士を相互ワープさせる。UI/保存形式は未接続。</td></tr>
-      <tr><td class="num">0x6A8D-0x7004</td><td>空き</td><td>Stage 4 mirror warp trial runtime後の1,400B空き。現時点では本体reserveとは扱わない。</td></tr>
+      <tr><td class="num">0x6A56-0x6AAF</td><td>Stage 4 mirror warp trial runtime</td><td><code>$EA46-$EA9F</code>。検証ブランチ限定。<code>$C551</code> のアイテムセル判定入口から呼び、ステージ4のミラー<code>$05</code>セル同士を相互ワープさせる。<code>$0770</code> を接触中クールダウンに使う。UI/保存形式は未接続。</td></tr>
+      <tr><td class="num">0x6AB0-0x7004</td><td>空き</td><td>Stage 4 mirror warp trial runtime後の1,365B空き。現時点では本体reserveとは扱わない。</td></tr>
       <tr><td class="num">0x9019-0x904C</td><td>mapper66 respawn direct-cell copy helper</td><td>`$9009` loader helper。死亡後の `$F0-$F3` 白ブロック内one-shotだけを `$F9` へ落とし、通常の茶ブロック内one-shotは従来通り `$90` へ落とす。</td></tr>
       <tr><td class="num">0x904D-0x908F</td><td>Cracked in-block one-shot respawn helper</td><td>`$903D` PRG1 loader helper。死亡後だけ `$0768-$076F` のひび割れ位置リストを見て、描画前に下地セルを `$01` へ戻し、対応mask bitを192セルindexへ変換して消す。</td></tr>
       <tr><td class="num">0x7005-0x700F</td><td>Solomon Seal block helper</td><td>`$BB90` の紋章セル書き込みから呼ぶ11Bヘルパ。StageExt loader がコピーした `$077D` を見て、原作 `$60` / 茶ブロック内 `$A0` / 白ブロック内 `$E0` を書く。</td></tr>
@@ -223,8 +223,8 @@
       <tr><td>小routine</td><td><code>ice_flame_runtime.py</code></td><td class="num">0x69D1-0x69FA</td><td class="num">$E9C1-$E9EA</td><td class="num">42B</td><td>EA埋め</td><td>Ice Flame <code>$84</code> runtime本体。AI dispatch、setup group、init/status/fixed frame、animation skipのみを含む。敵ID分類は <code>new_enemy_runtime.py</code> の受付側。</td></tr>
       <tr><td>空き</td><td><code>spark85_runtime.py</code></td><td class="num">0x69FB-0x6A12</td><td class="num">$E9EB-$EA02</td><td class="num">24B</td><td>EA埋め</td><td>Spark85 runtime直前の緩衝。spark85_runtime.py本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
       <tr><td>小routine</td><td><code>spark85_runtime.py</code></td><td class="num">0x6A13-0x6A55</td><td class="num">$EA03-$EA45</td><td class="num">67B</td><td>EA埋め</td><td>Spark85 <code>$85</code> runtime本体。LIFE百の位が0なら一度だけ進行方向を反転して停止し、init時にSpark Ball系の初期状態を作る。</td></tr>
-      <tr><td>小routine</td><td><code>warp_zone_trial.py</code></td><td class="num">0x6A56-0x6A8C</td><td class="num">$EA46-$EA7C</td><td class="num">55B</td><td>EA埋め</td><td>検証ブランチ限定のStage 4 mirror warp trial runtime。<code>$C551</code> hookから入り、対象外は原作<code>$C55B</code>へ戻す。</td></tr>
-      <tr><td>空き</td><td><code>warp_zone_trial.py</code></td><td class="num">0x6A8D-0x7004</td><td class="num">$EA7D-$EFF4</td><td class="num">1,400B</td><td>EA埋め</td><td>Stage 4 mirror warp trial runtime後の空き。現時点では本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
+      <tr><td>小routine</td><td><code>warp_zone_trial.py</code></td><td class="num">0x6A56-0x6AAF</td><td class="num">$EA46-$EA9F</td><td class="num">90B</td><td>EA埋め</td><td>検証ブランチ限定のStage 4 mirror warp trial runtime。<code>$C551</code> hookから入り、対象外は原作<code>$C55B</code>へ戻す。<code>$0770</code> で鏡接触中の再発動を止める。</td></tr>
+      <tr><td>空き</td><td><code>warp_zone_trial.py</code></td><td class="num">0x6AB0-0x7004</td><td class="num">$EAA0-$EFF4</td><td class="num">1,365B</td><td>EA埋め</td><td>Stage 4 mirror warp trial runtime後の空き。現時点では本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
       <tr><td>空き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x4FEE-0x5004 / 0x3EFA-0x3F02 / 0x3ED7-0x3EF8 / 0x3FE8-0x3FF7 / 0x3D36-0x3D45</td><td class="num">mixed</td><td class="num">98B</td><td>00/EA埋め</td><td>旧Spark Ball追加routine候補跡。4096B末尾側の旧候補跡はRoomFlag移動後の大きな空きに統合して扱う。新規出力ではspark_ball_variantを書かない。保存時に掃除しない。</td></tr>
       <tr><td>空き</td><td><code>final_stage_redirect.py</code></td><td class="num">0x3D28-0x3D34</td><td class="num">$BD18-$BD24</td><td class="num">13B</td><td>EA埋め</td><td>旧Final-stage redirect runtime候補跡。新規出力ではfinal_stage_redirectを書かない。保存時に掃除しない。</td></tr>
       <tr><td>空き</td><td><code>gargoyle_variant.py</code></td><td class="num">0x3D0B-0x3D26 / 0x3D4B-0x3D88</td><td class="num">$BCFB-$BD16 / $BD3B-$BD78</td><td class="num">90B</td><td>00/EA埋め</td><td>旧Gargoyle追加routine候補跡。新規出力ではgargoyle_variantを書かない。保存時に掃除しない。</td></tr>
@@ -268,7 +268,8 @@
       <div class="seg hook" style="width:1.03%">Ice<br><small>42B</small></div>
       <div class="seg free" style="width:.59%">24B</div>
       <div class="seg hook" style="width:1.64%">Spark85<br><small>67B</small></div>
-      <div class="seg free" style="width:34.18%">free<br><small>1,400B</small></div>
+      <div class="seg hook" style="width:2.20%">Warp<br><small>90B</small></div>
+      <div class="seg free" style="width:33.33%">free<br><small>1,365B</small></div>
       <div class="seg hook" style="width:.27%"><span class="tiny">seal</span></div>
     </div>
     <div class="labels"><span>$E000</span><span>$E200</span><span>$E400</span><span>$E600</span><span>$E800</span><span>$EA00</span><span>$EC00</span><span>$EE00</span><span>$EFFF</span></div>
@@ -276,9 +277,10 @@
       <b>4096B runtime block:</b>
       This is the current PRG0 runtime aggregation area.
       The old bank0 cave zoom map was removed because it no longer represents the active runtime placement.
-      現在の先頭側runtime到達点は <code>0x6A55</code> / <code>$EA45</code>。
+      現在の先頭側runtime到達点は <code>0x6AAF</code> / <code>$EA9F</code>。
       Ice Flame後に24B緩衝を残し、Spark85 runtime本体を <code>0x6A13-0x6A55</code> / <code>$EA03-$EA45</code> に置く。
-      大きな連続空きは <code>0x6A8D-0x7004</code> / <code>$EA7D-$EFF4</code> の1,400B。
+      Stage 4 mirror warp trial runtimeを <code>0x6A56-0x6AAF</code> / <code>$EA46-$EA9F</code> に置く。
+      大きな連続空きは <code>0x6AB0-0x7004</code> / <code>$EAA0-$EFF4</code> の1,365B。
       末尾 <code>0x7005-0x700F</code> / <code>$EFF5-$EFFF</code> にはSolomon Seal block helper 11Bが別置きで残っている。
     </div>
     <table>
@@ -301,7 +303,8 @@
       <tr><td class="num">0x69D1-0x69FA</td><td class="num">$E9C1-$E9EA</td><td class="num">42B</td><td>Ice Flame runtime</td></tr>
       <tr><td class="num">0x69FB-0x6A12</td><td class="num">$E9EB-$EA02</td><td class="num">24B</td><td>Free buffer before Spark85 runtime</td></tr>
       <tr><td class="num">0x6A13-0x6A55</td><td class="num">$EA03-$EA45</td><td class="num">67B</td><td>Spark85 runtime</td></tr>
-      <tr><td class="num">0x6A8D-0x7004</td><td class="num">$EA7D-$EFF4</td><td class="num">1,400B</td><td>Free</td></tr>
+      <tr><td class="num">0x6A56-0x6AAF</td><td class="num">$EA46-$EA9F</td><td class="num">90B</td><td>Stage 4 mirror warp trial runtime</td></tr>
+      <tr><td class="num">0x6AB0-0x7004</td><td class="num">$EAA0-$EFF4</td><td class="num">1,365B</td><td>Free</td></tr>
       <tr><td class="num">0x7005-0x700F</td><td class="num">$EFF5-$EFFF</td><td class="num">11B</td><td>Solomon Seal block helper</td></tr>
     </table>
     <h3>4096B outside legacy EA suppressions</h3>
