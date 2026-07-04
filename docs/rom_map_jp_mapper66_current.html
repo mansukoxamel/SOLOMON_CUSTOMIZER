@@ -46,7 +46,7 @@
     の役割、壁貫通を起こす危険な速度改造パターン、次に使うべき安全な設計方針を記録した。
   </div>
   <h1>Solomon Customizer ROM Map - JP mapper66 current</h1>
-  <p class="lead">2026-05-26 v0.7.74 棚卸版。PRG0/PRG1の全体像、bank0 caveの詳細、強化敵コードの配置、開始画面アナウンス、原作00/EA埋め上書き、残り空き容量を視覚的に確認するための台帳。</p>
+  <p class="lead">2026-07-04 v0.9.19 棚卸版。PRG0/PRG1の全体像、bank0 caveの詳細、強化敵コードの配置、開始画面アナウンス、原作00/EA埋め上書き、残り空き容量を視覚的に確認するための台帳。</p>
 
   <div class="legend">
     <span class="lg"><span class="sw orig"></span>元PRG / 既存コード・既存データ</span>
@@ -257,7 +257,9 @@
       <div class="seg hook" style="width:2.12%">wide title<br><small>87B</small></div>
       <div class="seg free" style="width:.59%">24B</div>
       <div class="seg hook" style="width:.81%">l_a1<br><small>33B</small></div>
-      <div class="seg free" style="width:39.36%">free<br><small>1,612B</small></div>
+      <div class="seg free" style="width:.59%">24B</div>
+      <div class="seg hook" style="width:2.86%">Ice<br><small>117B</small></div>
+      <div class="seg free" style="width:35.91%">free<br><small>1,471B</small></div>
       <div class="seg hook" style="width:.27%"><span class="tiny">seal</span></div>
     </div>
     <div class="labels"><span>$E000</span><span>$E200</span><span>$E400</span><span>$E600</span><span>$E800</span><span>$EA00</span><span>$EC00</span><span>$EE00</span><span>$EFFF</span></div>
@@ -265,6 +267,11 @@
       <b>4096B runtime block:</b>
       This is the current PRG0 runtime aggregation area.
       The old bank0 cave zoom map was removed because it no longer represents the active runtime placement.
+      現在の先頭側runtime到達点は <code>0x6A45</code> / <code>$EA35</code>。
+      先頭からここまでの範囲は2,614Bで、その中に24B緩衝などの空き282Bを含む。
+      4096B全体では使用済み/予約済み2,343B、空き1,753B。
+      大きな連続空きは <code>0x6A46-0x7004</code> / <code>$EA36-$EFF4</code> の1,471B。
+      末尾 <code>0x7005-0x700F</code> / <code>$EFF5-$EFFF</code> にはSolomon Seal block helper 11Bが別置きで残っている。
     </div>
     <table>
       <tr><th>Range</th><th>CPU</th><th>Size</th><th>Use</th></tr>
