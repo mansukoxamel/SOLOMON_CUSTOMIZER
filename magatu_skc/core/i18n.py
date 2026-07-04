@@ -1112,12 +1112,20 @@ _TRANSLATIONS = {
         ),
     },
     "main.stage.fire_reset": {
-        "ja": "開始時にファイヤー所持をリセット",
-        "en": "Reset Fire Power on Start",
+        "ja": "ファイアリセットモード",
+        "en": "Fire Reset Mode",
     },
     "main.stage.fire_reset.tooltip": {
         "ja": "この面を開始した時に、前の面から持ち越したファイヤー/スーパーの所持を0にします。",
         "en": "When this stage starts, reset fire/super fire carried over from the previous stage.",
+    },
+    "main.stage.warp_mirror": {
+        "ja": "ワープミラーモード",
+        "en": "Warp Mirror Mode",
+    },
+    "main.stage.warp_mirror.tooltip": {
+        "ja": "この面の鏡に触れた時、もう一方の鏡へワープします。",
+        "en": "When Dana touches a mirror in this stage, warp to the other mirror.",
     },
     "main.stage.restrictions.apply_one_all": {
         "ja": "現在の状態を全53面に適用（{name}）",

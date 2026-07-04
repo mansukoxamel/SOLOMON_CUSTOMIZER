@@ -377,7 +377,7 @@ def save_levels_to_rom(
             rom.data,
         )
         _run_save_step(
-            "Stage 4 mirror warp trial検証/適用",
+            "Warp Mirror Mode runtime検証/適用",
             warp_zone_trial.apply,
             rom.data,
             levels,

@@ -87,7 +87,7 @@ verbatim コピーするため file offset 不変):
 #                                 からコピー。死亡後one-shot skipで消えた
 #                                 ひび割れ下地を描画前に$01へ戻し、
 #                                 対応mask bitも消して中身再注入を防ぐ。
-#   $0770       WARP_ZONE_TRIAL_COOLDOWN mirror warp cooldown 検証予約
+#   $0770       WARP_MIRROR_STATE bit5=mode, bit6=cooldown
 #   $0771-$0777 ENTITY_TAIL_CANDIDATE 補助候補7B          要probe
 #   $0778       ROOMFLAGS       room flag table cache         予約済(使用中)
 #   $0779       DARK_PHASE      暗闇 明滅フェーズカウンタ      予約済(使用中)
@@ -108,7 +108,7 @@ verbatim コピーするため file offset 不変):
 #   ・file 0x8800-0x8A0F : StageExtTable
 #   ・file 0x8A10-0x8A6F : Panel Variant combined runtime loader
 #   ・file 0x8A70-0x8A75 : Panel Variant settings table
-#   ・file 0x8A76-0x8E7F : PanelVariant PRG1 reserve
+#   ・file 0x8A82-0x8E7F : PanelVariant PRG1 reserve
 #   ・file 0x8E80-0x8EAA : visible item mask copy helper
 #   ・file 0x8EAB-0x8EEA : Solomon Seal block-state table
 #     (64B, 1 byte/room。StageExt loader が $077D へコピー)
@@ -166,7 +166,7 @@ verbatim コピーするため file offset 不変):
 #   $0740-$074F PANEL_VARIANT_SETTINGS Panel stage-variant runtime settings copy, reserved in use
 #   $0750-$0767 VISIBLE_INBLOCK_ITEM_MASK visible item in-block runtime mask, reserved in use
 #   $0768-$076F CRACKED_INBLOCK_LIST   cracked in-block item cell list, reserved in use
-#   $0770       WARP_ZONE_TRIAL_COOLDOWN mirror warp cooldown, trial reserved
+#   $0770       WARP_MIRROR_STATE bit5=mode, bit6=cooldown
 #   $0771-$0777 ENTITY_TAIL_CANDIDATE  secondary 7-byte candidate, probe before use
 #   $0778       ROOMFLAGS              room flag table cache, reserved in use
 #   $0779       DARK_PHASE             dark-room phase counter, reserved in use

@@ -148,6 +148,10 @@ SETTINGS_TABLE_OFFSET = 0x8A70
 SETTINGS_TABLE_LENGTH = 6
 SETTINGS_TABLE_END = SETTINGS_TABLE_OFFSET + SETTINGS_TABLE_LENGTH
 CPU_SETTINGS_TABLE = SETTINGS_TABLE_OFFSET - 0x10
+OFF_WARP_MIRROR_STAGE_FLAG_HELPER = 0x8A76
+CPU_WARP_MIRROR_STAGE_FLAG_HELPER = OFF_WARP_MIRROR_STAGE_FLAG_HELPER - 0x10
+WARP_MIRROR_STAGE_FLAG_HELPER_LENGTH = 12
+RAM_WARP_MIRROR_STATE = 0x0770
 RUNTIME_SETTINGS_RAM_VALUES = (
     RAM_PV_A_SPEED,
     RAM_PV_A_INTERVAL,
@@ -1065,6 +1069,7 @@ def _validate_runtime_loader_signature(rom_data: bytearray) -> None:
     accepted = (
         _fill(0x00, 0x60),
         stage_ext.RUNTIME_LOADER + _fill(0x00, 0x60 - len(stage_ext.RUNTIME_LOADER)),
+        _previous_runtime_loader_slot(),
         _runtime_loader_slot(),
     )
     if cur in accepted:
@@ -2277,6 +2282,7 @@ RESERVED_SPANS = (
     (OFF_FINAL_STAGE_ANIM_HOOK, len(FINAL_STAGE_ANIM_HOOK)),
     (OFF_PRG1_RUNTIME_LOADER, 0x60),
     (SETTINGS_TABLE_OFFSET, SETTINGS_TABLE_LENGTH),
+    (OFF_WARP_MIRROR_STAGE_FLAG_HELPER, WARP_MIRROR_STAGE_FLAG_HELPER_LENGTH),
 )
 
 
@@ -2476,7 +2482,7 @@ def panel_monster_v2_settings_save_report(
     }
 
 
-def _build_runtime_loader() -> bytes:
+def _build_runtime_loader(warp_mirror_stage_flag_helper: bool = True) -> bytes:
     # This supersedes stage_ext.RUNTIME_LOADER while preserving its side effects.
     # StageExt pointer starts at entry byte0: bank1 CPU $8800 + room*8.
     # The Solomon Seal block-state table is a separate PRG1 table at CPU $8E9B;
@@ -2509,14 +2515,37 @@ def _build_runtime_loader() -> bytes:
         )
         + bytes((
             0x4C,
-            solomon_seal_block.CPU_PRG1_TRANSPARENT_SEAL_SUPPRESS_HELPER & 0xFF,
-            solomon_seal_block.CPU_PRG1_TRANSPARENT_SEAL_SUPPRESS_HELPER >> 8,
+            (
+                CPU_WARP_MIRROR_STAGE_FLAG_HELPER
+                if warp_mirror_stage_flag_helper
+                else solomon_seal_block.CPU_PRG1_TRANSPARENT_SEAL_SUPPRESS_HELPER
+            ) & 0xFF,
+            (
+                CPU_WARP_MIRROR_STAGE_FLAG_HELPER
+                if warp_mirror_stage_flag_helper
+                else solomon_seal_block.CPU_PRG1_TRANSPARENT_SEAL_SUPPRESS_HELPER
+            ) >> 8,
         ))
     )
 
 
+def _build_warp_mirror_stage_flag_helper() -> bytes:
+    from . import solomon_seal_block
+    return bytes((
+        0xA0, 0x00,                                # LDY #$00
+        0xB1, 0x00,                                # LDA ($00),Y
+        0x29, stage_ext.FLAG_WARP_MIRROR,          # AND #FLAG_WARP_MIRROR
+        0x8D, RAM_WARP_MIRROR_STATE & 0xFF, RAM_WARP_MIRROR_STATE >> 8,
+        0x4C,
+        solomon_seal_block.CPU_PRG1_TRANSPARENT_SEAL_SUPPRESS_HELPER & 0xFF,
+        solomon_seal_block.CPU_PRG1_TRANSPARENT_SEAL_SUPPRESS_HELPER >> 8,
+    ))
+
+
 RUNTIME_LOADER = _build_runtime_loader()
 assert len(RUNTIME_LOADER) <= 0x60
+WARP_MIRROR_STAGE_FLAG_HELPER = _build_warp_mirror_stage_flag_helper()
+assert len(WARP_MIRROR_STAGE_FLAG_HELPER) == WARP_MIRROR_STAGE_FLAG_HELPER_LENGTH
 
 
 def _runtime_loader_slot() -> bytes:
@@ -2525,6 +2554,11 @@ def _runtime_loader_slot() -> bytes:
         raise PanelMonsterStageVariantError(
             f"Panel Variant PRG1 runtime loader is too large: {len(loader)}B"
         )
+    return loader + _fill(0x00, 0x60 - len(loader))
+
+
+def _previous_runtime_loader_slot() -> bytes:
+    loader = _build_runtime_loader(warp_mirror_stage_flag_helper=False)
     return loader + _fill(0x00, 0x60 - len(loader))
 
 
@@ -2542,6 +2576,20 @@ def apply_runtime_loader(rom_data: bytearray) -> list[str]:
     if bytes(rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(slot)]) != slot:
         rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(slot)] = slot
         changed.append("Panel Variant settings PRG1 runtime loader")
+    helper_cur = bytes(
+        rom_data[
+            OFF_WARP_MIRROR_STAGE_FLAG_HELPER:
+            OFF_WARP_MIRROR_STAGE_FLAG_HELPER + len(WARP_MIRROR_STAGE_FLAG_HELPER)
+        ]
+    )
+    if helper_cur != WARP_MIRROR_STAGE_FLAG_HELPER and not all(b in (0x00, 0xEA) for b in helper_cur):
+        raise PanelMonsterStageVariantError(
+            f"Warp Mirror Mode stage flag helper area is not blank at file "
+            f"0x{OFF_WARP_MIRROR_STAGE_FLAG_HELPER:X}: got {helper_cur.hex(' ')}"
+        )
+    if bytes(rom_data[OFF_WARP_MIRROR_STAGE_FLAG_HELPER:OFF_WARP_MIRROR_STAGE_FLAG_HELPER + len(WARP_MIRROR_STAGE_FLAG_HELPER)]) != WARP_MIRROR_STAGE_FLAG_HELPER:
+        rom_data[OFF_WARP_MIRROR_STAGE_FLAG_HELPER:OFF_WARP_MIRROR_STAGE_FLAG_HELPER + len(WARP_MIRROR_STAGE_FLAG_HELPER)] = WARP_MIRROR_STAGE_FLAG_HELPER
+        changed.append("Warp Mirror Mode stage flag helper")
     if cur != HOOK_M66_LOADER_TAIL:
         rom_data[OFF_M66_LOADER_TAIL:OFF_M66_LOADER_TAIL + len(HOOK_M66_LOADER_TAIL)] = HOOK_M66_LOADER_TAIL
         changed.append("mapper66 loader Panel stage-variant hook")

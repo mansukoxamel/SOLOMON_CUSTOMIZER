@@ -2369,8 +2369,7 @@ class MainWindow(QMainWindow):
         self.chk_dark.toggled.connect(self._on_meta_dark_toggled)
         form.addRow("", self.chk_dark)
 
-        # 星座: combo + position
-        self.chk_fire_reset = QCheckBox(t("main.stage.fire_reset", "開始時にファイヤー所持をリセット"))
+        self.chk_fire_reset = QCheckBox(t("main.stage.fire_reset", "ファイアリセットモード"))
         self.chk_fire_reset.setToolTip(
             t(
                 "main.stage.fire_reset.tooltip",
@@ -2379,11 +2378,22 @@ class MainWindow(QMainWindow):
         )
         self.chk_fire_reset.toggled.connect(self._on_meta_fire_reset_toggled)
         form.addRow("", self.chk_fire_reset)
+
+        self.chk_warp_mirror = QCheckBox(t("main.stage.warp_mirror", "ワープミラーモード"))
+        self.chk_warp_mirror.setToolTip(
+            t(
+                "main.stage.warp_mirror.tooltip",
+                "この面の鏡に触れた時、もう一方の鏡へワープします。",
+            )
+        )
+        self.chk_warp_mirror.toggled.connect(self._on_meta_warp_mirror_toggled)
+        form.addRow("", self.chk_warp_mirror)
         for checkbox, restriction_key in (
             (self.chk_no_bfire, "no_bfire"),
             (self.chk_no_astone, "no_astone"),
             (self.chk_dark, "dark"),
             (self.chk_fire_reset, "fire_reset"),
+            (self.chk_warp_mirror, "warp_mirror"),
         ):
             self._setup_stage_restriction_context_menu(checkbox, restriction_key)
 
@@ -12020,6 +12030,7 @@ class MainWindow(QMainWindow):
             self.chk_dark.setChecked(bool(lv.room_flags & _rf.BIT_DARK))
             from ..core import stage_ext as _se
             self.chk_fire_reset.setChecked(_se.fire_reset_enabled(lv))
+            self.chk_warp_mirror.setChecked(_se.warp_mirror_enabled(lv))
             self._refresh_key_enemy_spin_range()
             self._refresh_fairy_enemy_spin_range()
             # 星座
@@ -12061,7 +12072,8 @@ class MainWindow(QMainWindow):
             "no_bfire": t("main.stage.no_bfire", "Bボタン（ファイア）禁止"),
             "no_astone": t("main.stage.no_astone", "Aボタン(換石)禁止"),
             "dark": t("main.stage.dark", "暗闇モード"),
-            "fire_reset": t("main.stage.fire_reset", "開始時にファイヤー所持をリセット"),
+            "fire_reset": t("main.stage.fire_reset", "ファイアリセットモード"),
+            "warp_mirror": t("main.stage.warp_mirror", "ワープミラーモード"),
         }
         return labels.get(key, key)
 
@@ -12071,6 +12083,7 @@ class MainWindow(QMainWindow):
             "no_astone": self.chk_no_astone,
             "dark": self.chk_dark,
             "fire_reset": self.chk_fire_reset,
+            "warp_mirror": self.chk_warp_mirror,
         }
         return widgets[key].isChecked()
 
@@ -12085,6 +12098,8 @@ class MainWindow(QMainWindow):
             return bool(level.room_flags & _rf.BIT_DARK)
         if key == "fire_reset":
             return _se.fire_reset_enabled(level)
+        if key == "warp_mirror":
+            return _se.warp_mirror_enabled(level)
         raise KeyError(key)
 
     def _set_stage_restriction_level_value(self, level, key: str, enabled: bool) -> None:
@@ -12110,6 +12125,9 @@ class MainWindow(QMainWindow):
             return
         if key == "fire_reset":
             _se.set_fire_reset_enabled(level, enabled)
+            return
+        if key == "warp_mirror":
+            _se.set_warp_mirror_enabled(level, enabled)
             return
         raise KeyError(key)
 
@@ -12278,6 +12296,18 @@ class MainWindow(QMainWindow):
         from ..core import stage_ext as _se
         lv = self.levels[self.current_level_no]
         _se.set_fire_reset_enabled(lv, checked)
+        self._set_dirty(True)
+        self._update_info()
+
+    def _on_meta_warp_mirror_toggled(self, checked):
+        if self._meta_loading or not self.levels:
+            return
+        if self._reject_read_only_edit():
+            return
+        self._push_undo()
+        from ..core import stage_ext as _se
+        lv = self.levels[self.current_level_no]
+        _se.set_warp_mirror_enabled(lv, checked)
         self._set_dirty(True)
         self._update_info()
 

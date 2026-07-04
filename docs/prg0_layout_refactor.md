@@ -61,14 +61,14 @@ ROM予約の正式なマスターではありません。正式な予約情報�
 生の抽出結果:
 
 - PRG0予約件数: 75件
-- 生合計: 2203B
-- 重複をまとめた実占有: 2203B
+- 生合計: 2331B
+- 重複をまとめた実占有: 2331B
 
 4096B跡地内:
 
-- 生合計: 1795B
-- 実占有: 1795B
-- セグメント数: 11
+- 生合計: 1923B
+- 実占有: 1923B
+- セグメント数: 12
 
 4096B跡地外:
 
@@ -98,6 +98,7 @@ PRG0追加プログラム側から見た一覧。
 | `spark_ball_variant` | 8 | 191B | 0 | 0B |
 | `stage_announcement` | 11 | 164B | 0 | 0B |
 | `title_screen` | 2 | 96B | 3 | 9B |
+| `warp_zone_trial` | 1 | 128B | 0 | 0B |
 
 この表を最初の移動候補リストの入口にする。
 原作差分は、この一覧に漏れた追加処理や、実際のhook/即値変更の検証に使う。
@@ -113,7 +114,7 @@ PRG0追加プログラム側から見た一覧。
 | Key/Fairy enemy runtime | `key_enemy_runtime` | bank0 cave中心、1片だけ4096B内、1片は `0x5005-0x500F` | 286B raw | 分割が多い。機能単位ではまとめたいが、複数hookから入るので呼び出し元確認が必要。 |
 | Spark Ball variant | `spark_ball_variant` | `0x6280-0x633E` | 191B raw | Spark Ball追加routineはproperty selectorも含めてpacked blockへ集約済み。 |
 | Panel Monster base variant | `panel_monster_variant` | bank0 cave、`0x5BEF`、`0x40D2` | 396B raw | 新規保存ROMでは書かない。旧base候補跡は保存時に掃除しない。 |
-| Panel Monster A/B/C final runtime | `panel_monster_stage_variant` | `0x6496-0x677F` + PRG1 loader/settings | 746B raw + 102B PRG1 | 現行Panel runtime。速度、AI、弾、classifier、marker、property/animation hook本体を新cleanupブロックへ集約。Spark selectorは `0x632A` に置き、Panel fallback先だけ新hookへ向ける。 |
+| Panel Monster A/B/C final runtime | `panel_monster_stage_variant` | `0x6496-0x677F` + PRG1 loader/settings/helper | 746B raw + 114B PRG1 | 現行Panel runtime。速度、AI、弾、classifier、marker、property/animation hook本体を新cleanupブロックへ集約。Spark selectorは `0x632A` に置き、Panel fallback先だけ新hookへ向ける。 |
 | Gargoyle variant | `gargoyle_variant` | bank0 cave `0x3D0B-0x3D88` | 90B | まとまっている。移すならhook先3か所を更新するだけか確認する。 |
 | Saramandor variant | `saramandor_variant` | bank0 cave `0x3E10-0x3F4F` | 165B | まとまっているが複数hookから入る。移動候補だが優先度は中。 |
 | Final stage redirect | `final_stage_redirect` | `0x6342-0x634E` | 13B | 4096B先頭側へ移動済み。旧 `0x3D28-0x3D34` は新規出力では書かない。 |
@@ -693,6 +694,34 @@ PRG0追加プログラム側から見た一覧。
 - DARK tempo比較が `$E81B/$E81C` を参照すること。
 - 旧RoomFlag配置へ新規出力で書かないこと。
 
+## Warp Mirror Mode runtime
+
+`warp_zone_trial.py` のStage4固定検証runtimeを、StageExt byte0 bit5でON/OFFするワープミラーモードruntimeへ置き換える。
+
+移動/増分:
+
+| part | old file | old CPU | new file | new CPU | size |
+|---|---:|---:|---:|---:|---:|
+| Warp Mirror Mode runtime | `0x6A56-0x6AB4` | `$EA46-$EAA4` | `0x6A56-0x6AD5` | `$EA46-$EAC5` | 128B |
+| free after warp runtime | `0x6AB5-0x7004` | `$EAA5-$EFF4` | `0x6AD6-0x7004` | `$EAC6-$EFF4` | 1327B |
+| PRG1 stage flag helper | - | - | `0x8A76-0x8A81` | `$8A66-$8A71` | 12B |
+| PanelVariant PRG1 reserve | `0x8A76-0x8E7F` | `$8A66-$8E6F` | `0x8A82-0x8E7F` | `$8A72-$8E6F` | 1022B |
+
+合計:
+
+- PRG0 runtime実体: 95B -> 128B (+33B)
+- PRG0後続空き: 1360B -> 1327B
+- PRG1新規使用: 12B
+- PRG1 PanelVariant reserve: 1034B -> 1022B
+- RAM新規使用: なし。既存 `$0770` を bit5=mode / bit6=cooldown に再定義。
+
+実装で確認すること:
+
+- Panel Variant combined loaderが最後に `$8A66` helperへ飛び、helperがTransparent Seal suppress guardへ戻すこと。
+- StageExt byte0 bit5がONの面だけ `$0770` bit5が立つこと。
+- `$C551` hookはWarp Mirror Mode有効面が1つ以上ある時だけ入ること。
+- ON面で鏡セル `$05` に触れると、同じ部屋の別の `$05` セルへ移動し、item pickup SE `$0D` が鳴ること。
+
 ## Gap fix runtime ブロック
 
 `gap_fix.py` の落下中横穴侵入安定化runtimeを、RoomFlag packed cave runtime直後の24Bを空けた後ろへ移す。
@@ -803,7 +832,7 @@ PRG0追加プログラム側から見た一覧。
 
 ## 現時点の判断
 
-4096B跡地内の現行予約1795Bと、跡地外の実占有408Bを単純合算して2203B。
+4096B跡地内の現行予約1923Bと、跡地外の実占有408Bを単純合算して2331B。
 残件は大きな追加routineではなく、旧base Panel、Spark selector、hook/即値系を個別確認する段階。
 
 ただし、すべてを機械的に移動してよいわけではない。

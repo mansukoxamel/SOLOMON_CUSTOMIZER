@@ -20,6 +20,7 @@ FLAG_KEY_ENEMY = 0x02
 FLAG_ANNOUNCE = 0x04
 FLAG_FAIRY_ENEMY = 0x08
 FLAG_FINAL_STAGE_REDIRECT = 0x10
+FLAG_WARP_MIRROR = 0x20
 
 DEFAULT_KEY_ENEMY_SLOT = 0xFF
 DEFAULT_FAIRY_ENEMY_SLOT = 0xFF
@@ -224,6 +225,19 @@ def set_fire_reset_enabled(level, enabled: bool) -> None:
         level.fire_reset_value = 0
     else:
         level.stage_ext_flags = int(level.stage_ext_flags) & ~FLAG_FIRE_RESET
+
+
+def warp_mirror_enabled(level) -> bool:
+    init_level_defaults(level)
+    return bool(int(level.stage_ext_flags) & FLAG_WARP_MIRROR)
+
+
+def set_warp_mirror_enabled(level, enabled: bool) -> None:
+    init_level_defaults(level)
+    if enabled:
+        level.stage_ext_flags = int(level.stage_ext_flags) | FLAG_WARP_MIRROR
+    else:
+        level.stage_ext_flags = int(level.stage_ext_flags) & ~FLAG_WARP_MIRROR
 
 
 def final_stage_redirect_enabled(level) -> bool:
