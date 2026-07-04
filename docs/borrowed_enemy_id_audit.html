@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Borrowed Enemy ID Audit</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --ink:#1f2933; --muted:#5f6b7a; --line:#d7dde5;
+    --head:#eef3f8; --borrow:#fff4d6; --done:#e7f7ee; --warn:#ffe8e1;
+  }
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.65 "Segoe UI",Meiryo,sans-serif;}
+  main{max-width:1180px;margin:0 auto;padding:24px 28px 44px;}
+  h1{font-size:26px;margin:0 0 8px;border-left:8px solid #2f6f9f;padding-left:12px;}
+  h2{font-size:19px;margin:28px 0 10px;border-left:6px solid #8aa7bd;padding-left:10px;}
+  p{margin:8px 0;}
+  code{background:#eef2f6;border:1px solid #d9e0e8;border-radius:4px;padding:1px 5px;font-family:Consolas,monospace;}
+  table{width:100%;border-collapse:collapse;background:white;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:10px 0 18px;}
+  th,td{border-bottom:1px solid var(--line);padding:8px 10px;vertical-align:top;}
+  th{background:var(--head);text-align:left;font-size:12px;color:#344054;}
+  tr:last-child td{border-bottom:0;}
+  .num{font-family:Consolas,monospace;white-space:nowrap;}
+  .note{background:white;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:14px 0;}
+  .borrow{background:var(--borrow);}
+  .done{background:var(--done);}
+  .warn{background:var(--warn);}
+  .muted{color:var(--muted);}
+</style>
+</head>
+<body>
+<main>
+  <h1>Borrowed Enemy ID Audit</h1>
+  <p class="muted">2026-07-04 一次棚卸し。対象は「原作敵IDの意味を借りて、カスタム敵として扱っているID」。Ice Flame <code>$84</code> は独立ID化済みなので、移行残数には入れない。</p>
+
+  <div class="note">
+    <b>結論:</b>
+    一対一で新IDへ移すなら、現時点の移行候補は <b>36 ID</b>。
+    新IDを <code>$85</code> から詰めて割り当てる場合、単純計算では <code>$85-$A8</code> まで使う。
+    ただし、Saramandor #2の4IDは「原作の未使用/弱使用IDを改造したもの」なので、移行優先度はPanel/Spark/Gargoyleより一段下げてよい。
+  </div>
+
+  <h2>1. 移行候補サマリ</h2>
+  <table>
+    <tr><th>分類</th><th>現在の間借りID</th><th>個数</th><th>元の意味 / 借り方</th><th>移行判断</th></tr>
+    <tr class="borrow">
+      <td>Panel Monster 2-way/3-way</td>
+      <td class="num">$52,$53,$56,$57,$5A,$5B,$66,$67</td>
+      <td class="num">8</td>
+      <td>Demonhead/Saramandor系のID帯を、Panel Monster派生として使う。</td>
+      <td>移行対象。既存のborrowed Panel runtime。</td>
+    </tr>
+    <tr class="borrow">
+      <td>Panel Variant A/B/C</td>
+      <td class="num">$31,$33,$35,$37,$41,$43,$45,$47,$49,$4B,$4D,$4F</td>
+      <td class="num">12</td>
+      <td>Neul/Ghost #2/noslow系のID帯を、Panel Variant A/B/Cとして使う。</td>
+      <td>移行対象。今後の新敵ID化の中心。</td>
+    </tr>
+    <tr class="borrow">
+      <td>Saramandor #2 Bullet variant</td>
+      <td class="num">$5E,$5F,$62,$63</td>
+      <td class="num">4</td>
+      <td>未使用寄りのSaramandor #2 IDを、Bulletを撃つ派生として使う。</td>
+      <td>移行候補。ただし原作通常敵との衝突リスクは比較的小さい。</td>
+    </tr>
+    <tr class="borrow">
+      <td>Spark Ball pause</td>
+      <td class="num">$6A,$6B,$6E,$6F</td>
+      <td class="num">4</td>
+      <td>Dragon #2系IDを、LIFE百の位で止まるSpark Ballとして使う。</td>
+      <td>移行対象。</td>
+    </tr>
+    <tr class="borrow">
+      <td>Spark Ball invisible</td>
+      <td class="num">$72,$73,$76,$77</td>
+      <td class="num">4</td>
+      <td>Golem #2系IDを、点滅/透明Spark Ballとして使う。</td>
+      <td>移行対象。</td>
+    </tr>
+    <tr class="borrow">
+      <td>Enhanced Gargoyle A/B</td>
+      <td class="num">$7A,$7B,$7E,$7F</td>
+      <td class="num">4</td>
+      <td>Gargoyle #2系IDを、Bullet速度違いの強化Gargoyleとして使う。</td>
+      <td>移行対象。</td>
+    </tr>
+    <tr class="done">
+      <td>Ice Flame</td>
+      <td class="num">$84</td>
+      <td class="num">1</td>
+      <td>原作の最終敵ID <code>$83</code> の次に新設した独立ID。</td>
+      <td>移行済み。今後の新ID設計の基準。</td>
+    </tr>
+  </table>
+
+  <h2>2. 個数の見方</h2>
+  <table>
+    <tr><th>扱い</th><th>個数</th><th>説明</th></tr>
+    <tr><td>確実に移行したい間借りID</td><td class="num">32</td><td>Panel系20 + Spark Ball系8 + Enhanced Gargoyle系4。</td></tr>
+    <tr><td>移行候補に入れるID</td><td class="num">36</td><td>上記32 + Saramandor #2 Bullet variant 4。</td></tr>
+    <tr><td>移行済み独立ID</td><td class="num">1</td><td>Ice Flame <code>$84</code>。</td></tr>
+  </table>
+
+  <h2>3. 新IDへ移す時の単純割り当て案</h2>
+  <table>
+    <tr><th>新ID範囲案</th><th>割り当て対象</th><th>個数</th><th>備考</th></tr>
+    <tr><td class="num">$85-$98</td><td>Panel Monster 2-way/3-way + Panel Variant A/B/C</td><td class="num">20</td><td>Panel系をひとかたまりにする。</td></tr>
+    <tr><td class="num">$99-$9C</td><td>Saramandor #2 Bullet variant</td><td class="num">4</td><td>必要なら後回しでもよい。</td></tr>
+    <tr><td class="num">$9D-$A4</td><td>Spark Ball pause / invisible</td><td class="num">8</td><td>Spark Ball系を連続配置する。</td></tr>
+    <tr><td class="num">$A5-$A8</td><td>Enhanced Gargoyle A/B</td><td class="num">4</td><td>Gargoyle系を連続配置する。</td></tr>
+  </table>
+
+  <div class="note warn">
+    <b>注意:</b>
+    この文書は一次棚卸しであり、まだROM runtimeの設計変更ではない。
+    UI、保存データ、内部モデル、ROM runtimeを同時に新ID体系へ寄せる時は、Ice Flameと同じく入口で新IDとして扱い、表示だけ変える方式にはしない。
+  </div>
+</main>
+</body>
+</html>
