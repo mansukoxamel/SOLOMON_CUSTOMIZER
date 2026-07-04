@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.19 (2026-07-04) Flame表示と再保存チェックを修正
+- White Flameの敵ピッカー表示を、BGパレット近似ではなく実ROM由来のSPR #3 + White Flame CHRへ合わせた。
+- Ice Flameの配置表示はruntimeで使うSPR #2基準に揃え、余計な色フィルターを使わない表示にした。
+- Panel Variant適用済みROMを再保存する時、Saramandor variant runtimeが現在の `$866D` hookを正しく受け入れるようにした。
+
 ## v0.9.18 (2026-07-04) Ice Flame敵IDを正式追加
 - 新しい敵ID `$84` を `Ice Flame` としてピッカーへ追加し、Flame系グラフィックを流用して配置できるようにした。
 - 保存ROMへIce Flame runtimeを固定配置で適用するようにした。PRG0の `$E9C1-$EA35` / file `0x69D1-0x6A45` に117Bを書き、`$A1C3`, `$8ACB`, `$A2F2`, `$8676` の4か所をhookする。
