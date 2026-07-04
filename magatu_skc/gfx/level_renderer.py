@@ -34,6 +34,11 @@ PANEL_VARIANT_VISUAL_SOURCE = {
     0x31: 0x24, 0x33: 0x25, 0x35: 0x26, 0x37: 0x27,
 }
 
+ENEMY_VISUAL_SOURCE = {
+    **PANEL_VARIANT_VISUAL_SOURCE,
+    0x85: 0x2A,
+}
+
 MARKER_RENDER_SCALE = 4
 KEY_ENEMY_OVERLAY_PNG_B64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAA70lEQVR42u3aQQ6CMBAFUC7"
@@ -232,7 +237,7 @@ class LevelRenderer:
         return self.config.item_map.get(item_no & 0x3f, 0)
 
     def get_enemy_animation(self, enemy_no: int) -> int:
-        visual_enemy_no = PANEL_VARIANT_VISUAL_SOURCE.get(enemy_no, enemy_no)
+        visual_enemy_no = ENEMY_VISUAL_SOURCE.get(enemy_no, enemy_no)
         return self.config.enemy_map.get(visual_enemy_no, 0)
 
     def get_actual_tileset_no(self, level_no: int, level_tileset_no: int) -> int:

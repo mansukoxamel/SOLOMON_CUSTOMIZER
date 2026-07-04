@@ -377,7 +377,7 @@ def save_levels_to_rom(
             rom.data,
         )
     elif new_enemy_runtime.levels_need_runtime(levels):
-        raise SaveError("Ice Flame ($84) はmapper66拡張ROM保存専用です。")
+        raise SaveError("新敵ID ($84/$85) はmapper66拡張ROM保存専用です。")
     if rom.is_expanded():
         _run_save_step(
             "Panel Variant runtime検証/適用",

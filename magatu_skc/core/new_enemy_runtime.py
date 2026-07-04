@@ -89,15 +89,18 @@ OLD_INIT_ENTRY_RUNTIME = bytes.fromhex(
 )
 
 INIT_ENTRY_RUNTIME = bytes.fromhex(
+    "48"            # PHA: preserve stock init input
     "a5 05"         # LDA $05 -> current enemy type during init
     "c9 85"         # CMP #$85
-    "f0 0d"         # BEQ spark85
+    "f0 0e"         # BEQ spark85
+    "68"            # PLA
     "20 1c 9d"      # JSR $9D1C stock init
     "a5 05"         # LDA $05 -> current enemy type during init
     "c9 84"         # CMP #$84
     "f0 01"         # BEQ ice
     "60"            # RTS
     f"4c {_ice.CPU_INIT_STATUS & 0xFF:02x} {_ice.CPU_INIT_STATUS >> 8:02x}"
+    "68"            # spark85: PLA
     f"4c {_spark85.CPU_INIT_STATUS & 0xFF:02x} {_spark85.CPU_INIT_STATUS >> 8:02x}"
 )
 
@@ -133,7 +136,7 @@ RESERVED_SPANS = (
 
 assert len(AI_ENTRY_RUNTIME) == 24
 assert len(SETUP_ENTRY_RUNTIME) == 30
-assert len(INIT_ENTRY_RUNTIME) == 22
+assert len(INIT_ENTRY_RUNTIME) == 25
 assert len(ANIM_ENTRY_RUNTIME) == 14
 assert OFF_SETUP_ENTRY - OFF_AI_ENTRY == 0x20
 assert OFF_INIT_ENTRY - OFF_SETUP_ENTRY == 0x20

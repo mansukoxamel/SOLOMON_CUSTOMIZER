@@ -174,6 +174,7 @@ ENEMIES_LIST = [
     (0x80, "Red Flame"),
     (0x81, "White Flame"),
     (0x84, "Ice Flame"),
+    (0x85, "Spark85"),
 ]
 
 
@@ -280,6 +281,11 @@ PANEL_VARIANT_VISUAL_SOURCE = {
     0x41: 0x24, 0x43: 0x25, 0x45: 0x26, 0x47: 0x27,  # A
     0x49: 0x24, 0x4b: 0x25, 0x4d: 0x26, 0x4f: 0x27,  # B
     0x31: 0x24, 0x33: 0x25, 0x35: 0x26, 0x37: 0x27,  # C
+}
+
+ENEMY_VISUAL_SOURCE = {
+    **PANEL_VARIANT_VISUAL_SOURCE,
+    0x85: 0x2a,  # Spark85 uses the stock Spark Ball visual.
 }
 
 
@@ -770,7 +776,8 @@ class MirrorEnemyPanel(QWidget):
         if self._tile_renderer is None or self._config is None:
             return QIcon()
         from PyQt5.QtGui import QPainter, QColor as _QC
-        anim = self._config.enemy_map.get(enemy_code, 0)
+        visual_enemy_no = ENEMY_VISUAL_SOURCE.get(enemy_code, enemy_code)
+        anim = self._config.enemy_map.get(visual_enemy_no, 0)
         try:
             sprite = self._tile_renderer.get_tile_image(anim, 0, transparent=True)
             icon_size = self._rows[0]._icon_size if self._rows else ICON_SIZE
@@ -1669,7 +1676,7 @@ class ElementPicker(QWidget):
         """敵コード → アイコン"""
         if self.config is None:
             return QIcon()
-        visual_enemy_no = PANEL_VARIANT_VISUAL_SOURCE.get(enemy_no, enemy_no)
+        visual_enemy_no = ENEMY_VISUAL_SOURCE.get(enemy_no, enemy_no)
         anim = self.config.enemy_map.get(visual_enemy_no, 0)
         if enemy_no in PANEL_VARIANT_VISUAL_SOURCE:
             return self._make_icon_from_tile(
