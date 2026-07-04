@@ -17,7 +17,7 @@ from PyQt5.QtGui import QImage, QPixmap, QPainter, QColor
 from ..core import enemy_drop as ED
 from ..core.i18n import get_language, t
 from .element_picker import (
-    ENEMIES_LIST, ENHANCED_ENEMY_CODES, PANEL_VARIANT_VISUAL_SOURCE,
+    ENEMIES_LIST, ENEMY_VISUAL_SOURCE, ENHANCED_ENEMY_CODES, PANEL_VARIANT_VISUAL_SOURCE,
 )
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
@@ -178,7 +178,7 @@ class EnemyDropDialog(QDialog):
         if self.tile_renderer is None or self.config is None:
             return QPixmap()
         try:
-            visual_code = PANEL_VARIANT_VISUAL_SOURCE.get(code, code)
+            visual_code = ENEMY_VISUAL_SOURCE.get(code, code)
             anim = self.config.enemy_map.get(visual_code, 0)
             sprite = self.tile_renderer.get_tile_image(anim, 0, transparent=True)
             bg = QImage(ENEMY_THUMB, ENEMY_THUMB, QImage.Format_ARGB32)

@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from . import ice_flame_runtime, m66_expander, saver
+from . import new_enemy_runtime, m66_expander, saver
 from .element import ElementType, LevelElement
 from .level import load_all_levels
 from .rom import Rom
@@ -217,11 +217,11 @@ def _write(data: bytearray, off: int, blob: bytes) -> None:
 
 def apply_runtime_patch(rom_data: bytearray) -> list[str]:
     """Patch the generated mapper66 ROM for the $84 killable-Flame test."""
-    changed = ice_flame_runtime.apply(rom_data)
+    changed = new_enemy_runtime.apply(rom_data)
     if changed:
         return changed
     return [
-        f"Ice Flame runtime already present ${ice_flame_runtime.CPU_AI_DISPATCH:04X}-${ice_flame_runtime.CPU_ATTR_TABLE:04X}",
+        "New enemy runtime already present",
     ]
 
 
