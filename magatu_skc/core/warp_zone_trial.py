@@ -64,8 +64,8 @@ class _Asm:
 
 def _pixel_at_mirror_cell(cell: int) -> tuple[int, int]:
     x = int(cell) & 0x0F
-    y = ((int(cell) >> 4) & 0x0F) - 1
-    return (x * 16, y * 16 + 8)
+    y = int(cell) & 0xF0
+    return (x * 16 + 8, y + 0x10)
 
 
 def _build_runtime(src1: int, src2: int) -> bytes:
