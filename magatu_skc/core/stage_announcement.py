@@ -73,7 +73,7 @@ SCRIPT_SPECS = (
 ROOM_FLAG_MASKS = bytes((
     room_flags.BIT_DARK,
     room_flags.BIT_FIRE_RESET,
-    room_flags.BIT_HIDDEN_DOOR,
+    room_flags.DOOR_STATE_MASK,
     room_flags.BIT_NO_BFIRE,
     room_flags.BIT_NO_ASTONE,
 ))
