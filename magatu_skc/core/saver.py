@@ -275,7 +275,7 @@ def save_levels_to_rom(
         spark_ball_variant, gargoyle_variant,
         stage_ext, key_enemy_runtime, stage_announcement, title_screen,
         drop_pickup_guard, special_process, solomon_seal_block,
-        final_stage_redirect, gap_fix, ice_flame_runtime,
+        final_stage_redirect, gap_fix, new_enemy_runtime,
     )
     from .element import byte_from_position
     # IMPORTANT: this apply order is part of the ROM layout contract.
@@ -372,11 +372,11 @@ def save_levels_to_rom(
     )
     if rom.is_expanded():
         _run_save_step(
-            "Ice Flame runtime検証/適用",
-            ice_flame_runtime.apply,
+            "New enemy runtime検証/適用",
+            new_enemy_runtime.apply,
             rom.data,
         )
-    elif ice_flame_runtime.levels_need_runtime(levels):
+    elif new_enemy_runtime.levels_need_runtime(levels):
         raise SaveError("Ice Flame ($84) はmapper66拡張ROM保存専用です。")
     if rom.is_expanded():
         _run_save_step(

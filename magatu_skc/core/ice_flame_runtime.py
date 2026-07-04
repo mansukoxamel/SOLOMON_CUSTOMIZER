@@ -23,13 +23,13 @@ CPU_AI_DISPATCH = 0xE9C1
 CPU_SETUP_META_LOAD = 0xE9D2
 CPU_INIT_STATUS = 0xE9EB
 CPU_ANIM_UPDATE = 0xEA17
-CPU_CLASSIFY = 0xEA24
-CPU_SETUP_TABLE = 0xEA30
-CPU_STATUS_TABLE = 0xEA31
-CPU_BEHAVIOR_TABLE = 0xEA32
-CPU_FRAME1_TABLE = 0xEA33
-CPU_FRAME2_TABLE = 0xEA34
-CPU_ATTR_TABLE = 0xEA35
+CPU_CLASSIFY = 0xBBEE
+CPU_SETUP_TABLE = 0xEA24
+CPU_STATUS_TABLE = 0xEA25
+CPU_BEHAVIOR_TABLE = 0xEA26
+CPU_FRAME1_TABLE = 0xEA27
+CPU_FRAME2_TABLE = 0xEA28
+CPU_ATTR_TABLE = 0xEA29
 
 ORIG_AI_DISPATCH_CALL = bytes.fromhex("20 29 a3")
 HOOK_AI_DISPATCH_CALL = bytes((0x20, CPU_AI_DISPATCH & 0xFF, CPU_AI_DISPATCH >> 8))
@@ -103,18 +103,6 @@ ANIM_UPDATE_RUNTIME = bytes.fromhex(
     "4c 89 87"
 )
 
-CLASSIFY_RUNTIME = bytes.fromhex(
-    "38"
-    "e9 84"
-    "c9 01"
-    "b0 03"
-    "aa"
-    "18"
-    "60"
-    "38"
-    "60"
-)
-
 CLASSIFICATION_TABLES = bytes((
     0x40,  # setup group: Flame/Burn
     0xE0,  # status: active, contact enabled, fireball-killable
@@ -129,7 +117,6 @@ RUNTIME = (
     + SETUP_META_RUNTIME
     + INIT_STATUS_RUNTIME
     + ANIM_UPDATE_RUNTIME
-    + CLASSIFY_RUNTIME
     + CLASSIFICATION_TABLES
 )
 
@@ -138,10 +125,9 @@ RESERVED_SPANS = ((OFF_RUNTIME, len(RUNTIME)),)
 assert len(AI_DISPATCH_RUNTIME) == CPU_SETUP_META_LOAD - CPU_AI_DISPATCH
 assert len(SETUP_META_RUNTIME) == CPU_INIT_STATUS - CPU_SETUP_META_LOAD
 assert len(INIT_STATUS_RUNTIME) == CPU_ANIM_UPDATE - CPU_INIT_STATUS
-assert len(ANIM_UPDATE_RUNTIME) == CPU_CLASSIFY - CPU_ANIM_UPDATE
-assert len(CLASSIFY_RUNTIME) == CPU_SETUP_TABLE - CPU_CLASSIFY
+assert len(ANIM_UPDATE_RUNTIME) == CPU_SETUP_TABLE - CPU_ANIM_UPDATE
 assert len(CLASSIFICATION_TABLES) == 6
-assert len(RUNTIME) == 117
+assert len(RUNTIME) == 105
 assert CPU_AI_DISPATCH + len(RUNTIME) == CPU_ATTR_TABLE + 1
 
 
@@ -171,22 +157,6 @@ def _write(data: bytearray, off: int, blob: bytes, changed: list[str], name: str
 
 
 def apply(rom_data: bytearray) -> list[str]:
-    """Apply the fixed Ice Flame runtime and its four hook entry points."""
-    min_len = OFF_RUNTIME + len(RUNTIME)
-    if rom_data is None or len(rom_data) < min_len:
-        raise IceFlameRuntimeError("ROM is too short for Ice Flame runtime.")
-
-    _expect_one(rom_data, OFF_AI_DISPATCH_CALL, (ORIG_AI_DISPATCH_CALL, HOOK_AI_DISPATCH_CALL), "$A1C3 Ice Flame AI dispatch hook")
-    _expect_one(rom_data, OFF_ANIM_UPDATE_CALL, (ORIG_ANIM_UPDATE_CALL, HOOK_ANIM_UPDATE_CALL), "$8676 Ice Flame animation hook")
-    _expect_one(rom_data, OFF_INIT_WRITE_CALL, (ORIG_INIT_WRITE_CALL, HOOK_INIT_WRITE_CALL), "$A2F2 Ice Flame init hook")
-    _expect_one(rom_data, OFF_SETUP_META_LOAD, (ORIG_SETUP_META_LOAD, HOOK_SETUP_META_LOAD), "$8ACB Ice Flame setup hook")
-    _expect_one(rom_data, OFF_BUFFER, (bytes((0xEA,)) * BUFFER_LEN,), "Ice Flame leading buffer")
-    _expect_one(rom_data, OFF_RUNTIME, (bytes((0xEA,)) * len(RUNTIME), RUNTIME), "Ice Flame runtime area")
-
-    changed: list[str] = []
-    _write(rom_data, OFF_AI_DISPATCH_CALL, HOOK_AI_DISPATCH_CALL, changed, "$A1C3 Ice Flame AI dispatch hook")
-    _write(rom_data, OFF_ANIM_UPDATE_CALL, HOOK_ANIM_UPDATE_CALL, changed, "$8676 Ice Flame animation hook")
-    _write(rom_data, OFF_INIT_WRITE_CALL, HOOK_INIT_WRITE_CALL, changed, "$A2F2 Ice Flame init/status hook")
-    _write(rom_data, OFF_SETUP_META_LOAD, HOOK_SETUP_META_LOAD, changed, "$8ACB Ice Flame setup group hook")
-    _write(rom_data, OFF_RUNTIME, RUNTIME, changed, f"Ice Flame runtime ${CPU_AI_DISPATCH:04X}-${CPU_ATTR_TABLE:04X}")
-    return changed
+    """Apply Ice Flame through the shared new-enemy entry layer."""
+    from . import new_enemy_runtime
+    return new_enemy_runtime.apply(rom_data)

@@ -455,6 +455,7 @@ def _verify(rom_data) -> None:
     from . import spark_ball_variant as _sbv
     from . import key_enemy_runtime as _ker
     from . import final_stage_redirect as _fsr
+    from . import new_enemy_runtime as _ner
     expanded = len(rom_data) == 0x18010
     table_spans = ((OFF_DOORTAB, ROOM_COUNT * 2),) if expanded else (
         (OFF_DOORTAB, ROOM_COUNT),
@@ -488,6 +489,7 @@ def _verify(rom_data) -> None:
         *_pmsv.RESERVED_SPANS,               # Panel Variant A/B/C split runtime
         *pmsv_capacity_spans,                # Panel Variant legacy tail compatibility
         *_sbv.RESERVED_SPANS,                # Spark Ball Dragon-ID variants
+        *_ner.RESERVED_SPANS,                # New enemy dispatcher and Ice Flame runtime
         *_ker.RESERVED_SPANS,                # Key-carrying initial enemy runtime
         *_fsr.RESERVED_SPANS,                # Clear this room, then load final room
     )
