@@ -22,6 +22,7 @@ ORIG_ITEM_CELL_HOOK = bytes.fromhex("20 5b c5")
 OFF_RUNTIME = 0x6A56
 CPU_RUNTIME = 0xEA46
 CPU_STOCK_ITEM_CHECK = 0xC55B
+CPU_PLAY_SE = 0x8E8D
 RAM_WARP_COOLDOWN = 0x0770
 
 
@@ -116,6 +117,8 @@ def _build_runtime(src1: int, src2: int) -> bytes:
     a.abs(0x8D, 0x0582)                # STA $0582
     a.b(0xA9, 0xFF)                    # LDA #$FF
     a.abs(0x8D, 0x0581)                # force stock velocity table refresh
+    a.b(0xA0, 0x0D)                    # LDY #$0D: item pickup SE
+    a.abs(0x20, CPU_PLAY_SE)           # JSR $8E8D
     a.b(0xA9, 0x00)                    # LDA #$00
     for addr in (0x0585, 0x0587, 0x0588):
         a.abs(0x8D, addr)              # clear subpixel/horizontal velocity
