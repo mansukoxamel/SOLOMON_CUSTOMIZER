@@ -62,16 +62,15 @@ class _Asm:
         return bytes(self.data)
 
 
-def _pixel_above_cell(cell: int) -> tuple[int, int]:
+def _pixel_at_mirror_cell(cell: int) -> tuple[int, int]:
     x = int(cell) & 0x0F
-    y = ((int(cell) >> 4) & 0x0F) - 2
-    out_y = max(0, y)
-    return (x * 16, out_y * 16 + 8)
+    y = ((int(cell) >> 4) & 0x0F) - 1
+    return (x * 16, y * 16 + 8)
 
 
 def _build_runtime(src1: int, src2: int) -> bytes:
-    dst_for_src1 = _pixel_above_cell(src2)
-    dst_for_src2 = _pixel_above_cell(src1)
+    dst_for_src1 = _pixel_at_mirror_cell(src2)
+    dst_for_src2 = _pixel_at_mirror_cell(src1)
 
     a = _Asm()
     a.b(0xC9, 0x05)                    # CMP #$05
