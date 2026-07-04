@@ -66,14 +66,14 @@ ROM予約の正式なマスターではありません。正式な予約情報�
 
 4096B跡地内:
 
-- 生合計: 1774B
-- 実占有: 1774B
+- 生合計: 1795B
+- 実占有: 1795B
 - セグメント数: 11
 
 4096B跡地外:
 
-- 生合計: 429B
-- 実占有: 429B
+- 生合計: 408B
+- 実占有: 408B
 - セグメント数: 12
 
 現行の `RESERVED_SPANS` 起点では重複予約なし。
@@ -95,7 +95,7 @@ PRG0追加プログラム側から見た一覧。
 | `panel_monster_variant` | 0 | 0B | 7 | 396B |
 | `saramandor_variant` | 1 | 165B | 0 | 0B |
 | `solomon_seal_block` | 1 | 11B | 0 | 0B |
-| `spark_ball_variant` | 7 | 170B | 1 | 21B |
+| `spark_ball_variant` | 8 | 191B | 0 | 0B |
 | `stage_announcement` | 11 | 164B | 0 | 0B |
 | `title_screen` | 2 | 96B | 3 | 9B |
 
@@ -111,9 +111,9 @@ PRG0追加プログラム側から見た一覧。
 |---|---|---|---:|---|
 | Stage start announcement | `stage_announcement` | 主に4096B内、`KEY_GATE`だけ `0x33D0-0x33DC` | 164B | 4096B側へ集約しやすい候補。分割scriptsとmain/draw/tableをまとめ直す対象。 |
 | Key/Fairy enemy runtime | `key_enemy_runtime` | bank0 cave中心、1片だけ4096B内、1片は `0x5005-0x500F` | 286B raw | 分割が多い。機能単位ではまとめたいが、複数hookから入るので呼び出し元確認が必要。 |
-| Spark Ball variant | `spark_ball_variant` | bank0 cave、`0x2569`、`0x4FEE`、4096B末尾 | 191B raw | `0x2569` はメイン側差し込みに近いので要注意。AI wrapper類は移動候補。 |
+| Spark Ball variant | `spark_ball_variant` | `0x6280-0x633E` | 191B raw | Spark Ball追加routineはproperty selectorも含めてpacked blockへ集約済み。 |
 | Panel Monster base variant | `panel_monster_variant` | bank0 cave、`0x5BEF`、`0x40D2` | 396B raw | 新規保存ROMでは書かない。旧base候補跡は保存時に掃除しない。 |
-| Panel Monster A/B/C final runtime | `panel_monster_stage_variant` | `0x6496-0x677F` + PRG1 loader/settings | 746B raw + 102B PRG1 | 現行Panel runtime。速度、AI、弾、classifier、marker、property/animation hook本体を新cleanupブロックへ集約。Spark selectorは既存位置でPanel fallback先だけ新hookへ向ける。 |
+| Panel Monster A/B/C final runtime | `panel_monster_stage_variant` | `0x6496-0x677F` + PRG1 loader/settings | 746B raw + 102B PRG1 | 現行Panel runtime。速度、AI、弾、classifier、marker、property/animation hook本体を新cleanupブロックへ集約。Spark selectorは `0x632A` に置き、Panel fallback先だけ新hookへ向ける。 |
 | Gargoyle variant | `gargoyle_variant` | bank0 cave `0x3D0B-0x3D88` | 90B | まとまっている。移すならhook先3か所を更新するだけか確認する。 |
 | Saramandor variant | `saramandor_variant` | bank0 cave `0x3E10-0x3F4F` | 165B | まとまっているが複数hookから入る。移動候補だが優先度は中。 |
 | Final stage redirect | `final_stage_redirect` | `0x6342-0x634E` | 13B | 4096B先頭側へ移動済み。旧 `0x3D28-0x3D34` は新規出力では書かない。 |
@@ -131,8 +131,7 @@ PRG0追加プログラム側から見た一覧。
    - 理由: 大半が4096B内にあり、分割scriptsをまとめる目的と合う。
    - 注意: `OFF_KEY_GATE = 0x33D0` だけ4096B外なので、呼び出し元と分岐距離を確認する。
 2. `spark_ball_variant` のAI wrapper類
-   - 理由: wrapper本体は小さく、場所依存が薄い可能性がある。
-   - 注意: `0x2569` property selector はメイン側差し込みに近いので、最初の移動対象にしない。
+   - 完了: property selectorも含めて `0x6280-0x633E` へ集約済み。
 3. `gargoyle_variant`
    - 理由: 90Bでまとまっている。
    - 注意: hook先と設定値読み書きが移動後も追従するか確認する。
@@ -382,16 +381,14 @@ PRG0追加プログラム側から見た一覧。
 
 ## Spark Ball runtime 移動結果
 
-`spark_ball_variant.py` の追加routineのうち、property selector `0x2569` 以外を
-7断片から1本体へまとめる。
+`spark_ball_variant.py` の追加routine 8断片を1本体へまとめる。
 
 理由:
 
 - Spark Ball系は pause、AI wrapper、animation、透明OAM hide が複数箇所に散っている。
-- `0x2569` property selector は原作コード差し替えに近いため、今回の「追加routine集約」から外す。
-- `0x2569-0x257D` は、現時点では敵property取得の原作処理経路に近い場所へ差し込まれている可能性があると見ている。
-- ただしこれは未確定。後で確認して単なる追加routineの置き忘れだった場合は、Panel/Spark property selector整理の対象として4096B跡地側へ移す候補にする。
-- 残り7断片はSpark Ball機能単位でまとめられ、検証もSpark Ball系として一括で行える。
+- `0x2569` property selector は、原作の敵property table取得そのものではなく、Panel Monster発射処理跡へ置いた追加routineだった。
+- Spark Ball packed runtime直後の24B空きはこの種の入れ忘れを吸収するための緩衝なので、property selectorをそこへ移す。
+- Spark Ball機能単位でまとめられ、検証もSpark Ball系として一括で行える。
 
 移動前:
 
@@ -401,6 +398,7 @@ PRG0追加プログラム側から見た一覧。
 | Dragon fast AI wrapper | `0x3D36-0x3D45` | `$BD26-$BD35` | 16B |
 | Transparent Golem-ID AI wrapper | `0x681C-0x6832` | `$E80C-$E822` | 23B |
 | pause hook | `0x6FD4-0x7004` | `$EFC4-$EFF4` | 49B |
+| property selector | `0x2569-0x257D` | `$A559-$A56D` | 21B |
 | animation hook | `0x4FEE-0x5004` | `$CFDE-$CFF4` | 23B |
 | animation setter | `0x3EFA-0x3F02` | `$BEEA-$BEF2` | 9B |
 | transparent OAM hide hook | `0x3ED7-0x3EF8` | `$BEC7-$BEE8` | 34B |
@@ -409,14 +407,14 @@ PRG0追加プログラム側から見た一覧。
 
 | part | new file | new CPU | size |
 |---|---:|---:|---:|
-| packed Spark Ball runtime | `0x6280-0x6329` | `$E270-$E319` | 170B |
-| free | `0x632A-0x6341` | `$E31A-$E331` | 24B |
+| packed Spark Ball runtime | `0x6280-0x633E` | `$E270-$E32E` | 191B |
+| free | `0x633F-0x6341` | `$E32F-$E331` | 3B |
 
 合計:
 
-- 旧分散配置: 170B
-- 新本体: 170B
-- 直後の空き: 24B
+- 旧分散配置: 191B
+- 新本体: 191B
+- 直後の空き: 3B
 - この候補で使う範囲: `0x6280-0x6341`
 - 次の配置開始候補: `0x6342`
 
@@ -427,6 +425,7 @@ PRG0追加プログラム側から見た一覧。
 - `0x681C-0x6832`
 - `0x6FD4-0x7004`
 - 現行では `0x681C-0x6832` はRoomFlag packed cave runtime内、`0x6FD4-0x7004` はmapper66 l_a1 body後の空き `0x69B9-0x7004` 内。
+- `0x2569-0x257D`
 - `0x4FEE-0x5004`
 - `0x3EFA-0x3F02`
 - `0x3ED7-0x3EF8`
@@ -436,12 +435,14 @@ PRG0追加プログラム側から見た一覧。
 
 - Dragon/Golem AI tableが新 `$E270/$E280/$E290` を指すこと。
 - `$AB13` pause dispatchが新 `$E2A7` を指すこと。
+- `$A2CC` property dispatchが新 `$E31A` を指すこと。
 - `$8B05` animation dispatchが新 `$E2D8` を指すこと。
 - animation hook内のSpark setter JMPが新 `$E2EF` を指すこと。
 - `$85FA` transparent OAM dispatchが新 `$E2F8` を指すこと。
 - pause digit設定とtransparent period設定のROM内offsetが、新pause/OAM routine内の相対位置で読めること。
-- `0x2569` property selectorは移動しないこと。
-- 旧7断片へ消去・復元・互換目的の書き込みを入れないこと。
+- `$A556-$A558` Panel final fire hook siteにSpark property selector本体を埋め込まないこと。
+- `$A559-$A574` の原作Panel fire本体は、hook後は通常実行されないが、空き扱いせず原作バイトのまま残すこと。
+- 旧8断片へ消去・復元・互換目的の書き込みを入れないこと。
 
 ## Final stage redirect 移動結果
 
@@ -742,7 +743,8 @@ PRG0追加プログラム側から見た一覧。
 | `0x60CC-0x60F5` | `$E0BC-$E0E5` | 42B | `EA` | `m66.initial_draw_low_classifier` |
 | `0x610E-0x622B` | `$E0FE-$E21B` | 286B | `EA` | `key_enemy_runtime` |
 | `0x6244-0x6267` | `$E234-$E257` | 36B | `EA` | `room_flags.visible_item_inblock` |
-| `0x6280-0x6329` | `$E270-$E319` | 170B | `EA` | `spark_ball_variant` |
+| `0x6280-0x633E` | `$E270-$E32E` | 191B | `EA` | `spark_ball_variant` |
+| `0x633F-0x6341` | `$E32F-$E331` | 3B | `EA` | free |
 | `0x6342-0x634E` | `$E332-$E33E` | 13B | `EA` | `final_stage_redirect` |
 | `0x6367-0x63C0` | `$E357-$E3B0` | 90B | `EA` | `gargoyle_variant` |
 | `0x63D9-0x647D` | `$E3C9-$E46D` | 165B | `EA` | `saramandor_variant` |
@@ -763,7 +765,7 @@ PRG0追加プログラム側から見た一覧。
 
 ## 跡地外の主な整理候補
 
-跡地外のPRG0予約は、現行 `RESERVED_SPANS` 起点では実占有429Bある。
+跡地外のPRG0予約は、現行 `RESERVED_SPANS` 起点では実占有408Bある。
 このうち、機能的に場所依存が薄い小routineは4096B側へ集約できる可能性がある。
 
 最初に重点確認する範囲:
@@ -771,7 +773,7 @@ PRG0追加プログラム側から見た一覧。
 - `0x3C27-0x420F`: bank0 cave 系。複数敵runtimeとPanel系が集中している。
 - `0x4FEE-0x500F`: Spark Ball animation / key enemy compare 系。
 - `0x5BEF-0x5C0A`: 旧Panel property hook候補跡。新規出力では書かない。
-- `0x2569-0x257D`: Spark Ball property selector。原作命令上の差し込みに近いので要注意。
+- `0x2566-0x2568`: Panel final fire hook。後続 `0x2569-0x2584` は原作Panel fire本体を残す。Spark Ball property selector本体は `0x632A-0x633E` へ移動済み。
 - `0x4C5F-0x4CB5`: 旧wide title helper本体。現行は `0x6929-0x697F` へ移動し、`0x4C5F-0x4CC5` は原作decoderへ戻す。
 
 ## 原作ROM差分の使い方
@@ -801,7 +803,7 @@ PRG0追加プログラム側から見た一覧。
 
 ## 現時点の判断
 
-4096B跡地内の現行予約1774Bと、跡地外の実占有429Bを単純合算して2203B。
+4096B跡地内の現行予約1795Bと、跡地外の実占有408Bを単純合算して2203B。
 残件は大きな追加routineではなく、旧base Panel、Spark selector、hook/即値系を個別確認する段階。
 
 ただし、すべてを機械的に移動してよいわけではない。

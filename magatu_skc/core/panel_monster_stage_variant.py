@@ -236,6 +236,10 @@ ORIG_STATE0_INTERVAL_HOOK = bytes.fromhex("a0 02 b1 2c c9 c0")
 ORIG_SPEED_INIT_CALL = bytes.fromhex("20 c0 8a")
 HOOK_SPEED_INIT_CALL = bytes.fromhex("20") + _word(CPU_FINAL_PARENT_SPEED_GUARD)
 HOOK_FINAL_PANEL_FIRE_HEAD = bytes.fromhex("4c") + _word(CPU_FINAL_FIRE_DISPATCH)
+HOOK_FINAL_PANEL_FIRE = (
+    HOOK_FINAL_PANEL_FIRE_HEAD
+    + panel_monster_variant.ORIG_PANEL_FIRE[len(HOOK_FINAL_PANEL_FIRE_HEAD):]
+)
 HOOK_FINAL_BULLET_MOVE = bytes.fromhex("20") + _word(CPU_FINAL_BULLET_SPEED_HOOK)
 HOOK_PREVIOUS_PANEL_FIRE_WITH_SPARK_PROPERTY = (
     panel_monster_variant.HOOK_PANEL_FIRE_HEAD
@@ -1088,6 +1092,7 @@ def _validate_final_split_signatures(
         (
             panel_monster_variant.ORIG_PANEL_FIRE,
             panel_monster_variant.HOOK_PANEL_FIRE,
+            HOOK_FINAL_PANEL_FIRE,
             ORIG_PANEL_FIRE_WITH_SPARK_PROPERTY,
             HOOK_PREVIOUS_PANEL_FIRE_WITH_SPARK_PROPERTY,
             HOOK_PANEL_FIRE_WITH_SPARK_PROPERTY,
@@ -1418,7 +1423,7 @@ def apply_panel_monster_v2_runtime(
         changed.append("Panel Variant PRG1 settings table")
     changed.extend(apply_runtime_loader(rom_data))
 
-    _write_blob(rom_data, panel_monster_variant.OFF_HOOK_PANEL_FIRE, HOOK_PANEL_FIRE_WITH_SPARK_PROPERTY, changed, "$A556 Panel Variant fire hook / Spark property hook")
+    _write_blob(rom_data, panel_monster_variant.OFF_HOOK_PANEL_FIRE, HOOK_FINAL_PANEL_FIRE, changed, "$A556 Panel Variant fire hook")
     _write_blob(rom_data, panel_monster_variant.OFF_HOOK_BULLET_MOVE, HOOK_FINAL_BULLET_MOVE, changed, "$AFBB Panel Variant Bullet hook")
     _write_blob(rom_data, OFF_STATE0_INTERVAL_HOOK, FINAL_HOOK_STATE0_INTERVAL, changed, "$A575 Panel Variant final interval hook")
     _write_blob(rom_data, panel_monster_variant.OFF_A2CC, HOOK_A2CC_SPARK_PROPERTY, changed, "$A2CC Spark/Panel property dispatch")

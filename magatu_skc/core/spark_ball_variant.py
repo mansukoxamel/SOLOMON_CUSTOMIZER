@@ -103,7 +103,7 @@ CPU_AI_DRAGON_SLOW_WRAPPER = _cpu(0x6280)  # $E270
 CPU_AI_DRAGON_FAST_WRAPPER = _cpu(0x6290)      # $E280
 CPU_AI_GOLEM_WRAPPER = _cpu(0x62A0)            # $E290
 CPU_PAUSE_HOOK = _cpu(0x62B7)                  # $E2A7
-CPU_PROPERTY_HOOK = _cpu(0x2569)               # $A559
+CPU_PROPERTY_HOOK = _cpu(0x632A)               # $E31A
 CPU_ANIM_HOOK = _cpu(0x62E8)                   # $E2D8
 CPU_ANIM_SPARK_SET = _cpu(0x62FF)              # $E2EF
 CPU_OAM_HIDE_HOOK = _cpu(0x6308)               # $E2F8
@@ -257,16 +257,17 @@ CAVE_PROPERTY_HOOK = _build_property_hook()
 CAVE_ANIM_HOOK = _build_anim_hook()
 CAVE_ANIM_SPARK_SET = _build_anim_spark_set()
 CAVE_OAM_HIDE_HOOK = _build_oam_hide_hook()
-OFF_SPARK_BALL_FREE = OFF_OAM_HIDE_HOOK + len(CAVE_OAM_HIDE_HOOK)
-SPARK_BALL_FREE_LEN = 24
+OFF_SPARK_BALL_FREE = OFF_PROPERTY_HOOK + len(CAVE_PROPERTY_HOOK)
+SPARK_BALL_FREE_LEN = 3
 assert OFF_AI_DRAGON_FAST_WRAPPER == OFF_AI_DRAGON_SLOW_WRAPPER + len(CAVE_AI_DRAGON_SLOW_WRAPPER)
 assert OFF_AI_GOLEM_WRAPPER == OFF_AI_DRAGON_FAST_WRAPPER + len(CAVE_AI_DRAGON_FAST_WRAPPER)
 assert OFF_PAUSE_HOOK == OFF_AI_GOLEM_WRAPPER + len(CAVE_AI_GOLEM_WRAPPER)
 assert OFF_ANIM_HOOK == OFF_PAUSE_HOOK + len(CAVE_PAUSE_HOOK)
 assert OFF_ANIM_SPARK_SET == OFF_ANIM_HOOK + len(CAVE_ANIM_HOOK)
 assert OFF_OAM_HIDE_HOOK == OFF_ANIM_SPARK_SET + len(CAVE_ANIM_SPARK_SET)
-assert OFF_SPARK_BALL_FREE == OFF_OAM_HIDE_HOOK + len(CAVE_OAM_HIDE_HOOK)
-assert SPARK_BALL_FREE_LEN == 24
+assert OFF_PROPERTY_HOOK == OFF_OAM_HIDE_HOOK + len(CAVE_OAM_HIDE_HOOK)
+assert OFF_SPARK_BALL_FREE == OFF_PROPERTY_HOOK + len(CAVE_PROPERTY_HOOK)
+assert SPARK_BALL_FREE_LEN == 3
 
 RESERVED_SPANS = (
     (OFF_AI_DRAGON_SLOW_WRAPPER, len(CAVE_AI_DRAGON_SLOW_WRAPPER)),
@@ -424,7 +425,7 @@ def apply(rom_data, pause_digits=None, transparency_period=None) -> list[str]:
         OFF_PROPERTY_HOOK,
         CAVE_PROPERTY_HOOK,
         changed,
-        "Spark Ball property hook $D055",
+        "Spark Ball property hook $E31A",
     )
     _write_blob(
         rom_data,
