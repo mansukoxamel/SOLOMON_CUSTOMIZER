@@ -143,6 +143,7 @@ def apply(rom_data) -> list[str]:
     """Apply the always-on Saramandor variant patch."""
     if rom_data is None or len(rom_data) < OFF_CAVE_DISTANCE_CHECK + len(CAVE_DISTANCE_CHECK):
         raise SaramandorVariantError("ROM is too short for Saramandor variant patch.")
+    from . import panel_monster_stage_variant
 
     _expect_or_hooked(rom_data, OFF_HOOK_SPAWN_SETUP, ORIG_SPAWN_SETUP, HOOK_SPAWN_SETUP, "$B105")
     _expect_or_hooked(rom_data, OFF_HOOK_SUBSTATUS, ORIG_SUBSTATUS, HOOK_SUBSTATUS, "$B0A9")
@@ -162,7 +163,11 @@ def apply(rom_data) -> list[str]:
         ORIG_ENTITY_SPEED_INIT,
         ORIG_ENTITY_SPEED_INIT,
         "$866D",
-        extra_hooks=(HOOK_PANEL_STAGE_SPEED_GUARD, HOOK_PANEL_STAGE_SPEED_GUARD_OLD),
+        extra_hooks=(
+            panel_monster_stage_variant.HOOK_SPEED_INIT_CALL,
+            HOOK_PANEL_STAGE_SPEED_GUARD,
+            HOOK_PANEL_STAGE_SPEED_GUARD_OLD,
+        ),
     )
     _expect_or_hooked(rom_data, OFF_HOOK_DISTANCE_CHECK, ORIG_DISTANCE_CHECK, HOOK_DISTANCE_CHECK, "$B1E9")
 
