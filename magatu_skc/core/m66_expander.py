@@ -18,6 +18,10 @@ from .level import Level
 ROM_M66_FILE_SIZE = 98320  # 96KB + 16バイトiNESヘッダ
 LOADTIME_PRG0_CLEAR_START = 0x6010
 LOADTIME_PRG0_CLEAR_LENGTH = 0x1000
+L_A1_OLD_HOOK_OFF = 0x1985
+L_A1_OLD_BODY_OFF = 0x1986
+L_A1_NEW_OFF = 0x6998
+L_A1_NEW_CPU = 0x8000 + (L_A1_NEW_OFF - 0x10)
 ITEM_POINTER_LOADER_OLD = bytes.fromhex("AE2804BD1CEA8530BD51EA8531")
 ITEM_POINTER_LOADER_CONST_0790 = bytes.fromhex("A9908530A9078531EAEAEAEAEA")
 
@@ -130,7 +134,38 @@ def _clear_legacy_prg0_level_area(result: bytearray):
     end = start + LOADTIME_PRG0_CLEAR_LENGTH
     if len(result) < end:
         raise ValueError("mapper66 expanded ROM is too short for PRG0 clear.")
+    l_a1 = bytes(result[L_A1_NEW_OFF:L_A1_NEW_OFF + _l_a1_length()])
     result[start:end] = bytes([0xEA]) * LOADTIME_PRG0_CLEAR_LENGTH
+    result[L_A1_NEW_OFF:L_A1_NEW_OFF + len(l_a1)] = l_a1
+
+
+def _word(cpu: int) -> tuple[int, int]:
+    return int(cpu) & 0xFF, (int(cpu) >> 8) & 0xFF
+
+
+def _l_a1_length() -> int:
+    return 33
+
+
+def _build_l_a1(cpu: int) -> bytes:
+    """Build mapper66 l_a1 entry code for its final PRG0 CPU address."""
+    data_addr = int(cpu) + 14
+    data_lo, data_hi = _word(data_addr)
+    body = bytes([
+        0xA2, 0x10,
+        0xBD, data_lo, data_hi, 0x9D, 0xCF, 0x07, 0xCA,
+        0xD0, 0xF7, 0x4C, 0xD0, 0x07, 0x60, 0xA9, 0x13,
+        0x9D, 0x11, 0x80, 0x20, 0x01, 0x80, 0xA9, 0x03,
+        0x9D, 0x11, 0x80, 0x4C, data_lo, data_hi, data_lo, data_hi,
+    ])
+    assert len(body) == _l_a1_length()
+    return body
+
+
+RESERVED_SPANS = (
+    (L_A1_OLD_HOOK_OFF, 3),
+    (L_A1_NEW_OFF, _l_a1_length()),
+)
 
 
 def change_mapper(src: bytes, region: str = "JP") -> bytearray:
@@ -193,21 +228,17 @@ def change_mapper(src: bytes, region: str = "JP") -> bytearray:
         result[p["lvl2_lo"] + i] = 144
         result[p["lvl2_hi"] + i] = 7
 
-    # サブルーチン1 (32B) — 内部に自己参照の絶対アドレスを含むため動的生成
-    # The absolute self-reference depends on the final subroutine CPU address.
-    sub1 = p["sub1"]
-    sub1_cpu = 0x8000 + (sub1 - 16)  # ファイルオフセット → CPU アドレス
-    data_addr = sub1_cpu + 13        # サブルーチン内 position 13 の CPU アドレス
-    data_lo = data_addr & 0xFF
-    data_hi = (data_addr >> 8) & 0xFF
-    l_a1 = bytes([
-        0x10, 0xBD, data_lo, data_hi, 0x9D, 0xCF, 0x07, 0xCA,
-        0xD0, 0xF7, 0x4C, 0xD0, 0x07, 0x60, 0xA9, 0x13,
-        0x9D, 0x11, 0x80, 0x20, 0x01, 0x80, 0xA9, 0x03,
-        0x9D, 0x11, 0x80, 0x4C, data_lo, data_hi, data_lo, data_hi
-    ])
-    for i, b in enumerate(l_a1):
-        result[sub1 + i] = b
+    # l_a1 mapper66 bank-switch entry. The original flow enters at $9975,
+    # so leave a 3B JMP hook there and keep the generated body in the
+    # PRG0 runtime block. The body has an absolute self-reference that
+    # depends on its final CPU address.
+    sub1_hook = p["sub1"] - 1
+    if sub1_hook != L_A1_OLD_HOOK_OFF:
+        raise ValueError("mapper66 l_a1 hook offset mismatch.")
+    hook_lo, hook_hi = _word(L_A1_NEW_CPU)
+    result[sub1_hook:sub1_hook + 3] = bytes((0x4C, hook_lo, hook_hi))
+    l_a1 = _build_l_a1(L_A1_NEW_CPU)
+    result[L_A1_NEW_OFF:L_A1_NEW_OFF + len(l_a1)] = l_a1
 
     # サブルーチン2 (152B at offset 32784 = 拡張領域の先頭)
     l_a2 = bytes([

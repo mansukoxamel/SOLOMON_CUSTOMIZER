@@ -60,21 +60,21 @@ ROM予約の正式なマスターではありません。正式な予約情報�
 
 生の抽出結果:
 
-- PRG0予約件数: 73件
-- 生合計: 2167B
-- 重複をまとめた実占有: 2167B
+- PRG0予約件数: 75件
+- 生合計: 2203B
+- 重複をまとめた実占有: 2203B
 
 4096B跡地内:
 
-- 生合計: 1741B
-- 実占有: 1741B
-- セグメント数: 10
+- 生合計: 1774B
+- 実占有: 1774B
+- セグメント数: 11
 
 4096B跡地外:
 
-- 生合計: 426B
-- 実占有: 426B
-- セグメント数: 11
+- 生合計: 429B
+- 実占有: 429B
+- セグメント数: 12
 
 現行の `RESERVED_SPANS` 起点では重複予約なし。
 原作コード上のhook、即値変更、原作データ復元はこの集計とは別に扱う。
@@ -90,6 +90,7 @@ PRG0追加プログラム側から見た一覧。
 | `final_stage_redirect` | 1 | 13B | 0 | 0B |
 | `gargoyle_variant` | 1 | 90B | 0 | 0B |
 | `key_enemy_runtime` | 15 | 286B | 0 | 0B |
+| `m66_expander` | 1 | 33B | 1 | 3B |
 | `panel_monster_stage_variant` | 23 | 746B | 0 | 0B |
 | `panel_monster_variant` | 0 | 0B | 7 | 396B |
 | `saramandor_variant` | 1 | 165B | 0 | 0B |
@@ -425,7 +426,7 @@ PRG0追加プログラム側から見た一覧。
 - `0x3D36-0x3D45`
 - `0x681C-0x6832`
 - `0x6FD4-0x7004`
-- 現行では `0x681C-0x6832` はRoomFlag packed cave runtime内、`0x6FD4-0x7004` はWide title PRG0 helpers後の空き `0x6980-0x7004` 内。
+- 現行では `0x681C-0x6832` はRoomFlag packed cave runtime内、`0x6FD4-0x7004` はmapper66 l_a1 body後の空き `0x69B9-0x7004` 内。
 - `0x4FEE-0x5004`
 - `0x3EFA-0x3F02`
 - `0x3ED7-0x3EF8`
@@ -677,7 +678,7 @@ PRG0追加プログラム側から見た一覧。
 - Panel直後の緩衝空き: 24B
 - `0x6780-0x7004` の元空き: 2181B
 - RoomFlag単体移動直後の残り空き: 1940B
-- 後続のwide-title idle-demo cleanup / Gap fix / Wide title helper移動後は `0x6871-0x6879` wide-title stub、`0x687A-0x6888` buffer、`0x6889-0x6910` gap_fix、`0x6911-0x6928` buffer、`0x6929-0x697F` wide-title helper、`0x6980-0x7004` free。
+- 後続のwide-title idle-demo cleanup / Gap fix / Wide title helper / mapper66 l_a1移動後は `0x6871-0x6879` wide-title stub、`0x687A-0x6888` buffer、`0x6889-0x6910` gap_fix、`0x6911-0x6928` buffer、`0x6929-0x697F` wide-title helper、`0x6980-0x6997` buffer、`0x6998-0x69B8` l_a1 body、`0x69B9-0x7004` free。
 - RAM新規使用: なし
 - PRG1新規使用: なし
 
@@ -711,7 +712,9 @@ PRG0追加プログラム側から見た一覧。
 | gap_fix runtime | `0x4010-0x4097` | `$C000-$C087` | `0x6889-0x6910` | `$E879-$E900` | 136B |
 | free buffer | - | - | `0x6911-0x6928` | `$E901-$E918` | 24B |
 | wide-title PRG0 helpers | `0x4C5F-0x4CB5` | `$CC4F-$CCA5` | `0x6929-0x697F` | `$E919-$E96F` | 87B |
-| free | - | - | `0x6980-0x7004` | `$E970-$EFF4` | 1669B |
+| free buffer | - | - | `0x6980-0x6997` | `$E970-$E987` | 24B |
+| mapper66 l_a1 body | `0x1985-0x19A5` | `$9975-$9995` | `0x6998-0x69B8` | `$E988-$E9A8` | 33B |
+| free | - | - | `0x69B9-0x7004` | `$E9A9-$EFF4` | 1612B |
 
 合計:
 
@@ -719,7 +722,7 @@ PRG0追加プログラム側から見た一覧。
 - wide-title idle-demo cleanup実体: 9B
 - RoomFlag後の緩衝空き: 15B
 - RoomFlag後の元空き: 1940B
-- Wide title helper移動後の残り空き: 1669B
+- mapper66 l_a1移動後の残り空き: 1612B
 - RAM新規使用: なし
 - PRG1新規使用: なし
 
@@ -751,14 +754,16 @@ PRG0追加プログラム側から見た一覧。
 | `0x6889-0x6910` | `$E879-$E900` | 136B | `EA` | `gap_fix` |
 | `0x6911-0x6928` | `$E901-$E918` | 24B | `EA` | free buffer |
 | `0x6929-0x697F` | `$E919-$E96F` | 87B | `EA` | `title_screen.wide_title_prg0_helpers` |
-| `0x6980-0x7004` | `$E970-$EFF4` | 1669B | `EA` | free |
+| `0x6980-0x6997` | `$E970-$E987` | 24B | `EA` | free buffer |
+| `0x6998-0x69B8` | `$E988-$E9A8` | 33B | `EA` | `m66_expander.l_a1_body` |
+| `0x69B9-0x7004` | `$E9A9-$EFF4` | 1612B | `EA` | free |
 | `0x7005-0x700F` | `$EFF5-$EFFF` | 11B | `EA` | `solomon_seal_block` |
 
 この範囲は、最終的には4096B先頭側へ詰め直して、routine本体と直後の空きを別管理する候補にする。
 
 ## 跡地外の主な整理候補
 
-跡地外のPRG0予約は、現行 `RESERVED_SPANS` 起点では実占有426Bある。
+跡地外のPRG0予約は、現行 `RESERVED_SPANS` 起点では実占有429Bある。
 このうち、機能的に場所依存が薄い小routineは4096B側へ集約できる可能性がある。
 
 最初に重点確認する範囲:
@@ -796,7 +801,7 @@ PRG0追加プログラム側から見た一覧。
 
 ## 現時点の判断
 
-4096B跡地内の現行予約1741Bと、跡地外の実占有426Bを単純合算して2167B。
+4096B跡地内の現行予約1774Bと、跡地外の実占有429Bを単純合算して2203B。
 残件は大きな追加routineではなく、旧base Panel、Spark selector、hook/即値系を個別確認する段階。
 
 ただし、すべてを機械的に移動してよいわけではない。
