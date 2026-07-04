@@ -1320,6 +1320,8 @@ _TRANSLATIONS = {
     "main.status.key_enemy_clear_blocked_no_key": {"ja": "鍵メタが無いため、この鍵持ち敵は解除できません", "en": "The key meta is missing, so this key enemy cannot be cleared."},
     "main.status.key_enemy_set_blocked_no_door": {"ja": "扉が削除されているステージには鍵持ち敵を設定できません", "en": "A key enemy cannot be set on a stage where the door has been removed."},
     "main.status.key_enemy_set_blocked_no_key": {"ja": "鍵メタが無いステージには鍵持ち敵を設定できません", "en": "A key enemy cannot be set on a stage with no key meta."},
+    "main.status.warp_mirror_blocked": {"ja": "ワープミラーモードは、別々の位置にある可視ミラー2個が必要です", "en": "Warp Mirror Mode requires two visible mirrors at different positions."},
+    "main.status.warp_mirror_apply_all_skipped": {"ja": "ワープミラーモードを適用しました（{count}面変更 / 条件不成立 {skipped}面はOFF）", "en": "Applied Warp Mirror Mode ({count} changed / {skipped} invalid stages left off)."},
     "main.status.replace_picker_required": {"ja": "ピッカーでブロック、アイテム、モンスターを選択してから指定してください", "en": "Select a block, item, or monster in the picker first."},
     "main.status.pixel_editor_chr_written": {"ja": "16x16ピクセル編集: CHRを書き換えました", "en": "16x16 pixel editor: CHR was rewritten"},
     "main.status.sprite_viewer_chr_written": {"ja": "スプライトビューア経由: CHRを書き換えました", "en": "Sprite viewer: CHR was rewritten"},

@@ -12102,6 +12102,34 @@ class MainWindow(QMainWindow):
             return _se.warp_mirror_enabled(level)
         raise KeyError(key)
 
+    def _warp_mirror_can_enable(self, level) -> bool:
+        mirrors = list(getattr(level, "demon_mirrors", []) or [])
+        if len(mirrors) < 2:
+            return False
+        positions = [tuple(getattr(mirror, "position", (-99, -99))) for mirror in mirrors[:2]]
+        if positions[0] == positions[1]:
+            return False
+        item_positions = {tuple(item.position) for item in getattr(level, "items", []) or []}
+        hidden_mirror_block_cells = (
+            set(getattr(level, "breakable_white_cells", set()) or []) |
+            set(getattr(level, "cracked_block_cells", set()) or []) |
+            set(getattr(level, "passable_white_cells", set()) or []) |
+            set(getattr(level, "invisible_solid_cells", set()) or []) |
+            set(getattr(level, "invisible_breakable_cells", set()) or []) |
+            set(getattr(level, "passable_brown_cells", set()) or []) |
+            set(getattr(level, "solid_brown_cells", set()) or [])
+        )
+        for x, y in positions:
+            if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+                return False
+            if level.tiles[y][x] != Wall.NONE:
+                return False
+            if (x, y) in hidden_mirror_block_cells:
+                return False
+            if (x, y) in item_positions:
+                return False
+        return True
+
     def _set_stage_restriction_level_value(self, level, key: str, enabled: bool) -> None:
         from ..core import room_flags as _rf
         from ..core import stage_ext as _se
@@ -12127,6 +12155,9 @@ class MainWindow(QMainWindow):
             _se.set_fire_reset_enabled(level, enabled)
             return
         if key == "warp_mirror":
+            if enabled and not self._warp_mirror_can_enable(level):
+                _se.set_warp_mirror_enabled(level, False)
+                return
             _se.set_warp_mirror_enabled(level, enabled)
             return
         raise KeyError(key)
@@ -12169,15 +12200,27 @@ class MainWindow(QMainWindow):
                 2500,
             )
             return
+        skipped_invalid = 0
         self._push_undo_levels(changed_levels, focus_level_no=self.current_level_no)
         for level_no in changed_levels:
             level = self.levels[level_no]
             for key, enabled in values.items():
+                if key == "warp_mirror" and enabled and not self._warp_mirror_can_enable(level):
+                    skipped_invalid += 1
                 self._set_stage_restriction_level_value(level, key, enabled)
         self._load_meta_to_ui()
         self._refresh_changed_stages(changed_levels)
         key = next(iter(values))
         detail = self._stage_restriction_label(key)
+        if key == "warp_mirror" and values[key] and skipped_invalid:
+            self.statusBar().showMessage(
+                t(
+                    "main.status.warp_mirror_apply_all_skipped",
+                    "ワープミラーモードを適用しました（{count}面変更 / 条件不成立 {skipped}面はOFF）",
+                ).format(name=detail, count=len(changed_levels) - skipped_invalid, skipped=skipped_invalid),
+                4000,
+            )
+            return
         self.statusBar().showMessage(
             t(
                 "main.stage.restrictions.apply_all_done",
@@ -12304,9 +12347,23 @@ class MainWindow(QMainWindow):
             return
         if self._reject_read_only_edit():
             return
-        self._push_undo()
         from ..core import stage_ext as _se
         lv = self.levels[self.current_level_no]
+        if checked and not self._warp_mirror_can_enable(lv):
+            self._meta_loading = True
+            try:
+                self.chk_warp_mirror.setChecked(False)
+            finally:
+                self._meta_loading = False
+            self.statusBar().showMessage(
+                t(
+                    "main.status.warp_mirror_blocked",
+                    "ワープミラーモードは、別々の位置にある可視ミラー2個が必要です",
+                ),
+                3500,
+            )
+            return
+        self._push_undo()
         _se.set_warp_mirror_enabled(lv, checked)
         self._set_dirty(True)
         self._update_info()
