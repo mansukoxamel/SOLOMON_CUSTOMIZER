@@ -10,7 +10,7 @@ from ..core import room_flags, stage50_book_color, stage_ext
 from ..core.element import Wall, ElementType
 from ..core.level import Level
 from .tile_renderer import TileRenderer
-from ..ui.element_picker import ENHANCED_ENEMY_CODES, ICE_FLAME_CODES
+from ..ui.element_picker import ENHANCED_ENEMY_CODES
 
 
 # メタタイル番号定数（C++ Constants_level.h より）
@@ -657,11 +657,6 @@ class LevelRenderer:
                     painter.fillRect(
                         ex * tw, ey * tw, tw, tw,
                         QColor(55, 135, 255, 80)
-                    )
-                elif show_enemy_variant_overlays and enemy.element_no in ICE_FLAME_CODES:
-                    painter.fillRect(
-                        ex * tw, ey * tw, tw, tw,
-                        QColor(110, 210, 255, 80)
                     )
                 elif show_enemy_variant_overlays and enemy.element_no in ENHANCED_ENEMY_CODES:
                     painter.fillRect(

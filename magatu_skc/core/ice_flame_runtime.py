@@ -20,16 +20,16 @@ BUFFER_LEN = 24
 OFF_RUNTIME = 0x69D1
 
 CPU_AI_DISPATCH = 0xE9C1
-CPU_SETUP_META_LOAD = 0xE9D0
-CPU_INIT_STATUS = 0xE9E9
-CPU_ANIM_UPDATE = 0xEA15
-CPU_CLASSIFY = 0xEA22
-CPU_SETUP_TABLE = 0xEA2E
-CPU_STATUS_TABLE = 0xEA2F
-CPU_BEHAVIOR_TABLE = 0xEA30
-CPU_FRAME1_TABLE = 0xEA31
-CPU_FRAME2_TABLE = 0xEA32
-CPU_ATTR_TABLE = 0xEA33
+CPU_SETUP_META_LOAD = 0xE9D2
+CPU_INIT_STATUS = 0xE9EB
+CPU_ANIM_UPDATE = 0xEA17
+CPU_CLASSIFY = 0xEA24
+CPU_SETUP_TABLE = 0xEA30
+CPU_STATUS_TABLE = 0xEA31
+CPU_BEHAVIOR_TABLE = 0xEA32
+CPU_FRAME1_TABLE = 0xEA33
+CPU_FRAME2_TABLE = 0xEA34
+CPU_ATTR_TABLE = 0xEA35
 
 ORIG_AI_DISPATCH_CALL = bytes.fromhex("20 29 a3")
 HOOK_AI_DISPATCH_CALL = bytes((0x20, CPU_AI_DISPATCH & 0xFF, CPU_AI_DISPATCH >> 8))
@@ -49,9 +49,9 @@ AI_DISPATCH_RUNTIME = bytes.fromhex(
     "18"
     "69 14"
     f"20 {CPU_CLASSIFY & 0xFF:02x} {CPU_CLASSIFY >> 8:02x}"
-    "b0 02"
+    "b0 04"
     "68"
-    "60"
+    "4c a0 a5"
     "68"
     "4c 29 a3"
 )
@@ -118,7 +118,7 @@ CLASSIFY_RUNTIME = bytes.fromhex(
 CLASSIFICATION_TABLES = bytes((
     0x40,  # setup group: Flame/Burn
     0xE0,  # status: active, contact enabled, fireball-killable
-    0x00,  # behavior/state
+    0x14,  # behavior/state: White Flame steady state
     0xD6,  # fixed frame tile 1
     0xD4,  # fixed frame tile 2
     0x5A,  # fixed frame attr
@@ -141,7 +141,7 @@ assert len(INIT_STATUS_RUNTIME) == CPU_ANIM_UPDATE - CPU_INIT_STATUS
 assert len(ANIM_UPDATE_RUNTIME) == CPU_CLASSIFY - CPU_ANIM_UPDATE
 assert len(CLASSIFY_RUNTIME) == CPU_SETUP_TABLE - CPU_CLASSIFY
 assert len(CLASSIFICATION_TABLES) == 6
-assert len(RUNTIME) == 115
+assert len(RUNTIME) == 117
 assert CPU_AI_DISPATCH + len(RUNTIME) == CPU_ATTR_TABLE + 1
 
 

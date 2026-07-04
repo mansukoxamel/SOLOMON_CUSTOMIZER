@@ -103,19 +103,19 @@ $84 は追加敵か？
 </div>
 <h3>ここで聞いている質問</h3>
 <pre>$84 はどのAIを実行する？</pre>
-<p>今回の <code>$84</code> は「倒せるが動かない炎」なので、現実験では一番単純に <code>$84</code> ならAIを即 <code>RTS</code> している。</p>
+<p>今回の <code>$84</code> は「倒せるが動かないWhite Flame系」なので、AI入口ではFlame AI <code>$A5A0</code> へ送る。ただし表示アニメは別フックで止め、固定2タイル表示にしている。</p>
 
 <h2>5. 判定は3回ある</h2>
 <table>
 <tr><th>段階</th><th>聞いていること</th><th>$84 の答え</th></tr>
 <tr><td>敵生成時</td><td>IDから property/status 系を決める</td><td>status <code>$E0</code>、接触あり、火球で倒せる</td></tr>
 <tr><td>初期セットアップ時</td><td>IDから speed/animation/setup group を決める</td><td>Flame setup group <code>$40</code></td></tr>
-<tr><td>毎フレームAI時</td><td>IDからAI処理を決める</td><td>現実験ではAIを走らせず即 <code>RTS</code></td></tr>
+<tr><td>毎フレームAI時</td><td>IDからAI処理を決める</td><td>Flame AI <code>$A5A0</code> へ送り、初期behaviorはWhite Flame寄りの <code>$14</code></td></tr>
 </table>
 <p>つまり、同じ <code>$84</code> を見ているが、各段階で聞いている質問が違う。</p>
 
 <div class="note">
-<b>火球ヒット時の注意:</b> Ice Flame のAI hookは、<code>$84</code> だけを追加敵として止める。
+<b>火球ヒット時の注意:</b> Ice Flame のAI hookは、<code>$84</code> だけを追加敵としてFlame AIへ送る。
 追加敵ではないIDは、hook入口で渡された原作AI番号を復元してから <code>$A329</code> へ戻す必要がある。
 ここを壊すと、火球ヒット後に敵が <code>$14</code> の撃破/拾得エンティティへ変わった時、通常AI dispatch が崩れる。
 </div>
@@ -129,7 +129,7 @@ $84 は追加敵か？
   $84 か？ → Flame setup にする
 
 毎フレームAI時:
-  $84 か？ → AIを止める</pre>
+  $84 か？ → Flame AIへ送る</pre>
 <p>これは <code>$84</code> だけなら短い。しかし、将来 <code>$85</code>, <code>$86</code>, ... と増えると、各入口に敵ID判定が散らばって管理不能になる。</p>
 
 <div class="warn">
