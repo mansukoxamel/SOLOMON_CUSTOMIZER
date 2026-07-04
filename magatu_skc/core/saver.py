@@ -275,7 +275,7 @@ def save_levels_to_rom(
         spark_ball_variant, gargoyle_variant,
         stage_ext, key_enemy_runtime, stage_announcement, title_screen,
         drop_pickup_guard, special_process, solomon_seal_block,
-        final_stage_redirect, gap_fix, new_enemy_runtime,
+        final_stage_redirect, gap_fix, new_enemy_runtime, warp_zone_trial,
     )
     from .element import byte_from_position
     # IMPORTANT: this apply order is part of the ROM layout contract.
@@ -375,6 +375,12 @@ def save_levels_to_rom(
             "New enemy runtime検証/適用",
             new_enemy_runtime.apply,
             rom.data,
+        )
+        _run_save_step(
+            "Stage 4 mirror warp trial検証/適用",
+            warp_zone_trial.apply,
+            rom.data,
+            levels,
         )
     elif new_enemy_runtime.levels_need_runtime(levels):
         raise SaveError("新敵ID ($84/$85) はmapper66拡張ROM保存専用です。")
