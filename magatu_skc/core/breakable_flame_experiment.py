@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from . import m66_expander, saver
+from . import ice_flame_runtime, m66_expander, saver
 from .element import ElementType, LevelElement
 from .level import load_all_levels
 from .rom import Rom
@@ -217,33 +217,11 @@ def _write(data: bytearray, off: int, blob: bytes) -> None:
 
 def apply_runtime_patch(rom_data: bytearray) -> list[str]:
     """Patch the generated mapper66 ROM for the $84 killable-Flame test."""
-    full_runtime = EXPERIMENT_RUNTIME
-    _expect(rom_data, OFF_AI_DISPATCH_CALL, ORIG_AI_DISPATCH_CALL, "$A1C3 AI dispatch call")
-    _expect(rom_data, OFF_ANIM_UPDATE_CALL, ORIG_ANIM_UPDATE_CALL, "$8676 animation update call")
-    _expect(rom_data, OFF_INIT_WRITE_CALL, ORIG_INIT_WRITE_CALL, "$A2F2 enemy init write call")
-    _expect(rom_data, OFF_SETUP_META_LOAD, ORIG_SETUP_META_LOAD, "$8ACB setup metadata load")
-    _expect(rom_data, OFF_BUFFER, bytes((0xEA,)) * BUFFER_LEN, "PRG0 24-byte leading buffer")
-    _expect(rom_data, 0x0B15, CUR_ANIM_META_LOAD_HOOK, "$8B05 existing animation hook")
-    _expect(
-        rom_data,
-        OFF_EXPERIMENT_RUNTIME,
-        bytes((0xEA,)) * len(full_runtime),
-        "$84 experiment runtime area",
-    )
-    _write(rom_data, OFF_AI_DISPATCH_CALL, HOOK_AI_DISPATCH_CALL)
-    _write(rom_data, OFF_ANIM_UPDATE_CALL, HOOK_ANIM_UPDATE_CALL)
-    _write(rom_data, OFF_INIT_WRITE_CALL, HOOK_INIT_WRITE_CALL)
-    _write(rom_data, OFF_SETUP_META_LOAD, HOOK_SETUP_META_LOAD)
-    _write(rom_data, OFF_EXPERIMENT_RUNTIME, full_runtime)
-    runtime_end = CPU_EXPERIMENT_AI_DISPATCH + len(full_runtime) - 1
+    changed = ice_flame_runtime.apply(rom_data)
+    if changed:
+        return changed
     return [
-        f"$84 AI dispatch hook: $A1C3 -> ${CPU_EXPERIMENT_AI_DISPATCH:04X}",
-        f"$84 setup group hook: $8ACB -> ${CPU_EXPERIMENT_SETUP_META_LOAD:04X}",
-        f"$84 init/status/behavior/fixed-frame hook: $A2F2 -> ${CPU_EXPERIMENT_INIT_STATUS:04X}",
-        f"$84 animation update hook: $8676 -> ${CPU_EXPERIMENT_ANIM_UPDATE:04X}",
-        f"$84 new enemy classifier: ${CPU_EXPERIMENT_CLASSIFY:04X}",
-        f"$84 classification tables: ${CPU_EXPERIMENT_SETUP_TABLE:04X}-${CPU_EXPERIMENT_ATTR_TABLE:04X}",
-        f"$84 experiment runtime: ${CPU_EXPERIMENT_AI_DISPATCH:04X}-${runtime_end:04X}",
+        f"Ice Flame runtime already present ${ice_flame_runtime.CPU_AI_DISPATCH:04X}-${ice_flame_runtime.CPU_ATTR_TABLE:04X}",
     ]
 
 

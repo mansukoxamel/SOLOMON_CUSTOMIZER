@@ -145,6 +145,7 @@ ENEMIES_LIST = [
     # スピード非対応
     (0x80, "Red Flame"),
     (0x81, "White Flame"),
+    (0x84, "Ice Flame"),
     (0x24, "Panel Monster (right)"),
     (0x25, "Panel Monster (left)"),
     (0x26, "Panel Monster (up)"),
@@ -238,6 +239,9 @@ ENHANCED_ENEMY_CODES = {
     0x72, 0x73, 0x76, 0x77,  # Spark Ball invisible
     0x7a, 0x7b, 0x7e, 0x7f,  # Gargoyle slow Bullet
 }
+
+
+ICE_FLAME_CODES = {0x84}
 
 
 ENEMY_ENHANCE_CYCLES = (
@@ -1674,6 +1678,13 @@ class ElementPicker(QWidget):
             return self._make_icon_from_tile(
                 anim,
                 overlay_color=(55, 135, 255, 115),
+                transparent_background=True,
+                tile_transparent=True,
+            )
+        if enemy_no in ICE_FLAME_CODES:
+            return self._make_icon_from_tile(
+                anim,
+                overlay_color=(110, 210, 255, 105),
                 transparent_background=True,
                 tile_transparent=True,
             )

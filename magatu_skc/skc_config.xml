@@ -344,8 +344,9 @@
     <enemy no="0x81" description="White Flame" animation="47" />
     <enemy no="0x82" description="Red Flame #2" animation="48" />
     <enemy no="0x83" description="White Flame #2" animation="47" />
+    <enemy no="0x84" description="Ice Flame" animation="48" />
 
-    <!-- 0x84 and up are glitchy tiles, probably all undefined enemies -->
+    <!-- 0x85 and up are undefined in the current custom runtime. -->
   </enemy_definitions>
 
   <enemy_editor>

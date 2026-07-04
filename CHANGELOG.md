@@ -1,5 +1,11 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.18 (2026-07-04) Ice Flame敵IDを正式追加
+- 新しい敵ID `$84` を `Ice Flame` としてピッカーへ追加し、Flame系グラフィックを流用した水色表示で配置できるようにした。
+- 保存ROMへIce Flame runtimeを固定配置で適用するようにした。PRG0の `$E9C1-$EA33` / file `0x69D1-0x6A43` に115Bを書き、`$A1C3`, `$8ACB`, `$A2F2`, `$8676` の4か所をhookする。
+- Ice Flameは静止・アニメなし・接触判定あり・ダーナ火球で撃破可能なFlame系敵として扱う。火球ヒット後の通常AI dispatchを壊さないよう、追加敵ではないIDは原作AI番号を復元して戻す。
+- ROM管理簿と新敵ID分類フロー文書を更新し、Ice Flame runtimeの使用範囲、緩衝24B、残り空き1,473Bを記録した。
+
 ## v0.9.17 (2026-07-04) PRG0 runtime配置を4096B領域へ集約
 - Stage announcement、Key/Fairy、Visible item、Spark Ball、Final-stage、Gargoyle、Saramandor、Panel Variant、RoomFlag、Gap fix、Wide title、mapper66 l_a1などのPRG0追加runtimeを、旧ステージデータ跡地 `$E000-$EFFF` / file `0x6010-0x700F` へ集約した。
 - Panel Monster/Spark Ball/Wide titleなどの旧配置やin-place書き換えを整理し、4096B領域外は短いhook、即値/テーブル更新、旧原作処理のEA停止に限定されるようにした。
