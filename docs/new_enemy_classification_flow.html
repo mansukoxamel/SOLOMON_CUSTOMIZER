@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>新敵ID分類フロー</title>
+<style>
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.75;margin:0;background:#f7f8fa;color:#1f2937}
+main{max-width:1120px;margin:0 auto;padding:32px 24px 56px}
+h1{font-size:30px;margin:0 0 8px;border-left:8px solid #2563eb;padding-left:14px}
+h2{font-size:22px;margin:32px 0 12px;border-left:6px solid #64748b;padding-left:12px;background:#eef2f7}
+h3{font-size:18px;margin:20px 0 8px}
+p{margin:8px 0}
+code{background:#eef2ff;border:1px solid #dbe3ff;border-radius:4px;padding:1px 5px}
+pre{background:#101827;color:#e5edf8;padding:14px 16px;border-radius:6px;overflow:auto;line-height:1.55}
+.note{background:#fff8db;border-left:6px solid #d6a700;padding:12px 14px;margin:16px 0}
+.ok{background:#e8f5ee;border-left:6px solid #2f9e62;padding:12px 14px;margin:16px 0}
+.warn{background:#fff0f0;border-left:6px solid #dc2626;padding:12px 14px;margin:16px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:16px 0}
+.card{background:white;border:1px solid #d7dde7;border-radius:8px;padding:14px}
+.flow{display:grid;grid-template-columns:1fr;gap:10px;margin:16px 0}
+.step{background:white;border:1px solid #cbd5e1;border-radius:8px;padding:12px 14px}
+.arrow{text-align:center;font-weight:700;color:#475569}
+table{border-collapse:collapse;width:100%;background:white;margin:14px 0}
+th,td{border:1px solid #cbd5e1;padding:8px 10px;vertical-align:top}
+th{background:#e2e8f0;text-align:left}
+.small{font-size:13px;color:#475569}
+</style>
+</head>
+<body>
+<main>
+<h1>新敵ID分類フロー</h1>
+<p class="small">対象: 日本版 mapper66 wide-title 拡張ROMで、新しい敵IDを原作IDの間借りではなく独立IDとして扱う設計。</p>
+
+<div class="note">
+<b>結論:</b> 新敵IDは、1回だけ判定すれば終わりではない。ゲーム中では少なくとも
+<b>敵生成時</b>、<b>初期セットアップ時</b>、<b>毎フレームAI時</b> の3段階で、
+同じ敵IDに対して別の質問をしている。
+</div>
+
+<h2>1. ステージデータを読む段階</h2>
+<p>ここは今回の分類設計の本命ではない。ステージデータから必要になるのは、基本的に敵IDと座標だけ。</p>
+<pre>ステージ敵データ
+  ↓
+敵ID $84 と 座標を読む
+  ↓
+敵配置リストとして保持する</pre>
+<p>この段階では、まだ「どのAIか」「どのアニメか」「倒せるか」は決めなくてよい。</p>
+
+<h2>2. 敵を生成する時</h2>
+<p>ステージの敵リストから、実際に画面内の敵スロットへ入れる時。ここで最初の分類が必要になる。</p>
+<div class="flow">
+  <div class="step">敵ID <code>$84</code> と座標を読む</div>
+  <div class="arrow">↓</div>
+  <div class="step">空いている敵スロットを探す</div>
+  <div class="arrow">↓</div>
+  <div class="step">そのスロットに <code>type=$84</code>, X, Y, status などを書く</div>
+</div>
+<h3>ここで聞いている質問</h3>
+<pre>この敵IDは何者か？
+$84 は普通の原作敵か？
+$84 は追加敵か？
+追加敵なら property/status は何か？</pre>
+<p><code>property</code> は、ざっくり言うと敵の初期性格。</p>
+<ul>
+  <li>この敵は当たれるか</li>
+  <li>火球で倒せるか</li>
+  <li>重力を受けるか</li>
+  <li>最初にジャンプ状態になるか</li>
+</ul>
+<p>今回の <code>$84</code> では、接触判定あり、火球で倒せる、status は <code>$E0</code> 系にしたい。</p>
+
+<h2>3. 敵の初期セットアップ時</h2>
+<p>敵スロットに入った敵を、ゲームが動かせる形に整える時。ここで2回目の分類が必要になる。</p>
+<pre>生成直後:
+  type=$84
+  X=13
+  Y=7
+  status=...
+
+まだ足りないもの:
+  どの速度テーブルを使う？
+  どのアニメ表を使う？
+  最初の絵はどこ？
+  アニメの進み方は？</pre>
+<h3>ここで聞いている質問</h3>
+<pre>$84 はどの敵グループとして初期セットアップする？</pre>
+<p>今回ここを外した時、<code>$84</code> はゴースト/ヌエル系に寄った。理由は、<code>$84</code> のまま原作式で分類すると Flame ではない別グループの表を見に行ったため。</p>
+<div class="ok">
+<b>$84 の必要な答え:</b> Flame 系の setup group <code>$40</code> として扱う。
+</div>
+<p>この分類は「見た目」と「速度」に効く。特に <code>$8AC0-$8B50</code> の流れでは、<code>$D9D3</code> 系の速度/セットアップ表だけでなく、<code>$D0E8</code> 系のアニメ初期ポインタにもつながる。</p>
+
+<h2>4. 毎フレームのAI実行時</h2>
+<p>ゲームが動いている間、敵ごとに毎フレーム呼ばれる。ここで3回目の分類が必要になる。</p>
+<div class="flow">
+  <div class="step">今いる敵スロットを見る</div>
+  <div class="arrow">↓</div>
+  <div class="step"><code>type</code> を見る</div>
+  <div class="arrow">↓</div>
+  <div class="step">その敵のAIへ飛ぶ</div>
+  <div class="arrow">↓</div>
+  <div class="step">動く、止まる、弾を撃つ、反射する、など</div>
+</div>
+<h3>ここで聞いている質問</h3>
+<pre>$84 はどのAIを実行する？</pre>
+<p>今回の <code>$84</code> は「倒せるが動かない炎」なので、現実験では一番単純に <code>$84</code> ならAIを即 <code>RTS</code> している。</p>
+
+<h2>5. 判定は3回ある</h2>
+<table>
+<tr><th>段階</th><th>聞いていること</th><th>$84 の答え</th></tr>
+<tr><td>敵生成時</td><td>IDから property/status 系を決める</td><td>status <code>$E0</code>、接触あり、火球で倒せる</td></tr>
+<tr><td>初期セットアップ時</td><td>IDから speed/animation/setup group を決める</td><td>Flame setup group <code>$40</code></td></tr>
+<tr><td>毎フレームAI時</td><td>IDからAI処理を決める</td><td>現実験ではAIを走らせず即 <code>RTS</code></td></tr>
+</table>
+<p>つまり、同じ <code>$84</code> を見ているが、各段階で聞いている質問が違う。</p>
+
+<h2>6. なぜ共通分類窓口が必要か</h2>
+<p>何も考えずに作ると、3か所それぞれで直接こう書くことになる。</p>
+<pre>生成時:
+  $84 か？ → property を変える
+
+初期セットアップ時:
+  $84 か？ → Flame setup にする
+
+毎フレームAI時:
+  $84 か？ → AIを止める</pre>
+<p>これは <code>$84</code> だけなら短い。しかし、将来 <code>$85</code>, <code>$86</code>, ... と増えると、各入口に敵ID判定が散らばって管理不能になる。</p>
+
+<div class="warn">
+<b>悪い増え方:</b> 各フックの中に <code>$84なら...</code>、<code>$85なら...</code>、<code>$86なら...</code> を個別に積む。
+</div>
+
+<h2>7. PRG0だけでやる場合の整理された形</h2>
+<p>PRG0だけでやるなら、まず「敵IDから追加敵indexを返す小さい共通関数」を1つ作る。</p>
+<pre>input:
+  enemy ID = $84
+
+output:
+  追加敵 index = 0</pre>
+<p>将来はこう増やす。</p>
+<pre>$84 → index 0
+$85 → index 1
+$86 → index 2
+...</pre>
+<p>各段階では、直接 <code>$84か？</code> を何度も書かず、共通分類関数で index を取ってから、それぞれ必要な表を見る。</p>
+<pre>敵生成時:
+  index = classify(enemy_id)
+  status = status_table[index]
+
+初期セットアップ時:
+  index = classify(enemy_id)
+  setup_group = setup_table[index]
+
+毎フレームAI時:
+  index = classify(enemy_id)
+  ai_mode = ai_table[index]</pre>
+
+<h2>8. 小学生向けの言い方</h2>
+<div class="grid">
+  <div class="card">
+    <h3>敵ID</h3>
+    <p>敵の名札。</p>
+    <p><code>$84</code> は「新しい炎」の名札。</p>
+  </div>
+  <div class="card">
+    <h3>生成時</h3>
+    <p>名札を見て「体の性質」を決める。</p>
+    <p>倒せるか、当たれるか、重力を受けるか。</p>
+  </div>
+  <div class="card">
+    <h3>初期セットアップ時</h3>
+    <p>名札を見て「使う絵と速さ」を決める。</p>
+    <p>炎の絵か、ゴーストの絵か、どの速度か。</p>
+  </div>
+  <div class="card">
+    <h3>毎フレームAI時</h3>
+    <p>名札を見て「今日どう動くか」を決める。</p>
+    <p>止まる、歩く、弾を撃つ、反射する。</p>
+  </div>
+</div>
+
+<h2>9. $84 実験時点の分類表</h2>
+<table>
+<tr><th>項目</th><th>値</th><th>意味</th></tr>
+<tr><td>追加敵index</td><td><code>0</code></td><td><code>$84</code> を追加敵0番として扱う</td></tr>
+<tr><td>setup group</td><td><code>$40</code></td><td>Flame/Burn 系の初期セットアップ</td></tr>
+<tr><td>status</td><td><code>$E0</code></td><td>接触判定と火球撃破が通る状態</td></tr>
+<tr><td>behavior</td><td><code>$00</code></td><td>初期state/挙動補助をリセット</td></tr>
+<tr><td>frame1</td><td><code>$D6</code></td><td>固定表示フレームの左側タイル</td></tr>
+<tr><td>frame2</td><td><code>$D4</code></td><td>固定表示フレームの右側タイル</td></tr>
+<tr><td>attr</td><td><code>$5A</code></td><td>パレット/反転属性</td></tr>
+</table>
+
+<h2>10. 設計上の注意</h2>
+<ul>
+  <li>共通分類関数で分かるのは「追加敵か」「追加敵なら何番か」まで。</li>
+  <li>生成時、初期セットアップ時、毎フレームAI時で欲しい答えは違う。</li>
+  <li>そのため、<code>status_table</code>、<code>setup_table</code>、<code>ai_table</code> のように用途別の表を持つ。</li>
+  <li>PRG0だけでやる場合、分類表もPRG0内に置く。RAMやPRG1へ逃がさない前提なら、表のバイト数を常に意識する。</li>
+  <li>最初の1体だけを見ると共通分類窓口は大きい。将来20体、30体へ増やす前提で、判定の散らばりを防ぐための設計。</li>
+</ul>
+
+</main>
+</body>
+</html>
