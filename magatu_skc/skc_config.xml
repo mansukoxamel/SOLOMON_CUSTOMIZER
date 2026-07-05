@@ -175,8 +175,8 @@
     <item no="0x31" description="Egyptian Head" animation="30" />
     <item no="0x32" description="Magic Lamp" animation="39" />
     <item no="0x33" description="E-bottle" animation="7" />
-    <item no="0x34" description="Glitch 1-Up" animation="82" />
-    <item no="0x35" description="Glitch 1-Up #2" animation="16" />
+    <item no="0x34" description="Firejar x2" animation="106" />
+    <item no="0x35" description="Fairy x2" animation="107" />
     <item no="0x36" description="Glitch 1-Up #3" animation="69" />
     <item no="0x37" description="Mini-Dana" animation="85" />
     <item no="0x38" description="Tecmo Bunny (white)" animation="83" />
@@ -718,6 +718,10 @@
       <tile no="102" palette_no="2" nes_tiles="376,466,394,466" />
       <tile no="103" palette_no="2" nes_tiles="264,467,314,467" />
       <tile no="104" palette_no="2" nes_tiles="344,467,346,467" />
+      <!-- custom item: Firejar x2 (item 0x34), same graphics as tile 12 with BG0 palette -->
+      <tile no="106" palette_no="0" nes_tiles="352,357,358,359" />
+      <!-- custom item: Fairy x2 (item 0x35), same graphics as Bell with BG0 palette -->
+      <tile no="107" palette_no="0" nes_tiles="412,413,414,415" />
 
     </tile_definitions>
 
