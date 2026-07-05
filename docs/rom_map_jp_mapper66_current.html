@@ -166,8 +166,8 @@
       <tr><td class="num">0x6A6E-0x6AED</td><td>Warp Mirror Mode runtime</td><td><code>$EA5E-$EADD</code>。<code>$C551</code> のアイテムセル判定入口から常時呼び、StageExt byte0 bit5からコピーされた<code>$0770</code> bit5がONの面だけミラー<code>$05</code>セル同士を相互ワープさせる。OFF面は原作アイテムセル判定へ戻る。<code>$0770</code> bit6を接触中クールダウンに使い、成立時にアイテム取得SE <code>$0D</code> を鳴らす。</td></tr>
       <tr><td class="num">0x6AEE-0x6B05</td><td>空き</td><td>Warp Mirror Mode runtime直後の24B緩衝。stage_announcement.py本体reserveとは扱わない。</td></tr>
       <tr><td class="num">0x6B06-0x6C03</td><td>Stage start announcement packed routine</td><td><code>$EAF6-$EBF3</code>。<code>$9061</code> フック先を <code>$EAF6</code> に移し、main / masks / draw helper / pointer table / key/all-kill shared gate / fairy gate / mirror-link gate / scriptsを連続配置する。合計254B。表示は9script構成で、<code>KEY ENEMY</code> と <code>ALL KILL</code> は同じ表示枠を共有する。右下は <code>MIRROR LINK</code>。</td></tr>
-      <tr><td class="num">0x6C04-0x6C64</td><td>Enemy Clear Key Open runtime</td><td><code>$EBF4-$EC54</code>。<code>$9F09</code> main-loop hookから入り、StageExt byte0 bit6からコピーされた<code>$0770</code> bit4がONの面だけ、敵/妖精/王様等のmain entity slotが空になった時に原作鍵取得処理と光演出へ接続する。<code>$07E0</code>等の追加RAMは使わず、発火時点の<code>$30/$31</code>が指す原作鍵データをそのまま使う。<code>$0770</code> bit7を発火済みラッチ、<code>$0724</code>を光演出開始セル補正に使う。</td></tr>
-      <tr><td class="num">0x6C65-0x6C7C</td><td>空き</td><td>Enemy Clear Key Open runtime直後の24B緩衝。enemy_clear_key_open.py本体reserveとは扱わない。</td></tr>
+      <tr><td class="num">0x6C04-0x6C6E</td><td>Enemy Clear Key Open runtime</td><td><code>$EBF4-$EC5E</code>。<code>$9F09</code> main-loop hookから入り、StageExt byte0 bit6からコピーされた<code>$0770</code> bit4がONの面だけ、敵/妖精/王様等のmain entity slotが空になった時に原作鍵取得処理と光演出へ接続する。<code>$07E0</code>等の追加RAMは使わず、発火時点の<code>$30/$31</code>が指す原作鍵データをそのまま使う。<code>$0303</code> bit4のgroup4 actionが残っている間は発火を待ち、item $19取得直後のcleanup actionが<code>$05C2/$05C5</code>を消費し終える前に座標を上書きしない。<code>$0770</code> bit7を発火済みラッチ、<code>$0724</code>を光演出開始セル補正に使う。</td></tr>
+      <tr><td class="num">0x6C6F-0x6C7C</td><td>空き</td><td>Enemy Clear Key Open runtime直後の14B緩衝。item $19 cleanup待ち追加で旧24B緩衝から10B消費。enemy_clear_key_open.py本体reserveとは扱わない。</td></tr>
       <tr><td class="num">0x6C7D-0x7004</td><td>空き</td><td>Stage start announcement移設後空きの残り904B。現時点では本体reserveとは扱わない。</td></tr>
       <tr><td class="num">0x9019-0x904C</td><td>mapper66 respawn direct-cell copy helper</td><td>`$9009` loader helper。死亡後の `$F0-$F3` 白ブロック内one-shotだけを `$F9` へ落とし、通常の茶ブロック内one-shotは従来通り `$90` へ落とす。</td></tr>
       <tr><td class="num">0x904D-0x908F</td><td>Cracked in-block one-shot respawn helper</td><td>`$903D` PRG1 loader helper。死亡後だけ `$0768-$076F` のひび割れ位置リストを見て、描画前に下地セルを `$01` へ戻し、対応mask bitを192セルindexへ変換して消す。</td></tr>
@@ -230,8 +230,8 @@
       <tr><td>小routine</td><td><code>warp_zone_trial.py</code></td><td class="num">0x6A6E-0x6AED</td><td class="num">$EA5E-$EADD</td><td class="num">128B</td><td>EA埋め</td><td>Warp Mirror Mode runtime。<code>$C551</code> hookから入り、StageExt byte0 bit5がONなら触れたミラー以外の<code>$05</code>セルを<code>$0304</code>から探してワープする。<code>$0770</code> bit5=mode、bit6=cooldown。</td></tr>
       <tr><td>空き</td><td><code>stage_announcement.py</code></td><td class="num">0x6AEE-0x6B05</td><td class="num">$EADE-$EAF5</td><td class="num">24B</td><td>EA埋め</td><td>Warp Mirror Mode runtime直後の緩衝。stage_announcement本体reserveとは扱わない。</td></tr>
       <tr><td>小routine</td><td><code>stage_announcement.py</code></td><td class="num">0x6B06-0x6C03</td><td class="num">$EAF6-$EBF3</td><td class="num">254B</td><td>EA埋め</td><td>開始画面アナウンス本体。main / masks / draw helper / pointer table / key/all-kill shared gate / fairy gate / mirror-link gate / scriptsを連続配置する。旧24B緩衝 <code>0x6BEC-0x6C03</code> は <code>ALL KILL</code> 表示追加で消費済み。</td></tr>
-      <tr><td>小routine</td><td><code>enemy_clear_key_open.py</code></td><td class="num">0x6C04-0x6C64</td><td class="num">$EBF4-$EC54</td><td class="num">97B</td><td>EA埋め</td><td>Enemy Clear Key Open runtime。StageExt byte0 bit6がONならmain entity slot全消滅で原作鍵取得処理と扉オープン光演出に接続する。追加RAMバッファは使わない。</td></tr>
-      <tr><td>空き</td><td><code>enemy_clear_key_open.py</code></td><td class="num">0x6C65-0x6C7C</td><td class="num">$EC55-$EC6C</td><td class="num">24B</td><td>EA埋め</td><td>Enemy Clear Key Open runtime直後の緩衝。enemy_clear_key_open本体reserveとは扱わない。</td></tr>
+      <tr><td>小routine</td><td><code>enemy_clear_key_open.py</code></td><td class="num">0x6C04-0x6C6E</td><td class="num">$EBF4-$EC5E</td><td class="num">107B</td><td>EA埋め</td><td>Enemy Clear Key Open runtime。StageExt byte0 bit6がONならmain entity slot全消滅で原作鍵取得処理と扉オープン光演出に接続する。item $19取得直後のgroup4 cleanup action中は発火を待つ。追加RAMバッファは使わない。</td></tr>
+      <tr><td>空き</td><td><code>enemy_clear_key_open.py</code></td><td class="num">0x6C6F-0x6C7C</td><td class="num">$EC5F-$EC6C</td><td class="num">14B</td><td>EA埋め</td><td>Enemy Clear Key Open runtime直後の緩衝。item $19 cleanup待ち追加で10B消費。enemy_clear_key_open本体reserveとは扱わない。</td></tr>
       <tr><td>空き</td><td><code>enemy_clear_key_open.py</code></td><td class="num">0x6C7D-0x7004</td><td class="num">$EC6D-$EFF4</td><td class="num">904B</td><td>EA埋め</td><td>4096B跡地の残り空き。</td></tr>
       <tr><td>空き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x4FEE-0x5004 / 0x3EFA-0x3F02 / 0x3ED7-0x3EF8 / 0x3FE8-0x3FF7 / 0x3D36-0x3D45</td><td class="num">mixed</td><td class="num">98B</td><td>00/EA埋め</td><td>旧Spark Ball追加routine候補跡。4096B末尾側の旧候補跡はRoomFlag移動後の大きな空きに統合して扱う。新規出力ではspark_ball_variantを書かない。保存時に掃除しない。</td></tr>
       <tr><td>空き</td><td><code>final_stage_redirect.py</code></td><td class="num">0x3D28-0x3D34</td><td class="num">$BD18-$BD24</td><td class="num">13B</td><td>EA埋め</td><td>旧Final-stage redirect runtime候補跡。新規出力ではfinal_stage_redirectを書かない。保存時に掃除しない。</td></tr>
@@ -280,8 +280,8 @@
       <div class="seg hook" style="width:3.13%">Warp<br><small>128B</small></div>
       <div class="seg free" style="width:0.59%">buf<br><small>24B</small></div>
       <div class="seg hook" style="width:6.20%">stage announce<br><small>254B</small></div>
-      <div class="seg hook" style="width:2.37%">EnemyClear<br><small>97B</small></div>
-      <div class="seg free" style="width:0.59%">buf<br><small>24B</small></div>
+      <div class="seg hook" style="width:2.61%">EnemyClear<br><small>107B</small></div>
+      <div class="seg free" style="width:0.34%">buf<br><small>14B</small></div>
       <div class="seg free" style="width:22.07%">free<br><small>904B</small></div>
       <div class="seg hook" style="width:.27%"><span class="tiny">seal</span></div>
     </div>
@@ -297,8 +297,8 @@
       Warp Mirror Mode runtime後の24B緩衝 <code>0x6AEE-0x6B05</code> / <code>$EADE-$EAF5</code> を残す。
       Stage start announcement 9script版を <code>0x6B06-0x6C03</code> / <code>$EAF6-$EBF3</code> に置く。
       旧直後24B緩衝 <code>0x6BEC-0x6C03</code> / <code>$EBDC-$EBF3</code> は <code>ALL KILL</code> 表示追加で消費済み。
-      Enemy Clear Key Open runtimeを <code>0x6C04-0x6C64</code> / <code>$EBF4-$EC54</code> に置く。
-      その直後に24B緩衝 <code>0x6C65-0x6C7C</code> / <code>$EC55-$EC6C</code> を論理的に残し、
+      Enemy Clear Key Open runtimeを <code>0x6C04-0x6C6E</code> / <code>$EBF4-$EC5E</code> に置く。
+      その直後に14B緩衝 <code>0x6C6F-0x6C7C</code> / <code>$EC5F-$EC6C</code> を論理的に残し、
       残り空きは <code>0x6C7D-0x7004</code> / <code>$EC6D-$EFF4</code> の904B。
       末尾 <code>0x7005-0x700F</code> / <code>$EFF5-$EFFF</code> にはSolomon Seal block helper 11Bが別置きで残っている。
     </div>
@@ -326,8 +326,8 @@
       <tr><td class="num">0x6A6E-0x6AED</td><td class="num">$EA5E-$EADD</td><td class="num">128B</td><td>Warp Mirror Mode runtime</td></tr>
       <tr><td class="num">0x6AEE-0x6B05</td><td class="num">$EADE-$EAF5</td><td class="num">24B</td><td>Free buffer before Stage start announcement</td></tr>
       <tr><td class="num">0x6B06-0x6C03</td><td class="num">$EAF6-$EBF3</td><td class="num">254B</td><td>Stage start announcement; includes KEY ENEMY / ALL KILL shared display slot</td></tr>
-      <tr><td class="num">0x6C04-0x6C64</td><td class="num">$EBF4-$EC54</td><td class="num">97B</td><td>Enemy Clear Key Open runtime</td></tr>
-      <tr><td class="num">0x6C65-0x6C7C</td><td class="num">$EC55-$EC6C</td><td class="num">24B</td><td>Free buffer after Enemy Clear Key Open runtime</td></tr>
+      <tr><td class="num">0x6C04-0x6C6E</td><td class="num">$EBF4-$EC5E</td><td class="num">107B</td><td>Enemy Clear Key Open runtime</td></tr>
+      <tr><td class="num">0x6C6F-0x6C7C</td><td class="num">$EC5F-$EC6C</td><td class="num">14B</td><td>Free buffer after Enemy Clear Key Open runtime</td></tr>
       <tr><td class="num">0x6C7D-0x7004</td><td class="num">$EC6D-$EFF4</td><td class="num">904B</td><td>Free</td></tr>
       <tr><td class="num">0x7005-0x700F</td><td class="num">$EFF5-$EFFF</td><td class="num">11B</td><td>Solomon Seal block helper</td></tr>
     </table>

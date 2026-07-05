@@ -21,12 +21,14 @@ CPU_KEY_HANDLER = 0xC663
 CPU_ACTION_START = 0x8D5F
 
 RAM_RUNTIME_STATE = 0x0770
+RAM_ACTIVE_TASK_BITMAP = 0x0303
 RAM_DANA_Y = 0x0586
 RAM_DANA_X = 0x0589
 RAM_KEY_LIGHT_START_CELL_PLUS1 = 0x0724
 
 MODE_BIT = 0x10
 LATCH_BIT = 0x80
+ACTION_GROUP4_BIT = 0x10
 
 HOOK_MAIN_LOOP = bytes((0x4C, CPU_RUNTIME & 0xFF, CPU_RUNTIME >> 8))
 
@@ -94,6 +96,12 @@ def _build_runtime() -> bytes:
     a.b(0xCA)                          # DEX
     a.rel(0x10, "scan_loop")           # BPL scan_loop
 
+    a.abs(0xAD, RAM_ACTIVE_TASK_BITMAP)  # wait for item pickup cleanup action $40-$4F
+    a.b(0x29, ACTION_GROUP4_BIT)
+    a.rel(0xF0, "latch")
+    a.abs(0x4C, CPU_MAIN_LOOP_CONTINUE)
+
+    a.label("latch")
     a.abs(0xAD, RAM_RUNTIME_STATE)     # latch
     a.b(0x09, LATCH_BIT)
     a.abs(0x8D, RAM_RUNTIME_STATE)
@@ -116,6 +124,8 @@ def _build_runtime() -> bytes:
 
 
 RUNTIME = _build_runtime()
+_GROUP4_WAIT_BYTES = bytes.fromhex("ad 03 03 29 10 f0 03 4c c0 9e")
+RUNTIME_BEFORE_GROUP4_WAIT = RUNTIME.replace(_GROUP4_WAIT_BYTES, b"", 1)
 
 
 def levels_need_runtime(levels: list) -> bool:
@@ -136,6 +146,9 @@ def _expect(data: bytes | bytearray, off: int, allowed: tuple[bytes, ...], name:
 def _expect_blank_or(data: bytes | bytearray, off: int, blob: bytes, name: str) -> None:
     cur = bytes(data[off:off + len(blob)])
     if cur == blob or all(b in (0xEA, 0x00) for b in cur):
+        return
+    old_size = len(RUNTIME_BEFORE_GROUP4_WAIT)
+    if cur[:old_size] == RUNTIME_BEFORE_GROUP4_WAIT and all(b in (0xEA, 0x00) for b in cur[old_size:]):
         return
     raise EnemyClearKeyOpenError(
         f"{name} area is not blank at 0x{off:X}: expected EA/00 or existing runtime, got {cur.hex(' ')}"
@@ -170,4 +183,5 @@ RESERVED_SPANS = (
     (OFF_RUNTIME, len(RUNTIME)),
 )
 
-assert len(RUNTIME) == 97
+assert len(RUNTIME) == 107
+assert len(RUNTIME_BEFORE_GROUP4_WAIT) == 97
