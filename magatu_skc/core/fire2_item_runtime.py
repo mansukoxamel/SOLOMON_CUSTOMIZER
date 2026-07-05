@@ -21,6 +21,8 @@ SPECIAL_ITEM_BASES = frozenset(SPECIAL_ITEM_UI_TO_BASE.values())
 
 SPECIAL_ITEM_CELLS_PER_ROOM = 16
 RAM_SPECIAL_ITEM_CELLS = 0x0740
+RAM_FAIRY2_DELAY = 0x0771
+FAIRY2_DELAY_FRAMES = 0x20
 
 OFF_ITEM_PICKUP_HOOK = 0x456B   # CPU $C55B
 CPU_ITEM_PICKUP_HOOK = 0xC55B
@@ -124,7 +126,8 @@ def _build_item_runtime() -> bytes:
     a.abs(0x20, CPU_STOCK_ITEM_CHECK_AFTER_RANGE)
     a.b(0xA5, 0x02)
     a.rel(0xF0, "rts2")
-    a.abs(0x20, CPU_ADD_FAIRY_QUEUE)       # second fairy queue
+    a.b(0xA9, FAIRY2_DELAY_FRAMES)
+    a.abs(0x8D, RAM_FAIRY2_DELAY)          # delayed second fairy queue
     a.label("rts2")
     a.b(0x60)
     return a.finish()
@@ -255,6 +258,8 @@ def _build_loader_helper(base_loader: bytes) -> bytes:
     a.b(0x99, RAM_SPECIAL_ITEM_CELLS & 0xFF, RAM_SPECIAL_ITEM_CELLS >> 8)
     a.b(0x88)
     a.rel(0x10, "copy")
+    a.b(0xA9, 0x00)
+    a.abs(0x8D, RAM_FAIRY2_DELAY)
     a.b(*base_loader)
     return a.finish()
 
@@ -367,6 +372,6 @@ PRG1_RESERVED_SPANS = (
 )
 
 
-assert len(ITEM_RUNTIME) == 61
+assert len(ITEM_RUNTIME) == 63
 assert len(DRAW_RUNTIME) == 55
-assert len(RUNTIME) == 124
+assert len(RUNTIME) == 126

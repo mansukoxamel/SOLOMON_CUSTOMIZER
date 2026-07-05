@@ -88,7 +88,8 @@ verbatim コピーするため file offset 不変):
 #   $0770       GAMEPLAY_STAGE_FLAGS bit4=enemy-clear key open mode,
 #                               bit5=warp mirror mode, bit6=warp cooldown,
 #                               bit7=enemy-clear key open fired latch
-#   $0771-$0777 ENTITY_TAIL_CANDIDATE 補助候補7B          要probe
+#   $0771       FAIRY2_DELAY Fairy x2 second spawn delay counter 予約済(使用中)
+#   $0772-$0777 ENTITY_TAIL_CANDIDATE 補助候補6B          要probe
 #   $0778       ROOMFLAGS       room flag table cache         予約済(使用中)
 #   $0779       DARK_PHASE      暗闇 明滅フェーズカウンタ      予約済(使用中)
 #   $077A       FINAL_STAGE_REDIRECT  current room final-stage redirect bit7,
@@ -175,7 +176,8 @@ verbatim コピーするため file offset 不変):
 #   $0770       GAMEPLAY_STAGE_FLAGS bit4=enemy-clear key open mode,
 #                               bit5=warp mirror mode, bit6=warp cooldown,
 #                               bit7=enemy-clear key open fired latch
-#   $0771-$0777 ENTITY_TAIL_CANDIDATE  secondary 7-byte candidate, probe before use
+#   $0771       FAIRY2_DELAY           Fairy x2 second spawn delay counter, reserved in use
+#   $0772-$0777 ENTITY_TAIL_CANDIDATE  secondary 6-byte candidate, probe before use
 #   $0778       ROOMFLAGS              room flag table cache, reserved in use
 #   $0779       DARK_PHASE             dark-room phase counter, reserved in use
 #   $077A       FINAL_STAGE_REDIRECT   bit7 redirects next stage to final room after clear
