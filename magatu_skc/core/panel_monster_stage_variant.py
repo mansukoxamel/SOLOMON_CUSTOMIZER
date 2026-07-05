@@ -11,9 +11,9 @@ feature.  This module is for the newer global-parameterized A/B/C families:
 Current scope:
   - hook the state0 firing interval compare at $A575/$A579;
   - keep the state1 pre-shot fire gate at the stock $10;
-  - write one fixed PRG1 A/B/C speed+interval table on every expanded-ROM save;
-  - copy that table to $0740-$0745 during room load so the PRG0 fire path stays
-    small and does not branch over stage contents.
+  - write one fixed PRG0 A/B/C speed+interval table on every expanded-ROM save;
+  - read that PRG0 table directly from the runtime so no Panel Variant settings
+    RAM is needed during rooms.
 
 Rhythm was removed from the design; there is intentionally no 1x speed preset
 because stock Panel Monster already covers normal-speed shots.
@@ -86,13 +86,6 @@ GROUP_C_IDS = frozenset((0x31, 0x33, 0x35, 0x37))
 GROUP_A_IDS = frozenset((0x41, 0x43, 0x45, 0x47))
 GROUP_B_IDS = frozenset((0x49, 0x4B, 0x4D, 0x4F))
 
-RAM_PV_A_SPEED = 0x0740
-RAM_PV_A_INTERVAL = 0x0741
-RAM_PV_B_SPEED = 0x0742
-RAM_PV_B_INTERVAL = 0x0743
-RAM_PV_C_SPEED = 0x0744
-RAM_PV_C_INTERVAL = 0x0745
-
 DEFAULT_C_INTERVAL = 0xC0
 DEFAULT_A_INTERVAL = 0xC0
 DEFAULT_B_INTERVAL = 0xC0
@@ -144,22 +137,14 @@ SPEED_PRESET_TABLE_VALUES = {
     },
 }
 
-SETTINGS_TABLE_OFFSET = 0x8A70
+SETTINGS_TABLE_OFFSET = 0x62ED  # CPU $E2DD, PRG0 table read directly by runtime
 SETTINGS_TABLE_LENGTH = 6
 SETTINGS_TABLE_END = SETTINGS_TABLE_OFFSET + SETTINGS_TABLE_LENGTH
-CPU_SETTINGS_TABLE = SETTINGS_TABLE_OFFSET - 0x10
+CPU_SETTINGS_TABLE = _cpu(SETTINGS_TABLE_OFFSET)
 OFF_STAGE_EXT_GAMEPLAY_FLAG_HELPER = 0x8A76
 CPU_STAGE_EXT_GAMEPLAY_FLAG_HELPER = OFF_STAGE_EXT_GAMEPLAY_FLAG_HELPER - 0x10
 STAGE_EXT_GAMEPLAY_FLAG_HELPER_LENGTH = 22
 RAM_GAMEPLAY_STAGE_FLAGS = 0x0770
-RUNTIME_SETTINGS_RAM_VALUES = (
-    RAM_PV_A_SPEED,
-    RAM_PV_A_INTERVAL,
-    RAM_PV_B_SPEED,
-    RAM_PV_B_INTERVAL,
-    RAM_PV_C_SPEED,
-    RAM_PV_C_INTERVAL,
-)
 CPU_PRG1_RUNTIME_LOADER = 0x8A00
 OFF_PRG1_RUNTIME_LOADER = 0x8A10
 OFF_M66_LOADER_TAIL = 0x80C4
@@ -331,7 +316,7 @@ def _build_state0_interval_helper_shared(group_offset_cpu: int) -> bytes:
     a.jsr(group_offset_cpu)
     a.b(0xA0, 0x02, 0xB1, 0x2C, 0xE0, 0xFF)
     a.branch(0xF0, "orig")
-    a.b(0xDD, 0x41, 0x07, 0x60)
+    a.b(0xDD, (CPU_SETTINGS_TABLE + 1) & 0xFF, (CPU_SETTINGS_TABLE + 1) >> 8, 0x60)
     a.label("orig")
     a.b(0xC9, 0xC0, 0x60)
     return a.finish()
@@ -406,7 +391,7 @@ def _build_dynamic_speed_marker_helper(group_offset_cpu: int, static_marker_cpu:
     a = _Asm()
     a.b(0x8A, 0x48)
     a.jsr(group_offset_cpu)
-    a.b(0xBD, 0x40, 0x07, 0x09, DYNAMIC_SPEED_MARKER_BASE)
+    a.b(0xBD, CPU_SETTINGS_TABLE & 0xFF, CPU_SETTINGS_TABLE >> 8, 0x09, DYNAMIC_SPEED_MARKER_BASE)
     a.jsr(static_marker_cpu)
     a.b(0x68, 0xAA, 0x60)
     return a.finish()
@@ -1425,7 +1410,7 @@ def apply_panel_monster_v2_runtime(
 
     changed: list[str] = []
     if patch_settings_table(rom_data, common_settings):
-        changed.append("Panel Variant PRG1 settings table")
+        changed.append("Panel Variant PRG0 settings table")
     changed.extend(apply_runtime_loader(rom_data))
 
     _write_blob(rom_data, panel_monster_variant.OFF_HOOK_PANEL_FIRE, HOOK_FINAL_PANEL_FIRE, changed, "$A556 Panel Variant fire hook")
@@ -2099,34 +2084,33 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
 
 def _validate_pmv2_settings_runtime_contract() -> None:
     """Guard the normal ROM save path against a widened A/B/C settings contract."""
-    if SETTINGS_TABLE_LENGTH != len(RUNTIME_SETTINGS_RAM_VALUES):
+    if SETTINGS_TABLE_LENGTH != 6:
         raise PanelMonsterStageVariantError(
-            "Panel Monster v2 settings table length must match runtime RAM fields."
-        )
-    if SETTINGS_TABLE_END != SETTINGS_TABLE_OFFSET + 6:
-        raise PanelMonsterStageVariantError(
-            "Panel Monster v2 settings table must stay a 6-byte PRG1 image."
-        )
-    if tuple(RUNTIME_SETTINGS_RAM_VALUES) != tuple(range(RAM_PV_A_SPEED, RAM_PV_C_INTERVAL + 1)):
-        raise PanelMonsterStageVariantError(
-            "Panel Monster v2 runtime RAM settings fields must stay contiguous at $0740-$0745."
+            "Panel Monster v2 settings table must stay a 6-byte PRG0 image."
         )
     loader = _runtime_loader_slot()
-    copy_pattern = bytes((
-        0xB9,
-        CPU_SETTINGS_TABLE & 0xFF,
-        CPU_SETTINGS_TABLE >> 8,
-        0x99,
-        RAM_PV_A_SPEED & 0xFF,
-        RAM_PV_A_SPEED >> 8,
-        0x88,
-        0x10,
-        0xF7,
-    ))
-    if copy_pattern not in loader:
+    if bytes.fromhex("99 40 07") in loader:
         raise PanelMonsterStageVariantError(
-            "Panel Monster v2 runtime loader no longer copies the 6-byte settings table."
+            "Panel Monster v2 runtime loader must not copy settings to $0740-$0745."
         )
+    settings_lo = CPU_SETTINGS_TABLE & 0xFF
+    settings_hi = CPU_SETTINGS_TABLE >> 8
+    for name, blob, pattern in (
+        (
+            "state0 interval helper",
+            FINAL_STATE0_INTERVAL_HELPER,
+            bytes((0xDD, (CPU_SETTINGS_TABLE + 1) & 0xFF, (CPU_SETTINGS_TABLE + 1) >> 8)),
+        ),
+        (
+            "dynamic speed marker helper",
+            FINAL_DYNAMIC_SPEED_MARKER_HELPER,
+            bytes((0xBD, settings_lo, settings_hi)),
+        ),
+    ):
+        if pattern not in blob:
+            raise PanelMonsterStageVariantError(
+                f"Panel Monster v2 {name} no longer reads the PRG0 settings table."
+            )
 
 
 def _validate_pmv2_fire_marker_runtime_contract() -> None:
@@ -2313,7 +2297,7 @@ def has_panel_stage_runtime_ids(levels: list) -> bool:
 
     This helper is kept for callers that need to inspect level contents, but
     the expanded-ROM save path writes the v2 runtime unconditionally.  A/B/C
-    IDs use the PRG1 settings table copied to $0740-$0745, and older 2-way/
+    IDs use the PRG0 settings table, and older 2-way/
     3-way borrowed Panel IDs use the same relocated shared wrapper.
     """
     for lv in levels or []:
@@ -2424,7 +2408,7 @@ def _runtime_settings_entry(common_settings: dict | None = None) -> bytes:
 
 
 def panel_monster_v2_settings_contract(common_settings: dict | None = None) -> dict[str, object]:
-    """Return the A/B/C PRG1 settings-table and room-load RAM-copy contract."""
+    """Return the A/B/C PRG0 settings-table contract."""
     settings_entry = _runtime_settings_entry(common_settings)
     return {
         "settings_table": {
@@ -2432,19 +2416,6 @@ def panel_monster_v2_settings_contract(common_settings: dict | None = None) -> d
             "cpu": CPU_SETTINGS_TABLE,
             "size": SETTINGS_TABLE_LENGTH,
             "bytes": settings_entry,
-        },
-        "ram_copy": {
-            "start": RAM_PV_A_SPEED,
-            "end": RAM_PV_C_INTERVAL,
-            "size": SETTINGS_TABLE_LENGTH,
-            "fields": {
-                "a_speed": RAM_PV_A_SPEED,
-                "a_interval": RAM_PV_A_INTERVAL,
-                "b_speed": RAM_PV_B_SPEED,
-                "b_interval": RAM_PV_B_INTERVAL,
-                "c_speed": RAM_PV_C_SPEED,
-                "c_interval": RAM_PV_C_INTERVAL,
-            },
         },
         "runtime_users": {
             "state0_interval_helper": CPU_FINAL_STATE0_INTERVAL_HELPER,
@@ -2500,18 +2471,6 @@ def _build_runtime_loader(warp_mirror_stage_flag_helper: bool = True) -> bytes:
         "c8 b1 00 8d 7c 07"
         "a0 02 b1 00 8d 2b 07"
         "c8 b1 00 8d 7e 07"
-        "a0 05"
-        )
-        + bytes((
-            0xB9,
-            CPU_SETTINGS_TABLE & 0xFF,
-            CPU_SETTINGS_TABLE >> 8,
-            0x99,
-            RAM_PV_A_SPEED & 0xFF,
-            RAM_PV_A_SPEED >> 8,
-        ))
-        + bytes.fromhex(
-        "88 10 f7"
         )
         + bytes((
             0x4C,
@@ -2587,7 +2546,7 @@ def apply_runtime_loader(rom_data: bytearray) -> list[str]:
     changed: list[str] = []
     if bytes(rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(slot)]) != slot:
         rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + len(slot)] = slot
-        changed.append("Panel Variant settings PRG1 runtime loader")
+        changed.append("Panel Variant PRG1 runtime loader")
     helper_cur = bytes(
         rom_data[
             OFF_STAGE_EXT_GAMEPLAY_FLAG_HELPER:

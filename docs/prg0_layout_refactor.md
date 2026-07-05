@@ -634,10 +634,9 @@ PRG0追加プログラム側から見た一覧。
 
 将来の整理メモ:
 
-- Panel Variant の PRG1 loader/settings と RAM `$0740-$0745` は、当時PRG0の空きが足りなかったため、PRG0側の処理量を減らす目的で導入した。
-- これは「RAMを使わないと成立しない仕様」というより、PRG0不足を回避するために一部設定を部屋ロード時RAMへ逃がした設計。
-- 将来RAM不足が問題になった場合は、Panel Variant の `$0740-$0745` 使用と PRG1 settings table を整理対象にする。
-- ただし今は動作中の仕様なので、PRG0整理作業のついでに勝手に消さない。RAM整理を目的にした別作業で、使用量、代替配置、PRG0増加量を出して判断する。
+- Panel Variant の旧PRG1 loader/settings と RAM `$0740-$0745` は、当時PRG0の空きが足りなかったため、PRG0側の処理量を減らす目的で導入した。
+- RAM整理でこの設計は廃止し、Panel Variant settings は PRG0 `0x62ED-0x62F2` の6B表をruntimeが直接読む方式へ戻した。
+- これにより `$0740-$074F` はPanel Variant用途から外れ、補助候補16Bとして扱う。
 
 ## RoomFlag cave runtime ブロック
 

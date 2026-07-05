@@ -77,7 +77,7 @@
       <div class="seg mod" style="width:.45%">$0723-$072B<br><small>key enemy</small></div>
       <div class="seg mod" style="width:.35%">$072C-$0739<br><small>wide title</small></div>
       <div class="seg free" style="width:.10%">$073A-$073F</div>
-      <div class="seg mod" style="width:.8%">$0740-$074F<br><small>Panel Variant</small></div>
+      <div class="seg warn" style="width:.8%">$0740-$074F<br><small>free 16B</small></div>
       <div class="seg ok" style="width:1.2%">$0750-$0767<br><small>visible item mask</small></div>
       <div class="seg ok" style="width:.4%">$0768-$076F<br><small>cracked list</small></div>
       <div class="seg mod" style="width:.04%">$0770<br><small>warp</small></div>
@@ -116,7 +116,7 @@
     <tr><td class="num">$0723-$072B</td><td>KEY_ENEMY_RUNTIME</td><td class="ok">Customizer予約済</td><td>鍵持ち敵のドロップ鍵・取得タイル・退避ポインタ・対象初期敵番号/実行スロット。<code>key_enemy_runtime.py</code> が使用。</td></tr>
     <tr><td class="num">$072C-$0739</td><td>WIDETITLE_TRAMP</td><td class="ok">Customizer予約中</td><td>mapper66 wide title描画時だけ使うRAM実行stub。<code>$072C</code> IN 8B / <code>$0734</code> OUT 6B。block grid外へ退避済み。</td></tr>
     <tr><td class="num">$073A-$073F</td><td>entity終端後の沈黙帯</td><td class="warn">補助候補 6B</td><td>ramfree3 probeで沈黙確認はあるが、構造保証は弱い。小フラグ以外では優先しない。</td></tr>
-    <tr><td class="num">$0740-$074F</td><td>PANEL_VARIANT_SETTINGS</td><td class="ok">Customizer予約済</td><td>Panel Monster A/B/C の全ステージ共通settings copy。mapper66 room loaderがPRG1の6B settings tableから初期化する。<code>$0740=A speed</code> / <code>$0741=A interval</code> / <code>$0742=B speed</code> / <code>$0743=B interval</code> / <code>$0744=C speed</code> / <code>$0745=C interval</code>、残りは予約。</td></tr>
+    <tr><td class="num">$0740-$074F</td><td>旧PANEL_VARIANT_SETTINGS跡</td><td class="warn">補助候補 16B</td><td>Panel Monster A/B/C settings はPRG0 <code>0x62ED-0x62F2</code> の6B表をruntimeが直接読む方式へ変更済み。mapper66 room loaderはこの範囲へコピーしない。</td></tr>
     <tr><td class="num">$0750-$0767</td><td>VISIBLE_INBLOCK_ITEM_MASK</td><td class="ok">Customizer予約済</td><td>mapper66 loader がPRG1の透明ブロック内アイテムmaskから現在部屋の24B bitmaskをコピー。NMI helperが通常アイテムセルを <code>$C0+item</code> へ差し替える。</td></tr>
     <tr><td class="num">$0768-$076F</td><td>CRACKED_INBLOCK_LIST</td><td class="ok">Customizer予約済</td><td>mapper66 loader がPRG1のvisible-item slot末尾8Bから現在部屋のひび割れブロック内アイテム位置リストをコピー。死亡後one-shot抑止で中身が消えた時、描画前に下地セルを <code>$01</code> へ戻し、対応mask bitを消す。</td></tr>
     <tr><td class="num">$0770</td><td>GAMEPLAY_STAGE_FLAGS</td><td class="ok">Customizer予約済</td><td>bit4=Enemy Clear Key Open有効、bit5=現在部屋のWarp Mirror Mode有効、bit6=鏡接触中クールダウン、bit7=Enemy Clear Key Open発火済みラッチ。mapper66 room loader後のPRG1 helperがStageExtTable byte0 bit5/bit6から初期化する。</td></tr>
@@ -139,7 +139,7 @@
     <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td>Room Flag拡張</td><td>プレイ中常駐</td><td>LOADERが部屋開始時に <code>$0428</code> でRoomFlagTableを引いて書く。bit4はStageExtTableの fire reset、bit5/bit6は透明ブロック内アイテムmask/特殊セル変換の実行時専用フラグ。</td></tr>
     <tr><td class="num">$0779</td><td>DARK_PHASE</td><td>暗闇面</td><td>プレイ中常駐</td><td>NMIで進む。旧 <code>$0461</code> はサウンド衝突で妖精SEループを起こしたため廃止。</td></tr>
     <tr><td class="num">$077A</td><td>FINAL_STAGE_REDIRECT</td><td>クリア後の最終面送り</td><td>部屋中常駐</td><td>bit7=この面クリア後、次ステージ番号を原作最終面へ差し替える。StageExtTable byte0 bit4からコピー。</td></tr>
-    <tr><td class="num">$0740-$074F</td><td>PANEL_VARIANT_SETTINGS</td><td>Panel Monster A/B/C variant</td><td>部屋中常駐</td><td>PRG1 runtime loaderが全ステージ共通のspeed+interval 6Bを <code>0x8A70-0x8A75</code> からコピーする。旧64部屋分 <code>PanelVariantStageTable</code> は使わない。</td></tr>
+    <tr><td class="num">$0740-$074F</td><td>旧PANEL_VARIANT_SETTINGS跡</td><td>空き候補</td><td>未使用</td><td>Panel Monster A/B/C variant はPRG0 <code>0x62ED-0x62F2</code> のspeed+interval 6Bを直接参照する。旧64部屋分 <code>PanelVariantStageTable</code> は使わない。</td></tr>
     <tr><td class="num">$0750-$0767</td><td>VISIBLE_INBLOCK_ITEM_MASK</td><td>透明ブロック内アイテム</td><td>部屋中常駐</td><td>mapper66 loader がPRG1 <code>0xF860-0xFEFF</code> から現在部屋の24B bitmaskをコピー。<code>$E74C</code> helper が参照し、処理中にmaskを破壊的にshiftする。</td></tr>
     <tr><td class="num">$0768-$076F</td><td>CRACKED_INBLOCK_LIST</td><td>ひび割れブロック内アイテム</td><td>部屋中常駐</td><td>mapper66 loader がPRG1 <code>0xF860-0xFEFF</code> の現在部屋slot末尾8Bをコピー。死亡後のone-shot対象アイテムは再注入せず、下地のひび割れブロックだけを描画前に復元する。</td></tr>
     <tr><td class="num">$0770</td><td>GAMEPLAY_STAGE_FLAGS</td><td>ワープミラー / 全敵消滅オープン</td><td>部屋中常駐</td><td>bit4=Enemy Clear Key Open mode、bit5=Warp Mirror mode、bit6=Warp Mirror cooldown、bit7=Enemy Clear Key Open fired latch。</td></tr>
@@ -159,16 +159,16 @@
   <div class="note">
     <b>新規RAMが必要な時の優先順位:</b>
     まずRAMを増やさずROMテーブル再読込や既存カウンタ派生で済ませる。まとまったRAMが必要なら旧特殊ブロックリスト跡の
-      <code>$0750-$0767</code> は透明ブロック内アイテム用、<code>$0768-$076F</code> はひび割れブロック内アイテム用、<code>$0770</code> はワープミラーモード状態用に予約済み。まとまったRAMは <code>$0771-$0777</code> を候補にする。
+      <code>$0750-$0767</code> は透明ブロック内アイテム用、<code>$0768-$076F</code> はひび割れブロック内アイテム用、<code>$0770</code> はワープミラーモード状態用に予約済み。まとまったRAMは <code>$0740-$074F</code> と <code>$0771-$0777</code> を候補にする。
     長期保存・毎NMI書込・複数バイト連続使用は、先に専用probeで実機確認してから予約する。予約後は <code>room_flags.py</code> のASCII mirrorも同期する。
   </div>
 
   <h2>5. 判定の強さ</h2>
   <table>
     <tr><th>分類</th><th>意味</th><th>例</th></tr>
-    <tr><td class="ok">予約済/確定</td><td>コード・実機probe・現在実装のいずれかで用途が確定している。</td><td><code>$0723-$072B</code>, <code>$072C-$0739</code>, <code>$0740-$074F</code>, <code>$0750-$0767</code>, <code>$0768-$076F</code>, <code>$0770</code>, <code>$0778</code>, <code>$0779</code>, <code>$077C</code>, <code>$077D</code>, <code>$077E-$077F</code></td></tr>
+    <tr><td class="ok">予約済/確定</td><td>コード・実機probe・現在実装のいずれかで用途が確定している。</td><td><code>$0723-$072B</code>, <code>$072C-$0739</code>, <code>$0750-$0767</code>, <code>$0768-$076F</code>, <code>$0770</code>, <code>$0778</code>, <code>$0779</code>, <code>$077C</code>, <code>$077D</code>, <code>$077E-$077F</code></td></tr>
     <tr><td>本編使用</td><td>用途は概ね分かるが、内部構造の詳細は必要時に追加解析。</td><td><code>$0426-$0455</code>, <code>$04F7-$057E</code></td></tr>
-    <tr><td class="warn">候補/非推奨</td><td>probe上は沈黙したが、構造保証が弱い、または重要領域に隣接。</td><td><code>$073A-$073F</code>, <code>$0771-$0777</code>, <code>$07E0-$07EF</code></td></tr>
+    <tr><td class="warn">候補/非推奨</td><td>probe上は沈黙したが、構造保証が弱い、または重要領域に隣接。</td><td><code>$073A-$073F</code>, <code>$0740-$074F</code>, <code>$0771-$0777</code>, <code>$07E0-$07EF</code></td></tr>
     <tr><td class="ng">禁止</td><td>既知の本編領域。改造RAMにしない。</td><td><code>$0200-$02FF</code>, <code>$0304-$03E3</code>, <code>$0456-$04D5</code>, <code>$057F-$0722</code></td></tr>
   </table>
 </main>
