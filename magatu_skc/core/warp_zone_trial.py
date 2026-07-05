@@ -155,15 +155,6 @@ def levels_need_runtime(levels: list) -> bool:
 
 def apply(rom_data: bytearray, levels: list) -> list[str]:
     runtime = _build_runtime()
-    if not levels_need_runtime(levels):
-        if rom_data is None or len(rom_data) < OFF_ITEM_CELL_HOOK + len(ORIG_ITEM_CELL_HOOK):
-            return []
-        cur = bytes(rom_data[OFF_ITEM_CELL_HOOK:OFF_ITEM_CELL_HOOK + len(ORIG_ITEM_CELL_HOOK)])
-        if cur == HOOK_ITEM_CELL:
-            rom_data[OFF_ITEM_CELL_HOOK:OFF_ITEM_CELL_HOOK + len(ORIG_ITEM_CELL_HOOK)] = ORIG_ITEM_CELL_HOOK
-            return ["$C551 Warp Mirror Mode hook restored"]
-        return []
-
     max_end = OFF_RUNTIME + len(runtime)
     if rom_data is None or len(rom_data) < max_end:
         raise WarpZoneTrialError("ROM is too short for Warp Mirror Mode runtime.")

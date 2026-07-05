@@ -96,7 +96,7 @@ PRG0追加プログラム側から見た一覧。
 | `saramandor_variant` | 1 | 165B | 0 | 0B |
 | `solomon_seal_block` | 1 | 11B | 0 | 0B |
 | `spark_ball_variant` | 8 | 191B | 0 | 0B |
-| `stage_announcement` | 11 | 164B | 0 | 0B |
+| `stage_announcement` | 15 | 230B | 0 | 0B |
 | `title_screen` | 2 | 96B | 3 | 9B |
 | `warp_zone_trial` | 1 | 128B | 0 | 0B |
 
@@ -110,7 +110,7 @@ PRG0追加プログラム側から見た一覧。
 
 | 機能 | 主なmodule | 現在位置 | 量 | 初期判断 |
 |---|---|---|---:|---|
-| Stage start announcement | `stage_announcement` | 主に4096B内、`KEY_GATE`だけ `0x33D0-0x33DC` | 164B | 4096B側へ集約しやすい候補。分割scriptsとmain/draw/tableをまとめ直す対象。 |
+| Stage start announcement | `stage_announcement` | `0x6B06-0x6BEB` | 230B | 8項目版へ更新済み。右下表示は `MIRROR LINK`。 |
 | Key/Fairy enemy runtime | `key_enemy_runtime` | bank0 cave中心、1片だけ4096B内、1片は `0x5005-0x500F` | 286B raw | 分割が多い。機能単位ではまとめたいが、複数hookから入るので呼び出し元確認が必要。 |
 | Spark Ball variant | `spark_ball_variant` | `0x6280-0x633E` | 191B raw | Spark Ball追加routineはproperty selectorも含めてpacked blockへ集約済み。 |
 | Panel Monster base variant | `panel_monster_variant` | bank0 cave、`0x5BEF`、`0x40D2` | 396B raw | 新規保存ROMでは書かない。旧base候補跡は保存時に掃除しない。 |
@@ -129,8 +129,7 @@ PRG0追加プログラム側から見た一覧。
 優先候補:
 
 1. `stage_announcement`
-   - 理由: 大半が4096B内にあり、分割scriptsをまとめる目的と合う。
-   - 注意: `OFF_KEY_GATE = 0x33D0` だけ4096B外なので、呼び出し元と分岐距離を確認する。
+   - 完了: `0x6B06-0x6BEB` へ移設し、8項目版へ更新済み。
 2. `spark_ball_variant` のAI wrapper類
    - 完了: property selectorも含めて `0x6280-0x633E` へ集約済み。
 3. `gargoyle_variant`
@@ -150,65 +149,52 @@ PRG0追加プログラム側から見た一覧。
 
 最初の具体候補として `stage_announcement` を見る。
 
-理由:
+現在の移設結果:
 
-- 合計164Bで小さい。
-- 大半は既に4096B跡地内にある。
-- 4096B外に出ているのは `KEY_GATE` 13Bだけ。
-- `MAIN`、`DRAW`、`KEY_GATE`、`PTR_TABLE` は生成時にCPUアドレスを埋め込む構造なので、定数を変えれば追従できる可能性が高い。
-- 相対分岐は各routine内部だけで閉じている。
-
-注意:
-
-- `$9061` hook は残る。これはroutine本体ではなく呼び出し元変更。
-- CHRの `K/P` タイル追加はPRG0整理対象ではない。
-- `KEY_GATE` は現在 `0x33D0-0x33DC` にあるため、ここを空けられる可能性がある。
-
-4096B先頭側への移動結果:
-
-4096B跡地は `0x6010` から上へ詰める。
-各追加routineは本体と、その直後の空きを別管理する。
-空きは空きとして扱い、routine本体のreserveとは書かない。
-
-`stage_announcement` は本体164Bの直後に24Bの空きを置く。
-この24Bは将来別処理が入る可能性があるため、管理簿では独立した空きとして見えるようにする。
+`stage_announcement` は、Warp Mirror Mode runtime後の24B緩衝を空けて
+`0x6B06` / `$EAF6` から配置する。旧 `0x6010-0x60CB` には新規出力で書かない。
+保存時に旧配置の残骸掃除はしない。
 
 | part | new file | new CPU | size |
 |---|---:|---:|---:|
-| `MAIN` | `0x6010-0x6027` | `$E000-$E017` | 24B |
-| `MASK_TABLE` | `0x6028-0x602C` | `$E018-$E01C` | 5B |
-| `DRAW` | `0x602D-0x6045` | `$E01D-$E035` | 25B |
-| `PTR_TABLE` | `0x6046-0x6051` | `$E036-$E041` | 12B |
-| `KEY_GATE` | `0x6052-0x605E` | `$E042-$E04E` | 13B |
-| `DARK ROOM` | `0x605F-0x606B` | `$E04F-$E05B` | 13B |
-| `FIRE LOSS` | `0x606C-0x6078` | `$E05C-$E068` | 13B |
-| `HIDDEN DOOR` | `0x6079-0x6087` | `$E069-$E077` | 15B |
-| `FIRE SEALED` | `0x6088-0x6096` | `$E078-$E086` | 15B |
-| `SPELL SEALED` | `0x6097-0x60A6` | `$E087-$E096` | 16B |
-| `KEY ENEMY` | `0x60A7-0x60B3` | `$E097-$E0A3` | 13B |
-| free | `0x60B4-0x60CB` | `$E0A4-$E0BB` | 24B |
+| buffer before | `0x6AEE-0x6B05` | `$EADE-$EAF5` | 24B |
+| `MAIN` | `0x6B06-0x6B23` | `$EAF6-$EB13` | 30B |
+| `MASK_TABLE` | `0x6B24-0x6B28` | `$EB14-$EB18` | 5B |
+| `DRAW` | `0x6B29-0x6B41` | `$EB19-$EB31` | 25B |
+| `PTR_TABLE` | `0x6B42-0x6B51` | `$EB32-$EB41` | 16B |
+| `KEY_GATE` | `0x6B52-0x6B5E` | `$EB42-$EB4E` | 13B |
+| `FAIRY_GATE` | `0x6B5F-0x6B6B` | `$EB4F-$EB5B` | 13B |
+| `MIRROR_LINK_GATE` | `0x6B6C-0x6B78` | `$EB5C-$EB68` | 13B |
+| `DARK ROOM` | `0x6B79-0x6B85` | `$EB69-$EB75` | 13B |
+| `FIRE LOSS` | `0x6B86-0x6B92` | `$EB76-$EB82` | 13B |
+| `HIDDEN DOOR` | `0x6B93-0x6BA1` | `$EB83-$EB91` | 15B |
+| `FIRE SEALED` | `0x6BA2-0x6BB0` | `$EB92-$EBA0` | 15B |
+| `SPELL SEALED` | `0x6BB1-0x6BC0` | `$EBA1-$EBB0` | 16B |
+| `KEY ENEMY` | `0x6BC1-0x6BCD` | `$EBB1-$EBBD` | 13B |
+| `FAIRY ENEMY` | `0x6BCE-0x6BDC` | `$EBBE-$EBCC` | 15B |
+| `MIRROR LINK` | `0x6BDD-0x6BEB` | `$EBCD-$EBDB` | 15B |
+| buffer after | `0x6BEC-0x6C03` | `$EBDC-$EBF3` | 24B |
 
 合計:
 
-- `stage_announcement` 本体: 164B
-- 直後の空き: 24B
-- この候補で使う範囲: `0x6010-0x60CB`
-- 次の配置開始候補: `0x60CC`
+- `stage_announcement` 本体: 230B
+- 前後の緩衝: 24B + 24B
+- 残り空き: `0x6C04-0x7004` / `$EBF4-$EFF4` の1,025B
 
 新規配置では使わなくなる旧候補:
 
-- 4096B内の旧分散候補: 151Bぶん
-- 4096B外 `0x33D0-0x33DC`: 13B
+- 旧 `0x6010-0x60B3`: 164B
+- 旧 `0x60B4-0x60CB`: 24B
 - 既存ROM救済や旧配置掃除のために、ここを保存時に自動で上書きしない。
 
 実装で確認したこと:
 
-- 新本体 `0x6010-0x60B3` が、他の `RESERVED_SPANS` と重ならないこと。
-- 新空き `0x60B4-0x60CB` を本体reserveとして扱わないこと。
-- `MAIN` 内の `CPU_MASK_TABLE`、`CPU_DRAW`、`CPU_KEY_GATE` が新アドレスへ更新されること。
+- 新本体 `0x6B06-0x6BEB` が、他の `RESERVED_SPANS` と重ならないこと。
+- 前後の24B緩衝を本体reserveとして扱わないこと。
+- `MAIN` 内の `CPU_MASK_TABLE`、`CPU_DRAW`、`CPU_KEY_GATE`、`CPU_FAIRY_GATE`、`CPU_WARP_GATE` が新アドレスへ更新されること。
 - `DRAW` 内の `CPU_PTR_TABLE` が新アドレスへ更新されること。
 - `PTR_TABLE` が新scriptアドレスを指すこと。
-- `$9061` hook が新 `CPU_MAIN = $E000` を呼ぶこと。
+- `$9061` hook が新 `CPU_MAIN = $EAF6` を呼ぶこと。
 
 ## Initial draw low classifier 移動結果
 
@@ -704,7 +690,10 @@ PRG0追加プログラム側から見た一覧。
 |---|---:|---:|---:|---:|---:|
 | buffer before Warp Mirror Mode runtime | - | - | `0x6A56-0x6A6D` | `$EA46-$EA5D` | 24B |
 | Warp Mirror Mode runtime | `0x6A56-0x6AB4` | `$EA46-$EAA4` | `0x6A6E-0x6AED` | `$EA5E-$EADD` | 128B |
-| free after warp runtime | `0x6AB5-0x7004` | `$EAA5-$EFF4` | `0x6AEE-0x7004` | `$EADE-$EFF4` | 1303B |
+| buffer after warp runtime | `0x6AB5-0x7004` | `$EAA5-$EFF4` | `0x6AEE-0x6B05` | `$EADE-$EAF5` | 24B |
+| Stage start announcement 8 entries | - | - | `0x6B06-0x6BEB` | `$EAF6-$EBDB` | 230B |
+| buffer after Stage start announcement | - | - | `0x6BEC-0x6C03` | `$EBDC-$EBF3` | 24B |
+| free after announcement move | - | - | `0x6C04-0x7004` | `$EBF4-$EFF4` | 1025B |
 | PRG1 stage flag helper | - | - | `0x8A76-0x8A81` | `$8A66-$8A71` | 12B |
 | PanelVariant PRG1 reserve | `0x8A76-0x8E7F` | `$8A66-$8E6F` | `0x8A82-0x8E7F` | `$8A72-$8E6F` | 1022B |
 
@@ -720,7 +709,7 @@ PRG0追加プログラム側から見た一覧。
 
 - Panel Variant combined loaderが最後に `$8A66` helperへ飛び、helperがTransparent Seal suppress guardへ戻すこと。
 - StageExt byte0 bit5がONの面だけ `$0770` bit5が立つこと。
-- `$C551` hookはWarp Mirror Mode有効面が1つ以上ある時だけ入ること。
+- `$C551` hookは常時入れること。Warp Mirror Mode OFF面では、`$0770` bit5=0によりPRG0 runtime内で原作アイテムセル判定へ戻る。
 - ON面で鏡セル `$05` に触れると、同じ部屋の別の `$05` セルへ移動し、item pickup SE `$0D` が鳴ること。
 
 ## Gap fix runtime ブロック
@@ -769,7 +758,7 @@ PRG0追加プログラム側から見た一覧。
 
 | file | CPU | size | 原作状態 | module |
 |---|---:|---:|---|---|
-| `0x6010-0x60B3` | `$E000-$E0A3` | 164B | `EA` | `stage_announcement` |
+| `0x6010-0x60CB` | `$E000-$E0BB` | 188B | `EA` | free; old `stage_announcement` area no longer written |
 | `0x60CC-0x60F5` | `$E0BC-$E0E5` | 42B | `EA` | `m66.initial_draw_low_classifier` |
 | `0x610E-0x622B` | `$E0FE-$E21B` | 286B | `EA` | `key_enemy_runtime` |
 | `0x6244-0x6267` | `$E234-$E257` | 36B | `EA` | `room_flags.visible_item_inblock` |
@@ -788,7 +777,16 @@ PRG0追加プログラム側から見た一覧。
 | `0x6929-0x697F` | `$E919-$E96F` | 87B | `EA` | `title_screen.wide_title_prg0_helpers` |
 | `0x6980-0x6997` | `$E970-$E987` | 24B | `EA` | free buffer |
 | `0x6998-0x69B8` | `$E988-$E9A8` | 33B | `EA` | `m66_expander.l_a1_body` |
-| `0x69B9-0x7004` | `$E9A9-$EFF4` | 1612B | `EA` | free |
+| `0x69B9-0x69D0` | `$E9A9-$E9C0` | 24B | `EA` | free buffer |
+| `0x69D1-0x69FA` | `$E9C1-$E9EA` | 42B | `EA` | `ice_flame_runtime` |
+| `0x69FB-0x6A12` | `$E9EB-$EA02` | 24B | `EA` | free buffer |
+| `0x6A13-0x6A55` | `$EA03-$EA45` | 67B | `EA` | `spark85_runtime` |
+| `0x6A56-0x6A6D` | `$EA46-$EA5D` | 24B | `EA` | free buffer |
+| `0x6A6E-0x6AED` | `$EA5E-$EADD` | 128B | `EA` | `warp_zone_trial` |
+| `0x6AEE-0x6B05` | `$EADE-$EAF5` | 24B | `EA` | buffer before `stage_announcement` |
+| `0x6B06-0x6BEB` | `$EAF6-$EBDB` | 230B | `EA` | `stage_announcement` |
+| `0x6BEC-0x6C03` | `$EBDC-$EBF3` | 24B | `EA` | buffer after `stage_announcement` |
+| `0x6C04-0x7004` | `$EBF4-$EFF4` | 1025B | `EA` | free |
 | `0x7005-0x700F` | `$EFF5-$EFFF` | 11B | `EA` | `solomon_seal_block` |
 
 この範囲は、最終的には4096B先頭側へ詰め直して、routine本体と直後の空きを別管理する候補にする。

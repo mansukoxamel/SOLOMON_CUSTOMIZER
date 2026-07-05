@@ -137,8 +137,7 @@
       <tr><td class="num">0x5B71-0x5B84</td><td>Original enemy state-speed data</td><td>`$DB61-$DB74` は `$D9D3` ポインタ表経由で敵状態別の速度indexとして読まれる。ゼロ埋めに見えても空きではない。</td></tr>
       <tr><td class="num">0x5BC5-0x5BEE</td><td>Original enemy speed table</td><td>原作の敵速度テーブル。Golem/Demonhead なども参照するため、Panel Variant 用には上書きしない。</td></tr>
       <tr><td class="num">0x5BEF-0x5C0A</td><td>空き</td><td>旧Panel property hook候補跡。現行Panel property hook本体は <code>$E73A</code> へ移動。新規出力では書かない。保存時に掃除しない。</td></tr>
-      <tr><td class="num">0x6010-0x60B3</td><td>Stage start announcement packed routine</td><td>`$9061` フック先を `$E000` に移し、main / masks / draw helper / pointer table / key gate / scriptsを先頭側へ連続配置する。合計164B。</td></tr>
-      <tr><td class="num">0x60B4-0x60CB</td><td>空き</td><td>Stage start announcement直後の24B空き。stage_announcement本体reserveとは扱わない。</td></tr>
+      <tr><td class="num">0x6010-0x60CB</td><td>空き</td><td>旧Stage start announcement packed routine跡。新規出力ではstage_announcementを書かない。保存時に旧残骸掃除はしない。</td></tr>
       <tr><td class="num">0x60CC-0x60F5</td><td>Initial draw low classifier packed helper</td><td>ひび割れブロック内アイテム用の初期描画低値分類helper。旧4断片48Bを42Bへ連続配置し、tableは同一ブロック内 `$E0DE` を参照する。</td></tr>
       <tr><td class="num">0x60F6-0x610D</td><td>空き</td><td>Initial draw low classifier直後の24B空き。m66.py本体reserveとは扱わない。</td></tr>
       <tr><td class="num">0x610E-0x622B</td><td>Key/Fairy enemy runtime packed helper</td><td>敵から鍵が出るruntime一式。旧15断片286Bを1ブロックへ集約。</td></tr>
@@ -164,8 +163,11 @@
       <tr><td class="num">0x69FB-0x6A12</td><td>空き</td><td>Spark85 runtime前の24B緩衝。spark85_runtime.py本体reserveとは扱わない。</td></tr>
       <tr><td class="num">0x6A13-0x6A55</td><td>Spark85 runtime body</td><td><code>$EA03-$EA45</code>。敵ID <code>$85</code> Spark85用のAI/init本体。敵ID分類はbank0 cave側のNew enemy受付が担当する。</td></tr>
       <tr><td class="num">0x6A56-0x6A6D</td><td>空き</td><td>Spark85 runtime直後の24B緩衝。warp_zone_trial.py本体reserveとは扱わない。</td></tr>
-      <tr><td class="num">0x6A6E-0x6AED</td><td>Warp Mirror Mode runtime</td><td><code>$EA5E-$EADD</code>。<code>$C551</code> のアイテムセル判定入口から呼び、StageExt byte0 bit5がONの面だけミラー<code>$05</code>セル同士を相互ワープさせる。<code>$0770</code> bit5をmode、bit6を接触中クールダウンに使い、成立時にアイテム取得SE <code>$0D</code> を鳴らす。</td></tr>
-      <tr><td class="num">0x6AEE-0x7004</td><td>空き</td><td>Warp Mirror Mode runtime後の1,303B空き。現時点では本体reserveとは扱わない。</td></tr>
+      <tr><td class="num">0x6A6E-0x6AED</td><td>Warp Mirror Mode runtime</td><td><code>$EA5E-$EADD</code>。<code>$C551</code> のアイテムセル判定入口から常時呼び、StageExt byte0 bit5からコピーされた<code>$0770</code> bit5がONの面だけミラー<code>$05</code>セル同士を相互ワープさせる。OFF面は原作アイテムセル判定へ戻る。<code>$0770</code> bit6を接触中クールダウンに使い、成立時にアイテム取得SE <code>$0D</code> を鳴らす。</td></tr>
+      <tr><td class="num">0x6AEE-0x6B05</td><td>空き</td><td>Warp Mirror Mode runtime直後の24B緩衝。stage_announcement.py本体reserveとは扱わない。</td></tr>
+      <tr><td class="num">0x6B06-0x6BEB</td><td>Stage start announcement packed routine</td><td><code>$EAF6-$EBDB</code>。<code>$9061</code> フック先を <code>$EAF6</code> に移し、main / masks / draw helper / pointer table / key gate / fairy gate / mirror-link gate / scriptsを連続配置する。合計230B。表示は8項目、右下は <code>MIRROR LINK</code>。</td></tr>
+      <tr><td class="num">0x6BEC-0x6C03</td><td>空き</td><td>Stage start announcement直後の24B緩衝。stage_announcement.py本体reserveとは扱わない。</td></tr>
+      <tr><td class="num">0x6C04-0x7004</td><td>空き</td><td>Stage start announcement移設後の1,025B空き。現時点では本体reserveとは扱わない。</td></tr>
       <tr><td class="num">0x9019-0x904C</td><td>mapper66 respawn direct-cell copy helper</td><td>`$9009` loader helper。死亡後の `$F0-$F3` 白ブロック内one-shotだけを `$F9` へ落とし、通常の茶ブロック内one-shotは従来通り `$90` へ落とす。</td></tr>
       <tr><td class="num">0x904D-0x908F</td><td>Cracked in-block one-shot respawn helper</td><td>`$903D` PRG1 loader helper。死亡後だけ `$0768-$076F` のひび割れ位置リストを見て、描画前に下地セルを `$01` へ戻し、対応mask bitを192セルindexへ変換して消す。</td></tr>
       <tr><td class="num">0x7005-0x700F</td><td>Solomon Seal block helper</td><td>`$BB90` の紋章セル書き込みから呼ぶ11Bヘルパ。StageExt loader がコピーした `$077D` を見て、原作 `$60` / 茶ブロック内 `$A0` / 白ブロック内 `$E0` を書く。</td></tr>
@@ -191,8 +193,7 @@
       <tr><td>空き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x4FEE-0x5004</td><td class="num">$CFDE-$CFF4</td><td class="num">23B</td><td>EA埋め</td><td>旧Spark Ball animation hook候補跡。新規出力ではspark_ball_variantを書かない。保存時に掃除しない。</td></tr>
       <tr><td>原作データ</td><td><code>original ROM</code></td><td class="num">0x5BC5-0x5BEE</td><td class="num">$DBB5-$DBDE</td><td class="num">42B</td><td>原作速度テーブル</td><td>Golem/Demonhead などの通常敵も使う共有速度データ。Panel Variant の no-drift 対策としてゼロ化しない。Panel Variant A/B/C 適用時は通常Panel Bulletの左右速度バグ修正として該当4バイトのみ <code>$3F/$41</code> presetへ更新する。</td></tr>
       <tr><td>空き</td><td><code>panel_monster_variant.py</code></td><td class="num">0x5BEF-0x5C0A</td><td class="num">$DBDF-$DBFA</td><td class="num">28B</td><td>EA埋め</td><td>旧Panel property hook候補跡。現行Panel property hook本体は <code>$E73A</code> へ移動。新規出力では書かない。保存時に掃除しない。</td></tr>
-      <tr><td>小routine</td><td><code>stage_announcement.py</code></td><td class="num">0x6010-0x60B3</td><td class="num">$E000-$E0A3</td><td class="num">164B</td><td>EA埋め</td><td>開始画面アナウンス本体。main / masks / draw helper / pointer table / key gate / scriptsを連続配置する。</td></tr>
-      <tr><td>空き</td><td><code>stage_announcement.py</code></td><td class="num">0x60B4-0x60CB</td><td class="num">$E0A4-$E0BB</td><td class="num">24B</td><td>EA埋め</td><td>開始画面アナウンス直後の空き。stage_announcement本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
+      <tr><td>空き</td><td><code>stage_announcement.py</code></td><td class="num">0x6010-0x60CB</td><td class="num">$E000-$E0BB</td><td class="num">188B</td><td>EA埋め</td><td>旧開始画面アナウンス本体跡。新規出力ではstage_announcementを書かない。保存時に旧残骸掃除はしない。</td></tr>
       <tr><td>旧候補跡</td><td><code>stage_announcement.py</code></td><td class="num">0x60CC-0x60D0 / 0x60FC-0x6108 / 0x612C-0x6138 / 0x618C-0x619A / 0x61BC-0x61C8 / 0x639C-0x63B4 / 0x63CC-0x63E3 / 0x657C-0x658A / 0x66FC-0x670B</td><td class="num">$E0BC / $E0EC / $E11C / $E17C / $E1AC / $E38C / $E3BC / $E56C / $E6EC</td><td class="num">151B</td><td>EA埋め</td><td>旧開始画面アナウンス分散配置候補跡。新規出力ではstage_announcementを書かない。先頭側の一部は現行のm66/key_enemy_runtime連続配置で再利用済み。</td></tr>
       <tr><td>小routine</td><td><code>key_enemy_runtime.py</code></td><td class="num">0x610E-0x622B</td><td class="num">$E0FE-$E21B</td><td class="num">286B</td><td>EA埋め</td><td>Key/Fairy enemy runtimeを1ブロックへ集約。初期slot bind、status writer、defeat dropper、door-light、pickup tile recorder、dropped-key handler、fall-death handler、fall-slot compareを含む。</td></tr>
       <tr><td>空き</td><td><code>key_enemy_runtime.py</code></td><td class="num">0x622C-0x6243</td><td class="num">$E21C-$E233</td><td class="num">24B</td><td>EA埋め</td><td>Key/Fairy enemy runtime直後の空き。key_enemy_runtime本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
@@ -226,7 +227,10 @@
       <tr><td>小routine</td><td><code>spark85_runtime.py</code></td><td class="num">0x6A13-0x6A55</td><td class="num">$EA03-$EA45</td><td class="num">67B</td><td>EA埋め</td><td>Spark85 <code>$85</code> runtime本体。LIFE百の位が0なら一度だけ進行方向を反転して停止し、init時にSpark Ball系の初期状態を作る。</td></tr>
       <tr><td>空き</td><td><code>warp_zone_trial.py</code></td><td class="num">0x6A56-0x6A6D</td><td class="num">$EA46-$EA5D</td><td class="num">24B</td><td>EA埋め</td><td>Spark85 runtime直後の緩衝。warp_zone_trial.py本体reserveとは扱わない。</td></tr>
       <tr><td>小routine</td><td><code>warp_zone_trial.py</code></td><td class="num">0x6A6E-0x6AED</td><td class="num">$EA5E-$EADD</td><td class="num">128B</td><td>EA埋め</td><td>Warp Mirror Mode runtime。<code>$C551</code> hookから入り、StageExt byte0 bit5がONなら触れたミラー以外の<code>$05</code>セルを<code>$0304</code>から探してワープする。<code>$0770</code> bit5=mode、bit6=cooldown。</td></tr>
-      <tr><td>空き</td><td><code>warp_zone_trial.py</code></td><td class="num">0x6AEE-0x7004</td><td class="num">$EADE-$EFF4</td><td class="num">1,303B</td><td>EA埋め</td><td>Warp Mirror Mode runtime後の空き。現時点では本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
+      <tr><td>空き</td><td><code>stage_announcement.py</code></td><td class="num">0x6AEE-0x6B05</td><td class="num">$EADE-$EAF5</td><td class="num">24B</td><td>EA埋め</td><td>Warp Mirror Mode runtime直後の緩衝。stage_announcement本体reserveとは扱わない。</td></tr>
+      <tr><td>小routine</td><td><code>stage_announcement.py</code></td><td class="num">0x6B06-0x6BEB</td><td class="num">$EAF6-$EBDB</td><td class="num">230B</td><td>EA埋め</td><td>開始画面アナウンス本体。main / masks / draw helper / pointer table / key gate / fairy gate / mirror-link gate / scriptsを連続配置する。</td></tr>
+      <tr><td>空き</td><td><code>stage_announcement.py</code></td><td class="num">0x6BEC-0x6C03</td><td class="num">$EBDC-$EBF3</td><td class="num">24B</td><td>EA埋め</td><td>開始画面アナウンス直後の緩衝。stage_announcement本体reserveとは扱わない。</td></tr>
+      <tr><td>空き</td><td><code>stage_announcement.py</code></td><td class="num">0x6C04-0x7004</td><td class="num">$EBF4-$EFF4</td><td class="num">1,025B</td><td>EA埋め</td><td>Stage start announcement移設後の空き。現時点では本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
       <tr><td>空き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x4FEE-0x5004 / 0x3EFA-0x3F02 / 0x3ED7-0x3EF8 / 0x3FE8-0x3FF7 / 0x3D36-0x3D45</td><td class="num">mixed</td><td class="num">98B</td><td>00/EA埋め</td><td>旧Spark Ball追加routine候補跡。4096B末尾側の旧候補跡はRoomFlag移動後の大きな空きに統合して扱う。新規出力ではspark_ball_variantを書かない。保存時に掃除しない。</td></tr>
       <tr><td>空き</td><td><code>final_stage_redirect.py</code></td><td class="num">0x3D28-0x3D34</td><td class="num">$BD18-$BD24</td><td class="num">13B</td><td>EA埋め</td><td>旧Final-stage redirect runtime候補跡。新規出力ではfinal_stage_redirectを書かない。保存時に掃除しない。</td></tr>
       <tr><td>空き</td><td><code>gargoyle_variant.py</code></td><td class="num">0x3D0B-0x3D26 / 0x3D4B-0x3D88</td><td class="num">$BCFB-$BD16 / $BD3B-$BD78</td><td class="num">90B</td><td>00/EA埋め</td><td>旧Gargoyle追加routine候補跡。新規出力ではgargoyle_variantを書かない。保存時に掃除しない。</td></tr>
@@ -240,7 +244,7 @@
   <div class="map">
     <h3>file 0x6010-0x700F / CPU $E000-$EFFF / 4,096B</h3>
     <div class="bar zoom">
-      <div class="seg hook" style="width:4.00%">stage announce<br><small>164B</small></div>
+      <div class="seg free" style="width:4.59%">free<br><small>188B</small></div>
       <div class="seg free" style="width:.59%">24B</div>
       <div class="seg hook" style="width:1.03%">draw<br><small>42B</small></div>
       <div class="seg free" style="width:.59%">24B</div>
@@ -272,7 +276,10 @@
       <div class="seg hook" style="width:1.64%">Spark85<br><small>67B</small></div>
       <div class="seg free" style="width:.59%"><span class="tiny">buf</span></div>
       <div class="seg hook" style="width:3.13%">Warp<br><small>128B</small></div>
-      <div class="seg free" style="width:31.81%">free<br><small>1,303B</small></div>
+      <div class="seg free" style="width:0.59%">buf<br><small>24B</small></div>
+      <div class="seg hook" style="width:5.62%">stage announce<br><small>230B</small></div>
+      <div class="seg free" style="width:0.59%">buf<br><small>24B</small></div>
+      <div class="seg free" style="width:25.02%">free<br><small>1,025B</small></div>
       <div class="seg hook" style="width:.27%"><span class="tiny">seal</span></div>
     </div>
     <div class="labels"><span>$E000</span><span>$E200</span><span>$E400</span><span>$E600</span><span>$E800</span><span>$EA00</span><span>$EC00</span><span>$EE00</span><span>$EFFF</span></div>
@@ -284,12 +291,15 @@
       Ice Flame後に24B緩衝を残し、Spark85 runtime本体を <code>0x6A13-0x6A55</code> / <code>$EA03-$EA45</code> に置く。
       Spark85 runtime直後に24B緩衝 <code>0x6A56-0x6A6D</code> / <code>$EA46-$EA5D</code> を残す。
       Warp Mirror Mode runtimeを <code>0x6A6E-0x6AED</code> / <code>$EA5E-$EADD</code> に置く。
-      大きな連続空きは <code>0x6AEE-0x7004</code> / <code>$EADE-$EFF4</code> の1,303B。
+      Warp Mirror Mode runtime後の24B緩衝 <code>0x6AEE-0x6B05</code> / <code>$EADE-$EAF5</code> を残す。
+      Stage start announcement 8項目版を <code>0x6B06-0x6BEB</code> / <code>$EAF6-$EBDB</code> に移す。
+      その直後に24B緩衝 <code>0x6BEC-0x6C03</code> / <code>$EBDC-$EBF3</code> を残し、
+      残りの連続空きは <code>0x6C04-0x7004</code> / <code>$EBF4-$EFF4</code> の1,025B。
       末尾 <code>0x7005-0x700F</code> / <code>$EFF5-$EFFF</code> にはSolomon Seal block helper 11Bが別置きで残っている。
     </div>
     <table>
       <tr><th>Range</th><th>CPU</th><th>Size</th><th>Use</th></tr>
-      <tr><td class="num">0x6010-0x60B3</td><td class="num">$E000-$E0A3</td><td class="num">164B</td><td>Stage start announcement</td></tr>
+      <tr><td class="num">0x6010-0x60CB</td><td class="num">$E000-$E0BB</td><td class="num">188B</td><td>Free; old Stage start announcement area is no longer written</td></tr>
       <tr><td class="num">0x60CC-0x60F5</td><td class="num">$E0BC-$E0E5</td><td class="num">42B</td><td>Initial draw low classifier</td></tr>
       <tr><td class="num">0x610E-0x622B</td><td class="num">$E0FE-$E21B</td><td class="num">286B</td><td>Key/Fairy enemy runtime</td></tr>
       <tr><td class="num">0x6244-0x6267</td><td class="num">$E234-$E257</td><td class="num">36B</td><td>Visible item in-block helper</td></tr>
@@ -309,7 +319,10 @@
       <tr><td class="num">0x6A13-0x6A55</td><td class="num">$EA03-$EA45</td><td class="num">67B</td><td>Spark85 runtime</td></tr>
       <tr><td class="num">0x6A56-0x6A6D</td><td class="num">$EA46-$EA5D</td><td class="num">24B</td><td>Free buffer before Warp Mirror Mode runtime</td></tr>
       <tr><td class="num">0x6A6E-0x6AED</td><td class="num">$EA5E-$EADD</td><td class="num">128B</td><td>Warp Mirror Mode runtime</td></tr>
-      <tr><td class="num">0x6AEE-0x7004</td><td class="num">$EADE-$EFF4</td><td class="num">1,303B</td><td>Free</td></tr>
+      <tr><td class="num">0x6AEE-0x6B05</td><td class="num">$EADE-$EAF5</td><td class="num">24B</td><td>Free buffer before Stage start announcement</td></tr>
+      <tr><td class="num">0x6B06-0x6BEB</td><td class="num">$EAF6-$EBDB</td><td class="num">230B</td><td>Stage start announcement</td></tr>
+      <tr><td class="num">0x6BEC-0x6C03</td><td class="num">$EBDC-$EBF3</td><td class="num">24B</td><td>Free buffer after Stage start announcement</td></tr>
+      <tr><td class="num">0x6C04-0x7004</td><td class="num">$EBF4-$EFF4</td><td class="num">1,025B</td><td>Free</td></tr>
       <tr><td class="num">0x7005-0x700F</td><td class="num">$EFF5-$EFFF</td><td class="num">11B</td><td>Solomon Seal block helper</td></tr>
     </table>
     <h3>4096B outside legacy EA suppressions</h3>
@@ -375,7 +388,7 @@
       <tr><td>StageExtTable</td><td class="num">0x8800-0x8A0F</td><td class="num">$87F0-$89FF</td><td class="num">528B</td><td>Per-stage extension settings: 16B header + 64 rooms x 8B. byte0 bit4=clear後に原作最終面へ送る、byte0 bit5=Warp Mirror Mode、byte2=key enemy initial slot, byte3=fall-death fairy enemy initial slot. Also carries mapper66 runtime room flags and door-cell bytes copied to <code>$0778/$077C</code>; the room-load runtime copies byte0 bit4 to <code>$077A</code> bit7 and byte0 bit5 to <code>$0770</code> bit5.</td></tr>
       <tr><td>Panel Variant combined runtime loader</td><td class="num">0x8A10-0x8A6F</td><td class="num">$8A00-$8A5F</td><td class="num">96B</td><td>Mapper66 room-load helper. Preserves StageExt runtime copies, copies StageExt byte0 bit4 to <code>$077A</code> bit7, copies the Solomon Seal block-state byte to <code>$077D</code>, copies the 6B global A/B/C Panel Variant settings table to <code>$0740-$0745</code>, then jumps through the Warp Mirror Mode flag helper before the Transparent Seal suppress guard. This RAM/settings route was introduced to reduce PRG0 pressure; if RAM becomes tight later, treat <code>$0740-$0745</code> and this PRG1 settings path as a separate cleanup target.</td></tr>
       <tr><td>Panel Variant settings table</td><td class="num">0x8A70-0x8A75</td><td class="num">$8A60-$8A65</td><td class="num">6B</td><td>All-stage common A/B/C settings image: A speed/interval, B speed/interval, C speed/interval. Copied to RAM <code>$0740-$0745</code> by the runtime loader. This is a PRG0-saving design choice, not a free RAM area; revisit it only in a RAM cleanup pass.</td></tr>
-      <tr><td>Warp Mirror Mode flag helper</td><td class="num">0x8A76-0x8A81</td><td class="num">$8A66-$8A71</td><td class="num">12B</td><td>StageExt byte0 bit5を<code>$0770</code>へコピーして、ワープミラー有効面だけPRG0 runtimeを動かす。最後はTransparent Seal suppress guardへJMPする。</td></tr>
+      <tr><td>Warp Mirror Mode flag helper</td><td class="num">0x8A76-0x8A81</td><td class="num">$8A66-$8A71</td><td class="num">12B</td><td>StageExt byte0 bit5を<code>$0770</code>へコピーする。PRG0 runtime/hook自体は常時配置し、OFF面ではruntime内で原作アイテムセル判定へ戻す。最後はTransparent Seal suppress guardへJMPする。</td></tr>
       <tr><td>PanelVariant PRG1 reserve</td><td class="num">0x8A82-0x8E7F</td><td class="num">$8A72-$8E6F</td><td class="num">1,022B</td><td>PRG1 reserve after the Warp Mirror Mode flag helper. Current runtime does not reference this area.</td></tr>
       <tr><td>Transparent/cracked item side-data copy helper</td><td class="num">0x8E80-0x8EAA</td><td class="num">$8E70-$8E9A</td><td class="num">43B</td><td>Copies the current room's 32B side slot from the PRG1 table to RAM <code>$0750-$076F</code> with page-crossing carry preserved. The first 24B are the visible-item mask; the last 8B are cracked in-block cell positions.</td></tr>
         <tr><td>Solomon Seal block-state table</td><td class="num">0x8EAB-0x8EEA</td><td class="num">$8E9B-$8EDA</td><td class="num">64B</td><td>1 byte per room. <code>$00</code>=original hidden seal, <code>$A0</code>=brown in-block seal, <code>$E0</code>=white in-block seal. Copied to RAM <code>$077D</code> by StageExt loader.</td></tr>

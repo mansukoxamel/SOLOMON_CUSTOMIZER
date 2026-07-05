@@ -28,12 +28,15 @@ def _word(cpu: int) -> bytes:
 OFF_HOOK_START_UPDATE = _cf(0x9061)
 ORIG_START_UPDATE = bytes.fromhex("20 5e 91")
 
-OFF_MAIN = 0x6010
-OFF_MASK_TABLE = 0x6028
-OFF_DRAW = 0x602D
-OFF_PTR_TABLE = 0x6046
-OFF_KEY_GATE = 0x6052
-OFF_FREE_AFTER_STAGE_ANNOUNCEMENT = 0x60B4
+OLD_OFF_MAIN = 0x6010
+OFF_MAIN = 0x6B06
+OFF_MASK_TABLE = 0x6B24
+OFF_DRAW = 0x6B29
+OFF_PTR_TABLE = 0x6B42
+OFF_KEY_GATE = 0x6B52
+OFF_FAIRY_GATE = 0x6B5F
+OFF_WARP_GATE = 0x6B6C
+OFF_FREE_AFTER_STAGE_ANNOUNCEMENT = 0x6BEC
 FREE_AFTER_STAGE_ANNOUNCEMENT_LEN = 24
 
 CPU_MAIN = _cpu(OFF_MAIN)
@@ -41,8 +44,11 @@ CPU_MASK_TABLE = _cpu(OFF_MASK_TABLE)
 CPU_DRAW = _cpu(OFF_DRAW)
 CPU_PTR_TABLE = _cpu(OFF_PTR_TABLE)
 CPU_KEY_GATE = _cpu(OFF_KEY_GATE)
+CPU_FAIRY_GATE = _cpu(OFF_FAIRY_GATE)
+CPU_WARP_GATE = _cpu(OFF_WARP_GATE)
 
 HOOK_START_UPDATE = bytes((0x20, *(_word(CPU_MAIN))))
+OLD_HOOK_START_UPDATE = bytes((0x20, *(_word(_cpu(OLD_OFF_MAIN)))))
 OLD_MAIN_BAD_ORDER = bytes.fromhex(
     "20 5e 91 a2 00 ad 78 07 3d fa 8b f0 03 20 bc e0"
     "e8 e0 05 d0 f0 4c c0 b3 08 10 01 04 80"
@@ -62,12 +68,14 @@ P_TILE_BYTES = bytes.fromhex("fc f2 f2 f2 fc f0 00 00 fc f2 f2 f2 fc f0 00 00")
 
 
 SCRIPT_SPECS = (
-    (0x605F, 21, 4, "DARK ROOM"),
-    (0x606C, 23, 4, "FIRE LOSS"),
-    (0x6079, 21, 17, "HIDDEN DOOR"),
-    (0x6088, 23, 17, "FIRE SEALED"),
-    (0x6097, 25, 17, "SPELL SEALED"),
-    (0x60A7, 25, 4, "KEY ENEMY"),
+    (0x6B79, 21, 4, "DARK ROOM"),
+    (0x6B86, 23, 4, "FIRE LOSS"),
+    (0x6B93, 21, 17, "HIDDEN DOOR"),
+    (0x6BA2, 23, 17, "FIRE SEALED"),
+    (0x6BB1, 25, 17, "SPELL SEALED"),
+    (0x6BC1, 25, 4, "KEY ENEMY"),
+    (0x6BCE, 27, 4, "FAIRY ENEMY"),
+    (0x6BDD, 27, 17, "MIRROR LINK"),
 )
 
 ROOM_FLAG_MASKS = bytes((
@@ -116,6 +124,8 @@ def _build_main() -> bytes:
     b += b"\xe8\xe0\x05"                 # INX / CPX #5
     b += bytes((0xD0, (loop - (len(b) + 2)) & 0xFF))
     b += bytes((0x20, *(_word(CPU_KEY_GATE))))
+    b += bytes((0x20, *(_word(CPU_FAIRY_GATE))))
+    b += bytes((0x20, *(_word(CPU_WARP_GATE))))
     b += b"\x4c\x5e\x91"                 # Preserve stock intro update last.
     return bytes(b)
 
@@ -130,7 +140,7 @@ def _build_draw() -> bytes:
     b += b"\x68\xaa"                     # PLA / TAX
     b += bytes((0xBD, CPU_PTR_TABLE & 0xFF, CPU_PTR_TABLE >> 8))
     b += b"\x85\x1a"
-    b += bytes((0xBD, (CPU_PTR_TABLE + 6) & 0xFF, (CPU_PTR_TABLE + 6) >> 8))
+    b += bytes((0xBD, (CPU_PTR_TABLE + len(SCRIPTS)) & 0xFF, (CPU_PTR_TABLE + len(SCRIPTS)) >> 8))
     b += b"\x85\x1b\x60"
     return bytes(b)
 
@@ -149,10 +159,30 @@ def _build_key_gate() -> bytes:
     )
 
 
+def _build_fairy_gate() -> bytes:
+    return (
+        b"\xad\x7e\x07\xc9\xff\xf0\x05" +
+        b"\xa2\x06" +
+        bytes((0x20, *(_word(CPU_DRAW)))) +
+        b"\x60"
+    )
+
+
+def _build_warp_gate() -> bytes:
+    return (
+        b"\xad\x70\x07\x29\x20\xf0\x05" +
+        b"\xa2\x07" +
+        bytes((0x20, *(_word(CPU_DRAW)))) +
+        b"\x60"
+    )
+
+
 MAIN = _build_main()
 DRAW = _build_draw()
 PTR_TABLE = _build_ptr_table()
 KEY_GATE = _build_key_gate()
+FAIRY_GATE = _build_fairy_gate()
+WARP_GATE = _build_warp_gate()
 
 RESERVED_SPANS = (
     (OFF_MAIN, len(MAIN)),
@@ -160,10 +190,12 @@ RESERVED_SPANS = (
     (OFF_DRAW, len(DRAW)),
     (OFF_PTR_TABLE, len(PTR_TABLE)),
     (OFF_KEY_GATE, len(KEY_GATE)),
+    (OFF_FAIRY_GATE, len(FAIRY_GATE)),
+    (OFF_WARP_GATE, len(WARP_GATE)),
     *[(off, len(script)) for off, script, _text in SCRIPTS],
 )
 
-assert OFF_FREE_AFTER_STAGE_ANNOUNCEMENT == OFF_KEY_GATE + len(KEY_GATE) + sum(
+assert OFF_FREE_AFTER_STAGE_ANNOUNCEMENT == OFF_WARP_GATE + len(WARP_GATE) + sum(
     len(script) for _off, script, _text in SCRIPTS
 )
 assert FREE_AFTER_STAGE_ANNOUNCEMENT_LEN == 24
@@ -207,6 +239,10 @@ def is_needed(levels: list, runtime_room_flags: list[int]) -> bool:
             return True
         if stage_ext.key_enemy_enabled(level):
             return True
+        if stage_ext.fairy_enemy_enabled(level):
+            return True
+        if stage_ext.warp_mirror_enabled(level):
+            return True
     return False
 
 
@@ -214,7 +250,7 @@ def apply(rom_data: bytearray, levels: list, runtime_room_flags: list[int]) -> l
     changed: list[str] = []
 
     cur = bytes(rom_data[OFF_HOOK_START_UPDATE:OFF_HOOK_START_UPDATE + 3])
-    if cur not in (ORIG_START_UPDATE, HOOK_START_UPDATE):
+    if cur not in (ORIG_START_UPDATE, HOOK_START_UPDATE, OLD_HOOK_START_UPDATE):
         raise StageAnnouncementError(
             f"$9061 start-screen update hook mismatch: got {cur.hex(' ')}"
         )
@@ -225,6 +261,8 @@ def apply(rom_data: bytearray, levels: list, runtime_room_flags: list[int]) -> l
         (OFF_DRAW, DRAW, "stage announcement draw helper"),
         (OFF_PTR_TABLE, PTR_TABLE, "stage announcement pointer table"),
         (OFF_KEY_GATE, KEY_GATE, "stage announcement key gate"),
+        (OFF_FAIRY_GATE, FAIRY_GATE, "stage announcement fairy gate"),
+        (OFF_WARP_GATE, WARP_GATE, "stage announcement warp gate"),
         *[(off, script, f"stage announcement script {text}") for off, script, text in SCRIPTS],
     ):
         _ensure_available(rom_data, off, blob, name)
@@ -234,6 +272,8 @@ def apply(rom_data: bytearray, levels: list, runtime_room_flags: list[int]) -> l
     _write(rom_data, OFF_DRAW, DRAW, changed, "stage announcement draw helper")
     _write(rom_data, OFF_PTR_TABLE, PTR_TABLE, changed, "stage announcement pointer table")
     _write(rom_data, OFF_KEY_GATE, KEY_GATE, changed, "stage announcement key gate")
+    _write(rom_data, OFF_FAIRY_GATE, FAIRY_GATE, changed, "stage announcement fairy gate")
+    _write(rom_data, OFF_WARP_GATE, WARP_GATE, changed, "stage announcement warp gate")
     for off, script, text in SCRIPTS:
         _write(rom_data, off, script, changed, f"stage announcement script {text}")
 
