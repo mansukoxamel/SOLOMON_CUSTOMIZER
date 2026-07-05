@@ -1,4 +1,4 @@
-"""Fire x2 item runtime for item $09."""
+"""Fire/Fairy x2 item runtime for item $09/$0F."""
 from __future__ import annotations
 
 
@@ -7,6 +7,7 @@ class Fire2ItemRuntimeError(ValueError):
 
 
 ITEM_FIRE2 = 0x09
+ITEM_FAIRY2 = 0x0F
 
 OFF_ITEM_PICKUP_HOOK = 0x456B   # CPU $C55B
 CPU_ITEM_PICKUP_HOOK = 0xC55B
@@ -22,6 +23,7 @@ CPU_STOCK_ITEM_CHECK_AFTER_RANGE = 0xC55F
 CPU_CONSUME_ITEM = 0xC818
 CPU_PLAY_SE = 0x8E8D
 CPU_ADD_FIRE_JAR = 0xC7A3
+CPU_ADD_FAIRY_QUEUE = 0xC7AA
 CPU_DRAW_CONTINUE = 0x9DEB
 
 
@@ -59,6 +61,8 @@ def _build_item_runtime() -> bytes:
     a = _Asm()
     a.b(0xC9, ITEM_FIRE2)                  # CMP #$09
     a.rel(0xF0, "fire2")                  # BEQ fire2
+    a.b(0xC9, ITEM_FAIRY2)                 # CMP #$0F
+    a.rel(0xF0, "fairy2")                 # BEQ fairy2
     a.b(0xC9, 0x38)                       # original $C55B entry
     a.rel(0xB0, "rts")
     a.abs(0x4C, CPU_STOCK_ITEM_CHECK_AFTER_RANGE)
@@ -79,29 +83,58 @@ def _build_item_runtime() -> bytes:
     a.abs(0x20, CPU_ADD_FIRE_JAR)
     a.b(0xA9, 0x01)
     a.b(0x60)
+
+    a.label("fairy2")
+    a.b(0xA5, 0x87)                       # LDA $87
+    a.b(0x4A)                             # LSR A
+    a.rel(0xB0, "rts")                   # pickup gate busy
+    a.b(0xA9, ITEM_FAIRY2)
+    a.abs(0x20, CPU_CONSUME_ITEM)         # remove item / action setup
+    a.b(0xA0, 0x40)
+    a.b(0x84, 0x02)
+    a.b(0xA0, 0x0D)
+    a.abs(0x20, CPU_PLAY_SE)
+    a.abs(0x20, CPU_ADD_FAIRY_QUEUE)
+    a.abs(0x20, CPU_ADD_FAIRY_QUEUE)
+    a.b(0xA9, 0x01)
+    a.b(0x60)
     return a.finish()
 
 
-def _build_draw_runtime(custom_metatile_cpu: int) -> bytes:
+def _build_draw_runtime(fire_metatile_cpu: int, fairy_metatile_cpu: int) -> bytes:
     a = _Asm()
     a.b(0xC9, ITEM_FIRE2)                 # CMP #$09
-    a.rel(0xD0, "normal")
-    a.b(0xA9, custom_metatile_cpu & 0xFF)
-    a.b(0x85, 0x06)
-    a.b(0xA9, custom_metatile_cpu >> 8)
-    a.b(0x85, 0x07)
-    a.b(0xA9, 0x00)                       # Y=0 into custom one-entry table
+    a.rel(0xF0, "fire2")
+    a.b(0xC9, ITEM_FAIRY2)                # CMP #$0F
+    a.rel(0xF0, "fairy2")
     a.label("normal")
     a.b(0x0A, 0x0A, 0xA8)                 # original ASL; ASL; TAY
     a.abs(0x4C, CPU_DRAW_CONTINUE)
+    a.label("fire2")
+    a.b(0xA9, fire_metatile_cpu & 0xFF)
+    a.b(0x85, 0x06)
+    a.b(0xA9, fire_metatile_cpu >> 8)
+    a.b(0x85, 0x07)
+    a.b(0xA9, 0x00)                       # Y=0 into custom one-entry table
+    a.rel(0xF0, "normal")
+    a.label("fairy2")
+    a.b(0xA9, fairy_metatile_cpu & 0xFF)
+    a.b(0x85, 0x06)
+    a.b(0xA9, fairy_metatile_cpu >> 8)
+    a.b(0x85, 0x07)
+    a.b(0xA9, 0x00)                       # Y=0 into custom one-entry table
+    a.rel(0xF0, "normal")
     return a.finish()
 
 
 ITEM_RUNTIME = _build_item_runtime()
 DRAW_RUNTIME_CPU = CPU_RUNTIME + len(ITEM_RUNTIME)
-DRAW_RUNTIME = _build_draw_runtime(DRAW_RUNTIME_CPU + 20)
+FIRE2_METATILE_CPU = DRAW_RUNTIME_CPU + 38
+FAIRY2_METATILE_CPU = FIRE2_METATILE_CPU + 4
+DRAW_RUNTIME = _build_draw_runtime(FIRE2_METATILE_CPU, FAIRY2_METATILE_CPU)
 FIRE2_METATILE_BG0 = bytes.fromhex("60 65 66 67")
-RUNTIME = ITEM_RUNTIME + DRAW_RUNTIME + FIRE2_METATILE_BG0
+FAIRY2_METATILE_BG0 = bytes.fromhex("9C 9D 9E 9F")
+RUNTIME = ITEM_RUNTIME + DRAW_RUNTIME + FIRE2_METATILE_BG0 + FAIRY2_METATILE_BG0
 
 HOOK_ITEM_PICKUP = bytes((0x4C, CPU_RUNTIME & 0xFF, CPU_RUNTIME >> 8))
 HOOK_DRAW = bytes((0x4C, DRAW_RUNTIME_CPU & 0xFF, DRAW_RUNTIME_CPU >> 8))
@@ -111,10 +144,10 @@ def levels_need_runtime(levels: list) -> bool:
     for level in levels or []:
         for item in getattr(level, "items", []) or []:
             try:
-                if int(item.get_item_no()) == ITEM_FIRE2:
+                if int(item.get_item_no()) in (ITEM_FIRE2, ITEM_FAIRY2):
                     return True
             except AttributeError:
-                if (int(getattr(item, "element_no", 0)) & 0x3F) == ITEM_FIRE2:
+                if (int(getattr(item, "element_no", 0)) & 0x3F) in (ITEM_FIRE2, ITEM_FAIRY2):
                     return True
     return False
 
@@ -147,26 +180,26 @@ def apply(rom_data: bytearray) -> list[str]:
         rom_data,
         OFF_ITEM_PICKUP_HOOK,
         (ORIG_ITEM_PICKUP_HOOK, HOOK_ITEM_PICKUP),
-        "$C55B Fire x2 item hook",
+        "$C55B Fire/Fairy x2 item hook",
     )
     _expect(
         rom_data,
         OFF_DRAW_HOOK,
         (ORIG_DRAW_HOOK, HOOK_DRAW),
-        "$9DE8 Fire x2 draw hook",
+        "$9DE8 Fire/Fairy x2 draw hook",
     )
-    _expect_blank_or(rom_data, OFF_RUNTIME, RUNTIME, "Fire x2 item runtime")
+    _expect_blank_or(rom_data, OFF_RUNTIME, RUNTIME, "Fire/Fairy x2 item runtime")
 
     changed: list[str] = []
     if bytes(rom_data[OFF_RUNTIME:OFF_RUNTIME + len(RUNTIME)]) != RUNTIME:
         rom_data[OFF_RUNTIME:OFF_RUNTIME + len(RUNTIME)] = RUNTIME
-        changed.append(f"Fire x2 item runtime ${CPU_RUNTIME:04X}-${CPU_RUNTIME + len(RUNTIME) - 1:04X}")
+        changed.append(f"Fire/Fairy x2 item runtime ${CPU_RUNTIME:04X}-${CPU_RUNTIME + len(RUNTIME) - 1:04X}")
     if bytes(rom_data[OFF_ITEM_PICKUP_HOOK:OFF_ITEM_PICKUP_HOOK + len(HOOK_ITEM_PICKUP)]) != HOOK_ITEM_PICKUP:
         rom_data[OFF_ITEM_PICKUP_HOOK:OFF_ITEM_PICKUP_HOOK + len(HOOK_ITEM_PICKUP)] = HOOK_ITEM_PICKUP
-        changed.append("$C55B Fire x2 item hook")
+        changed.append("$C55B Fire/Fairy x2 item hook")
     if bytes(rom_data[OFF_DRAW_HOOK:OFF_DRAW_HOOK + len(HOOK_DRAW)]) != HOOK_DRAW:
         rom_data[OFF_DRAW_HOOK:OFF_DRAW_HOOK + len(HOOK_DRAW)] = HOOK_DRAW
-        changed.append("$9DE8 Fire x2 draw hook")
+        changed.append("$9DE8 Fire/Fairy x2 draw hook")
     return changed
 
 
@@ -175,6 +208,6 @@ RESERVED_SPANS = (
 )
 
 
-assert len(ITEM_RUNTIME) == 40
-assert len(DRAW_RUNTIME) == 20
-assert len(RUNTIME) == 64
+assert len(ITEM_RUNTIME) == 72
+assert len(DRAW_RUNTIME) == 38
+assert len(RUNTIME) == 118
