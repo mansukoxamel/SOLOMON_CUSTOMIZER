@@ -74,7 +74,8 @@ ITEM_FLAG_CRACKED_IN_BLOCK = 0x200
 # ★出典: skc_config.xml <item_definitions> を正本に自前抽出した
 #   「配置可能(normal/modifiable)」47件 (2026-05-17、PRG_SPRITE_USAGE
 #   と相互検証済 / output/PICKER_EXTRACT_20260517。
-#   2026-07-05、Fire x2 item 0x34 / Fairy x2 item 0x35追加)。
+#   2026-07-05、Fire x2 / Fairy x2 のUI専用項目を追加。
+#   これらは実ROM item IDではなく、通常 item 0x15/0x18 + 座標リストで保存する。
 #   glitch/garbage/
 #   Nothing 18件は配置で壊れ得るため除外（従来どおり非表示）。
 #   旧36件版は $05/$09/$0A/$0B/$0D/$0F/$21/$37/$38/$39 が欠落していた。
@@ -83,12 +84,14 @@ ITEM_FLAG_CRACKED_IN_BLOCK = 0x200
 #   (=キュレーション。名前は持たない=2重管理しない)。表示名は必ず
 #   item_name(code, config) 経由で item_desc から解決すること。
 ITEMS_LIST = [
-    0x04, 0x05, 0x07, 0x08, 0x0b, 0x0c,
-    0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a,
-    0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x25, 0x26,
+    0x04, 0x05, 0x07, 0x08, 0x0c,
+    0x11, 0x12, 0x13, 0x14, 0x15, 0x34, 0x16, 0x17, 0x18, 0x35, 0x19, 0x1a,
+    0x1b, 0x0b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x25, 0x26,
     0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f, 0x30,
-    0x31, 0x32, 0x33, 0x34, 0x35, 0x37, 0x38, 0x39,
+    0x31, 0x32, 0x33, 0x37, 0x38, 0x39,
 ]
+
+SPECIAL_ITEM_PICKER_CODES = {0x34, 0x35}
 
 
 def item_name(code, config):
@@ -101,6 +104,13 @@ def item_name(code, config):
             if n:
                 return n
     return f"0x{code:02x}"
+
+
+def item_picker_label(code, config) -> str:
+    name = item_name(code, config)
+    if code in SPECIAL_ITEM_PICKER_CODES:
+        return name
+    return f"0x{code:02x} {name}"
 
 
 # 主要敵一覧（コード=sp1基準, 表示名）
@@ -1763,7 +1773,7 @@ class ElementPicker(QWidget):
 
             # カテゴリ2: アイテム (名前は item_desc 単一ソースから解決)
             for code in ITEMS_LIST:
-                label = f"0x{code:02x} {item_name(code, self.config)}"
+                label = item_picker_label(code, self.config)
                 self._add_picker_item(2, MODE_ITEM, code, label, self._make_item_icon(code))
 
             # カテゴリ3: モンスター
