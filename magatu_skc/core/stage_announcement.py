@@ -79,15 +79,15 @@ OLD_SCRIPT_SPECS = (
 )
 
 SCRIPT_SPECS = (
-    (0x6B85, 21, 4, "DARK ROOM"),
-    (0x6B92, 23, 4, "FIRE LOSS"),
-    (0x6B9F, 21, 17, "HIDDEN DOOR"),
-    (0x6BAE, 23, 17, "FIRE SEALED"),
-    (0x6BBD, 25, 17, "SPELL SEALED"),
-    (0x6BCD, 25, 4, "KEY ENEMY"),
-    (0x6BDA, 25, 4, "ALL KILL"),
-    (0x6BE6, 27, 4, "FAIRY ENEMY"),
-    (0x6BF5, 27, 17, "MIRROR LINK"),
+    (0x6B85, 21, 3, "DARK ROOM"),
+    (0x6B92, 23, 3, "FIRE LOSS"),
+    (0x6B9F, 21, 16, "HIDDEN DOOR"),
+    (0x6BAE, 23, 16, "FIRE SEALED"),
+    (0x6BBD, 25, 16, "SPELL SEALED"),
+    (0x6BCD, 25, 3, "KEY ENEMY"),
+    (0x6BDA, 25, 3, "ALL KILL"),
+    (0x6BE6, 27, 3, "FAIRY ENEMY"),
+    (0x6BF5, 27, 16, "MIRROR LINK"),
 )
 
 ROOM_FLAG_MASKS = bytes((
