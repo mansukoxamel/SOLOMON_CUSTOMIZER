@@ -2388,12 +2388,25 @@ class MainWindow(QMainWindow):
         )
         self.chk_warp_mirror.toggled.connect(self._on_meta_warp_mirror_toggled)
         form.addRow("", self.chk_warp_mirror)
+
+        self.chk_enemy_clear_key_open = QCheckBox(
+            t("main.stage.enemy_clear_key_open", "全敵消滅で扉オープン")
+        )
+        self.chk_enemy_clear_key_open.setToolTip(
+            t(
+                "main.stage.enemy_clear_key_open.tooltip",
+                "この面で敵スロットが空になった時、鍵取得と同じ扉オープン演出を発生させます。",
+            )
+        )
+        self.chk_enemy_clear_key_open.toggled.connect(self._on_meta_enemy_clear_key_open_toggled)
+        form.addRow("", self.chk_enemy_clear_key_open)
         for checkbox, restriction_key in (
             (self.chk_no_bfire, "no_bfire"),
             (self.chk_no_astone, "no_astone"),
             (self.chk_dark, "dark"),
             (self.chk_fire_reset, "fire_reset"),
             (self.chk_warp_mirror, "warp_mirror"),
+            (self.chk_enemy_clear_key_open, "enemy_clear_key_open"),
         ):
             self._setup_stage_restriction_context_menu(checkbox, restriction_key)
 
@@ -12031,6 +12044,7 @@ class MainWindow(QMainWindow):
             from ..core import stage_ext as _se
             self.chk_fire_reset.setChecked(_se.fire_reset_enabled(lv))
             self.chk_warp_mirror.setChecked(_se.warp_mirror_enabled(lv))
+            self.chk_enemy_clear_key_open.setChecked(_se.enemy_clear_key_open_enabled(lv))
             self._refresh_key_enemy_spin_range()
             self._refresh_fairy_enemy_spin_range()
             # 星座
@@ -12074,6 +12088,7 @@ class MainWindow(QMainWindow):
             "dark": t("main.stage.dark", "暗闇モード"),
             "fire_reset": t("main.stage.fire_reset", "ファイアリセットモード"),
             "warp_mirror": t("main.stage.warp_mirror", "ワープミラーモード"),
+            "enemy_clear_key_open": t("main.stage.enemy_clear_key_open", "全敵消滅で扉オープン"),
         }
         return labels.get(key, key)
 
@@ -12084,6 +12099,7 @@ class MainWindow(QMainWindow):
             "dark": self.chk_dark,
             "fire_reset": self.chk_fire_reset,
             "warp_mirror": self.chk_warp_mirror,
+            "enemy_clear_key_open": self.chk_enemy_clear_key_open,
         }
         return widgets[key].isChecked()
 
@@ -12100,6 +12116,8 @@ class MainWindow(QMainWindow):
             return _se.fire_reset_enabled(level)
         if key == "warp_mirror":
             return _se.warp_mirror_enabled(level)
+        if key == "enemy_clear_key_open":
+            return _se.enemy_clear_key_open_enabled(level)
         raise KeyError(key)
 
     def _warp_mirror_can_enable(self, level) -> bool:
@@ -12159,6 +12177,9 @@ class MainWindow(QMainWindow):
                 _se.set_warp_mirror_enabled(level, False)
                 return
             _se.set_warp_mirror_enabled(level, enabled)
+            return
+        if key == "enemy_clear_key_open":
+            _se.set_enemy_clear_key_open_enabled(level, enabled)
             return
         raise KeyError(key)
 
@@ -12365,6 +12386,18 @@ class MainWindow(QMainWindow):
             return
         self._push_undo()
         _se.set_warp_mirror_enabled(lv, checked)
+        self._set_dirty(True)
+        self._update_info()
+
+    def _on_meta_enemy_clear_key_open_toggled(self, checked):
+        if self._meta_loading or not self.levels:
+            return
+        if self._reject_read_only_edit():
+            return
+        self._push_undo()
+        from ..core import stage_ext as _se
+        lv = self.levels[self.current_level_no]
+        _se.set_enemy_clear_key_open_enabled(lv, checked)
         self._set_dirty(True)
         self._update_info()
 

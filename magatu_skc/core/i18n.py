@@ -1127,6 +1127,14 @@ _TRANSLATIONS = {
         "ja": "この面の鏡に触れた時、もう一方の鏡へワープします。",
         "en": "When Dana touches a mirror in this stage, warp to the other mirror.",
     },
+    "main.stage.enemy_clear_key_open": {
+        "ja": "全敵消滅で扉オープン",
+        "en": "Open Door When Enemies Are Gone",
+    },
+    "main.stage.enemy_clear_key_open.tooltip": {
+        "ja": "この面で敵スロットが空になった時、鍵取得と同じ扉オープン演出を発生させます。",
+        "en": "When this stage's enemy slots are empty, trigger the same door-opening effect as picking up the key.",
+    },
     "main.stage.restrictions.apply_one_all": {
         "ja": "現在の状態を全53面に適用（{name}）",
         "en": "Apply current state to all 53 stages ({name})",

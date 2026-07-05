@@ -21,6 +21,7 @@ FLAG_ANNOUNCE = 0x04
 FLAG_FAIRY_ENEMY = 0x08
 FLAG_FINAL_STAGE_REDIRECT = 0x10
 FLAG_WARP_MIRROR = 0x20
+FLAG_ENEMY_CLEAR_KEY_OPEN = 0x40
 
 DEFAULT_KEY_ENEMY_SLOT = 0xFF
 DEFAULT_FAIRY_ENEMY_SLOT = 0xFF
@@ -238,6 +239,19 @@ def set_warp_mirror_enabled(level, enabled: bool) -> None:
         level.stage_ext_flags = int(level.stage_ext_flags) | FLAG_WARP_MIRROR
     else:
         level.stage_ext_flags = int(level.stage_ext_flags) & ~FLAG_WARP_MIRROR
+
+
+def enemy_clear_key_open_enabled(level) -> bool:
+    init_level_defaults(level)
+    return bool(int(level.stage_ext_flags) & FLAG_ENEMY_CLEAR_KEY_OPEN)
+
+
+def set_enemy_clear_key_open_enabled(level, enabled: bool) -> None:
+    init_level_defaults(level)
+    if enabled:
+        level.stage_ext_flags = int(level.stage_ext_flags) | FLAG_ENEMY_CLEAR_KEY_OPEN
+    else:
+        level.stage_ext_flags = int(level.stage_ext_flags) & ~FLAG_ENEMY_CLEAR_KEY_OPEN
 
 
 def final_stage_redirect_enabled(level) -> bool:

@@ -276,6 +276,7 @@ def save_levels_to_rom(
         stage_ext, key_enemy_runtime, stage_announcement, title_screen,
         drop_pickup_guard, special_process, solomon_seal_block,
         final_stage_redirect, gap_fix, new_enemy_runtime, warp_zone_trial,
+        enemy_clear_key_open,
     )
     from .element import byte_from_position
     # IMPORTANT: this apply order is part of the ROM layout contract.
@@ -382,8 +383,16 @@ def save_levels_to_rom(
             rom.data,
             levels,
         )
+        _run_save_step(
+            "Enemy Clear Key Open runtime検証/適用",
+            enemy_clear_key_open.apply,
+            rom.data,
+            levels,
+        )
     elif new_enemy_runtime.levels_need_runtime(levels):
         raise SaveError("新敵ID ($84/$85) はmapper66拡張ROM保存専用です。")
+    elif enemy_clear_key_open.levels_need_runtime(levels):
+        raise SaveError("全敵消滅で扉を開く機能はmapper66拡張ROM保存専用です。")
     if rom.is_expanded():
         _run_save_step(
             "Panel Variant runtime検証/適用",

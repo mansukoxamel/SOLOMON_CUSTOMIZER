@@ -87,7 +87,9 @@ verbatim コピーするため file offset 不変):
 #                                 からコピー。死亡後one-shot skipで消えた
 #                                 ひび割れ下地を描画前に$01へ戻し、
 #                                 対応mask bitも消して中身再注入を防ぐ。
-#   $0770       WARP_MIRROR_STATE bit5=mode, bit6=cooldown
+#   $0770       GAMEPLAY_STAGE_FLAGS bit4=enemy-clear key open mode,
+#                               bit5=warp mirror mode, bit6=warp cooldown,
+#                               bit7=enemy-clear key open fired latch
 #   $0771-$0777 ENTITY_TAIL_CANDIDATE 補助候補7B          要probe
 #   $0778       ROOMFLAGS       room flag table cache         予約済(使用中)
 #   $0779       DARK_PHASE      暗闇 明滅フェーズカウンタ      予約済(使用中)
@@ -108,7 +110,9 @@ verbatim コピーするため file offset 不変):
 #   ・file 0x8800-0x8A0F : StageExtTable
 #   ・file 0x8A10-0x8A6F : Panel Variant combined runtime loader
 #   ・file 0x8A70-0x8A75 : Panel Variant settings table
-#   ・file 0x8A82-0x8E7F : PanelVariant PRG1 reserve
+#   ・file 0x8A76-0x8A8B : StageExt gameplay flag helper
+#     (StageExt byte0 bit5/bit6 → $0770 bit5/bit4)
+#   ・file 0x8A8C-0x8E7F : PanelVariant PRG1 reserve
 #   ・file 0x8E80-0x8EAA : visible item mask copy helper
 #   ・file 0x8EAB-0x8EEA : Solomon Seal block-state table
 #     (64B, 1 byte/room。StageExt loader が $077D へコピー)
@@ -166,7 +170,9 @@ verbatim コピーするため file offset 不変):
 #   $0740-$074F PANEL_VARIANT_SETTINGS Panel stage-variant runtime settings copy, reserved in use
 #   $0750-$0767 VISIBLE_INBLOCK_ITEM_MASK visible item in-block runtime mask, reserved in use
 #   $0768-$076F CRACKED_INBLOCK_LIST   cracked in-block item cell list, reserved in use
-#   $0770       WARP_MIRROR_STATE bit5=mode, bit6=cooldown
+#   $0770       GAMEPLAY_STAGE_FLAGS bit4=enemy-clear key open mode,
+#                               bit5=warp mirror mode, bit6=warp cooldown,
+#                               bit7=enemy-clear key open fired latch
 #   $0771-$0777 ENTITY_TAIL_CANDIDATE  secondary 7-byte candidate, probe before use
 #   $0778       ROOMFLAGS              room flag table cache, reserved in use
 #   $0779       DARK_PHASE             dark-room phase counter, reserved in use
@@ -458,6 +464,7 @@ def _verify(rom_data) -> None:
     from . import key_enemy_runtime as _ker
     from . import final_stage_redirect as _fsr
     from . import new_enemy_runtime as _ner
+    from . import enemy_clear_key_open as _ecko
     expanded = len(rom_data) == 0x18010
     table_spans = ((OFF_DOORTAB, ROOM_COUNT * 2),) if expanded else (
         (OFF_DOORTAB, ROOM_COUNT),
@@ -494,6 +501,7 @@ def _verify(rom_data) -> None:
         *_ner.RESERVED_SPANS,                # New enemy dispatcher and Ice Flame runtime
         *_ker.RESERVED_SPANS,                # Key-carrying initial enemy runtime
         *_fsr.RESERVED_SPANS,                # Clear this room, then load final room
+        *_ecko.RESERVED_SPANS,               # Open key door when enemy slots are gone
     )
     for i in range(OFF_CAVE_FREE0, OFF_CAVE_FREE1):
         if rom_data[i] in (0xEA, 0x00):
