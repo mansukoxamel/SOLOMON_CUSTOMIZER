@@ -231,7 +231,8 @@ def _collect_level_warnings(level, stage_index: int) -> list[str]:
         warnings.append(f"{label}: このステージには扉を配置しない想定です。")
 
     if level.is_key_removed():
-        if check_required_meta and not has_open_door_item:
+        keyless_exit_by_enemy_clear = stage_ext.enemy_clear_key_open_enabled(level)
+        if check_required_meta and not has_open_door_item and not keyless_exit_by_enemy_clear:
             warnings.append(f"{label}: 鍵が配置されておらず、Open Doorもありません。")
         if stage_index != 49 and not level.is_door_removed():
             warnings.append(f"{label}: 鍵が削除されていますが扉が残っています。")

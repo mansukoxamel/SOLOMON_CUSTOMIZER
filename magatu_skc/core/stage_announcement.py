@@ -33,11 +33,11 @@ OFF_MAIN = 0x6B06
 OFF_MASK_TABLE = 0x6B24
 OFF_DRAW = 0x6B29
 OFF_PTR_TABLE = 0x6B42
-OFF_KEY_GATE = 0x6B52
-OFF_FAIRY_GATE = 0x6B5F
-OFF_WARP_GATE = 0x6B6C
-OFF_FREE_AFTER_STAGE_ANNOUNCEMENT = 0x6BEC
-FREE_AFTER_STAGE_ANNOUNCEMENT_LEN = 24
+OFF_KEY_GATE = 0x6B54
+OFF_FAIRY_GATE = 0x6B6B
+OFF_WARP_GATE = 0x6B78
+OFF_FREE_AFTER_STAGE_ANNOUNCEMENT = 0x6C04
+FREE_AFTER_STAGE_ANNOUNCEMENT_LEN = 0
 
 CPU_MAIN = _cpu(OFF_MAIN)
 CPU_MASK_TABLE = _cpu(OFF_MASK_TABLE)
@@ -67,7 +67,7 @@ K_TILE_BYTES = bytes.fromhex("f2 f4 fc f2 f2 f2 00 00 f2 f4 fc f2 f2 f2 00 00")
 P_TILE_BYTES = bytes.fromhex("fc f2 f2 f2 fc f0 00 00 fc f2 f2 f2 fc f0 00 00")
 
 
-SCRIPT_SPECS = (
+OLD_SCRIPT_SPECS = (
     (0x6B79, 21, 4, "DARK ROOM"),
     (0x6B86, 23, 4, "FIRE LOSS"),
     (0x6B93, 21, 17, "HIDDEN DOOR"),
@@ -76,6 +76,18 @@ SCRIPT_SPECS = (
     (0x6BC1, 25, 4, "KEY ENEMY"),
     (0x6BCE, 27, 4, "FAIRY ENEMY"),
     (0x6BDD, 27, 17, "MIRROR LINK"),
+)
+
+SCRIPT_SPECS = (
+    (0x6B85, 21, 4, "DARK ROOM"),
+    (0x6B92, 23, 4, "FIRE LOSS"),
+    (0x6B9F, 21, 17, "HIDDEN DOOR"),
+    (0x6BAE, 23, 17, "FIRE SEALED"),
+    (0x6BBD, 25, 17, "SPELL SEALED"),
+    (0x6BCD, 25, 4, "KEY ENEMY"),
+    (0x6BDA, 25, 4, "ALL KILL"),
+    (0x6BE6, 27, 4, "FAIRY ENEMY"),
+    (0x6BF5, 27, 17, "MIRROR LINK"),
 )
 
 ROOM_FLAG_MASKS = bytes((
@@ -110,9 +122,14 @@ def _build_script(row: int, col: int, text: str) -> bytes:
 
 
 SCRIPTS = tuple((off, _build_script(row, col, text), text) for off, row, col, text in SCRIPT_SPECS)
+OLD_SCRIPTS = tuple((off, _build_script(row, col, text), text) for off, row, col, text in OLD_SCRIPT_SPECS)
 
 
-def _build_main() -> bytes:
+def _build_main(
+    cpu_key_gate: int = CPU_KEY_GATE,
+    cpu_fairy_gate: int = CPU_FAIRY_GATE,
+    cpu_warp_gate: int = CPU_WARP_GATE,
+) -> bytes:
     b = bytearray()
     b += b"\xa2\x00"                     # LDX #0
     loop = len(b)
@@ -123,14 +140,14 @@ def _build_main() -> bytes:
     b += bytes((0x20, *(_word(CPU_DRAW)))) # JSR draw
     b += b"\xe8\xe0\x05"                 # INX / CPX #5
     b += bytes((0xD0, (loop - (len(b) + 2)) & 0xFF))
-    b += bytes((0x20, *(_word(CPU_KEY_GATE))))
-    b += bytes((0x20, *(_word(CPU_FAIRY_GATE))))
-    b += bytes((0x20, *(_word(CPU_WARP_GATE))))
+    b += bytes((0x20, *(_word(cpu_key_gate))))
+    b += bytes((0x20, *(_word(cpu_fairy_gate))))
+    b += bytes((0x20, *(_word(cpu_warp_gate))))
     b += b"\x4c\x5e\x91"                 # Preserve stock intro update last.
     return bytes(b)
 
 
-def _build_draw() -> bytes:
+def _build_draw(script_count: int = len(SCRIPTS)) -> bytes:
     b = bytearray()
     b += b"\x8a\x48"                     # TXA / PHA: keep caller loop index.
     wait = CPU_DRAW + len(b)
@@ -140,7 +157,7 @@ def _build_draw() -> bytes:
     b += b"\x68\xaa"                     # PLA / TAX
     b += bytes((0xBD, CPU_PTR_TABLE & 0xFF, CPU_PTR_TABLE >> 8))
     b += b"\x85\x1a"
-    b += bytes((0xBD, (CPU_PTR_TABLE + len(SCRIPTS)) & 0xFF, (CPU_PTR_TABLE + len(SCRIPTS)) >> 8))
+    b += bytes((0xBD, (CPU_PTR_TABLE + script_count) & 0xFF, (CPU_PTR_TABLE + script_count) >> 8))
     b += b"\x85\x1b\x60"
     return bytes(b)
 
@@ -150,11 +167,19 @@ def _build_ptr_table() -> bytes:
     return bytes(a & 0xFF for a in addrs) + bytes(a >> 8 for a in addrs)
 
 
+def _build_old_ptr_table() -> bytes:
+    addrs = [_cpu(off) for off, _script, _text in OLD_SCRIPTS]
+    return bytes(a & 0xFF for a in addrs) + bytes(a >> 8 for a in addrs)
+
+
 def _build_key_gate() -> bytes:
     return (
-        b"\xad\x2b\x07\xc9\xff\xf0\x05" +
+        b"\xad\x2b\x07\x30\x05" +
         b"\xa2\x05" +
-        bytes((0x20, *(_word(CPU_DRAW)))) +
+        bytes((0x4C, *(_word(CPU_DRAW)))) +
+        b"\xad\x70\x07\x29\x10\xf0\x05" +
+        b"\xa2\x06" +
+        bytes((0x4C, *(_word(CPU_DRAW)))) +
         b"\x60"
     )
 
@@ -162,7 +187,7 @@ def _build_key_gate() -> bytes:
 def _build_fairy_gate() -> bytes:
     return (
         b"\xad\x7e\x07\xc9\xff\xf0\x05" +
-        b"\xa2\x06" +
+        b"\xa2\x07" +
         bytes((0x20, *(_word(CPU_DRAW)))) +
         b"\x60"
     )
@@ -171,18 +196,68 @@ def _build_fairy_gate() -> bytes:
 def _build_warp_gate() -> bytes:
     return (
         b"\xad\x70\x07\x29\x20\xf0\x05" +
+        b"\xa2\x08" +
+        bytes((0x20, *(_word(CPU_DRAW)))) +
+        b"\x60"
+    )
+
+
+def _build_old_key_gate() -> bytes:
+    return (
+        b"\xad\x2b\x07\xc9\xff\xf0\x05" +
+        b"\xa2\x05" +
+        bytes((0x20, *(_word(CPU_DRAW)))) +
+        b"\x60"
+    )
+
+
+def _build_old_fairy_gate() -> bytes:
+    return (
+        b"\xad\x7e\x07\xc9\xff\xf0\x05" +
+        b"\xa2\x06" +
+        bytes((0x20, *(_word(CPU_DRAW)))) +
+        b"\x60"
+    )
+
+
+def _build_old_warp_gate() -> bytes:
+    return (
+        b"\xad\x70\x07\x29\x20\xf0\x05" +
         b"\xa2\x07" +
         bytes((0x20, *(_word(CPU_DRAW)))) +
         b"\x60"
     )
 
 
+def _build_layout_blob(segments: tuple[tuple[int, bytes], ...], end_off: int) -> bytes:
+    blob = bytearray([0xEA] * (end_off - OFF_MAIN))
+    for off, segment in segments:
+        start = off - OFF_MAIN
+        blob[start:start + len(segment)] = segment
+    return bytes(blob)
+
+
 MAIN = _build_main()
 DRAW = _build_draw()
+OLD_DRAW = _build_draw(len(OLD_SCRIPTS))
 PTR_TABLE = _build_ptr_table()
 KEY_GATE = _build_key_gate()
 FAIRY_GATE = _build_fairy_gate()
 WARP_GATE = _build_warp_gate()
+
+OLD_KEY_GATE = _build_old_key_gate()
+OLD_FAIRY_GATE = _build_old_fairy_gate()
+OLD_WARP_GATE = _build_old_warp_gate()
+OLD_LAYOUT = _build_layout_blob((
+    (OFF_MAIN, _build_main(_cpu(0x6B52), _cpu(0x6B5F), _cpu(0x6B6C))),
+    (OFF_MASK_TABLE, ROOM_FLAG_MASKS),
+    (OFF_DRAW, OLD_DRAW),
+    (OFF_PTR_TABLE, _build_old_ptr_table()),
+    (0x6B52, OLD_KEY_GATE),
+    (0x6B5F, OLD_FAIRY_GATE),
+    (0x6B6C, OLD_WARP_GATE),
+    *[(off, script) for off, script, _text in OLD_SCRIPTS],
+), OFF_FREE_AFTER_STAGE_ANNOUNCEMENT)
 
 RESERVED_SPANS = (
     (OFF_MAIN, len(MAIN)),
@@ -198,7 +273,7 @@ RESERVED_SPANS = (
 assert OFF_FREE_AFTER_STAGE_ANNOUNCEMENT == OFF_WARP_GATE + len(WARP_GATE) + sum(
     len(script) for _off, script, _text in SCRIPTS
 )
-assert FREE_AFTER_STAGE_ANNOUNCEMENT_LEN == 24
+assert FREE_AFTER_STAGE_ANNOUNCEMENT_LEN == 0
 
 
 def _chr_start(rom_data: bytes) -> int:
@@ -229,6 +304,13 @@ def _ensure_available(
     )
 
 
+def _old_layout_slice(off: int, length: int) -> bytes:
+    start = off - OFF_MAIN
+    if start < 0 or start + length > len(OLD_LAYOUT):
+        return b""
+    return OLD_LAYOUT[start:start + length]
+
+
 def is_needed(levels: list, runtime_room_flags: list[int]) -> bool:
     for i, level in enumerate(levels):
         flags = runtime_room_flags[i] if i < len(runtime_room_flags) else 0
@@ -238,6 +320,8 @@ def is_needed(levels: list, runtime_room_flags: list[int]) -> bool:
                     room_flags.BIT_NO_ASTONE):
             return True
         if stage_ext.key_enemy_enabled(level):
+            return True
+        if stage_ext.enemy_clear_key_open_enabled(level):
             return True
         if stage_ext.fairy_enemy_enabled(level):
             return True
@@ -265,7 +349,8 @@ def apply(rom_data: bytearray, levels: list, runtime_room_flags: list[int]) -> l
         (OFF_WARP_GATE, WARP_GATE, "stage announcement warp gate"),
         *[(off, script, f"stage announcement script {text}") for off, script, text in SCRIPTS],
     ):
-        _ensure_available(rom_data, off, blob, name)
+        old = _old_layout_slice(off, len(blob))
+        _ensure_available(rom_data, off, blob, name, (old,) if old else ())
 
     _write(rom_data, OFF_MAIN, MAIN, changed, "stage announcement main")
     _write(rom_data, OFF_MASK_TABLE, ROOM_FLAG_MASKS, changed, "stage announcement mask table")

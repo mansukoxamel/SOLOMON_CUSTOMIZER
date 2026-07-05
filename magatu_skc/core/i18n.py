@@ -1128,12 +1128,24 @@ _TRANSLATIONS = {
         "en": "When Dana touches a mirror in this stage, warp to the other mirror.",
     },
     "main.stage.enemy_clear_key_open": {
-        "ja": "全敵消滅で扉オープン",
-        "en": "Open Door When Enemies Are Gone",
+        "ja": "オールキルモード",
+        "en": "Kill-All Mode",
     },
     "main.stage.enemy_clear_key_open.tooltip": {
-        "ja": "この面で敵スロットが空になった時、鍵取得と同じ扉オープン演出を発生させます。",
-        "en": "When this stage's enemy slots are empty, trigger the same door-opening effect as picking up the key.",
+        "ja": "この面で敵が全滅すると、鍵取得と同じ演出で扉がオープンします。",
+        "en": "When all enemies are defeated in this stage, the door opens with the same effect as picking up the key.",
+    },
+    "main.status.enemy_clear_key_open_blocked": {
+        "ja": "オールキルモードは、画面上に初期配置敵が1体以上必要です",
+        "en": "Kill-All Mode requires at least one initially placed enemy on the screen.",
+    },
+    "main.status.enemy_clear_key_open_key_enemy_blocked": {
+        "ja": "オールキルモードと鍵持ち敵は同時にONにできません",
+        "en": "Kill-All Mode and a key-carrying enemy cannot both be enabled.",
+    },
+    "main.status.enemy_clear_key_open_apply_all_skipped": {
+        "ja": "オールキルモードを適用しました（{count}面変更 / 条件不成立 {skipped}面はOFF）",
+        "en": "Applied Kill-All Mode ({count} changed / {skipped} invalid stages were turned off).",
     },
     "main.stage.restrictions.apply_one_all": {
         "ja": "現在の状態を全53面に適用（{name}）",

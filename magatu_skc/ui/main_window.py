@@ -2390,12 +2390,12 @@ class MainWindow(QMainWindow):
         form.addRow("", self.chk_warp_mirror)
 
         self.chk_enemy_clear_key_open = QCheckBox(
-            t("main.stage.enemy_clear_key_open", "全敵消滅で扉オープン")
+            t("main.stage.enemy_clear_key_open", "オールキルモード")
         )
         self.chk_enemy_clear_key_open.setToolTip(
             t(
                 "main.stage.enemy_clear_key_open.tooltip",
-                "この面で敵スロットが空になった時、鍵取得と同じ扉オープン演出を発生させます。",
+                "この面で敵が全滅すると、鍵取得と同じ演出で扉がオープンします。",
             )
         )
         self.chk_enemy_clear_key_open.toggled.connect(self._on_meta_enemy_clear_key_open_toggled)
@@ -9110,7 +9110,10 @@ class MainWindow(QMainWindow):
         return f"{reason}のOpen Doorは編集できません"
 
     def _can_delete_key_meta(self, lv) -> bool:
-        return bool(self._level_has_open_door_item(lv))
+        return bool(
+            self._level_has_open_door_item(lv)
+            or stage_ext.enemy_clear_key_open_enabled(lv)
+        )
 
     def _can_delete_door_meta(self, lv) -> bool:
         return bool(self._level_has_open_door_item(lv))
@@ -12088,7 +12091,7 @@ class MainWindow(QMainWindow):
             "dark": t("main.stage.dark", "暗闇モード"),
             "fire_reset": t("main.stage.fire_reset", "ファイアリセットモード"),
             "warp_mirror": t("main.stage.warp_mirror", "ワープミラーモード"),
-            "enemy_clear_key_open": t("main.stage.enemy_clear_key_open", "全敵消滅で扉オープン"),
+            "enemy_clear_key_open": t("main.stage.enemy_clear_key_open", "オールキルモード"),
         }
         return labels.get(key, key)
 
@@ -12148,6 +12151,9 @@ class MainWindow(QMainWindow):
                 return False
         return True
 
+    def _enemy_clear_key_open_can_enable(self, level) -> bool:
+        return bool(getattr(level, "enemies", []) or [])
+
     def _set_stage_restriction_level_value(self, level, key: str, enabled: bool) -> None:
         from ..core import room_flags as _rf
         from ..core import stage_ext as _se
@@ -12179,6 +12185,15 @@ class MainWindow(QMainWindow):
             _se.set_warp_mirror_enabled(level, enabled)
             return
         if key == "enemy_clear_key_open":
+            if (
+                enabled
+                and (
+                    not self._enemy_clear_key_open_can_enable(level)
+                    or _se.get_key_enemy_number(level) > 0
+                )
+            ):
+                _se.set_enemy_clear_key_open_enabled(level, False)
+                return
             _se.set_enemy_clear_key_open_enabled(level, enabled)
             return
         raise KeyError(key)
@@ -12228,6 +12243,15 @@ class MainWindow(QMainWindow):
             for key, enabled in values.items():
                 if key == "warp_mirror" and enabled and not self._warp_mirror_can_enable(level):
                     skipped_invalid += 1
+                elif (
+                    key == "enemy_clear_key_open"
+                    and enabled
+                    and (
+                        not self._enemy_clear_key_open_can_enable(level)
+                        or stage_ext.get_key_enemy_number(level) > 0
+                    )
+                ):
+                    skipped_invalid += 1
                 self._set_stage_restriction_level_value(level, key, enabled)
         self._load_meta_to_ui()
         self._refresh_changed_stages(changed_levels)
@@ -12238,6 +12262,15 @@ class MainWindow(QMainWindow):
                 t(
                     "main.status.warp_mirror_apply_all_skipped",
                     "ワープミラーモードを適用しました（{count}面変更 / 条件不成立 {skipped}面はOFF）",
+                ).format(name=detail, count=len(changed_levels) - skipped_invalid, skipped=skipped_invalid),
+                4000,
+            )
+            return
+        if key == "enemy_clear_key_open" and values[key] and skipped_invalid:
+            self.statusBar().showMessage(
+                t(
+                    "main.status.enemy_clear_key_open_apply_all_skipped",
+                    "オールキルモードを適用しました（{count}面変更 / 条件不成立 {skipped}面はOFF）",
                 ).format(name=detail, count=len(changed_levels) - skipped_invalid, skipped=skipped_invalid),
                 4000,
             )
@@ -12394,9 +12427,37 @@ class MainWindow(QMainWindow):
             return
         if self._reject_read_only_edit():
             return
-        self._push_undo()
         from ..core import stage_ext as _se
         lv = self.levels[self.current_level_no]
+        if checked and not self._enemy_clear_key_open_can_enable(lv):
+            self._meta_loading = True
+            try:
+                self.chk_enemy_clear_key_open.setChecked(False)
+            finally:
+                self._meta_loading = False
+            self.statusBar().showMessage(
+                t(
+                    "main.status.enemy_clear_key_open_blocked",
+                    "オールキルモードは、画面上に初期配置敵が1体以上必要です",
+                ),
+                3500,
+            )
+            return
+        if checked and stage_ext.get_key_enemy_number(lv) > 0:
+            self._meta_loading = True
+            try:
+                self.chk_enemy_clear_key_open.setChecked(False)
+            finally:
+                self._meta_loading = False
+            self.statusBar().showMessage(
+                t(
+                    "main.status.enemy_clear_key_open_key_enemy_blocked",
+                    "オールキルモードと鍵持ち敵は同時にONにできません",
+                ),
+                3500,
+            )
+            return
+        self._push_undo()
         _se.set_enemy_clear_key_open_enabled(lv, checked)
         self._set_dirty(True)
         self._update_info()
@@ -12439,6 +12500,16 @@ class MainWindow(QMainWindow):
                 t(
                     "main.status.key_enemy_set_blocked_no_key",
                     "鍵メタが無いステージには鍵持ち敵を設定できません",
+                ),
+                3000,
+            )
+            self._refresh_key_enemy_spin_range()
+            return
+        if int(enemy_number) > 0 and _se.enemy_clear_key_open_enabled(lv):
+            self.statusBar().showMessage(
+                t(
+                    "main.status.enemy_clear_key_open_key_enemy_blocked",
+                    "オールキルモードと鍵持ち敵は同時にONにできません",
                 ),
                 3000,
             )
