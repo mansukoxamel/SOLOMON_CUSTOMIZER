@@ -107,6 +107,14 @@ def level_to_xml_element(level: Level) -> ET.Element:
             e.set("no", str(i))
             e.set("position", _pos_str(pos))
 
+    special_cells = sorted(getattr(level, "special_item_cells", set()))
+    if special_cells:
+        special = ET.SubElement(lv, "special_items")
+        for i, pos in enumerate(special_cells):
+            e = ET.SubElement(special, "cell")
+            e.set("no", str(i))
+            e.set("position", _pos_str(pos))
+
     # breakable white wall markers. The actual block is still stored as Wall.WHITE.
     bw_cells = sorted(getattr(level, "breakable_white_cells", set()))
     if bw_cells:
@@ -339,6 +347,16 @@ def xml_element_to_level(level_elem: ET.Element) -> Level:
             if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H and pos in item_positions:
                 lv.visible_in_block_item_cells.add(pos)
                 lv.tiles[y][x] = Wall.NONE
+
+    lv.special_item_cells = set()
+    special_elem = level_elem.find("special_items")
+    if special_elem is not None:
+        item_positions = {it.position for it in lv.items}
+        for cell in special_elem.findall("cell"):
+            pos = _parse_pos(cell.attrib["position"])
+            x, y = pos
+            if 0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H and pos in item_positions:
+                lv.special_item_cells.add(pos)
 
     lv.breakable_white_cells = set()
     bw_elem = level_elem.find("breakable_white")

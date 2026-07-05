@@ -389,17 +389,12 @@ def save_levels_to_rom(
             rom.data,
             levels,
         )
-        _run_save_step(
-            "Fire x2 item runtime検証/適用",
-            fire2_item_runtime.apply,
-            rom.data,
-        )
     elif new_enemy_runtime.levels_need_runtime(levels):
         raise SaveError("新敵ID ($84/$85) はmapper66拡張ROM保存専用です。")
     elif enemy_clear_key_open.levels_need_runtime(levels):
         raise SaveError("全敵消滅で扉を開く機能はmapper66拡張ROM保存専用です。")
     elif fire2_item_runtime.levels_need_runtime(levels):
-        raise SaveError("Fire/Fairy x2 item ($34/$35) はmapper66拡張ROM保存専用です。")
+        raise SaveError("Fire/Fairy x2 special item はmapper66拡張ROM保存専用です。")
     if rom.is_expanded():
         _run_save_step(
             "Panel Variant runtime検証/適用",
@@ -407,6 +402,12 @@ def save_levels_to_rom(
             rom.data,
             levels,
             panel_variant_settings,
+        )
+        _run_save_step(
+            "Fire/Fairy x2 special item runtime検証/適用",
+            fire2_item_runtime.apply,
+            rom.data,
+            levels,
         )
     if rom.is_expanded():
         from . import rom_metadata

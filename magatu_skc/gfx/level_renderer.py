@@ -298,9 +298,19 @@ class LevelRenderer:
         for item in level.items:
             base = item.get_item_no()
             flag = item.element_no & 0xC0
+            special_item = item.position in getattr(level, "special_item_cells", set())
+            display_base = base
+            if special_item:
+                from ..core import fire2_item_runtime as _special_items
+                for pseudo, actual in _special_items.SPECIAL_ITEM_UI_TO_BASE.items():
+                    if base == actual:
+                        display_base = pseudo
+                        break
             name = short(getattr(self.config, "item_desc", {}).get(
-                base, f"item {base:02X}"))
+                display_base, f"item {display_base:02X}"))
             prefix = ""
+            if special_item:
+                prefix = "SP:"
             if item.position in getattr(level, "visible_in_block_item_cells", set()):
                 prefix = "見:"
             elif flag == 0x40:
@@ -562,7 +572,14 @@ class LevelRenderer:
                 ix, iy = item.position
                 if not (0 <= ix < c.LEVEL_W and 0 <= iy < c.LEVEL_H):
                     continue
-                anim = self.get_item_animation(item.get_item_no())
+                item_no = item.get_item_no()
+                if item.position in getattr(level, "special_item_cells", set()):
+                    from ..core import fire2_item_runtime as _special_items
+                    for pseudo, actual in _special_items.SPECIAL_ITEM_UI_TO_BASE.items():
+                        if item_no == actual:
+                            item_no = pseudo
+                            break
+                anim = self.get_item_animation(item_no)
                 item_img = self.tr.get_tile_image(
                     anim, ts_no, transparent=None, bg_main_color=wall_color)
 

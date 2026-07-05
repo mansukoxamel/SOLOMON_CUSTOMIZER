@@ -71,10 +71,11 @@ verbatim コピーするため file offset 不変):
 #                                 level load で grid 全再init される前提。
 #                               ・他機能はこの帯を ★title描画中に触らない。
 #   $073A-$073F ENTITY_TAIL_CANDIDATE 補助候補6B          要probe
-#   $0740-$074F ENTITY_TAIL_CANDIDATE 補助候補16B         要probe
-#                               ・Panel Variant settings copy跡。
-#                               ・現行Panel VariantはPRG0 0x62ED-0x62F2
-#                                 の6B settings tableを直接読む。
+#   $0740-$074F SPECIAL_ITEM_CELLS Fire/Fairy x2特殊アイテム位置リスト
+#                               予約済(使用中)
+#                               ・mapper66 loader がPRG1 tableから現在部屋の
+#                                 16セルリストをコピー。$FF=空き。
+#                               ・Panel Variant settings copy跡を再利用。
 #   $0750-$0767 VISIBLE_INBLOCK_ITEM_MASK 透明ブロック内アイテムbitmask 予約済(使用中)
 #                               ・mapper66 loader がPRG1 0xF860 tableから24Bコピー。
 #                               ・$E234 helper がNMI中に破壊的shiftで参照。
@@ -119,7 +120,10 @@ verbatim コピーするため file offset 不変):
 #   ・file 0x9019-0x904C : mapper66 respawn direct-cell copy helper
 #   ・file 0x904D-0x908F : cracked in-block one-shot respawn helper
 #   ・file 0x9090-0x927F : wide-title ending renderer
-#   ・file 0x9280-0xBB95 : PRG1 general reserve
+#   ・file 0x9280-0x92F3 : Fire/Fairy x2 special item loader helper
+#   ・file 0x92F4-0x930F : PRG1 general reserve gap
+#   ・file 0x9310-0x970F : Fire/Fairy x2 special item position table
+#   ・file 0x9710-0xBB95 : PRG1 general reserve
 #     (bank1 を使う改造を足すときは必ず上記予約を避ける)。
 #   ・file 0xBB96   : SW byte = $FF 固定 (bank-switch bus-conflict
 #     用。CPU $BB86。title_screen._WT_SW_B1_OFF)。データで踏まない。
@@ -130,8 +134,8 @@ verbatim コピーするため file offset 不変):
 #   ・$0723-$077F = entity終端後の隙間。ramfree3_probe 285秒・
 #     面$02/$04/$05/$08・妖精×4・死亡 で実機沈黙確認。
 #     → v0.7.72で旧特殊ブロック32Bリストを廃止し、v0.7.149時点で
-#        $0740-$074F はPanel Variant settings copyとして予約したが、
-#        現行ではPRG0 settings tableへ戻して補助候補16Bにした。
+#        $0740-$074F はPanel Variant settings copyとして予約した後、
+#        現行ではFire/Fairy x2特殊アイテム位置リストとして使用中。
 #        $0750-$0767 は透明ブロック内アイテムruntime maskとして予約済み。
 #        $073A-$073F / $0771-$0777 は補助候補だが、
 #        沈黙でも構造保証は弱いので正式使用前に用途別probe必須。
@@ -151,7 +155,7 @@ verbatim コピーするため file offset 不変):
 #   1. ★まず "増やさない" を検討。既存値から再計算できないか?
 #      例: room flag は $0428→$C1C0,X ROMテーブル再読込で RAM不要化可。
 #          暗闇周期も $043C/$043D(global frame counter)から導出余地。
-#   2. まとまったRAMが必要 → $0740-$074F / $0771-$0777 を候補にする。
+#   2. まとまったRAMが必要 → $0771-$0777 を候補にする。
 #      小フラグだけでも予約済み範囲は使わない。
 #      用途名を決めて上の表に追記してからコードで使う。
 #   3. 長期保存 / 毎NMI書込 / 複数バイト連続使用 → ★再プローブ必須
@@ -165,7 +169,7 @@ verbatim コピーするため file offset 不変):
 # Current custom RAM ledger (ASCII mirror, keep this in sync with docs/ram_map_current.html):
 #   $0723-$072B KEY_ENEMY_RUNTIME      key-carrying enemy runtime, reserved in use
 #   $073A-$073F ENTITY_TAIL_CANDIDATE  secondary 6-byte candidate, probe before use
-#   $0740-$074F ENTITY_TAIL_CANDIDATE  secondary 16-byte candidate, probe before use
+#   $0740-$074F SPECIAL_ITEM_CELLS     Fire/Fairy x2 special item cell list, reserved in use
 #   $0750-$0767 VISIBLE_INBLOCK_ITEM_MASK visible item in-block runtime mask, reserved in use
 #   $0768-$076F CRACKED_INBLOCK_LIST   cracked in-block item cell list, reserved in use
 #   $0770       GAMEPLAY_STAGE_FLAGS bit4=enemy-clear key open mode,

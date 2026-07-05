@@ -7182,6 +7182,7 @@ class MainWindow(QMainWindow):
             for item in lv.items
             if item.position == tile
         )
+        special_item = tile in getattr(lv, "special_item_cells", set())
         enemies = tuple(
             int(enemy.element_no)
             for enemy in lv.enemies
@@ -7208,6 +7209,7 @@ class MainWindow(QMainWindow):
             lv.tiles[y][x],
             markers,
             items,
+            special_item,
             enemies,
             tuple(meta),
         )
@@ -7758,6 +7760,9 @@ class MainWindow(QMainWindow):
             self._warn_demon_mirror_real_block_enemy_fall(lv, tile, value)
         elif mode == MODE_ITEM:
             tx, ty = tile
+            from ..core import fire2_item_runtime as _special_items
+            special_item_selected = int(value) in _special_items.SPECIAL_ITEM_UI_TO_BASE
+            item_value = _special_items.SPECIAL_ITEM_UI_TO_BASE.get(int(value), int(value))
 
             if tile in getattr(lv, "invisible_solid_cells", set()):
                 self.statusBar().showMessage(
@@ -7851,7 +7856,7 @@ class MainWindow(QMainWindow):
                 target_is_transparent_in_block
             )
             if picker_flag == c.ITEM_FLAG_CRACKED_IN_BLOCK:
-                base = value & 0x3F
+                base = item_value & 0x3F
                 if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                     self.statusBar().showMessage(
                         t("main.hover.item_state.cracked_blocked", "このアイテムはひび割れブロック内に入れられません: 0x{code:02X}").format(code=base),
@@ -7863,7 +7868,7 @@ class MainWindow(QMainWindow):
                 lv.cracked_block_cells.add(tile)
                 flag = c.ITEM_FLAG_NORMAL
             elif visible_in_block_item:
-                base = value & 0x3F
+                base = item_value & 0x3F
                 if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                     self.statusBar().showMessage(
                         t("main.hover.item_state.visible_blocked", "このアイテムは透明ブロック内に入れられません: 0x{code:02X}").format(code=base),
@@ -7879,7 +7884,7 @@ class MainWindow(QMainWindow):
                         2500,
                     )
             elif tile in getattr(lv, "breakable_white_cells", set()):
-                base = value & 0x3F
+                base = item_value & 0x3F
                 if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                     self.statusBar().showMessage(
                         t("main.hover.item_state.white_blocked", "このアイテムは白い壊せるブロック内に入れられません: 0x{code:02X}").format(code=base),
@@ -7910,7 +7915,7 @@ class MainWindow(QMainWindow):
                         2500,
                     )
             elif picker_flag == c.ITEM_FLAG_WHITE_IN_BLOCK:
-                base = value & 0x3F
+                base = item_value & 0x3F
                 if base > c.ITEM_WHITE_IN_BLOCK_MAX_BASE:
                     self.statusBar().showMessage(
                         t("main.hover.item_state.white_blocked", "このアイテムは白い壊せるブロック内に入れられません: 0x{code:02X}").format(code=base),
@@ -7923,7 +7928,11 @@ class MainWindow(QMainWindow):
             else:
                 flag = picker_flag
 
-            lv.add_item(value | flag, tile)
+            lv.add_item(item_value | flag, tile)
+            if special_item_selected:
+                lv.special_item_cells.add(tile)
+            else:
+                lv.special_item_cells.discard(tile)
             if visible_in_block_item:
                 lv.visible_in_block_item_cells.add(tile)
                 self._log(
@@ -9919,6 +9928,7 @@ class MainWindow(QMainWindow):
             "h": y2 - y1 + 1,
             "blocks": {},
             "runtime_markers": {},
+            "special_item_cells": set(),
             "items": [],
             "enemies": [],
             "meta": [],
@@ -9935,6 +9945,9 @@ class MainWindow(QMainWindow):
                     rel.add((mx - x1, my - y1))
             if rel:
                 clip["runtime_markers"][name] = rel
+        for sx, sy in getattr(lv, "special_item_cells", set()) or []:
+            if x1 <= sx <= x2 and y1 <= sy <= y2:
+                clip["special_item_cells"].add((sx - x1, sy - y1))
         for it in lv.items:
             ix, iy = it.position
             if x1 <= ix <= x2 and y1 <= iy <= y2:
@@ -10027,6 +10040,10 @@ class MainWindow(QMainWindow):
                 if idx >= 0:
                     lv.delete_item(idx)
                 lv.items.append(LevelElement(ElementType.ITEM, (tx, ty), it_data["element_no"]))
+                if (rx, ry) in (clip.get("special_item_cells") or set()):
+                    lv.special_item_cells.add((tx, ty))
+                else:
+                    lv.special_item_cells.discard((tx, ty))
         for en_data in clip["enemies"]:
             rx, ry = en_data["rel_pos"]
             tx, ty = ox + rx, oy + ry
@@ -10144,6 +10161,10 @@ class MainWindow(QMainWindow):
         lv.items = [it for it in lv.items
                     if self._is_protected_open_door_item(lv, it)
                     or not (x1 <= it.position[0] <= x2 and y1 <= it.position[1] <= y2)]
+        lv.special_item_cells = {
+            pos for pos in getattr(lv, "special_item_cells", set()) or set()
+            if not (x1 <= pos[0] <= x2 and y1 <= pos[1] <= y2)
+        }
         # 敵
         old_enemy_count = len(lv.enemies)
         lv.enemies = [en for en in lv.enemies
@@ -10190,6 +10211,15 @@ class MainWindow(QMainWindow):
                 else:
                     moved.add((cx, cy))
             setattr(lv, name, moved)
+
+        def flip_special_item_cells(fn):
+            moved = set()
+            for cx, cy in getattr(lv, "special_item_cells", set()) or set():
+                if x1 <= cx <= x2 and y1 <= cy <= y2:
+                    moved.add(fn(cx, cy))
+                else:
+                    moved.add((cx, cy))
+            lv.special_item_cells = moved
 
         def flip_meta_positions(fn, horizontal: bool):
             def in_selection(pos):
@@ -10339,6 +10369,7 @@ class MainWindow(QMainWindow):
             flip_meta_positions(flip_x, horizontal=True)
             for name in self._runtime_marker_names():
                 flip_marker_set(name, flip_x)
+            flip_special_item_cells(flip_x)
             flip_bonus_positions(flip_x)
             flip_mirror_enemy_codes_horizontal()
             _changed, skipped_shared = flip_conditional_breakable_markers(flip_x)
@@ -10372,6 +10403,7 @@ class MainWindow(QMainWindow):
             flip_meta_positions(flip_y, horizontal=False)
             for name in self._runtime_marker_names():
                 flip_marker_set(name, flip_y)
+            flip_special_item_cells(flip_y)
             flip_bonus_positions(flip_y)
             _changed, skipped_shared = flip_conditional_breakable_markers(flip_y)
             flip_bomb_jack_markers(flip_y)
@@ -10436,7 +10468,14 @@ class MainWindow(QMainWindow):
             it = lv.items[idx]
             base = it.element_no & 0x3F
             flag = it.element_no & 0xC0
-            self._set_picker_value(base, mode=MODE_ITEM)
+            picker_base = base
+            if tile in getattr(lv, "special_item_cells", set()):
+                from ..core import fire2_item_runtime as _special_items
+                for pseudo, actual in _special_items.SPECIAL_ITEM_UI_TO_BASE.items():
+                    if base == actual:
+                        picker_base = pseudo
+                        break
+            self._set_picker_value(picker_base, mode=MODE_ITEM)
             # フラグも反映
             if tile in getattr(lv, "visible_in_block_item_cells", set()):
                 self.picker.rb_flag_visible_in_block.setChecked(True)
@@ -10455,7 +10494,7 @@ class MainWindow(QMainWindow):
                 self.picker.rb_flag_normal.setChecked(True)
             self.statusBar().showMessage(
                 t("main.eyedropper.item", "スポイト: アイテム 0x{code:02X} を選択").format(
-                    code=base
+                    code=picker_base
                 ),
                 2000,
             )

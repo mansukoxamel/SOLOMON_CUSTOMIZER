@@ -80,6 +80,8 @@ class Level:
         self.invisible_solid_cells = set()
         # Normal-looking item cells converted to cracked white in-block items at runtime.
         self.visible_in_block_item_cells = set()
+        # Normal Firejar/Bell cells upgraded by the PRG runtime via a per-stage position list.
+        self.special_item_cells = set()
         # Cells drawn as brown wall but converted to empty space at runtime.
         self.passable_brown_cells = set()
         # Cells drawn as brown wall but converted to solid white wall at runtime.
@@ -247,6 +249,7 @@ class Level:
     def delete_item(self, index: int):
         if 0 <= index < len(self.items):
             self.visible_in_block_item_cells.discard(self.items[index].position)
+            self.special_item_cells.discard(self.items[index].position)
             del self.items[index]
 
     def delete_enemy(self, index: int):

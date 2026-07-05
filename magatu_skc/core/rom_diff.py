@@ -164,8 +164,8 @@ def _block_sig_label(sig: tuple) -> str:
 
 
 def _compare_items(diff: StageDiff, left, right):
-    left_items = Counter(_item_signature(item) for item in getattr(left, "items", []))
-    right_items = Counter(_item_signature(item) for item in getattr(right, "items", []))
+    left_items = Counter(_item_signature(left, item) for item in getattr(left, "items", []))
+    right_items = Counter(_item_signature(right, item) for item in getattr(right, "items", []))
     for sig, count in sorted((left_items - right_items).items()):
         diff.item_changes += count
         diff.details.append(f"アイテム削除: {_element_sig_label(sig)} x{count}")
@@ -174,12 +174,17 @@ def _compare_items(diff: StageDiff, left, right):
         diff.details.append(f"アイテム追加: {_element_sig_label(sig)} x{count}")
 
 
-def _item_signature(item) -> tuple:
+def _item_signature(level, item) -> tuple:
     x, y = item.position
-    return (int(item.element_no), int(x), int(y))
+    special = (int(x), int(y)) in getattr(level, "special_item_cells", set())
+    return (int(item.element_no), int(x), int(y), bool(special))
 
 
 def _element_sig_label(sig: tuple) -> str:
+    if len(sig) == 4:
+        element_no, x, y, special = sig
+        suffix = "+SP" if special else ""
+        return f"0x{element_no:02X}{suffix}@({x},{y})"
     element_no, x, y = sig
     return f"0x{element_no:02X}@({x},{y})"
 

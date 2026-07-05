@@ -429,6 +429,11 @@ def load_all_levels_m66(rom) -> list:
         panel_monster_stage_variant.read_table(bytes(rom.data), levels)
     except Exception:
         pass
+    try:
+        from . import fire2_item_runtime
+        fire2_item_runtime.read_table(bytes(rom.data), levels)
+    except Exception:
+        pass
     return levels
 
 
