@@ -1,5 +1,12 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.21 (2026-07-05) ワープミラーモードと開始画面表示を追加
+- ワープミラーモードをステージ設定に追加し、別々の位置にある可視ミラー2個を相互ワープとして使えるようにした。
+- 開始画面アナウンスを8項目へ拡張し、右下に `MIRROR LINK` を表示するようにした。
+- 開始画面表示の内部indexを修正し、既存の `FIRE SEALED` / `SPELL SEALED` が表示対象から外れないようにした。
+- Warp Mirror Mode runtimeは固定配置で常時書き、OFF面では原作アイテムセル判定へ戻るようにした。
+- ROM管理簿を更新し、Warp Mirror Mode runtime、Stage start announcement 8項目版、前後24B緩衝、実ROM上の連続EA空き範囲を記録した。
+
 ## v0.9.20 (2026-07-05) Spark85 runtimeを内部準備
 - 新しい敵ID `$85` 向けのSpark85 runtimeを内部実装し、New enemy共通入口から `$84` Ice Flame / `$85` Spark85 を振り分けるようにした。
 - init共通入口で敵ID判定のためにAを壊していた問題を修正し、非Spark85では原作init `$9D1C` へ入る前に元のAを復元するようにした。

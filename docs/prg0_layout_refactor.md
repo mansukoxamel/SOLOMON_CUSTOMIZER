@@ -179,7 +179,9 @@ PRG0追加プログラム側から見た一覧。
 
 - `stage_announcement` 本体: 230B
 - 前後の緩衝: 24B + 24B
-- 残り空き: `0x6C04-0x7004` / `$EBF4-$EFF4` の1,025B
+- 論理上の残り空き: `0x6C04-0x7004` / `$EBF4-$EFF4` の1,025B
+- 実ROM上の連続EA空き: `0x6BEC-0x7004` / `$EBDC-$EFF4` の1,049B
+  - 先頭24B `0x6BEC-0x6C03` は緩衝として扱うため、runtime配置候補からは分けて数える。
 
 新規配置では使わなくなる旧候補:
 
@@ -785,8 +787,8 @@ PRG0追加プログラム側から見た一覧。
 | `0x6A6E-0x6AED` | `$EA5E-$EADD` | 128B | `EA` | `warp_zone_trial` |
 | `0x6AEE-0x6B05` | `$EADE-$EAF5` | 24B | `EA` | buffer before `stage_announcement` |
 | `0x6B06-0x6BEB` | `$EAF6-$EBDB` | 230B | `EA` | `stage_announcement` |
-| `0x6BEC-0x6C03` | `$EBDC-$EBF3` | 24B | `EA` | buffer after `stage_announcement` |
-| `0x6C04-0x7004` | `$EBF4-$EFF4` | 1025B | `EA` | free |
+| `0x6BEC-0x6C03` | `$EBDC-$EBF3` | 24B | `EA` | buffer after `stage_announcement`; physically continuous with next free range |
+| `0x6C04-0x7004` | `$EBF4-$EFF4` | 1025B | `EA` | free; binary scanners see 1049B from `0x6BEC-0x7004` |
 | `0x7005-0x700F` | `$EFF5-$EFFF` | 11B | `EA` | `solomon_seal_block` |
 
 この範囲は、最終的には4096B先頭側へ詰め直して、routine本体と直後の空きを別管理する候補にする。
