@@ -132,13 +132,13 @@
     <item no="0x06" description="Key (glitch)" animation="5" />
     <item no="0x07" description="Open Door" animation="81" />
     <item no="0x08" description="Diamond (blue, modifiable)" animation="10" />
-    <item no="0x09" description="Firejar x2" animation="106" />
+    <item no="0x09" description="Firejar (blue, modifiable)" animation="77" />
     <item no="0x0a" description="Double Coin (gold, modifiable)" animation="79" />
     <item no="0x0b" description="Jewels (orange, modifiable)" animation="18" />
     <item no="0x0c" description="Diamond (orange, modifiable)" animation="11" />
     <item no="0x0d" description="Firejar (orange, modifiable)" animation="78" />
     <item no="0x0e" description="Scroll (modifiable)" animation="80" />
-    <item no="0x0f" description="Fairy x2" animation="107" />
+    <item no="0x0f" description="Bell (modifiable)" animation="76" />
     <item no="0x10" description="Nothing" animation="0" />
     <item no="0x11" description="Timebottle (half)" animation="37" />
     <item no="0x12" description="Timebottle (full)" animation="23" />
@@ -175,8 +175,8 @@
     <item no="0x31" description="Egyptian Head" animation="30" />
     <item no="0x32" description="Magic Lamp" animation="39" />
     <item no="0x33" description="E-bottle" animation="7" />
-    <item no="0x34" description="Glitch 1-Up" animation="82" />
-    <item no="0x35" description="Glitch 1-Up #2" animation="16" />
+    <item no="0x34" description="Firejar x2" animation="106" />
+    <item no="0x35" description="Fairy x2" animation="107" />
     <item no="0x36" description="Glitch 1-Up #3" animation="69" />
     <item no="0x37" description="Mini-Dana" animation="85" />
     <item no="0x38" description="Tecmo Bunny (white)" animation="83" />
@@ -718,9 +718,9 @@
       <tile no="102" palette_no="2" nes_tiles="376,466,394,466" />
       <tile no="103" palette_no="2" nes_tiles="264,467,314,467" />
       <tile no="104" palette_no="2" nes_tiles="344,467,346,467" />
-      <!-- custom item: Firejar x2 (item 0x09), same graphics as tile 12 with BG0 palette -->
+      <!-- custom item: Firejar x2 (item 0x34), same graphics as tile 12 with BG0 palette -->
       <tile no="106" palette_no="0" nes_tiles="352,357,358,359" />
-      <!-- custom item: Fairy x2 (item 0x0f), same graphics as Bell with BG0 palette -->
+      <!-- custom item: Fairy x2 (item 0x35), same graphics as Bell with BG0 palette -->
       <tile no="107" palette_no="0" nes_tiles="412,413,414,415" />
 
     </tile_definitions>

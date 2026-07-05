@@ -1,4 +1,4 @@
-"""Fire/Fairy x2 item runtime for item $09/$0F."""
+"""Fire/Fairy x2 item runtime for item $34/$35."""
 from __future__ import annotations
 
 
@@ -6,8 +6,8 @@ class Fire2ItemRuntimeError(ValueError):
     pass
 
 
-ITEM_FIRE2 = 0x09
-ITEM_FAIRY2 = 0x0F
+ITEM_FIRE2 = 0x34
+ITEM_FAIRY2 = 0x35
 
 OFF_ITEM_PICKUP_HOOK = 0x456B   # CPU $C55B
 CPU_ITEM_PICKUP_HOOK = 0xC55B
@@ -59,9 +59,9 @@ class _Asm:
 
 def _build_item_runtime() -> bytes:
     a = _Asm()
-    a.b(0xC9, ITEM_FIRE2)                  # CMP #$09
+    a.b(0xC9, ITEM_FIRE2)                  # CMP #$34
     a.rel(0xF0, "fire2")                  # BEQ fire2
-    a.b(0xC9, ITEM_FAIRY2)                 # CMP #$0F
+    a.b(0xC9, ITEM_FAIRY2)                 # CMP #$35
     a.rel(0xF0, "fairy2")                 # BEQ fairy2
     a.b(0xC9, 0x38)                       # original $C55B entry
     a.rel(0xB0, "rts")
@@ -103,9 +103,9 @@ def _build_item_runtime() -> bytes:
 
 def _build_draw_runtime(fire_metatile_cpu: int, fairy_metatile_cpu: int) -> bytes:
     a = _Asm()
-    a.b(0xC9, ITEM_FIRE2)                 # CMP #$09
+    a.b(0xC9, ITEM_FIRE2)                 # CMP #$34
     a.rel(0xF0, "fire2")
-    a.b(0xC9, ITEM_FAIRY2)                # CMP #$0F
+    a.b(0xC9, ITEM_FAIRY2)                # CMP #$35
     a.rel(0xF0, "fairy2")
     a.label("normal")
     a.b(0x0A, 0x0A, 0xA8)                 # original ASL; ASL; TAY
