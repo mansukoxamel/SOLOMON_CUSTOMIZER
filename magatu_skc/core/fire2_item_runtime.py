@@ -1,4 +1,4 @@
-"""Fire x2 item runtime for item $3A."""
+"""Fire x2 item runtime for item $09."""
 from __future__ import annotations
 
 
@@ -6,7 +6,7 @@ class Fire2ItemRuntimeError(ValueError):
     pass
 
 
-ITEM_FIRE2 = 0x3A
+ITEM_FIRE2 = 0x09
 
 OFF_ITEM_PICKUP_HOOK = 0x456B   # CPU $C55B
 CPU_ITEM_PICKUP_HOOK = 0xC55B
@@ -57,7 +57,7 @@ class _Asm:
 
 def _build_item_runtime() -> bytes:
     a = _Asm()
-    a.b(0xC9, ITEM_FIRE2)                  # CMP #$3A
+    a.b(0xC9, ITEM_FIRE2)                  # CMP #$09
     a.rel(0xF0, "fire2")                  # BEQ fire2
     a.b(0xC9, 0x38)                       # original $C55B entry
     a.rel(0xB0, "rts")
@@ -84,7 +84,7 @@ def _build_item_runtime() -> bytes:
 
 def _build_draw_runtime(custom_metatile_cpu: int) -> bytes:
     a = _Asm()
-    a.b(0xC9, ITEM_FIRE2)                 # CMP #$3A
+    a.b(0xC9, ITEM_FIRE2)                 # CMP #$09
     a.rel(0xD0, "normal")
     a.b(0xA9, custom_metatile_cpu & 0xFF)
     a.b(0x85, 0x06)
