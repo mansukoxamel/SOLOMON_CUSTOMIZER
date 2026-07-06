@@ -124,7 +124,7 @@
     <tr><td class="num">$0771</td><td>FAIRY2_DELAY</td><td class="ok">Customizer予約済</td><td>Fairy x2取得後、2体目の妖精spawn予約を約32フレーム遅らせるカウンタ。<code>$9F09</code> main-loop hookで毎フレーム減算し、0になった時だけ原作ベル処理 <code>$C7AA</code> を呼ぶ。</td></tr>
     <tr><td class="num">$0772-$0777</td><td>entity終端後の沈黙帯</td><td class="warn">補助候補 6B</td><td>旧特殊ブロック32Bリスト跡の残り。$0778/$0779等の予約RAMに隣接するため、$0750-$076Fより優先度は下げる。</td></tr>
     <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td class="ok">Customizer予約済</td><td>RoomFlagTableの現在部屋フラグcache。特殊扉(隠し/茶ブロック内/白ブロック内)/B禁止/A禁止/暗闇、bit4=ステージ開始時ファイヤー所持リセット、bit5=透明ブロック内アイテムmaskあり、bit6=特殊セル変換ありなど。</td></tr>
-    <tr><td class="num">$0779</td><td>DARK_PHASE</td><td class="ok">Customizer予約済</td><td>暗闇モードの明滅フェーズカウンタ。</td></tr>
+    <tr><td class="num">$0779</td><td>DARK_PHASE</td><td class="ok">Customizer予約済</td><td>暗闇モードの明滅フェーズカウンタ。暗フェーズ中でもダーナ火球slot <code>$05A7</code> bit7 が立つ間は明表示にするが、このカウンタ自体は進め続ける。</td></tr>
     <tr><td class="num">$077A-$077B</td><td>FINAL_STAGE_REDIRECT / legacy work</td><td class="ok">Customizer予約済</td><td><code>$077A</code> bit7 は現在部屋クリア後に次ステージを原作最終面へ差し替えるruntimeフラグ。mapper66部屋ロードruntimeがStageExtTable byte0 bit4からコピーする。<code>$077B</code> は旧一時値候補。</td></tr>
     <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td class="ok">Customizer予約済</td><td>mapper66 StageExt loader がPRG1からコピーする現在部屋の扉セル。特殊扉(隠し/茶ブロック内/白ブロック内)処理が参照。</td></tr>
     <tr><td class="num">$077D</td><td>SEAL_BLOCK_VALUE</td><td class="ok">Customizer予約済</td><td>mapper66 StageExt loader がPRG1のソロモンの紋章ブロック状態表からコピーする現在部屋の上書き値。<code>$00</code>=原作、<code>$A0</code>=茶ブロック内、<code>$E0</code>=白ブロック内。</td></tr>
@@ -139,7 +139,7 @@
     <tr><th>RAM</th><th>名前</th><th>使用機能</th><th>寿命</th><th>注意</th></tr>
     <tr><td class="num">$0723-$072B</td><td>KEY_ENEMY_RUNTIME</td><td>鍵持ち敵</td><td>部屋中常駐</td><td>ドロップ鍵の表示/取得/光輪演出位置補正、初期配置敵スロット対応に使用。</td></tr>
     <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td>Room Flag拡張</td><td>プレイ中常駐</td><td>LOADERが部屋開始時に <code>$0428</code> でRoomFlagTableを引いて書く。bit4はStageExtTableの fire reset、bit5/bit6は透明ブロック内アイテムmask/特殊セル変換の実行時専用フラグ。</td></tr>
-    <tr><td class="num">$0779</td><td>DARK_PHASE</td><td>暗闇面</td><td>プレイ中常駐</td><td>NMIで進む。旧 <code>$0461</code> はサウンド衝突で妖精SEループを起こしたため廃止。</td></tr>
+    <tr><td class="num">$0779</td><td>DARK_PHASE</td><td>暗闇面</td><td>プレイ中常駐</td><td>NMIで進む。暗フェーズ中でもダーナ火球slot <code>$05A7</code> bit7 が立つ間はBG-offを抑止する。旧 <code>$0461</code> はサウンド衝突で妖精SEループを起こしたため廃止。</td></tr>
     <tr><td class="num">$077A</td><td>FINAL_STAGE_REDIRECT</td><td>クリア後の最終面送り</td><td>部屋中常駐</td><td>bit7=この面クリア後、次ステージ番号を原作最終面へ差し替える。StageExtTable byte0 bit4からコピー。</td></tr>
     <tr><td class="num">$0740-$074F</td><td>SPECIAL_ITEM_CELLS</td><td>予約済</td><td>Special item</td><td>Panel Variant settings copy跡を再利用。通常アイテムID <code>0x15</code>/<code>0x18</code>/<code>0x08</code>/<code>0x1B</code> のうち、このリストに入ったセルだけFirejar x2 / Fairy x2 / Philosopher's Stone / Crystal max fire range扱いにする。Crystalは原作火の持続上限RAM <code>$0432/$0433</code> を使うため、新規RAMは増やさない。</td></tr>
     <tr><td class="num">$0750-$0767</td><td>VISIBLE_INBLOCK_ITEM_MASK</td><td>透明ブロック内アイテム</td><td>部屋中常駐</td><td>mapper66 loader がPRG1 <code>0xF860-0xFEFF</code> から現在部屋の24B bitmaskをコピー。<code>$E74C</code> helper が参照し、処理中にmaskを破壊的にshiftする。</td></tr>

@@ -276,6 +276,8 @@ HOOK_8055_NEW   = bytes.fromhex("20") + _word(CPU_DARK_CAVE)
 # DARK cave @ $E7E3: ROOMFLAGS bit3 & Dana実プレイ($057F>=$C0)
 #   の時だけ フェーズカウンタ $0779 を進め、$E81B(LIGHT)未満=明
 #   (原 $0301)/ 以上=暗(bit3クリアでBG-off) / $E81C(PERIOD)で0復帰。
+#   暗フェーズ中でもダーナ火球slot $05A7 bit7 が立つ間は明として返す。
+#   $0779 は止めないため、火が消えるとその時点の暗闇周期へ戻る。
 #   非該当時は $0779=0 リセット → 暗闇面は必ず「明」から開始。
 #   LOADER は非改変(独立)。$8058 STA $2001 が返り A を書く。
 #   ★R-fix(2026-05-18): ROOMFLAGS/フェーズカウンタを $0460/$0461 から
@@ -285,13 +287,13 @@ HOOK_8055_NEW   = bytes.fromhex("20") + _word(CPU_DARK_CAVE)
 #     書込を確認)。$0778/$0779 = entity 21slot 終端$0722 の後ろ +
 #     ramfree3_probe 285秒 沈黙確認の二重安全域。
 DARK_CAVE = (
-    bytes.fromhex("ad78072908f025ae7f05e0c0901eee7907ad7907cd")
+    bytes.fromhex("ad78072908f022ae7f05e0c0901bee7907ad7907cd")
     + _word(CPU_TEMPO_PERIOD)
-    + bytes.fromhex("9005a9008d7907ad7907cd")
+    + bytes.fromhex("b010cd")
     + _word(CPU_TEMPO_LIGHT)
-    + bytes.fromhex("900bad010329f760a9008d7907ad010360")
+    + bytes.fromhex("9010ada705300bad010329f760a9008d7907ad010360")
 )
-assert len(DARK_CAVE) == 53
+assert len(DARK_CAVE) == 50
 # 0x3CC8-0x3CDF is reserved by key_enemy_runtime's fall-death handler.
 DARK_CAVE_RESERVED_SIZE = 0x38
 DARK_CAVE_BLOB = DARK_CAVE + bytes([0xEA] * (DARK_CAVE_RESERVED_SIZE - len(DARK_CAVE)))
