@@ -1,24 +1,28 @@
-"""Ghost enemy ID $86 runtime body for mapper66 saved ROMs."""
+"""Ghost enemy IDs $86/$87 runtime body for mapper66 saved ROMs."""
 from __future__ import annotations
 
 from .element import ElementType
 
 
-NEW_ENEMY_ID = 0x86
+GHOST_UP_ID = 0x86
+GHOST_DOWN_ID = 0x87
+NEW_ENEMY_ID = GHOST_UP_ID
+NEW_ENEMY_IDS = (GHOST_UP_ID, GHOST_DOWN_ID)
 
 OFF_RUNTIME = 0x6D88
 OFF_SETUP_GROUP_TABLE = OFF_RUNTIME
-OFF_INIT_STATUS = OFF_RUNTIME + 3
+OFF_INIT_STATUS = OFF_RUNTIME + 4
 
 CPU_RUNTIME = 0xED78
 CPU_SETUP_GROUP_TABLE = CPU_RUNTIME
-CPU_INIT_STATUS = CPU_RUNTIME + 3
+CPU_INIT_STATUS = CPU_RUNTIME + 4
 CPU_AI_DISPATCH = CPU_INIT_STATUS + 22
+CPU_AI_DISPATCH_DOWN = CPU_AI_DISPATCH + 4
 CPU_STOCK_GHOST_AI = 0xABF7
 CPU_FIND_FREE_SUB_SLOT = 0xB2EA
 CPU_BULLET_SPAWN = 0xAE76
 CPU_SUB_SLOT_PTR = 0xB156
-CPU_RUNTIME_END = CPU_RUNTIME + 113
+CPU_RUNTIME_END = CPU_RUNTIME + 126
 
 COOLDOWN_ARMED = 0x80
 COOLDOWN_RELOAD = 0xC0
@@ -27,6 +31,7 @@ SETUP_GROUP_TABLE = bytes((
     0x40,  # $84 Ice Flame group
     0x14,  # $85 Spark Ball group
     0x1A,  # $86 Ghost right speed1 group, same visual/velocity class as $34
+    0x1A,  # $87 Ghost right speed1 group, same visual/velocity class as $34
 ))
 
 INIT_STATUS_RUNTIME = bytes.fromhex(
@@ -38,7 +43,7 @@ INIT_STATUS_RUNTIME = bytes.fromhex(
     "a5 06"         # LDA $06: current main-slot index
     "20 56 b1"      # JSR $B156: sub-slot pointer in $00/$01
     "a0 07"         # LDY #$07
-    "a9 80"         # LDA #$80: arm Ghost86 drop cooldown flag
+    "a9 80"         # LDA #$80: arm Ghost86/87 drop cooldown flag
     "91 00"         # STA ($00),Y
     "60"            # RTS
 )
@@ -76,6 +81,11 @@ class _Asm:
 
 def _build_ai_runtime() -> bytes:
     a = _Asm()
+    a.b(0xA9, 0x03)                         # Ghost86 fires down
+    a.branch(0xD0, "direction_ready")        # LDA #$03 always clears Z
+    a.b(0xA9, 0x02)                         # Ghost87 fires up
+    a.label("direction_ready")
+    a.b(0x48)
     a.b(0xA5, 0x2C, 0x48, 0xA5, 0x2D, 0x48, 0xA5, 0x2E, 0x48, 0xA5, 0x2F, 0x48)
     a.jsr(CPU_STOCK_GHOST_AI)
     a.b(0x68, 0x85, 0x2F, 0x68, 0x85, 0x2E, 0x68, 0x85, 0x2D, 0x68, 0x85, 0x2C)
@@ -89,14 +99,19 @@ def _build_ai_runtime() -> bytes:
     a.branch(0xD0, "rts")
     a.label("try_fire")
     a.jsr(CPU_FIND_FREE_SUB_SLOT)
-    a.branch(0x90, "rts")
+    a.branch(0x90, "no_slot")
     a.b(0xA0, 0x00, 0xA9, 0x80, 0x91, 0x04)  # child sub[0] active
     a.b(0xA9, 0x01, 0x11, 0x2C, 0x91, 0x2C)  # parent sub[0] bit0 owns child
     a.b(0x8A, 0xA0, 0x06, 0x91, 0x2C)        # parent sub[6] child index
-    a.b(0xA2, 0x03)
+    a.b(0x68, 0xAA)
     a.jsr(CPU_BULLET_SPAWN)
     a.b(0xA0, 0x07, 0xA9, COOLDOWN_RELOAD, 0x91, 0x2C)
+    a.branch(0xD0, "done")
+    a.label("no_slot")
+    a.b(0x68, 0x60)
     a.label("rts")
+    a.b(0x68)
+    a.label("done")
     a.b(0x60)
     return a.finish()
 
@@ -109,15 +124,16 @@ RESERVED_SPANS = ((OFF_RUNTIME, len(RUNTIME)),)
 
 assert OFF_INIT_STATUS == OFF_SETUP_GROUP_TABLE + len(SETUP_GROUP_TABLE)
 assert CPU_AI_DISPATCH == CPU_INIT_STATUS + len(INIT_STATUS_RUNTIME)
+assert CPU_AI_DISPATCH_DOWN == CPU_AI_DISPATCH + 4
 assert len(INIT_STATUS_RUNTIME) == 22
-assert len(AI_RUNTIME) == 88
-assert len(RUNTIME) == 113
+assert len(AI_RUNTIME) == 100
+assert len(RUNTIME) == 126
 assert CPU_RUNTIME + len(RUNTIME) == CPU_RUNTIME_END
 
 
 def levels_need_runtime(levels: list) -> bool:
     for lv in levels or []:
         for enemy in getattr(lv, "enemies", []) or []:
-            if getattr(enemy, "type", None) == ElementType.ENEMY and int(enemy.element_no) == NEW_ENEMY_ID:
+            if getattr(enemy, "type", None) == ElementType.ENEMY and int(enemy.element_no) in NEW_ENEMY_IDS:
                 return True
     return False
