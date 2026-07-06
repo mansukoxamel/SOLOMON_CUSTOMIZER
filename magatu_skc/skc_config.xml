@@ -347,8 +347,9 @@
     <enemy no="0x84" description="Ice Flame" animation="105" />
     <enemy no="0x86" description="Ghost86 (shoot down)" animation="63" />
     <enemy no="0x87" description="Ghost87 (shoot up)" animation="63" />
+    <enemy no="0x88" description="Neul88" animation="43" />
 
-    <!-- 0x88 and up are undefined in the current custom runtime. -->
+    <!-- 0x89 and up are undefined in the current custom runtime. -->
   </enemy_definitions>
 
   <enemy_editor>

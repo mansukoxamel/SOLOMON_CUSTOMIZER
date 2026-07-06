@@ -189,12 +189,14 @@ ENEMIES_LIST = [
     (0x85, "Spark85"),
     (0x86, "Ghost86 (shoot down)"),
     (0x87, "Ghost87 (shoot up)"),
+    (0x88, "Neul88"),
 ]
 
 DEVELOPER_ONLY_PICKER_ITEMS = {
     (MODE_ENEMY, 0x85),  # Runtime exists, but placement is not public yet.
     (MODE_ENEMY, 0x86),
     (MODE_ENEMY, 0x87),
+    (MODE_ENEMY, 0x88),
 }
 
 
@@ -260,6 +262,7 @@ ENHANCED_ENEMY_CODES = {
     0x72, 0x73, 0x76, 0x77,  # Spark Ball invisible
     0x7a, 0x7b, 0x7e, 0x7f,  # Gargoyle slow Bullet
     0x86, 0x87,  # Ghost86/87
+    0x88,  # Neul88
 }
 
 
@@ -311,6 +314,7 @@ ENEMY_VISUAL_SOURCE = {
     0x85: 0x2a,  # Spark85 uses the stock Spark Ball visual.
     0x86: 0x34,  # Ghost86 uses the stock Ghost right visual.
     0x87: 0x34,  # Ghost87 uses the stock Ghost right visual.
+    0x88: 0x30,  # Neul88 uses the stock Neul up visual.
 }
 
 

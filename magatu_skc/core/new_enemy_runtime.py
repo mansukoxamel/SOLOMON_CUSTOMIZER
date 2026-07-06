@@ -4,6 +4,7 @@ from __future__ import annotations
 from . import ice_flame_runtime as _ice
 from . import spark85_runtime as _spark85
 from . import ghost86_runtime as _ghost86
+from . import neul88_runtime as _neul88
 
 
 class NewEnemyRuntimeError(ValueError):
@@ -13,18 +14,19 @@ class NewEnemyRuntimeError(ValueError):
 ICE_FLAME_ID = _ice.NEW_ENEMY_ID
 SPARK85_ID = _spark85.NEW_ENEMY_ID
 GHOST86_ID = _ghost86.NEW_ENEMY_ID
+NEUL88_ID = _neul88.NEW_ENEMY_ID
 
 OLD_GHOST86_OFF_RUNTIME = 0x6D88
 
 OFF_AI_ENTRY = 0x3BF2      # CPU $BBE2
-OFF_SETUP_ENTRY = 0x3C1A   # CPU $BC0A
-OFF_INIT_ENTRY = 0x3C3A    # CPU $BC2A
-OFF_ANIM_ENTRY = 0x3C5E    # CPU $BC4E
+OFF_SETUP_ENTRY = 0x3C22   # CPU $BC12
+OFF_INIT_ENTRY = 0x3C47    # CPU $BC37
+OFF_ANIM_ENTRY = 0x3C72    # CPU $BC62
 
 CPU_AI_ENTRY = 0xBBE2
-CPU_SETUP_ENTRY = 0xBC0A
-CPU_INIT_ENTRY = 0xBC2A
-CPU_ANIM_ENTRY = 0xBC4E
+CPU_SETUP_ENTRY = 0xBC12
+CPU_INIT_ENTRY = 0xBC37
+CPU_ANIM_ENTRY = 0xBC62
 
 OLD_AI_ENTRY_RUNTIME = bytes.fromhex(
     "48"
@@ -43,13 +45,15 @@ AI_ENTRY_RUNTIME = bytes.fromhex(
     "18"            # CLC
     "69 14"         # ADC #$14 -> recover enemy type
     "c9 84"         # CMP #$84
-    "f0 10"         # BEQ ice
+    "f0 14"         # BEQ ice
     "c9 85"         # CMP #$85
-    "f0 10"         # BEQ spark85
+    "f0 14"         # BEQ spark85
     "c9 86"         # CMP #$86
-    "f0 10"         # BEQ ghost86
+    "f0 14"         # BEQ ghost86
     "c9 87"         # CMP #$87
-    "f0 10"         # BEQ ghost87
+    "f0 14"         # BEQ ghost87
+    "c9 88"         # CMP #$88
+    "f0 14"         # BEQ neul88
     "68"            # PLA
     "4c 29 a3"      # JMP $A329 stock AI dispatcher
     "68"            # ice: PLA
@@ -60,6 +64,8 @@ AI_ENTRY_RUNTIME = bytes.fromhex(
     f"4c {_ghost86.CPU_AI_DISPATCH & 0xFF:02x} {_ghost86.CPU_AI_DISPATCH >> 8:02x}"
     "68"            # ghost87: PLA
     f"4c {_ghost86.CPU_AI_DISPATCH_DOWN & 0xFF:02x} {_ghost86.CPU_AI_DISPATCH_DOWN >> 8:02x}"
+    "68"            # neul88: PLA
+    f"4c {_neul88.CPU_AI_DISPATCH & 0xFF:02x} {_neul88.CPU_AI_DISPATCH >> 8:02x}"
 )
 PRE_PACKED_GHOST_AI_ENTRY_RUNTIME = bytes.fromhex(
     "48"
@@ -100,9 +106,10 @@ SETUP_ENTRY_RUNTIME = bytes.fromhex(
     "a0 01"         # LDY #$01
     "b1 08"         # LDA ($08),Y -> main-slot type
     "c9 84"         # CMP #$84
-    "90 12"         # BCC stock
+    "90 17"         # BCC stock
     "c9 88"         # CMP #$88
-    "b0 0e"         # BCS stock
+    "f0 10"         # BEQ neul88
+    "b0 11"         # BCS stock
     "38"            # SEC
     "e9 84"         # SBC #$84
     "aa"            # TAX
@@ -111,6 +118,7 @@ SETUP_ENTRY_RUNTIME = bytes.fromhex(
     "a8"            # TAY
     "b9 d3 d9"      # LDA $D9D3,Y
     "60"            # RTS
+    f"4c {_neul88.CPU_SETUP_META_LOAD & 0xFF:02x} {_neul88.CPU_SETUP_META_LOAD >> 8:02x}"
     "a4 0e"         # LDY $0E
     "b9 d3 d9"      # LDA $D9D3,Y
     "60"            # RTS
@@ -152,6 +160,8 @@ INIT_ENTRY_RUNTIME = bytes.fromhex(
     "c9 87"         # CMP #$87
     "d0 03"         # BNE not ghost86/87
     f"4c {_ghost86.CPU_INIT_STATUS & 0xFF:02x} {_ghost86.CPU_INIT_STATUS >> 8:02x}"
+    "c9 88"         # CMP #$88
+    "f0 16"         # BEQ neul88
     "c9 85"         # CMP #$85
     "f0 0e"         # BEQ spark85
     "68"            # PLA
@@ -163,6 +173,7 @@ INIT_ENTRY_RUNTIME = bytes.fromhex(
     f"4c {_ice.CPU_INIT_STATUS & 0xFF:02x} {_ice.CPU_INIT_STATUS >> 8:02x}"
     "68"            # spark85: PLA
     f"4c {_spark85.CPU_INIT_STATUS & 0xFF:02x} {_spark85.CPU_INIT_STATUS >> 8:02x}"
+    f"4c {_neul88.CPU_INIT_STATUS & 0xFF:02x} {_neul88.CPU_INIT_STATUS >> 8:02x}"
 )
 PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME = bytes.fromhex(
     "48"
@@ -195,10 +206,10 @@ ANIM_ENTRY_RUNTIME = bytes.fromhex(
 )
 
 ENTRY_RUNTIMES = (
-    (OFF_AI_ENTRY, AI_ENTRY_RUNTIME, (PRE_PACKED_GHOST_AI_ENTRY_RUNTIME,), "$BBE2 new enemy AI dispatch"),
-    (OFF_SETUP_ENTRY, SETUP_ENTRY_RUNTIME, (PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME,), "$BC0A new enemy setup dispatch"),
-    (OFF_INIT_ENTRY, INIT_ENTRY_RUNTIME, (PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME,), "$BC2A new enemy init dispatch"),
-    (OFF_ANIM_ENTRY, ANIM_ENTRY_RUNTIME, (), "$BC4E new enemy animation dispatch"),
+    (OFF_AI_ENTRY, AI_ENTRY_RUNTIME, (), "$BBE2 new enemy AI dispatch"),
+    (OFF_SETUP_ENTRY, SETUP_ENTRY_RUNTIME, (), "$BC12 new enemy setup dispatch"),
+    (OFF_INIT_ENTRY, INIT_ENTRY_RUNTIME, (), "$BC37 new enemy init dispatch"),
+    (OFF_ANIM_ENTRY, ANIM_ENTRY_RUNTIME, (), "$BC62 new enemy animation dispatch"),
 )
 
 HOOK_AI_DISPATCH_CALL = bytes((0x20, CPU_AI_ENTRY & 0xFF, CPU_AI_ENTRY >> 8))
@@ -214,13 +225,14 @@ RESERVED_SPANS = (
     *_ice.RESERVED_SPANS,
     *_spark85.RESERVED_SPANS,
     *_ghost86.RESERVED_SPANS,
+    *_neul88.RESERVED_SPANS,
 )
 
-assert len(AI_ENTRY_RUNTIME) == 40
+assert len(AI_ENTRY_RUNTIME) == 48
 assert len(PRE_PACKED_GHOST_AI_ENTRY_RUNTIME) == 40
-assert len(SETUP_ENTRY_RUNTIME) == 32
+assert len(SETUP_ENTRY_RUNTIME) == 37
 assert len(PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME) == 32
-assert len(INIT_ENTRY_RUNTIME) == 36
+assert len(INIT_ENTRY_RUNTIME) == 43
 assert len(PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME) == 36
 assert len(ANIM_ENTRY_RUNTIME) == 14
 assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
@@ -233,6 +245,7 @@ def levels_need_runtime(levels: list) -> bool:
         _ice.levels_need_runtime(levels)
         or _spark85.levels_need_runtime(levels)
         or _ghost86.levels_need_runtime(levels)
+        or _neul88.levels_need_runtime(levels)
     )
 
 
@@ -282,6 +295,7 @@ def apply(rom_data: bytearray) -> list[str]:
         _ice.OFF_RUNTIME + len(_ice.RUNTIME),
         _spark85.OFF_RUNTIME + len(_spark85.RUNTIME),
         _ghost86.OFF_RUNTIME + len(_ghost86.RUNTIME),
+        _neul88.OFF_RUNTIME + len(_neul88.RUNTIME),
         max(off + len(blob) for off, blob, _old_blobs, _name in ENTRY_RUNTIMES),
     )
     if rom_data is None or len(rom_data) < max_end:
@@ -345,6 +359,12 @@ def apply(rom_data: bytearray) -> list[str]:
         (bytes((0xEA,)) * len(_ghost86.RUNTIME), _ghost86.RUNTIME),
         "Ghost86/87 runtime area",
     )
+    _expect_one(
+        rom_data,
+        _neul88.OFF_RUNTIME,
+        (bytes((0xEA,)) * len(_neul88.RUNTIME), _neul88.RUNTIME),
+        "Neul88 runtime area",
+    )
     for off, blob, old_blobs, name in ENTRY_RUNTIMES:
         _expect_blank_or_one_of(rom_data, off, (blob, *old_blobs), name)
 
@@ -374,5 +394,12 @@ def apply(rom_data: bytearray) -> list[str]:
         _ghost86.RUNTIME,
         changed,
         f"Ghost86/87 runtime ${_ghost86.CPU_RUNTIME:04X}-${_ghost86.CPU_RUNTIME_END - 1:04X}",
+    )
+    _write(
+        rom_data,
+        _neul88.OFF_RUNTIME,
+        _neul88.RUNTIME,
+        changed,
+        f"Neul88 runtime ${_neul88.CPU_RUNTIME:04X}-${_neul88.CPU_RUNTIME_END - 1:04X}",
     )
     return changed
