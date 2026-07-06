@@ -187,6 +187,8 @@ ENEMIES_LIST = [
     (0x81, "White Flame"),
     (0x84, "Ice Flame"),
     # (0x85, "Spark85"),  # Internal runtime is prepared; keep hidden from picker for now.
+    (0x86, "Ghost86 (shoot down)"),
+    (0x87, "Ghost87 (shoot up)"),
 ]
 
 
@@ -251,6 +253,7 @@ ENHANCED_ENEMY_CODES = {
     0x6a, 0x6b, 0x6e, 0x6f,  # Spark Ball pause
     0x72, 0x73, 0x76, 0x77,  # Spark Ball invisible
     0x7a, 0x7b, 0x7e, 0x7f,  # Gargoyle slow Bullet
+    0x86, 0x87,  # Ghost86/87
 }
 
 
@@ -269,6 +272,8 @@ ENEMY_ENHANCE_CYCLES = (
     (0x2f, 0x6f, 0x77),
     # Gargoyle slow Bullet.
     (0x78, 0x7a), (0x79, 0x7b), (0x7c, 0x7e), (0x7d, 0x7f),
+    # Ghost fixed Bullet direction.
+    (0x86, 0x87),
     # Panel Monster: normal -> 2-way -> 3-way -> A -> B -> C -> normal.
     (0x24, 0x52, 0x5a, 0x41, 0x49, 0x31),
     (0x25, 0x53, 0x5b, 0x43, 0x4b, 0x33),
@@ -298,6 +303,8 @@ PANEL_VARIANT_VISUAL_SOURCE = {
 ENEMY_VISUAL_SOURCE = {
     **PANEL_VARIANT_VISUAL_SOURCE,
     0x85: 0x2a,  # Spark85 uses the stock Spark Ball visual.
+    0x86: 0x34,  # Ghost86 uses the stock Ghost right visual.
+    0x87: 0x34,  # Ghost87 uses the stock Ghost right visual.
 }
 
 
