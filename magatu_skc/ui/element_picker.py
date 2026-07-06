@@ -189,7 +189,7 @@ ENEMIES_LIST = [
     (0x85, "Spark85"),
     (0x86, "Ghost86 (shoot down)"),
     (0x87, "Ghost87 (shoot up)"),
-    (0x88, "Neul88"),
+    (0x88, "Neul Twin Cannon"),
 ]
 
 DEVELOPER_ONLY_PICKER_ITEMS = {
