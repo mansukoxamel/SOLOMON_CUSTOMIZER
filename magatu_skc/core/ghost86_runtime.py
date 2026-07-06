@@ -18,7 +18,7 @@ CPU_STOCK_GHOST_AI = 0xABF7
 CPU_FIND_FREE_SUB_SLOT = 0xB2EA
 CPU_BULLET_SPAWN = 0xAE76
 CPU_SUB_SLOT_PTR = 0xB156
-CPU_RUNTIME_END = CPU_RUNTIME + 105
+CPU_RUNTIME_END = CPU_RUNTIME + 113
 
 COOLDOWN_ARMED = 0x80
 COOLDOWN_RELOAD = 0xC0
@@ -79,6 +79,8 @@ def _build_ai_runtime() -> bytes:
     a.b(0xA5, 0x2C, 0x48, 0xA5, 0x2D, 0x48, 0xA5, 0x2E, 0x48, 0xA5, 0x2F, 0x48)
     a.jsr(CPU_STOCK_GHOST_AI)
     a.b(0x68, 0x85, 0x2F, 0x68, 0x85, 0x2E, 0x68, 0x85, 0x2D, 0x68, 0x85, 0x2C)
+    a.b(0xA0, 0x03, 0xB1, 0x2E, 0x29, 0x0C)  # stock Ghost wall/break states
+    a.branch(0xD0, "rts")
     a.b(0xA0, 0x07, 0xB1, 0x2C)          # parent sub[7] cooldown
     a.branch(0x10, "rts")                 # bit7 clear: not armed
     a.b(0x29, 0x7F)
@@ -108,8 +110,8 @@ RESERVED_SPANS = ((OFF_RUNTIME, len(RUNTIME)),)
 assert OFF_INIT_STATUS == OFF_SETUP_GROUP_TABLE + len(SETUP_GROUP_TABLE)
 assert CPU_AI_DISPATCH == CPU_INIT_STATUS + len(INIT_STATUS_RUNTIME)
 assert len(INIT_STATUS_RUNTIME) == 22
-assert len(AI_RUNTIME) == 80
-assert len(RUNTIME) == 105
+assert len(AI_RUNTIME) == 88
+assert len(RUNTIME) == 113
 assert CPU_RUNTIME + len(RUNTIME) == CPU_RUNTIME_END
 
 
