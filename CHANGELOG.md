@@ -1,5 +1,11 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.27 (2026-07-07) Neul88を追加
+- 開発者用敵ID `$88` としてNeul88を追加し、通常時はピッカーから隠し、`developer_mode: true` の時だけ配置できるようにした。
+- Neul88は原作Neul `$30` 相当の見た目/初期behaviorで出現し、原作Neul/Ghost AI後に固定間隔で左右へBulletを同時発射するようにした。
+- 新敵入口センターをID `$88` まで増設し、setup/init/animationの入口と原作hook先を更新した。
+- ROM管理簿を更新し、Neul88 runtimeを `0x6E16-0x6EB3` / `$EE06-$EEA3` の158B、残り空き337Bとして記録した。
+
 ## v0.9.26 (2026-07-06) 開発者用敵ピッカーと設定保護を追加
 - Crystal max fire rangeアイテムを追加し、通常アイテム`0x1B` + special item cellで火の飛距離上限を最大化できるようにした。
 - 暗闇面でダーナ火球slot `$05A7` が存在する間だけBG-offを抑止し、火が出ている間は暗闇を一時的に照らすようにした。
