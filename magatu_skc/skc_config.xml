@@ -181,7 +181,7 @@
     <item no="0x37" description="Mini-Dana" animation="85" />
     <item no="0x38" description="Tecmo Bunny (white)" animation="83" />
     <item no="0x39" description="Tecmo Bunny (orange)" animation="69" />
-    <item no="0x3a" description="Garbage gfx #1" animation="99" />
+    <item no="0x3a" description="Crystal (max fire range)" animation="109" />
     <item no="0x3b" description="Garbage gfx #2" animation="100" />
     <item no="0x3c" description="Garbage gfx #3" animation="101" />
     <item no="0x3d" description="Garbage gfx #4" animation="102" />
@@ -726,6 +726,8 @@
       <tile no="107" palette_no="0" nes_tiles="412,413,414,415" />
       <!-- custom item: Philosopher's Stone (item 0x36), same graphics as blue Diamond with BG0 palette -->
       <tile no="108" palette_no="0" nes_tiles="368,369,370,371" />
+      <!-- custom item: Crystal max fire range (item 0x3a), same graphics as blue Jewels with BG0 palette -->
+      <tile no="109" palette_no="0" nes_tiles="364,365,366,367" />
 
     </tile_definitions>
 

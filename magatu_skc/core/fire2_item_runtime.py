@@ -12,19 +12,24 @@ class Fire2ItemRuntimeError(ValueError):
 ITEM_FIRE2 = 0x34
 ITEM_FAIRY2 = 0x35
 ITEM_PHILOSOPHER_STONE = 0x36
+ITEM_CRYSTAL_MAX_RANGE = 0x3A
 ITEM_FIRE2_BASE = 0x15
 ITEM_FAIRY2_BASE = 0x18
 ITEM_PHILOSOPHER_STONE_BASE = 0x08
+ITEM_CRYSTAL_MAX_RANGE_BASE = 0x1B
 SPECIAL_ITEM_UI_TO_BASE = {
     ITEM_FIRE2: ITEM_FIRE2_BASE,
     ITEM_FAIRY2: ITEM_FAIRY2_BASE,
     ITEM_PHILOSOPHER_STONE: ITEM_PHILOSOPHER_STONE_BASE,
+    ITEM_CRYSTAL_MAX_RANGE: ITEM_CRYSTAL_MAX_RANGE_BASE,
 }
 SPECIAL_ITEM_BASES = frozenset(SPECIAL_ITEM_UI_TO_BASE.values())
 
 SPECIAL_ITEM_CELLS_PER_ROOM = 16
 RAM_SPECIAL_ITEM_CELLS = 0x0740
 RAM_FAIRY2_DELAY = 0x0771
+RAM_FIRE_RANGE_LO = 0x0432
+RAM_FIRE_RANGE_HI = 0x0433
 FAIRY2_DELAY_FRAMES = 0x20
 
 OFF_ITEM_PICKUP_HOOK = 0x456B   # CPU $C55B
@@ -36,6 +41,7 @@ CPU_DRAW_HOOK = 0x9DE8
 ORIG_DRAW_HOOK = bytes.fromhex("0a 0a a8")
 OLD_DRAW_HOOK = bytes.fromhex("4c f0 ec")
 PRE_PHILOSOPHER_STONE_DRAW_HOOK = bytes.fromhex("4c ac ec")
+PRE_CRYSTAL_DRAW_HOOK = bytes.fromhex("4c 0d ed")
 
 OFF_RUNTIME = 0x6C7D
 CPU_RUNTIME = 0xEC6D
@@ -65,6 +71,16 @@ PRE_PHILOSOPHER_STONE_RUNTIME = bytes.fromhex(
     "c938b00d4c5fc5205fc5a502f00320a3c760205fc5a502f005a9208d71076048"
     "a00fb94007c500f00a8810f6680a0aa84ceb9d68c915f006c918f00ed0efa9e3"
     "8506a9ec8507a900f0e3a9e78506a9ec8507a900f0d7606566679c9d9e9f"
+)
+PRE_CRYSTAL_RUNTIME = bytes.fromhex(
+    "488600a00fb94007c500f00b8810f668c938b0214c5fc568c915f00fc918f016"
+    "c908f01fc938b00d4c5fc5205fc5a502f00320a3c760205fc5a502f005a920"
+    "8d710760205fc5a502f055a210ec7c07f02fbd0403c9409028c9f8b024293"
+    "fc906f00cc908901ac934b016c910f0129d04038600860285038a48a5032053"
+    "9d68aae8e0d0d0c7ad7c078502a902850320539dae7c07a9469d0403a940"
+    "8502a9016048a00fb94007c500f00a8810f6680a0aa84ceb9d68c915f00a"
+    "c918f012c908f01ad0eba9548506a9ed8507a900f0dfa9588506a9ed8507a"
+    "900f0d3a95c8506a9ed8507a900f0c7606566679c9d9e9f70717273"
 )
 
 
@@ -124,6 +140,8 @@ def _build_item_runtime() -> bytes:
     a.rel(0xF0, "fairy2")
     a.b(0xC9, ITEM_PHILOSOPHER_STONE_BASE)
     a.rel(0xF0, "stone")
+    a.b(0xC9, ITEM_CRYSTAL_MAX_RANGE_BASE)
+    a.rel(0xF0, "crystal")
     a.b(0xC9, 0x38)
     a.rel(0xB0, "rts")
     a.abs(0x4C, CPU_STOCK_ITEM_CHECK_AFTER_RANGE)
@@ -195,10 +213,25 @@ def _build_item_runtime() -> bytes:
     a.b(0xA9, 0x01)
     a.label("rts_stone")
     a.b(0x60)
+
+    a.label("crystal")
+    a.abs(0x20, CPU_STOCK_ITEM_CHECK_AFTER_RANGE)
+    a.b(0xA5, 0x02)
+    a.rel(0xF0, "rts_crystal")
+    a.b(0xA9, 0xFF)
+    a.abs(0x8D, RAM_FIRE_RANGE_LO)
+    a.abs(0x8D, RAM_FIRE_RANGE_HI)
+    a.label("rts_crystal")
+    a.b(0x60)
     return a.finish()
 
 
-def _build_draw_runtime(fire_metatile_cpu: int, fairy_metatile_cpu: int, stone_metatile_cpu: int) -> bytes:
+def _build_draw_runtime(
+    fire_metatile_cpu: int,
+    fairy_metatile_cpu: int,
+    stone_metatile_cpu: int,
+    crystal_metatile_cpu: int,
+) -> bytes:
     a = _Asm()
     # Entry: A=cell value, $00=draw cell index.
     a.b(0x48)                             # PHA original cell value
@@ -223,6 +256,8 @@ def _build_draw_runtime(fire_metatile_cpu: int, fairy_metatile_cpu: int, stone_m
     a.rel(0xF0, "fairy2")
     a.b(0xC9, ITEM_PHILOSOPHER_STONE_BASE)
     a.rel(0xF0, "stone")
+    a.b(0xC9, ITEM_CRYSTAL_MAX_RANGE_BASE)
+    a.rel(0xF0, "crystal")
     a.rel(0xD0, "normal")
 
     a.label("fire2")
@@ -242,6 +277,12 @@ def _build_draw_runtime(fire_metatile_cpu: int, fairy_metatile_cpu: int, stone_m
     a.b(0xA9, stone_metatile_cpu >> 8, 0x85, 0x07)
     a.b(0xA9, 0x00)
     a.rel(0xF0, "normal")
+
+    a.label("crystal")
+    a.b(0xA9, crystal_metatile_cpu & 0xFF, 0x85, 0x06)
+    a.b(0xA9, crystal_metatile_cpu >> 8, 0x85, 0x07)
+    a.b(0xA9, 0x00)
+    a.rel(0xF0, "normal")
     return a.finish()
 
 
@@ -252,15 +293,29 @@ DRAW_RUNTIME_PLACEHOLDER = _build_draw_runtime(
     CPU_DRAW_RUNTIME + 0x70,
     CPU_DRAW_RUNTIME + 0x74,
     CPU_DRAW_RUNTIME + 0x78,
+    CPU_DRAW_RUNTIME + 0x7C,
 )
 FIRE2_METATILE_CPU = CPU_DRAW_RUNTIME + len(DRAW_RUNTIME_PLACEHOLDER)
 FAIRY2_METATILE_CPU = FIRE2_METATILE_CPU + 4
 PHILOSOPHER_STONE_METATILE_CPU = FAIRY2_METATILE_CPU + 4
-DRAW_RUNTIME = _build_draw_runtime(FIRE2_METATILE_CPU, FAIRY2_METATILE_CPU, PHILOSOPHER_STONE_METATILE_CPU)
+CRYSTAL_MAX_RANGE_METATILE_CPU = PHILOSOPHER_STONE_METATILE_CPU + 4
+DRAW_RUNTIME = _build_draw_runtime(
+    FIRE2_METATILE_CPU,
+    FAIRY2_METATILE_CPU,
+    PHILOSOPHER_STONE_METATILE_CPU,
+    CRYSTAL_MAX_RANGE_METATILE_CPU,
+)
 FIRE2_METATILE_BG0 = bytes.fromhex("60 65 66 67")
 FAIRY2_METATILE_BG0 = bytes.fromhex("9C 9D 9E 9F")
 PHILOSOPHER_STONE_METATILE_BG0 = bytes.fromhex("70 71 72 73")
-RUNTIME = ITEM_RUNTIME + DRAW_RUNTIME + FIRE2_METATILE_BG0 + FAIRY2_METATILE_BG0 + PHILOSOPHER_STONE_METATILE_BG0
+CRYSTAL_MAX_RANGE_METATILE_BG0 = bytes.fromhex("6C 6D 6E 6F")
+RUNTIME = (
+    ITEM_RUNTIME + DRAW_RUNTIME
+    + FIRE2_METATILE_BG0
+    + FAIRY2_METATILE_BG0
+    + PHILOSOPHER_STONE_METATILE_BG0
+    + CRYSTAL_MAX_RANGE_METATILE_BG0
+)
 
 HOOK_ITEM_PICKUP = bytes((0x4C, CPU_RUNTIME & 0xFF, CPU_RUNTIME >> 8))
 HOOK_DRAW = bytes((0x4C, CPU_DRAW_RUNTIME & 0xFF, CPU_DRAW_RUNTIME >> 8))
@@ -368,6 +423,13 @@ def _expect_blank_or(data: bytes | bytearray, off: int, blob: bytes, name: str) 
         and all(b in (0xEA, 0x00) for b in data[off + len(pre_stone):off + len(blob)])
     ):
         return
+    pre_crystal = PRE_CRYSTAL_RUNTIME
+    if (
+        off == OFF_RUNTIME
+        and bytes(data[off:off + len(pre_crystal)]) == pre_crystal
+        and all(b in (0xEA, 0x00) for b in data[off + len(pre_crystal):off + len(blob)])
+    ):
+        return
     raise Fire2ItemRuntimeError(
         f"{name} area is not blank at 0x{off:X}: expected EA/00 or existing runtime, got {cur.hex(' ')}"
     )
@@ -388,7 +450,7 @@ def apply(rom_data: bytearray, levels: list | None = None) -> list[str]:
     _expect(
         rom_data,
         OFF_DRAW_HOOK,
-        (ORIG_DRAW_HOOK, OLD_DRAW_HOOK, PRE_PHILOSOPHER_STONE_DRAW_HOOK, HOOK_DRAW),
+        (ORIG_DRAW_HOOK, OLD_DRAW_HOOK, PRE_PHILOSOPHER_STONE_DRAW_HOOK, PRE_CRYSTAL_DRAW_HOOK, HOOK_DRAW),
         "$9DE8 special item draw hook",
     )
     _expect_blank_or(rom_data, OFF_RUNTIME, RUNTIME, "special item runtime")
@@ -458,6 +520,7 @@ PRG1_RESERVED_SPANS = (
 )
 
 
-assert len(ITEM_RUNTIME) == 160
-assert len(DRAW_RUNTIME) == 71
-assert len(RUNTIME) == 243
+assert len(ITEM_RUNTIME) == 180
+assert len(DRAW_RUNTIME) == 87
+assert len(RUNTIME) == 283
+assert len(PRE_CRYSTAL_RUNTIME) == 243
