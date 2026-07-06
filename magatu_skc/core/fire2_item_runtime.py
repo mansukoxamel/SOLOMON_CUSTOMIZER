@@ -1,4 +1,4 @@
-"""Fire/Fairy x2 runtime using per-stage special item position lists."""
+"""Special item runtime using per-stage special item position lists."""
 from __future__ import annotations
 
 from .element import byte_from_position, position_from_byte
@@ -11,11 +11,14 @@ class Fire2ItemRuntimeError(ValueError):
 # UI pseudo item IDs. These IDs are never written to the room grid anymore.
 ITEM_FIRE2 = 0x34
 ITEM_FAIRY2 = 0x35
+ITEM_PHILOSOPHER_STONE = 0x36
 ITEM_FIRE2_BASE = 0x15
 ITEM_FAIRY2_BASE = 0x18
+ITEM_PHILOSOPHER_STONE_BASE = 0x08
 SPECIAL_ITEM_UI_TO_BASE = {
     ITEM_FIRE2: ITEM_FIRE2_BASE,
     ITEM_FAIRY2: ITEM_FAIRY2_BASE,
+    ITEM_PHILOSOPHER_STONE: ITEM_PHILOSOPHER_STONE_BASE,
 }
 SPECIAL_ITEM_BASES = frozenset(SPECIAL_ITEM_UI_TO_BASE.values())
 
@@ -32,6 +35,7 @@ OFF_DRAW_HOOK = 0x1DF8          # CPU $9DE8
 CPU_DRAW_HOOK = 0x9DE8
 ORIG_DRAW_HOOK = bytes.fromhex("0a 0a a8")
 OLD_DRAW_HOOK = bytes.fromhex("4c f0 ec")
+PRE_PHILOSOPHER_STONE_DRAW_HOOK = bytes.fromhex("4c ac ec")
 
 OFF_RUNTIME = 0x6C7D
 CPU_RUNTIME = 0xEC6D
@@ -39,7 +43,9 @@ CPU_STOCK_ITEM_CHECK_AFTER_RANGE = 0xC55F
 CPU_PLAY_SE = 0x8E8D
 CPU_ADD_FIRE_JAR = 0xC7A3
 CPU_ADD_FAIRY_QUEUE = 0xC7AA
+CPU_DRAW_CELL = 0x9D53
 CPU_DRAW_CONTINUE = 0x9DEB
+RAM_DOOR_CELL = 0x077C
 
 OFF_PRG1_LOADER_HELPER = 0x9280
 CPU_PRG1_LOADER_HELPER = 0x9270
@@ -53,6 +59,12 @@ OLD_RUNTIME = bytes.fromhex(
     "a3c720a3c7a90160a5874ab0dea9352018c8a0408402a00d208d8e20aac720aac7a90160"
     "c934f00ac935f0120a0aa84ceb9da9db8506a9ec8507a900f0eea9df8506a9ec8507a900"
     "f0e2606566679c9d9e9f"
+)
+PRE_PHILOSOPHER_STONE_RUNTIME = bytes.fromhex(
+    "488600a00fb94007c500f00b8810f668c938b01d4c5fc568c915f00bc918f012"
+    "c938b00d4c5fc5205fc5a502f00320a3c760205fc5a502f005a9208d71076048"
+    "a00fb94007c500f00a8810f6680a0aa84ceb9d68c915f006c918f00ed0efa9e3"
+    "8506a9ec8507a900f0e3a9e78506a9ec8507a900f0d7606566679c9d9e9f"
 )
 
 
@@ -110,6 +122,8 @@ def _build_item_runtime() -> bytes:
     a.rel(0xF0, "fire2")
     a.b(0xC9, ITEM_FAIRY2_BASE)
     a.rel(0xF0, "fairy2")
+    a.b(0xC9, ITEM_PHILOSOPHER_STONE_BASE)
+    a.rel(0xF0, "stone")
     a.b(0xC9, 0x38)
     a.rel(0xB0, "rts")
     a.abs(0x4C, CPU_STOCK_ITEM_CHECK_AFTER_RANGE)
@@ -130,10 +144,61 @@ def _build_item_runtime() -> bytes:
     a.abs(0x8D, RAM_FAIRY2_DELAY)          # delayed second fairy queue
     a.label("rts2")
     a.b(0x60)
+
+    a.label("stone")
+    a.abs(0x20, CPU_STOCK_ITEM_CHECK_AFTER_RANGE)
+    a.b(0xA5, 0x02)
+    a.rel(0xF0, "rts_stone")
+
+    a.b(0xA2, 0x10)                        # LDX #$10, scan 192 visible live grid cells
+    a.label("reveal_loop")
+    a.abs(0xEC, RAM_DOOR_CELL)             # CPX hidden door cell cache
+    a.rel(0xF0, "reveal_next")
+    a.b(0xBD, 0x04, 0x03)                  # LDA $0304,X
+    a.b(0xC9, 0x40)
+    a.rel(0x90, "reveal_next")
+    a.b(0xC9, 0xF8)
+    a.rel(0xB0, "reveal_next")
+    a.b(0x29, 0x3F)                        # strip hidden/in-block/white bits
+    a.b(0xC9, 0x06)
+    a.rel(0xF0, "reveal_cell")
+    a.b(0xC9, 0x08)
+    a.rel(0x90, "reveal_next")
+    a.b(0xC9, 0x34)
+    a.rel(0xB0, "reveal_next")
+    a.b(0xC9, 0x10)
+    a.rel(0xF0, "reveal_next")
+    a.label("reveal_cell")
+    a.b(0x9D, 0x04, 0x03)                  # reveal live grid item/key
+    a.b(0x86, 0x00)                        # draw helper PPU address source
+    a.b(0x86, 0x02)                        # draw cell index
+    a.b(0x85, 0x03)                        # draw item id
+    a.b(0x8A, 0x48)                        # preserve scan X across draw helper
+    a.b(0xA5, 0x03)                        # draw helper also expects A=item id
+    a.abs(0x20, CPU_DRAW_CELL)
+    a.b(0x68, 0xAA)
+    a.label("reveal_next")
+    a.b(0xE8)
+    a.b(0xE0, 0xD0)
+    a.rel(0xD0, "reveal_loop")
+
+    a.abs(0xAD, RAM_DOOR_CELL)             # hidden door: draw but keep live state hidden
+    a.b(0x85, 0x02)
+    a.b(0xA9, 0x02)
+    a.b(0x85, 0x03)
+    a.abs(0x20, CPU_DRAW_CELL)
+    a.abs(0xAE, RAM_DOOR_CELL)
+    a.b(0xA9, 0x46)
+    a.b(0x9D, 0x04, 0x03)
+    a.b(0xA9, 0x40)
+    a.b(0x85, 0x02)
+    a.b(0xA9, 0x01)
+    a.label("rts_stone")
+    a.b(0x60)
     return a.finish()
 
 
-def _build_draw_runtime(fire_metatile_cpu: int, fairy_metatile_cpu: int) -> bytes:
+def _build_draw_runtime(fire_metatile_cpu: int, fairy_metatile_cpu: int, stone_metatile_cpu: int) -> bytes:
     a = _Asm()
     # Entry: A=cell value, $00=draw cell index.
     a.b(0x48)                             # PHA original cell value
@@ -156,6 +221,8 @@ def _build_draw_runtime(fire_metatile_cpu: int, fairy_metatile_cpu: int) -> byte
     a.rel(0xF0, "fire2")
     a.b(0xC9, ITEM_FAIRY2_BASE)
     a.rel(0xF0, "fairy2")
+    a.b(0xC9, ITEM_PHILOSOPHER_STONE_BASE)
+    a.rel(0xF0, "stone")
     a.rel(0xD0, "normal")
 
     a.label("fire2")
@@ -169,19 +236,31 @@ def _build_draw_runtime(fire_metatile_cpu: int, fairy_metatile_cpu: int) -> byte
     a.b(0xA9, fairy_metatile_cpu >> 8, 0x85, 0x07)
     a.b(0xA9, 0x00)
     a.rel(0xF0, "normal")
+
+    a.label("stone")
+    a.b(0xA9, stone_metatile_cpu & 0xFF, 0x85, 0x06)
+    a.b(0xA9, stone_metatile_cpu >> 8, 0x85, 0x07)
+    a.b(0xA9, 0x00)
+    a.rel(0xF0, "normal")
     return a.finish()
 
 
 ITEM_RUNTIME = _build_item_runtime()
 OFF_DRAW_RUNTIME = OFF_RUNTIME + len(ITEM_RUNTIME)
 CPU_DRAW_RUNTIME = CPU_RUNTIME + len(ITEM_RUNTIME)
-DRAW_RUNTIME_PLACEHOLDER = _build_draw_runtime(CPU_DRAW_RUNTIME + 0x70, CPU_DRAW_RUNTIME + 0x74)
+DRAW_RUNTIME_PLACEHOLDER = _build_draw_runtime(
+    CPU_DRAW_RUNTIME + 0x70,
+    CPU_DRAW_RUNTIME + 0x74,
+    CPU_DRAW_RUNTIME + 0x78,
+)
 FIRE2_METATILE_CPU = CPU_DRAW_RUNTIME + len(DRAW_RUNTIME_PLACEHOLDER)
 FAIRY2_METATILE_CPU = FIRE2_METATILE_CPU + 4
-DRAW_RUNTIME = _build_draw_runtime(FIRE2_METATILE_CPU, FAIRY2_METATILE_CPU)
+PHILOSOPHER_STONE_METATILE_CPU = FAIRY2_METATILE_CPU + 4
+DRAW_RUNTIME = _build_draw_runtime(FIRE2_METATILE_CPU, FAIRY2_METATILE_CPU, PHILOSOPHER_STONE_METATILE_CPU)
 FIRE2_METATILE_BG0 = bytes.fromhex("60 65 66 67")
 FAIRY2_METATILE_BG0 = bytes.fromhex("9C 9D 9E 9F")
-RUNTIME = ITEM_RUNTIME + DRAW_RUNTIME + FIRE2_METATILE_BG0 + FAIRY2_METATILE_BG0
+PHILOSOPHER_STONE_METATILE_BG0 = bytes.fromhex("70 71 72 73")
+RUNTIME = ITEM_RUNTIME + DRAW_RUNTIME + FIRE2_METATILE_BG0 + FAIRY2_METATILE_BG0 + PHILOSOPHER_STONE_METATILE_BG0
 
 HOOK_ITEM_PICKUP = bytes((0x4C, CPU_RUNTIME & 0xFF, CPU_RUNTIME >> 8))
 HOOK_DRAW = bytes((0x4C, CPU_DRAW_RUNTIME & 0xFF, CPU_DRAW_RUNTIME >> 8))
@@ -282,6 +361,13 @@ def _expect_blank_or(data: bytes | bytearray, off: int, blob: bytes, name: str) 
     old = OLD_RUNTIME
     if off == OFF_RUNTIME and bytes(data[off:off + len(old)]) == old:
         return
+    pre_stone = PRE_PHILOSOPHER_STONE_RUNTIME
+    if (
+        off == OFF_RUNTIME
+        and bytes(data[off:off + len(pre_stone)]) == pre_stone
+        and all(b in (0xEA, 0x00) for b in data[off + len(pre_stone):off + len(blob)])
+    ):
+        return
     raise Fire2ItemRuntimeError(
         f"{name} area is not blank at 0x{off:X}: expected EA/00 or existing runtime, got {cur.hex(' ')}"
     )
@@ -289,7 +375,7 @@ def _expect_blank_or(data: bytes | bytearray, off: int, blob: bytes, name: str) 
 
 def apply(rom_data: bytearray, levels: list | None = None) -> list[str]:
     if rom_data is None or len(rom_data) < OFF_PRG1_SPECIAL_ITEM_TABLE + PRG1_SPECIAL_ITEM_TABLE_SIZE:
-        raise Fire2ItemRuntimeError("ROM is too short for Fire/Fairy x2 special item runtime.")
+        raise Fire2ItemRuntimeError("ROM is too short for special item runtime.")
 
     from . import panel_monster_stage_variant
 
@@ -297,15 +383,15 @@ def apply(rom_data: bytearray, levels: list | None = None) -> list[str]:
         rom_data,
         OFF_ITEM_PICKUP_HOOK,
         (ORIG_ITEM_PICKUP_HOOK, HOOK_ITEM_PICKUP),
-        "$C55B Fire/Fairy x2 special item hook",
+        "$C55B special item hook",
     )
     _expect(
         rom_data,
         OFF_DRAW_HOOK,
-        (ORIG_DRAW_HOOK, OLD_DRAW_HOOK, HOOK_DRAW),
-        "$9DE8 Fire/Fairy x2 special draw hook",
+        (ORIG_DRAW_HOOK, OLD_DRAW_HOOK, PRE_PHILOSOPHER_STONE_DRAW_HOOK, HOOK_DRAW),
+        "$9DE8 special item draw hook",
     )
-    _expect_blank_or(rom_data, OFF_RUNTIME, RUNTIME, "Fire/Fairy x2 special item runtime")
+    _expect_blank_or(rom_data, OFF_RUNTIME, RUNTIME, "special item runtime")
 
     base_loader_slot = panel_monster_stage_variant.RUNTIME_LOADER_SLOT
     cur_loader = bytes(rom_data[panel_monster_stage_variant.OFF_PRG1_RUNTIME_LOADER:
@@ -320,7 +406,7 @@ def apply(rom_data: bytearray, levels: list | None = None) -> list[str]:
         rom_data,
         OFF_PRG1_LOADER_HELPER,
         loader_helper,
-        "Fire/Fairy x2 special item PRG1 loader helper",
+        "special item PRG1 loader helper",
     )
 
     table = build_special_item_table(levels or [])
@@ -329,24 +415,24 @@ def apply(rom_data: bytearray, levels: list | None = None) -> list[str]:
     if bytes(rom_data[OFF_RUNTIME:OFF_RUNTIME + len(RUNTIME)]) != RUNTIME:
         rom_data[OFF_RUNTIME:OFF_RUNTIME + len(RUNTIME)] = RUNTIME
         changed.append(
-            f"Fire/Fairy x2 special item runtime ${CPU_RUNTIME:04X}-${CPU_RUNTIME + len(RUNTIME) - 1:04X}"
+            f"special item runtime ${CPU_RUNTIME:04X}-${CPU_RUNTIME + len(RUNTIME) - 1:04X}"
         )
     if bytes(rom_data[OFF_ITEM_PICKUP_HOOK:OFF_ITEM_PICKUP_HOOK + len(HOOK_ITEM_PICKUP)]) != HOOK_ITEM_PICKUP:
         rom_data[OFF_ITEM_PICKUP_HOOK:OFF_ITEM_PICKUP_HOOK + len(HOOK_ITEM_PICKUP)] = HOOK_ITEM_PICKUP
-        changed.append("$C55B Fire/Fairy x2 special item hook")
+        changed.append("$C55B special item hook")
     if bytes(rom_data[OFF_DRAW_HOOK:OFF_DRAW_HOOK + len(HOOK_DRAW)]) != HOOK_DRAW:
         rom_data[OFF_DRAW_HOOK:OFF_DRAW_HOOK + len(HOOK_DRAW)] = HOOK_DRAW
-        changed.append("$9DE8 Fire/Fairy x2 special draw hook")
+        changed.append("$9DE8 special item draw hook")
     if bytes(rom_data[OFF_PRG1_LOADER_HELPER:OFF_PRG1_LOADER_HELPER + len(loader_helper)]) != loader_helper:
         rom_data[OFF_PRG1_LOADER_HELPER:OFF_PRG1_LOADER_HELPER + len(loader_helper)] = loader_helper
-        changed.append(f"Fire/Fairy x2 special item PRG1 loader ${CPU_PRG1_LOADER_HELPER:04X}")
+        changed.append(f"special item PRG1 loader ${CPU_PRG1_LOADER_HELPER:04X}")
     slot_off = panel_monster_stage_variant.OFF_PRG1_RUNTIME_LOADER
     if bytes(rom_data[slot_off:slot_off + len(HOOK_PRG1_LOADER)]) != HOOK_PRG1_LOADER:
         rom_data[slot_off:slot_off + len(HOOK_PRG1_LOADER)] = HOOK_PRG1_LOADER
-        changed.append("Panel Variant loader -> Fire/Fairy x2 special item loader")
+        changed.append("Panel Variant loader -> special item loader")
     if bytes(rom_data[OFF_PRG1_SPECIAL_ITEM_TABLE:OFF_PRG1_SPECIAL_ITEM_TABLE + len(table)]) != table:
         rom_data[OFF_PRG1_SPECIAL_ITEM_TABLE:OFF_PRG1_SPECIAL_ITEM_TABLE + len(table)] = table
-        changed.append("Fire/Fairy x2 special item position table")
+        changed.append("special item position table")
     return changed
 
 
@@ -372,6 +458,6 @@ PRG1_RESERVED_SPANS = (
 )
 
 
-assert len(ITEM_RUNTIME) == 63
-assert len(DRAW_RUNTIME) == 55
-assert len(RUNTIME) == 126
+assert len(ITEM_RUNTIME) == 160
+assert len(DRAW_RUNTIME) == 71
+assert len(RUNTIME) == 243
