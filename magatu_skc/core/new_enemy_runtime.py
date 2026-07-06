@@ -14,6 +14,8 @@ ICE_FLAME_ID = _ice.NEW_ENEMY_ID
 SPARK85_ID = _spark85.NEW_ENEMY_ID
 GHOST86_ID = _ghost86.NEW_ENEMY_ID
 
+OLD_GHOST86_OFF_RUNTIME = 0x6D88
+
 OFF_AI_ENTRY = 0x3BF2      # CPU $BBE2
 OFF_SETUP_ENTRY = 0x3C1A   # CPU $BC0A
 OFF_INIT_ENTRY = 0x3C3A    # CPU $BC2A
@@ -59,6 +61,29 @@ AI_ENTRY_RUNTIME = bytes.fromhex(
     "68"            # ghost87: PLA
     f"4c {_ghost86.CPU_AI_DISPATCH_DOWN & 0xFF:02x} {_ghost86.CPU_AI_DISPATCH_DOWN >> 8:02x}"
 )
+PRE_PACKED_GHOST_AI_ENTRY_RUNTIME = bytes.fromhex(
+    "48"
+    "18"
+    "69 14"
+    "c9 84"
+    "f0 10"
+    "c9 85"
+    "f0 10"
+    "c9 86"
+    "f0 10"
+    "c9 87"
+    "f0 10"
+    "68"
+    "4c 29 a3"
+    "68"
+    f"4c {_ice.CPU_AI_DISPATCH & 0xFF:02x} {_ice.CPU_AI_DISPATCH >> 8:02x}"
+    "68"
+    f"4c {_spark85.CPU_AI_DISPATCH & 0xFF:02x} {_spark85.CPU_AI_DISPATCH >> 8:02x}"
+    "68"
+    "4c 92 ed"
+    "68"
+    "4c 96 ed"
+)
 
 OLD_SETUP_ENTRY_RUNTIME = bytes.fromhex(
     "a0 01"
@@ -90,6 +115,25 @@ SETUP_ENTRY_RUNTIME = bytes.fromhex(
     "b9 d3 d9"      # LDA $D9D3,Y
     "60"            # RTS
 )
+PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME = bytes.fromhex(
+    "a0 01"
+    "b1 08"
+    "c9 84"
+    "90 12"
+    "c9 88"
+    "b0 0e"
+    "38"
+    "e9 84"
+    "aa"
+    "bd 78 ed"
+    "85 0e"
+    "a8"
+    "b9 d3 d9"
+    "60"
+    "a4 0e"
+    "b9 d3 d9"
+    "60"
+)
 
 OLD_INIT_ENTRY_RUNTIME = bytes.fromhex(
     "20 1c 9d"
@@ -120,6 +164,26 @@ INIT_ENTRY_RUNTIME = bytes.fromhex(
     "68"            # spark85: PLA
     f"4c {_spark85.CPU_INIT_STATUS & 0xFF:02x} {_spark85.CPU_INIT_STATUS >> 8:02x}"
 )
+PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME = bytes.fromhex(
+    "48"
+    "a5 05"
+    "c9 86"
+    "f0 04"
+    "c9 87"
+    "d0 03"
+    "4c 7c ed"
+    "c9 85"
+    "f0 0e"
+    "68"
+    "20 1c 9d"
+    "a5 05"
+    "c9 84"
+    "f0 01"
+    "60"
+    f"4c {_ice.CPU_INIT_STATUS & 0xFF:02x} {_ice.CPU_INIT_STATUS >> 8:02x}"
+    "68"
+    f"4c {_spark85.CPU_INIT_STATUS & 0xFF:02x} {_spark85.CPU_INIT_STATUS >> 8:02x}"
+)
 
 ANIM_ENTRY_RUNTIME = bytes.fromhex(
     "a0 01"         # LDY #$01
@@ -131,9 +195,9 @@ ANIM_ENTRY_RUNTIME = bytes.fromhex(
 )
 
 ENTRY_RUNTIMES = (
-    (OFF_AI_ENTRY, AI_ENTRY_RUNTIME, (), "$BBE2 new enemy AI dispatch"),
-    (OFF_SETUP_ENTRY, SETUP_ENTRY_RUNTIME, (), "$BC0A new enemy setup dispatch"),
-    (OFF_INIT_ENTRY, INIT_ENTRY_RUNTIME, (), "$BC2A new enemy init dispatch"),
+    (OFF_AI_ENTRY, AI_ENTRY_RUNTIME, (PRE_PACKED_GHOST_AI_ENTRY_RUNTIME,), "$BBE2 new enemy AI dispatch"),
+    (OFF_SETUP_ENTRY, SETUP_ENTRY_RUNTIME, (PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME,), "$BC0A new enemy setup dispatch"),
+    (OFF_INIT_ENTRY, INIT_ENTRY_RUNTIME, (PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME,), "$BC2A new enemy init dispatch"),
     (OFF_ANIM_ENTRY, ANIM_ENTRY_RUNTIME, (), "$BC4E new enemy animation dispatch"),
 )
 
@@ -153,8 +217,11 @@ RESERVED_SPANS = (
 )
 
 assert len(AI_ENTRY_RUNTIME) == 40
+assert len(PRE_PACKED_GHOST_AI_ENTRY_RUNTIME) == 40
 assert len(SETUP_ENTRY_RUNTIME) == 32
+assert len(PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME) == 32
 assert len(INIT_ENTRY_RUNTIME) == 36
+assert len(PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME) == 36
 assert len(ANIM_ENTRY_RUNTIME) == 14
 assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
 assert OFF_INIT_ENTRY == OFF_SETUP_ENTRY + len(SETUP_ENTRY_RUNTIME)
@@ -220,6 +287,15 @@ def apply(rom_data: bytearray) -> list[str]:
     if rom_data is None or len(rom_data) < max_end:
         raise NewEnemyRuntimeError("ROM is too short for new enemy runtime.")
 
+    changed: list[str] = []
+    if OLD_GHOST86_OFF_RUNTIME != _ghost86.OFF_RUNTIME:
+        old_ghost_cur = bytes(rom_data[OLD_GHOST86_OFF_RUNTIME:OLD_GHOST86_OFF_RUNTIME + len(_ghost86.RUNTIME)])
+        if old_ghost_cur == _ghost86.RUNTIME:
+            rom_data[OLD_GHOST86_OFF_RUNTIME:OLD_GHOST86_OFF_RUNTIME + len(_ghost86.RUNTIME)] = (
+                bytes((0xEA,)) * len(_ghost86.RUNTIME)
+            )
+            changed.append("old Ghost86/87 runtime area cleared for packed relocation")
+
     _expect_one(
         rom_data,
         _ice.OFF_AI_DISPATCH_CALL,
@@ -272,7 +348,6 @@ def apply(rom_data: bytearray) -> list[str]:
     for off, blob, old_blobs, name in ENTRY_RUNTIMES:
         _expect_blank_or_one_of(rom_data, off, (blob, *old_blobs), name)
 
-    changed: list[str] = []
     _write(rom_data, _ice.OFF_AI_DISPATCH_CALL, HOOK_AI_DISPATCH_CALL, changed, "$A1C3 new enemy AI dispatch hook")
     _write(rom_data, _ice.OFF_ANIM_UPDATE_CALL, HOOK_ANIM_UPDATE_CALL, changed, "$8676 new enemy animation hook")
     _write(rom_data, _ice.OFF_INIT_WRITE_CALL, HOOK_INIT_WRITE_CALL, changed, "$A2F2 new enemy init/status hook")
