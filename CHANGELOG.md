@@ -1,5 +1,11 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.26 (2026-07-06) 開発者用敵ピッカーと設定保護を追加
+- Crystal max fire rangeアイテムを追加し、通常アイテム`0x1B` + special item cellで火の飛距離上限を最大化できるようにした。
+- 暗闇面でダーナ火球slot `$05A7` が存在する間だけBG-offを抑止し、火が出ている間は暗闇を一時的に照らすようにした。
+- 手書き設定`developer_mode: true`の時だけ実験中の敵ID `$85/$86/$87` をピッカーへ表示し、通常時はユーザーUIから隠すようにした。
+- 設定JSONの構文エラー時に行/列を警告表示し、そのセッションでは元の設定ファイルを上書きしないようにした。
+
 ## v0.9.25 (2026-07-06) Philosopher's Stoneアイテムを追加
 - Philosopher's Stoneをアイテムピッカーへ追加し、取得時に隠し/ブロック内アイテム、鍵、隠し扉を表示できるようにした。
 - 保存ROMではPhilosopher's Stoneを通常アイテム`0x08` + special item cellとして扱い、既存のFirejar x2 / Fairy x2と同じ位置リストruntimeへ統合した。

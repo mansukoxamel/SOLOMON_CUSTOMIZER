@@ -3,6 +3,7 @@
 設定ファイル: プロジェクトルートの config/magatu_skc_config.json
 """
 import json
+from json import JSONDecodeError
 import sys
 from pathlib import Path
 
@@ -399,6 +400,8 @@ def load_config() -> dict:
                 data = json.load(f)
             cfg = dict(DEFAULT_CONFIG)
             cfg.update(data)
+            if not isinstance(cfg.get("developer_mode"), bool):
+                cfg["developer_mode"] = DEFAULT_CONFIG["developer_mode"]
             if not cfg.get("icon_path"):
                 cfg["icon_path"] = DEFAULT_ICON_PATH
             cfg["autosave_keep_count"] = normalize_int_setting(
@@ -434,8 +437,18 @@ def load_config() -> dict:
                 cfg.get("panel_variant_settings")
             )
             return cfg
+        except JSONDecodeError as e:
+            cfg = dict(DEFAULT_CONFIG)
+            cfg["_config_load_error"] = str(e)
+            cfg["_config_load_error_line"] = int(getattr(e, "lineno", 0) or 0)
+            cfg["_config_load_error_column"] = int(getattr(e, "colno", 0) or 0)
+            cfg["_config_path"] = str(p)
+            return cfg
         except Exception:
-            pass
+            cfg = dict(DEFAULT_CONFIG)
+            cfg["_config_load_error"] = "unknown"
+            cfg["_config_path"] = str(p)
+            return cfg
     cfg = dict(DEFAULT_CONFIG)
     cfg["shortcuts"] = normalize_shortcuts(cfg.get("shortcuts"))
     cfg["gamepad_shortcuts"] = normalize_gamepad_shortcuts(
@@ -451,10 +464,18 @@ def load_config() -> dict:
 
 def save_config(cfg: dict):
     """設定を保存"""
+    if isinstance(cfg, dict) and cfg.get("_config_load_error"):
+        return False
     p = get_config_path()
     try:
         p.parent.mkdir(parents=True, exist_ok=True)
         with open(p, "w", encoding="utf-8") as f:
-            json.dump(cfg, f, ensure_ascii=False, indent=2)
+            json.dump(
+                {k: v for k, v in cfg.items() if not str(k).startswith("_config_")},
+                f,
+                ensure_ascii=False,
+                indent=2,
+            )
+        return True
     except Exception:
-        pass
+        return False

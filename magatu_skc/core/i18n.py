@@ -310,6 +310,11 @@ _TRANSLATIONS = {
         "ja": "Executables (*.exe);;All files (*)",
         "en": "Executables (*.exe);;All files (*)",
     },
+    "config.load_error.title": {"ja": "設定ファイルを読み込めません", "en": "Could not load settings"},
+    "config.load_error.message": {
+        "ja": "設定ファイルのJSON構文エラーのため、今回は既定値で起動します。\n\nファイル: {path}\n行: {line} / 列: {column}\n\n元の設定ファイルを守るため、この起動中は設定ファイルを上書き保存しません。\nファイルを修正してからアプリを再起動してください。",
+        "en": "The settings JSON has a syntax error, so the app will start with defaults for this session.\n\nFile: {path}\nLine: {line} / Column: {column}\n\nTo protect the original settings file, this session will not overwrite it.\nFix the file and restart the app.",
+    },
     "element_picker.slot.empty": {"ja": "スロット{slot}: 空", "en": "Slot {slot}: empty"},
     "element_picker.slot.value": {"ja": "スロット{slot}: {text}", "en": "Slot {slot}: {text}"},
     "element_picker.mirror_enemies.html": {"ja": "<small>ミラー出現敵</small>", "en": "<small>Mirror Enemies</small>"},

@@ -734,9 +734,31 @@ class MainWindow(QMainWindow):
 
         # ウィンドウ位置・サイズを復元
         self._restore_window_state()
+        QTimer.singleShot(0, self._show_config_load_error_if_needed)
         QTimer.singleShot(0, lambda: self._write_window_state_debug("startup_timer_0ms"))
         QTimer.singleShot(500, lambda: self._write_window_state_debug("startup_timer_500ms"))
         self._log("セッション開始")
+
+    def _show_config_load_error_if_needed(self):
+        if not getattr(self, "_app_config", None):
+            return
+        if not self._app_config.get("_config_load_error"):
+            return
+        QMessageBox.warning(
+            self,
+            t("config.load_error.title", "設定ファイルを読み込めません"),
+            t(
+                "config.load_error.message",
+                "設定ファイルのJSON構文エラーのため、今回は既定値で起動します。\n\n"
+                "ファイル: {path}\n行: {line} / 列: {column}\n\n"
+                "元の設定ファイルを守るため、この起動中は設定ファイルを上書き保存しません。\n"
+                "ファイルを修正してからアプリを再起動してください。",
+            ).format(
+                path=self._app_config.get("_config_path", str(get_config_path())),
+                line=self._app_config.get("_config_load_error_line", "?"),
+                column=self._app_config.get("_config_load_error_column", "?"),
+            ),
+        )
 
     def _setup_shortcuts(self):
         self._app_config["shortcuts"] = normalize_shortcuts(
