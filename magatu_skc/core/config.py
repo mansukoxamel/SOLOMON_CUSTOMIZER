@@ -228,6 +228,7 @@ DEFAULT_CONFIG = {
     "binary_editor_path": "",
     "test_play_quick_start": True,
     "stage_png_show_secrets": True,
+    "developer_mode": False,
     # ピッカーのお気に入り（10スロット, [mode, value] or null）
     "picker_favorites": [None] * 10,
     "picker_block_order": [

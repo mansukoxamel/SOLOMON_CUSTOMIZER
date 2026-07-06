@@ -186,10 +186,16 @@ ENEMIES_LIST = [
     (0x80, "Red Flame"),
     (0x81, "White Flame"),
     (0x84, "Ice Flame"),
-    # (0x85, "Spark85"),  # Internal runtime is prepared; keep hidden from picker for now.
+    (0x85, "Spark85"),
     (0x86, "Ghost86 (shoot down)"),
     (0x87, "Ghost87 (shoot up)"),
 ]
+
+DEVELOPER_ONLY_PICKER_ITEMS = {
+    (MODE_ENEMY, 0x85),  # Runtime exists, but placement is not public yet.
+    (MODE_ENEMY, 0x86),
+    (MODE_ENEMY, 0x87),
+}
 
 
 # 敵コード → スピードバリアントの対応表
@@ -1168,7 +1174,14 @@ class ElementPicker(QWidget):
         self._marker_overlay_scale = 3
         self._icon_size = ICON_SIZE
         self._marker_source_tile_size = ICON_SIZE
+        self._app_config = {}
         self._build_ui()
+
+    def set_app_config(self, app_config):
+        self._app_config = app_config if isinstance(app_config, dict) else {}
+
+    def _developer_mode_enabled(self) -> bool:
+        return bool(getattr(self, "_app_config", {}).get("developer_mode", False))
 
     def dragEnterEvent(self, e):
         """親で受けて、ドロップ位置に応じて子(FavoritesBar)に手動振り分け"""
@@ -1793,6 +1806,11 @@ class ElementPicker(QWidget):
 
             # カテゴリ3: モンスター
             for code, name in ENEMIES_LIST:
+                if (
+                    (MODE_ENEMY, code) in DEVELOPER_ONLY_PICKER_ITEMS
+                    and not self._developer_mode_enabled()
+                ):
+                    continue
                 label = f"0x{code:02x} {name}"
                 self._add_picker_item(3, MODE_ENEMY, code, label, self._make_enemy_icon(code))
 
