@@ -1,5 +1,11 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.25 (2026-07-06) Philosopher's Stoneアイテムを追加
+- Philosopher's Stoneをアイテムピッカーへ追加し、取得時に隠し/ブロック内アイテム、鍵、隠し扉を表示できるようにした。
+- 保存ROMではPhilosopher's Stoneを通常アイテム`0x08` + special item cellとして扱い、既存のFirejar x2 / Fairy x2と同じ位置リストruntimeへ統合した。
+- runtimeはライブgridの表示12行`0x10-0xCF`を走査し、鍵`0x06`とアイテム`0x08-0x33`だけを表示状態へ戻すようにした。追加RAMは使わない。
+- ROM/RAM管理簿を更新し、Special item runtimeを`0x6C7D-0x6D6F` / `$EC6D-$ED5F`、残り空き661Bとして記録した。
+
 ## v0.9.24 (2026-07-05) Fire/Fairy x2アイテムを追加
 - Firejar x2とFairy x2をアイテムピッカーへ追加し、取得時にそれぞれFirejar/Fairy取得効果を2回発生させるようにした。
 - 追加アイテムIDは、Modifiable枠や特殊ブロックセル値と衝突しないよう、`$34` / `$35` を使用するようにした。
