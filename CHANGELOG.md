@@ -1,5 +1,11 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.28 (2026-07-07) Chaos Dragon89を追加
+- 開発者用敵ID `$89` としてChaos Dragonを追加し、通常時はピッカーから隠し、`developer_mode: true` の時だけ配置できるようにした。
+- Chaos Dragonは原作Dragonの見た目を使い、Dragon AIを崩した落下・貫通・不規則な火吹き挙動の敵として固定した。
+- 新敵入口センターをID `$89` まで増設し、setup/init/animationの入口と原作hook先を更新した。
+- ROM管理簿を更新し、Chaos Dragon runtimeを `0x6EB4-0x6ED0` / `$EEA4-$EEC0` の29B、残り空き308Bとして記録した。
+
 ## v0.9.27 (2026-07-07) Neul88を追加
 - 開発者用敵ID `$88` としてNeul88を追加し、通常時はピッカーから隠し、`developer_mode: true` の時だけ配置できるようにした。
 - Neul88は原作Neul `$30` 相当の見た目/初期behaviorで出現し、原作Neul/Ghost AI後に固定間隔で左右へBulletを同時発射するようにした。

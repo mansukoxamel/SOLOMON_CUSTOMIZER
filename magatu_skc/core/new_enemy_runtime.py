@@ -5,6 +5,7 @@ from . import ice_flame_runtime as _ice
 from . import spark85_runtime as _spark85
 from . import ghost86_runtime as _ghost86
 from . import neul88_runtime as _neul88
+from . import flying_dragon89_runtime as _flying89
 
 
 class NewEnemyRuntimeError(ValueError):
@@ -15,18 +16,19 @@ ICE_FLAME_ID = _ice.NEW_ENEMY_ID
 SPARK85_ID = _spark85.NEW_ENEMY_ID
 GHOST86_ID = _ghost86.NEW_ENEMY_ID
 NEUL88_ID = _neul88.NEW_ENEMY_ID
+CHAOS89_ID = _flying89.NEW_ENEMY_ID
 
 OLD_GHOST86_OFF_RUNTIME = 0x6D88
 
 OFF_AI_ENTRY = 0x3BF2      # CPU $BBE2
-OFF_SETUP_ENTRY = 0x3C22   # CPU $BC12
-OFF_INIT_ENTRY = 0x3C47    # CPU $BC37
-OFF_ANIM_ENTRY = 0x3C72    # CPU $BC62
+OFF_SETUP_ENTRY = 0x3C2A   # CPU $BC1A
+OFF_INIT_ENTRY = 0x3C56    # CPU $BC46
+OFF_ANIM_ENTRY = 0x3C88    # CPU $BC78
 
 CPU_AI_ENTRY = 0xBBE2
-CPU_SETUP_ENTRY = 0xBC12
-CPU_INIT_ENTRY = 0xBC37
-CPU_ANIM_ENTRY = 0xBC62
+CPU_SETUP_ENTRY = 0xBC1A
+CPU_INIT_ENTRY = 0xBC46
+CPU_ANIM_ENTRY = 0xBC78
 
 OLD_AI_ENTRY_RUNTIME = bytes.fromhex(
     "48"
@@ -53,7 +55,9 @@ AI_ENTRY_RUNTIME = bytes.fromhex(
     "c9 87"         # CMP #$87
     "f0 14"         # BEQ ghost87
     "c9 88"         # CMP #$88
-    "f0 14"         # BEQ neul88
+    "f0 18"         # BEQ neul88
+    "c9 89"         # CMP #$89
+    "f0 18"         # BEQ chaos89
     "68"            # PLA
     "4c 29 a3"      # JMP $A329 stock AI dispatcher
     "68"            # ice: PLA
@@ -66,6 +70,8 @@ AI_ENTRY_RUNTIME = bytes.fromhex(
     f"4c {_ghost86.CPU_AI_DISPATCH_DOWN & 0xFF:02x} {_ghost86.CPU_AI_DISPATCH_DOWN >> 8:02x}"
     "68"            # neul88: PLA
     f"4c {_neul88.CPU_AI_DISPATCH & 0xFF:02x} {_neul88.CPU_AI_DISPATCH >> 8:02x}"
+    "68"            # chaos89: PLA
+    f"4c {_flying89.CPU_AI_DISPATCH & 0xFF:02x} {_flying89.CPU_AI_DISPATCH >> 8:02x}"
 )
 PRE_PACKED_GHOST_AI_ENTRY_RUNTIME = bytes.fromhex(
     "48"
@@ -106,10 +112,12 @@ SETUP_ENTRY_RUNTIME = bytes.fromhex(
     "a0 01"         # LDY #$01
     "b1 08"         # LDA ($08),Y -> main-slot type
     "c9 84"         # CMP #$84
-    "90 17"         # BCC stock
+    "90 1e"         # BCC stock
     "c9 88"         # CMP #$88
-    "f0 10"         # BEQ neul88
-    "b0 11"         # BCS stock
+    "f0 14"         # BEQ neul88
+    "c9 89"         # CMP #$89
+    "f0 13"         # BEQ chaos89
+    "b0 14"         # BCS stock
     "38"            # SEC
     "e9 84"         # SBC #$84
     "aa"            # TAX
@@ -119,6 +127,7 @@ SETUP_ENTRY_RUNTIME = bytes.fromhex(
     "b9 d3 d9"      # LDA $D9D3,Y
     "60"            # RTS
     f"4c {_neul88.CPU_SETUP_META_LOAD & 0xFF:02x} {_neul88.CPU_SETUP_META_LOAD >> 8:02x}"
+    f"4c {_flying89.CPU_SETUP_META_LOAD & 0xFF:02x} {_flying89.CPU_SETUP_META_LOAD >> 8:02x}"
     "a4 0e"         # LDY $0E
     "b9 d3 d9"      # LDA $D9D3,Y
     "60"            # RTS
@@ -161,7 +170,9 @@ INIT_ENTRY_RUNTIME = bytes.fromhex(
     "d0 03"         # BNE not ghost86/87
     f"4c {_ghost86.CPU_INIT_STATUS & 0xFF:02x} {_ghost86.CPU_INIT_STATUS >> 8:02x}"
     "c9 88"         # CMP #$88
-    "f0 16"         # BEQ neul88
+    "f0 1a"         # BEQ neul88
+    "c9 89"         # CMP #$89
+    "f0 19"         # BEQ chaos89
     "c9 85"         # CMP #$85
     "f0 0e"         # BEQ spark85
     "68"            # PLA
@@ -174,6 +185,7 @@ INIT_ENTRY_RUNTIME = bytes.fromhex(
     "68"            # spark85: PLA
     f"4c {_spark85.CPU_INIT_STATUS & 0xFF:02x} {_spark85.CPU_INIT_STATUS >> 8:02x}"
     f"4c {_neul88.CPU_INIT_STATUS & 0xFF:02x} {_neul88.CPU_INIT_STATUS >> 8:02x}"
+    f"4c {_flying89.CPU_INIT_STATUS & 0xFF:02x} {_flying89.CPU_INIT_STATUS >> 8:02x}"
 )
 PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME = bytes.fromhex(
     "48"
@@ -207,9 +219,9 @@ ANIM_ENTRY_RUNTIME = bytes.fromhex(
 
 ENTRY_RUNTIMES = (
     (OFF_AI_ENTRY, AI_ENTRY_RUNTIME, (), "$BBE2 new enemy AI dispatch"),
-    (OFF_SETUP_ENTRY, SETUP_ENTRY_RUNTIME, (), "$BC12 new enemy setup dispatch"),
-    (OFF_INIT_ENTRY, INIT_ENTRY_RUNTIME, (), "$BC37 new enemy init dispatch"),
-    (OFF_ANIM_ENTRY, ANIM_ENTRY_RUNTIME, (), "$BC62 new enemy animation dispatch"),
+    (OFF_SETUP_ENTRY, SETUP_ENTRY_RUNTIME, (), "$BC1A new enemy setup dispatch"),
+    (OFF_INIT_ENTRY, INIT_ENTRY_RUNTIME, (), "$BC46 new enemy init dispatch"),
+    (OFF_ANIM_ENTRY, ANIM_ENTRY_RUNTIME, (), "$BC78 new enemy animation dispatch"),
 )
 
 HOOK_AI_DISPATCH_CALL = bytes((0x20, CPU_AI_ENTRY & 0xFF, CPU_AI_ENTRY >> 8))
@@ -226,13 +238,14 @@ RESERVED_SPANS = (
     *_spark85.RESERVED_SPANS,
     *_ghost86.RESERVED_SPANS,
     *_neul88.RESERVED_SPANS,
+    *_flying89.RESERVED_SPANS,
 )
 
-assert len(AI_ENTRY_RUNTIME) == 48
+assert len(AI_ENTRY_RUNTIME) == 56
 assert len(PRE_PACKED_GHOST_AI_ENTRY_RUNTIME) == 40
-assert len(SETUP_ENTRY_RUNTIME) == 37
+assert len(SETUP_ENTRY_RUNTIME) == 44
 assert len(PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME) == 32
-assert len(INIT_ENTRY_RUNTIME) == 43
+assert len(INIT_ENTRY_RUNTIME) == 50
 assert len(PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME) == 36
 assert len(ANIM_ENTRY_RUNTIME) == 14
 assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
@@ -246,6 +259,7 @@ def levels_need_runtime(levels: list) -> bool:
         or _spark85.levels_need_runtime(levels)
         or _ghost86.levels_need_runtime(levels)
         or _neul88.levels_need_runtime(levels)
+        or _flying89.levels_need_runtime(levels)
     )
 
 
@@ -296,6 +310,7 @@ def apply(rom_data: bytearray) -> list[str]:
         _spark85.OFF_RUNTIME + len(_spark85.RUNTIME),
         _ghost86.OFF_RUNTIME + len(_ghost86.RUNTIME),
         _neul88.OFF_RUNTIME + len(_neul88.RUNTIME),
+        _flying89.OFF_RUNTIME + len(_flying89.RUNTIME),
         max(off + len(blob) for off, blob, _old_blobs, _name in ENTRY_RUNTIMES),
     )
     if rom_data is None or len(rom_data) < max_end:
@@ -365,6 +380,12 @@ def apply(rom_data: bytearray) -> list[str]:
         (bytes((0xEA,)) * len(_neul88.RUNTIME), _neul88.RUNTIME),
         "Neul88 runtime area",
     )
+    _expect_one(
+        rom_data,
+        _flying89.OFF_RUNTIME,
+        (bytes((0xEA,)) * len(_flying89.RUNTIME), _flying89.RUNTIME),
+        "Chaos Dragon89 runtime area",
+    )
     for off, blob, old_blobs, name in ENTRY_RUNTIMES:
         _expect_blank_or_one_of(rom_data, off, (blob, *old_blobs), name)
 
@@ -401,5 +422,12 @@ def apply(rom_data: bytearray) -> list[str]:
         _neul88.RUNTIME,
         changed,
         f"Neul88 runtime ${_neul88.CPU_RUNTIME:04X}-${_neul88.CPU_RUNTIME_END - 1:04X}",
+    )
+    _write(
+        rom_data,
+        _flying89.OFF_RUNTIME,
+        _flying89.RUNTIME,
+        changed,
+        f"Chaos Dragon89 runtime ${_flying89.CPU_RUNTIME:04X}-${_flying89.CPU_RUNTIME_END - 1:04X}",
     )
     return changed
