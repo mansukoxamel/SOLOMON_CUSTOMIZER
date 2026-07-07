@@ -191,6 +191,7 @@ ENEMIES_LIST = [
     (0x87, "Ghost87 (shoot up)"),
     (0x88, "Neul Twin Cannon"),
     (0x89, "Chaos Dragon"),
+    (0x8A, "Back Fire"),
 ]
 
 DEVELOPER_ONLY_PICKER_ITEMS = {
@@ -199,6 +200,7 @@ DEVELOPER_ONLY_PICKER_ITEMS = {
     (MODE_ENEMY, 0x87),
     (MODE_ENEMY, 0x88),
     (MODE_ENEMY, 0x89),
+    (MODE_ENEMY, 0x8A),
 }
 
 
@@ -266,6 +268,7 @@ ENHANCED_ENEMY_CODES = {
     0x86, 0x87,  # Ghost86/87
     0x88,  # Neul Twin Cannon
     0x89,  # Chaos Dragon
+    0x8A,  # Back Fire
 }
 
 
@@ -319,6 +322,7 @@ ENEMY_VISUAL_SOURCE = {
     0x87: 0x34,  # Ghost87 uses the stock Ghost right visual.
     0x88: 0x30,  # Neul Twin Cannon uses the stock Neul up visual.
     0x89: 0x68,  # Chaos Dragon uses the stock Dragon right visual.
+    0x8A: 0x34,  # Back Fire uses the stock Ghost right visual.
 }
 
 

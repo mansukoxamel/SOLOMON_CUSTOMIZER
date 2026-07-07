@@ -1,5 +1,12 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.29 (2026-07-08) Back Fire90を追加
+- 開発者用敵ID `$8A` としてBack Fireを追加し、通常時はピッカーから隠し、`developer_mode: true` の時だけ配置できるようにした。
+- Back Fireは原作Ghostの見た目/横移動を使い、原作Ghost AI後に進行方向と逆向きへBulletを発射する後方噴射型の敵として実装した。
+- 発射方向はGhostのbehaviorではなく現在のX速度値を`$40`境界で判定し、右移動中は左、左移動中は右へ撃つようにした。
+- 新敵入口センターをID `$8A` まで増設し、setup/init/animationの入口と原作hook先を更新した。
+- ROM管理簿を更新し、Back Fire90 runtimeを `0x6ED1-0x6F52` / `$EEC1-$EF42` の130B、残り空き178Bとして記録した。
+
 ## v0.9.28 (2026-07-07) Chaos Dragon89を追加
 - 開発者用敵ID `$89` としてChaos Dragonを追加し、通常時はピッカーから隠し、`developer_mode: true` の時だけ配置できるようにした。
 - Chaos Dragonは原作Dragonの見た目を使い、Dragon AIを崩した落下・貫通・不規則な火吹き挙動の敵として固定した。

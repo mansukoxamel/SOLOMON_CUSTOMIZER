@@ -349,8 +349,9 @@
     <enemy no="0x87" description="Ghost87 (shoot up)" animation="63" />
     <enemy no="0x88" description="Neul Twin Cannon" animation="43" />
     <enemy no="0x89" description="Chaos Dragon" animation="64" />
+    <enemy no="0x8a" description="Back Fire" animation="63" />
 
-    <!-- 0x8A and up are undefined in the current custom runtime. -->
+    <!-- 0x8B and up are undefined in the current custom runtime. -->
   </enemy_definitions>
 
   <enemy_editor>
