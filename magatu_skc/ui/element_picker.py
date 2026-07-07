@@ -190,7 +190,7 @@ ENEMIES_LIST = [
     (0x86, "Ghost86 (shoot down)"),
     (0x87, "Ghost87 (shoot up)"),
     (0x88, "Neul Twin Cannon"),
-    (0x89, "Flying Dragon"),
+    (0x89, "Chaos Dragon"),
 ]
 
 DEVELOPER_ONLY_PICKER_ITEMS = {
@@ -265,7 +265,7 @@ ENHANCED_ENEMY_CODES = {
     0x7a, 0x7b, 0x7e, 0x7f,  # Gargoyle slow Bullet
     0x86, 0x87,  # Ghost86/87
     0x88,  # Neul Twin Cannon
-    0x89,  # Flying Dragon
+    0x89,  # Chaos Dragon
 }
 
 
@@ -318,7 +318,7 @@ ENEMY_VISUAL_SOURCE = {
     0x86: 0x34,  # Ghost86 uses the stock Ghost right visual.
     0x87: 0x34,  # Ghost87 uses the stock Ghost right visual.
     0x88: 0x30,  # Neul Twin Cannon uses the stock Neul up visual.
-    0x89: 0x68,  # Flying Dragon uses the stock Dragon right visual.
+    0x89: 0x68,  # Chaos Dragon uses the stock Dragon right visual.
 }
 
 
