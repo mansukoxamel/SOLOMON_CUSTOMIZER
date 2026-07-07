@@ -16,7 +16,7 @@ ICE_FLAME_ID = _ice.NEW_ENEMY_ID
 SPARK85_ID = _spark85.NEW_ENEMY_ID
 GHOST86_ID = _ghost86.NEW_ENEMY_ID
 NEUL88_ID = _neul88.NEW_ENEMY_ID
-FLYING89_ID = _flying89.NEW_ENEMY_ID
+CHAOS89_ID = _flying89.NEW_ENEMY_ID
 
 OLD_GHOST86_OFF_RUNTIME = 0x6D88
 
@@ -57,7 +57,7 @@ AI_ENTRY_RUNTIME = bytes.fromhex(
     "c9 88"         # CMP #$88
     "f0 18"         # BEQ neul88
     "c9 89"         # CMP #$89
-    "f0 18"         # BEQ flying89
+    "f0 18"         # BEQ chaos89
     "68"            # PLA
     "4c 29 a3"      # JMP $A329 stock AI dispatcher
     "68"            # ice: PLA
@@ -70,7 +70,7 @@ AI_ENTRY_RUNTIME = bytes.fromhex(
     f"4c {_ghost86.CPU_AI_DISPATCH_DOWN & 0xFF:02x} {_ghost86.CPU_AI_DISPATCH_DOWN >> 8:02x}"
     "68"            # neul88: PLA
     f"4c {_neul88.CPU_AI_DISPATCH & 0xFF:02x} {_neul88.CPU_AI_DISPATCH >> 8:02x}"
-    "68"            # flying89: PLA
+    "68"            # chaos89: PLA
     f"4c {_flying89.CPU_AI_DISPATCH & 0xFF:02x} {_flying89.CPU_AI_DISPATCH >> 8:02x}"
 )
 PRE_PACKED_GHOST_AI_ENTRY_RUNTIME = bytes.fromhex(
@@ -116,7 +116,7 @@ SETUP_ENTRY_RUNTIME = bytes.fromhex(
     "c9 88"         # CMP #$88
     "f0 14"         # BEQ neul88
     "c9 89"         # CMP #$89
-    "f0 13"         # BEQ flying89
+    "f0 13"         # BEQ chaos89
     "b0 14"         # BCS stock
     "38"            # SEC
     "e9 84"         # SBC #$84
@@ -172,7 +172,7 @@ INIT_ENTRY_RUNTIME = bytes.fromhex(
     "c9 88"         # CMP #$88
     "f0 1a"         # BEQ neul88
     "c9 89"         # CMP #$89
-    "f0 19"         # BEQ flying89
+    "f0 19"         # BEQ chaos89
     "c9 85"         # CMP #$85
     "f0 0e"         # BEQ spark85
     "68"            # PLA
@@ -384,7 +384,7 @@ def apply(rom_data: bytearray) -> list[str]:
         rom_data,
         _flying89.OFF_RUNTIME,
         (bytes((0xEA,)) * len(_flying89.RUNTIME), _flying89.RUNTIME),
-        "Flying Dragon89 runtime area",
+        "Chaos Dragon89 runtime area",
     )
     for off, blob, old_blobs, name in ENTRY_RUNTIMES:
         _expect_blank_or_one_of(rom_data, off, (blob, *old_blobs), name)
@@ -428,6 +428,6 @@ def apply(rom_data: bytearray) -> list[str]:
         _flying89.OFF_RUNTIME,
         _flying89.RUNTIME,
         changed,
-        f"Flying Dragon89 runtime ${_flying89.CPU_RUNTIME:04X}-${_flying89.CPU_RUNTIME_END - 1:04X}",
+        f"Chaos Dragon89 runtime ${_flying89.CPU_RUNTIME:04X}-${_flying89.CPU_RUNTIME_END - 1:04X}",
     )
     return changed

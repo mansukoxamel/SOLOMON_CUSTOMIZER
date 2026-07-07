@@ -1,4 +1,4 @@
-"""Flying Dragon enemy ID $89 runtime body for mapper66 saved ROMs."""
+"""Chaos Dragon enemy ID $89 runtime body for mapper66 saved ROMs."""
 from __future__ import annotations
 
 from .element import ElementType
@@ -27,7 +27,7 @@ CPU_INIT_STATUS = CPU_SETUP_META_LOAD + len(SETUP_META_RUNTIME)
 
 INIT_STATUS_RUNTIME = bytes.fromhex(
     "68"            # PLA: discard behavior computed for custom type $89
-    "a9 c0"         # LDA #$C0: active, no gravity for air-walking Dragon89
+    "a9 c0"         # LDA #$C0: active, no gravity for Chaos Dragon89
     "85 04"         # STA $04
     "a0 05"         # LDY #$05
     "a9 00"         # LDA #$00: no initial vertical movement
