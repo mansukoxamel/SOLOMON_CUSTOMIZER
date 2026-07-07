@@ -390,7 +390,7 @@ def save_levels_to_rom(
             levels,
         )
     elif new_enemy_runtime.levels_need_runtime(levels):
-        raise SaveError("新敵ID ($84-$88) はmapper66拡張ROM保存専用です。")
+        raise SaveError("新敵ID ($84-$89) はmapper66拡張ROM保存専用です。")
     elif enemy_clear_key_open.levels_need_runtime(levels):
         raise SaveError("全敵消滅で扉を開く機能はmapper66拡張ROM保存専用です。")
     elif fire2_item_runtime.levels_need_runtime(levels):
