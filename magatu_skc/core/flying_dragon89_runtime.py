@@ -29,15 +29,14 @@ SETUP_META_RUNTIME = bytes.fromhex(
 
 INIT_STATUS_RUNTIME = bytes.fromhex(
     "68"            # PLA: discard behavior computed for custom type $89
-    "a9 68"         # LDA #$68: convert custom ID to stock Dragon right s0
-    "85 05"         # STA $05
     "a9 e0"         # LDA #$E0: stock Dragon status class
     "85 04"         # STA $04
     "a0 05"         # LDY #$05
     "a9 80"         # LDA #$80: stock Dragon initial Y velocity
     "91 00"         # STA ($00),Y
-    "a9 18"         # LDA #$18: stock Dragon initial behavior
+    "a9 18"         # LDA #$18: stock Dragon initial behavior, keep type $89
     "4c 1c 9d"      # JMP $9D1C stock init writer
+    "ea ea ea ea"   # keep AI dispatch address stable
 )
 
 AI_DISPATCH_RUNTIME = bytes.fromhex(
