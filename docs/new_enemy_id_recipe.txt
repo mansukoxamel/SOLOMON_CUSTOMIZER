@@ -1,0 +1,41 @@
+新しい敵IDを決める。例: $86
+
+まず既存敵のどれをモデルにするか決める。例: $34 Ghost right
+
+見た目用の対応を追加する。例: $86 -> $34
+
+ピッカーに新IDを追加する。
+
+skc_config.xml に新IDの敵定義を追加する。
+
+共通入口センターは移動しない。
+
+入口は既存の $BBE2/$BC02/$BC22/$BC42 を増設する。
+
+AI入口 $BBE2 で新IDを判定し、モデル敵のAIへ飛ばす。
+$86 の例: $ABF7 Ghost/Neul共通AI
+
+setup入口 $BC02 で新IDを判定し、モデル敵相当のsetup groupを返す。
+$86 の例: $1A = $34 Ghost right speed1相当
+
+init入口 $BC22 で新IDを判定し、必要なら専用initへ飛ばす。
+$86 の例: status $C0、behavior $00
+
+animation入口 $BC42 は、モデル敵の原作アニメをそのまま使えるなら触らない。
+$86 の例: $34 と同じなので原作 $8789 に任せる。
+
+新ID用runtime本体を空きROMへ置く。
+
+runtime本体には、必要最小限だけ入れる。
+setup group表
+init補正
+必要ならAI wrapper
+必要ならanimation wrapper
+
+追加RAMは、必要になるまで使わない。
+
+既存IDや古い保存物を救済する互換処理は入れない。
+
+実装後は、入口分岐、runtimeバイト列、保存ROM上の該当バイト列を確認する。
+
+動いたら、そのIDを次のモデルケースとして使える。
