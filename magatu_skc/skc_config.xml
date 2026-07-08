@@ -351,8 +351,9 @@
     <enemy no="0x89" description="Chaos Dragon" animation="64" />
     <enemy no="0x8a" description="Back Fire" animation="63" />
     <enemy no="0x8b" description="Bullet91" animation="59" />
+    <enemy no="0x8c" description="Bullet92" animation="59" />
 
-    <!-- 0x8C and up are undefined in the current custom runtime. -->
+    <!-- 0x8D and up are undefined in the current custom runtime. -->
   </enemy_definitions>
 
   <enemy_editor>

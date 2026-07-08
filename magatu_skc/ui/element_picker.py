@@ -193,6 +193,7 @@ ENEMIES_LIST = [
     (0x89, "Chaos Dragon"),
     (0x8A, "Back Fire"),
     (0x8B, "Bullet91"),
+    (0x8C, "Bullet92"),
 ]
 
 DEVELOPER_ONLY_PICKER_ITEMS = {
@@ -203,6 +204,7 @@ DEVELOPER_ONLY_PICKER_ITEMS = {
     (MODE_ENEMY, 0x89),
     (MODE_ENEMY, 0x8A),
     (MODE_ENEMY, 0x8B),
+    (MODE_ENEMY, 0x8C),
 }
 
 
@@ -272,6 +274,7 @@ ENHANCED_ENEMY_CODES = {
     0x89,  # Chaos Dragon
     0x8A,  # Back Fire
     0x8B,  # Bullet91
+    0x8C,  # Bullet92
 }
 
 
@@ -327,6 +330,7 @@ ENEMY_VISUAL_SOURCE = {
     0x89: 0x68,  # Chaos Dragon uses the stock Dragon right visual.
     0x8A: 0x34,  # Back Fire uses the stock Ghost right visual.
     0x8B: 0x20,  # Bullet91 uses the stock Bullet right visual.
+    0x8C: 0x20,  # Bullet92 uses the stock Bullet right visual.
 }
 
 
