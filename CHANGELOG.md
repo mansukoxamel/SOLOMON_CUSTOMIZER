@@ -1,5 +1,11 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.30 (2026-07-09) Bullet8Cと開発者用敵名を整理
+- 開発者用敵ID `$8C` を64step/2フレーム更新の波状移動に変更し、ID `$8B` と組み合わせて幾何学的なBullet軌道を作れるようにした。
+- `$8B/$8C` の表示名を `Bullet8B` / `Bullet8C` に統一し、91/92表記を避けるようにした。
+- `$86/$87` の表示名を `Bomber Ghost` / `Cannon Ghost` に変更した。
+- ROM管理簿を更新し、Bullet8C runtimeを `0x6F74-0x6FFC` / `$EF64-$EFEC` の137B、残り空き8Bとして記録した。
+
 ## v0.9.29 (2026-07-08) Back Fire90を追加
 - 開発者用敵ID `$8A` としてBack Fireを追加し、通常時はピッカーから隠し、`developer_mode: true` の時だけ配置できるようにした。
 - Back Fireは原作Ghostの見た目/横移動を使い、原作Ghost AI後に進行方向と逆向きへBulletを発射する後方噴射型の敵として実装した。

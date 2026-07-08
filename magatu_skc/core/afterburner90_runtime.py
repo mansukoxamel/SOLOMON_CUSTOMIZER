@@ -79,7 +79,7 @@ class _Asm:
 
 def _build_ai_runtime() -> bytes:
     a = _Asm()
-    # First pass duplicates Ghost86/87 instead of sharing it.  If the enemy
+    # First pass duplicates Bomber/Cannon Ghost instead of sharing it. If the enemy
     # proves useful, issue #68 tracks a later refactor into a common fire path.
     a.b(0xA5, 0x2C, 0x48, 0xA5, 0x2D, 0x48, 0xA5, 0x2E, 0x48, 0xA5, 0x2F, 0x48)
     a.jsr(CPU_STOCK_GHOST_AI)
