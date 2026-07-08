@@ -1,4 +1,4 @@
-"""Ghost91 enemy ID $8B base runtime body for mapper66 saved ROMs."""
+"""Bullet91 enemy ID $8B base runtime body for mapper66 saved ROMs."""
 from __future__ import annotations
 
 from .element import ElementType
@@ -11,11 +11,11 @@ OFF_SETUP_META_LOAD = OFF_RUNTIME
 
 CPU_RUNTIME = 0xEF43
 CPU_SETUP_META_LOAD = CPU_RUNTIME
-CPU_STOCK_GHOST_AI = 0xABF7
+CPU_STOCK_BULLET_AI = 0xAFBB
 CPU_STOCK_INIT = 0x9D1C
 
 SETUP_META_RUNTIME = bytes.fromhex(
-    "a9 1a"         # LDA #$1A: stock Ghost right speed1 group
+    "a9 10"         # LDA #$10: stock Bullet right group
     "85 0e"         # STA $0E
     "a8"            # TAY
     "b9 d3 d9"      # LDA $D9D3,Y
@@ -27,9 +27,9 @@ CPU_INIT_STATUS = CPU_SETUP_META_LOAD + len(SETUP_META_RUNTIME)
 
 INIT_STATUS_RUNTIME = bytes.fromhex(
     "68"            # PLA: discard saved stock init input
-    "a9 c0"         # LDA #$C0: active, no gravity like stock Ghost
+    "a9 c0"         # LDA #$C0: active
     "85 04"         # STA $04
-    "a9 00"         # LDA #$00: Ghost right behavior
+    "a9 00"         # LDA #$00: Bullet right behavior
     "20 1c 9d"      # JSR $9D1C stock init writer
     "60"            # RTS
 )
@@ -37,7 +37,9 @@ INIT_STATUS_RUNTIME = bytes.fromhex(
 OFF_AI_DISPATCH = OFF_INIT_STATUS + len(INIT_STATUS_RUNTIME)
 CPU_AI_DISPATCH = CPU_INIT_STATUS + len(INIT_STATUS_RUNTIME)
 
-AI_RUNTIME = bytes((0x4C, CPU_STOCK_GHOST_AI & 0xFF, CPU_STOCK_GHOST_AI >> 8))
+AI_RUNTIME = bytes((
+    0x4C, CPU_STOCK_BULLET_AI & 0xFF, CPU_STOCK_BULLET_AI >> 8,
+))
 
 RUNTIME = SETUP_META_RUNTIME + INIT_STATUS_RUNTIME + AI_RUNTIME
 CPU_RUNTIME_END = CPU_RUNTIME + len(RUNTIME)

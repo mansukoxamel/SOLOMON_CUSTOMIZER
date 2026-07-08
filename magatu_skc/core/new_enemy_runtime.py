@@ -7,7 +7,7 @@ from . import ghost86_runtime as _ghost86
 from . import neul88_runtime as _neul88
 from . import flying_dragon89_runtime as _flying89
 from . import afterburner90_runtime as _after90
-from . import ghost91_runtime as _ghost91
+from . import bullet91_runtime as _bullet91
 
 
 class NewEnemyRuntimeError(ValueError):
@@ -20,7 +20,7 @@ GHOST86_ID = _ghost86.NEW_ENEMY_ID
 NEUL88_ID = _neul88.NEW_ENEMY_ID
 CHAOS89_ID = _flying89.NEW_ENEMY_ID
 AFTER90_ID = _after90.NEW_ENEMY_ID
-GHOST91_ID = _ghost91.NEW_ENEMY_ID
+BULLET91_ID = _bullet91.NEW_ENEMY_ID
 
 OLD_GHOST86_OFF_RUNTIME = 0x6D88
 
@@ -57,7 +57,7 @@ def _build_ai_entry_runtime() -> bytes:
         (NEUL88_ID, _neul88.CPU_AI_DISPATCH),
         (CHAOS89_ID, _flying89.CPU_AI_DISPATCH),
         (AFTER90_ID, _after90.CPU_AI_DISPATCH),
-        (GHOST91_ID, _ghost91.CPU_AI_DISPATCH),
+        (BULLET91_ID, _bullet91.CPU_AI_DISPATCH),
     )
     for idx, (enemy_id, _target) in enumerate(targets):
         data.extend((0xC9, enemy_id, 0xF0, 0x00))
@@ -153,8 +153,8 @@ def _build_setup_entry_runtime() -> bytes:
     a.branch(0xF0, "chaos89")
     a.b(0xC9, AFTER90_ID)
     a.branch(0xF0, "after90")
-    a.b(0xC9, GHOST91_ID)
-    a.branch(0xF0, "ghost91")
+    a.b(0xC9, BULLET91_ID)
+    a.branch(0xF0, "bullet91")
     a.branch(0xB0, "stock")
     a.b(0x38, 0xE9, ICE_FLAME_ID, 0xAA)
     a.b(0xBD, _ghost86.CPU_SETUP_GROUP_TABLE & 0xFF, _ghost86.CPU_SETUP_GROUP_TABLE >> 8)
@@ -165,8 +165,8 @@ def _build_setup_entry_runtime() -> bytes:
     a.jmp(_flying89.CPU_SETUP_META_LOAD)
     a.label("after90")
     a.jmp(_after90.CPU_SETUP_META_LOAD)
-    a.label("ghost91")
-    a.jmp(_ghost91.CPU_SETUP_META_LOAD)
+    a.label("bullet91")
+    a.jmp(_bullet91.CPU_SETUP_META_LOAD)
     a.label("stock")
     a.b(0xA4, 0x0E, 0xB9, 0xD3, 0xD9, 0x60)
     return a.finish()
@@ -215,8 +215,8 @@ def _build_init_entry_runtime() -> bytes:
     a.branch(0xF0, "chaos89")
     a.b(0xC9, AFTER90_ID)
     a.branch(0xF0, "after90")
-    a.b(0xC9, GHOST91_ID)
-    a.branch(0xF0, "ghost91")
+    a.b(0xC9, BULLET91_ID)
+    a.branch(0xF0, "bullet91")
     a.b(0xC9, SPARK85_ID)
     a.branch(0xF0, "spark85")
     a.b(0x68, 0x20, 0x1C, 0x9D, 0xA5, 0x05)
@@ -236,8 +236,8 @@ def _build_init_entry_runtime() -> bytes:
     a.jmp(_flying89.CPU_INIT_STATUS)
     a.label("after90")
     a.jmp(_after90.CPU_INIT_STATUS)
-    a.label("ghost91")
-    a.jmp(_ghost91.CPU_INIT_STATUS)
+    a.label("bullet91")
+    a.jmp(_bullet91.CPU_INIT_STATUS)
     return a.finish()
 
 
@@ -295,7 +295,7 @@ RESERVED_SPANS = (
     *_neul88.RESERVED_SPANS,
     *_flying89.RESERVED_SPANS,
     *_after90.RESERVED_SPANS,
-    *_ghost91.RESERVED_SPANS,
+    *_bullet91.RESERVED_SPANS,
 )
 
 assert len(AI_ENTRY_RUNTIME) == 72
@@ -318,7 +318,7 @@ def levels_need_runtime(levels: list) -> bool:
         or _neul88.levels_need_runtime(levels)
         or _flying89.levels_need_runtime(levels)
         or _after90.levels_need_runtime(levels)
-        or _ghost91.levels_need_runtime(levels)
+        or _bullet91.levels_need_runtime(levels)
     )
 
 
@@ -371,7 +371,7 @@ def apply(rom_data: bytearray) -> list[str]:
         _neul88.OFF_RUNTIME + len(_neul88.RUNTIME),
         _flying89.OFF_RUNTIME + len(_flying89.RUNTIME),
         _after90.OFF_RUNTIME + len(_after90.RUNTIME),
-        _ghost91.OFF_RUNTIME + len(_ghost91.RUNTIME),
+        _bullet91.OFF_RUNTIME + len(_bullet91.RUNTIME),
         max(off + len(blob) for off, blob, _old_blobs, _name in ENTRY_RUNTIMES),
     )
     if rom_data is None or len(rom_data) < max_end:
@@ -455,9 +455,9 @@ def apply(rom_data: bytearray) -> list[str]:
     )
     _expect_one(
         rom_data,
-        _ghost91.OFF_RUNTIME,
-        (bytes((0xEA,)) * len(_ghost91.RUNTIME), _ghost91.RUNTIME),
-        "Ghost91 runtime area",
+        _bullet91.OFF_RUNTIME,
+        (bytes((0xEA,)) * len(_bullet91.RUNTIME), _bullet91.RUNTIME),
+        "Bullet91 runtime area",
     )
     for off, blob, old_blobs, name in ENTRY_RUNTIMES:
         _expect_blank_or_one_of(rom_data, off, (blob, *old_blobs), name)
@@ -512,9 +512,9 @@ def apply(rom_data: bytearray) -> list[str]:
     )
     _write(
         rom_data,
-        _ghost91.OFF_RUNTIME,
-        _ghost91.RUNTIME,
+        _bullet91.OFF_RUNTIME,
+        _bullet91.RUNTIME,
         changed,
-        f"Ghost91 runtime ${_ghost91.CPU_RUNTIME:04X}-${_ghost91.CPU_RUNTIME_END - 1:04X}",
+        f"Bullet91 runtime ${_bullet91.CPU_RUNTIME:04X}-${_bullet91.CPU_RUNTIME_END - 1:04X}",
     )
     return changed
