@@ -1,4 +1,4 @@
-"""Bullet91 enemy ID $8B base runtime body for mapper66 saved ROMs."""
+"""Bullet8B enemy ID $8B base runtime body for mapper66 saved ROMs."""
 from __future__ import annotations
 
 from .element import ElementType

@@ -398,7 +398,7 @@ def apply(rom_data: bytearray) -> list[str]:
             rom_data[OLD_GHOST86_OFF_RUNTIME:OLD_GHOST86_OFF_RUNTIME + len(_ghost86.RUNTIME)] = (
                 bytes((0xEA,)) * len(_ghost86.RUNTIME)
             )
-            changed.append("old Ghost86/87 runtime area cleared for packed relocation")
+            changed.append("old Bomber/Cannon Ghost runtime area cleared for packed relocation")
 
     _expect_one(
         rom_data,
@@ -447,7 +447,7 @@ def apply(rom_data: bytearray) -> list[str]:
         rom_data,
         _ghost86.OFF_RUNTIME,
         (bytes((0xEA,)) * len(_ghost86.RUNTIME), _ghost86.RUNTIME),
-        "Ghost86/87 runtime area",
+        "Bomber/Cannon Ghost runtime area",
     )
     _expect_one(
         rom_data,
@@ -471,13 +471,13 @@ def apply(rom_data: bytearray) -> list[str]:
         rom_data,
         _bullet91.OFF_RUNTIME,
         (bytes((0xEA,)) * len(_bullet91.RUNTIME), _bullet91.RUNTIME),
-        "Bullet91 runtime area",
+        "Bullet8B runtime area",
     )
     _expect_one(
         rom_data,
         _bullet92.OFF_RUNTIME,
         (bytes((0xEA,)) * len(_bullet92.RUNTIME), _bullet92.RUNTIME),
-        "Bullet92 runtime area",
+        "Bullet8C runtime area",
     )
     for off, blob, old_blobs, name in ENTRY_RUNTIMES:
         _expect_blank_or_one_of(rom_data, off, (blob, *old_blobs), name)
@@ -507,7 +507,7 @@ def apply(rom_data: bytearray) -> list[str]:
         _ghost86.OFF_RUNTIME,
         _ghost86.RUNTIME,
         changed,
-        f"Ghost86/87 runtime ${_ghost86.CPU_RUNTIME:04X}-${_ghost86.CPU_RUNTIME_END - 1:04X}",
+        f"Bomber/Cannon Ghost runtime ${_ghost86.CPU_RUNTIME:04X}-${_ghost86.CPU_RUNTIME_END - 1:04X}",
     )
     _write(
         rom_data,
@@ -535,13 +535,13 @@ def apply(rom_data: bytearray) -> list[str]:
         _bullet91.OFF_RUNTIME,
         _bullet91.RUNTIME,
         changed,
-        f"Bullet91 runtime ${_bullet91.CPU_RUNTIME:04X}-${_bullet91.CPU_RUNTIME_END - 1:04X}",
+        f"Bullet8B runtime ${_bullet91.CPU_RUNTIME:04X}-${_bullet91.CPU_RUNTIME_END - 1:04X}",
     )
     _write(
         rom_data,
         _bullet92.OFF_RUNTIME,
         _bullet92.RUNTIME,
         changed,
-        f"Bullet92 runtime ${_bullet92.CPU_RUNTIME:04X}-${_bullet92.CPU_RUNTIME_END - 1:04X}",
+        f"Bullet8C runtime ${_bullet92.CPU_RUNTIME:04X}-${_bullet92.CPU_RUNTIME_END - 1:04X}",
     )
     return changed

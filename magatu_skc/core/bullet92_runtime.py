@@ -1,4 +1,4 @@
-"""Bullet92 enemy ID $8C base runtime body for mapper66 saved ROMs."""
+"""Bullet8C enemy ID $8C base runtime body for mapper66 saved ROMs."""
 from __future__ import annotations
 
 from .element import ElementType
@@ -48,13 +48,17 @@ OFF_AI_DISPATCH = OFF_INIT_STATUS + len(INIT_STATUS_RUNTIME)
 CPU_AI_DISPATCH = CPU_INIT_STATUS + len(INIT_STATUS_RUNTIME)
 
 SINE_DELTA_TABLE = bytes((
-    0x07, 0x07, 0x09, 0x09, 0x0A, 0x0A, 0x09, 0x09,
-    0x07, 0x07, 0x04, 0x03, 0x01, 0xFF, 0xFD, 0xFC,
-    0xF9, 0xF9, 0xF7, 0xF7, 0xF6, 0xF6, 0xF7, 0xF7,
-    0xF9, 0xF9, 0xFC, 0xFD, 0xFF, 0x01, 0x03, 0x04,
+    0xFD, 0xFD, 0xFC, 0xFC, 0xFC, 0xFC, 0xFB, 0xFB,
+    0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFC, 0xFC,
+    0xFC, 0xFC, 0xFD, 0xFD, 0xFD, 0xFE, 0xFE, 0xFF,
+    0xFF, 0x00, 0x00, 0x01, 0x01, 0x02, 0x02, 0x03,
+    0x03, 0x03, 0x04, 0x04, 0x04, 0x04, 0x05, 0x05,
+    0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x04, 0x04,
+    0x04, 0x04, 0x03, 0x03, 0x03, 0x02, 0x02, 0x01,
+    0x01, 0x00, 0x00, 0xFF, 0xFF, 0xFE, 0xFE, 0xFD,
 ))
 CPU_STATE2_WAVY_MOVE = CPU_AI_DISPATCH + 12
-CPU_SINE_DELTA_TABLE = CPU_STATE2_WAVY_MOVE + 31
+CPU_SINE_DELTA_TABLE = CPU_STATE2_WAVY_MOVE + 30
 
 AI_RUNTIME = bytes((
     0x20, CPU_EXTRACT_STATE & 0xFF, CPU_EXTRACT_STATE >> 8,
@@ -65,9 +69,8 @@ AI_RUNTIME = bytes((
     0x8A,              # TXA: preserve outer enemy-loop X
     0x48,              # PHA
     0xAD, RAM_FRAME_COUNTER_LOW & 0xFF, RAM_FRAME_COUNTER_LOW >> 8,
-    0x4A,              # LSR A
-    0x4A,              # LSR A: advance the sine phase once per 4 frames
-    0x29, 0x1F,        # AND #$1F: 32-step sine delta phase
+    0x4A,              # LSR A: advance the sine phase once per 2 frames
+    0x29, 0x3F,        # AND #$3F: 64-step sine delta phase
     0xA0, 0x06,        # LDY #$06: last applied sine phase
     0xD1, 0x2C,        # CMP ($2C),Y
     0xF0, 0x0D,        # BEQ restore: do not apply the same phase twice
@@ -90,12 +93,12 @@ RESERVED_SPANS = ((OFF_RUNTIME, len(RUNTIME)),)
 
 assert len(SETUP_META_RUNTIME) == 9
 assert len(INIT_STATUS_RUNTIME) == 22
-assert len(SINE_DELTA_TABLE) == 32
+assert len(SINE_DELTA_TABLE) == 64
 assert sum((v if v < 0x80 else v - 0x100) for v in SINE_DELTA_TABLE) == 0
 assert CPU_STATE2_WAVY_MOVE == CPU_AI_DISPATCH + 12
-assert CPU_SINE_DELTA_TABLE == CPU_STATE2_WAVY_MOVE + 31
-assert len(AI_RUNTIME) == 75
-assert len(RUNTIME) == 106
+assert CPU_SINE_DELTA_TABLE == CPU_STATE2_WAVY_MOVE + 30
+assert len(AI_RUNTIME) == 106
+assert len(RUNTIME) == 137
 assert CPU_RUNTIME + len(RUNTIME) == CPU_RUNTIME_END
 
 

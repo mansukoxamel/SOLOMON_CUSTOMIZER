@@ -345,13 +345,13 @@
     <enemy no="0x82" description="Red Flame #2" animation="48" />
     <enemy no="0x83" description="White Flame #2" animation="47" />
     <enemy no="0x84" description="Ice Flame" animation="105" />
-    <enemy no="0x86" description="Ghost86 (shoot down)" animation="63" />
-    <enemy no="0x87" description="Ghost87 (shoot up)" animation="63" />
+    <enemy no="0x86" description="Bomber Ghost" animation="63" />
+    <enemy no="0x87" description="Cannon Ghost" animation="63" />
     <enemy no="0x88" description="Neul Twin Cannon" animation="43" />
     <enemy no="0x89" description="Chaos Dragon" animation="64" />
     <enemy no="0x8a" description="Back Fire" animation="63" />
-    <enemy no="0x8b" description="Bullet91" animation="59" />
-    <enemy no="0x8c" description="Bullet92" animation="59" />
+    <enemy no="0x8b" description="Bullet8B" animation="59" />
+    <enemy no="0x8c" description="Bullet8C" animation="59" />
 
     <!-- 0x8D and up are undefined in the current custom runtime. -->
   </enemy_definitions>

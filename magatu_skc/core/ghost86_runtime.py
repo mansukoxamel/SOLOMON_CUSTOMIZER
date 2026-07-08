@@ -43,7 +43,7 @@ INIT_STATUS_RUNTIME = bytes.fromhex(
     "a5 06"         # LDA $06: current main-slot index
     "20 56 b1"      # JSR $B156: sub-slot pointer in $00/$01
     "a0 07"         # LDY #$07
-    "a9 80"         # LDA #$80: arm Ghost86/87 drop cooldown flag
+    "a9 80"         # LDA #$80: arm Bomber/Cannon Ghost cooldown flag
     "91 00"         # STA ($00),Y
     "60"            # RTS
 )
@@ -81,9 +81,9 @@ class _Asm:
 
 def _build_ai_runtime() -> bytes:
     a = _Asm()
-    a.b(0xA9, 0x03)                         # Ghost86 fires down
+    a.b(0xA9, 0x03)                         # Bomber Ghost fires down
     a.branch(0xD0, "direction_ready")        # LDA #$03 always clears Z
-    a.b(0xA9, 0x02)                         # Ghost87 fires up
+    a.b(0xA9, 0x02)                         # Cannon Ghost fires up
     a.label("direction_ready")
     a.b(0x48)
     a.b(0xA5, 0x2C, 0x48, 0xA5, 0x2D, 0x48, 0xA5, 0x2E, 0x48, 0xA5, 0x2F, 0x48)
