@@ -16,6 +16,8 @@ CPU_STOCK_BULLET_STATE1 = 0xB00A
 CPU_STOCK_INIT = 0x9D1C
 CPU_STATE_DISPATCH = 0x8EA9
 CPU_EXTRACT_STATE = 0xB201
+CPU_SUB_SLOT_PTR = 0xB156
+RAM_FRAME_COUNTER_LOW = 0x043C
 
 SETUP_META_RUNTIME = bytes.fromhex(
     "a9 10"         # LDA #$10: stock Bullet right group
@@ -34,20 +36,52 @@ INIT_STATUS_RUNTIME = bytes.fromhex(
     "85 04"         # STA $04
     "a9 00"         # LDA #$00: Bullet right behavior
     "20 1c 9d"      # JSR $9D1C stock init writer
+    "a5 06"         # LDA $06: current slot index
+    "20 56 b1"      # JSR $B156: sub-slot pointer in $00/$01
+    "a0 06"         # LDY #$06
+    "a9 ff"         # LDA #$FF: force first sine phase application
+    "91 00"         # STA ($00),Y
     "60"            # RTS
 )
 
 OFF_AI_DISPATCH = OFF_INIT_STATUS + len(INIT_STATUS_RUNTIME)
 CPU_AI_DISPATCH = CPU_INIT_STATUS + len(INIT_STATUS_RUNTIME)
 
+SINE_DELTA_TABLE = bytes((
+    0x0A, 0x09, 0x09, 0x07, 0x07, 0x04, 0x03, 0x01,
+    0xFF, 0xFD, 0xFC, 0xF9, 0xF9, 0xF7, 0xF7, 0xF6,
+    0xF6, 0xF7, 0xF7, 0xF9, 0xF9, 0xFC, 0xFD, 0xFF,
+    0x01, 0x03, 0x04, 0x07, 0x07, 0x09, 0x09, 0x0A,
+))
+CPU_STATE2_WAVY_MOVE = CPU_AI_DISPATCH + 12
+CPU_SINE_DELTA_TABLE = CPU_STATE2_WAVY_MOVE + 31
+
 AI_RUNTIME = bytes((
     0x20, CPU_EXTRACT_STATE & 0xFF, CPU_EXTRACT_STATE >> 8,
     0x20, CPU_STATE_DISPATCH & 0xFF, CPU_STATE_DISPATCH >> 8,
     CPU_STOCK_BULLET_STATE0 & 0xFF, CPU_STOCK_BULLET_STATE0 >> 8,
     CPU_STOCK_BULLET_STATE1 & 0xFF, CPU_STOCK_BULLET_STATE1 >> 8,
-    (CPU_AI_DISPATCH + 12) & 0xFF, (CPU_AI_DISPATCH + 12) >> 8,
-    0x60,  # State 2: keep moving, but skip stock wall collision/despawn.
-))
+    CPU_STATE2_WAVY_MOVE & 0xFF, CPU_STATE2_WAVY_MOVE >> 8,
+    0x8A,              # TXA: preserve outer enemy-loop X
+    0x48,              # PHA
+    0xAD, RAM_FRAME_COUNTER_LOW & 0xFF, RAM_FRAME_COUNTER_LOW >> 8,
+    0x4A,              # LSR A
+    0x4A,              # LSR A: advance the sine phase once per 4 frames
+    0x29, 0x1F,        # AND #$1F: 32-step sine delta phase
+    0xA0, 0x06,        # LDY #$06: last applied sine phase
+    0xD1, 0x2C,        # CMP ($2C),Y
+    0xF0, 0x0D,        # BEQ restore: do not apply the same phase twice
+    0x91, 0x2C,        # STA ($2C),Y
+    0xAA,              # TAX: table index = phase
+    0xA0, 0x07,        # LDY #$07: main-slot Y pixel
+    0xB1, 0x2E,        # LDA ($2E),Y
+    0x18,              # CLC
+    0x7D, CPU_SINE_DELTA_TABLE & 0xFF, CPU_SINE_DELTA_TABLE >> 8,
+    0x91, 0x2E,        # STA ($2E),Y
+    0x68,              # PLA
+    0xAA,              # TAX
+    0x60,              # RTS: skip stock wall collision/despawn.
+)) + SINE_DELTA_TABLE
 
 RUNTIME = SETUP_META_RUNTIME + INIT_STATUS_RUNTIME + AI_RUNTIME
 CPU_RUNTIME_END = CPU_RUNTIME + len(RUNTIME)
@@ -55,9 +89,13 @@ CPU_RUNTIME_END = CPU_RUNTIME + len(RUNTIME)
 RESERVED_SPANS = ((OFF_RUNTIME, len(RUNTIME)),)
 
 assert len(SETUP_META_RUNTIME) == 9
-assert len(INIT_STATUS_RUNTIME) == 11
-assert len(AI_RUNTIME) == 13
-assert len(RUNTIME) == 33
+assert len(INIT_STATUS_RUNTIME) == 22
+assert len(SINE_DELTA_TABLE) == 32
+assert sum((v if v < 0x80 else v - 0x100) for v in SINE_DELTA_TABLE) == 0
+assert CPU_STATE2_WAVY_MOVE == CPU_AI_DISPATCH + 12
+assert CPU_SINE_DELTA_TABLE == CPU_STATE2_WAVY_MOVE + 31
+assert len(AI_RUNTIME) == 75
+assert len(RUNTIME) == 106
 assert CPU_RUNTIME + len(RUNTIME) == CPU_RUNTIME_END
 
 
