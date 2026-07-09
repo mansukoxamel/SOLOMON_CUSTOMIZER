@@ -352,7 +352,7 @@
     <enemy no="0x8a" description="Back Fire" animation="63" />
     <enemy no="0x8b" description="Bullet8B" animation="59" />
     <enemy no="0x8c" description="Bullet8C" animation="59" />
-    <enemy no="0x9c" description="Dark Fairy" animation="42" />
+    <enemy no="0x9c" description="Dark Fairy" animation="110" />
 
     <!-- 0x8D-0x9B and 0x9D and up are undefined in the current custom runtime. -->
   </enemy_definitions>
@@ -734,6 +734,8 @@
       <tile no="108" palette_no="0" nes_tiles="368,369,370,371" />
       <!-- custom item: Crystal max fire range (item 0x3a), same graphics as blue Jewels with BG0 palette -->
       <tile no="109" palette_no="0" nes_tiles="364,365,366,367" />
+      <!-- custom enemy: Dark Fairy, same graphics as Fairy with SPR2 palette -->
+      <tile no="110" palette_no="6" nes_tiles="200,202,201,203" transparent="true" />
 
     </tile_definitions>
 
