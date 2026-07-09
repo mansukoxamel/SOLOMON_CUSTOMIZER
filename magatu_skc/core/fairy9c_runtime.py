@@ -1,10 +1,10 @@
-"""Dark Fairy enemy ID $8D base runtime body for mapper66 saved ROMs."""
+"""Dark Fairy enemy ID $9C runtime body for mapper66 saved ROMs."""
 from __future__ import annotations
 
 from .element import ElementType
 
 
-NEW_ENEMY_ID = 0x8D
+NEW_ENEMY_ID = 0x9C
 
 OFF_RUNTIME = 0x6010
 OFF_SETUP_META_LOAD = OFF_RUNTIME
@@ -32,10 +32,10 @@ INIT_STATUS_RUNTIME = bytes.fromhex(
     "68"            # PLA: discard saved stock init input
     "a0 05"         # LDY #$05
     "a9 00"         # LDA #$00
-    "91 00"         # clear Y velocity left by the $8D stock property read
+    "91 00"         # clear Y velocity left by the $9C stock property read
     "a9 e2"         # LDA #$E2: stock Fairy status
     "85 04"         # STA $04
-    "a9 8d"         # LDA #$8D: keep Dark Fairy runtime type
+    "a9 9c"         # LDA #$9C: keep Dark Fairy runtime type
     "85 05"         # STA $05
     "a9 00"         # LDA #$00: stock Fairy behavior
     "20 1c 9d"      # JSR $9D1C stock init writer
@@ -66,7 +66,7 @@ AI_DISPATCH_RUNTIME = bytes(
         0x91, 0x2E,                               # STA ($2E),Y: temporarily behave as stock Fairy
         0x20, CPU_STOCK_FAIRY_AI & 0xFF, CPU_STOCK_FAIRY_AI >> 8,
         0xA0, 0x01,                               # LDY #$01
-        0xA9, NEW_ENEMY_ID,                       # LDA #$8D
+        0xA9, NEW_ENEMY_ID,                       # LDA #$9C
         0x91, 0x2E,                               # STA ($2E),Y: restore Dark Fairy type
         0x68,                                     # PLA
         0xCD, 0x53, 0x04,                         # CMP $0453

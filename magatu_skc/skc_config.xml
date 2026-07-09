@@ -352,9 +352,9 @@
     <enemy no="0x8a" description="Back Fire" animation="63" />
     <enemy no="0x8b" description="Bullet8B" animation="59" />
     <enemy no="0x8c" description="Bullet8C" animation="59" />
-    <enemy no="0x8d" description="Dark Fairy" animation="42" />
+    <enemy no="0x9c" description="Dark Fairy" animation="42" />
 
-    <!-- 0x8E and up are undefined in the current custom runtime. -->
+    <!-- 0x8D-0x9B and 0x9D and up are undefined in the current custom runtime. -->
   </enemy_definitions>
 
   <enemy_editor>
