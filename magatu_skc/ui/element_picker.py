@@ -194,6 +194,7 @@ ENEMIES_LIST = [
     (0x8A, "Back Fire"),
     (0x8B, "Bullet8B"),
     (0x8C, "Bullet8C"),
+    (0x9C, "Dark Fairy"),
 ]
 
 DEVELOPER_ONLY_PICKER_ITEMS = {
@@ -205,6 +206,7 @@ DEVELOPER_ONLY_PICKER_ITEMS = {
     (MODE_ENEMY, 0x8A),
     (MODE_ENEMY, 0x8B),
     (MODE_ENEMY, 0x8C),
+    (MODE_ENEMY, 0x9C),
 }
 
 
