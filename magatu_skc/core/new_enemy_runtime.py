@@ -285,7 +285,7 @@ PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME = bytes.fromhex(
     f"4c {_spark85.CPU_INIT_STATUS & 0xFF:02x} {_spark85.CPU_INIT_STATUS >> 8:02x}"
 )
 
-ANIM_ENTRY_RUNTIME = bytes.fromhex(
+OLD_ANIM_ENTRY_RUNTIME = bytes.fromhex(
     "a0 01"         # LDY #$01
     "b1 08"         # LDA ($08),Y -> main-slot type
     "c9 84"         # CMP #$84
@@ -294,11 +294,29 @@ ANIM_ENTRY_RUNTIME = bytes.fromhex(
     f"4c {_ice.CPU_ANIM_UPDATE & 0xFF:02x} {_ice.CPU_ANIM_UPDATE >> 8:02x}"
 )
 
+ANIM_ENTRY_RUNTIME = bytes.fromhex(
+    "a0 01"         # LDY #$01
+    "b1 08"         # LDA ($08),Y -> main-slot type
+    "c9 84"         # CMP #$84
+    "f0 07"         # BEQ ice
+    f"c9 {FAIRY9C_ID:02x}"  # CMP #$9C
+    "f0 06"         # BEQ fairy9c
+    "4c 89 87"      # JMP $8789 stock animation updater
+    f"4c {_ice.CPU_ANIM_UPDATE & 0xFF:02x} {_ice.CPU_ANIM_UPDATE >> 8:02x}"
+    "20 89 87"      # fairy9c: JSR $8789 stock animation updater
+    "a0 13"         # LDY #$13
+    "b1 08"         # LDA ($08),Y: stock frame attr
+    "29 13"         # AND #$13: preserve Fairy flip bits used by the OAM writer
+    "09 48"         # ORA #$48: force both sprites to SPR2 palette
+    "91 08"         # STA ($08),Y: overwrite frame attr after stock animation
+    "60"            # RTS
+)
+
 ENTRY_RUNTIMES = (
     (OFF_AI_ENTRY, AI_ENTRY_RUNTIME, (), "$BBE2 new enemy AI dispatch"),
     (OFF_SETUP_ENTRY, SETUP_ENTRY_RUNTIME, (), f"${CPU_SETUP_ENTRY:04X} new enemy setup dispatch"),
     (OFF_INIT_ENTRY, INIT_ENTRY_RUNTIME, (), f"${CPU_INIT_ENTRY:04X} new enemy init dispatch"),
-    (OFF_ANIM_ENTRY, ANIM_ENTRY_RUNTIME, (), f"${CPU_ANIM_ENTRY:04X} new enemy animation dispatch"),
+    (OFF_ANIM_ENTRY, ANIM_ENTRY_RUNTIME, (OLD_ANIM_ENTRY_RUNTIME,), f"${CPU_ANIM_ENTRY:04X} new enemy animation dispatch"),
 )
 
 HOOK_AI_DISPATCH_CALL = bytes((0x20, CPU_AI_ENTRY & 0xFF, CPU_AI_ENTRY >> 8))
@@ -328,7 +346,8 @@ assert len(SETUP_ENTRY_RUNTIME) == 72
 assert len(PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME) == 32
 assert len(INIT_ENTRY_RUNTIME) == 78
 assert len(PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME) == 36
-assert len(ANIM_ENTRY_RUNTIME) == 14
+assert len(OLD_ANIM_ENTRY_RUNTIME) == 14
+assert len(ANIM_ENTRY_RUNTIME) == 32
 assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
 assert OFF_INIT_ENTRY == OFF_SETUP_ENTRY + len(SETUP_ENTRY_RUNTIME)
 assert OFF_ANIM_ENTRY == OFF_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
