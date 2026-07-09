@@ -194,6 +194,7 @@ ENEMIES_LIST = [
     (0x8A, "Back Fire"),
     (0x8B, "Bullet8B"),
     (0x8C, "Bullet8C"),
+    (0x8D, "Dark Fairy"),
 ]
 
 DEVELOPER_ONLY_PICKER_ITEMS = {
@@ -205,6 +206,7 @@ DEVELOPER_ONLY_PICKER_ITEMS = {
     (MODE_ENEMY, 0x8A),
     (MODE_ENEMY, 0x8B),
     (MODE_ENEMY, 0x8C),
+    (MODE_ENEMY, 0x8D),
 }
 
 
@@ -275,6 +277,7 @@ ENHANCED_ENEMY_CODES = {
     0x8A,  # Back Fire
     0x8B,  # Bullet8B
     0x8C,  # Bullet8C
+    0x8D,  # Dark Fairy
 }
 
 
@@ -331,6 +334,7 @@ ENEMY_VISUAL_SOURCE = {
     0x8A: 0x34,  # Back Fire uses the stock Ghost right visual.
     0x8B: 0x20,  # Bullet8B uses the stock Bullet right visual.
     0x8C: 0x20,  # Bullet8C uses the stock Bullet right visual.
+    0x8D: 0x1C,  # Dark Fairy base uses the stock Fairy visual.
 }
 
 
