@@ -275,8 +275,6 @@ ENHANCED_ENEMY_CODES = {
     0x88,  # Neul Twin Cannon
     0x89,  # Chaos Dragon
     0x8A,  # Back Fire
-    0x8B,  # Phantom Bullet
-    0x8C,  # Phantom Bullet
 }
 
 
@@ -336,8 +334,8 @@ ENEMY_VISUAL_SOURCE = {
 }
 
 ENEMY_PICKER_PALETTE_OVERRIDE = {
-    0x8B: 2,  # Phantom Bullet is shown with SPR palette #2.
-    0x8C: 2,  # Phantom Bullet is shown with SPR palette #2.
+    0x8B: 6,  # Phantom Bullet is shown with SPR #2 palette.
+    0x8C: 6,  # Phantom Bullet is shown with SPR #2 palette.
 }
 
 
