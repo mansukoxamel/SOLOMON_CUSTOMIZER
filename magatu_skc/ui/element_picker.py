@@ -335,6 +335,11 @@ ENEMY_VISUAL_SOURCE = {
     0x8C: 0x20,  # Phantom Bullet uses the stock Bullet right visual.
 }
 
+ENEMY_PICKER_PALETTE_OVERRIDE = {
+    0x8B: 2,  # Phantom Bullet is shown with SPR palette #2.
+    0x8C: 2,  # Phantom Bullet is shown with SPR palette #2.
+}
+
 
 def apply_enemy_speed(base_code: int, speed: int) -> int:
     """sp1 ベースコードに speed (1/2/3) を適用して実コードを返す。
@@ -1574,7 +1579,8 @@ class ElementPicker(QWidget):
                              overlay_color=None, hatch_color=None,
                              block_marker=None, meta_marker_color_key=None,
                              transparent_background: bool = False,
-                             tile_transparent: bool = False) -> QIcon:
+                             tile_transparent: bool = False,
+                             palette_no_override: int | None = None) -> QIcon:
         """tile_definitions の tile_no から QIcon 生成
 
         skchain互換: 現在レベルのタイルセット番号を使って描画。これにより
@@ -1602,6 +1608,7 @@ class ElementPicker(QWidget):
             self.current_tileset_no,
             transparent=tile_transparent,
             bg_main_color=self.current_wall_color,
+            palette_no_override=palette_no_override,
         )
 
         icon_size = self._icon_size
@@ -1745,6 +1752,7 @@ class ElementPicker(QWidget):
             overlay_color=overlay,
             transparent_background=True,
             tile_transparent=True,
+            palette_no_override=ENEMY_PICKER_PALETTE_OVERRIDE.get(enemy_no),
         )
 
     def _make_meta_icon(self, meta_kind: str) -> QIcon:
