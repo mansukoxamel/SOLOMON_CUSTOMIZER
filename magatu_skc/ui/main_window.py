@@ -4376,15 +4376,26 @@ class MainWindow(QMainWindow):
         return settings
 
     def _panel_variant_settings_from_rom(self, rom: Rom) -> dict:
-        from ..core import panel_monster_stage_variant as pmv
+        from ..core import fire2_item_runtime, panel_monster_stage_variant as pmv
         default_settings = normalize_panel_variant_settings({})
         data = bytes(getattr(rom, "data", b"") or b"")
         loader_start = pmv.OFF_PRG1_RUNTIME_LOADER
         loader_end = loader_start + len(pmv.RUNTIME_LOADER_SLOT)
         if len(data) < max(pmv.SETTINGS_TABLE_END, loader_end):
             return default_settings
-        if bytes(data[loader_start:loader_end]) != pmv.RUNTIME_LOADER_SLOT:
-            return default_settings
+        loader = bytes(data[loader_start:loader_end])
+        if loader != pmv.RUNTIME_LOADER_SLOT:
+            special_loader_helper = fire2_item_runtime._build_loader_helper(pmv.RUNTIME_LOADER)
+            helper_start = fire2_item_runtime.OFF_PRG1_LOADER_HELPER
+            helper_end = helper_start + len(special_loader_helper)
+            has_special_item_loader = (
+                bytes(data[loader_start:loader_start + len(fire2_item_runtime.HOOK_PRG1_LOADER)])
+                == fire2_item_runtime.HOOK_PRG1_LOADER
+                and len(data) >= helper_end
+                and bytes(data[helper_start:helper_end]) == special_loader_helper
+            )
+            if not has_special_item_loader:
+                return default_settings
         table = bytes(data[pmv.SETTINGS_TABLE_OFFSET:pmv.SETTINGS_TABLE_END])
         try:
             settings = {

@@ -104,7 +104,8 @@ CPU_AI_DRAGON_FAST_WRAPPER = _cpu(0x6290)      # $E280
 CPU_AI_GOLEM_WRAPPER = _cpu(0x62A0)            # $E290
 CPU_PAUSE_HOOK = _cpu(0x62B7)                  # $E2A7
 CPU_PROPERTY_HOOK = _cpu(0x632A)               # $E31A
-CPU_ANIM_HOOK = _cpu(0x62E8)                   # $E2D8
+CPU_OLD_ANIM_HOOK = _cpu(0x62E8)               # $E2D8, overlapped Panel Variant settings
+CPU_ANIM_HOOK = _cpu(0x4FEE)                   # $CFDE
 CPU_ANIM_SPARK_SET = _cpu(0x62FF)              # $E2EF
 CPU_OAM_HIDE_HOOK = _cpu(0x6308)               # $E2F8
 CPU_PANEL_PROPERTY_HOOK = _cpu(0x5BEF)         # $DBDF
@@ -120,6 +121,7 @@ OFF_AI_DRAGON_FAST_WRAPPER = _cf(CPU_AI_DRAGON_FAST_WRAPPER)
 OFF_AI_GOLEM_WRAPPER = _cf(CPU_AI_GOLEM_WRAPPER)
 OFF_PAUSE_HOOK = _cf(CPU_PAUSE_HOOK)
 OFF_PROPERTY_HOOK = _cf(CPU_PROPERTY_HOOK)
+OFF_OLD_ANIM_HOOK = _cf(CPU_OLD_ANIM_HOOK)
 OFF_ANIM_HOOK = _cf(CPU_ANIM_HOOK)
 OFF_ANIM_SPARK_SET = _cf(CPU_ANIM_SPARK_SET)
 OFF_OAM_HIDE_HOOK = _cf(CPU_OAM_HIDE_HOOK)
@@ -262,8 +264,8 @@ SPARK_BALL_FREE_LEN = 3
 assert OFF_AI_DRAGON_FAST_WRAPPER == OFF_AI_DRAGON_SLOW_WRAPPER + len(CAVE_AI_DRAGON_SLOW_WRAPPER)
 assert OFF_AI_GOLEM_WRAPPER == OFF_AI_DRAGON_FAST_WRAPPER + len(CAVE_AI_DRAGON_FAST_WRAPPER)
 assert OFF_PAUSE_HOOK == OFF_AI_GOLEM_WRAPPER + len(CAVE_AI_GOLEM_WRAPPER)
-assert OFF_ANIM_HOOK == OFF_PAUSE_HOOK + len(CAVE_PAUSE_HOOK)
-assert OFF_ANIM_SPARK_SET == OFF_ANIM_HOOK + len(CAVE_ANIM_HOOK)
+assert OFF_OLD_ANIM_HOOK == OFF_PAUSE_HOOK + len(CAVE_PAUSE_HOOK)
+assert OFF_ANIM_HOOK + len(CAVE_ANIM_HOOK) - 1 == 0x5004
 assert OFF_OAM_HIDE_HOOK == OFF_ANIM_SPARK_SET + len(CAVE_ANIM_SPARK_SET)
 assert OFF_PROPERTY_HOOK == OFF_OAM_HIDE_HOOK + len(CAVE_OAM_HIDE_HOOK)
 assert OFF_SPARK_BALL_FREE == OFF_PROPERTY_HOOK + len(CAVE_PROPERTY_HOOK)
@@ -381,10 +383,12 @@ def apply(rom_data, pause_digits=None, transparency_period=None) -> list[str]:
         raise SparkBallVariantError(f"$A2CC property signature mismatch: got {cur_a2cc.hex(' ')}")
     hook_8b05 = bytes((0x20, CPU_ANIM_HOOK & 0xFF, (CPU_ANIM_HOOK >> 8) & 0xFF))
     anim_patch = hook_8b05 + bytes((0xEA,)) * (len(ORIG_8B05_HEAD) - len(hook_8b05))
+    old_hook_8b05 = bytes((0x20, CPU_OLD_ANIM_HOOK & 0xFF, (CPU_OLD_ANIM_HOOK >> 8) & 0xFF))
+    old_anim_patch = old_hook_8b05 + bytes((0xEA,)) * (len(ORIG_8B05_HEAD) - len(old_hook_8b05))
     hook_8b05_panel = bytes((0x20, CPU_PANEL_ANIM_HOOK & 0xFF, (CPU_PANEL_ANIM_HOOK >> 8) & 0xFF))
     anim_patch_panel = hook_8b05_panel + bytes((0xEA,)) * (len(ORIG_8B05_HEAD) - len(hook_8b05_panel))
     cur_8b05 = bytes(rom_data[OFF_8B05:OFF_8B05 + len(ORIG_8B05_HEAD)])
-    if cur_8b05 not in (ORIG_8B05_HEAD, anim_patch, anim_patch_panel):
+    if cur_8b05 not in (ORIG_8B05_HEAD, anim_patch, old_anim_patch, anim_patch_panel):
         raise SparkBallVariantError(f"$8B05 animation signature mismatch: got {cur_8b05.hex(' ')}")
     hook_85fa = bytes((0x4C, CPU_OAM_HIDE_HOOK & 0xFF, (CPU_OAM_HIDE_HOOK >> 8) & 0xFF))
     oam_patch = hook_85fa + bytes((0xEA,)) * (len(ORIG_85FA) - len(hook_85fa))
@@ -432,7 +436,7 @@ def apply(rom_data, pause_digits=None, transparency_period=None) -> list[str]:
         OFF_ANIM_HOOK,
         CAVE_ANIM_HOOK,
         changed,
-        "Spark Ball Dragon-ID animation hook $E2D8",
+        "Spark Ball Dragon-ID animation hook $CFDE",
     )
     _write_blob(
         rom_data,

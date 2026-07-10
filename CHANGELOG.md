@@ -1,5 +1,9 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.35 (2026-07-10) Panel Variant設定表とSpark Ball配置の重複を修正
+- Spark Ball animation hookを`0x62E8-0x62FE` / `$E2D8-$E2EE`から旧Spark候補跡`0x4FEE-0x5004` / `$CFDE-$CFF4`へ移し、Panel Variant A/B/C設定表`0x62ED-0x62F2` / `$E2DD-$E2E2`を壊さないようにした。
+- Special item loader適用済みROMを再読込した時も、loader helper本体を確認した上でPanel Variant A/B/C設定表を読むようにした。
+
 ## v0.9.34 (2026-07-10) 賢者の石で開いた扉が閉じる不具合を修正
 - 鍵で開いた隠し扉に対して賢者の石を取得した時、開いた扉を閉じた隠し扉へ戻さないようにした。
 - Special item runtimeを`0x4010-0x4155` / `$C000-$C145`へ11B拡張した。
