@@ -1,5 +1,10 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.36 (2026-07-11) Phantom Bulletのパレット表示を修正
+- 開発者用敵ID `$8B/$8C` を `Phantom Bullet` 表示に変更した。
+- Phantom Bulletの実機表示をSPR #2パレットへ揃え、ピッカーとキャンバス表示も同じ色で表示するようにした。
+- 新敵ID共通入口センターのanimation入口を`0x3CE0-0x3D15` / `$BCD0-$BD05`へ拡張し、残り空きを`0x3D16-0x3D26` / `0x3D4B-0x3D88`として記録した。
+
 ## v0.9.35 (2026-07-10) Panel Variant設定表とSpark Ball配置の重複を修正
 - Spark Ball animation hookを`0x62E8-0x62FE` / `$E2D8-$E2EE`から旧Spark候補跡`0x4FEE-0x5004` / `$CFDE-$CFF4`へ移し、Panel Variant A/B/C設定表`0x62ED-0x62F2` / `$E2DD-$E2E2`を壊さないようにした。
 - Special item loader適用済みROMを再読込した時も、loader helper本体を確認した上でPanel Variant A/B/C設定表を読むようにした。
