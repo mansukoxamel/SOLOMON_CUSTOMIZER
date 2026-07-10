@@ -8241,6 +8241,7 @@ class MainWindow(QMainWindow):
                 "kind": "item",
                 "ref": item,
                 "move_absorb_flag": move_absorb_flag,
+                "special_item_cell": tile in getattr(lv, "special_item_cells", set()),
                 "current_pos": tile,
                 "undo_entry": undo_entry,
                 "from_pos": tile,
@@ -8548,13 +8549,16 @@ class MainWindow(QMainWindow):
             if kind == "item":
                 self._restore_drag_item_absorbed_block(lv, mp)
             if kind == "item" and item_absorb_flag is not None:
+                self._move_special_item_cell_for_drag(lv, mp, tile)
                 if not self._apply_absorb_flag_to_moving_item(lv, mp, tile, item_absorb_flag):
                     self._show_block_absorb_rejected_message(tile)
                     return
             elif kind == "item" and mp.get("move_absorb_flag") is not None:
                 self._clear_moving_item_absorb_state(lv, mp)
+                self._move_special_item_cell_for_drag(lv, mp, tile)
                 self._apply_moving_item_absorb_state(lv, mp, tile)
             elif kind == "item":
+                self._move_special_item_cell_for_drag(lv, mp, tile)
                 mp["current_pos"] = tile
             mp["ref"].position = tile
             if kind == "enemy":
@@ -9550,6 +9554,18 @@ class MainWindow(QMainWindow):
             item.element_no = base | flag
             visible_cells.discard(tile)
         mp["current_pos"] = tile
+
+    def _move_special_item_cell_for_drag(self, lv, mp, tile):
+        if not mp.get("special_item_cell"):
+            return
+        special_cells = getattr(lv, "special_item_cells", set())
+        current = mp.get("current_pos")
+        item = mp.get("ref")
+        if current is not None:
+            special_cells.discard(current)
+        if item is not None:
+            special_cells.discard(item.position)
+        special_cells.add(tile)
 
     def _key_absorb_flag_for_move(self, lv, tile) -> int | None:
         from ..core import constants as cc
