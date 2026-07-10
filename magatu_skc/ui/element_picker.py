@@ -192,8 +192,8 @@ ENEMIES_LIST = [
     (0x88, "Neul Twin Cannon"),
     (0x89, "Chaos Dragon"),
     (0x8A, "Back Fire"),
-    (0x8B, "Bullet8B"),
-    (0x8C, "Bullet8C"),
+    (0x8B, "Phantom Bullet"),
+    (0x8C, "Phantom Bullet"),
     (0x9C, "Dark Fairy"),
 ]
 
@@ -275,8 +275,8 @@ ENHANCED_ENEMY_CODES = {
     0x88,  # Neul Twin Cannon
     0x89,  # Chaos Dragon
     0x8A,  # Back Fire
-    0x8B,  # Bullet8B
-    0x8C,  # Bullet8C
+    0x8B,  # Phantom Bullet
+    0x8C,  # Phantom Bullet
 }
 
 
@@ -331,8 +331,8 @@ ENEMY_VISUAL_SOURCE = {
     0x88: 0x30,  # Neul Twin Cannon uses the stock Neul up visual.
     0x89: 0x68,  # Chaos Dragon uses the stock Dragon right visual.
     0x8A: 0x34,  # Back Fire uses the stock Ghost right visual.
-    0x8B: 0x20,  # Bullet8B uses the stock Bullet right visual.
-    0x8C: 0x20,  # Bullet8C uses the stock Bullet right visual.
+    0x8B: 0x20,  # Phantom Bullet uses the stock Bullet right visual.
+    0x8C: 0x20,  # Phantom Bullet uses the stock Bullet right visual.
 }
 
 
