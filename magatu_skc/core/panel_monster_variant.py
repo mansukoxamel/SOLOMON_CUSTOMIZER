@@ -1,4 +1,8 @@
-"""Panel Monster borrowed-ID variants.
+"""Legacy Panel Monster borrowed-ID variant definitions.
+
+Current expanded-ROM saves do not write this module's runtime directly.  The
+active implementation is panel_monster_stage_variant.py, which still imports
+these constants and old blobs for signature compatibility and size guards.
 
 JP/JPC66 only.  The original Panel Monster IDs are $24-$27.  This patch
 repurposes the finalized borrowed IDs as two stronger Panel Monster families:
@@ -423,7 +427,7 @@ CAVE_AI_SARAM_WRAPPER = _build_saram_ai_wrapper()
 CAVE_PROPERTY_HOOK = _build_property_hook()
 CAVE_ANIM_HOOK = _build_anim_hook()
 
-RESERVED_SPANS = (
+LEGACY_RESERVED_SPANS = (
     (OFF_FIRE_DISPATCH, len(CAVE_FIRE_DISPATCH)),
     (OFF_AI_SARAM_WRAPPER, len(CAVE_AI_SARAM_WRAPPER)),
     (OFF_FIRE_3WAY, len(CAVE_FIRE_3WAY)),
@@ -432,6 +436,12 @@ RESERVED_SPANS = (
     (OFF_PROPERTY_HOOK, len(CAVE_PROPERTY_HOOK)),
     (OFF_ANIM_HOOK, len(CAVE_ANIM_HOOK)),
 )
+
+# Current expanded-ROM saves use panel_monster_stage_variant.py for all Panel
+# runtime writes.  Keep the old spans above only as legacy reference data; they
+# must not reserve PRG0 space or room_flags.py will treat reclaimed caves such
+# as $C000-$C1FF as occupied.
+RESERVED_SPANS: tuple[tuple[int, int], ...] = ()
 
 
 def _expect_or_hooked(rom_data, off: int, orig: bytes, hook: bytes, name: str,

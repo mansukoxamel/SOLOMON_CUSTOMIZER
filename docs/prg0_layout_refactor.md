@@ -60,9 +60,9 @@ ROM予約の正式なマスターではありません。正式な予約情報�
 
 生の抽出結果:
 
-- PRG0予約件数: 75件
-- 生合計: 2331B
-- 重複をまとめた実占有: 2331B
+- PRG0予約件数: 74件
+- 生合計: 2250B
+- 重複をまとめた実占有: 2250B
 
 4096B跡地内:
 
@@ -72,9 +72,9 @@ ROM予約の正式なマスターではありません。正式な予約情報�
 
 4096B跡地外:
 
-- 生合計: 408B
-- 実占有: 408B
-- セグメント数: 12
+- 生合計: 327B
+- 実占有: 327B
+- セグメント数: 5
 
 現行の `RESERVED_SPANS` 起点では重複予約なし。
 原作コード上のhook、即値変更、原作データ復元はこの集計とは別に扱う。
@@ -88,11 +88,12 @@ PRG0追加プログラム側から見た一覧。
 | module | 4096B内 entries | 4096B内 raw | 4096B外 entries | 4096B外 raw |
 |---|---:|---:|---:|---:|
 | `final_stage_redirect` | 1 | 13B | 0 | 0B |
+| `fire2_item_runtime` | 0 | 0B | 1 | 315B |
 | `gargoyle_variant` | 1 | 90B | 0 | 0B |
 | `key_enemy_runtime` | 15 | 286B | 0 | 0B |
 | `m66_expander` | 1 | 33B | 1 | 3B |
 | `panel_monster_stage_variant` | 23 | 746B | 0 | 0B |
-| `panel_monster_variant` | 0 | 0B | 7 | 396B |
+| `panel_monster_variant` | 0 | 0B | 0 | 0B |
 | `saramandor_variant` | 1 | 165B | 0 | 0B |
 | `solomon_seal_block` | 1 | 11B | 0 | 0B |
 | `spark_ball_variant` | 8 | 191B | 0 | 0B |
@@ -113,7 +114,7 @@ PRG0追加プログラム側から見た一覧。
 | Stage start announcement | `stage_announcement` | `0x6B06-0x6BEB` | 230B | 8項目版へ更新済み。右下表示は `MIRROR LINK`。 |
 | Key/Fairy enemy runtime | `key_enemy_runtime` | bank0 cave中心、1片だけ4096B内、1片は `0x5005-0x500F` | 286B raw | 分割が多い。機能単位ではまとめたいが、複数hookから入るので呼び出し元確認が必要。 |
 | Spark Ball variant | `spark_ball_variant` | `0x6280-0x633E` | 191B raw | Spark Ball追加routineはproperty selectorも含めてpacked blockへ集約済み。 |
-| Panel Monster base variant | `panel_monster_variant` | bank0 cave、`0x5BEF`、`0x40D2` | 396B raw | 新規保存ROMでは書かない。旧base候補跡は保存時に掃除しない。 |
+| Panel Monster legacy reference | `panel_monster_variant` | なし | 0B raw | 現行保存ROMでは実体を書かない。旧borrowed-ID Panel runtimeの定数・旧blobは、`panel_monster_stage_variant` の署名互換/サイズ検査用としてだけ残す。旧base候補跡は現行予約に含めない。 |
 | Panel Monster A/B/C final runtime | `panel_monster_stage_variant` | `0x6496-0x677F` + PRG1 loader/settings/helper | 746B raw + 114B PRG1 | 現行Panel runtime。速度、AI、弾、classifier、marker、property/animation hook本体を新cleanupブロックへ集約。Spark selectorは `0x632A` に置き、Panel fallback先だけ新hookへ向ける。 |
 | Gargoyle variant | `gargoyle_variant` | bank0 cave `0x3D0B-0x3D88` | 90B | まとまっている。移すならhook先3か所を更新するだけか確認する。 |
 | Saramandor variant | `saramandor_variant` | bank0 cave `0x3E10-0x3F4F` | 165B | まとまっているが複数hookから入る。移動候補だが優先度は中。 |
@@ -794,12 +795,12 @@ PRG0追加プログラム側から見た一覧。
 
 ## 跡地外の主な整理候補
 
-跡地外のPRG0予約は、現行 `RESERVED_SPANS` 起点では実占有408Bある。
+跡地外のPRG0予約は、現行 `RESERVED_SPANS` 起点では実占有327Bある。
 このうち、機能的に場所依存が薄い小routineは4096B側へ集約できる可能性がある。
 
 最初に重点確認する範囲:
 
-- `0x3C27-0x420F`: bank0 cave 系。複数敵runtimeとPanel系が集中している。
+- `0x3C27-0x420F`: bank0 cave 系。旧Panel系は現行予約から外れており、現行実体としてはSpark Ball animation / key enemy compare等だけを見る。
 - `0x4FEE-0x500F`: Spark Ball animation / key enemy compare 系。
 - `0x5BEF-0x5C0A`: 旧Panel property hook候補跡。新規出力では書かない。
 - `0x2566-0x2568`: Panel final fire hook。後続 `0x2569-0x2584` は原作Panel fire本体を残す。Spark Ball property selector本体は `0x632A-0x633E` へ移動済み。

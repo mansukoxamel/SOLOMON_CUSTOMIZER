@@ -30,6 +30,8 @@ RAM_SPECIAL_ITEM_CELLS = 0x0740
 RAM_FAIRY2_DELAY = 0x0771
 RAM_FIRE_RANGE_LO = 0x0432
 RAM_FIRE_RANGE_HI = 0x0433
+RAM_FIRE_RANGE_BACKUP_LO = 0x0772
+RAM_FIRE_RANGE_BACKUP_HI = 0x0773
 FAIRY2_DELAY_FRAMES = 0x20
 
 OFF_ITEM_PICKUP_HOOK = 0x456B   # CPU $C55B
@@ -43,8 +45,18 @@ OLD_DRAW_HOOK = bytes.fromhex("4c f0 ec")
 PRE_PHILOSOPHER_STONE_DRAW_HOOK = bytes.fromhex("4c ac ec")
 PRE_CRYSTAL_DRAW_HOOK = bytes.fromhex("4c 0d ed")
 
-OFF_RUNTIME = 0x6C7D
-CPU_RUNTIME = 0xEC6D
+OFF_FIRE_HIT_HOOK = 0x0163     # CPU $8153
+CPU_FIRE_HIT_HOOK = 0x8153
+ORIG_FIRE_HIT_HOOK = bytes.fromhex("ad a8 05 c9 10 b0 03 8d 2d 04")
+
+OFF_FIRE_RANGE_CAP = 0x47D6    # CPU $C7C6 operand of CPX #$02
+ORIG_FIRE_RANGE_CAP = 0x02
+FIRE_RANGE_CAP_HIGH = 0x0F
+MAX_FIRE_RANGE_BYTE = 0x1F
+NORMAL_FIRE_HIT_TIMER_HI = 0xF0
+
+OFF_RUNTIME = 0x4010
+CPU_RUNTIME = 0xC000
 CPU_STOCK_ITEM_CHECK_AFTER_RANGE = 0xC55F
 CPU_PLAY_SE = 0x8E8D
 CPU_ADD_FIRE_JAR = 0xC7A3
@@ -218,7 +230,15 @@ def _build_item_runtime() -> bytes:
     a.abs(0x20, CPU_STOCK_ITEM_CHECK_AFTER_RANGE)
     a.b(0xA5, 0x02)
     a.rel(0xF0, "rts_crystal")
-    a.b(0xA9, 0xFF)
+    a.abs(0xAD, RAM_FIRE_RANGE_HI)
+    a.b(0xC9, MAX_FIRE_RANGE_BYTE)
+    a.rel(0xB0, "set_max_range")
+    a.abs(0xAD, RAM_FIRE_RANGE_LO)
+    a.abs(0x8D, RAM_FIRE_RANGE_BACKUP_LO)
+    a.abs(0xAD, RAM_FIRE_RANGE_HI)
+    a.abs(0x8D, RAM_FIRE_RANGE_BACKUP_HI)
+    a.label("set_max_range")
+    a.b(0xA9, MAX_FIRE_RANGE_BYTE)
     a.abs(0x8D, RAM_FIRE_RANGE_LO)
     a.abs(0x8D, RAM_FIRE_RANGE_HI)
     a.label("rts_crystal")
@@ -286,6 +306,18 @@ def _build_draw_runtime(
     return a.finish()
 
 
+def _build_fire_hit_runtime() -> bytes:
+    a = _Asm()
+    a.abs(0xAD, 0x05A8)                   # LDA current fire type
+    a.b(0xC9, 0x10)                       # Super fire keeps piercing.
+    a.rel(0xB0, "rts")
+    a.b(0xA9, NORMAL_FIRE_HIT_TIMER_HI)
+    a.abs(0x8D, 0x042D)
+    a.label("rts")
+    a.b(0x60)
+    return a.finish()
+
+
 ITEM_RUNTIME = _build_item_runtime()
 OFF_DRAW_RUNTIME = OFF_RUNTIME + len(ITEM_RUNTIME)
 CPU_DRAW_RUNTIME = CPU_RUNTIME + len(ITEM_RUNTIME)
@@ -309,17 +341,22 @@ FIRE2_METATILE_BG0 = bytes.fromhex("60 65 66 67")
 FAIRY2_METATILE_BG0 = bytes.fromhex("9C 9D 9E 9F")
 PHILOSOPHER_STONE_METATILE_BG0 = bytes.fromhex("70 71 72 73")
 CRYSTAL_MAX_RANGE_METATILE_BG0 = bytes.fromhex("6C 6D 6E 6F")
-RUNTIME = (
+SPECIAL_ITEM_RUNTIME = (
     ITEM_RUNTIME + DRAW_RUNTIME
     + FIRE2_METATILE_BG0
     + FAIRY2_METATILE_BG0
     + PHILOSOPHER_STONE_METATILE_BG0
     + CRYSTAL_MAX_RANGE_METATILE_BG0
 )
+OFF_FIRE_HIT_RUNTIME = OFF_RUNTIME + len(SPECIAL_ITEM_RUNTIME)
+CPU_FIRE_HIT_RUNTIME = CPU_RUNTIME + len(SPECIAL_ITEM_RUNTIME)
+FIRE_HIT_RUNTIME = _build_fire_hit_runtime()
+RUNTIME = SPECIAL_ITEM_RUNTIME + FIRE_HIT_RUNTIME
 
 HOOK_ITEM_PICKUP = bytes((0x4C, CPU_RUNTIME & 0xFF, CPU_RUNTIME >> 8))
 HOOK_DRAW = bytes((0x4C, CPU_DRAW_RUNTIME & 0xFF, CPU_DRAW_RUNTIME >> 8))
 HOOK_PRG1_LOADER = bytes((0x4C, CPU_PRG1_LOADER_HELPER & 0xFF, CPU_PRG1_LOADER_HELPER >> 8))
+HOOK_FIRE_HIT = bytes((0x20, CPU_FIRE_HIT_RUNTIME & 0xFF, CPU_FIRE_HIT_RUNTIME >> 8)) + bytes([0xEA] * 7)
 
 
 def normalize_special_item_cells(level) -> set[tuple[int, int]]:
@@ -394,6 +431,14 @@ def _build_loader_helper(base_loader: bytes) -> bytes:
     a.rel(0x10, "copy")
     a.b(0xA9, 0x00)
     a.abs(0x8D, RAM_FAIRY2_DELAY)
+    a.abs(0xAD, RAM_FIRE_RANGE_HI)
+    a.b(0xC9, MAX_FIRE_RANGE_BYTE)
+    a.rel(0x90, "no_restore")
+    a.abs(0xAD, RAM_FIRE_RANGE_BACKUP_LO)
+    a.abs(0x8D, RAM_FIRE_RANGE_LO)
+    a.abs(0xAD, RAM_FIRE_RANGE_BACKUP_HI)
+    a.abs(0x8D, RAM_FIRE_RANGE_HI)
+    a.label("no_restore")
     a.b(*base_loader)
     return a.finish()
 
@@ -454,6 +499,18 @@ def apply(rom_data: bytearray, levels: list | None = None) -> list[str]:
         "$9DE8 special item draw hook",
     )
     _expect_blank_or(rom_data, OFF_RUNTIME, RUNTIME, "special item runtime")
+    _expect(
+        rom_data,
+        OFF_FIRE_HIT_HOOK,
+        (ORIG_FIRE_HIT_HOOK, HOOK_FIRE_HIT),
+        "$8153 normal fire hit hook",
+    )
+    if rom_data[OFF_FIRE_RANGE_CAP] not in (ORIG_FIRE_RANGE_CAP, FIRE_RANGE_CAP_HIGH):
+        raise Fire2ItemRuntimeError(
+            f"$C7C6 fire range cap mismatch at 0x{OFF_FIRE_RANGE_CAP:X}: "
+            f"expected {ORIG_FIRE_RANGE_CAP:02x} or {FIRE_RANGE_CAP_HIGH:02x}, "
+            f"got {rom_data[OFF_FIRE_RANGE_CAP]:02x}"
+        )
 
     base_loader_slot = panel_monster_stage_variant.RUNTIME_LOADER_SLOT
     cur_loader = bytes(rom_data[panel_monster_stage_variant.OFF_PRG1_RUNTIME_LOADER:
@@ -485,6 +542,12 @@ def apply(rom_data: bytearray, levels: list | None = None) -> list[str]:
     if bytes(rom_data[OFF_DRAW_HOOK:OFF_DRAW_HOOK + len(HOOK_DRAW)]) != HOOK_DRAW:
         rom_data[OFF_DRAW_HOOK:OFF_DRAW_HOOK + len(HOOK_DRAW)] = HOOK_DRAW
         changed.append("$9DE8 special item draw hook")
+    if bytes(rom_data[OFF_FIRE_HIT_HOOK:OFF_FIRE_HIT_HOOK + len(HOOK_FIRE_HIT)]) != HOOK_FIRE_HIT:
+        rom_data[OFF_FIRE_HIT_HOOK:OFF_FIRE_HIT_HOOK + len(HOOK_FIRE_HIT)] = HOOK_FIRE_HIT
+        changed.append("$8153 normal fire hit hook")
+    if rom_data[OFF_FIRE_RANGE_CAP] != FIRE_RANGE_CAP_HIGH:
+        rom_data[OFF_FIRE_RANGE_CAP] = FIRE_RANGE_CAP_HIGH
+        changed.append("$C7C6 fire range cap high byte")
     if bytes(rom_data[OFF_PRG1_LOADER_HELPER:OFF_PRG1_LOADER_HELPER + len(loader_helper)]) != loader_helper:
         rom_data[OFF_PRG1_LOADER_HELPER:OFF_PRG1_LOADER_HELPER + len(loader_helper)] = loader_helper
         changed.append(f"special item PRG1 loader ${CPU_PRG1_LOADER_HELPER:04X}")
@@ -520,7 +583,9 @@ PRG1_RESERVED_SPANS = (
 )
 
 
-assert len(ITEM_RUNTIME) == 180
+assert len(ITEM_RUNTIME) == 199
 assert len(DRAW_RUNTIME) == 87
-assert len(RUNTIME) == 283
+assert len(SPECIAL_ITEM_RUNTIME) == 302
+assert len(FIRE_HIT_RUNTIME) == 13
+assert len(RUNTIME) == 315
 assert len(PRE_CRYSTAL_RUNTIME) == 243

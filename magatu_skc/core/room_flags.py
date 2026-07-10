@@ -89,7 +89,8 @@ verbatim コピーするため file offset 不変):
 #                               bit5=warp mirror mode, bit6=warp cooldown,
 #                               bit7=enemy-clear key open fired latch
 #   $0771       FAIRY2_DELAY Fairy x2 second spawn delay counter 予約済(使用中)
-#   $0772-$0777 ENTITY_TAIL_CANDIDATE 補助候補6B          要probe
+#   $0772-$0773 FIRE_RANGE_BACKUP Crystal max fire range復元用 予約済(使用中)
+#   $0774-$0777 ENTITY_TAIL_CANDIDATE 補助候補4B          要probe
 #   $0778       ROOMFLAGS       room flag table cache         予約済(使用中)
 #   $0779       DARK_PHASE      暗闇 明滅フェーズカウンタ      予約済(使用中)
 #   $077A       FINAL_STAGE_REDIRECT  current room final-stage redirect bit7,
@@ -121,8 +122,8 @@ verbatim コピーするため file offset 不変):
 #   ・file 0x9019-0x904C : mapper66 respawn direct-cell copy helper
 #   ・file 0x904D-0x908F : cracked in-block one-shot respawn helper
 #   ・file 0x9090-0x927F : wide-title ending renderer
-#   ・file 0x9280-0x92F3 : special item loader helper
-#   ・file 0x92F4-0x930F : PRG1 general reserve gap
+#   ・file 0x9280-0x930B : special item loader helper
+#   ・file 0x930C-0x930F : PRG1 general reserve gap
 #   ・file 0x9310-0x970F : special item position table
 #   ・file 0x9710-0xBB95 : PRG1 general reserve
 #     (bank1 を使う改造を足すときは必ず上記予約を避ける)。
@@ -138,7 +139,7 @@ verbatim コピーするため file offset 不変):
 #        $0740-$074F はPanel Variant settings copyとして予約した後、
 #        現行ではspecial item位置リストとして使用中。
 #        $0750-$0767 は透明ブロック内アイテムruntime maskとして予約済み。
-#        $073A-$073F / $0771-$0777 は補助候補だが、
+#        $073A-$073F / $0774-$0777 は補助候補だが、
 #        沈黙でも構造保証は弱いので正式使用前に用途別probe必須。
 #   ・$0780-$07DF = probe で書込検出 = ★使用禁止。
 #
@@ -156,7 +157,7 @@ verbatim コピーするため file offset 不変):
 #   1. ★まず "増やさない" を検討。既存値から再計算できないか?
 #      例: room flag は $0428→$C1C0,X ROMテーブル再読込で RAM不要化可。
 #          暗闇周期も $043C/$043D(global frame counter)から導出余地。
-#   2. まとまったRAMが必要 → $0771-$0777 を候補にする。
+#   2. まとまったRAMが必要 → $0774-$0777 を候補にする。
 #      小フラグだけでも予約済み範囲は使わない。
 #      用途名を決めて上の表に追記してからコードで使う。
 #   3. 長期保存 / 毎NMI書込 / 複数バイト連続使用 → ★再プローブ必須
@@ -177,7 +178,8 @@ verbatim コピーするため file offset 不変):
 #                               bit5=warp mirror mode, bit6=warp cooldown,
 #                               bit7=enemy-clear key open fired latch
 #   $0771       FAIRY2_DELAY           Fairy x2 second spawn delay counter, reserved in use
-#   $0772-$0777 ENTITY_TAIL_CANDIDATE  secondary 6-byte candidate, probe before use
+#   $0772-$0773 FIRE_RANGE_BACKUP      Crystal max fire range restore backup, reserved in use
+#   $0774-$0777 ENTITY_TAIL_CANDIDATE  secondary 4-byte candidate, probe before use
 #   $0778       ROOMFLAGS              room flag table cache, reserved in use
 #   $0779       DARK_PHASE             dark-room phase counter, reserved in use
 #   $077A       FINAL_STAGE_REDIRECT   bit7 redirects next stage to final room after clear
@@ -463,7 +465,6 @@ def _verify(rom_data) -> None:
     #   置くため、両機能を同時適用できるよう許容スパンに含める。
     from . import gap_fix as _gf
     from . import gargoyle_variant as _gv
-    from . import panel_monster_variant as _pmv
     from . import panel_monster_stage_variant as _pmsv
     from . import saramandor_variant as _sv
     from . import spark_ball_variant as _sbv
@@ -473,7 +474,7 @@ def _verify(rom_data) -> None:
     from . import enemy_clear_key_open as _ecko
     from . import fire2_item_runtime as _fire2
     expanded = len(rom_data) == 0x18010
-    table_spans = ((OFF_DOORTAB, ROOM_COUNT * 2),) if expanded else (
+    table_spans = () if expanded else (
         (OFF_DOORTAB, ROOM_COUNT),
         (OFF_TABLE, ROOM_COUNT),
     )
@@ -501,7 +502,6 @@ def _verify(rom_data) -> None:
         (OFF_WHITE_INBLOCK_RUNTIME_EXT, len(WHITE_INBLOCK_RUNTIME_EXT)),
         *_sv.RESERVED_SPANS,                 # Saramandor #2 bullet variant
         *_gv.RESERVED_SPANS,                 # Gargoyle #2 slow-Bullet variant
-        *_pmv.RESERVED_SPANS,                # Panel Monster borrowed-ID variants
         *_pmsv.RESERVED_SPANS,               # Panel Variant A/B/C split runtime
         *pmsv_capacity_spans,                # Panel Variant legacy tail compatibility
         *_sbv.RESERVED_SPANS,                # Spark Ball Dragon-ID variants

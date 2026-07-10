@@ -82,7 +82,8 @@
       <div class="seg ok" style="width:.4%">$0768-$076F<br><small>cracked list</small></div>
       <div class="seg mod" style="width:.04%">$0770<br><small>warp</small></div>
       <div class="seg mod" style="width:.04%">$0771<br><small>fairy2 delay</small></div>
-      <div class="seg free" style="width:.22%">$0772-$0777<br><small>6B candidate</small></div>
+      <div class="seg mod" style="width:.08%">$0772-$0773<br><small>fire range</small></div>
+      <div class="seg free" style="width:.14%">$0774-$0777<br><small>4B candidate</small></div>
       <div class="seg mod" style="width:.25%">$0778-$0779</div>
       <div class="seg mod" style="width:.1%">$077C</div>
         <div class="seg mod" style="width:.07%">$077D<br><small>seal</small></div>
@@ -122,7 +123,8 @@
     <tr><td class="num">$0768-$076F</td><td>CRACKED_INBLOCK_LIST</td><td class="ok">Customizer予約済</td><td>mapper66 loader がPRG1のvisible-item slot末尾8Bから現在部屋のひび割れブロック内アイテム位置リストをコピー。死亡後one-shot抑止で中身が消えた時、描画前に下地セルを <code>$01</code> へ戻し、対応mask bitを消す。</td></tr>
     <tr><td class="num">$0770</td><td>GAMEPLAY_STAGE_FLAGS</td><td class="ok">Customizer予約済</td><td>bit4=Enemy Clear Key Open有効、bit5=現在部屋のWarp Mirror Mode有効、bit6=鏡接触中クールダウン、bit7=Enemy Clear Key Open発火済みラッチ。mapper66 room loader後のPRG1 helperがStageExtTable byte0 bit5/bit6から初期化する。</td></tr>
     <tr><td class="num">$0771</td><td>FAIRY2_DELAY</td><td class="ok">Customizer予約済</td><td>Fairy x2取得後、2体目の妖精spawn予約を約32フレーム遅らせるカウンタ。<code>$9F09</code> main-loop hookで毎フレーム減算し、0になった時だけ原作ベル処理 <code>$C7AA</code> を呼ぶ。</td></tr>
-    <tr><td class="num">$0772-$0777</td><td>entity終端後の沈黙帯</td><td class="warn">補助候補 6B</td><td>旧特殊ブロック32Bリスト跡の残り。$0778/$0779等の予約RAMに隣接するため、$0750-$076Fより優先度は下げる。</td></tr>
+    <tr><td class="num">$0772-$0773</td><td>FIRE_RANGE_BACKUP</td><td class="ok">Customizer予約済</td><td>Crystal max fire range取得前の<code>$0432/$0433</code>退避値。Max中は<code>$1F1F</code>へ一時変更し、部屋ロード時に<code>$0433 &gt;= $1F</code>ならここから復元する。</td></tr>
+    <tr><td class="num">$0774-$0777</td><td>entity終端後の沈黙帯</td><td class="warn">補助候補 4B</td><td>旧特殊ブロック32Bリスト跡の残り。$0778/$0779等の予約RAMに隣接するため、$0750-$076Fより優先度は下げる。</td></tr>
     <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td class="ok">Customizer予約済</td><td>RoomFlagTableの現在部屋フラグcache。特殊扉(隠し/茶ブロック内/白ブロック内)/B禁止/A禁止/暗闇、bit4=ステージ開始時ファイヤー所持リセット、bit5=透明ブロック内アイテムmaskあり、bit6=特殊セル変換ありなど。</td></tr>
     <tr><td class="num">$0779</td><td>DARK_PHASE</td><td class="ok">Customizer予約済</td><td>暗闇モードの明滅フェーズカウンタ。暗フェーズ中でもダーナ火球slot <code>$05A7</code> bit7 が立つ間は明表示にするが、このカウンタ自体は進め続ける。</td></tr>
     <tr><td class="num">$077A-$077B</td><td>FINAL_STAGE_REDIRECT / legacy work</td><td class="ok">Customizer予約済</td><td><code>$077A</code> bit7 は現在部屋クリア後に次ステージを原作最終面へ差し替えるruntimeフラグ。mapper66部屋ロードruntimeがStageExtTable byte0 bit4からコピーする。<code>$077B</code> は旧一時値候補。</td></tr>
@@ -141,11 +143,12 @@
     <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td>Room Flag拡張</td><td>プレイ中常駐</td><td>LOADERが部屋開始時に <code>$0428</code> でRoomFlagTableを引いて書く。bit4はStageExtTableの fire reset、bit5/bit6は透明ブロック内アイテムmask/特殊セル変換の実行時専用フラグ。</td></tr>
     <tr><td class="num">$0779</td><td>DARK_PHASE</td><td>暗闇面</td><td>プレイ中常駐</td><td>NMIで進む。暗フェーズ中でもダーナ火球slot <code>$05A7</code> bit7 が立つ間はBG-offを抑止する。旧 <code>$0461</code> はサウンド衝突で妖精SEループを起こしたため廃止。</td></tr>
     <tr><td class="num">$077A</td><td>FINAL_STAGE_REDIRECT</td><td>クリア後の最終面送り</td><td>部屋中常駐</td><td>bit7=この面クリア後、次ステージ番号を原作最終面へ差し替える。StageExtTable byte0 bit4からコピー。</td></tr>
-    <tr><td class="num">$0740-$074F</td><td>SPECIAL_ITEM_CELLS</td><td>予約済</td><td>Special item</td><td>Panel Variant settings copy跡を再利用。通常アイテムID <code>0x15</code>/<code>0x18</code>/<code>0x08</code>/<code>0x1B</code> のうち、このリストに入ったセルだけFirejar x2 / Fairy x2 / Philosopher's Stone / Crystal max fire range扱いにする。Crystalは原作火の持続上限RAM <code>$0432/$0433</code> を使うため、新規RAMは増やさない。</td></tr>
+    <tr><td class="num">$0740-$074F</td><td>SPECIAL_ITEM_CELLS</td><td>予約済</td><td>Special item</td><td>Panel Variant settings copy跡を再利用。通常アイテムID <code>0x15</code>/<code>0x18</code>/<code>0x08</code>/<code>0x1B</code> のうち、このリストに入ったセルだけFirejar x2 / Fairy x2 / Philosopher's Stone / Crystal max fire range扱いにする。</td></tr>
     <tr><td class="num">$0750-$0767</td><td>VISIBLE_INBLOCK_ITEM_MASK</td><td>透明ブロック内アイテム</td><td>部屋中常駐</td><td>mapper66 loader がPRG1 <code>0xF860-0xFEFF</code> から現在部屋の24B bitmaskをコピー。<code>$E74C</code> helper が参照し、処理中にmaskを破壊的にshiftする。</td></tr>
     <tr><td class="num">$0768-$076F</td><td>CRACKED_INBLOCK_LIST</td><td>ひび割れブロック内アイテム</td><td>部屋中常駐</td><td>mapper66 loader がPRG1 <code>0xF860-0xFEFF</code> の現在部屋slot末尾8Bをコピー。死亡後のone-shot対象アイテムは再注入せず、下地のひび割れブロックだけを描画前に復元する。</td></tr>
     <tr><td class="num">$0770</td><td>GAMEPLAY_STAGE_FLAGS</td><td>ワープミラー / 全敵消滅オープン</td><td>部屋中常駐</td><td>bit4=Enemy Clear Key Open mode、bit5=Warp Mirror mode、bit6=Warp Mirror cooldown、bit7=Enemy Clear Key Open fired latch。</td></tr>
     <tr><td class="num">$0771</td><td>FAIRY2_DELAY</td><td>Fairy x2特殊アイテム</td><td>部屋中一時</td><td>Fairy x2取得時に<code>#$20</code>を入れ、main-loop hookで0まで減らしてから2体目の妖精spawn予約を行う。</td></tr>
+    <tr><td class="num">$0772-$0773</td><td>FIRE_RANGE_BACKUP</td><td>Crystal max fire range</td><td>Max効果中だけ保持</td><td>Max Crystal取得前の<code>$0432/$0433</code>を2バイト退避する。Max中は<code>$0432/$0433=$1F1F</code>、部屋ロード時にMax状態なら退避値へ戻す。</td></tr>
     <tr><td class="num">$072C-$0739</td><td>WIDETITLE_TRAMP</td><td>wide title描画</td><td>タイトル描画中のみ</td><td>RAM実行でPRG bank0/1切替をまたぐ。旧<code>$03C0-$03CD</code>はblock gridと重なるため廃止。</td></tr>
     <tr><td class="num">$077C</td><td>RUNTIME_DOOR_CELL</td><td>特殊扉/StageExt loader</td><td>部屋中常駐</td><td>PRG1 StageExtTable byte7からコピー。特殊扉(隠し/茶ブロック内/白ブロック内)が参照。PRG0 DoorCellTableを廃止して <code>$C180-$C1FF</code> を回収。</td></tr>
     <tr><td class="num">$077D</td><td>SEAL_BLOCK_VALUE</td><td>ソロモンの紋章ブロック状態</td><td>部屋中常駐</td><td>PRG1の部屋別表からコピー。紋章配置後に茶/白ブロック内状態へ上書きするための1バイト。</td></tr>
@@ -162,16 +165,16 @@
   <div class="note">
     <b>新規RAMが必要な時の優先順位:</b>
     まずRAMを増やさずROMテーブル再読込や既存カウンタ派生で済ませる。まとまったRAMが必要なら旧特殊ブロックリスト跡の
-      <code>$0740-$074F</code> はSpecial item位置リスト用、<code>$0750-$0767</code> は透明ブロック内アイテム用、<code>$0768-$076F</code> はひび割れブロック内アイテム用、<code>$0770</code> はワープミラー/全敵消滅オープン状態用、<code>$0771</code> はFairy x2遅延用に予約済み。まとまったRAMは <code>$0772-$0777</code> を候補にする。
+      <code>$0740-$074F</code> はSpecial item位置リスト用、<code>$0750-$0767</code> は透明ブロック内アイテム用、<code>$0768-$076F</code> はひび割れブロック内アイテム用、<code>$0770</code> はワープミラー/全敵消滅オープン状態用、<code>$0771</code> はFairy x2遅延用、<code>$0772-$0773</code> はCrystal max fire range復元用に予約済み。まとまったRAMは <code>$0774-$0777</code> を候補にする。
     長期保存・毎NMI書込・複数バイト連続使用は、先に専用probeで実機確認してから予約する。予約後は <code>room_flags.py</code> のASCII mirrorも同期する。
   </div>
 
   <h2>5. 判定の強さ</h2>
   <table>
     <tr><th>分類</th><th>意味</th><th>例</th></tr>
-    <tr><td class="ok">予約済/確定</td><td>コード・実機probe・現在実装のいずれかで用途が確定している。</td><td><code>$0723-$072B</code>, <code>$072C-$0739</code>, <code>$0740-$074F</code>, <code>$0750-$0767</code>, <code>$0768-$076F</code>, <code>$0770</code>, <code>$0771</code>, <code>$0778</code>, <code>$0779</code>, <code>$077C</code>, <code>$077D</code>, <code>$077E-$077F</code></td></tr>
+    <tr><td class="ok">予約済/確定</td><td>コード・実機probe・現在実装のいずれかで用途が確定している。</td><td><code>$0723-$072B</code>, <code>$072C-$0739</code>, <code>$0740-$074F</code>, <code>$0750-$0767</code>, <code>$0768-$076F</code>, <code>$0770</code>, <code>$0771</code>, <code>$0772-$0773</code>, <code>$0778</code>, <code>$0779</code>, <code>$077C</code>, <code>$077D</code>, <code>$077E-$077F</code></td></tr>
     <tr><td>本編使用</td><td>用途は概ね分かるが、内部構造の詳細は必要時に追加解析。</td><td><code>$0426-$0455</code>, <code>$04F7-$057E</code></td></tr>
-    <tr><td class="warn">候補/非推奨</td><td>probe上は沈黙したが、構造保証が弱い、または重要領域に隣接。</td><td><code>$073A-$073F</code>, <code>$0772-$0777</code>, <code>$07E0-$07EF</code></td></tr>
+    <tr><td class="warn">候補/非推奨</td><td>probe上は沈黙したが、構造保証が弱い、または重要領域に隣接。</td><td><code>$073A-$073F</code>, <code>$0774-$0777</code>, <code>$07E0-$07EF</code></td></tr>
     <tr><td class="ng">禁止</td><td>既知の本編領域。改造RAMにしない。</td><td><code>$0200-$02FF</code>, <code>$0304-$03E3</code>, <code>$0456-$04D5</code>, <code>$057F-$0722</code></td></tr>
   </table>
 </main>
