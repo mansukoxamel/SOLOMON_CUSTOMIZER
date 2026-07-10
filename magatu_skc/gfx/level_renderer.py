@@ -46,6 +46,11 @@ ENEMY_VISUAL_SOURCE = {
     0x8C: 0x20,
 }
 
+ENEMY_PALETTE_OVERRIDE = {
+    0x8B: 6,
+    0x8C: 6,
+}
+
 MARKER_RENDER_SCALE = 4
 KEY_ENEMY_OVERLAY_PNG_B64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAA70lEQVR42u3aQQ6CMBAFUC7"
@@ -670,7 +675,8 @@ class LevelRenderer:
                     continue
                 anim = self.get_enemy_animation(enemy.element_no)
                 en_img = self.tr.get_tile_image(
-                    anim, ts_no, transparent=None, bg_main_color=wall_color)
+                    anim, ts_no, transparent=None, bg_main_color=wall_color,
+                    palette_no_override=ENEMY_PALETTE_OVERRIDE.get(enemy.element_no))
                 is_key_enemy = key_enemy_img is not None and enemy_index == key_enemy_number
                 is_fairy_enemy = fairy_enemy_img is not None and enemy_index == fairy_enemy_number
                 if is_key_enemy or is_fairy_enemy:
