@@ -1,5 +1,9 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.34 (2026-07-10) 賢者の石で開いた扉が閉じる不具合を修正
+- 鍵で開いた隠し扉に対して賢者の石を取得した時、開いた扉を閉じた隠し扉へ戻さないようにした。
+- Special item runtimeを`0x4010-0x4155` / `$C000-$C145`へ11B拡張した。
+
 ## v0.9.33 (2026-07-10) 特殊アイテムのCtrlドラッグ移動を修正
 - Firejar x2 / Fairy x2 / Philosopher's Stone / Crystal max fire range の特殊アイテム指定が、Ctrl+左ドラッグで通常アイテム本体と一緒に移動するようにした。
 

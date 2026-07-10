@@ -175,6 +175,24 @@ def _build_item_runtime() -> bytes:
     a.label("rts2")
     a.b(0x60)
 
+    a.label("crystal")
+    a.abs(0x20, CPU_STOCK_ITEM_CHECK_AFTER_RANGE)
+    a.b(0xA5, 0x02)
+    a.rel(0xF0, "rts_crystal")
+    a.abs(0xAD, RAM_FIRE_RANGE_HI)
+    a.b(0xC9, MAX_FIRE_RANGE_BYTE)
+    a.rel(0xB0, "set_max_range")
+    a.abs(0xAD, RAM_FIRE_RANGE_LO)
+    a.abs(0x8D, RAM_FIRE_RANGE_BACKUP_LO)
+    a.abs(0xAD, RAM_FIRE_RANGE_HI)
+    a.abs(0x8D, RAM_FIRE_RANGE_BACKUP_HI)
+    a.label("set_max_range")
+    a.b(0xA9, MAX_FIRE_RANGE_BYTE)
+    a.abs(0x8D, RAM_FIRE_RANGE_LO)
+    a.abs(0x8D, RAM_FIRE_RANGE_HI)
+    a.label("rts_crystal")
+    a.b(0x60)
+
     a.label("stone")
     a.abs(0x20, CPU_STOCK_ITEM_CHECK_AFTER_RANGE)
     a.b(0xA5, 0x02)
@@ -212,36 +230,24 @@ def _build_item_runtime() -> bytes:
     a.b(0xE0, 0xD0)
     a.rel(0xD0, "reveal_loop")
 
-    a.abs(0xAD, RAM_DOOR_CELL)             # hidden door: draw but keep live state hidden
-    a.b(0x85, 0x02)
+    a.abs(0xAE, RAM_DOOR_CELL)             # skip hidden-door redraw after the door was opened
+    a.b(0xBD, 0x04, 0x03)                  # LDA $0304,X
+    a.b(0xC9, 0x07)
+    a.rel(0xF0, "stone_done")
+    a.b(0xC9, 0x10)
+    a.rel(0xF0, "stone_done")
+    a.b(0x86, 0x02)                        # hidden door: draw but keep live state hidden
     a.b(0xA9, 0x02)
     a.b(0x85, 0x03)
     a.abs(0x20, CPU_DRAW_CELL)
     a.abs(0xAE, RAM_DOOR_CELL)
     a.b(0xA9, 0x46)
     a.b(0x9D, 0x04, 0x03)
+    a.label("stone_done")
     a.b(0xA9, 0x40)
     a.b(0x85, 0x02)
     a.b(0xA9, 0x01)
     a.label("rts_stone")
-    a.b(0x60)
-
-    a.label("crystal")
-    a.abs(0x20, CPU_STOCK_ITEM_CHECK_AFTER_RANGE)
-    a.b(0xA5, 0x02)
-    a.rel(0xF0, "rts_crystal")
-    a.abs(0xAD, RAM_FIRE_RANGE_HI)
-    a.b(0xC9, MAX_FIRE_RANGE_BYTE)
-    a.rel(0xB0, "set_max_range")
-    a.abs(0xAD, RAM_FIRE_RANGE_LO)
-    a.abs(0x8D, RAM_FIRE_RANGE_BACKUP_LO)
-    a.abs(0xAD, RAM_FIRE_RANGE_HI)
-    a.abs(0x8D, RAM_FIRE_RANGE_BACKUP_HI)
-    a.label("set_max_range")
-    a.b(0xA9, MAX_FIRE_RANGE_BYTE)
-    a.abs(0x8D, RAM_FIRE_RANGE_LO)
-    a.abs(0x8D, RAM_FIRE_RANGE_HI)
-    a.label("rts_crystal")
     a.b(0x60)
     return a.finish()
 
@@ -583,9 +589,9 @@ PRG1_RESERVED_SPANS = (
 )
 
 
-assert len(ITEM_RUNTIME) == 199
+assert len(ITEM_RUNTIME) == 210
 assert len(DRAW_RUNTIME) == 87
-assert len(SPECIAL_ITEM_RUNTIME) == 302
+assert len(SPECIAL_ITEM_RUNTIME) == 313
 assert len(FIRE_HIT_RUNTIME) == 13
-assert len(RUNTIME) == 315
+assert len(RUNTIME) == 326
 assert len(PRE_CRYSTAL_RUNTIME) == 243
