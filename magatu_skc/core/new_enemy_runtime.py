@@ -573,7 +573,7 @@ def apply(rom_data: bytearray) -> list[str]:
         rom_data,
         _radiance9d.OFF_AUX_RUNTIME,
         (bytes((0xEA,)) * len(_radiance9d.AUX_RUNTIME), _radiance9d.AUX_RUNTIME),
-        "Seraphic Radiance9D half-speed/sound helper area",
+        "Seraphic Radiance9D sound helper area",
     )
     for off, blob, old_blobs, name in ENTRY_RUNTIMES:
         _expect_blank_or_one_of(rom_data, off, (blob, *old_blobs), name)
@@ -659,6 +659,6 @@ def apply(rom_data: bytearray) -> list[str]:
         _radiance9d.OFF_AUX_RUNTIME,
         _radiance9d.AUX_RUNTIME,
         changed,
-        "Seraphic Radiance9D half-speed/sound helpers $BF6C-$BF7A",
+        "Seraphic Radiance9D sound helper $BF6C-$BF70",
     )
     return changed

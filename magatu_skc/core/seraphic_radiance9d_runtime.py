@@ -12,7 +12,7 @@ RUNTIME_CAPACITY = 0x11C
 
 OFF_AUX_RUNTIME = 0x3F7C
 CPU_AUX_RUNTIME = 0xBF6C
-CPU_SOUND_HELPER = CPU_AUX_RUNTIME + 10
+CPU_SOUND_HELPER = CPU_AUX_RUNTIME
 
 CPU_STOCK_INIT = 0x9D1C
 CPU_MAIN_TO_SUB_PTR = 0xB156
@@ -195,23 +195,13 @@ ANIM_UPDATE_RUNTIME = bytes.fromhex(
 RUNTIME = SETUP_META_RUNTIME + INIT_STATUS_RUNTIME + AI_DISPATCH_RUNTIME + ANIM_UPDATE_RUNTIME
 CPU_RUNTIME_END = CPU_RUNTIME + len(RUNTIME)
 
-AI_HALF_SPEED_WRAPPER = bytes(
-    (
-        0xA5, 0x21,              # LDA $21
-        0x29, 0x01,              # AND #$01
-        0xF0, 0x01,              # BEQ run_ai
-        0x60,                    # RTS on odd frames
-        0x4C, CPU_AI_DISPATCH & 0xFF, CPU_AI_DISPATCH >> 8,
-    )
-)
-
 SOUND_HELPER = bytes.fromhex(
     "a0 08"                     # LDY #$08: stock block-removal sound
     "4c 8d 8e"                  # JMP $8E8D; its RTS returns to AI caller
 )
 
-AUX_RUNTIME = AI_HALF_SPEED_WRAPPER + SOUND_HELPER
-CPU_AI_ENTRY = CPU_AUX_RUNTIME
+AUX_RUNTIME = SOUND_HELPER
+CPU_AI_ENTRY = CPU_AI_DISPATCH
 RESERVED_SPANS = (
     (OFF_RUNTIME, len(RUNTIME)),
     (OFF_AUX_RUNTIME, len(AUX_RUNTIME)),
@@ -220,9 +210,8 @@ RESERVED_SPANS = (
 assert len(RUNTIME) <= RUNTIME_CAPACITY
 assert CPU_RUNTIME + len(RUNTIME) == CPU_RUNTIME_END
 assert len(RUNTIME) == 281
-assert len(AI_HALF_SPEED_WRAPPER) == 10
 assert len(SOUND_HELPER) == 5
-assert len(AUX_RUNTIME) == 15
+assert len(AUX_RUNTIME) == 5
 
 
 def levels_need_runtime(levels: list) -> bool:
