@@ -66,7 +66,7 @@ def _build_ai_entry_runtime() -> bytes:
         (BULLET91_ID, _bullet91.CPU_AI_DISPATCH),
         (BULLET92_ID, _bullet92.CPU_AI_DISPATCH),
         (FAIRY9C_ID, _fairy9c.CPU_AI_DISPATCH),
-        (RADIANCE9D_ID, _radiance9d.CPU_AI_DISPATCH),
+        (RADIANCE9D_ID, _radiance9d.CPU_AI_ENTRY),
     )
     for idx, (enemy_id, _target) in enumerate(targets):
         data.extend((0xC9, enemy_id, 0xF0, 0x00))
@@ -463,6 +463,7 @@ def apply(rom_data: bytearray) -> list[str]:
         _bullet92.OFF_RUNTIME + len(_bullet92.RUNTIME),
         _fairy9c.OFF_RUNTIME + len(_fairy9c.RUNTIME),
         _radiance9d.OFF_RUNTIME + len(_radiance9d.RUNTIME),
+        _radiance9d.OFF_AUX_RUNTIME + len(_radiance9d.AUX_RUNTIME),
         max(off + len(blob) for off, blob, _old_blobs, _name in ENTRY_RUNTIMES),
     )
     if rom_data is None or len(rom_data) < max_end:
@@ -568,6 +569,12 @@ def apply(rom_data: bytearray) -> list[str]:
         (bytes((0xEA,)) * len(_radiance9d.RUNTIME), _radiance9d.RUNTIME),
         "Seraphic Radiance9D runtime area",
     )
+    _expect_one(
+        rom_data,
+        _radiance9d.OFF_AUX_RUNTIME,
+        (bytes((0xEA,)) * len(_radiance9d.AUX_RUNTIME), _radiance9d.AUX_RUNTIME),
+        "Seraphic Radiance9D half-speed/sound helper area",
+    )
     for off, blob, old_blobs, name in ENTRY_RUNTIMES:
         _expect_blank_or_one_of(rom_data, off, (blob, *old_blobs), name)
 
@@ -646,5 +653,12 @@ def apply(rom_data: bytearray) -> list[str]:
         _radiance9d.RUNTIME,
         changed,
         f"Seraphic Radiance9D runtime ${_radiance9d.CPU_RUNTIME:04X}-${_radiance9d.CPU_RUNTIME_END - 1:04X}",
+    )
+    _write(
+        rom_data,
+        _radiance9d.OFF_AUX_RUNTIME,
+        _radiance9d.AUX_RUNTIME,
+        changed,
+        "Seraphic Radiance9D half-speed/sound helpers $BF6C-$BF7A",
     )
     return changed

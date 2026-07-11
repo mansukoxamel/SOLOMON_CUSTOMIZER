@@ -10,6 +10,10 @@ OFF_RUNTIME = 0x6C7C
 CPU_RUNTIME = 0xEC6C
 RUNTIME_CAPACITY = 0x11C
 
+OFF_AUX_RUNTIME = 0x3F7C
+CPU_AUX_RUNTIME = 0xBF6C
+CPU_SOUND_HELPER = CPU_AUX_RUNTIME + 10
+
 CPU_STOCK_INIT = 0x9D1C
 CPU_MAIN_TO_SUB_PTR = 0xB156
 CPU_MAIN_PTR_LO = 0xB329
@@ -95,7 +99,7 @@ def _build_ai_runtime() -> bytes:
     a.b(0xA0, 0x07, 0xB1, 0x2C, 0x09, 0x02, 0x91, 0x2C)
     a.branch(0xD0, "move_x")
     a.label("move_up")
-    a.b(0xA0, 0x07, 0xB1, 0x2E, 0xC9, 0x10)
+    a.b(0xA0, 0x07, 0xB1, 0x2E, 0xC9, 0x20)
     a.branch(0x90, "turn_down")
     a.branch(0xF0, "turn_down")
     a.b(0x38, 0xE9, 0x01, 0x91, 0x2E)
@@ -156,6 +160,7 @@ def _build_ai_runtime() -> bytes:
     a.b(0xB9, CPU_SUB_PTR_LO & 0xFF, CPU_SUB_PTR_LO >> 8, 0x85, 0x00)
     a.b(0xB9, CPU_SUB_PTR_HI & 0xFF, CPU_SUB_PTR_HI >> 8, 0x85, 0x01)
     a.b(0xA0, 0x00, 0xA9, 0x00, 0x91, 0x00)  # clear paired sub status
+    a.jsr(CPU_SOUND_HELPER)                     # stock block-removal sound
     a.label("next")
     a.b(0xCA)
     a.branch(0x10, "scan")
@@ -189,10 +194,35 @@ ANIM_UPDATE_RUNTIME = bytes.fromhex(
 
 RUNTIME = SETUP_META_RUNTIME + INIT_STATUS_RUNTIME + AI_DISPATCH_RUNTIME + ANIM_UPDATE_RUNTIME
 CPU_RUNTIME_END = CPU_RUNTIME + len(RUNTIME)
-RESERVED_SPANS = ((OFF_RUNTIME, len(RUNTIME)),)
+
+AI_HALF_SPEED_WRAPPER = bytes(
+    (
+        0xA5, 0x21,              # LDA $21
+        0x29, 0x01,              # AND #$01
+        0xF0, 0x01,              # BEQ run_ai
+        0x60,                    # RTS on odd frames
+        0x4C, CPU_AI_DISPATCH & 0xFF, CPU_AI_DISPATCH >> 8,
+    )
+)
+
+SOUND_HELPER = bytes.fromhex(
+    "a0 08"                     # LDY #$08: stock block-removal sound
+    "4c 8d 8e"                  # JMP $8E8D; its RTS returns to AI caller
+)
+
+AUX_RUNTIME = AI_HALF_SPEED_WRAPPER + SOUND_HELPER
+CPU_AI_ENTRY = CPU_AUX_RUNTIME
+RESERVED_SPANS = (
+    (OFF_RUNTIME, len(RUNTIME)),
+    (OFF_AUX_RUNTIME, len(AUX_RUNTIME)),
+)
 
 assert len(RUNTIME) <= RUNTIME_CAPACITY
 assert CPU_RUNTIME + len(RUNTIME) == CPU_RUNTIME_END
+assert len(RUNTIME) == RUNTIME_CAPACITY
+assert len(AI_HALF_SPEED_WRAPPER) == 10
+assert len(SOUND_HELPER) == 5
+assert len(AUX_RUNTIME) == 15
 
 
 def levels_need_runtime(levels: list) -> bool:
