@@ -138,7 +138,8 @@
       <tr><td class="num">0x5BC5-0x5BEE</td><td>Original enemy speed table</td><td>原作の敵速度テーブル。Golem/Demonhead なども参照するため、Panel Variant 用には上書きしない。</td></tr>
       <tr><td class="num">0x5BEF-0x5C0A</td><td>空き</td><td>28BのEA埋め。現行runtime予約なし。Panel property hook本体は <code>$E73A</code>。</td></tr>
       <tr><td class="num">0x6010-0x6065</td><td>Dark Fairy9C runtime</td><td><code>$E000-$E055</code>。敵ID <code>$9C</code> をFairy group <code>$0E</code> で表示し、AI中だけ原作Fairy <code>$1C</code> として動かす。原作Fairy取得で<code>$0453</code>が増えたらsub-slot[7]へ60F毒待ちカウンタを入れ、取得SE/action後に死亡action <code>$31</code> を発動する。SPR2 palette表示はanimation入口側で原作アニメ後にsprite attrを<code>$88</code>へ上書きして行う。</td></tr>
-      <tr><td class="num">0x6066-0x60CB</td><td>空き</td><td>102BのEA埋め。現行runtime予約なし。</td></tr>
+      <tr><td class="num">0x6066-0x6084</td><td>Blue Key Queen runtime</td><td><code>$E056-$E074</code>。青鍵item <code>$1A</code>取得時に原作fairy queue <code>$0454</code>と<code>$0087 bit1</code>へ女王予約を設定し、次のfairy spawnだけtype <code>$1D</code>へ変更する。</td></tr>
+      <tr><td class="num">0x6085-0x60CB</td><td>空き</td><td>71BのEA埋め。現行runtime予約なし。</td></tr>
       <tr><td class="num">0x60CC-0x60F5</td><td>Initial draw low classifier packed helper</td><td>ひび割れブロック内アイテム用の初期描画低値分類helper。分散していた48Bを42Bへ連続配置し、tableは同一ブロック内 `$E0DE` を参照する。</td></tr>
       <tr><td class="num">0x60F6-0x610D</td><td>空き</td><td>Initial draw low classifier直後の24B空き。m66.py本体reserveとは扱わない。</td></tr>
       <tr><td class="num">0x610E-0x622B</td><td>Key/Fairy enemy runtime packed helper</td><td>敵から鍵が出るruntime一式。分散していた286Bを1ブロックへ集約。</td></tr>
@@ -209,7 +210,8 @@
       <tr><td>原作データ</td><td><code>original ROM</code></td><td class="num">0x5BC5-0x5BEE</td><td class="num">$DBB5-$DBDE</td><td class="num">42B</td><td>原作速度テーブル</td><td>Golem/Demonhead などの通常敵も使う共有速度データ。Panel Variant の no-drift 対策としてゼロ化しない。Panel Variant A/B/C 適用時は通常Panel Bulletの左右速度バグ修正として該当4バイトのみ <code>$3F/$41</code> presetへ更新する。</td></tr>
       <tr><td>空き</td><td><code>panel_monster_variant.py</code></td><td class="num">0x5BEF-0x5C0A</td><td class="num">$DBDF-$DBFA</td><td class="num">28B</td><td>EA埋め</td><td>現行runtime予約なし。Panel property hook本体は <code>$E73A</code>。</td></tr>
       <tr><td>小routine</td><td><code>fairy9c_runtime.py</code></td><td class="num">0x6010-0x6065</td><td class="num">$E000-$E055</td><td class="num">86B</td><td>EA埋め</td><td>Dark Fairy9C runtime。<code>$9C</code> をFairy group <code>$0E</code> で表示し、AI中だけmain typeを原作Fairy <code>$1C</code> にして原作移動/取得処理を通す。<code>$0453</code>増加を検出したらsub-slot[7]で60F待ってから死亡action <code>$31</code> を発動し、本体をdespawnする。SPR2 palette表示はanimation入口側で原作アニメ後にsprite attrを<code>$88</code>へ上書きして行う。</td></tr>
-      <tr><td>空き</td><td><code>stage_announcement.py</code></td><td class="num">0x6066-0x60CB</td><td class="num">$E056-$E0BB</td><td class="num">102B</td><td>EA埋め</td><td>現行runtime予約なし。</td></tr>
+      <tr><td>小routine</td><td><code>blue_key_queen_runtime.py</code></td><td class="num">0x6066-0x6084</td><td class="num">$E056-$E074</td><td class="num">31B</td><td>EA埋め</td><td>青鍵item <code>$1A</code>を原作fairy queueへ接続し、<code>$0087 bit1</code>が立つ次回spawnだけFairy Princess <code>$1D</code>を生成する。</td></tr>
+      <tr><td>空き</td><td><code>blue_key_queen_runtime.py</code></td><td class="num">0x6085-0x60CB</td><td class="num">$E075-$E0BB</td><td class="num">71B</td><td>EA埋め</td><td>現行runtime予約なし。</td></tr>
       <tr><td>空き</td><td><code>stage_announcement.py</code></td><td class="num">0x60CC-0x60D0 / 0x60FC-0x6108 / 0x612C-0x6138 / 0x618C-0x619A / 0x61BC-0x61C8 / 0x639C-0x63B4 / 0x63CC-0x63E3 / 0x657C-0x658A / 0x66FC-0x670B</td><td class="num">$E0BC / $E0EC / $E11C / $E17C / $E1AC / $E38C / $E3BC / $E56C / $E6EC</td><td class="num">151B</td><td>EA埋め</td><td>現行runtime予約なし。個別範囲ごとに現物確認して使う。</td></tr>
       <tr><td>小routine</td><td><code>key_enemy_runtime.py</code></td><td class="num">0x610E-0x622B</td><td class="num">$E0FE-$E21B</td><td class="num">286B</td><td>EA埋め</td><td>Key/Fairy enemy runtimeを1ブロックへ集約。初期slot bind、status writer、defeat dropper、door-light、pickup tile recorder、dropped-key handler、fall-death handler、fall-slot compareを含む。</td></tr>
       <tr><td>空き</td><td><code>key_enemy_runtime.py</code></td><td class="num">0x622C-0x6243</td><td class="num">$E21C-$E233</td><td class="num">24B</td><td>EA埋め</td><td>Key/Fairy enemy runtime直後の空き。key_enemy_runtime本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
@@ -340,7 +342,8 @@
     <table>
       <tr><th>Range</th><th>CPU</th><th>Size</th><th>Use</th></tr>
       <tr><td class="num">0x6010-0x6065</td><td class="num">$E000-$E055</td><td class="num">86B</td><td>Dark Fairy9C runtime</td></tr>
-      <tr><td class="num">0x6066-0x60CB</td><td class="num">$E056-$E0BB</td><td class="num">102B</td><td>Free; old Stage start announcement area remainder</td></tr>
+      <tr><td class="num">0x6066-0x6084</td><td class="num">$E056-$E074</td><td class="num">31B</td><td>Blue Key Queen runtime</td></tr>
+      <tr><td class="num">0x6085-0x60CB</td><td class="num">$E075-$E0BB</td><td class="num">71B</td><td>Free</td></tr>
       <tr><td class="num">0x60CC-0x60F5</td><td class="num">$E0BC-$E0E5</td><td class="num">42B</td><td>Initial draw low classifier</td></tr>
       <tr><td class="num">0x610E-0x622B</td><td class="num">$E0FE-$E21B</td><td class="num">286B</td><td>Key/Fairy enemy runtime</td></tr>
       <tr><td class="num">0x6244-0x6267</td><td class="num">$E234-$E257</td><td class="num">36B</td><td>Visible item in-block helper</td></tr>

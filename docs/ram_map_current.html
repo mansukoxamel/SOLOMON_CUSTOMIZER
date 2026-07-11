@@ -99,6 +99,7 @@
   <table>
     <tr><th>範囲</th><th>用途</th><th>状態</th><th>メモ</th></tr>
     <tr><td class="num">$0000-$00FF</td><td>zero page / ルーチン作業領域</td><td class="ng">空き扱い禁止</td><td>多くのルーチンが一時ポインタ・演算に使う。例: <code>$00/$01</code> slotポインタ、<code>$2C/$2E</code> entity関連ポインタ。</td></tr>
+    <tr><td class="num">$0087</td><td>原作fairy制御フラグ</td><td>本編使用＋Customizer bit追加</td><td>bit0=原作fairy出現演出中。bit1=青鍵item <code>$1A</code>によるFairy Princess <code>$1D</code>生成予約。女王spawn時にbit1だけ消費し、通常Fairy <code>$1C</code>予約と共存する。</td></tr>
     <tr><td class="num">$0100-$01FF</td><td>6502 stack</td><td class="ng">使用禁止</td><td>JSR/RTS/割り込みで使用。改造データ置き場にしない。</td></tr>
     <tr><td class="num">$0200-$02FF</td><td>OAM shadow / sprite DMA転送元</td><td class="ng">使用禁止</td><td>スプライト表示そのもの。毎フレームDMA対象。</td></tr>
     <tr><td class="num">$0300</td><td>PPUCTRL shadow</td><td>本編使用</td><td><code>$9673</code>/<code>$965F</code> などがNMI制御で参照・更新。</td></tr>
@@ -139,6 +140,7 @@
   <h2>3. Customizer予約RAM</h2>
   <table>
     <tr><th>RAM</th><th>名前</th><th>使用機能</th><th>寿命</th><th>注意</th></tr>
+    <tr><td class="num">$0087 bit1</td><td>BLUE_KEY_QUEEN_PENDING</td><td>青鍵で女王様を召喚</td><td>取得から次のfairy spawnまで</td><td>原作bit0は変更しない。敵スロット満杯時も<code>$0454</code>の原作queueと一緒に保持し、type <code>$1D</code>生成直前にbit1だけ解除する。</td></tr>
     <tr><td class="num">$0723-$072B</td><td>KEY_ENEMY_RUNTIME</td><td>鍵持ち敵</td><td>部屋中常駐</td><td>ドロップ鍵の表示/取得/光輪演出位置補正、初期配置敵スロット対応に使用。</td></tr>
     <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td>Room Flag拡張</td><td>プレイ中常駐</td><td>LOADERが部屋開始時に <code>$0428</code> でRoomFlagTableを引いて書く。bit4はStageExtTableの fire reset、bit5/bit6は透明ブロック内アイテムmask/特殊セル変換の実行時専用フラグ。</td></tr>
     <tr><td class="num">$0779</td><td>DARK_PHASE</td><td>暗闇面</td><td>プレイ中常駐</td><td>NMIで進む。暗フェーズ中でもダーナ火球slot <code>$05A7</code> bit7 が立つ間はBG-offを抑止する。旧 <code>$0461</code> はサウンド衝突で妖精SEループを起こしたため廃止。</td></tr>
