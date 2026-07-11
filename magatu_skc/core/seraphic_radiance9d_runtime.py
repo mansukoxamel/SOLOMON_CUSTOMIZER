@@ -6,6 +6,9 @@ from .element import ElementType
 
 NEW_ENEMY_ID = 0x9D
 
+OFF_PHASE_RUNTIME = 0x6C04
+CPU_PHASE_RUNTIME = 0xEBF4
+
 OFF_RUNTIME = 0x6C7C
 CPU_RUNTIME = 0xEC6C
 RUNTIME_CAPACITY = 0x11C
@@ -70,7 +73,7 @@ CPU_INIT_STATUS = CPU_SETUP_META_LOAD + len(SETUP_META_RUNTIME)
 def _build_init_runtime() -> bytes:
     a = _Asm()
     a.b(0x68)                              # PLA: discard saved stock-init input
-    a.b(0xA9, 0xC0, 0x85, 0x04)          # active, visible, no gravity
+    a.b(0xA9, 0xC4, 0x85, 0x04)          # active, visible, no gravity, fire-immune
     a.b(0xA9, NEW_ENEMY_ID, 0x85, 0x05)  # preserve type $9D
     a.b(0xA9, 0x00)
     a.jsr(CPU_STOCK_INIT)
@@ -86,7 +89,7 @@ OFF_AI_DISPATCH = OFF_INIT_STATUS + len(INIT_STATUS_RUNTIME)
 CPU_AI_DISPATCH = CPU_INIT_STATUS + len(INIT_STATUS_RUNTIME)
 
 
-def _build_ai_runtime() -> bytes:
+def _build_ai_runtime() -> tuple[bytes, dict[str, int]]:
     a = _Asm()
     # Vertical 1 px/frame movement. sub[7] bit1: 0=down, 1=up.
     a.b(0xA0, 0x07, 0xB1, 0x2C, 0x29, 0x02)
@@ -94,16 +97,16 @@ def _build_ai_runtime() -> bytes:
     a.b(0xA0, 0x07, 0xB1, 0x2E, 0xC9, 0xD0)
     a.branch(0xB0, "turn_up")
     a.b(0x18, 0x69, 0x01, 0x91, 0x2E)
-    a.branch(0xD0, "move_x")
+    a.branch(0xD0, "collide")
     a.label("turn_up")
     a.b(0xA0, 0x07, 0xB1, 0x2C, 0x09, 0x02, 0x91, 0x2C)
-    a.branch(0xD0, "move_x")
+    a.branch(0xD0, "collide")
     a.label("move_up")
     a.b(0xA0, 0x07, 0xB1, 0x2E, 0xC9, 0x20)
     a.branch(0x90, "turn_down")
     a.branch(0xF0, "turn_down")
     a.b(0x38, 0xE9, 0x01, 0x91, 0x2E)
-    a.branch(0xD0, "move_x")
+    a.branch(0xD0, "collide")
     a.label("turn_down")
     a.b(0xA0, 0x07, 0xB1, 0x2C, 0x29, 0xFD, 0x91, 0x2C)
 
@@ -114,18 +117,21 @@ def _build_ai_runtime() -> bytes:
     a.b(0xA0, 0x0A, 0xB1, 0x2E, 0xC9, 0xE8)
     a.branch(0xB0, "turn_left")
     a.b(0x18, 0x69, 0x01, 0x91, 0x2E)
-    a.branch(0xD0, "collide")
+    a.branch(0xD0, "x_done")
     a.label("turn_left")
     a.b(0xA0, 0x07, 0xB1, 0x2C, 0x09, 0x01, 0x91, 0x2C)
-    a.branch(0xD0, "collide")
+    a.branch(0xD0, "x_done")
     a.label("move_left")
     a.b(0xA0, 0x0A, 0xB1, 0x2E, 0xC9, 0x08)
     a.branch(0x90, "turn_right")
     a.branch(0xF0, "turn_right")
     a.b(0x38, 0xE9, 0x01, 0x91, 0x2E)
-    a.branch(0xD0, "collide")
+    a.branch(0xD0, "x_done")
     a.label("turn_right")
     a.b(0xA0, 0x07, 0xB1, 0x2C, 0x29, 0xFE, 0x91, 0x2C)
+
+    a.label("x_done")
+    a.b(0x60)
 
     # Scan all 17 enemy slots. A 16x16 overlap clears main+paired sub slot only;
     # no stock death/drop/score route is called.
@@ -165,10 +171,12 @@ def _build_ai_runtime() -> bytes:
     a.b(0xCA)
     a.branch(0x10, "scan")
     a.b(0x60)
-    return a.finish(CPU_AI_DISPATCH)
+    runtime = a.finish(CPU_AI_DISPATCH)
+    return runtime, {name: CPU_AI_DISPATCH + offset for name, offset in a.labels.items()}
 
 
-AI_DISPATCH_RUNTIME = _build_ai_runtime()
+AI_DISPATCH_RUNTIME, _AI_LABELS = _build_ai_runtime()
+CPU_MOVE_X = _AI_LABELS["move_x"]
 OFF_ANIM_UPDATE = OFF_AI_DISPATCH + len(AI_DISPATCH_RUNTIME)
 CPU_ANIM_UPDATE = CPU_AI_DISPATCH + len(AI_DISPATCH_RUNTIME)
 
@@ -200,16 +208,34 @@ SOUND_HELPER = bytes.fromhex(
     "4c 8d 8e"                  # JMP $8E8D; its RTS returns to AI caller
 )
 
+
+def _build_phase_runtime() -> bytes:
+    a = _Asm()
+    a.b(0xA0, 0x07)                         # LDY #$07: direction/phase byte
+    a.b(0xB1, 0x2C)                         # LDA (sub),Y
+    a.b(0x49, 0x04)                         # EOR #$04: alternate X/Y phase
+    a.b(0x91, 0x2C)                         # STA (sub),Y
+    a.b(0x29, 0x04)                         # AND #$04
+    a.branch(0xF0, "vertical")             # phase clear: Y + collision
+    a.b(0x4C, CPU_MOVE_X & 0xFF, CPU_MOVE_X >> 8)  # phase set: X only
+    a.label("vertical")
+    a.b(0x4C, CPU_AI_DISPATCH & 0xFF, CPU_AI_DISPATCH >> 8)
+    return a.finish(CPU_PHASE_RUNTIME)
+
+
+PHASE_RUNTIME = _build_phase_runtime()
 AUX_RUNTIME = SOUND_HELPER
-CPU_AI_ENTRY = CPU_AI_DISPATCH
+CPU_AI_ENTRY = CPU_PHASE_RUNTIME
 RESERVED_SPANS = (
+    (OFF_PHASE_RUNTIME, len(PHASE_RUNTIME)),
     (OFF_RUNTIME, len(RUNTIME)),
     (OFF_AUX_RUNTIME, len(AUX_RUNTIME)),
 )
 
 assert len(RUNTIME) <= RUNTIME_CAPACITY
 assert CPU_RUNTIME + len(RUNTIME) == CPU_RUNTIME_END
-assert len(RUNTIME) == 281
+assert len(RUNTIME) == 282
+assert len(PHASE_RUNTIME) == 18
 assert len(SOUND_HELPER) == 5
 assert len(AUX_RUNTIME) == 5
 

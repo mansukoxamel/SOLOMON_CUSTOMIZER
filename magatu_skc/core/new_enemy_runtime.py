@@ -565,6 +565,12 @@ def apply(rom_data: bytearray) -> list[str]:
     )
     _expect_one(
         rom_data,
+        _radiance9d.OFF_PHASE_RUNTIME,
+        (bytes((0xEA,)) * len(_radiance9d.PHASE_RUNTIME), _radiance9d.PHASE_RUNTIME),
+        "Seraphic Radiance9D alternating-axis entry area",
+    )
+    _expect_one(
+        rom_data,
         _radiance9d.OFF_RUNTIME,
         (bytes((0xEA,)) * len(_radiance9d.RUNTIME), _radiance9d.RUNTIME),
         "Seraphic Radiance9D runtime area",
@@ -646,6 +652,13 @@ def apply(rom_data: bytearray) -> list[str]:
         _fairy9c.RUNTIME,
         changed,
         f"Dark Fairy9C runtime ${_fairy9c.CPU_RUNTIME:04X}-${_fairy9c.CPU_RUNTIME_END - 1:04X}",
+    )
+    _write(
+        rom_data,
+        _radiance9d.OFF_PHASE_RUNTIME,
+        _radiance9d.PHASE_RUNTIME,
+        changed,
+        "Seraphic Radiance9D alternating-axis entry $EBF4-$EC05",
     )
     _write(
         rom_data,
