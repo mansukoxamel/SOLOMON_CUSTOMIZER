@@ -16,8 +16,8 @@ CPU_SOUND_HELPER = CPU_AUX_RUNTIME + 10
 
 CPU_STOCK_INIT = 0x9D1C
 CPU_MAIN_TO_SUB_PTR = 0xB156
-CPU_MAIN_PTR_LO = 0xB329
-CPU_MAIN_PTR_HI = 0xB33E
+CPU_MAIN_PTR_LO = 0xB32C
+CPU_MAIN_PTR_HI = 0xB341
 CPU_SUB_PTR_LO = 0xB306
 CPU_SUB_PTR_HI = 0xB317
 
@@ -127,10 +127,10 @@ def _build_ai_runtime() -> bytes:
     a.label("turn_right")
     a.b(0xA0, 0x07, 0xB1, 0x2C, 0x29, 0xFE, 0x91, 0x2C)
 
-    # Scan all 15 main slots. A 16x16 overlap clears main+paired sub slot only;
+    # Scan all 17 enemy slots. A 16x16 overlap clears main+paired sub slot only;
     # no stock death/drop/score route is called.
     a.label("collide")
-    a.b(0xA2, 0x0E)
+    a.b(0xA2, 0x10)
     a.label("scan")
     a.b(0xBD, CPU_MAIN_PTR_LO & 0xFF, CPU_MAIN_PTR_LO >> 8, 0x85, 0x00)
     a.b(0xBD, CPU_MAIN_PTR_HI & 0xFF, CPU_MAIN_PTR_HI >> 8, 0x85, 0x01)
@@ -156,7 +156,7 @@ def _build_ai_runtime() -> bytes:
     a.b(0xC9, 0x10)
     a.branch(0xB0, "next")
     a.b(0xA9, 0x00, 0xA0, 0x00, 0x91, 0x00)  # clear target main status
-    a.b(0x8A, 0x18, 0x69, 0x02, 0xA8)
+    a.b(0x8A, 0xA8)
     a.b(0xB9, CPU_SUB_PTR_LO & 0xFF, CPU_SUB_PTR_LO >> 8, 0x85, 0x00)
     a.b(0xB9, CPU_SUB_PTR_HI & 0xFF, CPU_SUB_PTR_HI >> 8, 0x85, 0x01)
     a.b(0xA0, 0x00, 0xA9, 0x00, 0x91, 0x00)  # clear paired sub status
@@ -219,7 +219,7 @@ RESERVED_SPANS = (
 
 assert len(RUNTIME) <= RUNTIME_CAPACITY
 assert CPU_RUNTIME + len(RUNTIME) == CPU_RUNTIME_END
-assert len(RUNTIME) == RUNTIME_CAPACITY
+assert len(RUNTIME) == 281
 assert len(AI_HALF_SPEED_WRAPPER) == 10
 assert len(SOUND_HELPER) == 5
 assert len(AUX_RUNTIME) == 15
