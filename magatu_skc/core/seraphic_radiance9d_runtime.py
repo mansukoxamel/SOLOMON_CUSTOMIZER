@@ -6,16 +6,9 @@ from .element import ElementType
 
 NEW_ENEMY_ID = 0x9D
 
-OFF_PHASE_RUNTIME = 0x6C04
-CPU_PHASE_RUNTIME = 0xEBF4
-
-OFF_RUNTIME = 0x6C7C
-CPU_RUNTIME = 0xEC6C
-RUNTIME_CAPACITY = 0x11C
-
-OFF_AUX_RUNTIME = 0x3F7C
-CPU_AUX_RUNTIME = 0xBF6C
-CPU_SOUND_HELPER = CPU_AUX_RUNTIME
+OFF_RUNTIME = 0x6C04
+CPU_RUNTIME = 0xEBF4
+RUNTIME_CAPACITY = 0x194
 
 CPU_STOCK_INIT = 0x9D1C
 CPU_MAIN_TO_SUB_PTR = 0xB156
@@ -23,6 +16,7 @@ CPU_MAIN_PTR_LO = 0xB32C
 CPU_MAIN_PTR_HI = 0xB341
 CPU_SUB_PTR_LO = 0xB306
 CPU_SUB_PTR_HI = 0xB317
+CPU_STOCK_SOUND = 0x8E8D
 
 
 class _Asm:
@@ -57,9 +51,8 @@ class _Asm:
 
 
 SETUP_META_RUNTIME = bytes.fromhex(
-    "a9 0e"         # LDA #$0E: stock Fairy group supplies safe no-gravity setup
-    "85 0e"         # STA $0E
-    "a8"            # TAY
+    "a0 0e"         # LDY #$0E: stock Fairy group supplies safe no-gravity setup
+    "84 0e"         # STY $0E
     "b9 d3 d9"      # LDA $D9D3,Y
     "60"            # RTS
 )
@@ -85,8 +78,11 @@ def _build_init_runtime() -> bytes:
 
 
 INIT_STATUS_RUNTIME = _build_init_runtime()
-OFF_AI_DISPATCH = OFF_INIT_STATUS + len(INIT_STATUS_RUNTIME)
-CPU_AI_DISPATCH = CPU_INIT_STATUS + len(INIT_STATUS_RUNTIME)
+OFF_PHASE_RUNTIME = OFF_INIT_STATUS + len(INIT_STATUS_RUNTIME)
+CPU_PHASE_RUNTIME = CPU_INIT_STATUS + len(INIT_STATUS_RUNTIME)
+PHASE_RUNTIME_SIZE = 12
+OFF_AI_DISPATCH = OFF_PHASE_RUNTIME + PHASE_RUNTIME_SIZE
+CPU_AI_DISPATCH = CPU_PHASE_RUNTIME + PHASE_RUNTIME_SIZE
 
 
 def _build_ai_runtime() -> tuple[bytes, dict[str, int]]:
@@ -102,9 +98,8 @@ def _build_ai_runtime() -> tuple[bytes, dict[str, int]]:
     a.b(0xA0, 0x07, 0xB1, 0x2C, 0x09, 0x02, 0x91, 0x2C)
     a.branch(0xD0, "collide")
     a.label("move_up")
-    a.b(0xA0, 0x07, 0xB1, 0x2E, 0xC9, 0x20)
+    a.b(0xA0, 0x07, 0xB1, 0x2E, 0xC9, 0x21)
     a.branch(0x90, "turn_down")
-    a.branch(0xF0, "turn_down")
     a.b(0x38, 0xE9, 0x01, 0x91, 0x2E)
     a.branch(0xD0, "collide")
     a.label("turn_down")
@@ -122,9 +117,8 @@ def _build_ai_runtime() -> tuple[bytes, dict[str, int]]:
     a.b(0xA0, 0x07, 0xB1, 0x2C, 0x09, 0x01, 0x91, 0x2C)
     a.branch(0xD0, "x_done")
     a.label("move_left")
-    a.b(0xA0, 0x0A, 0xB1, 0x2E, 0xC9, 0x08)
+    a.b(0xA0, 0x0A, 0xB1, 0x2E, 0xC9, 0x09)
     a.branch(0x90, "turn_right")
-    a.branch(0xF0, "turn_right")
     a.b(0x38, 0xE9, 0x01, 0x91, 0x2E)
     a.branch(0xD0, "x_done")
     a.label("turn_right")
@@ -140,11 +134,6 @@ def _build_ai_runtime() -> tuple[bytes, dict[str, int]]:
     a.label("scan")
     a.b(0xBD, CPU_MAIN_PTR_LO & 0xFF, CPU_MAIN_PTR_LO >> 8, 0x85, 0x00)
     a.b(0xBD, CPU_MAIN_PTR_HI & 0xFF, CPU_MAIN_PTR_HI >> 8, 0x85, 0x01)
-    a.b(0xA5, 0x00, 0xC5, 0x2E)
-    a.branch(0xD0, "active")
-    a.b(0xA5, 0x01, 0xC5, 0x2F)
-    a.branch(0xF0, "next")
-    a.label("active")
     a.b(0xA0, 0x00, 0xB1, 0x00)
     a.branch(0x10, "next")
     a.b(0xC8, 0xB1, 0x00, 0xC9, NEW_ENEMY_ID)
@@ -166,7 +155,8 @@ def _build_ai_runtime() -> tuple[bytes, dict[str, int]]:
     a.b(0xB9, CPU_SUB_PTR_LO & 0xFF, CPU_SUB_PTR_LO >> 8, 0x85, 0x00)
     a.b(0xB9, CPU_SUB_PTR_HI & 0xFF, CPU_SUB_PTR_HI >> 8, 0x85, 0x01)
     a.b(0xA0, 0x00, 0xA9, 0x00, 0x91, 0x00)  # clear paired sub status
-    a.jsr(CPU_SOUND_HELPER)                     # stock block-removal sound
+    a.b(0xA0, 0x08)
+    a.jsr(CPU_STOCK_SOUND)                      # stock block-removal sound
     a.label("next")
     a.b(0xCA)
     a.branch(0x10, "scan")
@@ -177,6 +167,24 @@ def _build_ai_runtime() -> tuple[bytes, dict[str, int]]:
 
 AI_DISPATCH_RUNTIME, _AI_LABELS = _build_ai_runtime()
 CPU_MOVE_X = _AI_LABELS["move_x"]
+
+
+def _build_phase_runtime() -> bytes:
+    branch_from = CPU_PHASE_RUNTIME + PHASE_RUNTIME_SIZE
+    rel = CPU_MOVE_X - branch_from
+    if not -128 <= rel <= 127:
+        raise ValueError("phase-to-X branch out of range")
+    return bytes.fromhex(
+        "a0 07"         # LDY #$07: direction/phase byte
+        "b1 2c"         # LDA (sub),Y
+        "49 04"         # EOR #$04: alternate X/Y phase
+        "91 2c"         # STA (sub),Y
+        "29 04"         # AND #$04
+        f"d0 {rel & 0xFF:02x}"  # phase set: X; clear falls through to Y
+    )
+
+
+PHASE_RUNTIME = _build_phase_runtime()
 OFF_ANIM_UPDATE = OFF_AI_DISPATCH + len(AI_DISPATCH_RUNTIME)
 CPU_ANIM_UPDATE = CPU_AI_DISPATCH + len(AI_DISPATCH_RUNTIME)
 
@@ -200,44 +208,17 @@ ANIM_UPDATE_RUNTIME = bytes.fromhex(
     "60"
 )
 
-RUNTIME = SETUP_META_RUNTIME + INIT_STATUS_RUNTIME + AI_DISPATCH_RUNTIME + ANIM_UPDATE_RUNTIME
+RUNTIME = SETUP_META_RUNTIME + INIT_STATUS_RUNTIME + PHASE_RUNTIME + AI_DISPATCH_RUNTIME + ANIM_UPDATE_RUNTIME
 CPU_RUNTIME_END = CPU_RUNTIME + len(RUNTIME)
-
-SOUND_HELPER = bytes.fromhex(
-    "a0 08"                     # LDY #$08: stock block-removal sound
-    "4c 8d 8e"                  # JMP $8E8D; its RTS returns to AI caller
-)
-
-
-def _build_phase_runtime() -> bytes:
-    a = _Asm()
-    a.b(0xA0, 0x07)                         # LDY #$07: direction/phase byte
-    a.b(0xB1, 0x2C)                         # LDA (sub),Y
-    a.b(0x49, 0x04)                         # EOR #$04: alternate X/Y phase
-    a.b(0x91, 0x2C)                         # STA (sub),Y
-    a.b(0x29, 0x04)                         # AND #$04
-    a.branch(0xF0, "vertical")             # phase clear: Y + collision
-    a.b(0x4C, CPU_MOVE_X & 0xFF, CPU_MOVE_X >> 8)  # phase set: X only
-    a.label("vertical")
-    a.b(0x4C, CPU_AI_DISPATCH & 0xFF, CPU_AI_DISPATCH >> 8)
-    return a.finish(CPU_PHASE_RUNTIME)
-
-
-PHASE_RUNTIME = _build_phase_runtime()
-AUX_RUNTIME = SOUND_HELPER
 CPU_AI_ENTRY = CPU_PHASE_RUNTIME
-RESERVED_SPANS = (
-    (OFF_PHASE_RUNTIME, len(PHASE_RUNTIME)),
-    (OFF_RUNTIME, len(RUNTIME)),
-    (OFF_AUX_RUNTIME, len(AUX_RUNTIME)),
-)
+RESERVED_SPANS = ((OFF_RUNTIME, len(RUNTIME)),)
 
 assert len(RUNTIME) <= RUNTIME_CAPACITY
 assert CPU_RUNTIME + len(RUNTIME) == CPU_RUNTIME_END
-assert len(RUNTIME) == 282
-assert len(PHASE_RUNTIME) == 18
-assert len(SOUND_HELPER) == 5
-assert len(AUX_RUNTIME) == 5
+assert len(SETUP_META_RUNTIME) == 8
+assert len(AI_DISPATCH_RUNTIME) == 205
+assert len(RUNTIME) == 279
+assert len(PHASE_RUNTIME) == PHASE_RUNTIME_SIZE
 
 
 def levels_need_runtime(levels: list) -> bool:

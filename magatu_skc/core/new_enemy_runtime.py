@@ -463,7 +463,6 @@ def apply(rom_data: bytearray) -> list[str]:
         _bullet92.OFF_RUNTIME + len(_bullet92.RUNTIME),
         _fairy9c.OFF_RUNTIME + len(_fairy9c.RUNTIME),
         _radiance9d.OFF_RUNTIME + len(_radiance9d.RUNTIME),
-        _radiance9d.OFF_AUX_RUNTIME + len(_radiance9d.AUX_RUNTIME),
         max(off + len(blob) for off, blob, _old_blobs, _name in ENTRY_RUNTIMES),
     )
     if rom_data is None or len(rom_data) < max_end:
@@ -565,21 +564,9 @@ def apply(rom_data: bytearray) -> list[str]:
     )
     _expect_one(
         rom_data,
-        _radiance9d.OFF_PHASE_RUNTIME,
-        (bytes((0xEA,)) * len(_radiance9d.PHASE_RUNTIME), _radiance9d.PHASE_RUNTIME),
-        "Seraphic Radiance9D alternating-axis entry area",
-    )
-    _expect_one(
-        rom_data,
         _radiance9d.OFF_RUNTIME,
         (bytes((0xEA,)) * len(_radiance9d.RUNTIME), _radiance9d.RUNTIME),
         "Seraphic Radiance9D runtime area",
-    )
-    _expect_one(
-        rom_data,
-        _radiance9d.OFF_AUX_RUNTIME,
-        (bytes((0xEA,)) * len(_radiance9d.AUX_RUNTIME), _radiance9d.AUX_RUNTIME),
-        "Seraphic Radiance9D sound helper area",
     )
     for off, blob, old_blobs, name in ENTRY_RUNTIMES:
         _expect_blank_or_one_of(rom_data, off, (blob, *old_blobs), name)
@@ -655,23 +642,9 @@ def apply(rom_data: bytearray) -> list[str]:
     )
     _write(
         rom_data,
-        _radiance9d.OFF_PHASE_RUNTIME,
-        _radiance9d.PHASE_RUNTIME,
-        changed,
-        "Seraphic Radiance9D alternating-axis entry $EBF4-$EC05",
-    )
-    _write(
-        rom_data,
         _radiance9d.OFF_RUNTIME,
         _radiance9d.RUNTIME,
         changed,
         f"Seraphic Radiance9D runtime ${_radiance9d.CPU_RUNTIME:04X}-${_radiance9d.CPU_RUNTIME_END - 1:04X}",
-    )
-    _write(
-        rom_data,
-        _radiance9d.OFF_AUX_RUNTIME,
-        _radiance9d.AUX_RUNTIME,
-        changed,
-        "Seraphic Radiance9D sound helper $BF6C-$BF70",
     )
     return changed
