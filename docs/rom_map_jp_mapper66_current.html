@@ -168,9 +168,11 @@
       <tr><td class="num">0x6A6E-0x6AED</td><td>Warp Mirror Mode runtime</td><td><code>$EA5E-$EADD</code>。<code>$C551</code> のアイテムセル判定入口から常時呼び、StageExt byte0 bit5からコピーされた<code>$0770</code> bit5がONの面だけミラー<code>$05</code>セル同士を相互ワープさせる。OFF面は原作アイテムセル判定へ戻る。<code>$0770</code> bit6を接触中クールダウンに使い、成立時にアイテム取得SE <code>$0D</code> を鳴らす。</td></tr>
       <tr><td class="num">0x6AEE-0x6B05</td><td>空き</td><td>Warp Mirror Mode runtime直後の24B緩衝。stage_announcement.py本体reserveとは扱わない。</td></tr>
       <tr><td class="num">0x6B06-0x6C03</td><td>Stage start announcement packed routine</td><td><code>$EAF6-$EBF3</code>。<code>$9061</code> フック先を <code>$EAF6</code> に移し、main / masks / draw helper / pointer table / key/all-kill shared gate / fairy gate / mirror-link gate / scriptsを連続配置する。合計254B。表示は9script構成で、<code>KEY ENEMY</code> と <code>ALL KILL</code> は同じ表示枠を共有する。右下は <code>MIRROR LINK</code>。</td></tr>
-      <tr><td class="num">0x6C04-0x6C7B</td><td>Enemy Clear Key Open runtime</td><td><code>$EBF4-$EC6B</code>。<code>$9F09</code> main-loop hookから入り、StageExt byte0 bit6からコピーされた<code>$0770</code> bit4がONの面だけ、敵/妖精/王様等のmain entity slotが空になった時に原作鍵取得処理と光演出へ接続する。<code>$07E0</code>等の追加RAMは使わず、発火時点の<code>$30/$31</code>が指す原作鍵データをそのまま使う。<code>$0303</code> bit4のgroup4 actionが残っている間は発火を待ち、item $19取得直後のcleanup actionが<code>$05C2/$05C5</code>を消費し終える前に座標を上書きしない。<code>$0770</code> bit7を発火済みラッチ、<code>$0724</code>を光演出開始セル補正に使う。先頭で<code>$0771</code>のFairy x2遅延カウンタを処理し、0になった時だけ原作ベル処理<code>$C7AA</code>を1回呼ぶ。</td></tr>
+      <tr><td class="num">0x6C04-0x6D2C</td><td>Seraphic Radiance runtime</td><td><code>$EBF4-$ED1C</code>。敵ID <code>$9D</code> のsetup/init/AI/animationを297Bへ集約する。X/Yを交互に1pxずつ動かして四辺で反射し、配置座標から中心方向へ初期方向を決める。2回に1回、通常敵17枠を走査して接触した通常敵・敵弾・敵炎を消去する。主人公の火球とは相互無効。</td></tr>
       <tr><td class="num">0x4010-0x4155</td><td>Special item runtime</td><td><code>$C000-$C145</code>。通常アイテム<code>0x15</code>/<code>0x18</code>/<code>0x08</code>/<code>0x1B</code>のうち、RAM <code>$0740-$074F</code> の現在部屋セルリストに入った位置だけFirejar x2 / Fairy x2 / Philosopher's Stone / Crystal max fire rangeとして扱う。Philosopher's Stoneは鍵で開いた隠し扉を閉じた隠し扉へ戻さない。Crystalは取得前の火球持続上限<code>$0432/$0433</code>を<code>$0772/$0773</code>へ退避してから<code>$1F1F</code>へ設定し、部屋ロード時にMax状態なら退避値へ復元する。通常火球ヒット時は<code>$042D=$F0</code>へ進めて消滅させ、Super Fireは既存どおり貫通する。</td></tr>
-      <tr><td class="num">0x6C7C-0x6D97</td><td>空き</td><td>通常のmapper66変換で<code>EA</code>化されるPRG0空き。Special item runtime本体は<code>$C000</code>へ移設済み。</td></tr>
+      <tr><td class="num">0x4156-0x41D1</td><td>Enemy Clear Key Open runtime</td><td><code>$C146-$C1C1</code>。All Kill Modeで通常敵が全滅した時に鍵取得処理と扉オープン光演出へ接続する124B runtime。敵ID <code>$9D</code> Seraphic Radianceは全滅判定から除外する。</td></tr>
+      <tr><td class="num">0x41D2-0x420F</td><td>空き</td><td>Enemy Clear Key Open runtime直後の62B空き。現行runtime予約なし。</td></tr>
+      <tr><td class="num">0x6D2D-0x6D97</td><td>空き</td><td>Seraphic Radiance runtime直後の107B空き。現行runtime予約なし。</td></tr>
       <tr><td class="num">0x6D98-0x6E15</td><td>Bomber/Cannon Ghost runtime</td><td><code>$ED88-$EE05</code>。敵ID <code>$86</code> は下撃ち、敵ID <code>$87</code> は上撃ち。原作Ghost AI後に固定間隔でBulletを発射し、壁/ブロック破壊状態では追加発射を止める。</td></tr>
       <tr><td class="num">0x6E16-0x6EB3</td><td>Neul88 runtime</td><td><code>$EE06-$EEA3</code>。敵ID <code>$88</code> をNeul up group <code>$18</code>、原作<code>$30</code>相当のbehavior <code>#$00</code> で初期化し、原作Neul/Ghost AI <code>$ABF7</code> 後に固定間隔で右/左Bulletを1発ずつ発射する。</td></tr>
       <tr><td class="num">0x6EB4-0x6ED0</td><td>Chaos Dragon89 runtime</td><td><code>$EEA4-$EEC0</code>。敵ID <code>$89</code> をDragon right group <code>$34</code> で表示し、Dragon AIを利用した落下・貫通・不規則な火吹き挙動へ送る。</td></tr>
@@ -200,7 +202,9 @@
       <tr><td>空き</td><td><code>stage_announcement.py</code></td><td class="num">0x33D0-0x33DC</td><td class="num">$B3C0-$B3CC</td><td class="num">13B</td><td>EA埋め</td><td>現行runtime予約なし。</td></tr>
       <tr><td>bank0 cave</td><td>複数モジュール</td><td class="num">0x3BEE-0x420F</td><td class="num">$BBDE-$C1FF</td><td class="num">1,570B</td><td>00/EA混在</td><td>強化敵runtimeと周辺の空き。現行予約は下表の個別行を正とする。</td></tr>
       <tr><td>小routine</td><td><code>fire2_item_runtime.py</code></td><td class="num">0x0163-0x016C / 0x4010-0x4155 / 0x47D6</td><td class="num">$8153-$815C / $C000-$C145 / $C7C6</td><td class="num">10B / 326B / 1B</td><td>hook + EA埋め</td><td>Special item runtime本体と通常火球ヒット補助。<code>$C55B</code>取得入口と<code>$9DE8</code>描画入口を<code>$C000</code> runtimeへ送り、<code>$8153</code>通常火球ヒット処理を補助routineへ接続する。通常成長上限は<code>CPX #$0F</code>へ変更する。</td></tr>
-      <tr><td>小routine</td><td><code>new_enemy_runtime.py</code></td><td class="num">0x3BF2-0x3C49 / 0x3C4A-0x3C91 / 0x3C92-0x3CDF / 0x3CE0-0x3D15</td><td class="num">$BBE2-$BC39 / $BC3A-$BC81 / $BC82-$BCCF / $BCD0-$BD05</td><td class="num">292B</td><td>00/EA埋め</td><td>新敵ID受付。AI/setup/init/animationの4入口を後ろへ増設し、各入口で敵ID <code>$84/$85/$86/$87/$88/$89/$8A/$8B/$8C/$9C</code> を判定してIce Flame/Spark85/Bomber Ghost/Cannon Ghost/Neul88/Chaos Dragon89/Back Fire90/Phantom Bullet $8B/Phantom Bullet $8C/Dark Fairy9C専用本体または原作処理へ振り分ける。Phantom Bullet $8B/$8CのSPR #2 palette変更は、animation入口で原作アニメ後に両スプライトのflip bitを残して行う。Dark Fairy9Cは既存のDark Fairy用attr上書きを維持する。</td></tr>
+      <tr><td>小routine</td><td><code>new_enemy_runtime.py</code></td><td class="num">0x3BF2-0x3C51 / 0x3C52-0x3CA0 / 0x3CA1-0x3CF5 / 0x3CF6-0x3D32</td><td class="num">$BBE2-$BC41 / $BC42-$BC90 / $BC91-$BCE5 / $BCE6-$BD22</td><td class="num">321B</td><td>00/EA埋め</td><td>新敵ID受付。AI/setup/init/animationの4入口で敵ID <code>$84/$85/$86/$87/$88/$89/$8A/$8B/$8C/$9C/$9D</code> を判定し、各専用本体または原作処理へ振り分ける。Seraphic Radiance <code>$9D</code> は4入口すべてから専用runtimeへ送る。</td></tr>
+      <tr><td>小routine</td><td><code>enemy_clear_key_open.py</code></td><td class="num">0x4156-0x41D1</td><td class="num">$C146-$C1C1</td><td class="num">124B</td><td>EA埋め</td><td>Enemy Clear Key Open runtime。All Kill Modeの全滅走査からSeraphic Radiance <code>$9D</code>を除外する。</td></tr>
+      <tr><td>空き</td><td><code>enemy_clear_key_open.py</code></td><td class="num">0x41D2-0x420F</td><td class="num">$C1C2-$C1FF</td><td class="num">62B</td><td>EA埋め</td><td>現行runtime予約なし。</td></tr>
       <tr><td>小routine</td><td><code>spark_ball_variant.py</code></td><td class="num">0x4FEE-0x5004</td><td class="num">$CFDE-$CFF4</td><td class="num">23B</td><td>EA埋め</td><td>Spark Ball animation hook本体。Panel Variant設定表 <code>0x62ED-0x62F2</code> と重ならない配置。</td></tr>
       <tr><td>原作データ</td><td><code>original ROM</code></td><td class="num">0x5BC5-0x5BEE</td><td class="num">$DBB5-$DBDE</td><td class="num">42B</td><td>原作速度テーブル</td><td>Golem/Demonhead などの通常敵も使う共有速度データ。Panel Variant の no-drift 対策としてゼロ化しない。Panel Variant A/B/C 適用時は通常Panel Bulletの左右速度バグ修正として該当4バイトのみ <code>$3F/$41</code> presetへ更新する。</td></tr>
       <tr><td>空き</td><td><code>panel_monster_variant.py</code></td><td class="num">0x5BEF-0x5C0A</td><td class="num">$DBDF-$DBFA</td><td class="num">28B</td><td>EA埋め</td><td>現行runtime予約なし。Panel property hook本体は <code>$E73A</code>。</td></tr>
@@ -242,8 +246,8 @@
       <tr><td>小routine</td><td><code>warp_zone_trial.py</code></td><td class="num">0x6A6E-0x6AED</td><td class="num">$EA5E-$EADD</td><td class="num">128B</td><td>EA埋め</td><td>Warp Mirror Mode runtime。<code>$C551</code> hookから入り、StageExt byte0 bit5がONなら触れたミラー以外の<code>$05</code>セルを<code>$0304</code>から探してワープする。<code>$0770</code> bit5=mode、bit6=cooldown。</td></tr>
       <tr><td>空き</td><td><code>stage_announcement.py</code></td><td class="num">0x6AEE-0x6B05</td><td class="num">$EADE-$EAF5</td><td class="num">24B</td><td>EA埋め</td><td>Warp Mirror Mode runtime直後の緩衝。stage_announcement本体reserveとは扱わない。</td></tr>
       <tr><td>小routine</td><td><code>stage_announcement.py</code></td><td class="num">0x6B06-0x6C03</td><td class="num">$EAF6-$EBF3</td><td class="num">254B</td><td>EA埋め</td><td>開始画面アナウンス本体。main / masks / draw helper / pointer table / key/all-kill shared gate / fairy gate / mirror-link gate / scriptsを連続配置する。直後24B緩衝 <code>0x6BEC-0x6C03</code> は <code>ALL KILL</code> 表示追加で消費済み。</td></tr>
-      <tr><td>小routine</td><td><code>enemy_clear_key_open.py</code></td><td class="num">0x6C04-0x6C7B</td><td class="num">$EBF4-$EC6B</td><td class="num">120B</td><td>EA埋め</td><td>Enemy Clear Key Open runtime。StageExt byte0 bit6がONならmain entity slot全消滅で原作鍵取得処理と扉オープン光演出に接続する。item $19取得直後のgroup4 cleanup action中は発火を待つ。先頭でFairy x2遅延カウンタ<code>$0771</code>も処理する。</td></tr>
-      <tr><td>空き</td><td><code>fire2_item_runtime.py</code></td><td class="num">0x6C7C-0x6D97</td><td class="num">$EC6C-$ED87</td><td class="num">284B</td><td>EA埋め</td><td>現行runtime予約なし。Special item runtime本体は<code>0x4010-0x4155</code>。</td></tr>
+      <tr><td>小routine</td><td><code>seraphic_radiance9d_runtime.py</code></td><td class="num">0x6C04-0x6D2C</td><td class="num">$EBF4-$ED1C</td><td class="num">297B</td><td>EA埋め</td><td>Seraphic Radiance <code>$9D</code> runtime。setup/init/AI/animation、中心方向の初期化、交互軸移動、四辺反射、17枠接触消去を1領域へ集約する。</td></tr>
+      <tr><td>空き</td><td><code>seraphic_radiance9d_runtime.py</code></td><td class="num">0x6D2D-0x6D97</td><td class="num">$ED1D-$ED87</td><td class="num">107B</td><td>EA埋め</td><td>Seraphic Radiance runtime直後の現行runtime予約なし領域。</td></tr>
       <tr><td>小routine</td><td><code>ghost86_runtime.py</code></td><td class="num">0x6D98-0x6E15</td><td class="num">$ED88-$EE05</td><td class="num">126B</td><td>EA埋め</td><td>Bomber/Cannon Ghost runtime本体。<code>$86</code> は下撃ち、<code>$87</code> は上撃ち。setup group表、init補正、原作Ghost AI wrapper、固定間隔Bullet発射を含む。Special item runtime直後へ詰めて配置する。</td></tr>
       <tr><td>小routine</td><td><code>neul88_runtime.py</code></td><td class="num">0x6E16-0x6EB3</td><td class="num">$EE06-$EEA3</td><td class="num">158B</td><td>EA埋め</td><td>Neul88 runtime本体。<code>$88</code> をNeul up groupと原作<code>$30</code>相当のbehaviorで初期化し、原作Neul/Ghost AI後に固定間隔で右/左Bulletを同時発射する。</td></tr>
       <tr><td>小routine</td><td><code>flying_dragon89_runtime.py</code></td><td class="num">0x6EB4-0x6ED0</td><td class="num">$EEA4-$EEC0</td><td class="num">29B</td><td>EA埋め</td><td>Chaos Dragon89 runtime本体。<code>$89</code> をDragon right groupで表示し、Dragon AIを利用した落下・貫通・不規則な火吹き挙動へ送る。</td></tr>
@@ -252,8 +256,8 @@
       <tr><td>小routine</td><td><code>bullet92_runtime.py</code></td><td class="num">0x6F74-0x6FFC</td><td class="num">$EF64-$EFEC</td><td class="num">137B</td><td>EA埋め</td><td>Phantom Bullet $8C runtime本体。<code>$8C</code>をPhantom Bullet $8Bと同じ壁抜けBullet right挙動にしつつ、<code>sub[6]</code> に最後に適用したphaseを保存し、State2の複数回実行で同じY差分を二重加算しない。</td></tr>
       <tr><td>空き</td><td><code>bullet92_runtime.py</code></td><td class="num">0x6FFD-0x7004</td><td class="num">$EFED-$EFF4</td><td class="num">8B</td><td>EA埋め</td><td>現行PRG0追加runtime列の最後尾に残る連続空き。現行runtime予約なし。</td></tr>
       <tr><td>空き</td><td><code>spark_ball_variant.py</code></td><td class="num">0x3EFA-0x3F02 / 0x3ED7-0x3EF8 / 0x3FE8-0x3FF7 / 0x3D36-0x3D45</td><td class="num">mixed</td><td class="num">75B</td><td>00/EA埋め</td><td>現行runtime予約なし。<code>0x4FEE-0x5004</code> はSpark Ball animation hookとして使用中。個別範囲ごとに現物確認して使う。</td></tr>
-      <tr><td>空き</td><td><code>final_stage_redirect.py</code></td><td class="num">0x3D28-0x3D34</td><td class="num">$BD18-$BD24</td><td class="num">13B</td><td>EA埋め</td><td>現行runtime予約なし。</td></tr>
-      <tr><td>空き</td><td><code>gargoyle_variant.py</code></td><td class="num">0x3D16-0x3D26 / 0x3D4B-0x3D88</td><td class="num">$BD06-$BD16 / $BD3B-$BD78</td><td class="num">79B</td><td>00/EA埋め</td><td>現行runtime予約なし。個別範囲ごとに現物確認して使う。</td></tr>
+      <tr><td>空き</td><td><code>new_enemy_runtime.py</code></td><td class="num">0x3D33-0x3D35</td><td class="num">$BD23-$BD25</td><td class="num">3B</td><td>EA埋め</td><td>新敵ID共通入口センター直後の現行runtime予約なし領域。</td></tr>
+      <tr><td>空き</td><td><code>gargoyle_variant.py</code></td><td class="num">0x3D4B-0x3D88</td><td class="num">$BD3B-$BD78</td><td class="num">62B</td><td>00/EA埋め</td><td>現行runtime予約なし。個別範囲ごとに現物確認して使う。</td></tr>
       <tr><td>空き</td><td><code>saramandor_variant.py</code></td><td class="num">0x3E10-0x3E3E / 0x3E50-0x3E71 / 0x3E90-0x3EA3 / 0x3F10-0x3F4F</td><td class="num">$BE00-$BE2E / $BE40-$BE61 / $BE80-$BE93 / $BF00-$BF3F</td><td class="num">165B</td><td>00/EA埋め</td><td>現行runtime予約なし。個別範囲ごとに現物確認して使う。</td></tr>
       <tr><td>空き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x68AC-0x68BB / 0x68C4-0x68FE / 0x693C-0x6959 / 0x696C-0x699E / 0x69D4-0x69DF</td><td class="num">mixed</td><td class="num">mixed</td><td>mixed/00</td><td>現行runtime予約なし。4096B連続表の現行予約を正とする。</td></tr>
         <tr><td>空き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x3F7C-0x3F8F</td><td class="num">$BF6C-$BF7F</td><td class="num">20B</td><td>00/EA埋め</td><td>現行runtime予約なし。</td></tr>
@@ -298,9 +302,8 @@
       <div class="seg hook" style="width:3.13%">Warp<br><small>128B</small></div>
       <div class="seg free" style="width:0.59%">buf<br><small>24B</small></div>
       <div class="seg hook" style="width:6.20%">stage announce<br><small>254B</small></div>
-      <div class="seg hook" style="width:2.61%">EnemyClear<br><small>107B</small></div>
-      <div class="seg free" style="width:0.34%">buf<br><small>14B</small></div>
-      <div class="seg hook" style="width:6.91%">SpecialItem<br><small>283B</small></div>
+      <div class="seg hook" style="width:7.25%">Radiance<br><small>297B</small></div>
+      <div class="seg free" style="width:2.61%">free<br><small>107B</small></div>
       <div class="seg hook" style="width:3.08%">B/C Ghost<br><small>126B</small></div>
       <div class="seg hook" style="width:3.86%">N88<br><small>158B</small></div>
       <div class="seg hook" style="width:.71%"><span class="tiny">C89</span></div>
@@ -322,10 +325,9 @@
       Warp Mirror Mode runtime後の24B緩衝 <code>0x6AEE-0x6B05</code> / <code>$EADE-$EAF5</code> を残す。
       Stage start announcement 9script版を <code>0x6B06-0x6C03</code> / <code>$EAF6-$EBF3</code> に置く。
       直後24B緩衝 <code>0x6BEC-0x6C03</code> / <code>$EBDC-$EBF3</code> は <code>ALL KILL</code> 表示追加で消費済み。
-      Enemy Clear Key Open runtimeを <code>0x6C04-0x6C7B</code> / <code>$EBF4-$EC6B</code> に置く。
-      Special item runtimeは前配置 <code>0x6C7D-0x6D97</code> / <code>$EC6D-$ED87</code> から、
-      bank0 cave下側の <code>0x4010-0x4155</code> / <code>$C000-$C145</code> へ移設済み。
-      <code>0x6C7C-0x6D97</code> / <code>$EC6C-$ED87</code> は通常のmapper66変換で<code>EA</code>化済みの空きとして扱う。
+      Seraphic Radiance runtimeを <code>0x6C04-0x6D2C</code> / <code>$EBF4-$ED1C</code> に297Bで集約する。
+      Enemy Clear Key Open runtimeはbank0 cave下側の <code>0x4156-0x41D1</code> / <code>$C146-$C1C1</code> へ移設済み。
+      <code>0x6D2D-0x6D97</code> / <code>$ED1D-$ED87</code> は107Bの現行runtime予約なし領域として扱う。
       Bomber/Cannon Ghost runtimeは緩衝を挟まず直後の <code>0x6D98-0x6E15</code> / <code>$ED88-$EE05</code> に置く。
       Neul88 runtimeはその直後の <code>0x6E16-0x6EB3</code> / <code>$EE06-$EEA3</code> に置く。
       Chaos Dragon89 runtimeはその直後の <code>0x6EB4-0x6ED0</code> / <code>$EEA4-$EEC0</code> に置く。
@@ -360,9 +362,8 @@
       <tr><td class="num">0x6A6E-0x6AED</td><td class="num">$EA5E-$EADD</td><td class="num">128B</td><td>Warp Mirror Mode runtime</td></tr>
       <tr><td class="num">0x6AEE-0x6B05</td><td class="num">$EADE-$EAF5</td><td class="num">24B</td><td>Free buffer before Stage start announcement</td></tr>
       <tr><td class="num">0x6B06-0x6C03</td><td class="num">$EAF6-$EBF3</td><td class="num">254B</td><td>Stage start announcement; includes KEY ENEMY / ALL KILL shared display slot</td></tr>
-      <tr><td class="num">0x6C04-0x6C7B</td><td class="num">$EBF4-$EC6B</td><td class="num">120B</td><td>Enemy Clear Key Open runtime + Fairy x2 delay tick</td></tr>
-      <tr><td class="num">0x6C7C</td><td class="num">$EC6C</td><td class="num">1B</td><td>Free gap between Enemy Clear Key Open and special item runtime</td></tr>
-      <tr><td class="num">0x6C7C-0x6D97</td><td class="num">$EC6C-$ED87</td><td class="num">284B</td><td>Free; old Special item runtime area</td></tr>
+      <tr><td class="num">0x6C04-0x6D2C</td><td class="num">$EBF4-$ED1C</td><td class="num">297B</td><td>Seraphic Radiance $9D runtime</td></tr>
+      <tr><td class="num">0x6D2D-0x6D97</td><td class="num">$ED1D-$ED87</td><td class="num">107B</td><td>Free area after Seraphic Radiance runtime</td></tr>
       <tr><td class="num">0x6D98-0x6E15</td><td class="num">$ED88-$EE05</td><td class="num">126B</td><td>Bomber/Cannon Ghost runtime</td></tr>
       <tr><td class="num">0x6E16-0x6EB3</td><td class="num">$EE06-$EEA3</td><td class="num">158B</td><td>Neul88 runtime</td></tr>
       <tr><td class="num">0x6EB4-0x6ED0</td><td class="num">$EEA4-$EEC0</td><td class="num">29B</td><td>Chaos Dragon89 runtime</td></tr>
