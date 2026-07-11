@@ -473,6 +473,7 @@ def _verify(rom_data) -> None:
     from . import new_enemy_runtime as _ner
     from . import enemy_clear_key_open as _ecko
     from . import fire2_item_runtime as _fire2
+    from . import blue_key_queen_runtime as _blue_key_queen
     expanded = len(rom_data) == 0x18010
     table_spans = () if expanded else (
         (OFF_DOORTAB, ROOM_COUNT),
@@ -510,6 +511,7 @@ def _verify(rom_data) -> None:
         *_fsr.RESERVED_SPANS,                # Clear this room, then load final room
         *_ecko.RESERVED_SPANS,               # Open key door when enemy slots are gone
         *_fire2.RESERVED_SPANS,              # Fire x2 item runtime
+        *_blue_key_queen.RESERVED_SPANS,     # Blue key queues Fairy Princess
     )
     for i in range(OFF_CAVE_FREE0, OFF_CAVE_FREE1):
         if rom_data[i] in (0xEA, 0x00):

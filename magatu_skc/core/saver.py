@@ -276,7 +276,7 @@ def save_levels_to_rom(
         stage_ext, key_enemy_runtime, stage_announcement, title_screen,
         drop_pickup_guard, special_process, solomon_seal_block,
         final_stage_redirect, gap_fix, new_enemy_runtime, warp_zone_trial,
-        enemy_clear_key_open, fire2_item_runtime,
+        enemy_clear_key_open, fire2_item_runtime, blue_key_queen_runtime,
     )
     from .element import byte_from_position
     # IMPORTANT: this apply order is part of the ROM layout contract.
@@ -396,6 +396,11 @@ def save_levels_to_rom(
     elif fire2_item_runtime.levels_need_runtime(levels):
         raise SaveError("Special item はmapper66拡張ROM保存専用です。")
     if rom.is_expanded():
+        _run_save_step(
+            "Blue key queen runtime検証/適用",
+            blue_key_queen_runtime.apply,
+            rom.data,
+        )
         _run_save_step(
             "Panel Variant runtime検証/適用",
             panel_monster_stage_variant.apply,
