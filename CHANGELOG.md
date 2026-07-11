@@ -1,5 +1,13 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.37 (2026-07-12) Seraphic Radianceを追加
+- 開発者用敵ID `$9D` としてSeraphic Radianceを追加し、AI呼び出し2回ごとに敵17枠を判定して通常敵・敵弾・敵炎を消去する無敵の光として実装した。
+- X/Yを交互に1pxずつ動かして四辺で反射し、配置座標を中心値X=`$88` / Y=`$78`と比較して内向きの初期進行方向を決めるようにした。主人公には接触ダメージを与え、主人公のHoly Fireとは相互無効ですり抜ける。
+- All Kill Modeの敵全滅判定からSeraphic Radianceを除外し、通常敵が全滅すればRadianceが残っていても扉が開くようにした。
+- Seraphic Radiance runtimeを`0x6C04-0x6D2C` / `$EBF4-$ED1C`の297Bへ集約し、後続`0x6D2D-0x6D97` / `$ED1D-$ED87`を107Bの空きとして確定した。
+- Enemy Clear Key Open runtimeを`0x4156-0x41D1` / `$C146-$C1C1`へ移し、Seraphic Radianceを除外する124Bの処理として整理した。
+- 新敵ID共通入口センターへ`$9D`のAI/setup/init/animation分類を追加し、4入口を合計321Bへ拡張した。
+
 ## v0.9.36 (2026-07-11) Phantom Bulletのパレット表示を修正
 - 開発者用敵ID `$8B/$8C` を `Phantom Bullet` 表示に変更した。
 - Phantom Bulletの実機表示をSPR #2パレットへ揃え、ピッカーとキャンバス表示も同じ色で表示するようにした。

@@ -13,8 +13,8 @@ CPU_MAIN_LOOP_HOOK = 0x9F09
 ORIG_MAIN_LOOP_HOOK = bytes.fromhex("ae 3e 04")
 ROOM_FLAG_MAIN_LOOP_CONTINUE_HOOK = bytes.fromhex("4c c0 9e")
 
-OFF_RUNTIME = 0x6C04
-CPU_RUNTIME = 0xEBF4
+OFF_RUNTIME = 0x4156
+CPU_RUNTIME = 0xC146
 CPU_MAIN_LOOP_CONTINUE = 0x9EC0
 CPU_CELL_FROM_PIXEL = 0x918A
 CPU_KEY_HANDLER = 0xC663
@@ -100,6 +100,8 @@ def _build_runtime(include_fairy2_delay: bool = True) -> bytes:
     a.b(0xB1, 0x00)                    # LDA ($00),Y
     a.b(0xC9, 0x14)                    # CMP #$14
     a.rel(0xF0, "scan_next")           # item remnant is ignored
+    a.b(0xC9, 0x9D)                    # CMP #$9D
+    a.rel(0xF0, "scan_next")           # Seraphic Radiance is ignored
     a.abs(0x4C, CPU_MAIN_LOOP_CONTINUE)
 
     a.label("scan_next")
@@ -197,6 +199,6 @@ RESERVED_SPANS = (
     (OFF_RUNTIME, len(RUNTIME)),
 )
 
-assert len(RUNTIME) == 120
-assert len(RUNTIME_WITHOUT_FAIRY2_DELAY) == 107
-assert len(RUNTIME_BEFORE_GROUP4_WAIT) == 110
+assert len(RUNTIME) == 124
+assert len(RUNTIME_WITHOUT_FAIRY2_DELAY) == 111
+assert len(RUNTIME_BEFORE_GROUP4_WAIT) == 114

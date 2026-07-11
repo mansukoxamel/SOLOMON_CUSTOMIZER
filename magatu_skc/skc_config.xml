@@ -353,8 +353,9 @@
     <enemy no="0x8b" description="Phantom Bullet" animation="59" />
     <enemy no="0x8c" description="Phantom Bullet" animation="59" />
     <enemy no="0x9c" description="Dark Fairy" animation="110" />
+    <enemy no="0x9d" description="Seraphic Radiance" animation="96" />
 
-    <!-- 0x8D-0x9B and 0x9D and up are undefined in the current custom runtime. -->
+    <!-- 0x8D-0x9B and 0x9E and up are undefined in the current custom runtime. -->
   </enemy_definitions>
 
   <enemy_editor>
