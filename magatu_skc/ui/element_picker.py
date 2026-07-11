@@ -195,6 +195,7 @@ ENEMIES_LIST = [
     (0x8B, "Phantom Bullet"),
     (0x8C, "Phantom Bullet"),
     (0x9C, "Dark Fairy"),
+    (0x9D, "熾天の眩光 / Seraphic Radiance"),
 ]
 
 DEVELOPER_ONLY_PICKER_ITEMS = {
@@ -207,6 +208,7 @@ DEVELOPER_ONLY_PICKER_ITEMS = {
     (MODE_ENEMY, 0x8B),
     (MODE_ENEMY, 0x8C),
     (MODE_ENEMY, 0x9C),
+    (MODE_ENEMY, 0x9D),
 }
 
 

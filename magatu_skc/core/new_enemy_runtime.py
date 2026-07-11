@@ -10,6 +10,7 @@ from . import afterburner90_runtime as _after90
 from . import bullet91_runtime as _bullet91
 from . import bullet92_runtime as _bullet92
 from . import fairy9c_runtime as _fairy9c
+from . import seraphic_radiance9d_runtime as _radiance9d
 
 
 class NewEnemyRuntimeError(ValueError):
@@ -25,18 +26,19 @@ AFTER90_ID = _after90.NEW_ENEMY_ID
 BULLET91_ID = _bullet91.NEW_ENEMY_ID
 BULLET92_ID = _bullet92.NEW_ENEMY_ID
 FAIRY9C_ID = _fairy9c.NEW_ENEMY_ID
+RADIANCE9D_ID = _radiance9d.NEW_ENEMY_ID
 
 OLD_GHOST86_OFF_RUNTIME = 0x6D88
 
 OFF_AI_ENTRY = 0x3BF2      # CPU $BBE2
-OFF_SETUP_ENTRY = 0x3C4A   # CPU $BC3A
-OFF_INIT_ENTRY = 0x3C92    # CPU $BC82
-OFF_ANIM_ENTRY = 0x3CE0    # CPU $BCD0
+OFF_SETUP_ENTRY = 0x3C52   # CPU $BC42
+OFF_INIT_ENTRY = 0x3CA1    # CPU $BC91
+OFF_ANIM_ENTRY = 0x3CF6    # CPU $BCE6
 
 CPU_AI_ENTRY = 0xBBE2
-CPU_SETUP_ENTRY = 0xBC3A
-CPU_INIT_ENTRY = 0xBC82
-CPU_ANIM_ENTRY = 0xBCD0
+CPU_SETUP_ENTRY = 0xBC42
+CPU_INIT_ENTRY = 0xBC91
+CPU_ANIM_ENTRY = 0xBCE6
 
 OLD_AI_ENTRY_RUNTIME = bytes.fromhex(
     "48"
@@ -64,6 +66,7 @@ def _build_ai_entry_runtime() -> bytes:
         (BULLET91_ID, _bullet91.CPU_AI_DISPATCH),
         (BULLET92_ID, _bullet92.CPU_AI_DISPATCH),
         (FAIRY9C_ID, _fairy9c.CPU_AI_DISPATCH),
+        (RADIANCE9D_ID, _radiance9d.CPU_AI_DISPATCH),
     )
     for idx, (enemy_id, _target) in enumerate(targets):
         data.extend((0xC9, enemy_id, 0xF0, 0x00))
@@ -165,6 +168,8 @@ def _build_setup_entry_runtime() -> bytes:
     a.branch(0xF0, "bullet92")
     a.b(0xC9, FAIRY9C_ID)
     a.branch(0xF0, "fairy9c")
+    a.b(0xC9, RADIANCE9D_ID)
+    a.branch(0xF0, "radiance9d")
     a.branch(0xB0, "stock")
     a.b(0x38, 0xE9, ICE_FLAME_ID, 0xAA)
     a.b(0xBD, _ghost86.CPU_SETUP_GROUP_TABLE & 0xFF, _ghost86.CPU_SETUP_GROUP_TABLE >> 8)
@@ -181,6 +186,8 @@ def _build_setup_entry_runtime() -> bytes:
     a.jmp(_bullet92.CPU_SETUP_META_LOAD)
     a.label("fairy9c")
     a.jmp(_fairy9c.CPU_SETUP_META_LOAD)
+    a.label("radiance9d")
+    a.jmp(_radiance9d.CPU_SETUP_META_LOAD)
     a.label("stock")
     a.b(0xA4, 0x0E, 0xB9, 0xD3, 0xD9, 0x60)
     return a.finish()
@@ -235,6 +242,8 @@ def _build_init_entry_runtime() -> bytes:
     a.branch(0xF0, "bullet92")
     a.b(0xC9, FAIRY9C_ID)
     a.branch(0xF0, "fairy9c")
+    a.b(0xC9, RADIANCE9D_ID)
+    a.branch(0xF0, "radiance9d")
     a.b(0xC9, SPARK85_ID)
     a.branch(0xF0, "spark85")
     a.b(0x68, 0x20, 0x1C, 0x9D, 0xA5, 0x05)
@@ -260,6 +269,8 @@ def _build_init_entry_runtime() -> bytes:
     a.jmp(_bullet92.CPU_INIT_STATUS)
     a.label("fairy9c")
     a.jmp(_fairy9c.CPU_INIT_STATUS)
+    a.label("radiance9d")
+    a.jmp(_radiance9d.CPU_INIT_STATUS)
     return a.finish()
 
 
@@ -312,34 +323,34 @@ PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME = bytes.fromhex(
     "60"            # RTS
 )
 
-ANIM_ENTRY_RUNTIME = bytes.fromhex(
-    "a0 01"         # LDY #$01
-    "b1 08"         # LDA ($08),Y -> main-slot type
-    "c9 84"         # CMP #$84
-    "f0 0f"         # BEQ ice
-    f"c9 {BULLET91_ID:02x}"  # CMP #$8B
-    "f0 0e"         # BEQ bullet_palette
-    f"c9 {BULLET92_ID:02x}"  # CMP #$8C
-    "f0 0a"         # BEQ bullet_palette
-    f"c9 {FAIRY9C_ID:02x}"  # CMP #$9C
-    "f0 14"         # BEQ fairy9c
-    "4c 89 87"      # JMP $8789 stock animation updater
-    f"4c {_ice.CPU_ANIM_UPDATE & 0xFF:02x} {_ice.CPU_ANIM_UPDATE >> 8:02x}"
-    "20 89 87"      # bullet_palette: JSR $8789 stock animation updater
-    "a0 13"         # LDY #$13
-    "b1 08"         # LDA ($08),Y: stock frame attr
-    "29 33"         # AND #$33: preserve both sprites' flip bits
-    "09 48"         # ORA #$48: force both sprites to SPR #2 palette
-    "91 08"         # STA ($08),Y: overwrite frame attr after stock animation
-    "60"            # RTS
-    "20 89 87"      # fairy9c: JSR $8789 stock animation updater
-    "a0 13"         # LDY #$13
-    "b1 08"         # LDA ($08),Y: stock frame attr
-    "29 13"         # AND #$13: preserve Fairy flip bits used by the OAM writer
-    "09 48"         # ORA #$48: force Dark Fairy palette
-    "91 08"         # STA ($08),Y: overwrite frame attr after stock animation
-    "60"            # RTS
-)
+def _build_anim_entry_runtime() -> bytes:
+    a = _EntryAsm()
+    a.b(0xA0, 0x01, 0xB1, 0x08)
+    a.b(0xC9, ICE_FLAME_ID)
+    a.branch(0xF0, "ice")
+    a.b(0xC9, BULLET91_ID)
+    a.branch(0xF0, "bullet_palette")
+    a.b(0xC9, BULLET92_ID)
+    a.branch(0xF0, "bullet_palette")
+    a.b(0xC9, FAIRY9C_ID)
+    a.branch(0xF0, "fairy9c")
+    a.b(0xC9, RADIANCE9D_ID)
+    a.branch(0xF0, "radiance9d")
+    a.jmp(0x8789)
+    a.label("ice")
+    a.jmp(_ice.CPU_ANIM_UPDATE)
+    a.label("bullet_palette")
+    a.b(0x20, 0x89, 0x87, 0xA0, 0x13, 0xB1, 0x08)
+    a.b(0x29, 0x33, 0x09, 0x48, 0x91, 0x08, 0x60)
+    a.label("fairy9c")
+    a.b(0x20, 0x89, 0x87, 0xA0, 0x13, 0xB1, 0x08)
+    a.b(0x29, 0x13, 0x09, 0x48, 0x91, 0x08, 0x60)
+    a.label("radiance9d")
+    a.jmp(_radiance9d.CPU_ANIM_UPDATE)
+    return a.finish()
+
+
+ANIM_ENTRY_RUNTIME = _build_anim_entry_runtime()
 
 ENTRY_RUNTIMES = (
     (OFF_AI_ENTRY, AI_ENTRY_RUNTIME, (), "$BBE2 new enemy AI dispatch"),
@@ -367,17 +378,18 @@ RESERVED_SPANS = (
     *_bullet91.RESERVED_SPANS,
     *_bullet92.RESERVED_SPANS,
     *_fairy9c.RESERVED_SPANS,
+    *_radiance9d.RESERVED_SPANS,
 )
 
-assert len(AI_ENTRY_RUNTIME) == 88
+assert len(AI_ENTRY_RUNTIME) == 96
 assert len(PRE_PACKED_GHOST_AI_ENTRY_RUNTIME) == 40
-assert len(SETUP_ENTRY_RUNTIME) == 72
+assert len(SETUP_ENTRY_RUNTIME) == 79
 assert len(PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME) == 32
-assert len(INIT_ENTRY_RUNTIME) == 78
+assert len(INIT_ENTRY_RUNTIME) == 85
 assert len(PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME) == 36
 assert len(OLD_ANIM_ENTRY_RUNTIME) == 14
 assert len(PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME) == 32
-assert len(ANIM_ENTRY_RUNTIME) == 54
+assert len(ANIM_ENTRY_RUNTIME) == 61
 assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
 assert OFF_INIT_ENTRY == OFF_SETUP_ENTRY + len(SETUP_ENTRY_RUNTIME)
 assert OFF_ANIM_ENTRY == OFF_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
@@ -394,6 +406,7 @@ def levels_need_runtime(levels: list) -> bool:
         or _bullet91.levels_need_runtime(levels)
         or _bullet92.levels_need_runtime(levels)
         or _fairy9c.levels_need_runtime(levels)
+        or _radiance9d.levels_need_runtime(levels)
     )
 
 
@@ -449,6 +462,7 @@ def apply(rom_data: bytearray) -> list[str]:
         _bullet91.OFF_RUNTIME + len(_bullet91.RUNTIME),
         _bullet92.OFF_RUNTIME + len(_bullet92.RUNTIME),
         _fairy9c.OFF_RUNTIME + len(_fairy9c.RUNTIME),
+        _radiance9d.OFF_RUNTIME + len(_radiance9d.RUNTIME),
         max(off + len(blob) for off, blob, _old_blobs, _name in ENTRY_RUNTIMES),
     )
     if rom_data is None or len(rom_data) < max_end:
@@ -548,6 +562,12 @@ def apply(rom_data: bytearray) -> list[str]:
         (bytes((0xEA,)) * len(_fairy9c.RUNTIME), _fairy9c.RUNTIME),
         "Dark Fairy9C runtime area",
     )
+    _expect_one(
+        rom_data,
+        _radiance9d.OFF_RUNTIME,
+        (bytes((0xEA,)) * len(_radiance9d.RUNTIME), _radiance9d.RUNTIME),
+        "Seraphic Radiance9D runtime area",
+    )
     for off, blob, old_blobs, name in ENTRY_RUNTIMES:
         _expect_blank_or_one_of(rom_data, off, (blob, *old_blobs), name)
 
@@ -619,5 +639,12 @@ def apply(rom_data: bytearray) -> list[str]:
         _fairy9c.RUNTIME,
         changed,
         f"Dark Fairy9C runtime ${_fairy9c.CPU_RUNTIME:04X}-${_fairy9c.CPU_RUNTIME_END - 1:04X}",
+    )
+    _write(
+        rom_data,
+        _radiance9d.OFF_RUNTIME,
+        _radiance9d.RUNTIME,
+        changed,
+        f"Seraphic Radiance9D runtime ${_radiance9d.CPU_RUNTIME:04X}-${_radiance9d.CPU_RUNTIME_END - 1:04X}",
     )
     return changed
