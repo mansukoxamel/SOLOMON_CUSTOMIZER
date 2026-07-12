@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from . import panel_bullet_speed_fix, panel_monster_variant, spark_ball_variant, stage_ext
+from . import panel_bullet_speed_fix, panel_monster_variant, spark24_runtime, spark_ball_variant, stage_ext
 
 
 class PanelMonsterStageVariantError(ValueError):
@@ -255,7 +255,12 @@ HOOK_PANEL_FIRE_WITH_SPARK_PROPERTY = (
         - len(spark_ball_variant.CAVE_PROPERTY_HOOK)
     ))
 )
-HOOK_A2CC_SPARK_PROPERTY = bytes.fromhex("20") + _word(spark_ball_variant.CPU_PROPERTY_HOOK)
+HOOK_A2CC_SPARK_PROPERTY = bytes.fromhex("20") + _word(
+    spark_ball_variant.CPU_PROPERTY_HOOK
+    if spark_ball_variant.BORROWED_ID_RUNTIME_ENABLED
+    else spark24_runtime.CPU_PROPERTY_DISPATCH
+)
+HOOK_A2CC_SPARK24 = bytes.fromhex("20") + _word(spark24_runtime.CPU_PROPERTY_DISPATCH)
 HOOK_8B05_SPARK_ANIM = (
     bytes.fromhex("20")
     + _word(spark_ball_variant.CPU_ANIM_HOOK)
@@ -1129,6 +1134,7 @@ def _validate_final_split_signatures(
             panel_monster_variant.HOOK_A2CC_SPARK,
             panel_monster_variant.HOOK_A2CC_SPARK_CURRENT,
             HOOK_A2CC_SPARK_PROPERTY,
+            HOOK_A2CC_SPARK24,
         ),
     )
     _expect_signature(

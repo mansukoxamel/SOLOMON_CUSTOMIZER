@@ -31,6 +31,8 @@ $28-$2F Spark Balls do not match and continue through the original speed commit.
 
 from __future__ import annotations
 
+from . import spark24_runtime as _spark24
+
 
 class SparkBallVariantError(ValueError):
     pass
@@ -118,6 +120,7 @@ CPU_PANEL_PROPERTY_HOOK = _cpu(0x5BEF)         # $DBDF
 CPU_PANEL_ANIM_HOOK = _cpu(0x40D2)             # $C0C2
 
 DEFAULT_PAUSE_DIGITS = (0, 3, 6, 9)
+DEFAULT_REVERSE_DIGITS = _spark24.DEFAULT_REVERSE_DIGITS
 PAUSE_DIGIT_COUNT = 4
 TRANSPARENCY_PERIODS = (0x20, 0x30, 0x40, 0x60, 0x80)
 DEFAULT_TRANSPARENCY_PERIOD = 0x40
@@ -277,7 +280,7 @@ assert OFF_PROPERTY_HOOK == OFF_OAM_HIDE_HOOK + len(CAVE_OAM_HIDE_HOOK)
 assert OFF_SPARK_BALL_FREE == OFF_PROPERTY_HOOK + len(CAVE_PROPERTY_HOOK)
 assert SPARK_BALL_FREE_LEN == 3
 
-RESERVED_SPANS = (
+_BORROWED_RESERVED_SPANS = (
     (OFF_AI_DRAGON_SLOW_WRAPPER, len(CAVE_AI_DRAGON_SLOW_WRAPPER)),
     (OFF_AI_DRAGON_FAST_WRAPPER, len(CAVE_AI_DRAGON_FAST_WRAPPER)),
     (OFF_AI_GOLEM_WRAPPER, len(CAVE_AI_GOLEM_WRAPPER)),
@@ -286,6 +289,11 @@ RESERVED_SPANS = (
     (OFF_ANIM_HOOK, len(CAVE_ANIM_HOOK)),
     (OFF_ANIM_SPARK_SET, len(CAVE_ANIM_SPARK_SET)),
     (OFF_OAM_HIDE_HOOK, len(CAVE_OAM_HIDE_HOOK)),
+)
+RESERVED_SPANS = (
+    _BORROWED_RESERVED_SPANS
+    if BORROWED_ID_RUNTIME_ENABLED
+    else _spark24.RESERVED_SPANS
 )
 
 
@@ -316,27 +324,78 @@ def _has_oam_hide_hook(rom_data) -> bool:
 
 
 def current_pause_digits(rom_data) -> tuple[int, int, int, int]:
-    if rom_data is None or len(rom_data) <= max(OFF_PAUSE_DIGITS):
-        raise SparkBallVariantError("ROM is too short for Spark Ball pause settings.")
-    if not _has_pause_hook(rom_data):
-        return DEFAULT_PAUSE_DIGITS
-    return tuple(int(rom_data[off]) for off in OFF_PAUSE_DIGITS)
+    if rom_data is None:
+        raise SparkBallVariantError("ROM is not loaded")
+    if bytes(rom_data[_spark24.OFF_RUNTIME:_spark24.OFF_RUNTIME + 3]) == _spark24.RUNTIME[:3]:
+        return tuple(int(rom_data[off]) for off in _spark24.OFF_PAUSE_DIGITS)
+    return DEFAULT_PAUSE_DIGITS
 
 
 def current_transparency_period(rom_data) -> int:
-    if rom_data is None or len(rom_data) <= OFF_TRANSPARENCY_PERIOD:
-        raise SparkBallVariantError("ROM is too short for Spark Ball transparency settings.")
-    if not _has_oam_hide_hook(rom_data):
-        return DEFAULT_TRANSPARENCY_PERIOD
-    value = int(rom_data[OFF_TRANSPARENCY_PERIOD])
-    if value not in TRANSPARENCY_PERIODS:
-        return DEFAULT_TRANSPARENCY_PERIOD
-    return value
+    if rom_data is None:
+        raise SparkBallVariantError("ROM is not loaded")
+    if bytes(rom_data[_spark24.OFF_RUNTIME:_spark24.OFF_RUNTIME + 3]) == _spark24.RUNTIME[:3]:
+        value = int(rom_data[_spark24.OFF_TRANSPARENCY_PERIOD])
+        return value if value in TRANSPARENCY_PERIODS else DEFAULT_TRANSPARENCY_PERIOD
+    return DEFAULT_TRANSPARENCY_PERIOD
 
 
-def apply(rom_data, pause_digits=None, transparency_period=None) -> list[str]:
+def current_reverse_digits(rom_data) -> tuple[int, int, int, int]:
+    if rom_data is None:
+        raise SparkBallVariantError("ROM is not loaded")
+    if bytes(rom_data[_spark24.OFF_RUNTIME:_spark24.OFF_RUNTIME + 3]) == _spark24.RUNTIME[:3]:
+        return tuple(int(rom_data[off]) for off in _spark24.OFF_REVERSE_DIGITS)
+    return _spark24.DEFAULT_REVERSE_DIGITS
+
+
+def _apply_spark24(rom_data, pause_digits=None, reverse_digits=None,
+                   transparency_period=None) -> list[str]:
+    try:
+        pause_digits = _spark24.normalize_digits(
+            current_pause_digits(rom_data) if pause_digits is None else pause_digits)
+        reverse_digits = _spark24.normalize_digits(
+            current_reverse_digits(rom_data) if reverse_digits is None else reverse_digits)
+        if transparency_period is None:
+            transparency_period = current_transparency_period(rom_data)
+        runtime, offsets = _spark24.build_runtime(
+            pause_digits, reverse_digits, transparency_period)
+    except _spark24.Spark24RuntimeError as exc:
+        raise SparkBallVariantError(str(exc)) from exc
+    changed: list[str] = []
+    hook_ab13 = bytes((0x4C, offsets["pause"] & 0xFF, offsets["pause"] >> 8))
+    hook_a2cc = bytes((0x20, offsets["property"] & 0xFF, offsets["property"] >> 8))
+    hook_85fa = bytes((0x4C, offsets["oam"] & 0xFF, offsets["oam"] >> 8))
+    current_ab13 = bytes(rom_data[OFF_AB13:OFF_AB13 + 3])
+    current_a2cc = bytes(rom_data[OFF_A2CC:OFF_A2CC + 3])
+    current_85fa = bytes(rom_data[OFF_85FA:OFF_85FA + len(ORIG_85FA)])
+    accepted_ab13 = (ORIG_AB13_HEAD, hook_ab13)
+    accepted_a2cc = (
+        ORIG_A2CC_HEAD,
+        bytes((0x20, CPU_PANEL_PROPERTY_HOOK & 0xFF, CPU_PANEL_PROPERTY_HOOK >> 8)),
+        hook_a2cc,
+    )
+    new_oam = hook_85fa + bytes((0xEA,)) * 3
+    if current_ab13 not in accepted_ab13:
+        raise SparkBallVariantError(f"$AB13 signature mismatch: got {current_ab13.hex(' ')}")
+    if current_a2cc not in accepted_a2cc:
+        raise SparkBallVariantError(f"$A2CC signature mismatch: got {current_a2cc.hex(' ')}")
+    if current_85fa not in (ORIG_85FA, new_oam):
+        raise SparkBallVariantError(f"$85FA signature mismatch: got {current_85fa.hex(' ')}")
+    _write_blob(rom_data, _spark24.OFF_RUNTIME, runtime, changed,
+                "Spark24 integrated runtime")
+    _write_blob(rom_data, OFF_AB13, hook_ab13, changed, "$AB13 Spark24 pause dispatch")
+    _write_blob(rom_data, OFF_A2CC, hook_a2cc, changed, "$A2CC Spark24 property dispatch")
+    _write_blob(rom_data, OFF_85FA,
+                new_oam,
+                changed, "$85FA Spark24 transparency dispatch")
+    return changed
+
+
+def apply(rom_data, pause_digits=None, transparency_period=None,
+          reverse_digits=None) -> list[str]:
     if not BORROWED_ID_RUNTIME_ENABLED:
-        return []
+        return _apply_spark24(
+            rom_data, pause_digits, reverse_digits, transparency_period)
     if pause_digits is None:
         pause_digits = current_pause_digits(rom_data)
     else:

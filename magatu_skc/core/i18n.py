@@ -14,6 +14,26 @@ SUPPORTED_LANGUAGES = {key for key, _label in LANGUAGE_OPTIONS}
 _current_language = DEFAULT_LANGUAGE
 
 _TRANSLATIONS = {
+    "hack_dialog.spark_ball_variant.hint24": {
+        "ja": "停止型($C0-$C7)は停止ポイント、透明型($C8-$CF)は透明化周期、停止後反転型($D0-$D7)は反転ポイントを個別に設定します。",
+        "en": "Configure pause points for $C0-$C7, the transparency cycle for $C8-$CF, and reversal points for $D0-$D7 independently.",
+    },
+    "hack_dialog.spark_ball_variant.hint24": {
+        "ja": "停止型($C0-$C7)は停止ポイント、透明型($C8-$CF)は透明化周期、停止後反転型($D0-$D7)は反転ポイントを個別に設定します。",
+        "en": "Configure pause points for $C0-$C7, the transparency cycle for $C8-$CF, and reversal points for $D0-$D7 independently.",
+    },
+    "hack_dialog.spark_ball_variant.reverse_digits.label": {
+        "ja": "反転するLIFE百の位:",
+        "en": "Reverse on LIFE hundreds digit:",
+    },
+    "hack_dialog.spark_ball_variant.max_reverse_digits": {
+        "ja": "反転するLIFE百の位は最大4個までです。",
+        "en": "Select at most four LIFE hundreds digits for reversal.",
+    },
+    "hack_dialog.setting.spark_ball_reverse": {
+        "ja": "強化スパークボール反転",
+        "en": "Enhanced Spark Ball reversal",
+    },
     "settings.title": {
         "ja": "設定 (F9)",
         "en": "Settings (F9)",

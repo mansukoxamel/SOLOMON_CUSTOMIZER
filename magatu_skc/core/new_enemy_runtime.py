@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 from . import ice_flame_runtime as _ice
+from . import spark24_runtime as _spark24
 from . import spark85_runtime as _spark85
+from . import spark_ball_variant as _spark_variant
 from . import ghost86_runtime as _ghost86
 from . import neul88_runtime as _neul88
 from . import flying_dragon89_runtime as _flying89
@@ -18,7 +20,8 @@ class NewEnemyRuntimeError(ValueError):
 
 
 ICE_FLAME_ID = _ice.NEW_ENEMY_ID
-SPARK85_ID = _spark85.NEW_ENEMY_ID
+SPARK24_FIRST_ID = _spark24.FIRST_ID
+SPARK24_LAST_ID = _spark24.LAST_ID
 GHOST86_ID = _ghost86.NEW_ENEMY_ID
 NEUL88_ID = _neul88.NEW_ENEMY_ID
 CHAOS89_ID = _flying89.NEW_ENEMY_ID
@@ -33,14 +36,14 @@ LEGACY_ICE_AI_DISPATCH = 0xE9C1
 LEGACY_ICE_SETUP_META_LOAD = 0xE9C4
 
 OFF_AI_ENTRY = 0x3BF2      # CPU $BBE2
-OFF_SETUP_ENTRY = 0x3C4A   # CPU $BC3A
-OFF_INIT_ENTRY = 0x3C99    # CPU $BC89
-OFF_ANIM_ENTRY = 0x3CEE    # CPU $BCDE
+OFF_SETUP_ENTRY = 0x3C4E
+OFF_INIT_ENTRY = 0x3CAE
+OFF_ANIM_ENTRY = 0x3D08
 
 CPU_AI_ENTRY = 0xBBE2
-CPU_SETUP_ENTRY = 0xBC3A
-CPU_INIT_ENTRY = 0xBC89
-CPU_ANIM_ENTRY = 0xBCDE
+CPU_SETUP_ENTRY = 0xBC3E
+CPU_INIT_ENTRY = 0xBC9E
+CPU_ANIM_ENTRY = 0xBCF8
 
 OLD_AI_ENTRY_RUNTIME = bytes.fromhex(
     "48"
@@ -58,7 +61,6 @@ def _build_ai_entry_runtime() -> bytes:
     data = bytearray((0x48, 0x18, 0x69, 0x14))
     fixups: list[tuple[int, int]] = []
     targets = (
-        (SPARK85_ID, _spark85.CPU_AI_DISPATCH),
         (GHOST86_ID, _ghost86.CPU_AI_DISPATCH),
         (0x87, _ghost86.CPU_AI_DISPATCH_DOWN),
         (NEUL88_ID, _neul88.CPU_AI_DISPATCH),
@@ -72,6 +74,9 @@ def _build_ai_entry_runtime() -> bytes:
     for idx, (enemy_id, _target) in enumerate(targets):
         data.extend((0xC9, enemy_id, 0xF0, 0x00))
         fixups.append((len(data) - 1, idx))
+    data.extend((0xC9, SPARK24_FIRST_ID, 0x90, 0x08))
+    data.extend((0xC9, SPARK24_LAST_ID + 1, 0xB0, 0x04))
+    data.extend((0x68, 0x4C, _spark24.CPU_AI_DISPATCH & 0xFF, _spark24.CPU_AI_DISPATCH >> 8))
     data.extend((0x68, 0x4C, 0x29, 0xA3))
     target_offsets = []
     for _enemy_id, target in targets:
@@ -155,7 +160,12 @@ class _EntryAsm:
 def _build_setup_entry_runtime() -> bytes:
     a = _EntryAsm()
     a.b(0xA0, 0x01, 0xB1, 0x08)         # LDA ($08),Y -> main-slot type
-    a.b(0xC9, SPARK85_ID)
+    a.b(0xC9, SPARK24_FIRST_ID)
+    a.branch(0x90, "below_spark24")
+    a.b(0xC9, SPARK24_LAST_ID + 1)
+    a.branch(0x90, "spark24")
+    a.label("below_spark24")
+    a.b(0xC9, ICE_FLAME_ID)
     a.branch(0x90, "stock")
     a.b(0xC9, NEUL88_ID)
     a.branch(0xF0, "neul88")
@@ -189,6 +199,8 @@ def _build_setup_entry_runtime() -> bytes:
     a.jmp(_fairy9c.CPU_SETUP_META_LOAD)
     a.label("radiance9d")
     a.jmp(_radiance9d.CPU_SETUP_META_LOAD)
+    a.label("spark24")
+    a.b(0xA9, 0x14, 0x85, 0x0E, 0xA8, 0xB9, 0xD3, 0xD9, 0x60)
     a.label("stock")
     a.b(0xA4, 0x0E, 0xB9, 0xD3, 0xD9, 0x60)
     return a.finish()
@@ -227,6 +239,11 @@ OLD_INIT_ENTRY_RUNTIME = bytes.fromhex(
 def _build_init_entry_runtime() -> bytes:
     a = _EntryAsm()
     a.b(0x48, 0xA5, 0x05)               # PHA; LDA $05
+    a.b(0xC9, SPARK24_FIRST_ID)
+    a.branch(0x90, "below_spark24")
+    a.b(0xC9, SPARK24_LAST_ID + 1)
+    a.branch(0x90, "spark24")
+    a.label("below_spark24")
     a.b(0xC9, GHOST86_ID)
     a.branch(0xF0, "ghost")
     a.b(0xC9, 0x87)
@@ -245,17 +262,14 @@ def _build_init_entry_runtime() -> bytes:
     a.branch(0xF0, "fairy9c")
     a.b(0xC9, RADIANCE9D_ID)
     a.branch(0xF0, "radiance9d")
-    a.b(0xC9, SPARK85_ID)
-    a.branch(0xF0, "spark85")
     a.b(0x68, 0x20, 0x1C, 0x9D, 0xA5, 0x05)
     a.b(0xC9, ICE_FLAME_ID)
     a.branch(0xF0, "ice")
     a.b(0x60)
     a.label("ice")
     a.jmp(_ice.CPU_INIT_STATUS)
-    a.label("spark85")
-    a.b(0x68)
-    a.jmp(_spark85.CPU_INIT_STATUS)
+    a.label("spark24")
+    a.b(0x68, 0x20, 0x1C, 0x9D, 0x60)
     a.label("ghost")
     a.jmp(_ghost86.CPU_INIT_STATUS)
     a.label("neul88")
@@ -327,6 +341,11 @@ PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME = bytes.fromhex(
 def _build_anim_entry_runtime() -> bytes:
     a = _EntryAsm()
     a.b(0xA0, 0x01, 0xB1, 0x08)
+    a.b(0xC9, SPARK24_FIRST_ID)
+    a.branch(0x90, "below_spark24")
+    a.b(0xC9, SPARK24_LAST_ID + 1)
+    a.branch(0x90, "spark24")
+    a.label("below_spark24")
     a.b(0xC9, ICE_FLAME_ID)
     a.branch(0xF0, "ice")
     a.b(0xC9, BULLET91_ID)
@@ -369,6 +388,8 @@ def _build_anim_entry_runtime() -> bytes:
     a.b(0x29, 0x33, 0x91, 0x08, 0x60)
     a.label("radiance9d")
     a.jmp(_radiance9d.CPU_ANIM_UPDATE)
+    a.label("spark24")
+    a.jmp(0x8789)
     return a.finish()
 
 
@@ -392,7 +413,6 @@ RESERVED_SPANS = (
     (OFF_INIT_ENTRY, len(INIT_ENTRY_RUNTIME)),
     (OFF_ANIM_ENTRY, len(ANIM_ENTRY_RUNTIME)),
     *_ice.RESERVED_SPANS,
-    *_spark85.RESERVED_SPANS,
     *_ghost86.RESERVED_SPANS,
     *_neul88.RESERVED_SPANS,
     *_flying89.RESERVED_SPANS,
@@ -403,15 +423,11 @@ RESERVED_SPANS = (
     *_radiance9d.RESERVED_SPANS,
 )
 
-assert len(AI_ENTRY_RUNTIME) == 88
 assert len(PRE_PACKED_GHOST_AI_ENTRY_RUNTIME) == 40
-assert len(SETUP_ENTRY_RUNTIME) == 79
 assert len(PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME) == 32
-assert len(INIT_ENTRY_RUNTIME) == 85
 assert len(PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME) == 36
 assert len(OLD_ANIM_ENTRY_RUNTIME) == 14
 assert len(PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME) == 32
-assert len(ANIM_ENTRY_RUNTIME) == 113
 assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
 assert OFF_INIT_ENTRY == OFF_SETUP_ENTRY + len(SETUP_ENTRY_RUNTIME)
 assert OFF_ANIM_ENTRY == OFF_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
@@ -420,7 +436,11 @@ assert OFF_ANIM_ENTRY == OFF_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
 def levels_need_runtime(levels: list) -> bool:
     return (
         _ice.levels_need_runtime(levels)
-        or _spark85.levels_need_runtime(levels)
+        or any(
+            _spark24.FIRST_ID <= int(getattr(enemy, "element_no", -1)) <= _spark24.LAST_ID
+            for lv in (levels or [])
+            for enemy in (getattr(lv, "enemies", []) or [])
+        )
         or _ghost86.levels_need_runtime(levels)
         or _neul88.levels_need_runtime(levels)
         or _flying89.levels_need_runtime(levels)
@@ -476,7 +496,7 @@ def apply(rom_data: bytearray) -> list[str]:
     """Apply shared new-enemy dispatch entries and new enemy bodies."""
     max_end = max(
         _ice.OFF_RUNTIME + len(_ice.RUNTIME),
-        _spark85.OFF_RUNTIME + len(_spark85.RUNTIME),
+        _spark24.OFF_RUNTIME + len(_spark24.RUNTIME),
         _ghost86.OFF_RUNTIME + len(_ghost86.RUNTIME),
         _neul88.OFF_RUNTIME + len(_neul88.RUNTIME),
         _flying89.OFF_RUNTIME + len(_flying89.RUNTIME),
@@ -491,6 +511,7 @@ def apply(rom_data: bytearray) -> list[str]:
         raise NewEnemyRuntimeError("ROM is too short for new enemy runtime.")
 
     changed: list[str] = []
+    changed.extend(_spark_variant.apply(rom_data))
     if OLD_GHOST86_OFF_RUNTIME != _ghost86.OFF_RUNTIME:
         old_ghost_cur = bytes(rom_data[OLD_GHOST86_OFF_RUNTIME:OLD_GHOST86_OFF_RUNTIME + len(_ghost86.RUNTIME)])
         if old_ghost_cur == _ghost86.RUNTIME:
@@ -523,24 +544,11 @@ def apply(rom_data: bytearray) -> list[str]:
         (_ice.ORIG_SETUP_META_LOAD, _ice.HOOK_SETUP_META_LOAD, HOOK_SETUP_META_LOAD),
         "$8ACB new enemy setup hook",
     )
-    _expect_one(rom_data, _ice.OFF_BUFFER, (bytes((0xEA,)) * _ice.BUFFER_LEN,), "Ice Flame leading buffer")
     _expect_one(
         rom_data,
         _ice.OFF_RUNTIME,
         (bytes((0xEA,)) * len(_ice.RUNTIME), _ice.RUNTIME),
         "Ice Flame runtime area",
-    )
-    _expect_one(
-        rom_data,
-        _spark85.OFF_BUFFER,
-        (bytes((0xEA,)) * _spark85.BUFFER_LEN,),
-        "Spark85 leading buffer",
-    )
-    _expect_one(
-        rom_data,
-        _spark85.OFF_RUNTIME,
-        (bytes((0xEA,)) * len(_spark85.RUNTIME), _spark85.RUNTIME),
-        "Spark85 runtime area",
     )
     _expect_one(
         rom_data,
@@ -605,13 +613,6 @@ def apply(rom_data: bytearray) -> list[str]:
         _ice.RUNTIME,
         changed,
         f"Ice Burn runtime ${_ice.CPU_INIT_STATUS:04X}-${_ice.CPU_RUNTIME_END - 1:04X}",
-    )
-    _write(
-        rom_data,
-        _spark85.OFF_RUNTIME,
-        _spark85.RUNTIME,
-        changed,
-        f"Spark85 runtime ${_spark85.CPU_AI_DISPATCH:04X}-${_spark85.CPU_RUNTIME_END - 1:04X}",
     )
     _write(
         rom_data,

@@ -805,16 +805,19 @@ class HackDialog(QDialog):
         sb_variant_group = QGroupBox(t("hack_dialog.group.spark_ball_variant", "強化スパークボール"))
         sb_variant_group.setProperty("settings_category", "敵・AI")
         sbvf = QFormLayout(sb_variant_group)
-        _setup_enemy_group(self, sb_variant_group, sbvf, 41, (0x6A, 0x72))
+        _setup_enemy_group(self, sb_variant_group, sbvf, 41, (0xC0, 0xC8, 0xD0))
         self._spark_ball_variant_ok = False
         self.chk_spark_pause_digits = []
+        self.chk_spark_reverse_digits = []
         self.combo_spark_transparency = QComboBox()
         try:
             pause_digits = set(spark_ball_variant.current_pause_digits(rom.data))
+            reverse_digits = set(spark_ball_variant.current_reverse_digits(rom.data))
             transparency_period = spark_ball_variant.current_transparency_period(rom.data)
             self._spark_ball_variant_ok = True
         except spark_ball_variant.SparkBallVariantError as e:
             pause_digits = set(spark_ball_variant.DEFAULT_PAUSE_DIGITS)
+            reverse_digits = set(spark_ball_variant.DEFAULT_REVERSE_DIGITS)
             transparency_period = spark_ball_variant.DEFAULT_TRANSPARENCY_PERIOD
             note = QLabel(t("hack_dialog.disabled", "⚠ 無効: {error}").format(error=str(e).splitlines()[0]))
             note.setWordWrap(True)
@@ -831,6 +834,16 @@ class HackDialog(QDialog):
             digit_grid.addWidget(chk, digit // 5, digit % 5)
         sbvf.addRow(t("hack_dialog.spark_ball_variant.pause_digits.label", "停止するLIFE百の位:"), digit_grid)
 
+        reverse_grid = QGridLayout()
+        for digit in range(10):
+            chk = QCheckBox(str(digit))
+            chk.setChecked(digit in reverse_digits)
+            chk.stateChanged.connect(self._on_spark_reverse_digit_changed)
+            chk.setEnabled(self._spark_ball_variant_ok)
+            self.chk_spark_reverse_digits.append(chk)
+            reverse_grid.addWidget(chk, digit // 5, digit % 5)
+        sbvf.addRow(t("hack_dialog.spark_ball_variant.reverse_digits.label", "反転するLIFE百の位:"), reverse_grid)
+
         for value in spark_ball_variant.TRANSPARENCY_PERIODS:
             self.combo_spark_transparency.addItem(f"${value:02X}", value)
         self._set_combo_data(self.combo_spark_transparency, transparency_period)
@@ -839,9 +852,9 @@ class HackDialog(QDialog):
 
         sbvhint = QLabel(
             t(
-                "hack_dialog.spark_ball_variant.hint",
-                "停止型(6A/6B/6E/6F)は選択したLIFE百の位で停止します。"
-                "透明型(72/73/76/77)はフレームカウンタのANDマスクで透明化周期を変えます。",
+                "hack_dialog.spark_ball_variant.hint24",
+                "停止型($C0-$C7)は停止ポイント、透明型($C8-$CF)は透明化周期、"
+                "停止後反転型($D0-$D7)は反転ポイントを個別に設定します。",
             ))
         sbvhint.setWordWrap(True)
         sbvhint.setStyleSheet("color:#888; font-size:11px;")
@@ -1338,6 +1351,12 @@ class HackDialog(QDialog):
             if chk.isChecked()
         ]
 
+    def _selected_spark_reverse_digits(self) -> list[int]:
+        return [
+            i for i, chk in enumerate(getattr(self, "chk_spark_reverse_digits", []))
+            if chk.isChecked()
+        ]
+
     def _panel_variant_settings_from_ui(self) -> dict:
         values = {}
         for key, (combo, spin) in getattr(self, "_panel_variant_controls", {}).items():
@@ -1365,6 +1384,21 @@ class HackDialog(QDialog):
             self,
             t("hack_dialog.group.spark_ball_variant", "強化スパークボール"),
             t("hack_dialog.spark_ball_variant.max_digits", "停止するLIFE百の位は最大4個までです。"),
+        )
+
+    def _on_spark_reverse_digit_changed(self, _state):
+        selected = self._selected_spark_reverse_digits()
+        if len(selected) <= spark_ball_variant.PAUSE_DIGIT_COUNT:
+            return
+        sender = self.sender()
+        if sender is not None:
+            sender.blockSignals(True)
+            sender.setChecked(False)
+            sender.blockSignals(False)
+        QMessageBox.information(
+            self,
+            t("hack_dialog.group.spark_ball_variant", "強化スパークボール"),
+            t("hack_dialog.spark_ball_variant.max_reverse_digits", "反転するLIFE百の位は最大4個までです。"),
         )
 
     def _mark_parent_dirty(self, log_message: str):
@@ -1953,6 +1987,7 @@ class HackDialog(QDialog):
             "neul_ghost_speed_multiplier": self._combo_data(self.combo_neul_ghost_speed),
             "spark_ball_speed_multiplier": self._combo_data(self.combo_spark_ball_speed),
             "spark_ball_pause_digits": self._selected_spark_pause_digits(),
+            "spark_ball_reverse_digits": self._selected_spark_reverse_digits(),
             "spark_ball_transparency_period": self._combo_data(self.combo_spark_transparency),
             "demonhead_snappy": self.chk_demonhead_snappy.isChecked(),
             "clear_screen_preset": self._combo_data(self.combo_clearscreen),
@@ -2027,18 +2062,18 @@ class HackDialog(QDialog):
                 if chk.isChecked() != old:
                     changed.append(label)
 
-        def set_spark_pause_digits(key, label):
+        def set_spark_digits(key, label, checkboxes, getter):
             if not has(key) or not getattr(self, "_spark_ball_variant_ok", False):
                 return
-            old = self._selected_spark_pause_digits()
+            old = getter()
             try:
                 selected = spark_ball_variant.normalize_pause_digits(settings[key])
             except (TypeError, ValueError, spark_ball_variant.SparkBallVariantError):
                 return
             visible = set(selected)
-            for i, chk in enumerate(self.chk_spark_pause_digits):
+            for i, chk in enumerate(checkboxes):
                 chk.setChecked(i in visible)
-            if self._selected_spark_pause_digits() != old:
+            if getter() != old:
                 changed.append(label)
 
         def set_combo(key, combo, label):
@@ -2223,7 +2258,8 @@ class HackDialog(QDialog):
         set_combo("shared_monster_walk_multiplier", self.combo_shared_walk, t("hack_dialog.setting.shared_walk", "共通歩行速度"))
         set_combo("neul_ghost_speed_multiplier", self.combo_neul_ghost_speed, t("hack_dialog.setting.neul_ghost_speed", "ゴースト＆ヌエル移動速度"))
         set_combo("spark_ball_speed_multiplier", self.combo_spark_ball_speed, t("hack_dialog.setting.spark_ball_speed", "スパークボール移動速度"))
-        set_spark_pause_digits("spark_ball_pause_digits", t("hack_dialog.setting.spark_ball_pause", "強化スパークボール停止"))
+        set_spark_digits("spark_ball_pause_digits", t("hack_dialog.setting.spark_ball_pause", "強化スパークボール停止"), self.chk_spark_pause_digits, self._selected_spark_pause_digits)
+        set_spark_digits("spark_ball_reverse_digits", t("hack_dialog.setting.spark_ball_reverse", "強化スパークボール反転"), self.chk_spark_reverse_digits, self._selected_spark_reverse_digits)
         set_combo("spark_ball_transparency_period", self.combo_spark_transparency, t("hack_dialog.setting.spark_ball_transparency", "強化スパークボール透明化"))
         set_check("demonhead_snappy", self.chk_demonhead_snappy, t("hack_dialog.setting.demonhead_snappy", "デーモンヘッド キビキビ"))
         if has("clear_screen_preset") and self.combo_clearscreen.isEnabled():
@@ -2625,6 +2661,7 @@ class HackDialog(QDialog):
                 sbvch = spark_ball_variant.apply(
                     d,
                     pause_digits=selected_digits,
+                    reverse_digits=self._selected_spark_reverse_digits(),
                     transparency_period=self.combo_spark_transparency.currentData(),
                 )
                 if sbvch:
@@ -2809,6 +2846,9 @@ class HackDialog(QDialog):
             defaults = set(spark_ball_variant.DEFAULT_PAUSE_DIGITS)
             for digit, chk in enumerate(self.chk_spark_pause_digits):
                 chk.setChecked(digit in defaults)
+            reverse_defaults = set(spark_ball_variant.DEFAULT_REVERSE_DIGITS)
+            for digit, chk in enumerate(self.chk_spark_reverse_digits):
+                chk.setChecked(digit in reverse_defaults)
             self._set_combo_data(
                 self.combo_spark_transparency,
                 spark_ball_variant.DEFAULT_TRANSPARENCY_PERIOD,

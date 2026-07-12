@@ -186,7 +186,6 @@ ENEMIES_LIST = [
     (0x80, "Red Burn"),
     (0x81, "Blue Burn"),
     (0x82, "Ice Burn"),
-    (0x85, "Spark85"),
     (0x86, "Bomber Ghost"),
     (0x87, "Cannon Ghost"),
     (0x88, "Neul Twin Cannon"),
@@ -196,10 +195,15 @@ ENEMIES_LIST = [
     (0x8C, "Phantom Bullet"),
     (0x9C, "Dark Fairy"),
     (0x9D, "熾天の眩光 / Seraphic Radiance"),
+    *((
+        code,
+        f"Spark Ball {('pause', 'transparent', 'pause+reverse')[(code - 0xC0) // 8]} "
+        f"({('right', 'left', 'up', 'down')[code & 3]}, "
+        f"speed {1 + ((code - 0xC0) // 4) % 2})",
+    ) for code in range(0xC0, 0xD8)),
 ]
 
 DEVELOPER_ONLY_PICKER_ITEMS = {
-    (MODE_ENEMY, 0x85),  # Runtime exists, but placement is not public yet.
     (MODE_ENEMY, 0x86),
     (MODE_ENEMY, 0x87),
     (MODE_ENEMY, 0x88),
@@ -209,6 +213,7 @@ DEVELOPER_ONLY_PICKER_ITEMS = {
     (MODE_ENEMY, 0x8C),
     (MODE_ENEMY, 0x9C),
     (MODE_ENEMY, 0x9D),
+    *((MODE_ENEMY, code) for code in range(0xC0, 0xD8)),
 }
 
 
@@ -325,7 +330,10 @@ PANEL_VARIANT_VISUAL_SOURCE = {
 
 ENEMY_VISUAL_SOURCE = {
     **PANEL_VARIANT_VISUAL_SOURCE,
-    0x85: 0x2a,  # Spark85 uses the stock Spark Ball visual.
+    **{
+        code: (0x2C if (code & 0x04) else 0x28) + (code & 0x03)
+        for code in range(0xC0, 0xD8)
+    },
     0x86: 0x34,  # Bomber Ghost uses the stock Ghost right visual.
     0x87: 0x34,  # Cannon Ghost uses the stock Ghost right visual.
     0x88: 0x30,  # Neul Twin Cannon uses the stock Neul up visual.

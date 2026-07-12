@@ -354,7 +354,32 @@
     <enemy no="0x9c" description="Dark Fairy" animation="110" />
     <enemy no="0x9d" description="Seraphic Radiance" animation="96" />
 
-    <!-- 0x8D-0x9B and 0x9E and up are undefined in the current custom runtime. -->
+    <enemy no="0xc0" description="Spark Ball pause (right, speed 1)" animation="44" />
+    <enemy no="0xc1" description="Spark Ball pause (left, speed 1)" animation="44" />
+    <enemy no="0xc2" description="Spark Ball pause (up, speed 1)" animation="44" />
+    <enemy no="0xc3" description="Spark Ball pause (down, speed 1)" animation="44" />
+    <enemy no="0xc4" description="Spark Ball pause (right, speed 2)" animation="44" />
+    <enemy no="0xc5" description="Spark Ball pause (left, speed 2)" animation="44" />
+    <enemy no="0xc6" description="Spark Ball pause (up, speed 2)" animation="44" />
+    <enemy no="0xc7" description="Spark Ball pause (down, speed 2)" animation="44" />
+    <enemy no="0xc8" description="Spark Ball transparent (right, speed 1)" animation="44" />
+    <enemy no="0xc9" description="Spark Ball transparent (left, speed 1)" animation="44" />
+    <enemy no="0xca" description="Spark Ball transparent (up, speed 1)" animation="44" />
+    <enemy no="0xcb" description="Spark Ball transparent (down, speed 1)" animation="44" />
+    <enemy no="0xcc" description="Spark Ball transparent (right, speed 2)" animation="44" />
+    <enemy no="0xcd" description="Spark Ball transparent (left, speed 2)" animation="44" />
+    <enemy no="0xce" description="Spark Ball transparent (up, speed 2)" animation="44" />
+    <enemy no="0xcf" description="Spark Ball transparent (down, speed 2)" animation="44" />
+    <enemy no="0xd0" description="Spark Ball pause and reverse (right, speed 1)" animation="44" />
+    <enemy no="0xd1" description="Spark Ball pause and reverse (left, speed 1)" animation="44" />
+    <enemy no="0xd2" description="Spark Ball pause and reverse (up, speed 1)" animation="44" />
+    <enemy no="0xd3" description="Spark Ball pause and reverse (down, speed 1)" animation="44" />
+    <enemy no="0xd4" description="Spark Ball pause and reverse (right, speed 2)" animation="44" />
+    <enemy no="0xd5" description="Spark Ball pause and reverse (left, speed 2)" animation="44" />
+    <enemy no="0xd6" description="Spark Ball pause and reverse (up, speed 2)" animation="44" />
+    <enemy no="0xd7" description="Spark Ball pause and reverse (down, speed 2)" animation="44" />
+
+    <!-- 0x8D-0x9B and 0x9E-0xBF and 0xD8-0xFF are undefined. -->
   </enemy_definitions>
 
   <enemy_editor>
