@@ -29,16 +29,18 @@ FAIRY9C_ID = _fairy9c.NEW_ENEMY_ID
 RADIANCE9D_ID = _radiance9d.NEW_ENEMY_ID
 
 OLD_GHOST86_OFF_RUNTIME = 0x6D88
+LEGACY_ICE_AI_DISPATCH = 0xE9C1
+LEGACY_ICE_SETUP_META_LOAD = 0xE9C4
 
 OFF_AI_ENTRY = 0x3BF2      # CPU $BBE2
-OFF_SETUP_ENTRY = 0x3C52   # CPU $BC42
-OFF_INIT_ENTRY = 0x3CA1    # CPU $BC91
-OFF_ANIM_ENTRY = 0x3CF6    # CPU $BCE6
+OFF_SETUP_ENTRY = 0x3C4A   # CPU $BC3A
+OFF_INIT_ENTRY = 0x3C99    # CPU $BC89
+OFF_ANIM_ENTRY = 0x3CEE    # CPU $BCDE
 
 CPU_AI_ENTRY = 0xBBE2
-CPU_SETUP_ENTRY = 0xBC42
-CPU_INIT_ENTRY = 0xBC91
-CPU_ANIM_ENTRY = 0xBCE6
+CPU_SETUP_ENTRY = 0xBC3A
+CPU_INIT_ENTRY = 0xBC89
+CPU_ANIM_ENTRY = 0xBCDE
 
 OLD_AI_ENTRY_RUNTIME = bytes.fromhex(
     "48"
@@ -49,14 +51,13 @@ OLD_AI_ENTRY_RUNTIME = bytes.fromhex(
     "68"
     "4c 29 a3"
     "68"
-    f"4c {_ice.CPU_AI_DISPATCH & 0xFF:02x} {_ice.CPU_AI_DISPATCH >> 8:02x}"
+    f"4c {LEGACY_ICE_AI_DISPATCH & 0xFF:02x} {LEGACY_ICE_AI_DISPATCH >> 8:02x}"
 )
 
 def _build_ai_entry_runtime() -> bytes:
     data = bytearray((0x48, 0x18, 0x69, 0x14))
     fixups: list[tuple[int, int]] = []
     targets = (
-        (ICE_FLAME_ID, _ice.CPU_AI_DISPATCH),
         (SPARK85_ID, _spark85.CPU_AI_DISPATCH),
         (GHOST86_ID, _ghost86.CPU_AI_DISPATCH),
         (0x87, _ghost86.CPU_AI_DISPATCH_DOWN),
@@ -100,7 +101,7 @@ PRE_PACKED_GHOST_AI_ENTRY_RUNTIME = bytes.fromhex(
     "68"
     "4c 29 a3"
     "68"
-    f"4c {_ice.CPU_AI_DISPATCH & 0xFF:02x} {_ice.CPU_AI_DISPATCH >> 8:02x}"
+    f"4c {LEGACY_ICE_AI_DISPATCH & 0xFF:02x} {LEGACY_ICE_AI_DISPATCH >> 8:02x}"
     "68"
     f"4c {_spark85.CPU_AI_DISPATCH & 0xFF:02x} {_spark85.CPU_AI_DISPATCH >> 8:02x}"
     "68"
@@ -117,7 +118,7 @@ OLD_SETUP_ENTRY_RUNTIME = bytes.fromhex(
     "a4 0e"
     "b9 d3 d9"
     "60"
-    f"4c {_ice.CPU_SETUP_META_LOAD & 0xFF:02x} {_ice.CPU_SETUP_META_LOAD >> 8:02x}"
+    f"4c {LEGACY_ICE_SETUP_META_LOAD & 0xFF:02x} {LEGACY_ICE_SETUP_META_LOAD >> 8:02x}"
 )
 
 class _EntryAsm:
@@ -154,7 +155,7 @@ class _EntryAsm:
 def _build_setup_entry_runtime() -> bytes:
     a = _EntryAsm()
     a.b(0xA0, 0x01, 0xB1, 0x08)         # LDA ($08),Y -> main-slot type
-    a.b(0xC9, ICE_FLAME_ID)
+    a.b(0xC9, SPARK85_ID)
     a.branch(0x90, "stock")
     a.b(0xC9, NEUL88_ID)
     a.branch(0xF0, "neul88")
@@ -402,7 +403,7 @@ RESERVED_SPANS = (
     *_radiance9d.RESERVED_SPANS,
 )
 
-assert len(AI_ENTRY_RUNTIME) == 96
+assert len(AI_ENTRY_RUNTIME) == 88
 assert len(PRE_PACKED_GHOST_AI_ENTRY_RUNTIME) == 40
 assert len(SETUP_ENTRY_RUNTIME) == 79
 assert len(PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME) == 32
@@ -603,7 +604,7 @@ def apply(rom_data: bytearray) -> list[str]:
         _ice.OFF_RUNTIME,
         _ice.RUNTIME,
         changed,
-        f"Ice Flame runtime ${_ice.CPU_AI_DISPATCH:04X}-${_ice.CPU_RUNTIME_END - 1:04X}",
+        f"Ice Burn runtime ${_ice.CPU_INIT_STATUS:04X}-${_ice.CPU_RUNTIME_END - 1:04X}",
     )
     _write(
         rom_data,

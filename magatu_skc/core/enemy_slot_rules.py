@@ -1,6 +1,7 @@
 """Rules for stage extension enemy-number selections."""
 
 FLAME_ENEMY_CODES = frozenset((0x80, 0x81, 0x82, 0x83))
+ICE_BURN_CODE = 0x82
 
 FAIRY_FALL_DEATH_ENEMY_CODES = frozenset((
     0x68, 0x69, 0x6C, 0x6D,  # Dragon
@@ -18,7 +19,8 @@ def enemy_code_at(level, enemy_number: int):
 
 
 def can_key_enemy_code(enemy_code: int) -> bool:
-    return (int(enemy_code) & 0xFF) not in FLAME_ENEMY_CODES
+    enemy_code = int(enemy_code) & 0xFF
+    return enemy_code == ICE_BURN_CODE or enemy_code not in FLAME_ENEMY_CODES
 
 
 def can_fairy_enemy_code(enemy_code: int) -> bool:

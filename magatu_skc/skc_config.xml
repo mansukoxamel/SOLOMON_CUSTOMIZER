@@ -342,9 +342,8 @@
 
     <enemy no="0x80" description="Red Burn" animation="48" />
     <enemy no="0x81" description="Blue Burn" animation="47" />
-    <enemy no="0x82" description="Red Burn #2" animation="48" />
     <enemy no="0x83" description="Blue Burn #2" animation="47" />
-    <enemy no="0x84" description="Ice Burn" animation="105" />
+    <enemy no="0x82" description="Ice Burn" animation="105" />
     <enemy no="0x86" description="Bomber Ghost" animation="63" />
     <enemy no="0x87" description="Cannon Ghost" animation="63" />
     <enemy no="0x88" description="Neul Twin Cannon" animation="43" />

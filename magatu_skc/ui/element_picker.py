@@ -185,7 +185,7 @@ ENEMIES_LIST = [
     # Burn family
     (0x80, "Red Burn"),
     (0x81, "Blue Burn"),
-    (0x84, "Ice Burn"),
+    (0x82, "Ice Burn"),
     (0x85, "Spark85"),
     (0x86, "Bomber Ghost"),
     (0x87, "Cannon Ghost"),
