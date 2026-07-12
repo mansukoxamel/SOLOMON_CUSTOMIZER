@@ -265,12 +265,8 @@ def _build_fall_key_compare() -> bytes:
 
 def _build_flame_key_handler() -> bytes:
     return bytes.fromhex(
-        # Only Red Burn $80 uses the key-drop path. Other Flame IDs keep the
-        # original despawn behavior even if they reach this shared AI exit.
-        "a0 01"
-        "b1 2e"
-        "c9 80"
-        "d0 0d"
+        # Only Red Burn $80 reaches the hooked Flame state-0 despawn exit.
+        # Ignore the unset key-slot sentinel before using the slot table.
         "ae 2a 07"
         "30 08"
         "20 11 e2"
@@ -309,7 +305,7 @@ RESERVED_SPANS = (
 assert OFF_KEY_ENEMY_FREE == OFF_FALL_KEY_COMPARE + len(FALL_KEY_COMPARE)
 assert KEY_ENEMY_FREE_LEN == 24
 assert OFF_FLAME_KEY_HANDLER == OFF_KEY_ENEMY_FREE
-assert len(FLAME_KEY_HANDLER) == 24
+assert len(FLAME_KEY_HANDLER) == 16
 assert len(FLAME_KEY_HANDLER) <= KEY_ENEMY_FREE_LEN
 
 
