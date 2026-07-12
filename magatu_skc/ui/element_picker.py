@@ -360,6 +360,12 @@ ENEMY_PICKER_PALETTE_OVERRIDE = {
     0x8C: 6,  # Phantom Bullet is shown with SPR #2 palette.
 }
 
+SPARK24_PICKER_OVERLAY_COLORS = {
+    **{code: (245, 220, 80, 80) for code in range(0xC0, 0xC8)},
+    **{code: (55, 135, 255, 115) for code in range(0xC8, 0xD0)},
+    **{code: (145, 230, 160, 80) for code in range(0xD0, 0xD8)},
+}
+
 
 def apply_enemy_speed(base_code: int, speed: int) -> int:
     """sp1 ベースコードに speed (1/2/3) を適用して実コードを返す。
@@ -1766,7 +1772,9 @@ class ElementPicker(QWidget):
                 transparent_background=True,
                 tile_transparent=True,
             )
-        overlay = (245, 220, 80, 80) if enemy_no in ENHANCED_ENEMY_CODES else None
+        overlay = SPARK24_PICKER_OVERLAY_COLORS.get(enemy_no)
+        if overlay is None and enemy_no in ENHANCED_ENEMY_CODES:
+            overlay = (245, 220, 80, 80)
         return self._make_icon_from_tile(
             anim,
             overlay_color=overlay,
