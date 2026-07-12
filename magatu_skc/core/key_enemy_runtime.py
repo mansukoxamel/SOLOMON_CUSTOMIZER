@@ -47,6 +47,7 @@ OFF_HOOK_DOOR_LIGHT_POS = _cf(0xC3A8)
 OFF_HOOK_ITEM_TILE_READ = _cf(0xC54E)
 OFF_HOOK_KEY_HANDLER = _cf(0xC663)
 OFF_HOOK_FALL_FAIRY = _cf(0xAF06)
+OFF_HOOK_FLAME_DESPAWN = _cf(0xA5CB)
 
 CPU_ENEMY_INIT = 0xE0FE
 CPU_ENEMY_STATUS = 0xE118
@@ -63,6 +64,7 @@ CPU_ITEM_TILE_READ = 0xE19E
 CPU_KEY_HANDLER = 0xE1A5
 CPU_FALL_KEY_HANDLER = 0xE1FB
 CPU_FALL_KEY_COMPARE = 0xE211
+CPU_FLAME_KEY_HANDLER = 0xE21C
 OFF_KEY_ENEMY_FREE = _cf(0xE21C)
 KEY_ENEMY_FREE_LEN = 24
 
@@ -81,6 +83,7 @@ OFF_KEY_HANDLER = _cf(CPU_KEY_HANDLER)
 OFF_FALL_KEY_HANDLER = _cf(CPU_FALL_KEY_HANDLER)
 OFF_ENEMY_STATUS_VALUE = _cf(CPU_ENEMY_STATUS_VALUE)
 OFF_FALL_KEY_COMPARE = _cf(CPU_FALL_KEY_COMPARE)
+OFF_FLAME_KEY_HANDLER = _cf(CPU_FLAME_KEY_HANDLER)
 
 ORIG_M66_LOADER_TAIL = stage_ext.ORIG_M66_LOADER_TAIL
 HOOK_M66_LOADER_TAIL = stage_ext.HOOK_M66_LOADER_TAIL
@@ -105,6 +108,9 @@ HOOK_KEY_HANDLER = bytes((0x20, CPU_KEY_HANDLER & 0xFF, CPU_KEY_HANDLER >> 8, 0x
 
 ORIG_FALL_FAIRY = bytes.fromhex("a0 03 b9")
 HOOK_FALL_FAIRY = bytes((0x4C, CPU_FALL_KEY_HANDLER & 0xFF, CPU_FALL_KEY_HANDLER >> 8))
+
+ORIG_FLAME_DESPAWN = bytes.fromhex("4c 76 b3")
+HOOK_FLAME_DESPAWN = bytes((0x4C, CPU_FLAME_KEY_HANDLER & 0xFF, CPU_FLAME_KEY_HANDLER >> 8))
 
 
 def _build_enemy_init() -> bytes:
@@ -257,6 +263,23 @@ def _build_fall_key_compare() -> bytes:
     )
 
 
+def _build_flame_key_handler() -> bytes:
+    return bytes.fromhex(
+        # Only Red Burn $80 uses the key-drop path. Other Flame IDs keep the
+        # original despawn behavior even if they reach this shared AI exit.
+        "a0 01"
+        "b1 2e"
+        "c9 80"
+        "d0 0d"
+        "ae 2a 07"
+        "30 08"
+        "20 11 e2"
+        "d0 03"
+        "20 30 e1"
+        "4c 76 b3"
+    )
+
+
 PRG1_STAGE_EXT_COPY = stage_ext.RUNTIME_LOADER
 ENEMY_INIT = _build_enemy_init()
 ENEMY_STATUS = _build_enemy_status()
@@ -268,6 +291,7 @@ ITEM_TILE_READ = _build_item_tile_read()
 KEY_HANDLER = _build_key_handler()
 FALL_KEY_HANDLER = _build_fall_key_handler()
 FALL_KEY_COMPARE = _build_fall_key_compare()
+FLAME_KEY_HANDLER = _build_flame_key_handler()
 
 RESERVED_SPANS = (
     (OFF_ENEMY_INIT, len(ENEMY_INIT)),
@@ -279,10 +303,14 @@ RESERVED_SPANS = (
     (OFF_KEY_HANDLER, len(KEY_HANDLER)),
     (OFF_FALL_KEY_HANDLER, len(FALL_KEY_HANDLER)),
     (OFF_FALL_KEY_COMPARE, len(FALL_KEY_COMPARE)),
+    (OFF_FLAME_KEY_HANDLER, len(FLAME_KEY_HANDLER)),
 )
 
 assert OFF_KEY_ENEMY_FREE == OFF_FALL_KEY_COMPARE + len(FALL_KEY_COMPARE)
 assert KEY_ENEMY_FREE_LEN == 24
+assert OFF_FLAME_KEY_HANDLER == OFF_KEY_ENEMY_FREE
+assert len(FLAME_KEY_HANDLER) == 24
+assert len(FLAME_KEY_HANDLER) <= KEY_ENEMY_FREE_LEN
 
 
 def _expect(rom_data, off: int, orig: bytes, hook: bytes, name: str, extra: tuple[bytes, ...] = ()) -> None:
@@ -314,7 +342,7 @@ def _ensure_available(rom_data, off: int, blob: bytes, name: str) -> None:
 
 
 def apply(rom_data) -> list[str]:
-    if rom_data is None or len(rom_data) < OFF_KEY_HANDLER + len(KEY_HANDLER):
+    if rom_data is None or len(rom_data) < OFF_FLAME_KEY_HANDLER + len(FLAME_KEY_HANDLER):
         raise KeyEnemyRuntimeError("ROM is too short for key enemy runtime patch.")
 
     _expect(rom_data, OFF_M66_LOADER_TAIL, ORIG_M66_LOADER_TAIL, HOOK_M66_LOADER_TAIL, "mapper66 loader tail")
@@ -325,6 +353,7 @@ def apply(rom_data) -> list[str]:
     _expect(rom_data, OFF_HOOK_ITEM_TILE_READ, ORIG_ITEM_TILE_READ, HOOK_ITEM_TILE_READ, "$C54E item tile read")
     _expect(rom_data, OFF_HOOK_KEY_HANDLER, ORIG_KEY_HANDLER, HOOK_KEY_HANDLER, "$C663 key handler")
     _expect(rom_data, OFF_HOOK_FALL_FAIRY, ORIG_FALL_FAIRY, HOOK_FALL_FAIRY, "$AF06 fall fairy")
+    _expect(rom_data, OFF_HOOK_FLAME_DESPAWN, ORIG_FLAME_DESPAWN, HOOK_FLAME_DESPAWN, "$A5CB Flame despawn")
     changed: list[str] = []
     for off, blob, name in (
         (OFF_PRG1_STAGE_EXT_COPY, PRG1_STAGE_EXT_COPY, "key enemy StageExt loader"),
@@ -337,6 +366,7 @@ def apply(rom_data) -> list[str]:
         (OFF_KEY_HANDLER, KEY_HANDLER, "key enemy dropped-key handler"),
         (OFF_FALL_KEY_HANDLER, FALL_KEY_HANDLER, "key enemy fall-death handler"),
         (OFF_FALL_KEY_COMPARE, FALL_KEY_COMPARE, "key enemy fall-slot compare helper"),
+        (OFF_FLAME_KEY_HANDLER, FLAME_KEY_HANDLER, "Red Burn key-drop handler"),
     ):
         _ensure_available(rom_data, off, blob, name)
 
@@ -351,6 +381,7 @@ def apply(rom_data) -> list[str]:
     _write(rom_data, OFF_KEY_HANDLER, KEY_HANDLER, changed, "key enemy dropped-key handler")
     _write(rom_data, OFF_FALL_KEY_HANDLER, FALL_KEY_HANDLER, changed, "key enemy fall-death handler")
     _write(rom_data, OFF_FALL_KEY_COMPARE, FALL_KEY_COMPARE, changed, "key enemy fall-slot compare helper")
+    _write(rom_data, OFF_FLAME_KEY_HANDLER, FLAME_KEY_HANDLER, changed, "Red Burn key-drop handler")
     _write(rom_data, OFF_M66_LOADER_TAIL, HOOK_M66_LOADER_TAIL, changed, "mapper66 loader key hook")
     _write(rom_data, OFF_HOOK_ENEMY_INIT, HOOK_ENEMY_INIT, changed, "$95C5 key enemy init hook")
     _write(rom_data, OFF_HOOK_ENEMY_STATUS, HOOK_ENEMY_STATUS, changed, "$95CA key enemy status hook")
@@ -359,4 +390,5 @@ def apply(rom_data) -> list[str]:
     _write(rom_data, OFF_HOOK_ITEM_TILE_READ, HOOK_ITEM_TILE_READ, changed, "$C54E key enemy pickup hook")
     _write(rom_data, OFF_HOOK_KEY_HANDLER, HOOK_KEY_HANDLER, changed, "$C663 key enemy handler hook")
     _write(rom_data, OFF_HOOK_FALL_FAIRY, HOOK_FALL_FAIRY, changed, "$AF06 key enemy fall hook")
+    _write(rom_data, OFF_HOOK_FLAME_DESPAWN, HOOK_FLAME_DESPAWN, changed, "$A5CB Red Burn key hook")
     return changed
