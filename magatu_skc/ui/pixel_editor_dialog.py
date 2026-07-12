@@ -269,7 +269,7 @@ class PixelEditorDialog(QDialog):
         16: "Neul s2", 17: "Ghost s2", 18: "Neul s3", 19: "Ghost s3",
         20: "Demonhead s0", 21: "Demonhead s1", 22: "Demonhead s2",
         23: "Saramandor s0", 24: "Saramandor s1", 25: "Saramandor s2",
-        26: "Dragon s0", 27: "Dragon s1", 28: "Golem s0", 29: "Golem s1",
+        26: "Dragon s0", 27: "Dragon s1", 28: "Goblin s0", 29: "Goblin s1",
         30: "Gargoyle s0", 31: "Gargoyle s1",
     }
 

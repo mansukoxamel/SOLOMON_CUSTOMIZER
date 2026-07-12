@@ -97,8 +97,8 @@ ROW_USERS = {
     0x20: "Demonhead s1・s2",
     0x28: "Demonhead s3 / Saramandor s1・s2",
     0x30: "Saramandor s3 / Dragon s1",
-    0x38: "Dragon s2 / Golem s1",
-    0x40: "Golem s2 / Gargoyle s1",
+    0x38: "Dragon s2 / Goblin s1",
+    0x40: "Goblin s2 / Gargoyle s1",
     0x48: "Panel Monster",
 }
 

@@ -322,12 +322,12 @@
     <enemy no="0x6e" description="Spark Ball pause (up phase, speed 2)" animation="44" />
     <enemy no="0x6f" description="Spark Ball pause (down phase, speed 2)" animation="44" />
 
-    <enemy no="0x70" description="Golem (right, speed 1)" animation="65" />
-    <enemy no="0x71" description="Golem (left, speed 1)" animation="40" />
+    <enemy no="0x70" description="Goblin (right, speed 1)" animation="65" />
+    <enemy no="0x71" description="Goblin (left, speed 1)" animation="40" />
     <enemy no="0x72" description="Spark Ball invisible (up phase, speed 1)" animation="44" />
     <enemy no="0x73" description="Spark Ball invisible (down phase, speed 1)" animation="44" />
-    <enemy no="0x74" description="Golem (right, speed 2)" animation="65" />
-    <enemy no="0x75" description="Golem (left, speed 2)" animation="40" />
+    <enemy no="0x74" description="Goblin (right, speed 2)" animation="65" />
+    <enemy no="0x75" description="Goblin (left, speed 2)" animation="40" />
     <enemy no="0x76" description="Spark Ball invisible (up phase, speed 2)" animation="44" />
     <enemy no="0x77" description="Spark Ball invisible (down phase, speed 2)" animation="44" />
 
@@ -340,11 +340,11 @@
     <enemy no="0x7e" description="Enhanced Gargoyle B (right)" animation="66" />
     <enemy no="0x7f" description="Enhanced Gargoyle B (left)" animation="46" />
 
-    <enemy no="0x80" description="Red Flame" animation="48" />
-    <enemy no="0x81" description="White Flame" animation="47" />
-    <enemy no="0x82" description="Red Flame #2" animation="48" />
-    <enemy no="0x83" description="White Flame #2" animation="47" />
-    <enemy no="0x84" description="Ice Flame" animation="105" />
+    <enemy no="0x80" description="Red Burn" animation="48" />
+    <enemy no="0x81" description="Blue Burn" animation="47" />
+    <enemy no="0x82" description="Red Burn #2" animation="48" />
+    <enemy no="0x83" description="Blue Burn #2" animation="47" />
+    <enemy no="0x84" description="Ice Burn" animation="105" />
     <enemy no="0x86" description="Bomber Ghost" animation="63" />
     <enemy no="0x87" description="Cannon Ghost" animation="63" />
     <enemy no="0x88" description="Neul Twin Cannon" animation="43" />

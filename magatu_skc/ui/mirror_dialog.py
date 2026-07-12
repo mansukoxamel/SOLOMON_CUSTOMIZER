@@ -339,7 +339,7 @@ class MirrorScheduleOverviewDialog(QDialog):
 
     COLUMNS = (
         ("mirror_overview.column.level", "Lv", 38),
-        ("mirror_overview.column.ttl", "TTL", 48),
+        ("mirror_overview.column.ttl", "Enemy Lifetime", 118),
         ("mirror_overview.column.m1_pos", "M1位置", 64),
         ("mirror_overview.column.m1_enemy", "M1敵", 230),
         ("mirror_overview.column.m1_count", "M1数", 48),
@@ -416,10 +416,19 @@ class MirrorScheduleOverviewDialog(QDialog):
         self.table.setItem(row, col, item)
         return item
 
+    def _lifetime_text(self, value: int) -> str:
+        seconds = int(value) * 0.5
+        seconds_text = str(int(seconds)) if seconds.is_integer() else f"{seconds:.1f}"
+        return t(
+            "mirror_overview.lifetime.value",
+            "{value} (~{seconds}s)",
+        ).format(value=value, seconds=seconds_text)
+
     def _populate(self):
         for row, level in enumerate(self.levels):
             self._set_item(row, 0, str(row + 1), Qt.AlignCenter)
-            self._set_item(row, 1, str(getattr(level, "spawn_enemy_lifetime", 0)), Qt.AlignCenter)
+            lifetime = int(getattr(level, "spawn_enemy_lifetime", 0))
+            self._set_item(row, 1, self._lifetime_text(lifetime), Qt.AlignCenter)
 
             for mirror_no in range(2):
                 base_col = 2 if mirror_no == 0 else 7

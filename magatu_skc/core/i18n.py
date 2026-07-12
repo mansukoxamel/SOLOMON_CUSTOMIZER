@@ -607,12 +607,12 @@ _TRANSLATIONS = {
         "en": "Saramandor s3 / Dragon s1",
     },
     "enemy_drop.users.dragon2_golem1": {
-        "ja": "Dragon s2 / Golem s1",
-        "en": "Dragon s2 / Golem s1",
+        "ja": "Dragon s2 / Goblin s1",
+        "en": "Dragon s2 / Goblin s1",
     },
     "enemy_drop.users.golem2_gargoyle1": {
-        "ja": "Golem s2 / Gargoyle s1",
-        "en": "Golem s2 / Gargoyle s1",
+        "ja": "Goblin s2 / Gargoyle s1",
+        "en": "Goblin s2 / Gargoyle s1",
     },
     "enemy_drop.users.panel_monster": {
         "ja": "Panel Monster",
@@ -1307,7 +1307,7 @@ _TRANSLATIONS = {
     "main.status.solomon_seal_door_overlap": {"ja": "ソロモンの封印は扉には重ねられません {tile}", "en": "Solomon's Seal cannot overlap the door {tile}"},
     "main.status.actor_block_overlap": {"ja": "主人公・敵とブロックは同じ位置にできません {tile}", "en": "Dana/enemies and blocks cannot share the same position {tile}"},
     "main.status.block_absorb_rejected": {"ja": "このブロックとはアイテム/鍵/扉を重ねられません {tile}", "en": "Items/keys/doors cannot overlap this block {tile}"},
-    "main.status.mirror_real_block_warning": {"ja": "警告: ミラー上の実体ブロック配置はドラゴン/ガーゴイル/ゴーレムが落下して死にます", "en": "Warning: placing a solid block on a mirror makes dragons/gargoyles/golems fall and die."},
+    "main.status.mirror_real_block_warning": {"ja": "警告: ミラー上の実体ブロック配置はドラゴン/ガーゴイル/ゴブリンが落下して死にます", "en": "Warning: placing a solid block on a mirror makes dragons/gargoyles/goblins fall and die."},
     "main.status.selection_moving": {"ja": "選択範囲を移動中…", "en": "Moving selection..."},
     "main.status.drag_grab_with_block": {"ja": "{name} + ブロックを掴み中 → ドラッグで移動", "en": "Grabbed {name} + block -> drag to move"},
     "main.status.drag_item": {"ja": "アイテムを掴み中 → ドラッグで移動", "en": "Grabbed item -> drag to move"},
@@ -2486,8 +2486,8 @@ _TRANSLATIONS = {
         "en": "The selected fairy enemy number cannot be used in this stage, so it was cleared.",
     },
     "main.fairy_enemy.tooltip": {
-        "ja": "0=なし。Dragon/Golem/Gargoyle系のみ。Flame系と鍵持ち敵と同じ番号は指定できません。",
-        "en": "0 = none. Dragon/Golem/Gargoyle types only. Flame-type enemies and the key enemy cannot use the same number.",
+        "ja": "0=なし。Dragon/Goblin/Gargoyle系のみ。Flame系と鍵持ち敵と同じ番号は指定できません。",
+        "en": "0 = none. Dragon/Goblin/Gargoyle types only. Flame-type enemies and the key enemy cannot use the same number.",
     },
     "main.time_decrease.stopped": {"ja": "停止", "en": "Stopped"},
     "main.time_decrease.seconds": {"ja": "{seconds}秒", "en": "{seconds} sec"},
@@ -3288,16 +3288,16 @@ _TRANSLATIONS = {
         "ja": "判定: {region} / 原作の既定は3面。3面以上のみ(内部のX連鎖制約)。録画入力は3面用なので別面ではDanaが録画通り動く=見た目で別面と分かる。正規プレイには影響なし。",
         "en": "Detected: {region} / Original default is stage 3. Stage 3 or later only, due to internal X-chain constraints. The recorded input is for stage 3, so on other stages Dana still follows that input and the demo visibly differs. Normal play is unaffected.",
     },
-    "hack_dialog.group.golem": {"ja": "ゴーレム", "en": "Golem"},
+    "hack_dialog.group.golem": {"ja": "ゴブリン", "en": "Goblin"},
     "hack_dialog.golem.snappy": {
         "ja": "キビキビ動作（視認後復帰・方向転換の待ちを最小化）",
         "en": "Snappy behavior (minimize post-detection recovery and turn-around waits)",
     },
-    "hack_dialog.group.shared_walk": {"ja": "ゴーレム/ドラゴン/ガーゴイル移動速度", "en": "Golem / Dragon / Gargoyle Move Speed"},
+    "hack_dialog.group.shared_walk": {"ja": "ゴブリン/ドラゴン/ガーゴイル移動速度", "en": "Goblin / Dragon / Gargoyle Move Speed"},
     "hack_dialog.shared_walk.label": {"ja": "移動速度:", "en": "Move speed:"},
     "hack_dialog.shared_walk.hint": {
-        "ja": "Golem/Dragon/Gargoyle の移動速度が同じ倍率で変わります。",
-        "en": "Golem, Dragon, and Gargoyle movement speeds change by the same multiplier.",
+        "ja": "Goblin/Dragon/Gargoyle の移動速度が同じ倍率で変わります。",
+        "en": "Goblin, Dragon, and Gargoyle movement speeds change by the same multiplier.",
     },
     "hack_dialog.group.neul_ghost_speed": {"ja": "ゴースト＆ヌエル移動速度", "en": "Ghost & Neul Move Speed"},
     "hack_dialog.move_speed.label": {"ja": "移動速度:", "en": "Move speed:"},
@@ -3424,7 +3424,7 @@ _TRANSLATIONS = {
     "hack_dialog.setting.panel_bullet_speed": {"ja": "パネルモンスター 弾速度", "en": "Panel Monster bullet speed"},
     "hack_dialog.setting.panel_variant": {"ja": "パネルモンスター A/B/C共通値", "en": "Panel Monster A/B/C shared values"},
     "hack_dialog.setting.demo_stage": {"ja": "デモステージ", "en": "Demo stage"},
-    "hack_dialog.setting.golem_snappy": {"ja": "ゴーレム キビキビ", "en": "Golem snappy behavior"},
+    "hack_dialog.setting.golem_snappy": {"ja": "ゴブリン キビキビ", "en": "Goblin snappy behavior"},
     "hack_dialog.setting.gargoyle_snappy": {"ja": "ガーゴイル キビキビ", "en": "Gargoyle snappy behavior"},
     "hack_dialog.setting.gargoyle_cooldown": {"ja": "ガーゴイル クールダウン", "en": "Gargoyle cooldown"},
     "hack_dialog.setting.gargoyle_variant": {"ja": "強化ガーゴイル", "en": "Enhanced Gargoyle"},
@@ -3467,7 +3467,7 @@ _TRANSLATIONS = {
     "hack_dialog.applied.walk_speed": {"ja": "歩行速度 → {mult:g}x ({changes})", "en": "Walk speed -> {mult:g}x ({changes})"},
     "hack_dialog.applied.panel_monster": {"ja": "パネルモンスター: {changes}", "en": "Panel Monster: {changes}"},
     "hack_dialog.applied.demo_stage": {"ja": "デモプレイ: {changes}", "en": "Demo play: {changes}"},
-    "hack_dialog.applied.golem": {"ja": "ゴーレム: {changes}", "en": "Golem: {changes}"},
+    "hack_dialog.applied.golem": {"ja": "ゴブリン: {changes}", "en": "Goblin: {changes}"},
     "hack_dialog.applied.gargoyle": {"ja": "ガーゴイル: {changes}", "en": "Gargoyle: {changes}"},
     "hack_dialog.applied.gargoyle_variant": {"ja": "強化ガーゴイル: {changes}", "en": "Enhanced Gargoyle: {changes}"},
     "hack_dialog.applied.dragon": {"ja": "ドラゴン: {changes}", "en": "Dragon: {changes}"},
@@ -3491,7 +3491,7 @@ _TRANSLATIONS = {
     "hack_dialog.error.panel_monster": {"ja": "パネルモンスター改造失敗", "en": "Panel Monster Tweak Failed"},
     "hack_dialog.error.panel_bullet_speed": {"ja": "パネルモンスター弾速度修正失敗", "en": "Panel Monster Bullet Speed Fix Failed"},
     "hack_dialog.error.demo_stage": {"ja": "デモステージ改造失敗", "en": "Demo Stage Tweak Failed"},
-    "hack_dialog.error.golem": {"ja": "ゴーレム改造失敗", "en": "Golem Tweak Failed"},
+    "hack_dialog.error.golem": {"ja": "ゴブリン改造失敗", "en": "Goblin Tweak Failed"},
     "hack_dialog.error.gargoyle": {"ja": "ガーゴイル改造失敗", "en": "Gargoyle Tweak Failed"},
     "hack_dialog.error.gargoyle_variant": {"ja": "強化ガーゴイル設定失敗", "en": "Enhanced Gargoyle Setting Failed"},
     "hack_dialog.error.dragon": {"ja": "ドラゴン改造失敗", "en": "Dragon Tweak Failed"},
@@ -3707,7 +3707,7 @@ _TRANSLATIONS = {
             "X=出現、.=なし、-=ゲーム側で無視される先頭tick。"
         ),
         "en": (
-            "Shows mirror enemy sets and 64-tick spawn patterns for every stage. "
+            "Shows mirror enemy sets, enemy lifetime, and 64-tick spawn patterns for every stage. "
             "X=spawn, .=none, -=initial tick ignored by the game."
         ),
     },
@@ -3716,8 +3716,12 @@ _TRANSLATIONS = {
         "en": "Lv",
     },
     "mirror_overview.column.ttl": {
-        "ja": "TTL",
-        "en": "TTL",
+        "ja": "\u6575\u751f\u5b58\u6642\u9593",
+        "en": "Enemy Lifetime",
+    },
+    "mirror_overview.lifetime.value": {
+        "ja": "{value}\uff08\u7d04{seconds}\u79d2\uff09",
+        "en": "{value} (about {seconds}s)",
     },
     "mirror_overview.column.m1_pos": {
         "ja": "M1位置",
@@ -4246,6 +4250,10 @@ _TRANSLATIONS = {
     "main.mirror_toggle.done": {
         "ja": "ミラー{mirror}の出現タイミングを{state}にしました",
         "en": "Set Mirror {mirror} spawn timing to {state}.",
+    },
+    "main.mirror_toggle.done_lifetime_raised": {
+        "ja": "\u30df\u30e9\u30fc{mirror}\u306e\u51fa\u73fe\u30bf\u30a4\u30df\u30f3\u30b0\u3092{state}\u306b\u3057\u3001\u6575\u751f\u5b58\u6642\u9593\u30928\u306b\u3057\u307e\u3057\u305f",
+        "en": "Set Mirror {mirror} spawn timing to {state} and raised enemy lifetime to 8.",
     },
     "main.clear_level.mode.all": {
         "ja": "すべての編集対象（ブロック/アイテム/敵）",

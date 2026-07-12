@@ -44,7 +44,7 @@ class ClearScreenHackError(ValueError):
 
 PRESET_DEFS = {
     "fairy_original": {"label": "Fairy (原作)", "type": 0x1C, "state": 0x0C},
-    "golem": {"label": "Golem", "type": 0x70, "state": 0x00},
+    "golem": {"label": "Goblin", "type": 0x70, "state": 0x00},
     "gargoyle_fast": {"label": "Gargoyle (速い)", "type": 0x78, "state": 0x00},
     "gargoyle_slow": {"label": "Gargoyle (遅い)", "type": 0x78, "state": 0x04},
     "saramandor": {"label": "Saramandor", "type": 0x5C, "state": 0x06},

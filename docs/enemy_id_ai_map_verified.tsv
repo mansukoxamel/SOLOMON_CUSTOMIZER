@@ -1,0 +1,133 @@
+ID	UI description	UI family	UI variant	Customizer render tile index	AI idx	AI table CPU/file	Handler CPU/file	AI classification / verification note	Original ROM stage-data use
+$00	Enemy-list terminator	Reserved	-	-	-	-	-	Not an enemy ID. In original stage enemy data, $00 terminates the list; bytes after it are not read as further enemy entries.	Reserved terminator
+$01	Falling Dana (left, glitch)	Falling Dana	#1	94	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$02	Falling Dana (straight right, glitch)	Falling Dana	#1	3	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$03	Falling Dana (straight left, glitch)	Falling Dana	#1	70	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$04	Star (glitch)	Star	#1	96	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$05	Star (glitch) #2	Star	#2	96	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$06	Impact (left, glitch)	Impact	#1	98	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$07	Impact (right, glitch)	Impact	#1	97	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$08	Falling Dana (right, glitch)	Falling Dana	#1	95	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$09	Falling Dana (left, glitch) #2	Falling Dana	#2	94	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$0A	Falling Dana (straight right, glitch) #2	Falling Dana	#2	3	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$0B	Falling Dana (straight left, glitch) #2	Falling Dana	#2	70	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$0C	Fireball (red, right, glitch)	Fireball	#1	86	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$0D	Fireball (red, left, glitch)	Fireball	#1	87	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$0E	Fireball (red, up, glitch)	Fireball	#1	88	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$0F	Fireball (red, down, glitch)	Fireball	#1	89	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$10	Fireball (white, right, glitch)	Fireball	#1	90	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$11	Fireball (white, left, glitch)	Fireball	#1	91	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$12	Fireball (white, up, glitch)	Fireball	#1	92	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$13	Fireball (white, down, glitch)	Fireball	#1	93	-	-	-	type < $14: outside standard enemy AI dispatch; description/render index are customizer UI metadata, behavior unverified	No
+$14	Falling Fairy (glitch)	Falling Fairy	#1	42	0	$A32E / 0x233E	$A373 / 0x2383	drop/bonus entity handler; $14 is generated from defeated enemies; effect is not limited to 1UP	No
+$15	Falling Fairy Princess (glitch)	Falling Fairy Princess	#1	49	0	$A32E / 0x233E	$A373 / 0x2383	drop/bonus entity handler; UI description is not a verified semantic classification	No
+$16	Falling Fairy (glitch) #2	Falling Fairy	#2	42	0	$A32E / 0x233E	$A373 / 0x2383	drop/bonus entity handler; UI description is not a verified semantic classification	No
+$17	Falling Fairy Princess (glitch) #2	Falling Fairy Princess	#2	49	0	$A32E / 0x233E	$A373 / 0x2383	drop/bonus entity handler; UI description is not a verified semantic classification	No
+$18	Mighty Bomb Jack	Mighty Bomb Jack	#1	67	1	$A330 / 0x2340	$A49D / 0x24AD	special short-lived bonus handler; exact game meaning partially verified	No
+$19	Mighty Bomb Jack #2	Mighty Bomb Jack	#2	67	1	$A330 / 0x2340	$A49D / 0x24AD	special short-lived bonus handler; exact game meaning partially verified	No
+$1A	Mighty Bomb Jack #3	Mighty Bomb Jack	#3	67	1	$A330 / 0x2340	$A49D / 0x24AD	special short-lived bonus handler; exact game meaning partially verified	No
+$1B	Mighty Bomb Jack #4	Mighty Bomb Jack	#4	67	1	$A330 / 0x2340	$A49D / 0x24AD	special short-lived bonus handler; exact game meaning partially verified	No
+$1C	Fairy	Fairy	#1	42	2	$A332 / 0x2342	$A700 / 0x2710	Fairy-family special handler; $1C Fairy is verified	Placed
+$1D	Fairy Princess	Fairy Princess	#1	49	2	$A332 / 0x2342	$A700 / 0x2710	Fairy-family special handler; $1D Fairy Princess is verified	Placed
+$1E	Erratic Fairy (glitch)	Erratic Fairy	#1	42	2	$A332 / 0x2342	$A700 / 0x2710	shares $A700; Erratic/glitch description is UI metadata and not independently verified	No
+$1F	Erratic Fairy Princess (glitch)	Erratic Fairy Princess	#1	49	2	$A332 / 0x2342	$A700 / 0x2710	shares $A700; Erratic/glitch description is UI metadata and not independently verified	No
+$20	Bullet (right)	Bullet	#1	59	3	$A334 / 0x2344	$AFBB / 0x2FCB	Bullet	No
+$21	Bullet (left)	Bullet	#1	58	3	$A334 / 0x2344	$AFBB / 0x2FCB	Bullet	No
+$22	Bullet (up)	Bullet	#1	60	3	$A334 / 0x2344	$AFBB / 0x2FCB	Bullet	No
+$23	Bullet (down)	Bullet	#1	61	3	$A334 / 0x2344	$AFBB / 0x2FCB	Bullet	No
+$24	Panel Monster (right)	Panel Monster	#1	50	4	$A336 / 0x2346	$A54C / 0x255C	Panel Monster	Placed
+$25	Panel Monster (left)	Panel Monster	#1	45	4	$A336 / 0x2346	$A54C / 0x255C	Panel Monster	Placed
+$26	Panel Monster (up)	Panel Monster	#1	51	4	$A336 / 0x2346	$A54C / 0x255C	Panel Monster	Placed
+$27	Panel Monster (down)	Panel Monster	#1	52	4	$A336 / 0x2346	$A54C / 0x255C	Panel Monster	Placed
+$28	Fireball (right, ccw, speed 1)	Fireball	#1	44	5	$A338 / 0x2348	$A929 / 0x2939	Fireball s0	Placed
+$29	Fireball (left, cw, speed 1)	Fireball	#1	44	5	$A338 / 0x2348	$A929 / 0x2939	Fireball s0	Placed
+$2A	Fireball (up, cw, speed 1)	Fireball	#1	44	5	$A338 / 0x2348	$A929 / 0x2939	Fireball s0	Placed
+$2B	Fireball (down, ccw, speed 1)	Fireball	#1	44	5	$A338 / 0x2348	$A929 / 0x2939	Fireball s0	Placed
+$2C	Fireball (right, ccw, speed 2)	Fireball	#1	44	6	$A33A / 0x234A	$A92D / 0x293D	Fireball s1	Placed
+$2D	Fireball (left, cw, speed 2)	Fireball	#1	44	6	$A33A / 0x234A	$A92D / 0x293D	Fireball s1	Placed
+$2E	Fireball (up, cw, speed 2)	Fireball	#1	44	6	$A33A / 0x234A	$A92D / 0x293D	Fireball s1	Placed
+$2F	Fireball (down, ccw, speed 2)	Fireball	#1	44	6	$A33A / 0x234A	$A92D / 0x293D	Fireball s1	Placed
+$30	Neul (up, speed 1)	Neul	#1	43	7	$A33C / 0x234C	$ABF7 / 0x2C07	Neul s0	Placed
+$31	Neul (up, speed 1) #2	Neul	#2	43	7	$A33C / 0x234C	$ABF7 / 0x2C07	Neul s0	No
+$32	Neul (down, speed 1)	Neul	#1	43	7	$A33C / 0x234C	$ABF7 / 0x2C07	Neul s0	Placed
+$33	Neul (down, speed 1) #2	Neul	#2	43	7	$A33C / 0x234C	$ABF7 / 0x2C07	Neul s0	No
+$34	Ghost (right, speed 1)	Ghost	#1	63	8	$A33E / 0x234E	$ABF7 / 0x2C07	Ghost s0	Placed
+$35	Ghost (right, speed 1) #2	Ghost	#2	63	8	$A33E / 0x234E	$ABF7 / 0x2C07	Ghost s0	No
+$36	Ghost (left, speed 1)	Ghost	#1	62	8	$A33E / 0x234E	$ABF7 / 0x2C07	Ghost s0	Placed
+$37	Ghost (left, speed 1) #2	Ghost	#2	62	8	$A33E / 0x234E	$ABF7 / 0x2C07	Ghost s0	No
+$38	Neul (up, speed 2)	Neul	#1	43	9	$A340 / 0x2350	$ABF7 / 0x2C07	Neul s1	No
+$39	Neul (up, speed 2) #2	Neul	#2	43	9	$A340 / 0x2350	$ABF7 / 0x2C07	Neul s1	No
+$3A	Neul (down, speed 2)	Neul	#1	43	9	$A340 / 0x2350	$ABF7 / 0x2C07	Neul s1	No
+$3B	Neul (down, speed 2) #2	Neul	#2	43	9	$A340 / 0x2350	$ABF7 / 0x2C07	Neul s1	No
+$3C	Ghost (right, speed 2)	Ghost	#1	63	10	$A342 / 0x2352	$ABF7 / 0x2C07	Ghost s1	Placed
+$3D	Ghost (right, speed 2) #2	Ghost	#2	63	10	$A342 / 0x2352	$ABF7 / 0x2C07	Ghost s1	No
+$3E	Ghost (left, speed 2)	Ghost	#1	62	10	$A342 / 0x2352	$ABF7 / 0x2C07	Ghost s1	Placed
+$3F	Ghost (left, speed 2) #2	Ghost	#2	62	10	$A342 / 0x2352	$ABF7 / 0x2C07	Ghost s1	No
+$40	Neul (up, speed 1, noslow)	Neul	#1	43	11	$A344 / 0x2354	$ABF7 / 0x2C07	Neul s2	Placed
+$41	Neul (up, speed 1, noslow) #2	Neul	#2	43	11	$A344 / 0x2354	$ABF7 / 0x2C07	Neul s2	No
+$42	Neul (down, speed 1, noslow)	Neul	#1	43	11	$A344 / 0x2354	$ABF7 / 0x2C07	Neul s2	Placed
+$43	Neul (down, speed 1, noslow) #2	Neul	#2	43	11	$A344 / 0x2354	$ABF7 / 0x2C07	Neul s2	No
+$44	Ghost (right, speed 1, noslow)	Ghost	#1	63	12	$A346 / 0x2356	$ABF7 / 0x2C07	Ghost s2	Placed
+$45	Ghost (right, speed 1, noslow) #2	Ghost	#2	63	12	$A346 / 0x2356	$ABF7 / 0x2C07	Ghost s2	No
+$46	Ghost (left, speed 1, noslow)	Ghost	#1	62	12	$A346 / 0x2356	$ABF7 / 0x2C07	Ghost s2	Placed
+$47	Ghost (left, speed 1, noslow) #2	Ghost	#2	62	12	$A346 / 0x2356	$ABF7 / 0x2C07	Ghost s2	No
+$48	Neul (up, speed 2, noslow)	Neul	#1	43	13	$A348 / 0x2358	$ABF7 / 0x2C07	Neul s3	Placed
+$49	Neul (up, speed 2, noslow) #2	Neul	#2	43	13	$A348 / 0x2358	$ABF7 / 0x2C07	Neul s3	No
+$4A	Neul (down, speed 2, noslow)	Neul	#1	43	13	$A348 / 0x2358	$ABF7 / 0x2C07	Neul s3	No
+$4B	Neul (down, speed 2, noslow) #2	Neul	#2	43	13	$A348 / 0x2358	$ABF7 / 0x2C07	Neul s3	No
+$4C	Ghost (right, speed 2, noslow)	Ghost	#1	63	14	$A34A / 0x235A	$ABF7 / 0x2C07	Ghost s3	No
+$4D	Ghost (right, speed 2, noslow) #2	Ghost	#2	63	14	$A34A / 0x235A	$ABF7 / 0x2C07	Ghost s3	Placed
+$4E	Ghost (left, speed 2, noslow)	Ghost	#1	62	14	$A34A / 0x235A	$ABF7 / 0x2C07	Ghost s3	No
+$4F	Ghost (left, speed 2, noslow) #2	Ghost	#2	62	14	$A34A / 0x235A	$ABF7 / 0x2C07	Ghost s3	No
+$50	Demonhead (right, speed 1)	Demonhead	#1	71	15	$A34C / 0x235C	$B208 / 0x3218	Demonhead s0	Mirror spawn
+$51	Demonhead (left, speed 1)	Demonhead	#1	75	15	$A34C / 0x235C	$B208 / 0x3218	Demonhead s0	Mirror spawn
+$52	Demonhead (right, speed 1) #2	Demonhead	#2	71	15	$A34C / 0x235C	$B208 / 0x3218	Demonhead s0	No
+$53	Demonhead (left, speed 1) #2	Demonhead	#2	75	15	$A34C / 0x235C	$B208 / 0x3218	Demonhead s0	No
+$54	Demonhead (right, speed 2)	Demonhead	#1	71	16	$A34E / 0x235E	$B208 / 0x3218	Demonhead s1	Mirror spawn
+$55	Demonhead (left, speed 2)	Demonhead	#1	75	16	$A34E / 0x235E	$B208 / 0x3218	Demonhead s1	Mirror spawn
+$56	Demonhead (right, speed 2) #2	Demonhead	#2	71	16	$A34E / 0x235E	$B208 / 0x3218	Demonhead s1	No
+$57	Demonhead (left, speed 2) #2	Demonhead	#2	75	16	$A34E / 0x235E	$B208 / 0x3218	Demonhead s1	No
+$58	Demonhead (right, speed 3)	Demonhead	#1	71	17	$A350 / 0x2360	$B208 / 0x3218	Demonhead s2	Mirror spawn
+$59	Demonhead (left, speed 3)	Demonhead	#1	75	17	$A350 / 0x2360	$B208 / 0x3218	Demonhead s2	Mirror spawn
+$5A	Demonhead (right, speed 3) #2	Demonhead	#2	71	17	$A350 / 0x2360	$B208 / 0x3218	Demonhead s2	No
+$5B	Demonhead (left, speed 3) #2	Demonhead	#2	75	17	$A350 / 0x2360	$B208 / 0x3218	Demonhead s2	No
+$5C	Saramandor (right, speed 1)	Saramandor	#1	73	18	$A352 / 0x2362	$B038 / 0x3048	Saramandor s0	Mirror spawn
+$5D	Saramandor (left, speed 1)	Saramandor	#1	72	18	$A352 / 0x2362	$B038 / 0x3048	Saramandor s0	No
+$5E	Saramandor (right, speed 1) #2	Saramandor	#2	73	18	$A352 / 0x2362	$B038 / 0x3048	Saramandor s0	No
+$5F	Saramandor (left, speed 1) #2	Saramandor	#2	72	18	$A352 / 0x2362	$B038 / 0x3048	Saramandor s0	No
+$60	Saramandor (right, speed 2)	Saramandor	#1	73	19	$A354 / 0x2364	$B038 / 0x3048	Saramandor s1	Mirror spawn
+$61	Saramandor (left, speed 2)	Saramandor	#1	72	19	$A354 / 0x2364	$B038 / 0x3048	Saramandor s1	No
+$62	Saramandor (right, speed 2) #2	Saramandor	#2	73	19	$A354 / 0x2364	$B038 / 0x3048	Saramandor s1	No
+$63	Saramandor (left, speed 2) #2	Saramandor	#2	72	19	$A354 / 0x2364	$B038 / 0x3048	Saramandor s1	No
+$64	Saramandor (right, speed 3)	Saramandor	#1	73	20	$A356 / 0x2366	$B038 / 0x3048	Saramandor s2	No
+$65	Saramandor (left, speed 3)	Saramandor	#1	72	20	$A356 / 0x2366	$B038 / 0x3048	Saramandor s2	No
+$66	Saramandor (right, speed 3) #2	Saramandor	#2	73	20	$A356 / 0x2366	$B038 / 0x3048	Saramandor s2	No
+$67	Saramandor (left, speed 3) #2	Saramandor	#2	72	20	$A356 / 0x2366	$B038 / 0x3048	Saramandor s2	No
+$68	Dragon (right, speed 1)	Dragon	#1	64	21	$A358 / 0x2368	$A64A / 0x265A	Dragon s0	Placed
+$69	Dragon (left, speed 1)	Dragon	#1	41	21	$A358 / 0x2368	$A64A / 0x265A	Dragon s0	Placed
+$6A	Dragon (right, speed 1) #2	Dragon	#2	64	21	$A358 / 0x2368	$A64A / 0x265A	Dragon s0	No
+$6B	Dragon (left, speed 1) #2	Dragon	#2	41	21	$A358 / 0x2368	$A64A / 0x265A	Dragon s0	No
+$6C	Dragon (right, speed 2)	Dragon	#1	64	22	$A35A / 0x236A	$A64A / 0x265A	Dragon s1	No
+$6D	Dragon (left, speed 2)	Dragon	#1	41	22	$A35A / 0x236A	$A64A / 0x265A	Dragon s1	Placed
+$6E	Dragon (right, speed 2) #2	Dragon	#2	64	22	$A35A / 0x236A	$A64A / 0x265A	Dragon s1	No
+$6F	Dragon (left, speed 2) #2	Dragon	#2	41	22	$A35A / 0x236A	$A64A / 0x265A	Dragon s1	No
+$70	Golem (right, speed 1)	Golem	#1	65	23	$A35C / 0x236C	$AD11 / 0x2D21	Golem s0	Placed + mirror spawn
+$71	Golem (left, speed 1)	Golem	#1	40	23	$A35C / 0x236C	$AD11 / 0x2D21	Golem s0	Placed
+$72	Golem (right, speed 1) #2	Golem	#2	65	23	$A35C / 0x236C	$AD11 / 0x2D21	Golem s0	No
+$73	Golem (left, speed 1) #2	Golem	#2	40	23	$A35C / 0x236C	$AD11 / 0x2D21	Golem s0	No
+$74	Golem (right, speed 2)	Golem	#1	65	24	$A35E / 0x236E	$AD11 / 0x2D21	Golem s1	Placed
+$75	Golem (left, speed 2)	Golem	#1	40	24	$A35E / 0x236E	$AD11 / 0x2D21	Golem s1	Placed
+$76	Golem (right, speed 2) #2	Golem	#2	65	24	$A35E / 0x236E	$AD11 / 0x2D21	Golem s1	No
+$77	Golem (left, speed 2) #2	Golem	#2	40	24	$A35E / 0x236E	$AD11 / 0x2D21	Golem s1	No
+$78	Gargoyle (right, speed 1)	Gargoyle	#1	66	25	$A360 / 0x2370	$AE1C / 0x2E2C	Gargoyle s0	Placed + mirror spawn
+$79	Gargoyle (left, speed 1)	Gargoyle	#1	46	25	$A360 / 0x2370	$AE1C / 0x2E2C	Gargoyle s0	Placed
+$7A	Gargoyle (right, speed 1) #2	Gargoyle	#2	66	25	$A360 / 0x2370	$AE1C / 0x2E2C	Gargoyle s0	No
+$7B	Gargoyle (left, speed 1) #2	Gargoyle	#2	46	25	$A360 / 0x2370	$AE1C / 0x2E2C	Gargoyle s0	No
+$7C	Gargoyle (right, speed 2)	Gargoyle	#1	66	26	$A362 / 0x2372	$AE1C / 0x2E2C	Gargoyle s1	No
+$7D	Gargoyle (left, speed 2)	Gargoyle	#1	46	26	$A362 / 0x2372	$AE1C / 0x2E2C	Gargoyle s1	Placed
+$7E	Gargoyle (right, speed 2) #2	Gargoyle	#2	66	26	$A362 / 0x2372	$AE1C / 0x2E2C	Gargoyle s1	No
+$7F	Gargoyle (left, speed 2) #2	Gargoyle	#2	46	26	$A362 / 0x2372	$AE1C / 0x2E2C	Gargoyle s1	No
+$80	Red Flame	Red Flame	#1	48	27	$A364 / 0x2374	$A5A0 / 0x25B0	Flame	Placed
+$81	White Flame	White Flame	#1	47	27	$A364 / 0x2374	$A5A0 / 0x25B0	Flame	Placed
+$82	Red Flame #2	Red Flame	#2	48	27	$A364 / 0x2374	$A5A0 / 0x25B0	Flame	No
+$83	White Flame #2	White Flame	#2	47	27	$A364 / 0x2374	$A5A0 / 0x25B0	Flame	No

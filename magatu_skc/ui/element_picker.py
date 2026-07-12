@@ -119,8 +119,8 @@ ENEMIES_LIST = [
     # 大型敵（sp1/sp2、Demonhead/Saramandor は sp3 もあり）
     (0x68, "Dragon (right)"),
     (0x69, "Dragon (left)"),
-    (0x70, "Golem (right)"),
-    (0x71, "Golem (left)"),
+    (0x70, "Goblin (right)"),
+    (0x71, "Goblin (left)"),
     (0x78, "Gargoyle (right)"),
     (0x79, "Gargoyle (left)"),
     (0x7a, "Enhanced Gargoyle A (right)"),
@@ -182,10 +182,10 @@ ENEMIES_LIST = [
     (0x1d, "Fairy Princess"),
     (0x18, "Mighty Bomb Jack (R)"),
     (0x19, "Mighty Bomb Jack (L)"),
-    # Flame family
-    (0x80, "Red Flame"),
-    (0x81, "White Flame"),
-    (0x84, "Ice Flame"),
+    # Burn family
+    (0x80, "Red Burn"),
+    (0x81, "Blue Burn"),
+    (0x84, "Ice Burn"),
     (0x85, "Spark85"),
     (0x86, "Bomber Ghost"),
     (0x87, "Cannon Ghost"),
@@ -654,15 +654,10 @@ class _MirrorRow(QListWidget):
             code = int(val_str)
         except Exception:
             return
-        base_code = code
-        speed = 1
-        provider = getattr(src, "_enemy_speed_provider", None)
-        if callable(provider):
-            try:
-                speed = int(provider())
-            except Exception:
-                speed = 1
-        code = apply_enemy_speed(base_code, speed)
+        # DraggablePickerList resolves SP1/SP2/SP3 before putting the enemy ID
+        # into the MIME payload.  Keep that actual ID for the mirror data, but
+        # use its SP1 base ID when looking up the picker icon below.
+        base_code, speed = base_code_from_actual(code)
         icon = QIcon()
         tooltip_text = f"0x{code:02x}"
         if isinstance(src, QListWidget):

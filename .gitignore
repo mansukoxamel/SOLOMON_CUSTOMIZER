@@ -25,6 +25,8 @@
 !docs/level_data_model_matrix.html
 !docs/new_enemy_classification_flow.html
 !docs/new_enemy_id_recipe.txt
+!docs/enemy_id_ai_map_verified.tsv
+!docs/new_enemy_id_placement_audit.md
 !docs/borrowed_enemy_id_audit.html
 !docs/known_issues.md
 !docs/original_rom_trivia.md

@@ -9436,7 +9436,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(
             t(
                 "main.status.mirror_real_block_warning",
-                "警告: ミラー上の実体ブロック配置はドラゴン/ガーゴイル/ゴーレムが落下して死にます",
+                "警告: ミラー上の実体ブロック配置はドラゴン/ガーゴイル/ゴブリンが落下して死にます",
             ),
             5000,
         )
@@ -12116,7 +12116,7 @@ class MainWindow(QMainWindow):
         self.spin_fairy_enemy.setToolTip(
             t(
                 "main.fairy_enemy.tooltip",
-                "0=なし。Dragon/Golem/Gargoyle系のみ。Flame系と鍵持ち敵と同じ番号は指定できません。",
+                "0=なし。Dragon/Goblin/Gargoyle系のみ。Flame系と鍵持ち敵と同じ番号は指定できません。",
             )
         )
 
@@ -13655,6 +13655,23 @@ class MainWindow(QMainWindow):
         if mirror_no < len(lv.demon_mirrors):
             lv.demon_mirrors[mirror_no].schedule_data = list(values)
 
+    def _ensure_mirror_enemy_lifetime_minimum(self, level_no: int, minimum: int = 8) -> bool:
+        from ..core import m66
+        lv = self.levels[level_no]
+        current = int(getattr(lv, "spawn_enemy_lifetime", 0))
+        minimum = max(0, min(255, int(minimum)))
+        if current >= minimum:
+            return False
+        lv.spawn_enemy_lifetime = minimum
+        encoded = ((minimum >> 3) | ((minimum & 7) << 5)) & 0xFF
+        enemy_off = (
+            m66.OFFSET_M66_LVL_DATA
+            + 256 * level_no
+            + m66.OFFSET_M66_LOCAL_ENEMY_DATA
+        )
+        self.rom.data[enemy_off] = encoded
+        return True
+
     def _on_toggle_mirror_schedule(self, mirror_no: int):
         if not self.rom or not self.levels:
             return
@@ -13667,20 +13684,33 @@ class MainWindow(QMainWindow):
             return
         ln = self.current_level_no
         self._push_undo()
+        lifetime_raised = False
         if self._mirror_schedule_is_active(ln, mirror_no):
             self._set_mirror_schedule_bytes(ln, mirror_no, [0] * 8)
             state_text = "OFF"
         else:
             self._set_mirror_schedule_bytes(ln, mirror_no, self._mirror_schedule_bytes_for_gap(6))
+            lifetime_raised = self._ensure_mirror_enemy_lifetime_minimum(ln, 8)
             state_text = t("main.mirror_toggle.state.on_gap6", "ON（6空け）")
         self._sync_mirror_panel()
         self._refresh_view()
         self._set_dirty(True)
-        self._log(f"ミラー出現切替: L{ln + 1} M{mirror_no + 1} -> {state_text}")
+        lifetime_log = " / enemy lifetime -> 8" if lifetime_raised else ""
+        self._log(f"ミラー出現切替: L{ln + 1} M{mirror_no + 1} -> {state_text}{lifetime_log}")
+        message_key = (
+            "main.mirror_toggle.done_lifetime_raised"
+            if lifetime_raised else
+            "main.mirror_toggle.done"
+        )
+        message_default = (
+            "Mirror {mirror} spawn timing is now {state}; enemy lifetime was raised to 8"
+            if lifetime_raised else
+            "Mirror {mirror} spawn timing is now {state}"
+        )
         self.statusBar().showMessage(
             t(
-                "main.mirror_toggle.done",
-                "ミラー{mirror}の出現タイミングを{state}にしました",
+                message_key,
+                message_default,
             ).format(mirror=mirror_no + 1, state=state_text),
             3000,
         )

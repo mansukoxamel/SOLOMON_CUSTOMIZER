@@ -47,7 +47,7 @@ def detect_region(rom_data) -> str:
         if bytes(rom_data[o["sig_off"]:end]) == o["sig"]:
             return region
     raise GolemHackError(
-        "ゴーレムのコードが見つかりません。\n"
+        "ゴブリンのコードが見つかりません。\n"
         "改造ROM/拡張ROM/破損の可能性があるため改造を中止します。"
     )
 

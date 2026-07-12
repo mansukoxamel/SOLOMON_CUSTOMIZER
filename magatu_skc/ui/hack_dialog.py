@@ -665,7 +665,7 @@ class HackDialog(QDialog):
         layout.addWidget(ds_group)
 
         # ====== ゴーレム ======
-        golem_group = QGroupBox(t("hack_dialog.group.golem", "ゴーレム"))
+        golem_group = QGroupBox(t("hack_dialog.group.golem", "ゴブリン"))
         golem_group.setProperty("settings_category", "敵・AI")
         glf = QFormLayout(golem_group)
         _setup_enemy_group(self, golem_group, glf, 50, (0x70, 0x74))
@@ -689,7 +689,7 @@ class HackDialog(QDialog):
         layout.addWidget(golem_group)
 
         # ====== 共通移動速度 ======
-        shared_speed_group = QGroupBox(t("hack_dialog.group.shared_walk", "ゴーレム/ドラゴン/ガーゴイル移動速度"))
+        shared_speed_group = QGroupBox(t("hack_dialog.group.shared_walk", "ゴブリン/ドラゴン/ガーゴイル移動速度"))
         shared_speed_group.setProperty("settings_category", "敵・AI")
         ssf = QFormLayout(shared_speed_group)
         _setup_enemy_group(self, shared_speed_group, ssf, 55, (0x70, 0x68, 0x78))
@@ -716,7 +716,7 @@ class HackDialog(QDialog):
             ssf.addRow(t("hack_dialog.shared_walk.label", "移動速度:"), self.combo_shared_walk)
             sshint = QLabel(t(
                 "hack_dialog.shared_walk.hint",
-                "Golem/Dragon/Gargoyle の移動速度が同じ倍率で変わります。",
+                "Goblin/Dragon/Gargoyle の移動速度が同じ倍率で変わります。",
             ))
             sshint.setWordWrap(True)
             sshint.setStyleSheet("color:#888; font-size:11px;")
@@ -2224,7 +2224,7 @@ class HackDialog(QDialog):
         set_combo("panel_bullet_speed_fix_value", self.combo_pm_bullet_speed_fix, t("hack_dialog.setting.panel_bullet_speed", "パネルモンスター 弾速度"))
         set_panel_variant_settings("panel_variant_settings", t("hack_dialog.setting.panel_variant", "パネルモンスター A/B/C共通値"))
         set_spin("demo_stage", self.spin_ds, t("hack_dialog.setting.demo_stage", "デモステージ"))
-        set_check("golem_snappy", self.chk_golem_snappy, t("hack_dialog.setting.golem_snappy", "ゴーレム キビキビ"))
+        set_check("golem_snappy", self.chk_golem_snappy, t("hack_dialog.setting.golem_snappy", "ゴブリン キビキビ"))
         set_check("gargoyle_snappy", self.chk_gargoyle_snappy, t("hack_dialog.setting.gargoyle_snappy", "ガーゴイル キビキビ"))
         set_spin("gargoyle_cooldown_frames", self.spin_gargoyle_cooldown, t("hack_dialog.setting.gargoyle_cooldown", "ガーゴイル クールダウン"))
         set_gargoyle_variant_settings("gargoyle_variant_settings", t("hack_dialog.setting.gargoyle_variant", "強化ガーゴイル"))
@@ -2545,9 +2545,9 @@ class HackDialog(QDialog):
             try:
                 gch = golem_hack.apply(d, self.chk_golem_snappy.isChecked())
                 if gch:
-                    applied.append(t("hack_dialog.applied.golem", "ゴーレム: {changes}").format(changes=" / ".join(gch)))
+                    applied.append(t("hack_dialog.applied.golem", "ゴブリン: {changes}").format(changes=" / ".join(gch)))
             except golem_hack.GolemHackError as e:
-                QMessageBox.warning(self, t("hack_dialog.error.golem", "ゴーレム改造失敗"), str(e))
+                QMessageBox.warning(self, t("hack_dialog.error.golem", "ゴブリン改造失敗"), str(e))
 
         # ガーゴイル キビキビ
         if self._gargoyle_ok:
