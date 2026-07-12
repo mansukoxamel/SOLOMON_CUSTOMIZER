@@ -197,10 +197,12 @@ ENEMIES_LIST = [
     (0x9D, "熾天の眩光 / Seraphic Radiance"),
     *((
         code,
-        f"Spark Ball {('pause', 'transparent', 'pause+reverse')[(code - 0xC0) // 8]} "
-        f"({('right', 'left', 'up', 'down')[code & 3]}, "
-        f"speed {1 + ((code - 0xC0) // 4) % 2})",
-    ) for code in range(0xC0, 0xD8)),
+        f"Spark Ball {kind} ({('right', 'left', 'up', 'down')[code & 3]})",
+    ) for first, kind in (
+        (0xC0, "pause"),
+        (0xC8, "transparent"),
+        (0xD0, "pause+reverse"),
+    ) for code in range(first, first + 4)),
 ]
 
 DEVELOPER_ONLY_PICKER_ITEMS = {
@@ -220,6 +222,11 @@ DEVELOPER_ONLY_PICKER_ITEMS = {
 # 敵コード → スピードバリアントの対応表
 # キー: sp1 のコード、値: [sp1, sp2, sp3] (None = 該当 sp 無し)
 ENEMY_SPEED_TABLE = {
+    **{
+        code: [code, code + 4, None]
+        for first in (0xC0, 0xC8, 0xD0)
+        for code in range(first, first + 4)
+    },
     # Fireball: +4 で sp2
     0x28: [0x28, 0x2c, None],
     0x29: [0x29, 0x2d, None],

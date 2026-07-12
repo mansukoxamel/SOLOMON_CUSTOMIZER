@@ -77,7 +77,9 @@ def normalize_digits(values) -> tuple[int, int, int, int]:
 
 def _build_ai_dispatch(base: int) -> bytes:
     a = _Asm(base)
-    a.b(0x38, 0xE9, FIRST_ID, 0x29, 0x04)  # SEC/SBC #$C0/AND #$04
+    # The shared AI entry restores the stock dispatcher input (enemy ID - $14)
+    # before jumping here, so normalize from $C0-$14 rather than from $C0.
+    a.b(0x38, 0xE9, FIRST_ID - 0x14, 0x29, 0x04)  # SEC/SBC #$AC/AND #$04
     a.branch(0xF0, "slow")
     a.jmp(CPU_STOCK_SPARK_FAST)
     a.label("slow")
