@@ -50,10 +50,10 @@
 | Phantom Bullet | `$8B` | 専用ID | Phantom系16連番の先頭8IDへ再配置・番号保留 | 静的監査済み | 今回未検査 | 4方向×2速度、速度値、鍵適性 |
 | Phantom Bullet Wave | `$8C` | 専用ID | Phantom系16連番の後半8IDへ再配置・番号保留 | 静的監査済み | 今回未検査 | 4方向×2速度、上下Wave軸、鍵適性 |
 | Seraphic Radiance | `$9D` | 専用ID | 単独1ID・最終番号保留 | 再監査済み・現状維持 | 今回未検査 | 鍵持ち禁止、鍵持ち敵消去副作用、実ROM比較 |
-| Panel Monster variants | 原作ID借用 | 借用ID | 未精査 | 未着手 | 未検査 | 専用ID化との比較 |
+| Panel Monster variants | 原作ID借用20ID | 借用ID | 借用維持 | 静的監査済み・現状維持 | 既存73ケース保存検査確認済み・今回実機未検査 | 最終ROM比較、原作Stage 29 `$4D` 正規化維持 |
 | Spark Ball variants | 原作ID借用 | 借用ID | 停止・透明・停止後反転の24専用IDへ移行 | 監査中 | 未検査 | 3種類×4方向×2速度、借用解除 |
 | Gargoyle variants | 原作ID借用 | 借用ID | 未精査 | 未着手 | 未検査 | 専用ID化との比較 |
-| Saramandor variants | 原作ID借用 | 借用ID | 未精査 | 未着手 | 未検査 | 専用ID化との比較 |
+| Saramandor variants | `$5E/$5F/$62/$63` | 借用ID | 借用維持・強化速度3は作らない | 165B静的監査済み・現状維持 | 今回実機未検査 | 速度1/2・左右、Bullet消滅、原作敵副作用の最終ROM検査 |
 
 敵名と対象は今後の現物調査で追加・整理する。この一覧だけを根拠に現行実装の全追加敵を網羅済みとは扱わない。
 
@@ -1634,6 +1634,149 @@ Spark系24IDは種類ごとに独立runtimeを3本作らず、共通部分を統
 - 共通入口、共通setup/init、共通Spark AI wrapper、共通停止判定を1つずつ持ち、反転tailと透明OAM処理だけを分ける。
 - 現行Spark85 runtimeと借用variant runtimeに重複する停止判定を残さない。
 - 共通化後の正確な使用量は、24ID分類と4方向初期化を組んだ最終バイト列で算出する。
+
+### 未完了のruntime監査項目
+
+ID数、種類、方向、速度、借用解除、共通化方針は確定済みである。現在「監査中」として残っているのは、次の現行コード調査と完成形処理の確定である。
+
+#### `spark_ball_variant.py`
+
+- 停止型の現行停止判定、対象digit、速度commit経路を分解する。
+- 透明型の周期mask、phase判定、OAM 2tile非表示処理を分解する。
+- Dragon #2借用 `$6A/$6B/$6E/$6F` とGolem #2借用 `$72/$73/$76/$77` のAI/property/animation/OAM hookを一覧化する。
+- 借用解除後に削除できるtype-specific hookと、専用24IDでも必要な処理を分離する。
+- 現行runtime、各hook、table、予約範囲の使用量を算出する。
+
+#### `spark85_runtime.py`
+
+- 停止後反転型のLIFE百の位判定を分解する。
+- entityごとのone-shot反転flagとdirection/phase反転処理を確認する。
+- 停止型と重複する処理量、共通化できる範囲、反転tailだけに残す処理を確定する。
+- 現行runtimeと共通入口センター分類の使用量を算出する。
+
+#### 24ID完成形に必要な確定事項
+
+- Spark専用の右・左・上・下direction/phase encodeを原作ASMと実ROMで確定する。
+- 速度1/2の初期速度値と、UI設定値をROMへ書くtableまたは即値位置を確定する。
+- AI/setup/init/animationの各共通入口で必要な分類を確定する。
+- property/animation metadataを24IDで共通化した時の処理を確定する。
+- 通常Dragon、Golem、原作Spark Ballへの副作用経路を列挙する。
+- 現行runtime合計と完成形概算を比較し、PRG0/PRG1の削減量または増加量を出す。
+
+#### 監査完了条件
+
+- 上記を同じ監査体裁で記録する。
+- 明確なロジックミス、重複、削除可能hook、ROM/RAM使用量を確定する。
+- 監査状況一覧のSpark85 / Spark Ball variantsを「静的監査済み」へ更新する。
+- 実機検査は最終ID配置とruntime再構築後に行うため、この段階では未検査のままとする。
+
+---
+
+## Saramandor / Saramandor #2 Bullet variant
+
+### 1. ID構成と最終判断
+
+| 系統 | 速度 | 右 | 左 | 用途 |
+|---|---:|---:|---:|---|
+| 通常Saramandor | 1 | `$5C` | `$5D` | 原作Flame |
+| Saramandor #2 | 1 | `$5E` | `$5F` | Bullet variant |
+| 通常Saramandor | 2 | `$60` | `$61` | 原作Flame |
+| Saramandor #2 | 2 | `$62` | `$63` | Bullet variant |
+| 通常Saramandor | 3 | `$64` | `$65` | 原作Flame |
+| Saramandor #2相当 | 3 | `$66` | `$67` | Panel Monster 3-way上・下へ貸出済み |
+
+- 通常Saramandorは3速度を維持する。
+- 強化Saramandorは速度1/2だけで十分とし、速度3は作らない。
+- `$66/$67`はPanel Monster 3-wayへの貸出を維持する。Panel Monster側も借用維持と確定しているため、双方のID方針は整合している。
+- Saramandor #2 Bullet variantの4IDも借用維持とし、新規IDへ移さない。
+
+### 2. runtimeの対象分類
+
+現行runtimeは範囲 `$5E-$63` に入った後、bit 1が立つIDだけを対象にする。
+
+- 対象: `$5E/$5F/$62/$63`
+- 対象外: 通常Saramandor `$5C/$5D/$60/$61/$64/$65`
+- 対象外: Panel Monsterへ貸出済み `$66/$67`
+- 対象外: 同じ距離判定routineを共有するDragon
+
+速度1/2の違いは親Saramandor本体の移動速度である。生成するBulletは両速度ともtype `$20` の通常Bullet速度を使い、Bullet側の速度違いは作らない。
+
+### 3. runtime処理
+
+#### spawn setup 47B
+
+- 対象4IDでは子typeをFlame `$04` からBullet `$20` へ変更する。
+- 子statusをFlame `$C6` から通常敵Bullet用 `$C0` へ変更する。
+- 親behaviorのbit 0からBulletの右・左directionを設定する。
+- 対象外は置換前の原作Flame setupをそのまま再現する。
+
+#### child substatus 34B
+
+- 原作 `$B0D9` で子statusを読む処理は維持する。
+- Flameではstatusへbit 1を立てる原作処理を通す。
+- Bullet variantではFlame固有の `ORA #$02` を行わず、Bullet自身のstatusをそのまま戻す。
+- `PHA/PLA`は全分岐で釣り合っており、stack不整合はない。
+
+#### Flame behavior bypass 20B
+
+- Bullet variantではFlame子を消去・連鎖管理する原作 `$B05E` を呼ばずRTSする。
+- 対象外は原作 `$B05E` へ戻す。
+- Bulletの移動・寿命・消去はtype `$20` の原作Bullet AI `$AFBB`へ任せる。
+
+#### reaction distance 64B
+
+- 対象4IDだけDanaへの横反応距離を `$60`、縦反応距離を原作どおり `$10` にする。
+- sub-slot `[5]` のX距離は原作更新済み値をASLして比較するため、`$60`は96px、6tileに相当する。
+- 通常SaramandorとDragonは原作の横 `$14`、縦 `$10` をそのまま使う。
+
+### 4. ROM/RAM使用
+
+- runtime: file `0x63D9-0x647D` / CPU `$E3C9-$E46D`
+- 使用量: 165B
+- 内訳: spawn setup 47B、substatus 34B、Flame behavior bypass 20B、distance check 64B
+- `RESERVED_SPANS`: 上記165Bを1本の連続範囲として予約
+- runtime直後のfile `0x647E-0x6495`、24Bは現行予約なしの空きであり、本体予約へ含めない。
+- 新規グローバルRAM: なし
+- 親sub-slot `[7]` と既存child main-slot、原作Bullet entity fieldだけを使う。
+
+### 5. 原作照合と監査結果
+
+- 原作ROMの7か所、`$B105/$B0A9/$B0C6/$B121/$AFD1/$866D/$B1E9`は実装側の原作シグネチャと全て一致した。
+- コメント付きASMでも、Saramandor Flame生成、child slot、Bullet type `$20`、方向behavior、共有距離判定の意味を照合した。
+- 通常Saramandor/Dragonへ入るfallbackは原作命令列を再現している。
+- 4routineは役割が異なり、現配置で明確な重複削減候補は見つかっていない。
+- 静的解析上のstack不整合、対象ID漏れ、`$66/$67`巻き込み、通常敵巻き込みは見つかっていない。
+
+#### 文書不一致
+
+- `saramandor_variant.py`冒頭の「`$66/$67 -> reserved / unchanged for now`」は古い。
+- 現在の正しい状態は「`$66/$67`はPanel Monster 3-way上・下として借用中」である。
+- コードの対象判定自体は`$66/$67`を除外しているため正しく、今回コード変更は行わない。コメント修正は最終整理時に行う。
+- `docs/borrowed_enemy_id_audit.html`のSaramandor #2を新規ID移行候補とする記述も、今回の借用維持判断より古い。
+
+### 6. 検査状況
+
+| 検査 | 状態 | 備考 |
+|---|---|---|
+| ID構成 | 確定 | 通常3速度、強化2速度、左右 |
+| `$66/$67`貸出 | 確定 | Panel Monster 3-way上・下として維持 |
+| runtime静的解析 | 済み | 165B、4routine |
+| 原作ROMシグネチャ | 済み | 7か所すべて一致 |
+| 原作ASM照合 | 済み | Flame/Bullet/child/distance経路 |
+| 通常Saramandor/Dragon除外 | 静的確認済み | fallbackは原作しきい値と処理 |
+| 速度1/2・左右の実機挙動 | 今回未検査 | 既存成立状態を新たにOK判定していない |
+| Bullet生成・消滅・slot再利用 | 今回未検査 | 完成形ROMで再確認が必要 |
+| 原作敵副作用 | 今回未検査 | 通常3速度とDragonを残した比較ROMが必要 |
+
+### 7. 現時点の最終判断
+
+- ID分類: **借用維持**
+- 強化Saramandor速度3: 作らない
+- `$66/$67`: Panel Monsterへ貸し出したまま維持
+- runtime: 現行165Bを維持する
+- 再構築・共通化: 不要
+- 実装変更: なし
+- 正式ROM/RAM管理簿更新: なし
 
 ---
 
