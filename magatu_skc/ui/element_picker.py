@@ -146,10 +146,10 @@ ENEMIES_LIST = [
     (0x29, "Fireball (left)"),
     (0x2a, "Fireball (up)"),
     (0x2b, "Fireball (down)"),
-    (0x6a, "Spark Ball pause (up)"),
-    (0x6b, "Spark Ball pause (down)"),
-    (0x72, "Spark Ball invisible (up)"),
-    (0x73, "Spark Ball invisible (down)"),
+    (0x6a, "Dragon color variant (right)"),
+    (0x6b, "Dragon color variant (left)"),
+    (0x72, "Goblin color variant (right)"),
+    (0x73, "Goblin color variant (left)"),
     (0x20, "Bullet (right)"),
     (0x21, "Bullet (left)"),
     (0x22, "Bullet (up)"),
@@ -249,10 +249,10 @@ ENEMY_SPEED_TABLE = {
     # Dragon: +4 で sp2
     0x68: [0x68, 0x6c, None],
     0x69: [0x69, 0x6d, None],
-    # Spark Ball pause variants borrowed from Dragon #2.
+    # Dragon color variants.
     0x6a: [0x6a, 0x6e, None],
     0x6b: [0x6b, 0x6f, None],
-    # Spark Ball invisible variants borrowed from Golem #2.
+    # Goblin color variants.
     0x72: [0x72, 0x76, None],
     0x73: [0x73, 0x77, None],
     # Golem: +4 で sp2
@@ -274,9 +274,6 @@ ENHANCED_ENEMY_CODES = {
     0x31, 0x33, 0x35, 0x37,  # Panel Variant C
     0x41, 0x43, 0x45, 0x47,  # Panel Variant A
     0x49, 0x4b, 0x4d, 0x4f,  # Panel Variant B
-    0x5e, 0x5f, 0x62, 0x63,  # Saramandor #2
-    0x6a, 0x6b, 0x6e, 0x6f,  # Spark Ball pause
-    0x72, 0x73, 0x76, 0x77,  # Spark Ball invisible
     0x7a, 0x7b, 0x7e, 0x7f,  # Gargoyle slow Bullet
     0x86, 0x87,  # Bomber/Cannon Ghost
     0x88,  # Neul Twin Cannon
@@ -293,11 +290,9 @@ ENEMY_ENHANCE_CYCLES = (
     (0x34, 0x44), (0x36, 0x46), (0x3c, 0x4c), (0x3e, 0x4e),
     # Saramandor #2.  Speed 3 has no #2 target because those IDs are reused.
     (0x5c, 0x5e), (0x5d, 0x5f), (0x60, 0x62), (0x61, 0x63),
-    # Spark Ball: only up/down phase codes have a matching path.
-    (0x2a, 0x6a, 0x72),
-    (0x2b, 0x6b, 0x73),
-    (0x2e, 0x6e, 0x76),
-    (0x2f, 0x6f, 0x77),
+    # Dragon/Goblin color variants restored after releasing borrowed Spark IDs.
+    (0x68, 0x6a), (0x69, 0x6b), (0x6c, 0x6e), (0x6d, 0x6f),
+    (0x70, 0x72), (0x71, 0x73), (0x74, 0x76), (0x75, 0x77),
     # Gargoyle slow Bullet.
     (0x78, 0x7a), (0x79, 0x7b), (0x7c, 0x7e), (0x7d, 0x7f),
     # Ghost fixed Bullet direction.
@@ -330,10 +325,16 @@ PANEL_VARIANT_VISUAL_SOURCE = {
 
 ENEMY_VISUAL_SOURCE = {
     **PANEL_VARIANT_VISUAL_SOURCE,
+    0x5E: 0x5C, 0x5F: 0x5D,
+    0x62: 0x60, 0x63: 0x61,
     **{
         code: (0x2C if (code & 0x04) else 0x28) + (code & 0x03)
         for code in range(0xC0, 0xD8)
     },
+    0x6A: 0x68, 0x6B: 0x69,
+    0x6E: 0x6C, 0x6F: 0x6D,
+    0x72: 0x70, 0x73: 0x71,
+    0x76: 0x74, 0x77: 0x75,
     0x86: 0x34,  # Bomber Ghost uses the stock Ghost right visual.
     0x87: 0x34,  # Cannon Ghost uses the stock Ghost right visual.
     0x88: 0x30,  # Neul Twin Cannon uses the stock Neul up visual.
@@ -344,6 +345,10 @@ ENEMY_VISUAL_SOURCE = {
 }
 
 ENEMY_PICKER_PALETTE_OVERRIDE = {
+    0x5E: 6, 0x5F: 6,
+    0x62: 6, 0x63: 6,
+    0x6A: 6, 0x6B: 6,  # Dragon color variant speed 1 uses SPR #2.
+    0x72: 6, 0x73: 6,  # Goblin color variant speed 1 uses SPR #2.
     0x8B: 6,  # Phantom Bullet is shown with SPR #2 palette.
     0x8C: 6,  # Phantom Bullet is shown with SPR #2 palette.
 }
@@ -834,7 +839,12 @@ class MirrorEnemyPanel(QWidget):
         visual_enemy_no = ENEMY_VISUAL_SOURCE.get(enemy_code, enemy_code)
         anim = self._config.enemy_map.get(visual_enemy_no, 0)
         try:
-            sprite = self._tile_renderer.get_tile_image(anim, 0, transparent=True)
+            sprite = self._tile_renderer.get_tile_image(
+                anim,
+                0,
+                transparent=True,
+                palette_no_override=ENEMY_PICKER_PALETTE_OVERRIDE.get(enemy_code),
+            )
             icon_size = self._rows[0]._icon_size if self._rows else ICON_SIZE
             bg = QImage(icon_size, icon_size, QImage.Format_ARGB32)
             bg.fill(_QC(0, 0, 0, 0))

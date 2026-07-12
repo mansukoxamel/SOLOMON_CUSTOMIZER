@@ -315,21 +315,21 @@
 
     <enemy no="0x68" description="Dragon (right, speed 1)" animation="64" />
     <enemy no="0x69" description="Dragon (left, speed 1)" animation="41" />
-    <enemy no="0x6a" description="Spark Ball pause (up phase, speed 1)" animation="44" />
-    <enemy no="0x6b" description="Spark Ball pause (down phase, speed 1)" animation="44" />
+    <enemy no="0x6a" description="Dragon color variant (right, speed 1)" animation="64" />
+    <enemy no="0x6b" description="Dragon color variant (left, speed 1)" animation="41" />
     <enemy no="0x6c" description="Dragon (right, speed 2)" animation="64" />
     <enemy no="0x6d" description="Dragon (left, speed 2)" animation="41" />
-    <enemy no="0x6e" description="Spark Ball pause (up phase, speed 2)" animation="44" />
-    <enemy no="0x6f" description="Spark Ball pause (down phase, speed 2)" animation="44" />
+    <enemy no="0x6e" description="Dragon color variant (right, speed 2)" animation="64" />
+    <enemy no="0x6f" description="Dragon color variant (left, speed 2)" animation="41" />
 
     <enemy no="0x70" description="Goblin (right, speed 1)" animation="65" />
     <enemy no="0x71" description="Goblin (left, speed 1)" animation="40" />
-    <enemy no="0x72" description="Spark Ball invisible (up phase, speed 1)" animation="44" />
-    <enemy no="0x73" description="Spark Ball invisible (down phase, speed 1)" animation="44" />
+    <enemy no="0x72" description="Goblin color variant (right, speed 1)" animation="65" />
+    <enemy no="0x73" description="Goblin color variant (left, speed 1)" animation="40" />
     <enemy no="0x74" description="Goblin (right, speed 2)" animation="65" />
     <enemy no="0x75" description="Goblin (left, speed 2)" animation="40" />
-    <enemy no="0x76" description="Spark Ball invisible (up phase, speed 2)" animation="44" />
-    <enemy no="0x77" description="Spark Ball invisible (down phase, speed 2)" animation="44" />
+    <enemy no="0x76" description="Goblin color variant (right, speed 2)" animation="65" />
+    <enemy no="0x77" description="Goblin color variant (left, speed 2)" animation="40" />
 
     <enemy no="0x78" description="Gargoyle (right, speed 1)" animation="66" />
     <enemy no="0x79" description="Gargoyle (left, speed 1)" animation="46" />
