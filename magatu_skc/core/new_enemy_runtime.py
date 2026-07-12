@@ -337,8 +337,12 @@ def _build_anim_entry_runtime() -> bytes:
     a.b(0xC9, RADIANCE9D_ID)
     a.branch(0xF0, "radiance9d")
     # Stock color variants: direction-pair normalize, then recolor only
-    # Dragon $6A/$6B and Golem $72/$73 from SPR3 to SPR2.
+    # the selected stock/borrowed-ID enemy pairs.
     a.b(0x29, 0xFE)
+    a.b(0xC9, 0x5E)
+    a.branch(0xF0, "stock_spr2")
+    a.b(0xC9, 0x62)
+    a.branch(0xF0, "stock_spr2")
     a.b(0xC9, 0x6A)
     a.branch(0xF0, "stock_spr2")
     a.b(0xC9, 0x6E)
@@ -406,7 +410,7 @@ assert len(INIT_ENTRY_RUNTIME) == 85
 assert len(PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME) == 36
 assert len(OLD_ANIM_ENTRY_RUNTIME) == 14
 assert len(PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME) == 32
-assert len(ANIM_ENTRY_RUNTIME) == 105
+assert len(ANIM_ENTRY_RUNTIME) == 113
 assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
 assert OFF_INIT_ENTRY == OFF_SETUP_ENTRY + len(SETUP_ENTRY_RUNTIME)
 assert OFF_ANIM_ENTRY == OFF_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
