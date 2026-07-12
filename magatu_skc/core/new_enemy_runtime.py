@@ -336,6 +336,13 @@ def _build_anim_entry_runtime() -> bytes:
     a.branch(0xF0, "fairy9c")
     a.b(0xC9, RADIANCE9D_ID)
     a.branch(0xF0, "radiance9d")
+    # Stock color variants: direction-pair normalize, then recolor only
+    # Dragon $6A/$6B and Golem $72/$73 from SPR3 to SPR2.
+    a.b(0x29, 0xFE)
+    a.b(0xC9, 0x6A)
+    a.branch(0xF0, "stock_spr2")
+    a.b(0xC9, 0x72)
+    a.branch(0xF0, "stock_spr2")
     a.jmp(0x8789)
     a.label("ice")
     a.jmp(_ice.CPU_ANIM_UPDATE)
@@ -345,6 +352,9 @@ def _build_anim_entry_runtime() -> bytes:
     a.label("fairy9c")
     a.b(0x20, 0x89, 0x87, 0xA0, 0x13, 0xB1, 0x08)
     a.b(0x29, 0x13, 0x09, 0x48, 0x91, 0x08, 0x60)
+    a.label("stock_spr2")
+    a.b(0x20, 0x89, 0x87, 0xA0, 0x13, 0xB1, 0x08)
+    a.b(0x29, 0x33, 0x09, 0x48, 0x91, 0x08, 0x60)
     a.label("radiance9d")
     a.jmp(_radiance9d.CPU_ANIM_UPDATE)
     return a.finish()
@@ -389,7 +399,7 @@ assert len(INIT_ENTRY_RUNTIME) == 85
 assert len(PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME) == 36
 assert len(OLD_ANIM_ENTRY_RUNTIME) == 14
 assert len(PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME) == 32
-assert len(ANIM_ENTRY_RUNTIME) == 61
+assert len(ANIM_ENTRY_RUNTIME) == 85
 assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
 assert OFF_INIT_ENTRY == OFF_SETUP_ENTRY + len(SETUP_ENTRY_RUNTIME)
 assert OFF_ANIM_ENTRY == OFF_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)

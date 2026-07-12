@@ -273,16 +273,28 @@ def _retarget_spark_panel_fallback(blob: bytes, old_cpu: int, new_cpu: int) -> b
     return blob.replace(old_jmp, new_jmp, 1)
 
 
-FINAL_SPARK_PROPERTY_HOOK = _retarget_spark_panel_fallback(
-    spark_ball_variant.CAVE_PROPERTY_HOOK,
-    spark_ball_variant.CPU_PANEL_PROPERTY_HOOK,
-    CPU_FINAL_STAGE_PROPERTY_HOOK,
-)
-FINAL_SPARK_ANIM_HOOK = _retarget_spark_panel_fallback(
-    spark_ball_variant.CAVE_ANIM_HOOK,
-    spark_ball_variant.CPU_PANEL_ANIM_HOOK,
-    CPU_FINAL_STAGE_ANIM_HOOK,
-)
+if spark_ball_variant.BORROWED_ID_RUNTIME_ENABLED:
+    FINAL_SPARK_PROPERTY_HOOK = _retarget_spark_panel_fallback(
+        spark_ball_variant.CAVE_PROPERTY_HOOK,
+        spark_ball_variant.CPU_PANEL_PROPERTY_HOOK,
+        CPU_FINAL_STAGE_PROPERTY_HOOK,
+    )
+    FINAL_SPARK_ANIM_HOOK = _retarget_spark_panel_fallback(
+        spark_ball_variant.CAVE_ANIM_HOOK,
+        spark_ball_variant.CPU_PANEL_ANIM_HOOK,
+        CPU_FINAL_STAGE_ANIM_HOOK,
+    )
+else:
+    # Preserve the helper slots for the future 24-ID Spark runtime, but skip
+    # every borrowed Dragon/Golem classification while it is suspended.
+    _property_fallback = bytes.fromhex("4c") + _word(CPU_FINAL_STAGE_PROPERTY_HOOK)
+    FINAL_SPARK_PROPERTY_HOOK = _property_fallback + bytes(
+        [0xEA] * (len(spark_ball_variant.CAVE_PROPERTY_HOOK) - len(_property_fallback)))
+    _anim_fallback = bytes.fromhex("4c") + _word(CPU_FINAL_STAGE_ANIM_HOOK)
+    FINAL_SPARK_ANIM_HOOK = _anim_fallback + bytes(
+        [0xEA] * (len(spark_ball_variant.CAVE_ANIM_HOOK) - len(_anim_fallback)))
+
+
 def _build_group_ram_offset_helper(cpu_base: int) -> bytes:
     a = _Asm()
     a.b(0xA0, 0x01, 0xB1, 0x2E)
@@ -1338,6 +1350,7 @@ def _validate_final_split_signatures(
             FINAL_SPARK_PROPERTY_HOOK,
             "Spark property selector Panel fallback",
             (
+                _fill(0xEA, len(FINAL_SPARK_PROPERTY_HOOK)),
                 spark_ball_variant.CAVE_PROPERTY_HOOK,
             ),
         ),
@@ -1346,6 +1359,7 @@ def _validate_final_split_signatures(
             FINAL_SPARK_ANIM_HOOK,
             "Spark animation selector Panel fallback",
             (
+                _fill(0xEA, len(FINAL_SPARK_ANIM_HOOK)),
                 spark_ball_variant.CAVE_ANIM_HOOK,
             ),
         ),

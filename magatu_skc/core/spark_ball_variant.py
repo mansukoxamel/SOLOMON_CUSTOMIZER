@@ -36,6 +36,12 @@ class SparkBallVariantError(ValueError):
     pass
 
 
+# Issue 75 temporarily returns every borrowed Dragon/Golem ID to its stock
+# enemy.  Keep this implementation intact: the completed 24-ID Spark layout
+# will reuse it after the new IDs are assigned.
+BORROWED_ID_RUNTIME_ENABLED = False
+
+
 def _cf(cpu: int) -> int:
     return 0x10 + (cpu - 0x8000)
 
@@ -329,6 +335,8 @@ def current_transparency_period(rom_data) -> int:
 
 
 def apply(rom_data, pause_digits=None, transparency_period=None) -> list[str]:
+    if not BORROWED_ID_RUNTIME_ENABLED:
+        return []
     if pause_digits is None:
         pause_digits = current_pause_digits(rom_data)
     else:
