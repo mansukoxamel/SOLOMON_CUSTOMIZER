@@ -195,6 +195,10 @@ ENEMIES_LIST = [
     (0x8C, "Phantom Bullet"),
     (0x9C, "Dark Fairy"),
     (0x9D, "熾天の眩光 / Seraphic Radiance"),
+    (0xA0, t("element_picker.enemy.phantom_preset.right", "Phantom Preset (right)")),
+    (0xA1, t("element_picker.enemy.phantom_preset.left", "Phantom Preset (left)")),
+    (0xA2, t("element_picker.enemy.phantom_preset.up", "Phantom Preset (up)")),
+    (0xA3, t("element_picker.enemy.phantom_preset.down", "Phantom Preset (down)")),
     *((
         code,
         f"Spark Ball {kind} ({('right', 'left', 'up', 'down')[code & 3]})",
@@ -215,6 +219,7 @@ DEVELOPER_ONLY_PICKER_ITEMS = {
     (MODE_ENEMY, 0x8C),
     (MODE_ENEMY, 0x9C),
     (MODE_ENEMY, 0x9D),
+    *((MODE_ENEMY, code) for code in range(0xA0, 0xA4)),
     *((MODE_ENEMY, code) for code in range(0xC0, 0xD8)),
 }
 
@@ -363,6 +368,7 @@ ENEMY_VISUAL_SOURCE = {
     0x8A: 0x34,  # Back Fire uses the stock Ghost right visual.
     0x8B: 0x20,  # Phantom Bullet uses the stock Bullet right visual.
     0x8C: 0x20,  # Phantom Bullet uses the stock Bullet right visual.
+    0xA0: 0x20, 0xA1: 0x21, 0xA2: 0x22, 0xA3: 0x23,
 }
 
 ENEMY_PICKER_PALETTE_OVERRIDE = {
@@ -372,6 +378,7 @@ ENEMY_PICKER_PALETTE_OVERRIDE = {
     0x72: 6, 0x73: 6,  # Goblin color variant speed 1 uses SPR #2.
     0x8B: 6,  # Phantom Bullet is shown with SPR #2 palette.
     0x8C: 6,  # Phantom Bullet is shown with SPR #2 palette.
+    0xA0: 6, 0xA1: 6, 0xA2: 6, 0xA3: 6,
 }
 
 SPARK24_OVERLAY_COLORS = {

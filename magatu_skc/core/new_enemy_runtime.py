@@ -11,6 +11,7 @@ from . import flying_dragon89_runtime as _flying89
 from . import afterburner90_runtime as _after90
 from . import bullet91_runtime as _bullet91
 from . import bullet92_runtime as _bullet92
+from . import phantom_preset_runtime as _phantom_preset
 from . import fairy9c_runtime as _fairy9c
 from . import seraphic_radiance9d_runtime as _radiance9d
 
@@ -28,6 +29,8 @@ CHAOS89_ID = _flying89.NEW_ENEMY_ID
 AFTER90_ID = _after90.NEW_ENEMY_ID
 BULLET91_ID = _bullet91.NEW_ENEMY_ID
 BULLET92_ID = _bullet92.NEW_ENEMY_ID
+PHANTOM_PRESET_FIRST_ID = _phantom_preset.FIRST_ID
+PHANTOM_PRESET_LAST_ID = _phantom_preset.LAST_ID
 FAIRY9C_ID = _fairy9c.NEW_ENEMY_ID
 RADIANCE9D_ID = _radiance9d.NEW_ENEMY_ID
 
@@ -36,14 +39,14 @@ LEGACY_ICE_AI_DISPATCH = 0xE9C1
 LEGACY_ICE_SETUP_META_LOAD = 0xE9C4
 
 OFF_AI_ENTRY = 0x3BF2      # CPU $BBE2
-OFF_SETUP_ENTRY = 0x3C4E
-OFF_INIT_ENTRY = 0x3CAE
-OFF_ANIM_ENTRY = 0x3D08
+OFF_SETUP_ENTRY = 0x3C5A
+OFF_INIT_ENTRY = 0x3CC3
+OFF_ANIM_ENTRY = 0x3D28
 
 CPU_AI_ENTRY = 0xBBE2
-CPU_SETUP_ENTRY = 0xBC3E
-CPU_INIT_ENTRY = 0xBC9E
-CPU_ANIM_ENTRY = 0xBCF8
+CPU_SETUP_ENTRY = 0xBC4A
+CPU_INIT_ENTRY = 0xBCB3
+CPU_ANIM_ENTRY = 0xBD18
 
 OLD_AI_ENTRY_RUNTIME = bytes.fromhex(
     "48"
@@ -74,6 +77,13 @@ def _build_ai_entry_runtime() -> bytes:
     for idx, (enemy_id, _target) in enumerate(targets):
         data.extend((0xC9, enemy_id, 0xF0, 0x00))
         fixups.append((len(data) - 1, idx))
+    data.extend((0xC9, PHANTOM_PRESET_FIRST_ID, 0x90, 0x08))
+    data.extend((0xC9, PHANTOM_PRESET_LAST_ID + 1, 0xB0, 0x04))
+    data.extend((
+        0x68, 0x4C,
+        _phantom_preset.CPU_AI_DISPATCH & 0xFF,
+        _phantom_preset.CPU_AI_DISPATCH >> 8,
+    ))
     data.extend((0xC9, SPARK24_FIRST_ID, 0x90, 0x08))
     data.extend((0xC9, SPARK24_LAST_ID + 1, 0xB0, 0x04))
     data.extend((0x68, 0x4C, _spark24.CPU_AI_DISPATCH & 0xFF, _spark24.CPU_AI_DISPATCH >> 8))
@@ -181,7 +191,12 @@ def _build_setup_entry_runtime() -> bytes:
     a.branch(0xF0, "fairy9c")
     a.b(0xC9, RADIANCE9D_ID)
     a.branch(0xF0, "radiance9d")
+    a.b(0xC9, PHANTOM_PRESET_FIRST_ID)
+    a.branch(0x90, "lower_custom")
+    a.b(0xC9, PHANTOM_PRESET_LAST_ID + 1)
     a.branch(0xB0, "stock")
+    a.jmp(_phantom_preset.CPU_SETUP_META_LOAD)
+    a.label("lower_custom")
     a.b(0x38, 0xE9, ICE_FLAME_ID, 0xAA)
     a.b(0xBD, _ghost86.CPU_SETUP_GROUP_TABLE & 0xFF, _ghost86.CPU_SETUP_GROUP_TABLE >> 8)
     a.b(0x85, 0x0E, 0xA8, 0xB9, 0xD3, 0xD9, 0x60)
@@ -262,6 +277,12 @@ def _build_init_entry_runtime() -> bytes:
     a.branch(0xF0, "fairy9c")
     a.b(0xC9, RADIANCE9D_ID)
     a.branch(0xF0, "radiance9d")
+    a.b(0xC9, PHANTOM_PRESET_FIRST_ID)
+    a.branch(0x90, "stock_init")
+    a.b(0xC9, PHANTOM_PRESET_LAST_ID + 1)
+    a.branch(0xB0, "stock_init")
+    a.jmp(_phantom_preset.CPU_INIT_STATUS)
+    a.label("stock_init")
     a.b(0x68, 0x20, 0x1C, 0x9D, 0xA5, 0x05)
     a.b(0xC9, ICE_FLAME_ID)
     a.branch(0xF0, "ice")
@@ -356,6 +377,11 @@ def _build_anim_entry_runtime() -> bytes:
     a.branch(0xF0, "fairy9c")
     a.b(0xC9, RADIANCE9D_ID)
     a.branch(0xF0, "radiance9d")
+    a.b(0xC9, PHANTOM_PRESET_FIRST_ID)
+    a.branch(0x90, "stock_variants")
+    a.b(0xC9, PHANTOM_PRESET_LAST_ID + 1)
+    a.branch(0x90, "bullet_palette")
+    a.label("stock_variants")
     # Stock color variants: direction-pair normalize, then recolor only
     # the selected stock/borrowed-ID enemy pairs.
     a.b(0x29, 0xFE)
@@ -419,6 +445,7 @@ RESERVED_SPANS = (
     *_after90.RESERVED_SPANS,
     *_bullet91.RESERVED_SPANS,
     *_bullet92.RESERVED_SPANS,
+    *_phantom_preset.RESERVED_SPANS,
     *_fairy9c.RESERVED_SPANS,
     *_radiance9d.RESERVED_SPANS,
 )
@@ -447,6 +474,11 @@ def levels_need_runtime(levels: list) -> bool:
         or _after90.levels_need_runtime(levels)
         or _bullet91.levels_need_runtime(levels)
         or _bullet92.levels_need_runtime(levels)
+        or any(
+            PHANTOM_PRESET_FIRST_ID <= int(getattr(enemy, "element_no", -1)) <= PHANTOM_PRESET_LAST_ID
+            for lv in (levels or [])
+            for enemy in (getattr(lv, "enemies", []) or [])
+        )
         or _fairy9c.levels_need_runtime(levels)
         or _radiance9d.levels_need_runtime(levels)
     )
@@ -503,6 +535,7 @@ def apply(rom_data: bytearray) -> list[str]:
         _after90.OFF_RUNTIME + len(_after90.RUNTIME),
         _bullet91.OFF_RUNTIME + len(_bullet91.RUNTIME),
         _bullet92.OFF_RUNTIME + len(_bullet92.RUNTIME),
+        _phantom_preset.OFF_RUNTIME + len(_phantom_preset.RUNTIME),
         _fairy9c.OFF_RUNTIME + len(_fairy9c.RUNTIME),
         _radiance9d.OFF_RUNTIME + len(_radiance9d.RUNTIME),
         max(off + len(blob) for off, blob, _old_blobs, _name in ENTRY_RUNTIMES),
@@ -586,6 +619,18 @@ def apply(rom_data: bytearray) -> list[str]:
         (bytes((0xEA,)) * len(_bullet92.RUNTIME), _bullet92.RUNTIME),
         "Bullet8C runtime area",
     )
+    _expect_blank_or_one_of(
+        rom_data,
+        _phantom_preset.OFF_RUNTIME,
+        _phantom_preset.all_runtime_variants(),
+        "Phantom preset runtime area",
+    )
+    _expect_one(
+        rom_data,
+        _phantom_preset.OFF_PHYSICS_CALL,
+        (_phantom_preset.ORIG_PHYSICS_CALL, _phantom_preset.HOOK_PHYSICS_CALL),
+        "Phantom preset pre-physics hook",
+    )
     _expect_one(
         rom_data,
         _fairy9c.OFF_RUNTIME,
@@ -655,6 +700,25 @@ def apply(rom_data: bytearray) -> list[str]:
         _bullet92.RUNTIME,
         changed,
         f"Bullet8C runtime ${_bullet92.CPU_RUNTIME:04X}-${_bullet92.CPU_RUNTIME_END - 1:04X}",
+    )
+    phantom_settings = _phantom_preset.current_settings(rom_data)
+    phantom_runtime, _phantom_offsets = _phantom_preset.build_runtime(
+        phantom_settings["speed_preset"],
+        phantom_settings["amplitude_percent"],
+    )
+    _write(
+        rom_data,
+        _phantom_preset.OFF_RUNTIME,
+        phantom_runtime,
+        changed,
+        f"Phantom preset runtime ${_phantom_preset.CPU_RUNTIME:04X}-${_phantom_preset.CPU_RUNTIME_END - 1:04X}",
+    )
+    _write(
+        rom_data,
+        _phantom_preset.OFF_PHYSICS_CALL,
+        _phantom_preset.HOOK_PHYSICS_CALL,
+        changed,
+        f"Phantom preset pre-physics hook $8670 -> ${_phantom_preset.CPU_PREPHYSICS:04X}",
     )
     _write(
         rom_data,

@@ -29,6 +29,7 @@ from ..core import golem_speed
 from ..core import neul_ghost_speed
 from ..core import spark_ball_speed
 from ..core import spark_ball_variant
+from ..core import phantom_preset_runtime
 from ..core import gargoyle_hack
 from ..core import gargoyle_variant
 from ..core import clearscreen_hack
@@ -860,6 +861,58 @@ class HackDialog(QDialog):
         sbvhint.setStyleSheet("color:#888; font-size:11px;")
         sbvf.addRow(sbvhint)
         layout.addWidget(sb_variant_group)
+
+        phantom_group = QGroupBox(
+            t("hack_dialog.group.phantom_preset", "Phantom Preset A0-A3")
+        )
+        phantom_group.setProperty("settings_category", "敵・AI")
+        phantom_form = QFormLayout(phantom_group)
+        _setup_enemy_group(self, phantom_group, phantom_form, 42, (0x20, 0x21, 0x22, 0x23))
+        self.combo_phantom_preset_speed = QComboBox()
+        self.combo_phantom_preset_amplitude = QComboBox()
+        self._phantom_preset_ok = False
+        try:
+            phantom_settings = phantom_preset_runtime.current_settings(rom.data)
+            self._phantom_preset_ok = True
+        except phantom_preset_runtime.PhantomPresetRuntimeError as e:
+            phantom_settings = {
+                "speed_preset": phantom_preset_runtime.DEFAULT_SPEED_PRESET,
+                "amplitude_percent": phantom_preset_runtime.DEFAULT_AMPLITUDE_PERCENT,
+            }
+            note = QLabel(
+                t("hack_dialog.disabled", "⚠ 無効: {error}").format(
+                    error=str(e).splitlines()[0]
+                )
+            )
+            note.setWordWrap(True)
+            note.setStyleSheet("color:#c33;")
+            phantom_form.addRow(note)
+        for preset in phantom_preset_runtime.SPEED_PRESETS:
+            self.combo_phantom_preset_speed.addItem(
+                phantom_preset_runtime.SPEED_LABELS[preset], preset
+            )
+        self._set_combo_data(
+            self.combo_phantom_preset_speed,
+            phantom_settings["speed_preset"],
+        )
+        for amplitude in phantom_preset_runtime.AMPLITUDE_VALUES:
+            self.combo_phantom_preset_amplitude.addItem(f"{amplitude}%", amplitude)
+        self._set_combo_data(
+            self.combo_phantom_preset_amplitude,
+            phantom_settings["amplitude_percent"],
+        )
+        phantom_form.addRow(
+            t("hack_dialog.phantom_preset.speed.label", "Speed:"),
+            self.combo_phantom_preset_speed,
+        )
+        phantom_form.addRow(
+            t("hack_dialog.phantom_preset.amplitude.label", "Amplitude:"),
+            self.combo_phantom_preset_amplitude,
+        )
+        if not self._phantom_preset_ok:
+            self.combo_phantom_preset_speed.setEnabled(False)
+            self.combo_phantom_preset_amplitude.setEnabled(False)
+        layout.addWidget(phantom_group)
 
         # ====== デーモンヘッド ======
         demonhead_group = QGroupBox(t("hack_dialog.group.demonhead", "デーモンヘッド"))
@@ -1989,6 +2042,8 @@ class HackDialog(QDialog):
             "spark_ball_pause_digits": self._selected_spark_pause_digits(),
             "spark_ball_reverse_digits": self._selected_spark_reverse_digits(),
             "spark_ball_transparency_period": self._combo_data(self.combo_spark_transparency),
+            "phantom_preset_speed": self._combo_data(self.combo_phantom_preset_speed),
+            "phantom_preset_amplitude_percent": self._combo_data(self.combo_phantom_preset_amplitude),
             "demonhead_snappy": self.chk_demonhead_snappy.isChecked(),
             "clear_screen_preset": self._combo_data(self.combo_clearscreen),
             "stage_frame_white_enabled": self.chk_stage_frame_white.isChecked(),
@@ -2017,6 +2072,7 @@ class HackDialog(QDialog):
             "neul_ghost_speed": bool(getattr(self, "_neul_ghost_spd_ok", False)),
             "spark_ball_speed": bool(getattr(self, "_spark_ball_spd_ok", False)),
             "spark_ball_variant": bool(getattr(self, "_spark_ball_variant_ok", False)),
+            "phantom_preset": bool(getattr(self, "_phantom_preset_ok", False)),
             "demonhead": bool(getattr(self, "_demonhead_ok", False)),
             "clear_screen": bool(getattr(self, "_cs_ok", False)),
             "stage_frame": bool(getattr(self, "_stage_frame_ok", False)),
@@ -2261,6 +2317,16 @@ class HackDialog(QDialog):
         set_spark_digits("spark_ball_pause_digits", t("hack_dialog.setting.spark_ball_pause", "強化スパークボール停止"), self.chk_spark_pause_digits, self._selected_spark_pause_digits)
         set_spark_digits("spark_ball_reverse_digits", t("hack_dialog.setting.spark_ball_reverse", "強化スパークボール反転"), self.chk_spark_reverse_digits, self._selected_spark_reverse_digits)
         set_combo("spark_ball_transparency_period", self.combo_spark_transparency, t("hack_dialog.setting.spark_ball_transparency", "強化スパークボール透明化"))
+        set_combo(
+            "phantom_preset_speed",
+            self.combo_phantom_preset_speed,
+            t("hack_dialog.setting.phantom_preset_speed", "Phantom Preset speed"),
+        )
+        set_combo(
+            "phantom_preset_amplitude_percent",
+            self.combo_phantom_preset_amplitude,
+            t("hack_dialog.setting.phantom_preset_amplitude", "Phantom Preset amplitude"),
+        )
         set_check("demonhead_snappy", self.chk_demonhead_snappy, t("hack_dialog.setting.demonhead_snappy", "デーモンヘッド キビキビ"))
         if has("clear_screen_preset") and self.combo_clearscreen.isEnabled():
             old = self.combo_clearscreen.currentIndex()
@@ -2670,6 +2736,34 @@ class HackDialog(QDialog):
                 QMessageBox.warning(self, t("hack_dialog.error.spark_ball_variant", "強化スパークボール設定失敗"), str(e))
                 return
 
+        if getattr(self, "_phantom_preset_ok", False):
+            try:
+                phantom_changes = phantom_preset_runtime.apply_settings(
+                    d,
+                    self.combo_phantom_preset_speed.currentData(),
+                    self.combo_phantom_preset_amplitude.currentData(),
+                )
+                if phantom_changes:
+                    applied.append(
+                        t(
+                            "hack_dialog.applied.phantom_preset",
+                            "Phantom Preset: speed={speed} / amplitude={amplitude}%",
+                        ).format(
+                            speed=self.combo_phantom_preset_speed.currentText(),
+                            amplitude=self.combo_phantom_preset_amplitude.currentData(),
+                        )
+                    )
+            except phantom_preset_runtime.PhantomPresetRuntimeError as e:
+                QMessageBox.warning(
+                    self,
+                    t(
+                        "hack_dialog.error.phantom_preset",
+                        "Phantom Preset settings failed",
+                    ),
+                    str(e),
+                )
+                return
+
         # デーモンヘッド キビキビ
         if self._demonhead_ok:
             try:
@@ -2852,6 +2946,15 @@ class HackDialog(QDialog):
             self._set_combo_data(
                 self.combo_spark_transparency,
                 spark_ball_variant.DEFAULT_TRANSPARENCY_PERIOD,
+            )
+        if getattr(self, "_phantom_preset_ok", False):
+            self._set_combo_data(
+                self.combo_phantom_preset_speed,
+                phantom_preset_runtime.DEFAULT_SPEED_PRESET,
+            )
+            self._set_combo_data(
+                self.combo_phantom_preset_amplitude,
+                phantom_preset_runtime.DEFAULT_AMPLITUDE_PERCENT,
             )
         if self._demonhead_ok:
             self.chk_demonhead_snappy.setChecked(False)

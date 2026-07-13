@@ -4486,6 +4486,50 @@ _TRANSLATIONS = {
         "ja": "右クリックまたはペン0で透明色。CHR共有タイルを使う別フレームも同時に見た目が変わります。",
         "en": "Right-click or use pen 0 for transparency. Other frames using the same shared CHR tiles will visually change too.",
     },
+    "element_picker.enemy.phantom_preset.right": {
+        "ja": "ファントムプリセット（右）",
+        "en": "Phantom Preset (right)",
+    },
+    "element_picker.enemy.phantom_preset.left": {
+        "ja": "ファントムプリセット（左）",
+        "en": "Phantom Preset (left)",
+    },
+    "element_picker.enemy.phantom_preset.up": {
+        "ja": "ファントムプリセット（上）",
+        "en": "Phantom Preset (up)",
+    },
+    "element_picker.enemy.phantom_preset.down": {
+        "ja": "ファントムプリセット（下）",
+        "en": "Phantom Preset (down)",
+    },
+    "hack_dialog.group.phantom_preset": {
+        "ja": "ファントムプリセット A0-A3",
+        "en": "Phantom Preset A0-A3",
+    },
+    "hack_dialog.phantom_preset.speed.label": {
+        "ja": "速度:",
+        "en": "Speed:",
+    },
+    "hack_dialog.phantom_preset.amplitude.label": {
+        "ja": "振幅:",
+        "en": "Amplitude:",
+    },
+    "hack_dialog.setting.phantom_preset_speed": {
+        "ja": "ファントムプリセット 速度",
+        "en": "Phantom Preset speed",
+    },
+    "hack_dialog.setting.phantom_preset_amplitude": {
+        "ja": "ファントムプリセット 振幅",
+        "en": "Phantom Preset amplitude",
+    },
+    "hack_dialog.applied.phantom_preset": {
+        "ja": "ファントムプリセット: 速度={speed} / 振幅={amplitude}%",
+        "en": "Phantom Preset: speed={speed} / amplitude={amplitude}%",
+    },
+    "hack_dialog.error.phantom_preset": {
+        "ja": "ファントムプリセット設定失敗",
+        "en": "Phantom Preset settings failed",
+    },
     "common.complete": {
         "ja": "完了",
         "en": "Complete",
