@@ -273,9 +273,6 @@ ENEMY_SPEED_TABLE = {
 }
 
 
-GARGOYLE_ENHANCED_CODES = frozenset({0x7A, 0x7B, 0x7E, 0x7F})
-
-
 ENHANCED_ENEMY_CODES = {
     0x40, 0x42, 0x48, 0x4a,  # Neul noslow
     0x44, 0x46, 0x4c, 0x4e,  # Ghost noslow
@@ -1791,6 +1788,7 @@ class ElementPicker(QWidget):
                 overlay_color=(55, 135, 255, 115),
                 transparent_background=True,
                 tile_transparent=True,
+                overlay_preserve_alpha=True,
             )
         overlay = SPARK24_PICKER_OVERLAY_COLORS.get(enemy_no)
         if overlay is None and enemy_no in ENHANCED_ENEMY_CODES:
@@ -1801,7 +1799,7 @@ class ElementPicker(QWidget):
             transparent_background=True,
             tile_transparent=True,
             palette_no_override=ENEMY_PICKER_PALETTE_OVERRIDE.get(enemy_no),
-            overlay_preserve_alpha=enemy_no in GARGOYLE_ENHANCED_CODES,
+            overlay_preserve_alpha=overlay is not None,
         )
 
     def _make_meta_icon(self, meta_kind: str) -> QIcon:

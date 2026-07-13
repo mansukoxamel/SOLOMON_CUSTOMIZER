@@ -18,6 +18,7 @@ from ..core import enemy_drop as ED
 from ..core.i18n import get_language, t
 from .element_picker import (
     ENEMIES_LIST, ENEMY_VISUAL_SOURCE, ENHANCED_ENEMY_CODES, PANEL_VARIANT_VISUAL_SOURCE,
+    tint_image_preserving_alpha,
 )
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 
@@ -190,11 +191,13 @@ class EnemyDropDialog(QDialog):
             )
             ox = (ENEMY_THUMB - scaled.width()) // 2
             oy = (ENEMY_THUMB - scaled.height()) // 2
-            p.drawImage(ox, oy, scaled)
             if code in PANEL_VARIANT_VISUAL_SOURCE:
-                p.fillRect(0, 0, ENEMY_THUMB, ENEMY_THUMB, QColor(55, 135, 255, 70))
+                scaled = tint_image_preserving_alpha(
+                    scaled, QColor(55, 135, 255, 70))
             elif code in ENHANCED_ENEMY_CODES:
-                p.fillRect(0, 0, ENEMY_THUMB, ENEMY_THUMB, QColor(245, 220, 80, 45))
+                scaled = tint_image_preserving_alpha(
+                    scaled, QColor(245, 220, 80, 45))
+            p.drawImage(ox, oy, scaled)
             p.setPen(QColor(90, 90, 90))
             p.drawRect(0, 0, ENEMY_THUMB - 1, ENEMY_THUMB - 1)
             p.end()

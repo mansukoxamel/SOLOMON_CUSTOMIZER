@@ -12,7 +12,6 @@ from ..core.level import Level
 from .tile_renderer import TileRenderer
 from ..ui.element_picker import (
     ENHANCED_ENEMY_CODES,
-    GARGOYLE_ENHANCED_CODES,
     tint_image_preserving_alpha,
 )
 
@@ -703,10 +702,16 @@ class LevelRenderer:
                 is_fairy_enemy = fairy_enemy_img is not None and enemy_index == fairy_enemy_number
                 if is_key_enemy or is_fairy_enemy:
                     en_img = self._darkened_sprite_image(en_img)
+                overlay_color = None
                 if (show_enemy_variant_overlays and
-                        enemy.element_no in GARGOYLE_ENHANCED_CODES):
+                        enemy.element_no in PANEL_VARIANT_VISUAL_SOURCE):
+                    overlay_color = QColor(55, 135, 255, 80)
+                elif (show_enemy_variant_overlays and
+                      enemy.element_no in ENHANCED_ENEMY_CODES):
+                    overlay_color = QColor(245, 220, 80, 80)
+                if overlay_color is not None:
                     en_img = tint_image_preserving_alpha(
-                        en_img, QColor(245, 220, 80, 80))
+                        en_img, overlay_color)
                 painter.drawImage(ex * tw, ey * tw, en_img)
                 if is_key_enemy:
                     painter.drawImage(ex * tw, ey * tw, key_enemy_img)
@@ -714,19 +719,6 @@ class LevelRenderer:
                     painter.setOpacity(0.72)
                     painter.drawImage(ex * tw, ey * tw, fairy_enemy_img)
                     painter.setOpacity(1.0)
-                if show_enemy_variant_overlays and enemy.element_no in PANEL_VARIANT_VISUAL_SOURCE:
-                    painter.fillRect(
-                        ex * tw, ey * tw, tw, tw,
-                        QColor(55, 135, 255, 80)
-                    )
-                elif (show_enemy_variant_overlays and
-                      enemy.element_no in ENHANCED_ENEMY_CODES and
-                      enemy.element_no not in GARGOYLE_ENHANCED_CODES):
-                    painter.fillRect(
-                        ex * tw, ey * tw, tw, tw,
-                        QColor(245, 220, 80, 80)
-                    )
-
             # 8.5 level_meta_items（ソロモンの紋章/六芒星、ボムジャック、テクモバニー、Page of Time/Space）
             #   - transparent="true" のものは隠し扱い
             #   - その位置にブロックがあれば in_block 表現（アイテム → 半透明ブロック）
