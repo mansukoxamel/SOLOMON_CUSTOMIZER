@@ -10,7 +10,11 @@ from ..core import room_flags, stage50_book_color, stage_ext
 from ..core.element import Wall, ElementType
 from ..core.level import Level
 from .tile_renderer import TileRenderer
-from ..ui.element_picker import ENHANCED_ENEMY_CODES
+from ..ui.element_picker import (
+    ENHANCED_ENEMY_CODES,
+    GARGOYLE_ENHANCED_CODES,
+    tint_image_preserving_alpha,
+)
 
 
 # メタタイル番号定数（C++ Constants_level.h より）
@@ -699,6 +703,10 @@ class LevelRenderer:
                 is_fairy_enemy = fairy_enemy_img is not None and enemy_index == fairy_enemy_number
                 if is_key_enemy or is_fairy_enemy:
                     en_img = self._darkened_sprite_image(en_img)
+                if (show_enemy_variant_overlays and
+                        enemy.element_no in GARGOYLE_ENHANCED_CODES):
+                    en_img = tint_image_preserving_alpha(
+                        en_img, QColor(245, 220, 80, 80))
                 painter.drawImage(ex * tw, ey * tw, en_img)
                 if is_key_enemy:
                     painter.drawImage(ex * tw, ey * tw, key_enemy_img)
@@ -711,7 +719,9 @@ class LevelRenderer:
                         ex * tw, ey * tw, tw, tw,
                         QColor(55, 135, 255, 80)
                     )
-                elif show_enemy_variant_overlays and enemy.element_no in ENHANCED_ENEMY_CODES:
+                elif (show_enemy_variant_overlays and
+                      enemy.element_no in ENHANCED_ENEMY_CODES and
+                      enemy.element_no not in GARGOYLE_ENHANCED_CODES):
                     painter.fillRect(
                         ex * tw, ey * tw, tw, tw,
                         QColor(245, 220, 80, 80)

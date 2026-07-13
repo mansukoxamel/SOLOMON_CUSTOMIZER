@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
     QGraphicsOpacityEffect, QGraphicsScene
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QMimeData, QRectF, QTimer
-from PyQt5.QtGui import QPixmap, QIcon, QImage, QDrag, QColor
+from PyQt5.QtGui import QPixmap, QIcon, QImage, QDrag, QColor, QPainter
 
 from ..core.i18n import t
 
@@ -273,6 +273,9 @@ ENEMY_SPEED_TABLE = {
 }
 
 
+GARGOYLE_ENHANCED_CODES = frozenset({0x7A, 0x7B, 0x7E, 0x7F})
+
+
 ENHANCED_ENEMY_CODES = {
     0x40, 0x42, 0x48, 0x4a,  # Neul noslow
     0x44, 0x46, 0x4c, 0x4e,  # Ghost noslow
@@ -287,6 +290,20 @@ ENHANCED_ENEMY_CODES = {
     0x89,  # Chaos Dragon
     0x8A,  # Back Fire
 }
+
+
+def tint_image_preserving_alpha(source: QImage, color: QColor) -> QImage:
+    """Tint only pixels covered by the source image while preserving its alpha."""
+    tinted = QImage(source.size(), QImage.Format_ARGB32_Premultiplied)
+    tinted.fill(QColor(0, 0, 0, 0))
+    painter = QPainter(tinted)
+    try:
+        painter.drawImage(0, 0, source)
+        painter.setCompositionMode(QPainter.CompositionMode_SourceAtop)
+        painter.fillRect(tinted.rect(), color)
+    finally:
+        painter.end()
+    return tinted
 
 
 ENEMY_ENHANCE_CYCLES = (
@@ -1606,7 +1623,8 @@ class ElementPicker(QWidget):
                              block_marker=None, meta_marker_color_key=None,
                              transparent_background: bool = False,
                              tile_transparent: bool = False,
-                             palette_no_override: int | None = None) -> QIcon:
+                             palette_no_override: int | None = None,
+                             overlay_preserve_alpha: bool = False) -> QIcon:
         """tile_definitions の tile_no から QIcon 生成
 
         skchain互換: 現在レベルのタイルセット番号を使って描画。これにより
@@ -1620,7 +1638,7 @@ class ElementPicker(QWidget):
         if self.tile_renderer is None or self.config is None:
             return QIcon()
 
-        from PyQt5.QtGui import QPainter, QColor, QPen
+        from PyQt5.QtGui import QColor, QPen
         from .level_view import (
             make_block_marker_graphics_items,
             marker_color,
@@ -1648,10 +1666,12 @@ class ElementPicker(QWidget):
         scaled = sprite.scaled(icon_size, icon_size, Qt.KeepAspectRatio, Qt.FastTransformation)
         ox = (icon_size - scaled.width()) // 2
         oy = (icon_size - scaled.height()) // 2
-        painter.drawImage(ox, oy, scaled)
         if overlay_color is None and apply_blue_filter:
             overlay_color = (80, 130, 255, 90)
-        if overlay_color is not None:
+        if overlay_color is not None and overlay_preserve_alpha:
+            scaled = tint_image_preserving_alpha(scaled, QColor(*overlay_color))
+        painter.drawImage(ox, oy, scaled)
+        if overlay_color is not None and not overlay_preserve_alpha:
             painter.fillRect(ox, oy, scaled.width(), scaled.height(),
                              QColor(*overlay_color))
         if hatch_color is not None:
@@ -1781,6 +1801,7 @@ class ElementPicker(QWidget):
             transparent_background=True,
             tile_transparent=True,
             palette_no_override=ENEMY_PICKER_PALETTE_OVERRIDE.get(enemy_no),
+            overlay_preserve_alpha=enemy_no in GARGOYLE_ENHANCED_CODES,
         )
 
     def _make_meta_icon(self, meta_kind: str) -> QIcon:
