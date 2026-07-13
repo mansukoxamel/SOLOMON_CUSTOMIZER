@@ -374,7 +374,7 @@ ENEMY_PICKER_PALETTE_OVERRIDE = {
     0x8C: 6,  # Phantom Bullet is shown with SPR #2 palette.
 }
 
-SPARK24_PICKER_OVERLAY_COLORS = {
+SPARK24_OVERLAY_COLORS = {
     **{code: (245, 220, 80, 80) for code in range(0xC0, 0xC8)},
     **{code: (55, 135, 255, 115) for code in range(0xC8, 0xD0)},
     **{code: (245, 110, 180, 80) for code in range(0xD0, 0xD8)},
@@ -1790,7 +1790,7 @@ class ElementPicker(QWidget):
                 tile_transparent=True,
                 overlay_preserve_alpha=True,
             )
-        overlay = SPARK24_PICKER_OVERLAY_COLORS.get(enemy_no)
+        overlay = SPARK24_OVERLAY_COLORS.get(enemy_no)
         if overlay is None and enemy_no in ENHANCED_ENEMY_CODES:
             overlay = (245, 220, 80, 80)
         return self._make_icon_from_tile(

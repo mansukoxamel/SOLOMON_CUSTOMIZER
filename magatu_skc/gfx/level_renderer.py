@@ -12,6 +12,7 @@ from ..core.level import Level
 from .tile_renderer import TileRenderer
 from ..ui.element_picker import (
     ENHANCED_ENEMY_CODES,
+    SPARK24_OVERLAY_COLORS,
     tint_image_preserving_alpha,
 )
 
@@ -706,6 +707,9 @@ class LevelRenderer:
                 if (show_enemy_variant_overlays and
                         enemy.element_no in PANEL_VARIANT_VISUAL_SOURCE):
                     overlay_color = QColor(55, 135, 255, 80)
+                elif (show_enemy_variant_overlays and
+                      enemy.element_no in SPARK24_OVERLAY_COLORS):
+                    overlay_color = QColor(*SPARK24_OVERLAY_COLORS[enemy.element_no])
                 elif (show_enemy_variant_overlays and
                       enemy.element_no in ENHANCED_ENEMY_CODES):
                     overlay_color = QColor(245, 220, 80, 80)
