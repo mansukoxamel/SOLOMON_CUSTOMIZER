@@ -201,7 +201,7 @@ ENEMIES_LIST = [
     ) for first, kind in (
         (0xC0, "pause"),
         (0xC8, "transparent"),
-        (0xD0, "pause+reverse"),
+        (0xD0, "reverse"),
     ) for code in range(first, first + 4)),
 ]
 
@@ -377,7 +377,7 @@ ENEMY_PICKER_PALETTE_OVERRIDE = {
 SPARK24_PICKER_OVERLAY_COLORS = {
     **{code: (245, 220, 80, 80) for code in range(0xC0, 0xC8)},
     **{code: (55, 135, 255, 115) for code in range(0xC8, 0xD0)},
-    **{code: (145, 230, 160, 80) for code in range(0xD0, 0xD8)},
+    **{code: (245, 110, 180, 80) for code in range(0xD0, 0xD8)},
 }
 
 
