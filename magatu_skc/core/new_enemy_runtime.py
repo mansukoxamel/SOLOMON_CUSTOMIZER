@@ -621,9 +621,7 @@ def apply(rom_data: bytearray) -> list[str]:
     )
     phantom_settings = _phantom_preset.current_settings(rom_data)
     phantom_runtime, _phantom_offsets = _phantom_preset.build_runtime(
-        phantom_settings["speed_value"],
-        phantom_settings["amplitude_percent"],
-        phantom_settings["phase_offset"],
+        phantom_settings["groups"],
     )
     _expect_blank_or_one_of(
         rom_data,

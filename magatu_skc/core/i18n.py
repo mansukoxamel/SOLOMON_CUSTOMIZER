@@ -4502,9 +4502,29 @@ _TRANSLATIONS = {
         "ja": "ファントムプリセット（下）",
         "en": "Phantom Preset (down)",
     },
+    "element_picker.enemy.phantom_preset.group_direction": {
+        "ja": "ファントムバレット{group}（{direction}）",
+        "en": "Phantom Bullet {group} ({direction})",
+    },
+    "element_picker.direction.right": {
+        "ja": "右",
+        "en": "right",
+    },
+    "element_picker.direction.left": {
+        "ja": "左",
+        "en": "left",
+    },
+    "element_picker.direction.up": {
+        "ja": "上",
+        "en": "up",
+    },
+    "element_picker.direction.down": {
+        "ja": "下",
+        "en": "down",
+    },
     "hack_dialog.group.phantom_preset": {
-        "ja": "ファントムプリセット A0-A3",
-        "en": "Phantom Preset A0-A3",
+        "ja": "ファントムバレット プリセット A-D",
+        "en": "Phantom Bullet Presets A-D",
     },
     "hack_dialog.phantom_preset.speed.label": {
         "ja": "速度値:",
@@ -4518,21 +4538,37 @@ _TRANSLATIONS = {
         "ja": "サインテーブル開始位置:",
         "en": "Sine table start:",
     },
+    "hack_dialog.phantom_preset.speed.short": {
+        "ja": "速度",
+        "en": "Speed",
+    },
+    "hack_dialog.phantom_preset.amplitude.short": {
+        "ja": "振幅",
+        "en": "Amplitude",
+    },
+    "hack_dialog.phantom_preset.phase.short": {
+        "ja": "開始位置",
+        "en": "Start",
+    },
     "hack_dialog.setting.phantom_preset_speed": {
-        "ja": "ファントムプリセット 速度値",
-        "en": "Phantom Preset velocity byte",
+        "ja": "ファントム{group} 速度値",
+        "en": "Phantom group {group} velocity byte",
     },
     "hack_dialog.setting.phantom_preset_amplitude": {
-        "ja": "ファントムプリセット 振幅",
-        "en": "Phantom Preset amplitude",
+        "ja": "ファントム{group} 振幅",
+        "en": "Phantom group {group} amplitude",
     },
     "hack_dialog.setting.phantom_preset_phase": {
-        "ja": "ファントムプリセット サインテーブル開始位置",
-        "en": "Phantom Preset sine table start",
+        "ja": "ファントム{group} サインテーブル開始位置",
+        "en": "Phantom group {group} sine table start",
     },
     "hack_dialog.applied.phantom_preset": {
-        "ja": "ファントムプリセット: 速度={speed} / 振幅={amplitude}% / 開始位置={phase}",
-        "en": "Phantom Preset: speed={speed} / amplitude={amplitude}% / start={phase}",
+        "ja": "ファントムプリセット: {settings}",
+        "en": "Phantom presets: {settings}",
+    },
+    "hack_dialog.applied.phantom_preset.group": {
+        "ja": "{group}: 速度=${speed:02X}、振幅={amplitude}%、開始位置={phase}",
+        "en": "{group}: speed=${speed:02X}, amplitude={amplitude}%, start={phase}",
     },
     "hack_dialog.error.phantom_preset": {
         "ja": "ファントムプリセット設定失敗",

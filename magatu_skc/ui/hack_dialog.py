@@ -863,30 +863,19 @@ class HackDialog(QDialog):
         layout.addWidget(sb_variant_group)
 
         phantom_group = QGroupBox(
-            t("hack_dialog.group.phantom_preset", "Phantom Preset A0-A3")
+            t("hack_dialog.group.phantom_preset", "Phantom Bullet Presets A-D")
         )
         phantom_group.setProperty("settings_category", "敵・AI")
         phantom_form = QFormLayout(phantom_group)
         _setup_enemy_group(self, phantom_group, phantom_form, 42, (0x20, 0x21, 0x22, 0x23))
-        self.spin_phantom_preset_speed = QSpinBox()
-        self.spin_phantom_preset_speed.setRange(
-            phantom_preset_runtime.MIN_SPEED_VALUE,
-            phantom_preset_runtime.MAX_SPEED_VALUE,
-        )
-        self.spin_phantom_preset_speed.setDisplayIntegerBase(16)
-        self.spin_phantom_preset_speed.setPrefix("$")
-        self.combo_phantom_preset_amplitude = QComboBox()
-        self.spin_phantom_preset_phase = QSpinBox()
-        self.spin_phantom_preset_phase.setRange(0, 63)
+        self._phantom_preset_controls = []
         self._phantom_preset_ok = False
         try:
             phantom_settings = phantom_preset_runtime.current_settings(rom.data)
             self._phantom_preset_ok = True
         except phantom_preset_runtime.PhantomPresetRuntimeError as e:
             phantom_settings = {
-                "speed_value": phantom_preset_runtime.DEFAULT_SPEED_VALUE,
-                "amplitude_percent": phantom_preset_runtime.DEFAULT_AMPLITUDE_PERCENT,
-                "phase_offset": phantom_preset_runtime.DEFAULT_PHASE_OFFSET,
+                "groups": phantom_preset_runtime.default_group_settings()
             }
             note = QLabel(
                 t("hack_dialog.disabled", "⚠ 無効: {error}").format(
@@ -896,30 +885,55 @@ class HackDialog(QDialog):
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             phantom_form.addRow(note)
-        self.spin_phantom_preset_speed.setValue(phantom_settings["speed_value"])
-        for amplitude in phantom_preset_runtime.AMPLITUDE_VALUES:
-            self.combo_phantom_preset_amplitude.addItem(f"{amplitude}%", amplitude)
-        self._set_combo_data(
-            self.combo_phantom_preset_amplitude,
-            phantom_settings["amplitude_percent"],
-        )
-        self.spin_phantom_preset_phase.setValue(phantom_settings["phase_offset"])
-        phantom_form.addRow(
-            t("hack_dialog.phantom_preset.speed.label", "Speed:"),
-            self.spin_phantom_preset_speed,
-        )
-        phantom_form.addRow(
-            t("hack_dialog.phantom_preset.amplitude.label", "Amplitude:"),
-            self.combo_phantom_preset_amplitude,
-        )
-        phantom_form.addRow(
-            t("hack_dialog.phantom_preset.phase.label", "Sine table start:"),
-            self.spin_phantom_preset_phase,
-        )
-        if not self._phantom_preset_ok:
-            self.spin_phantom_preset_speed.setEnabled(False)
-            self.combo_phantom_preset_amplitude.setEnabled(False)
-            self.spin_phantom_preset_phase.setEnabled(False)
+        for index, group_name in enumerate(phantom_preset_runtime.GROUP_NAMES):
+            group_settings = phantom_settings["groups"][index]
+            row = QWidget()
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(6)
+
+            speed = QSpinBox()
+            speed.setRange(
+                phantom_preset_runtime.MIN_SPEED_VALUE,
+                phantom_preset_runtime.MAX_SPEED_VALUE,
+            )
+            speed.setDisplayIntegerBase(16)
+            speed.setPrefix("$")
+            speed.setValue(group_settings["speed_value"])
+
+            amplitude = QComboBox()
+            for value in phantom_preset_runtime.AMPLITUDE_VALUES:
+                amplitude.addItem(f"{value}%", value)
+            self._set_combo_data(amplitude, group_settings["amplitude_percent"])
+
+            phase = QSpinBox()
+            phase.setRange(0, 63)
+            phase.setValue(group_settings["phase_offset"])
+
+            row_layout.addWidget(QLabel(t(
+                "hack_dialog.phantom_preset.speed.short", "Speed"
+            )))
+            row_layout.addWidget(speed)
+            row_layout.addWidget(QLabel(t(
+                "hack_dialog.phantom_preset.amplitude.short", "Amplitude"
+            )))
+            row_layout.addWidget(amplitude)
+            row_layout.addWidget(QLabel(t(
+                "hack_dialog.phantom_preset.phase.short", "Start"
+            )))
+            row_layout.addWidget(phase)
+            row_layout.addStretch(1)
+
+            first_id = phantom_preset_runtime.FIRST_ID + index * 4
+            last_id = first_id + 3
+            phantom_form.addRow(
+                f"{group_name} (${first_id:02X}-${last_id:02X}):", row
+            )
+            if not self._phantom_preset_ok:
+                speed.setEnabled(False)
+                amplitude.setEnabled(False)
+                phase.setEnabled(False)
+            self._phantom_preset_controls.append((speed, amplitude, phase))
         layout.addWidget(phantom_group)
 
         # ====== デーモンヘッド ======
@@ -1431,6 +1445,31 @@ class HackDialog(QDialog):
             "inter_shot_frames": int(self.spin_gargoyle_variant_inter_shot.value()),
             "cooldown_frames": int(self.spin_gargoyle_variant_cooldown.value()),
         }
+
+    def _phantom_group_settings_from_ui(self) -> tuple[dict[str, int], ...]:
+        return tuple(
+            {
+                "speed_value": int(speed.value()),
+                "amplitude_percent": int(amplitude.currentData()),
+                "phase_offset": int(phase.value()),
+            }
+            for speed, amplitude, phase in self._phantom_preset_controls
+        )
+
+    @staticmethod
+    def _phantom_global_key(group_index: int, field: str) -> str:
+        if group_index == 0:
+            return f"phantom_preset_{field}"
+        group = phantom_preset_runtime.GROUP_NAMES[group_index].lower()
+        return f"phantom_preset_{group}_{field}"
+
+    def _phantom_global_settings_from_ui(self) -> dict:
+        values = {}
+        for index, group in enumerate(self._phantom_group_settings_from_ui()):
+            values[self._phantom_global_key(index, "speed")] = group["speed_value"]
+            values[self._phantom_global_key(index, "amplitude_percent")] = group["amplitude_percent"]
+            values[self._phantom_global_key(index, "phase_offset")] = group["phase_offset"]
+        return values
 
     def _on_spark_pause_digit_changed(self, _state):
         selected = self._selected_spark_pause_digits()
@@ -2050,9 +2089,7 @@ class HackDialog(QDialog):
             "spark_ball_pause_digits": self._selected_spark_pause_digits(),
             "spark_ball_reverse_digits": self._selected_spark_reverse_digits(),
             "spark_ball_transparency_period": self._combo_data(self.combo_spark_transparency),
-            "phantom_preset_speed": self.spin_phantom_preset_speed.value(),
-            "phantom_preset_amplitude_percent": self._combo_data(self.combo_phantom_preset_amplitude),
-            "phantom_preset_phase_offset": self.spin_phantom_preset_phase.value(),
+            **self._phantom_global_settings_from_ui(),
             "demonhead_snappy": self.chk_demonhead_snappy.isChecked(),
             "clear_screen_preset": self._combo_data(self.combo_clearscreen),
             "stage_frame_white_enabled": self.chk_stage_frame_white.isChecked(),
@@ -2326,21 +2363,34 @@ class HackDialog(QDialog):
         set_spark_digits("spark_ball_pause_digits", t("hack_dialog.setting.spark_ball_pause", "強化スパークボール停止"), self.chk_spark_pause_digits, self._selected_spark_pause_digits)
         set_spark_digits("spark_ball_reverse_digits", t("hack_dialog.setting.spark_ball_reverse", "強化スパークボール反転"), self.chk_spark_reverse_digits, self._selected_spark_reverse_digits)
         set_combo("spark_ball_transparency_period", self.combo_spark_transparency, t("hack_dialog.setting.spark_ball_transparency", "強化スパークボール透明化"))
-        set_spin(
-            "phantom_preset_speed",
-            self.spin_phantom_preset_speed,
-            t("hack_dialog.setting.phantom_preset_speed", "Phantom Preset speed"),
-        )
-        set_combo(
-            "phantom_preset_amplitude_percent",
-            self.combo_phantom_preset_amplitude,
-            t("hack_dialog.setting.phantom_preset_amplitude", "Phantom Preset amplitude"),
-        )
-        set_spin(
-            "phantom_preset_phase_offset",
-            self.spin_phantom_preset_phase,
-            t("hack_dialog.setting.phantom_preset_phase", "Phantom Preset sine table start"),
-        )
+        for index, (speed, amplitude, phase) in enumerate(
+            self._phantom_preset_controls
+        ):
+            group = phantom_preset_runtime.GROUP_NAMES[index]
+            set_spin(
+                self._phantom_global_key(index, "speed"),
+                speed,
+                t(
+                    "hack_dialog.setting.phantom_preset_speed",
+                    "Phantom group {group} speed",
+                ).format(group=group),
+            )
+            set_combo(
+                self._phantom_global_key(index, "amplitude_percent"),
+                amplitude,
+                t(
+                    "hack_dialog.setting.phantom_preset_amplitude",
+                    "Phantom group {group} amplitude",
+                ).format(group=group),
+            )
+            set_spin(
+                self._phantom_global_key(index, "phase_offset"),
+                phase,
+                t(
+                    "hack_dialog.setting.phantom_preset_phase",
+                    "Phantom group {group} sine table start",
+                ).format(group=group),
+            )
         set_check("demonhead_snappy", self.chk_demonhead_snappy, t("hack_dialog.setting.demonhead_snappy", "デーモンヘッド キビキビ"))
         if has("clear_screen_preset") and self.combo_clearscreen.isEnabled():
             old = self.combo_clearscreen.currentIndex()
@@ -2754,20 +2804,29 @@ class HackDialog(QDialog):
             try:
                 phantom_changes = phantom_preset_runtime.apply_settings(
                     d,
-                    self.spin_phantom_preset_speed.value(),
-                    self.combo_phantom_preset_amplitude.currentData(),
-                    self.spin_phantom_preset_phase.value(),
+                    self._phantom_group_settings_from_ui(),
                 )
                 if phantom_changes:
+                    group_summaries = []
+                    for index, group in enumerate(
+                        self._phantom_group_settings_from_ui()
+                    ):
+                        group_summaries.append(
+                            t(
+                                "hack_dialog.applied.phantom_preset.group",
+                                "{group}: speed=${speed:02X}, amplitude={amplitude}%, start={phase}",
+                            ).format(
+                                group=phantom_preset_runtime.GROUP_NAMES[index],
+                                speed=group["speed_value"],
+                                amplitude=group["amplitude_percent"],
+                                phase=group["phase_offset"],
+                            )
+                        )
                     applied.append(
                         t(
                             "hack_dialog.applied.phantom_preset",
-                            "Phantom Preset: speed={speed} / amplitude={amplitude}% / start={phase}",
-                        ).format(
-                            speed=f"${self.spin_phantom_preset_speed.value():02X}",
-                            amplitude=self.combo_phantom_preset_amplitude.currentData(),
-                            phase=self.spin_phantom_preset_phase.value(),
-                        )
+                            "Phantom presets: {settings}",
+                        ).format(settings=" / ".join(group_summaries))
                     )
             except phantom_preset_runtime.PhantomPresetRuntimeError as e:
                 QMessageBox.warning(
@@ -2964,16 +3023,13 @@ class HackDialog(QDialog):
                 spark_ball_variant.DEFAULT_TRANSPARENCY_PERIOD,
             )
         if getattr(self, "_phantom_preset_ok", False):
-            self.spin_phantom_preset_speed.setValue(
-                phantom_preset_runtime.DEFAULT_SPEED_VALUE
-            )
-            self._set_combo_data(
-                self.combo_phantom_preset_amplitude,
-                phantom_preset_runtime.DEFAULT_AMPLITUDE_PERCENT,
-            )
-            self.spin_phantom_preset_phase.setValue(
-                phantom_preset_runtime.DEFAULT_PHASE_OFFSET
-            )
+            for speed, amplitude, phase in self._phantom_preset_controls:
+                speed.setValue(phantom_preset_runtime.DEFAULT_SPEED_VALUE)
+                self._set_combo_data(
+                    amplitude,
+                    phantom_preset_runtime.DEFAULT_AMPLITUDE_PERCENT,
+                )
+                phase.setValue(phantom_preset_runtime.DEFAULT_PHASE_OFFSET)
         if self._demonhead_ok:
             self.chk_demonhead_snappy.setChecked(False)
         if getattr(self, "_cs_ok", False):

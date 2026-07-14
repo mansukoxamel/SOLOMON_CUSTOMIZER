@@ -1,4 +1,4 @@
-"""Configurable Phantom Bullet preset for enemy IDs $A0-$A3."""
+"""Four configurable Phantom Bullet presets for enemy IDs $A0-$AF."""
 from __future__ import annotations
 
 
@@ -7,7 +7,10 @@ class PhantomPresetRuntimeError(ValueError):
 
 
 FIRST_ID = 0xA0
-LAST_ID = 0xA3
+LAST_ID = 0xAF
+GROUP_NAMES = ("A", "B", "C", "D")
+GROUP_COUNT = len(GROUP_NAMES)
+IDS_PER_GROUP = 4
 
 OFF_RUNTIME = 0x3DAC
 CPU_RUNTIME = 0xBD9C
@@ -95,6 +98,40 @@ def velocity_bytes(speed_value: int) -> bytes:
     return bytes((speed, reverse, reverse, speed))
 
 
+def default_group_settings() -> tuple[dict[str, int], ...]:
+    return tuple(
+        {
+            "speed_value": DEFAULT_SPEED_VALUE,
+            "amplitude_percent": DEFAULT_AMPLITUDE_PERCENT,
+            "phase_offset": DEFAULT_PHASE_OFFSET,
+        }
+        for _group in GROUP_NAMES
+    )
+
+
+def normalize_group_settings(settings) -> tuple[dict[str, int], ...]:
+    if settings is None:
+        return default_group_settings()
+    if not isinstance(settings, (list, tuple)) or len(settings) != GROUP_COUNT:
+        raise PhantomPresetRuntimeError(
+            f"Phantom settings must contain exactly {GROUP_COUNT} groups"
+        )
+    normalized = []
+    for index, raw in enumerate(settings):
+        if not isinstance(raw, dict):
+            raise PhantomPresetRuntimeError(
+                f"Phantom group {GROUP_NAMES[index]} settings must be a mapping"
+            )
+        normalized.append({
+            "speed_value": normalize_speed_value(raw.get("speed_value")),
+            "amplitude_percent": normalize_amplitude_percent(
+                raw.get("amplitude_percent")
+            ),
+            "phase_offset": normalize_phase_offset(raw.get("phase_offset")),
+        })
+    return tuple(normalized)
+
+
 def normalize_amplitude_percent(value) -> int:
     try:
         amplitude = int(value)
@@ -127,7 +164,7 @@ def _build_init() -> bytes:
     a = _Asm(0)
     a.b(0x68)                              # discard saved stock init input
     a.b(0xA9, 0xC0, 0x85, 0x04)          # active, gravity-free entity
-    a.b(0xA5, 0x05, 0x29, 0x03)          # direction from $A0-$A3
+    a.b(0xA5, 0x05, 0x29, 0x03)          # direction from each four-ID group
     a.jsr(CPU_STOCK_INIT)
     a.b(0xA5, 0x06)
     a.jsr(CPU_SUB_SLOT_PTR)
@@ -148,17 +185,19 @@ def _build_ai(cpu_state2: int) -> bytes:
 def _build_state2(
     cpu_scale_delta: int,
     cpu_sine_table: int,
-    amplitude_units: int,
-    phase_offset: int,
-) -> tuple[bytes, int, int]:
+    cpu_amplitude_table: int,
+    cpu_phase_table: int,
+) -> bytes:
     a = _Asm(0)
-    a.b(0xA9, amplitude_units)
-    amplitude_offset = len(a.code) - 1
-    a.branch(0xF0, "rts")
     a.b(0x8A, 0x48)                       # preserve outer enemy-loop X
+    a.b(0xA0, 0x01, 0xB1, 0x2E)
+    a.b(0x4A, 0x4A, 0x29, 0x03, 0xAA)   # group = (type >> 2) & 3
+    a.b(0xBD, cpu_amplitude_table & 0xFF, cpu_amplitude_table >> 8)
+    a.branch(0xF0, "restore")
+    a.b(0x85, 0x0E)                       # transient amplitude units
     a.b(0xAD, RAM_FRAME_COUNTER_LOW & 0xFF, RAM_FRAME_COUNTER_LOW >> 8)
-    a.b(0x4A, 0x18, 0x69, phase_offset, 0x29, 0x3F)
-    phase_offset_rel = len(a.code) - 3
+    a.b(0x4A, 0x18)
+    a.b(0x7D, cpu_phase_table & 0xFF, cpu_phase_table >> 8, 0x29, 0x3F)
     a.b(0xA0, 0x06, 0xD1, 0x2C)
     a.branch(0xF0, "restore")
     a.b(0x91, 0x2C, 0xAA)
@@ -175,19 +214,17 @@ def _build_state2(
     a.b(0x68, 0x18, 0x71, 0x2E, 0x91, 0x2E)
     a.label("restore")
     a.b(0x68, 0xAA)
-    a.label("rts")
     a.b(0x60)
-    return a.finish(), amplitude_offset, phase_offset_rel
+    return a.finish()
 
 
-def _build_scale_delta(amplitude_units: int) -> tuple[bytes, int]:
+def _build_scale_delta() -> bytes:
     a = _Asm(0)
     a.b(0xA0, 0x00, 0xC9, 0x80)
     a.branch(0x90, "absolute")
     a.b(0xC8, 0x49, 0xFF, 0x18, 0x69, 0x01)
     a.label("absolute")
-    a.b(0x85, 0x0F, 0xA9, 0x00, 0xA2, amplitude_units)
-    amplitude_offset = len(a.code) - 1
+    a.b(0x85, 0x0F, 0xA9, 0x00, 0xA6, 0x0E)
     a.branch(0xF0, "divide")
     a.label("multiply")
     a.b(0x18, 0x65, 0x0F, 0xCA)
@@ -198,13 +235,14 @@ def _build_scale_delta(amplitude_units: int) -> tuple[bytes, int]:
     a.b(0x49, 0xFF, 0x18, 0x69, 0x01)
     a.label("done")
     a.b(0x60)
-    return a.finish(), amplitude_offset
+    return a.finish()
 
 
 def _build_apply_speed(cpu_velocity_table: int, cpu_axis_table: int) -> bytes:
     a = _Asm(0)
-    a.b(0xA0, 0x03, 0xB1, 0x08, 0x29, 0x03, 0xA8)
+    a.b(0xA0, 0x01, 0xB1, 0x08, 0x29, 0x0F, 0xA8)
     a.b(0xB9, cpu_velocity_table & 0xFF, cpu_velocity_table >> 8, 0x48)
+    a.b(0x98, 0x29, 0x02, 0x4A, 0xA8)
     a.b(0xB9, cpu_axis_table & 0xFF, cpu_axis_table >> 8, 0xA8)
     a.b(0x68, 0x91, 0x08, 0x60)
     return a.finish()
@@ -225,25 +263,20 @@ def _build_prephysics(cpu_apply_speed: int) -> bytes:
     return a.finish()
 
 
-def build_runtime(
-    speed_value=DEFAULT_SPEED_VALUE,
-    amplitude_percent=DEFAULT_AMPLITUDE_PERCENT,
-    phase_offset=DEFAULT_PHASE_OFFSET,
-) -> tuple[bytes, dict[str, int]]:
-    speed_value = normalize_speed_value(speed_value)
-    amplitude_percent = normalize_amplitude_percent(amplitude_percent)
-    phase_offset = normalize_phase_offset(phase_offset)
-    amplitude_units = amplitude_percent // 25
+def build_runtime(group_settings=None) -> tuple[bytes, dict[str, int]]:
+    group_settings = normalize_group_settings(group_settings)
 
     setup = _build_setup()
     init_size = 24
     ai_size = 12
-    state2_size = 54
+    state2_size = 67
     scale_size = 38
-    speed_size = 19
+    speed_size = 24
     prephysics_size = 28
-    velocity_size = 4
-    axis_size = 4
+    velocity_size = 16
+    axis_size = 2
+    amplitude_size = GROUP_COUNT
+    phase_size = GROUP_COUNT
 
     cpu_setup = CPU_RUNTIME
     cpu_init = cpu_setup + len(setup)
@@ -254,18 +287,28 @@ def build_runtime(
     cpu_prephysics = cpu_speed + speed_size
     cpu_velocity = cpu_prephysics + prephysics_size
     cpu_axis = cpu_velocity + velocity_size
-    cpu_sine = cpu_axis + axis_size
+    cpu_amplitude = cpu_axis + axis_size
+    cpu_phase = cpu_amplitude + amplitude_size
+    cpu_sine = cpu_phase + phase_size
 
     init = _build_init()
     ai = _build_ai(cpu_state2)
-    state2, state2_amp_rel, state2_phase_rel = _build_state2(
-        cpu_scale, cpu_sine, amplitude_units, phase_offset
+    state2 = _build_state2(
+        cpu_scale, cpu_sine, cpu_amplitude, cpu_phase
     )
-    scale, scale_amp_rel = _build_scale_delta(amplitude_units)
+    scale = _build_scale_delta()
     speed = _build_apply_speed(cpu_velocity, cpu_axis)
     prephysics = _build_prephysics(cpu_speed)
-    velocity = velocity_bytes(speed_value)
-    axes = bytes((0x08, 0x08, 0x05, 0x05))
+    velocity = b"".join(
+        velocity_bytes(group["speed_value"])
+        for group in group_settings
+    )
+    axes = bytes((0x08, 0x05))
+    amplitudes = bytes(
+        group["amplitude_percent"] // 25
+        for group in group_settings
+    )
+    phases = bytes(group["phase_offset"] for group in group_settings)
 
     if len(init) != init_size or len(ai) != ai_size:
         raise PhantomPresetRuntimeError("Phantom preset fixed section size changed")
@@ -277,7 +320,7 @@ def build_runtime(
 
     runtime = (
         setup + init + ai + state2 + scale + speed + prephysics
-        + velocity + axes + SINE_DELTA_TABLE
+        + velocity + axes + amplitudes + phases + SINE_DELTA_TABLE
     )
     offsets = {
         "setup": cpu_setup,
@@ -289,63 +332,60 @@ def build_runtime(
         "prephysics": cpu_prephysics,
         "velocity_table": cpu_velocity,
         "axis_table": cpu_axis,
+        "amplitude_table": cpu_amplitude,
+        "phase_table": cpu_phase,
         "sine_table": cpu_sine,
-        "state2_amplitude": (cpu_state2 - CPU_RUNTIME) + state2_amp_rel,
-        "state2_phase": (cpu_state2 - CPU_RUNTIME) + state2_phase_rel,
-        "scale_amplitude": (cpu_scale - CPU_RUNTIME) + scale_amp_rel,
     }
     return runtime, offsets
 
 
-def current_settings(rom_data) -> dict[str, int]:
+def current_settings(rom_data) -> dict[str, object]:
     if rom_data is None or len(rom_data) < OFF_RUNTIME + len(RUNTIME):
         raise PhantomPresetRuntimeError("ROM is too short for Phantom preset runtime")
     current = bytes(rom_data[OFF_RUNTIME:OFF_RUNTIME + len(RUNTIME)])
     if all(value in (0x00, 0xEA) for value in current):
-        return {
-            "speed_value": DEFAULT_SPEED_VALUE,
-            "amplitude_percent": DEFAULT_AMPLITUDE_PERCENT,
-            "phase_offset": DEFAULT_PHASE_OFFSET,
-        }
-    amplitude_units = int(current[_OFFSETS["state2_amplitude"]])
-    if (
-        amplitude_units > 8
-        or int(current[_OFFSETS["scale_amplitude"]]) != amplitude_units
-    ):
-        raise PhantomPresetRuntimeError("Phantom preset runtime has unexpected amplitude bytes")
-    phase_offset = int(current[_OFFSETS["state2_phase"]])
-    if phase_offset not in PHASE_OFFSETS:
-        raise PhantomPresetRuntimeError("Phantom preset runtime has an invalid phase offset")
+        return {"groups": default_group_settings()}
     velocity_rel = _OFFSETS["velocity_table"] - CPU_RUNTIME
-    speed_value = int(current[velocity_rel])
-    amplitude_percent = amplitude_units * 25
-    if speed_value != 0:
-        candidate, _offsets = build_runtime(
-            speed_value, amplitude_percent, phase_offset
-        )
-        if current == candidate:
-            return {
-                "speed_value": speed_value,
-                "amplitude_percent": amplitude_percent,
-                "phase_offset": phase_offset,
-            }
+    amplitude_rel = _OFFSETS["amplitude_table"] - CPU_RUNTIME
+    phase_rel = _OFFSETS["phase_table"] - CPU_RUNTIME
+    groups = []
+    for index in range(GROUP_COUNT):
+        speed_value = int(current[velocity_rel + index * IDS_PER_GROUP])
+        amplitude_units = int(current[amplitude_rel + index])
+        phase_offset = int(current[phase_rel + index])
+        if (
+            speed_value == 0
+            or amplitude_units > 8
+            or phase_offset not in PHASE_OFFSETS
+        ):
+            raise PhantomPresetRuntimeError(
+                f"Phantom group {GROUP_NAMES[index]} has invalid settings bytes"
+            )
+        groups.append({
+            "speed_value": speed_value,
+            "amplitude_percent": amplitude_units * 25,
+            "phase_offset": phase_offset,
+        })
+    candidate, _offsets = build_runtime(groups)
+    if current == candidate:
+        return {"groups": tuple(groups)}
     raise PhantomPresetRuntimeError("Phantom preset runtime has unexpected bytes")
 
 
-def apply_settings(rom_data, speed_value, amplitude_percent, phase_offset) -> list[str]:
-    speed_value = normalize_speed_value(speed_value)
-    amplitude_percent = normalize_amplitude_percent(amplitude_percent)
-    phase_offset = normalize_phase_offset(phase_offset)
+def apply_settings(rom_data, group_settings) -> list[str]:
+    group_settings = normalize_group_settings(group_settings)
     current_settings(rom_data)
-    runtime, _offsets = build_runtime(speed_value, amplitude_percent, phase_offset)
+    runtime, _offsets = build_runtime(group_settings)
     current = bytes(rom_data[OFF_RUNTIME:OFF_RUNTIME + len(runtime)])
     if current == runtime:
         return []
     rom_data[OFF_RUNTIME:OFF_RUNTIME + len(runtime)] = runtime
     return [
-        f"Phantom preset speed=${speed_value:02X}",
-        f"amplitude={amplitude_percent}%",
-        f"phase offset={phase_offset}",
+        "Phantom group " + GROUP_NAMES[index]
+        + f" speed=${group['speed_value']:02X}"
+        + f" amplitude={group['amplitude_percent']}%"
+        + f" phase={group['phase_offset']}"
+        for index, group in enumerate(group_settings)
     ]
 
 
@@ -356,13 +396,12 @@ CPU_AI_DISPATCH = _OFFSETS["ai"]
 CPU_PREPHYSICS = _OFFSETS["prephysics"]
 CPU_RUNTIME_END = CPU_RUNTIME + len(RUNTIME)
 HOOK_PHYSICS_CALL = bytes((0x20, CPU_PREPHYSICS & 0xFF, CPU_PREPHYSICS >> 8))
-OFF_STATE2_AMPLITUDE = OFF_RUNTIME + _OFFSETS["state2_amplitude"]
-OFF_STATE2_PHASE = OFF_RUNTIME + _OFFSETS["state2_phase"]
-OFF_SCALE_AMPLITUDE = OFF_RUNTIME + _OFFSETS["scale_amplitude"]
+OFF_AMPLITUDE_TABLE = OFF_RUNTIME + (_OFFSETS["amplitude_table"] - CPU_RUNTIME)
+OFF_PHASE_TABLE = OFF_RUNTIME + (_OFFSETS["phase_table"] - CPU_RUNTIME)
 RESERVED_SPANS = ((OFF_PHYSICS_CALL, len(HOOK_PHYSICS_CALL)), (OFF_RUNTIME, len(RUNTIME)))
 
 assert len(SINE_DELTA_TABLE) == 64
 assert sum(value if value < 0x80 else value - 0x100 for value in SINE_DELTA_TABLE) == 0
-assert len(RUNTIME) == 256
-assert OFF_RUNTIME + len(RUNTIME) == 0x3EAC
-assert CPU_RUNTIME_END == 0xBE9C
+assert len(RUNTIME) == 292
+assert OFF_RUNTIME + len(RUNTIME) == 0x3ED0
+assert CPU_RUNTIME_END == 0xBEC0
