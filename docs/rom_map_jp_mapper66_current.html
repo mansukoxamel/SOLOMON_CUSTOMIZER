@@ -149,12 +149,13 @@
       <tr><td class="num">0x6244-0x6267</td><td>Visible item in-block packed helper</td><td>`$E234` helper + `$E24C` extension。分散していた36Bを1ブロックへ集約。</td></tr>
       <tr><td class="num">0x6268-0x627F</td><td>空き</td><td>Visible item in-block runtime直後の24B空き。room_flags.py本体reserveとは扱わない。</td></tr>
       <tr><td class="num">0x4FEE-0x5004</td><td>Spark/Panel animation fallback</td><td><code>$CFDE-$CFF4</code>。<code>$8B05</code>から呼ばれ、現行Panel animation selector <code>$E748</code>へ接続する23B枠。</td></tr>
-      <tr><td class="num">0x6280-0x62EC / 0x62F3-0x6341</td><td>空き</td><td>合計188Bの現行runtime予約なし領域。<code>0x62ED-0x62F2</code> の6BだけはPanel Variant設定表として使用する。</td></tr>
+      <tr><td class="num">0x6280-0x6341</td><td>空き</td><td>合計194Bの現行runtime予約なし領域。</td></tr>
       <tr><td class="num">0x6342-0x634E</td><td>Final-stage redirect packed helper</td><td>`$E332-$E33E`。bank0 cave側 `$BD18` の13B runtimeを4096B連続領域の先頭側へ移動。`$C6F5` hookは `JSR $E332` を指す。</td></tr>
       <tr><td class="num">0x634F-0x63A7</td><td>Enhanced Gargoyle primary runtime</td><td><code>$E33F-$E397</code>。一発目の弾速設定、二発目状態への移行、通常/強化クールダウン分岐を含む89B runtime。</td></tr>
       <tr><td class="num">0x63A8-0x63D8</td><td>空き</td><td>Enhanced Gargoyle primary runtime直後の49B空き。現行runtime予約なし。</td></tr>
       <tr><td class="num">0x6496-0x677F</td><td>Panel Variant final runtime block</td><td><code>$E486-$E76F</code>。A/B/C final runtime本体746B。fire/Bullet/AI/classifier/property/animation hook本体を含む。Spark24 property dispatchは<code>$BF43</code>から入り、Panel fallbackをこのブロックへ向ける。</td></tr>
-      <tr><td class="num">0x6780-0x6797</td><td>空き</td><td>Panel Variant final runtime直後の24B空き。panel_monster_stage_variant本体reserveとは扱わず、次runtimeとの緩衝に残す。</td></tr>
+      <tr><td class="num">0x6780-0x6785</td><td>Panel Variant settings table</td><td><code>$E770-$E775</code>。A/B/Cのspeed/intervalを各2Bで保持し、直前のPanel runtimeが直接読む6B設定表。</td></tr>
+      <tr><td class="num">0x6786-0x6797</td><td>空き</td><td>Panel Variant settings table直後の18B空き。現行runtime予約なし。</td></tr>
       <tr><td class="num">0x6798-0x6870</td><td>RoomFlag packed cave runtime</td><td><code>$E788-$E860</code>。LOADER/MAGICGATE/DOORPREDRAW/DARK/tempo/special-cell scannerを217Bで集約。</td></tr>
       <tr><td class="num">0x6871-0x6879</td><td>Wide title idle-demo cleanup</td><td><code>$E861-$E869</code>。Title timeout-only stub 9B。<code>$CB9E</code> から呼び、<code>$E935</code> のwide-title clear helper後に原作action <code>$18</code> を予約する。</td></tr>
       <tr><td class="num">0x687A-0x6888</td><td>空き</td><td>RoomFlag packed cave runtimeとGap fix runtimeの間に残す15B空き。</td></tr>
@@ -208,7 +209,7 @@
       <tr><td>空き</td><td><code>spark24_runtime.py</code></td><td class="num">0x3F83-0x400F</td><td class="num">$BF73-$BFFF</td><td class="num">141B</td><td>00/EA埋め</td><td>Spark24 runtime直後の現行runtime予約なし領域。</td></tr>
       <tr><td>小routine</td><td><code>enemy_clear_key_open.py</code></td><td class="num">0x4156-0x41D1</td><td class="num">$C146-$C1C1</td><td class="num">124B</td><td>EA埋め</td><td>Enemy Clear Key Open runtime。All Kill Modeの全滅走査からSeraphic Radiance <code>$9D</code>を除外する。</td></tr>
       <tr><td>空き</td><td><code>enemy_clear_key_open.py</code></td><td class="num">0x41D2-0x420F</td><td class="num">$C1C2-$C1FF</td><td class="num">62B</td><td>EA埋め</td><td>現行runtime予約なし。</td></tr>
-      <tr><td>小routine</td><td><code>spark_ball_variant.py</code></td><td class="num">0x4FEE-0x5004</td><td class="num">$CFDE-$CFF4</td><td class="num">23B</td><td>EA埋め</td><td>Spark Ball animation hook本体。Panel Variant設定表 <code>0x62ED-0x62F2</code> と重ならない配置。</td></tr>
+      <tr><td>小routine</td><td><code>spark_ball_variant.py</code></td><td class="num">0x4FEE-0x5004</td><td class="num">$CFDE-$CFF4</td><td class="num">23B</td><td>EA埋め</td><td><code>$8B05</code>から呼ばれるSpark/Panel animation fallback。現行Panel animation selector <code>$E748</code>へ接続する。</td></tr>
       <tr><td>原作データ</td><td><code>original ROM</code></td><td class="num">0x5BC5-0x5BEE</td><td class="num">$DBB5-$DBDE</td><td class="num">42B</td><td>原作速度テーブル</td><td>Golem/Demonhead などの通常敵も使う共有速度データ。Panel Variant の no-drift 対策としてゼロ化しない。Panel Variant A/B/C 適用時は通常Panel Bulletの左右速度バグ修正として該当4バイトのみ <code>$3F/$41</code> presetへ更新する。</td></tr>
       <tr><td>空き</td><td><code>panel_monster_variant.py</code></td><td class="num">0x5BEF-0x5C0A</td><td class="num">$DBDF-$DBFA</td><td class="num">28B</td><td>EA埋め</td><td>現行runtime予約なし。Panel property hook本体は <code>$E73A</code>。</td></tr>
       <tr><td>小routine</td><td><code>fairy9c_runtime.py</code></td><td class="num">0x6010-0x6065</td><td class="num">$E000-$E055</td><td class="num">86B</td><td>EA埋め</td><td>Dark Fairy9C runtime。<code>$9C</code> をFairy group <code>$0E</code> で表示し、AI中だけmain typeを原作Fairy <code>$1C</code> にして原作移動/取得処理を通す。<code>$0453</code>増加を検出したらsub-slot[7]で60F待ってから死亡action <code>$31</code> を発動し、本体をdespawnする。SPR2 palette表示はanimation入口側で原作アニメ後にsprite attrへ<code>AND #$13</code>、<code>ORA #$48</code>を適用して、必要な反転bitを残したまま設定する。</td></tr>
@@ -223,8 +224,7 @@
       <tr><td>空き</td><td><code>room_flags.py</code></td><td class="num">0x6268-0x627F</td><td class="num">$E258-$E26F</td><td class="num">24B</td><td>EA埋め</td><td>Visible item in-block runtime直後の空き。room_flags.py本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
       <tr><td>小routine</td><td><code>m66.py</code></td><td class="num">0x60CC-0x60F5</td><td class="num">$E0BC-$E0E5</td><td class="num">42B</td><td>EA埋め</td><td>ひび割れブロック内アイテム用の初期描画低値分類helper。遠距離JMPを外し、table <code>01 02 04 08 10 20 40 80</code> を同一ブロック末尾に置く。</td></tr>
       <tr><td>空き</td><td><code>m66.py</code></td><td class="num">0x60F6-0x610D</td><td class="num">$E0E6-$E0FD</td><td class="num">24B</td><td>EA埋め</td><td>Initial draw low classifier直後の空き。m66.py本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
-      <tr><td>データ</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x62ED-0x62F2</td><td class="num">$E2DD-$E2E2</td><td class="num">6B</td><td>00埋め</td><td>Panel Variant A/B/C settings table。A speed/interval, B speed/interval, C speed/interval。runtimeがPRG0表を直接読むため、RAM <code>$0740-$074F</code> は使わない。</td></tr>
-      <tr><td>空き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x6280-0x62EC / 0x62F3-0x6341</td><td class="num">$E270-$E2DC / $E2E3-$E331</td><td class="num">188B</td><td>00/EA埋め</td><td>現行runtime予約なし。<code>0x62ED-0x62F2</code> はPanel Variant設定表なので空きに含めない。</td></tr>
+      <tr><td>空き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x6280-0x6341</td><td class="num">$E270-$E331</td><td class="num">194B</td><td>00/EA埋め</td><td>現行runtime予約なし。</td></tr>
       <tr><td>小routine</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x4FEE-0x5004</td><td class="num">$CFDE-$CFF4</td><td class="num">23B</td><td>EA埋め</td><td><code>$8B05</code>から呼ばれるSpark/Panel animation fallback。先頭JMPで現行Panel animation selector <code>$E748</code>へ接続する。</td></tr>
       <tr><td>小routine</td><td><code>final_stage_redirect.py</code></td><td class="num">0x6342-0x634E</td><td class="num">$E332-$E33E</td><td class="num">13B</td><td>EA埋め</td><td>最終面リダイレクトruntimeをbank0 cave側 <code>$BD18</code> から移動。<code>$077A</code> bit7を見て、クリア後の次ステージ番号 <code>$0428</code> を原作最終面へ差し替える。</td></tr>
       <tr><td>小routine</td><td><code>gargoyle_variant.py</code></td><td class="num">0x634F-0x63A7</td><td class="num">$E33F-$E397</td><td class="num">89B</td><td>EA埋め</td><td>強化ガーゴイルprimary runtime。一発目のmaterialize gate、弾速設定、二発目状態への移行、通常/強化cooldown gateを含む。<code>$AE6F</code> と <code>$AE48</code> のhook先。</td></tr>
@@ -232,7 +232,8 @@
       <tr><td>小routine</td><td><code>saramandor_variant.py</code></td><td class="num">0x63D9-0x647D</td><td class="num">$E3C9-$E46D</td><td class="num">165B</td><td>EA埋め</td><td>Saramandor #2 Bullet variant runtimeを1ブロックへ集約。spawn setup、substatus、flame behavior、distance checkを含む。<code>$B105</code>、<code>$B0A9</code>、<code>$B0C6</code>、<code>$B1E9</code> のhook先。</td></tr>
       <tr><td>空き</td><td><code>saramandor_variant.py</code></td><td class="num">0x647E-0x6495</td><td class="num">$E46E-$E485</td><td class="num">24B</td><td>EA埋め</td><td>Saramandor runtime直後の空き。saramandor_variant本体reserveとは扱わず、将来別処理が入る可能性を残す。</td></tr>
       <tr><td>小routine</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x6496-0x677F</td><td class="num">$E486-$E76F</td><td class="num">746B</td><td>EA埋め</td><td>Panel Variant final runtimeブロック。A/B/C finalの速度、AI、弾、classifier、marker、property/animation hook本体を含む。</td></tr>
-      <tr><td>空き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x6780-0x6797</td><td class="num">$E770-$E787</td><td class="num">24B</td><td>EA埋め</td><td>Panel Variant final runtime直後の空き。panel_monster_stage_variant本体reserveとは扱わず、次runtimeとの緩衝に残す。</td></tr>
+      <tr><td>データ</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x6780-0x6785</td><td class="num">$E770-$E775</td><td class="num">6B</td><td>EA埋め</td><td>Panel Variant A/B/C settings table。A speed/interval, B speed/interval, C speed/interval。直前のruntimeがPRG0表を直接読む。</td></tr>
+      <tr><td>空き</td><td><code>panel_monster_stage_variant.py</code></td><td class="num">0x6786-0x6797</td><td class="num">$E776-$E787</td><td class="num">18B</td><td>EA埋め</td><td>Panel Variant settings table直後の現行runtime予約なし領域。</td></tr>
       <tr><td>小routine</td><td><code>room_flags.py</code></td><td class="num">0x6798-0x6870</td><td class="num">$E788-$E860</td><td class="num">217B</td><td>EA埋め</td><td>RoomFlag cave runtimeを集約。LOADER 46B、MAGICGATE 34B、DOORPREDRAW 11B、DARK 56B、tempo 2B、special-cell scanner 68B。DARKは暗フェーズ中でもダーナ火球slot <code>$05A7</code> bit7 が立つ間だけBG-offを抑止する。</td></tr>
       <tr><td>小routine</td><td><code>title_screen.py</code></td><td class="num">0x6871-0x6879</td><td class="num">$E861-$E869</td><td class="num">9B</td><td>EA埋め</td><td>Wide title idle-demo cleanup。<code>$CB9E</code> のtimeout-only pathから呼ばれ、<code>$E935</code> のwide-title clear helper後に原作action <code>$18</code> を予約する。</td></tr>
       <tr><td>空き</td><td><code>room_flags.py</code></td><td class="num">0x687A-0x6888</td><td class="num">$E86A-$E878</td><td class="num">15B</td><td>EA埋め</td><td>RoomFlag packed cave runtimeとGap fix runtimeの間に残す空き。</td></tr>
@@ -272,16 +273,15 @@
       <div class="seg free" style="width:.20%">8B</div>
       <div class="seg hook" style="width:.88%">item<br><small>36B</small></div>
       <div class="seg free" style="width:.59%">24B</div>
-      <div class="seg free" style="width:2.66%">free<br><small>109B</small></div>
-      <div class="seg data" style="width:.15%"><span class="tiny">6B</span></div>
-      <div class="seg free" style="width:1.93%">free<br><small>79B</small></div>
+      <div class="seg free" style="width:4.74%">free<br><small>194B</small></div>
       <div class="seg hook" style="width:.32%"><span class="tiny">final</span></div>
       <div class="seg hook" style="width:2.17%">garg<br><small>89B</small></div>
       <div class="seg free" style="width:1.20%">49B</div>
       <div class="seg hook" style="width:4.03%">saram<br><small>165B</small></div>
       <div class="seg free" style="width:.59%">24B</div>
       <div class="seg hook" style="width:18.21%">Panel final<br><small>746B</small></div>
-      <div class="seg free" style="width:.59%">24B</div>
+      <div class="seg data" style="width:.15%"><span class="tiny">6B</span></div>
+      <div class="seg free" style="width:.44%">18B</div>
       <div class="seg hook" style="width:5.30%">RoomFlag<br><small>217B</small></div>
       <div class="seg hook" style="width:.22%"><span class="tiny">title</span></div>
       <div class="seg free" style="width:.37%"><span class="tiny">15B</span></div>
@@ -341,12 +341,14 @@
       <tr><td class="num">0x610E-0x623B</td><td class="num">$E0FE-$E22B</td><td class="num">302B</td><td>Key/Fairy enemy runtime</td></tr>
       <tr><td class="num">0x623C-0x6243</td><td class="num">$E22C-$E233</td><td class="num">8B</td><td>Free</td></tr>
       <tr><td class="num">0x6244-0x6267</td><td class="num">$E234-$E257</td><td class="num">36B</td><td>Visible item in-block helper</td></tr>
-      <tr><td class="num">0x6280-0x62EC / 0x62F3-0x6341</td><td class="num">$E270-$E2DC / $E2E3-$E331</td><td class="num">188B</td><td>Free area around Panel Variant settings table</td></tr>
+      <tr><td class="num">0x6280-0x6341</td><td class="num">$E270-$E331</td><td class="num">194B</td><td>Free</td></tr>
       <tr><td class="num">0x4FEE-0x5004</td><td class="num">$CFDE-$CFF4</td><td class="num">23B</td><td>Spark/Panel animation fallback</td></tr>
       <tr><td class="num">0x6342-0x634E</td><td class="num">$E332-$E33E</td><td class="num">13B</td><td>Final-stage redirect</td></tr>
       <tr><td class="num">0x634F-0x63A7</td><td class="num">$E33F-$E397</td><td class="num">89B</td><td>Enhanced Gargoyle primary runtime</td></tr>
       <tr><td class="num">0x63D9-0x647D</td><td class="num">$E3C9-$E46D</td><td class="num">165B</td><td>Saramandor runtime</td></tr>
       <tr><td class="num">0x6496-0x677F</td><td class="num">$E486-$E76F</td><td class="num">746B</td><td>Panel Variant final runtime</td></tr>
+      <tr><td class="num">0x6780-0x6785</td><td class="num">$E770-$E775</td><td class="num">6B</td><td>Panel Variant settings table</td></tr>
+      <tr><td class="num">0x6786-0x6797</td><td class="num">$E776-$E787</td><td class="num">18B</td><td>Free</td></tr>
       <tr><td class="num">0x6798-0x6870</td><td class="num">$E788-$E860</td><td class="num">217B</td><td>RoomFlag packed cave runtime</td></tr>
       <tr><td class="num">0x6871-0x6879</td><td class="num">$E861-$E869</td><td class="num">9B</td><td>Wide title idle-demo cleanup</td></tr>
       <tr><td class="num">0x6889-0x6910</td><td class="num">$E879-$E900</td><td class="num">136B</td><td>Gap fix runtime</td></tr>
@@ -434,8 +436,8 @@
       <tr><td>wide title decoder/data</td><td class="num">0x80D0-0x87FF</td><td class="num">$80C0-$87EF</td><td class="num">1,840B</td><td>Wide title decoder + title PPU attribute table (64B; 16x15 visible title color blocks plus offscreen padding) + blockA/blockB streams + 20-slot title character main-slot table. Current internal stream is <code>[HI][LO][LEN][TILE...]</code> with <code>$FF</code> terminator, so title text, BUILD stamps, and the editable PUSH START line can draw original font tiles <code>$00-$2F</code> without CHR bank3 glyph copies. Decoder writes the PRG1 title attribute table to PPU attribute memory for the full 256x240 title canvas, then copies the title-only character table into main entity slots 1-20 in PRG1; the stock per-frame OAM writer draws those slots normally. Slot20 ends at RAM <code>$0722</code>, so it does not overlap the wide-title RAM trampoline <code>$072C-$0739</code>. Title exit clears through the PRG0 helper at <code>$E935</code>, which calls the original all-main-slot clear helper <code>$CB5A</code>. No NMI hook, DARK hook, or generic PRG0 cave is used for this title display.</td></tr>
       <tr><td>StageExtTable</td><td class="num">0x8800-0x8A0F</td><td class="num">$87F0-$89FF</td><td class="num">528B</td><td>Per-stage extension settings: 16B header + 64 rooms x 8B. byte0 bit4=clear後に原作最終面へ送る、byte0 bit5=Warp Mirror Mode、byte0 bit6=Enemy Clear Key Open、byte2=key enemy initial slot, byte3=fall-death fairy enemy initial slot. Also carries mapper66 runtime room flags and door-cell bytes copied to <code>$0778/$077C</code>; the room-load runtime copies byte0 bit4 to <code>$077A</code> bit7, and the PRG1 gameplay flag helper copies byte0 bit5/bit6 to <code>$0770</code> bit5/bit4.</td></tr>
       <tr><td>Panel Variant combined runtime loader</td><td class="num">0x8A10-0x8A6F</td><td class="num">$8A00-$8A5F</td><td class="num">96B</td><td>Mapper66 room-load helper. Preserves StageExt runtime copies, copies StageExt byte0 bit4 to <code>$077A</code> bit7, copies the Solomon Seal block-state byte to <code>$077D</code>, then jumps through the StageExt gameplay flag helper before the Transparent Seal suppress guard. Panel Variant settings are no longer copied to RAM.</td></tr>
-      <tr><td>空き</td><td class="num">0x8A70-0x8A75</td><td class="num">$8A60-$8A65</td><td class="num">6B</td><td>現行runtime予約なし。現行settings tableはPRG0 <code>0x62ED-0x62F2</code>。</td></tr>
-      <tr><td>Panel Variant settings table</td><td class="num">0x62ED-0x62F2</td><td class="num">$E2DD-$E2E2</td><td class="num">6B</td><td>All-stage common A/B/C settings image: A speed/interval, B speed/interval, C speed/interval. PRG0 runtime reads this table directly; RAM <code>$0740-$074F</code> is not used.</td></tr>
+      <tr><td>空き</td><td class="num">0x8A70-0x8A75</td><td class="num">$8A60-$8A65</td><td class="num">6B</td><td>現行runtime予約なし。現行settings tableはPRG0 <code>0x6780-0x6785</code>。</td></tr>
+      <tr><td>Panel Variant settings table</td><td class="num">0x6780-0x6785</td><td class="num">$E770-$E775</td><td class="num">6B</td><td>All-stage common A/B/C settings image: A speed/interval, B speed/interval, C speed/interval. PRG0 runtime reads this table directly; RAM <code>$0740-$074F</code> is not used.</td></tr>
       <tr><td>StageExt gameplay flag helper</td><td class="num">0x8A76-0x8A8B</td><td class="num">$8A66-$8A7B</td><td class="num">22B</td><td>StageExt byte0 bit5を<code>$0770</code> bit5、byte0 bit6を<code>$0770</code> bit4へコピーする。PRG0 runtime/hook自体は常時配置し、OFF面では各runtime内で原作処理へ戻る。最後はTransparent Seal suppress guardへJMPする。</td></tr>
       <tr><td>PanelVariant PRG1 reserve</td><td class="num">0x8A8C-0x8E7F</td><td class="num">$8A7C-$8E6F</td><td class="num">1,012B</td><td>PRG1 reserve after the StageExt gameplay flag helper. Current runtime does not reference this area.</td></tr>
       <tr><td>Transparent/cracked item side-data copy helper</td><td class="num">0x8E80-0x8EAA</td><td class="num">$8E70-$8E9A</td><td class="num">43B</td><td>Copies the current room's 32B side slot from the PRG1 table to RAM <code>$0750-$076F</code> with page-crossing carry preserved. The first 24B are the visible-item mask; the last 8B are cracked in-block cell positions.</td></tr>
