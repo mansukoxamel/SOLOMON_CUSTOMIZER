@@ -9,8 +9,6 @@ from . import ghost86_runtime as _ghost86
 from . import neul88_runtime as _neul88
 from . import flying_dragon89_runtime as _flying89
 from . import afterburner90_runtime as _after90
-from . import bullet91_runtime as _bullet91
-from . import bullet92_runtime as _bullet92
 from . import phantom_preset_runtime as _phantom_preset
 from . import fairy9c_runtime as _fairy9c
 from . import seraphic_radiance9d_runtime as _radiance9d
@@ -27,8 +25,6 @@ GHOST86_ID = _ghost86.NEW_ENEMY_ID
 NEUL88_ID = _neul88.NEW_ENEMY_ID
 CHAOS89_ID = _flying89.NEW_ENEMY_ID
 AFTER90_ID = _after90.NEW_ENEMY_ID
-BULLET91_ID = _bullet91.NEW_ENEMY_ID
-BULLET92_ID = _bullet92.NEW_ENEMY_ID
 PHANTOM_PRESET_FIRST_ID = _phantom_preset.FIRST_ID
 PHANTOM_PRESET_LAST_ID = _phantom_preset.LAST_ID
 FAIRY9C_ID = _fairy9c.NEW_ENEMY_ID
@@ -39,14 +35,14 @@ LEGACY_ICE_AI_DISPATCH = 0xE9C1
 LEGACY_ICE_SETUP_META_LOAD = 0xE9C4
 
 OFF_AI_ENTRY = 0x3BF2      # CPU $BBE2
-OFF_SETUP_ENTRY = 0x3C5A
-OFF_INIT_ENTRY = 0x3CC3
-OFF_ANIM_ENTRY = 0x3D28
+OFF_SETUP_ENTRY = 0x3C4A
+OFF_INIT_ENTRY = 0x3CA5
+OFF_ANIM_ENTRY = 0x3CFC
 
 CPU_AI_ENTRY = 0xBBE2
-CPU_SETUP_ENTRY = 0xBC4A
-CPU_INIT_ENTRY = 0xBCB3
-CPU_ANIM_ENTRY = 0xBD18
+CPU_SETUP_ENTRY = 0xBC3A
+CPU_INIT_ENTRY = 0xBC95
+CPU_ANIM_ENTRY = 0xBCEC
 
 OLD_AI_ENTRY_RUNTIME = bytes.fromhex(
     "48"
@@ -69,8 +65,6 @@ def _build_ai_entry_runtime() -> bytes:
         (NEUL88_ID, _neul88.CPU_AI_DISPATCH),
         (CHAOS89_ID, _flying89.CPU_AI_DISPATCH),
         (AFTER90_ID, _after90.CPU_AI_DISPATCH),
-        (BULLET91_ID, _bullet91.CPU_AI_DISPATCH),
-        (BULLET92_ID, _bullet92.CPU_AI_DISPATCH),
         (FAIRY9C_ID, _fairy9c.CPU_AI_DISPATCH),
         (RADIANCE9D_ID, _radiance9d.CPU_AI_ENTRY),
     )
@@ -183,10 +177,6 @@ def _build_setup_entry_runtime() -> bytes:
     a.branch(0xF0, "chaos89")
     a.b(0xC9, AFTER90_ID)
     a.branch(0xF0, "after90")
-    a.b(0xC9, BULLET91_ID)
-    a.branch(0xF0, "bullet91")
-    a.b(0xC9, BULLET92_ID)
-    a.branch(0xF0, "bullet92")
     a.b(0xC9, FAIRY9C_ID)
     a.branch(0xF0, "fairy9c")
     a.b(0xC9, RADIANCE9D_ID)
@@ -206,10 +196,6 @@ def _build_setup_entry_runtime() -> bytes:
     a.jmp(_flying89.CPU_SETUP_META_LOAD)
     a.label("after90")
     a.jmp(_after90.CPU_SETUP_META_LOAD)
-    a.label("bullet91")
-    a.jmp(_bullet91.CPU_SETUP_META_LOAD)
-    a.label("bullet92")
-    a.jmp(_bullet92.CPU_SETUP_META_LOAD)
     a.label("fairy9c")
     a.jmp(_fairy9c.CPU_SETUP_META_LOAD)
     a.label("radiance9d")
@@ -269,10 +255,6 @@ def _build_init_entry_runtime() -> bytes:
     a.branch(0xF0, "chaos89")
     a.b(0xC9, AFTER90_ID)
     a.branch(0xF0, "after90")
-    a.b(0xC9, BULLET91_ID)
-    a.branch(0xF0, "bullet91")
-    a.b(0xC9, BULLET92_ID)
-    a.branch(0xF0, "bullet92")
     a.b(0xC9, FAIRY9C_ID)
     a.branch(0xF0, "fairy9c")
     a.b(0xC9, RADIANCE9D_ID)
@@ -299,10 +281,6 @@ def _build_init_entry_runtime() -> bytes:
     a.jmp(_flying89.CPU_INIT_STATUS)
     a.label("after90")
     a.jmp(_after90.CPU_INIT_STATUS)
-    a.label("bullet91")
-    a.jmp(_bullet91.CPU_INIT_STATUS)
-    a.label("bullet92")
-    a.jmp(_bullet92.CPU_INIT_STATUS)
     a.label("fairy9c")
     a.jmp(_fairy9c.CPU_INIT_STATUS)
     a.label("radiance9d")
@@ -369,10 +347,6 @@ def _build_anim_entry_runtime() -> bytes:
     a.label("below_spark24")
     a.b(0xC9, ICE_FLAME_ID)
     a.branch(0xF0, "ice")
-    a.b(0xC9, BULLET91_ID)
-    a.branch(0xF0, "bullet_palette")
-    a.b(0xC9, BULLET92_ID)
-    a.branch(0xF0, "bullet_palette")
     a.b(0xC9, FAIRY9C_ID)
     a.branch(0xF0, "fairy9c")
     a.b(0xC9, RADIANCE9D_ID)
@@ -443,8 +417,6 @@ RESERVED_SPANS = (
     *_neul88.RESERVED_SPANS,
     *_flying89.RESERVED_SPANS,
     *_after90.RESERVED_SPANS,
-    *_bullet91.RESERVED_SPANS,
-    *_bullet92.RESERVED_SPANS,
     *_phantom_preset.RESERVED_SPANS,
     *_fairy9c.RESERVED_SPANS,
     *_radiance9d.RESERVED_SPANS,
@@ -472,8 +444,6 @@ def levels_need_runtime(levels: list) -> bool:
         or _neul88.levels_need_runtime(levels)
         or _flying89.levels_need_runtime(levels)
         or _after90.levels_need_runtime(levels)
-        or _bullet91.levels_need_runtime(levels)
-        or _bullet92.levels_need_runtime(levels)
         or any(
             PHANTOM_PRESET_FIRST_ID <= int(getattr(enemy, "element_no", -1)) <= PHANTOM_PRESET_LAST_ID
             for lv in (levels or [])
@@ -533,8 +503,6 @@ def apply(rom_data: bytearray) -> list[str]:
         _neul88.OFF_RUNTIME + len(_neul88.RUNTIME),
         _flying89.OFF_RUNTIME + len(_flying89.RUNTIME),
         _after90.OFF_RUNTIME + len(_after90.RUNTIME),
-        _bullet91.OFF_RUNTIME + len(_bullet91.RUNTIME),
-        _bullet92.OFF_RUNTIME + len(_bullet92.RUNTIME),
         _phantom_preset.OFF_RUNTIME + len(_phantom_preset.RUNTIME),
         _fairy9c.OFF_RUNTIME + len(_fairy9c.RUNTIME),
         _radiance9d.OFF_RUNTIME + len(_radiance9d.RUNTIME),
@@ -607,18 +575,6 @@ def apply(rom_data: bytearray) -> list[str]:
         (bytes((0xEA,)) * len(_after90.RUNTIME), _after90.RUNTIME),
         "Back Fire90 runtime area",
     )
-    _expect_one(
-        rom_data,
-        _bullet91.OFF_RUNTIME,
-        (bytes((0xEA,)) * len(_bullet91.RUNTIME), _bullet91.RUNTIME),
-        "Bullet8B runtime area",
-    )
-    _expect_one(
-        rom_data,
-        _bullet92.OFF_RUNTIME,
-        (bytes((0xEA,)) * len(_bullet92.RUNTIME), _bullet92.RUNTIME),
-        "Bullet8C runtime area",
-    )
     phantom_settings = _phantom_preset.current_settings(rom_data)
     phantom_runtime, _phantom_offsets = _phantom_preset.build_runtime(
         phantom_settings["groups"],
@@ -690,20 +646,6 @@ def apply(rom_data: bytearray) -> list[str]:
         _after90.RUNTIME,
         changed,
         f"Back Fire90 runtime ${_after90.CPU_RUNTIME:04X}-${_after90.CPU_RUNTIME_END - 1:04X}",
-    )
-    _write(
-        rom_data,
-        _bullet91.OFF_RUNTIME,
-        _bullet91.RUNTIME,
-        changed,
-        f"Bullet8B runtime ${_bullet91.CPU_RUNTIME:04X}-${_bullet91.CPU_RUNTIME_END - 1:04X}",
-    )
-    _write(
-        rom_data,
-        _bullet92.OFF_RUNTIME,
-        _bullet92.RUNTIME,
-        changed,
-        f"Bullet8C runtime ${_bullet92.CPU_RUNTIME:04X}-${_bullet92.CPU_RUNTIME_END - 1:04X}",
     )
     _write(
         rom_data,

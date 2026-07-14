@@ -191,8 +191,6 @@ ENEMIES_LIST = [
     (0x88, "Neul Twin Cannon"),
     (0x89, "Chaos Dragon"),
     (0x8A, "Back Fire"),
-    (0x8B, "Phantom Bullet"),
-    (0x8C, "Phantom Bullet"),
     (0x9C, "Dark Fairy"),
     (0x9D, "熾天の眩光 / Seraphic Radiance"),
     *((
@@ -226,8 +224,6 @@ DEVELOPER_ONLY_PICKER_ITEMS = {
     (MODE_ENEMY, 0x88),
     (MODE_ENEMY, 0x89),
     (MODE_ENEMY, 0x8A),
-    (MODE_ENEMY, 0x8B),
-    (MODE_ENEMY, 0x8C),
     (MODE_ENEMY, 0x9C),
     (MODE_ENEMY, 0x9D),
     *((MODE_ENEMY, code) for code in range(0xA0, 0xB0)),
@@ -377,8 +373,6 @@ ENEMY_VISUAL_SOURCE = {
     0x88: 0x30,  # Neul Twin Cannon uses the stock Neul up visual.
     0x89: 0x68,  # Chaos Dragon uses the stock Dragon right visual.
     0x8A: 0x34,  # Back Fire uses the stock Ghost right visual.
-    0x8B: 0x20,  # Phantom Bullet uses the stock Bullet right visual.
-    0x8C: 0x20,  # Phantom Bullet uses the stock Bullet right visual.
     **{code: 0x20 + (code & 3) for code in range(0xA0, 0xB0)},
 }
 
@@ -387,8 +381,6 @@ ENEMY_PICKER_PALETTE_OVERRIDE = {
     0x62: 6, 0x63: 6,
     0x6A: 6, 0x6B: 6,  # Dragon color variant speed 1 uses SPR #2.
     0x72: 6, 0x73: 6,  # Goblin color variant speed 1 uses SPR #2.
-    0x8B: 6,  # Phantom Bullet is shown with SPR #2 palette.
-    0x8C: 6,  # Phantom Bullet is shown with SPR #2 palette.
     **{code: 6 for code in range(0xA0, 0xB0)},
 }
 
