@@ -3348,8 +3348,8 @@ _TRANSLATIONS = {
     },
     "hack_dialog.gargoyle.cooldown.label": {"ja": "発射後クールダウン:", "en": "Post-shot cooldown:"},
     "hack_dialog.gargoyle.hint": {
-        "ja": "ONでガーゴイル固有の待ち3箇所を$01にします。弾の2発化とは別軸で併用できます。",
-        "en": "When ON, changes Gargoyle's three unique waits to $01. This can be combined with the two-shot variant because it is a separate setting.",
+        "ja": "ONでガーゴイル固有の待ち3箇所を$01にします。弾の連射強化とは別軸で併用できます。",
+        "en": "When ON, changes Gargoyle's three unique waits to $01. This can be combined with the enhanced multi-shot variant because it is a separate setting.",
     },
     "hack_dialog.group.gargoyle_variant": {"ja": "強化ガーゴイル", "en": "Enhanced Gargoyle"},
     "hack_dialog.gargoyle_variant.row.all": {"ja": "7A/7B/7E/7F:", "en": "7A/7B/7E/7F:"},
@@ -3358,8 +3358,8 @@ _TRANSLATIONS = {
     "hack_dialog.gargoyle_variant.inter_shot.label": {"ja": "発射間隔", "en": "Shot interval"},
     "hack_dialog.gargoyle_variant.cooldown.label": {"ja": "クールダウン", "en": "Cooldown"},
     "hack_dialog.gargoyle_variant.hint": {
-        "ja": "強化ガーゴイル(7A/7B/7E/7F)は、設定した間隔で2発撃ちます。弾速・発射間隔・発射後クールダウンは4ID共通です。",
-        "en": "Enhanced Gargoyle (7A/7B/7E/7F) fires two shots at the selected interval. Bullet speed, shot interval, and post-shot cooldown are shared by all four IDs.",
+        "ja": "強化ガーゴイル(7A/7B/7E/7F)は、LIFE百の位が偶数なら2発、奇数なら3発撃ちます。各弾の間に設定した発射間隔を置きます。弾速・発射間隔・発射後クールダウンは4ID共通です。",
+        "en": "Enhanced Gargoyle (7A/7B/7E/7F) fires twice when the LIFE hundreds digit is even and three times when it is odd, waiting the selected interval between shots. Bullet speed, shot interval, and post-shot cooldown are shared by all four IDs.",
     },
     "hack_dialog.group.dragon": {"ja": "ドラゴン", "en": "Dragon"},
     "hack_dialog.dragon.snappy": {"ja": "キビキビ動作（方向転換の待ちを最小化）", "en": "Snappy behavior (minimize the turn-around wait)"},

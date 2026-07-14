@@ -1000,7 +1000,7 @@ class HackDialog(QDialog):
             ghint = QLabel(t(
                 "hack_dialog.gargoyle.hint",
                 "ONでガーゴイル固有の待ち3箇所を$01にします。"
-                "弾の2発化とは別軸で併用できます。",
+                "弾の連射強化とは別軸で併用できます。",
             ))
             ghint.setWordWrap(True)
             ghint.setStyleSheet("color:#888; font-size:11px;")
@@ -1069,7 +1069,8 @@ class HackDialog(QDialog):
         gvhint = QLabel(
             t(
                 "hack_dialog.gargoyle_variant.hint",
-                "強化ガーゴイル(7A/7B/7E/7F)は、設定した間隔で2発撃ちます。"
+                "強化ガーゴイル(7A/7B/7E/7F)は、LIFE百の位が偶数なら2発、奇数なら3発撃ちます。"
+                "各弾の間に設定した発射間隔を置きます。"
                 "弾速・発射間隔・発射後クールダウンは4ID共通です。",
             ))
         gvhint.setWordWrap(True)

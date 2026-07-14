@@ -1,8 +1,9 @@
-"""Gargoyle borrowed-ID two-shot experiment.
+"""Gargoyle borrowed-ID enhanced-shot experiment.
 
 JP/JPC66 only. Gargoyle #2 IDs ($7A/$7B/$7E/$7F) share configurable Bullet
-speed, inter-shot gap, and post-shot cooldown settings. The two-shot runtime is
-split across two PRG0 caves; normal Gargoyles retain stock behavior.
+speed, inter-shot gap, and post-shot cooldown settings. They fire twice when
+the LIFE hundreds digit is even and three times when it is odd. Normal
+Gargoyles retain stock behavior.
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ OFF_HOOK_MATERIALIZE = _cf(0xAE6F)
 OFF_HOOK_COOLDOWN = _cf(0xAE48)
 OFF_HOOK_OLD_WAIT = _cf(0xAF2B)
 OFF_HOOK_STATE3 = _cf(0xAE28)
+OFF_HOOK_STATE4 = _cf(0xAE2A)
 OFF_CAVE_GATE = 0x634F
 OFF_CAVE_SECOND_SHOT = 0x6D2D
 
@@ -53,6 +55,8 @@ HOOK_COOLDOWN = bytes((0x4C, *(_word(CPU_CAVE_COOLDOWN)), 0xEA))
 OLD_HOOK_COOLDOWN = bytes((0x4C, *(_word(0xE38B)), 0xEA))
 ORIG_STATE3 = _word(0xA41C)
 HOOK_STATE3 = _word(CPU_CAVE_SECOND_SHOT)
+ORIG_STATE4 = _word(0xA41C)
+HOOK_STATE4 = _word(CPU_CAVE_SECOND_SHOT)
 
 # v0.6.159 rapid-fire experiment. It is no longer used and must be removed if
 # a ROM carrying that hook is saved again.
@@ -76,18 +80,21 @@ CAVE_GATE = bytes.fromhex(
 assert len(CAVE_GATE) == 89
 
 CAVE_SECOND_SHOT = bytes.fromhex(
-    # Enhanced-only state 3: wait the configured interval, allocate and fire
-    # the second Bullet, apply its speed marker, then enter cooldown. No slot
-    # means skip shot two.
-    "a0 01 b1 2e 29 fa c9 7a d0 46"
-    "a0 01 b1 2c c9 0c 90 3d 20 ea b2 90 28"
+    # States 3 and 4 share this handler. State 3 fires shot two, then either
+    # enters cooldown or resets the counter in state 4 when LIFE hundreds is
+    # odd. State 4 waits the same interval, fires shot three, and cools down.
+    "a0 01 b1 2e 29 fa c9 7a d0 5e"
+    "b1 2c c9 0c 90 57 20 ea b2 90 42"
     "8a a0 06 91 2c a0 00 a9 80 91 04 a9 01 11 2c 91 2c"
     "a0 03 b1 2e 29 01 aa 20 76 ae"
     "a0 06 b1 2c 20 56 b1 a9 89 a0 07 91 00"
-    "a0 03 b1 2e 29 03 09 02 91 2e a9 00 a0 01 91 2c"
-    "60 4c 1c a4"
+    "a0 03 b1 2e 29 10 d0 12"
+    "ad 39 04 29 01 f0 0b"
+    "b1 2e 29 03 09 10 91 2e 4c 7e ed"
+    "a0 03 b1 2e 29 03 09 02 91 2e"
+    "a9 00 a0 01 91 2c 60 4c 1c a4"
 )
-assert len(CAVE_SECOND_SHOT) == 83
+assert len(CAVE_SECOND_SHOT) == 107
 
 OLD_PACKED_CAVE = bytes.fromhex(
     "a0 01 b1 2e 29 fa c9 7a f0 04 a9 00 f0 0c"
@@ -105,8 +112,8 @@ OLD_NORMAL_COOLDOWN_OFF = OLD_PACKED_CAVE_OFF + 52 + 0x0B
 OFF_CAVE_COOLDOWN_NORMAL_VALUE = OFF_CAVE_GATE + 0x49
 OFF_CAVE_SPEED_MARKER_VALUE = OFF_CAVE_GATE + 0x0F
 OFF_CAVE_COOLDOWN_VALUE = OFF_CAVE_GATE + 0x50
-OFF_SECOND_INTER_SHOT_VALUE = OFF_CAVE_SECOND_SHOT + 0x0F
-OFF_SECOND_SPEED_MARKER_VALUE = OFF_CAVE_SECOND_SHOT + 0x3A
+OFF_SECOND_INTER_SHOT_VALUE = OFF_CAVE_SECOND_SHOT + 0x0D
+OFF_SECOND_SPEED_MARKER_VALUE = OFF_CAVE_SECOND_SHOT + 0x38
 _GATE_MASK = bytearray(CAVE_GATE)
 _GATE_MASK[OFF_CAVE_SPEED_MARKER_VALUE - OFF_CAVE_GATE] = 0x00
 _GATE_MASK[OFF_CAVE_COOLDOWN_NORMAL_VALUE - OFF_CAVE_GATE] = 0x00
@@ -125,9 +132,10 @@ OLD_TWO_BULLET_BODY = bytes.fromhex(
     "91 00 68 a0 0a 91 2e 60"
 )
 
-# Experimental placement. Formal reservation and ROM ledger changes are
-# deferred until the behavior and final packed placement are accepted.
-RESERVED_SPANS: tuple[tuple[int, int], ...] = ()
+RESERVED_SPANS = (
+    (OFF_CAVE_GATE, len(CAVE_GATE)),
+    (OFF_CAVE_SECOND_SHOT, len(CAVE_SECOND_SHOT)),
+)
 
 
 def _expect_any(rom_data, off: int, accepted: tuple[bytes, ...], name: str) -> None:
@@ -267,6 +275,7 @@ def is_applied(rom_data) -> bool:
             bytes(rom_data[OFF_CAVE_SECOND_SHOT:OFF_CAVE_SECOND_SHOT + len(CAVE_SECOND_SHOT)])
         )
         and bytes(rom_data[OFF_HOOK_STATE3:OFF_HOOK_STATE3 + 2]) == HOOK_STATE3
+        and bytes(rom_data[OFF_HOOK_STATE4:OFF_HOOK_STATE4 + 2]) == HOOK_STATE4
     )
 
 
@@ -329,10 +338,11 @@ def apply(
         OFF_HOOK_MATERIALIZE + len(ORIG_MATERIALIZE),
         OFF_HOOK_COOLDOWN + len(ORIG_COOLDOWN),
         OFF_HOOK_STATE3 + len(HOOK_STATE3),
+        OFF_HOOK_STATE4 + len(HOOK_STATE4),
         OFF_HOOK_OLD_WAIT + len(ORIG_WAIT),
     )
     if rom_data is None or len(rom_data) < min_len:
-        raise GargoyleVariantError("ROM is too short for Gargoyle two-shot patch.")
+        raise GargoyleVariantError("ROM is too short for Gargoyle enhanced-shot patch.")
 
     _expect_any(
         rom_data,
@@ -349,26 +359,32 @@ def apply(
     )
     _expect_any(
         rom_data,
+        OFF_HOOK_STATE4,
+        (ORIG_STATE4, HOOK_STATE4),
+        "$AE2A Gargoyle state 4 entry",
+    )
+    _expect_any(
+        rom_data,
         OFF_HOOK_OLD_WAIT,
         (ORIG_WAIT, SNAPPY_WAIT, OLD_HOOK_WAIT),
         "$AF2B old Gargoyle rapid-fire hook",
     )
-    _ensure_available(rom_data, OFF_CAVE_GATE, gate_body, "Gargoyle two-shot primary")
+    _ensure_available(rom_data, OFF_CAVE_GATE, gate_body, "Gargoyle enhanced-shot primary")
     _ensure_available(
         rom_data,
         OFF_CAVE_SECOND_SHOT,
         second_body,
-        "Gargoyle second-shot state",
+        "Gargoyle second/third-shot state",
     )
 
     changed: list[str] = []
-    _write(rom_data, OFF_CAVE_GATE, gate_body, changed, "Gargoyle two-shot primary $E33F")
+    _write(rom_data, OFF_CAVE_GATE, gate_body, changed, "Gargoyle enhanced-shot primary $E33F")
     _write(
         rom_data,
         OFF_CAVE_SECOND_SHOT,
         second_body,
         changed,
-        "Gargoyle second-shot state $ED1D",
+        "Gargoyle second/third-shot state $ED1D",
     )
     _write(
         rom_data,
@@ -390,6 +406,13 @@ def apply(
         HOOK_STATE3,
         changed,
         "$AE28 Gargoyle second-shot state hook",
+    )
+    _write(
+        rom_data,
+        OFF_HOOK_STATE4,
+        HOOK_STATE4,
+        changed,
+        "$AE2A Gargoyle third-shot state hook",
     )
     if bytes(rom_data[OFF_HOOK_OLD_WAIT:OFF_HOOK_OLD_WAIT + len(OLD_HOOK_WAIT)]) == OLD_HOOK_WAIT:
         _write(
