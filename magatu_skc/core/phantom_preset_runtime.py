@@ -15,19 +15,14 @@ OFF_PHYSICS_CALL = 0x0680
 ORIG_PHYSICS_CALL = bytes.fromhex("20 89 86")
 CPU_STOCK_PHYSICS = 0x8689
 
-SPEED_QUARTER = 0
-SPEED_HALF = 1
-SPEED_NORMAL = 2
-SPEED_PRESETS = (SPEED_QUARTER, SPEED_HALF, SPEED_NORMAL)
-SPEED_LABELS = {
-    SPEED_QUARTER: "1/4",
-    SPEED_HALF: "1/2",
-    SPEED_NORMAL: "1x",
-}
-DEFAULT_SPEED_PRESET = SPEED_NORMAL
+MIN_SPEED_VALUE = 0x01
+MAX_SPEED_VALUE = 0xFF
+DEFAULT_SPEED_VALUE = 0x3F
 
 AMPLITUDE_VALUES = tuple(range(0, 201, 25))
 DEFAULT_AMPLITUDE_PERCENT = 100
+PHASE_OFFSETS = tuple(range(64))
+DEFAULT_PHASE_OFFSET = 0
 
 CPU_STOCK_BULLET_STATE0 = 0xAFC7
 CPU_STOCK_BULLET_STATE1 = 0xB00A
@@ -47,13 +42,6 @@ SINE_DELTA_TABLE = bytes((
     0x04, 0x04, 0x03, 0x03, 0x03, 0x02, 0x02, 0x01,
     0x01, 0x00, 0x00, 0xFF, 0xFF, 0xFE, 0xFE, 0xFD,
 ))
-
-_VELOCITIES = {
-    SPEED_QUARTER: bytes((0x0C, 0xF4, 0xF4, 0x0C)),
-    SPEED_HALF: bytes((0x18, 0xE8, 0xE8, 0x18)),
-    SPEED_NORMAL: bytes((0x30, 0xD0, 0xD0, 0x30)),
-}
-
 
 class _Asm:
     def __init__(self, base: int):
@@ -89,14 +77,22 @@ class _Asm:
         return bytes(self.code)
 
 
-def normalize_speed_preset(value) -> int:
+def normalize_speed_value(value) -> int:
     try:
-        preset = int(value)
+        speed = int(value)
     except (TypeError, ValueError):
-        preset = DEFAULT_SPEED_PRESET
-    if preset not in SPEED_PRESETS:
-        raise PhantomPresetRuntimeError(f"unsupported Phantom speed preset: {value!r}")
-    return preset
+        speed = DEFAULT_SPEED_VALUE
+    if not MIN_SPEED_VALUE <= speed <= MAX_SPEED_VALUE:
+        raise PhantomPresetRuntimeError(
+            f"unsupported Phantom speed value: {value!r}; expected $01-$FF"
+        )
+    return speed
+
+
+def velocity_bytes(speed_value: int) -> bytes:
+    speed = normalize_speed_value(speed_value)
+    reverse = (-speed) & 0xFF
+    return bytes((speed, reverse, reverse, speed))
 
 
 def normalize_amplitude_percent(value) -> int:
@@ -111,20 +107,28 @@ def normalize_amplitude_percent(value) -> int:
     return amplitude
 
 
+def normalize_phase_offset(value) -> int:
+    try:
+        phase = int(value)
+    except (TypeError, ValueError):
+        phase = DEFAULT_PHASE_OFFSET
+    if phase not in PHASE_OFFSETS:
+        raise PhantomPresetRuntimeError(
+            f"unsupported Phantom phase offset: {value!r}; expected 0-63"
+        )
+    return phase
+
+
 def _build_setup() -> bytes:
     return bytes.fromhex("a9 10 85 0e a8 b9 d3 d9 60")
 
 
-def _build_init(cpu_velocity_table: int, cpu_axis_table: int) -> bytes:
+def _build_init() -> bytes:
     a = _Asm(0)
     a.b(0x68)                              # discard saved stock init input
     a.b(0xA9, 0xC0, 0x85, 0x04)          # active, gravity-free entity
     a.b(0xA5, 0x05, 0x29, 0x03)          # direction from $A0-$A3
     a.jsr(CPU_STOCK_INIT)
-    a.b(0xA0, 0x03, 0xB1, 0x00, 0x29, 0x03, 0xA8)
-    a.b(0xB9, cpu_velocity_table & 0xFF, cpu_velocity_table >> 8, 0x48)
-    a.b(0xB9, cpu_axis_table & 0xFF, cpu_axis_table >> 8, 0xA8)
-    a.b(0x68, 0x91, 0x00)
     a.b(0xA5, 0x06)
     a.jsr(CPU_SUB_SLOT_PTR)
     a.b(0xA0, 0x06, 0xA9, 0xFF, 0x91, 0x00, 0x60)
@@ -145,14 +149,16 @@ def _build_state2(
     cpu_scale_delta: int,
     cpu_sine_table: int,
     amplitude_units: int,
-) -> tuple[bytes, int]:
+    phase_offset: int,
+) -> tuple[bytes, int, int]:
     a = _Asm(0)
     a.b(0xA9, amplitude_units)
     amplitude_offset = len(a.code) - 1
     a.branch(0xF0, "rts")
     a.b(0x8A, 0x48)                       # preserve outer enemy-loop X
     a.b(0xAD, RAM_FRAME_COUNTER_LOW & 0xFF, RAM_FRAME_COUNTER_LOW >> 8)
-    a.b(0x4A, 0x29, 0x3F)
+    a.b(0x4A, 0x18, 0x69, phase_offset, 0x29, 0x3F)
+    phase_offset_rel = len(a.code) - 3
     a.b(0xA0, 0x06, 0xD1, 0x2C)
     a.branch(0xF0, "restore")
     a.b(0x91, 0x2C, 0xAA)
@@ -171,7 +177,7 @@ def _build_state2(
     a.b(0x68, 0xAA)
     a.label("rts")
     a.b(0x60)
-    return a.finish(), amplitude_offset
+    return a.finish(), amplitude_offset, phase_offset_rel
 
 
 def _build_scale_delta(amplitude_units: int) -> tuple[bytes, int]:
@@ -211,6 +217,8 @@ def _build_prephysics(cpu_apply_speed: int) -> bytes:
     a.branch(0x90, "stock")
     a.b(0xC9, LAST_ID + 1)
     a.branch(0xB0, "stock")
+    a.b(0xA0, 0x03, 0xB1, 0x08, 0x29, 0xFC, 0xC9, 0x08)
+    a.branch(0xD0, "stock")
     a.jsr(cpu_apply_speed)
     a.label("stock")
     a.jmp(CPU_STOCK_PHYSICS)
@@ -218,20 +226,22 @@ def _build_prephysics(cpu_apply_speed: int) -> bytes:
 
 
 def build_runtime(
-    speed_preset=DEFAULT_SPEED_PRESET,
+    speed_value=DEFAULT_SPEED_VALUE,
     amplitude_percent=DEFAULT_AMPLITUDE_PERCENT,
+    phase_offset=DEFAULT_PHASE_OFFSET,
 ) -> tuple[bytes, dict[str, int]]:
-    speed_preset = normalize_speed_preset(speed_preset)
+    speed_value = normalize_speed_value(speed_value)
     amplitude_percent = normalize_amplitude_percent(amplitude_percent)
+    phase_offset = normalize_phase_offset(phase_offset)
     amplitude_units = amplitude_percent // 25
 
     setup = _build_setup()
-    init_size = 42
+    init_size = 24
     ai_size = 12
-    state2_size = 51
+    state2_size = 54
     scale_size = 38
     speed_size = 19
-    prephysics_size = 18
+    prephysics_size = 28
     velocity_size = 4
     axis_size = 4
 
@@ -246,15 +256,15 @@ def build_runtime(
     cpu_axis = cpu_velocity + velocity_size
     cpu_sine = cpu_axis + axis_size
 
-    init = _build_init(cpu_velocity, cpu_axis)
+    init = _build_init()
     ai = _build_ai(cpu_state2)
-    state2, state2_amp_rel = _build_state2(
-        cpu_scale, cpu_sine, amplitude_units
+    state2, state2_amp_rel, state2_phase_rel = _build_state2(
+        cpu_scale, cpu_sine, amplitude_units, phase_offset
     )
     scale, scale_amp_rel = _build_scale_delta(amplitude_units)
     speed = _build_apply_speed(cpu_velocity, cpu_axis)
     prephysics = _build_prephysics(cpu_speed)
-    velocity = _VELOCITIES[speed_preset]
+    velocity = velocity_bytes(speed_value)
     axes = bytes((0x08, 0x08, 0x05, 0x05))
 
     if len(init) != init_size or len(ai) != ai_size:
@@ -281,17 +291,10 @@ def build_runtime(
         "axis_table": cpu_axis,
         "sine_table": cpu_sine,
         "state2_amplitude": (cpu_state2 - CPU_RUNTIME) + state2_amp_rel,
+        "state2_phase": (cpu_state2 - CPU_RUNTIME) + state2_phase_rel,
         "scale_amplitude": (cpu_scale - CPU_RUNTIME) + scale_amp_rel,
     }
     return runtime, offsets
-
-
-def all_runtime_variants() -> tuple[bytes, ...]:
-    return tuple(
-        build_runtime(speed, amplitude)[0]
-        for speed in SPEED_PRESETS
-        for amplitude in AMPLITUDE_VALUES
-    )
 
 
 def current_settings(rom_data) -> dict[str, int]:
@@ -300,29 +303,49 @@ def current_settings(rom_data) -> dict[str, int]:
     current = bytes(rom_data[OFF_RUNTIME:OFF_RUNTIME + len(RUNTIME)])
     if all(value in (0x00, 0xEA) for value in current):
         return {
-            "speed_preset": DEFAULT_SPEED_PRESET,
+            "speed_value": DEFAULT_SPEED_VALUE,
             "amplitude_percent": DEFAULT_AMPLITUDE_PERCENT,
+            "phase_offset": DEFAULT_PHASE_OFFSET,
         }
-    for speed in SPEED_PRESETS:
-        for amplitude in AMPLITUDE_VALUES:
-            candidate, _offsets = build_runtime(speed, amplitude)
-            if current == candidate:
-                return {"speed_preset": speed, "amplitude_percent": amplitude}
+    amplitude_units = int(current[_OFFSETS["state2_amplitude"]])
+    if (
+        amplitude_units > 8
+        or int(current[_OFFSETS["scale_amplitude"]]) != amplitude_units
+    ):
+        raise PhantomPresetRuntimeError("Phantom preset runtime has unexpected amplitude bytes")
+    phase_offset = int(current[_OFFSETS["state2_phase"]])
+    if phase_offset not in PHASE_OFFSETS:
+        raise PhantomPresetRuntimeError("Phantom preset runtime has an invalid phase offset")
+    velocity_rel = _OFFSETS["velocity_table"] - CPU_RUNTIME
+    speed_value = int(current[velocity_rel])
+    amplitude_percent = amplitude_units * 25
+    if speed_value != 0:
+        candidate, _offsets = build_runtime(
+            speed_value, amplitude_percent, phase_offset
+        )
+        if current == candidate:
+            return {
+                "speed_value": speed_value,
+                "amplitude_percent": amplitude_percent,
+                "phase_offset": phase_offset,
+            }
     raise PhantomPresetRuntimeError("Phantom preset runtime has unexpected bytes")
 
 
-def apply_settings(rom_data, speed_preset, amplitude_percent) -> list[str]:
-    speed_preset = normalize_speed_preset(speed_preset)
+def apply_settings(rom_data, speed_value, amplitude_percent, phase_offset) -> list[str]:
+    speed_value = normalize_speed_value(speed_value)
     amplitude_percent = normalize_amplitude_percent(amplitude_percent)
+    phase_offset = normalize_phase_offset(phase_offset)
     current_settings(rom_data)
-    runtime, _offsets = build_runtime(speed_preset, amplitude_percent)
+    runtime, _offsets = build_runtime(speed_value, amplitude_percent, phase_offset)
     current = bytes(rom_data[OFF_RUNTIME:OFF_RUNTIME + len(runtime)])
     if current == runtime:
         return []
     rom_data[OFF_RUNTIME:OFF_RUNTIME + len(runtime)] = runtime
     return [
-        f"Phantom preset speed={SPEED_LABELS[speed_preset]}",
+        f"Phantom preset speed=${speed_value:02X}",
         f"amplitude={amplitude_percent}%",
+        f"phase offset={phase_offset}",
     ]
 
 
@@ -334,11 +357,12 @@ CPU_PREPHYSICS = _OFFSETS["prephysics"]
 CPU_RUNTIME_END = CPU_RUNTIME + len(RUNTIME)
 HOOK_PHYSICS_CALL = bytes((0x20, CPU_PREPHYSICS & 0xFF, CPU_PREPHYSICS >> 8))
 OFF_STATE2_AMPLITUDE = OFF_RUNTIME + _OFFSETS["state2_amplitude"]
+OFF_STATE2_PHASE = OFF_RUNTIME + _OFFSETS["state2_phase"]
 OFF_SCALE_AMPLITUDE = OFF_RUNTIME + _OFFSETS["scale_amplitude"]
 RESERVED_SPANS = ((OFF_PHYSICS_CALL, len(HOOK_PHYSICS_CALL)), (OFF_RUNTIME, len(RUNTIME)))
 
 assert len(SINE_DELTA_TABLE) == 64
 assert sum(value if value < 0x80 else value - 0x100 for value in SINE_DELTA_TABLE) == 0
-assert len(RUNTIME) == 261
-assert OFF_RUNTIME + len(RUNTIME) == 0x3EB1
-assert CPU_RUNTIME_END == 0xBEA1
+assert len(RUNTIME) == 256
+assert OFF_RUNTIME + len(RUNTIME) == 0x3EAC
+assert CPU_RUNTIME_END == 0xBE9C

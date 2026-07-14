@@ -4507,24 +4507,32 @@ _TRANSLATIONS = {
         "en": "Phantom Preset A0-A3",
     },
     "hack_dialog.phantom_preset.speed.label": {
-        "ja": "速度:",
-        "en": "Speed:",
+        "ja": "速度値:",
+        "en": "Velocity byte:",
     },
     "hack_dialog.phantom_preset.amplitude.label": {
         "ja": "振幅:",
         "en": "Amplitude:",
     },
+    "hack_dialog.phantom_preset.phase.label": {
+        "ja": "サインテーブル開始位置:",
+        "en": "Sine table start:",
+    },
     "hack_dialog.setting.phantom_preset_speed": {
-        "ja": "ファントムプリセット 速度",
-        "en": "Phantom Preset speed",
+        "ja": "ファントムプリセット 速度値",
+        "en": "Phantom Preset velocity byte",
     },
     "hack_dialog.setting.phantom_preset_amplitude": {
         "ja": "ファントムプリセット 振幅",
         "en": "Phantom Preset amplitude",
     },
+    "hack_dialog.setting.phantom_preset_phase": {
+        "ja": "ファントムプリセット サインテーブル開始位置",
+        "en": "Phantom Preset sine table start",
+    },
     "hack_dialog.applied.phantom_preset": {
-        "ja": "ファントムプリセット: 速度={speed} / 振幅={amplitude}%",
-        "en": "Phantom Preset: speed={speed} / amplitude={amplitude}%",
+        "ja": "ファントムプリセット: 速度={speed} / 振幅={amplitude}% / 開始位置={phase}",
+        "en": "Phantom Preset: speed={speed} / amplitude={amplitude}% / start={phase}",
     },
     "hack_dialog.error.phantom_preset": {
         "ja": "ファントムプリセット設定失敗",

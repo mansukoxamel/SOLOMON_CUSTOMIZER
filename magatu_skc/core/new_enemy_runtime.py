@@ -619,10 +619,16 @@ def apply(rom_data: bytearray) -> list[str]:
         (bytes((0xEA,)) * len(_bullet92.RUNTIME), _bullet92.RUNTIME),
         "Bullet8C runtime area",
     )
+    phantom_settings = _phantom_preset.current_settings(rom_data)
+    phantom_runtime, _phantom_offsets = _phantom_preset.build_runtime(
+        phantom_settings["speed_value"],
+        phantom_settings["amplitude_percent"],
+        phantom_settings["phase_offset"],
+    )
     _expect_blank_or_one_of(
         rom_data,
         _phantom_preset.OFF_RUNTIME,
-        _phantom_preset.all_runtime_variants(),
+        (phantom_runtime,),
         "Phantom preset runtime area",
     )
     _expect_one(
@@ -700,11 +706,6 @@ def apply(rom_data: bytearray) -> list[str]:
         _bullet92.RUNTIME,
         changed,
         f"Bullet8C runtime ${_bullet92.CPU_RUNTIME:04X}-${_bullet92.CPU_RUNTIME_END - 1:04X}",
-    )
-    phantom_settings = _phantom_preset.current_settings(rom_data)
-    phantom_runtime, _phantom_offsets = _phantom_preset.build_runtime(
-        phantom_settings["speed_preset"],
-        phantom_settings["amplitude_percent"],
     )
     _write(
         rom_data,
