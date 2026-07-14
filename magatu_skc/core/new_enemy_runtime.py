@@ -169,7 +169,7 @@ def _build_setup_entry_runtime() -> bytes:
     a.b(0xC9, SPARK24_LAST_ID + 1)
     a.branch(0x90, "spark24")
     a.label("below_spark24")
-    a.b(0xC9, ICE_FLAME_ID)
+    a.b(0xC9, ICE_FLAME_ID + 1)          # $82 uses the stock-computed Flame group
     a.branch(0x90, "stock")
     a.b(0xC9, NEUL88_ID)
     a.branch(0xF0, "neul88")
@@ -187,7 +187,7 @@ def _build_setup_entry_runtime() -> bytes:
     a.branch(0xB0, "stock")
     a.jmp(_phantom_preset.CPU_SETUP_META_LOAD)
     a.label("lower_custom")
-    a.b(0x38, 0xE9, ICE_FLAME_ID, 0xAA)
+    a.b(0x38, 0xE9, GHOST86_ID - 2, 0xAA)  # $84-$87 setup table
     a.b(0xBD, _ghost86.CPU_SETUP_GROUP_TABLE & 0xFF, _ghost86.CPU_SETUP_GROUP_TABLE >> 8)
     a.b(0x85, 0x0E, 0xA8, 0xB9, 0xD3, 0xD9, 0x60)
     a.label("neul88")
