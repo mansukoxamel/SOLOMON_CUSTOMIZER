@@ -279,22 +279,12 @@ def _retarget_spark_panel_fallback(blob: bytes, old_cpu: int, new_cpu: int) -> b
 
 
 if spark_ball_variant.BORROWED_ID_RUNTIME_ENABLED:
-    FINAL_SPARK_PROPERTY_HOOK = _retarget_spark_panel_fallback(
-        spark_ball_variant.CAVE_PROPERTY_HOOK,
-        spark_ball_variant.CPU_PANEL_PROPERTY_HOOK,
-        CPU_FINAL_STAGE_PROPERTY_HOOK,
-    )
     FINAL_SPARK_ANIM_HOOK = _retarget_spark_panel_fallback(
         spark_ball_variant.CAVE_ANIM_HOOK,
         spark_ball_variant.CPU_PANEL_ANIM_HOOK,
         CPU_FINAL_STAGE_ANIM_HOOK,
     )
 else:
-    # Preserve the helper slots for the future 24-ID Spark runtime, but skip
-    # every borrowed Dragon/Golem classification while it is suspended.
-    _property_fallback = bytes.fromhex("4c") + _word(CPU_FINAL_STAGE_PROPERTY_HOOK)
-    FINAL_SPARK_PROPERTY_HOOK = _property_fallback + bytes(
-        [0xEA] * (len(spark_ball_variant.CAVE_PROPERTY_HOOK) - len(_property_fallback)))
     _anim_fallback = bytes.fromhex("4c") + _word(CPU_FINAL_STAGE_ANIM_HOOK)
     FINAL_SPARK_ANIM_HOOK = _anim_fallback + bytes(
         [0xEA] * (len(spark_ball_variant.CAVE_ANIM_HOOK) - len(_anim_fallback)))
@@ -1352,15 +1342,6 @@ def _validate_final_split_signatures(
             ),
         ),
         (
-            spark_ball_variant.OFF_PROPERTY_HOOK,
-            FINAL_SPARK_PROPERTY_HOOK,
-            "Spark property selector Panel fallback",
-            (
-                _fill(0xEA, len(FINAL_SPARK_PROPERTY_HOOK)),
-                spark_ball_variant.CAVE_PROPERTY_HOOK,
-            ),
-        ),
-        (
             spark_ball_variant.OFF_ANIM_HOOK,
             FINAL_SPARK_ANIM_HOOK,
             "Spark animation selector Panel fallback",
@@ -1488,7 +1469,6 @@ def apply_panel_monster_v2_runtime(
         (OFF_FINAL_SHARED_AI_WRAPPER, FINAL_SHARED_AI_WRAPPER, "Panel Variant final shared AI wrapper"),
         (OFF_FINAL_FIRE_MARKER_TABLE, FINAL_FIRE_MARKER_TABLE, "Panel Variant final fire marker table"),
         (OFF_FINAL_BULLET_SPEED_HOOK, v2_speed["bullet_speed_hook"], "Panel Variant v2 Bullet speed hook"),
-        (spark_ball_variant.OFF_PROPERTY_HOOK, FINAL_SPARK_PROPERTY_HOOK, "Spark property selector Panel fallback"),
         (spark_ball_variant.OFF_ANIM_HOOK, FINAL_SPARK_ANIM_HOOK, "Spark animation selector Panel fallback"),
         (OFF_FINAL_STAGE_PROPERTY_HOOK, FINAL_STAGE_PROPERTY_HOOK, "Panel Variant final property hook"),
         (OFF_FINAL_STAGE_ANIM_HOOK, FINAL_STAGE_ANIM_HOOK, "Panel Variant final animation hook"),
