@@ -63,6 +63,9 @@ config/
 tools/
 !tools/
 !tools/start_stage_patch.py
+!tools/image_to_block_grid.py
+!tools/image_to_block_grid_assets/
+!tools/image_to_block_grid_assets/*.png
 __pycache__/
 **/__pycache__/
 *.py[cod]
