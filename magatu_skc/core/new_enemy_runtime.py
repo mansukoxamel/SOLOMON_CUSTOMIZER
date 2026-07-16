@@ -9,6 +9,7 @@ from . import ghost86_runtime as _ghost86
 from . import neul88_runtime as _neul88
 from . import flying_dragon89_runtime as _flying89
 from . import afterburner90_runtime as _after90
+from . import ghostb0_runtime as _ghostb0
 from . import phantom_preset_runtime as _phantom_preset
 from . import fairy9c_runtime as _fairy9c
 from . import seraphic_radiance9d_runtime as _radiance9d
@@ -29,6 +30,8 @@ PHANTOM_PRESET_FIRST_ID = _phantom_preset.FIRST_ID
 PHANTOM_PRESET_LAST_ID = _phantom_preset.LAST_ID
 FAIRY9C_ID = _fairy9c.NEW_ENEMY_ID
 RADIANCE9D_ID = _radiance9d.NEW_ENEMY_ID
+GHOSTB0_FIRST_ID = _ghostb0.FIRST_ID
+GHOSTB0_LAST_ID = _ghostb0.LAST_ID
 
 OLD_GHOST86_OFF_RUNTIME = 0x6D88
 LEGACY_ICE_AI_DISPATCH = 0xE9C1
@@ -43,6 +46,11 @@ CPU_AI_ENTRY = 0xBBE2
 CPU_SETUP_ENTRY = 0xBC3A
 CPU_INIT_ENTRY = 0xBC95
 CPU_ANIM_ENTRY = 0xBCEC
+
+OFF_GHOSTB0_EXTENSION = 0x3D78
+CPU_GHOSTB0_AI_CLASSIFY = 0xBD68
+CPU_GHOSTB0_SETUP_CLASSIFY = 0xBD74
+CPU_GHOSTB0_INIT_CLASSIFY = 0xBD83
 
 OLD_AI_ENTRY_RUNTIME = bytes.fromhex(
     "48"
@@ -81,7 +89,11 @@ def _build_ai_entry_runtime() -> bytes:
     data.extend((0xC9, SPARK24_FIRST_ID, 0x90, 0x08))
     data.extend((0xC9, SPARK24_LAST_ID + 1, 0xB0, 0x04))
     data.extend((0x68, 0x4C, _spark24.CPU_AI_DISPATCH & 0xFF, _spark24.CPU_AI_DISPATCH >> 8))
-    data.extend((0x68, 0x4C, 0x29, 0xA3))
+    data.extend((
+        0x68, 0x4C,
+        CPU_GHOSTB0_AI_CLASSIFY & 0xFF,
+        CPU_GHOSTB0_AI_CLASSIFY >> 8,
+    ))
     target_offsets = []
     for _enemy_id, target in targets:
         target_offsets.append(len(data))
@@ -203,7 +215,8 @@ def _build_setup_entry_runtime() -> bytes:
     a.label("spark24")
     a.b(0xA9, 0x14, 0x85, 0x0E, 0xA8, 0xB9, 0xD3, 0xD9, 0x60)
     a.label("stock")
-    a.b(0xA4, 0x0E, 0xB9, 0xD3, 0xD9, 0x60)
+    a.jmp(CPU_GHOSTB0_SETUP_CLASSIFY)
+    a.b(0xEA, 0xEA, 0xEA)
     return a.finish()
 
 
@@ -265,10 +278,8 @@ def _build_init_entry_runtime() -> bytes:
     a.branch(0xB0, "stock_init")
     a.jmp(_phantom_preset.CPU_INIT_STATUS)
     a.label("stock_init")
-    a.b(0x68, 0x20, 0x1C, 0x9D, 0xA5, 0x05)
-    a.b(0xC9, ICE_FLAME_ID)
-    a.branch(0xF0, "ice")
-    a.b(0x60)
+    a.jmp(CPU_GHOSTB0_INIT_CLASSIFY)
+    a.b(0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA)
     a.label("ice")
     a.jmp(_ice.CPU_INIT_STATUS)
     a.label("spark24")
@@ -345,6 +356,11 @@ def _build_anim_entry_runtime() -> bytes:
     a.b(0xC9, SPARK24_LAST_ID + 1)
     a.branch(0x90, "spark24")
     a.label("below_spark24")
+    a.b(0xC9, GHOSTB0_FIRST_ID)
+    a.branch(0x90, "below_ghostb0")
+    a.b(0xC9, GHOSTB0_LAST_ID + 1)
+    a.branch(0x90, "spark24")
+    a.label("below_ghostb0")
     a.b(0xC9, ICE_FLAME_ID)
     a.branch(0xF0, "ice")
     a.b(0xC9, FAIRY9C_ID)
@@ -374,12 +390,10 @@ def _build_anim_entry_runtime() -> bytes:
     a.jmp(0x8789)
     a.label("ice")
     a.jmp(_ice.CPU_ANIM_UPDATE)
-    a.label("bullet_palette")
-    a.b(0x20, 0x89, 0x87, 0xA0, 0x13, 0xB1, 0x08)
-    a.b(0x29, 0x33, 0x09, 0x48, 0x91, 0x08, 0x60)
     a.label("fairy9c")
     a.b(0x20, 0x89, 0x87, 0xA0, 0x13, 0xB1, 0x08)
     a.b(0x29, 0x13, 0x09, 0x48, 0x91, 0x08, 0x60)
+    a.label("bullet_palette")
     a.label("stock_spr2")
     a.b(0x20, 0x89, 0x87, 0xA0, 0x13, 0xB1, 0x08)
     a.b(0x29, 0x33, 0x09, 0x48, 0x91, 0x08, 0x60)
@@ -390,16 +404,57 @@ def _build_anim_entry_runtime() -> bytes:
     a.jmp(_radiance9d.CPU_ANIM_UPDATE)
     a.label("spark24")
     a.jmp(0x8789)
+    a.b(0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA)
     return a.finish()
 
 
 ANIM_ENTRY_RUNTIME = _build_anim_entry_runtime()
 
+GHOSTB0_EXTENSION_RUNTIME = bytes.fromhex(
+    # AI: the restored dispatch value is enemy ID minus $14.
+    f"29 fc c9 {GHOSTB0_FIRST_ID - 0x14:02x} d0 03 "
+    f"4c {_ghostb0.CPU_AI_DISPATCH & 0xFF:02x} {_ghostb0.CPU_AI_DISPATCH >> 8:02x} "
+    "4c 29 a3 "
+    # Setup: A still contains the enemy ID.
+    f"29 fc c9 {GHOSTB0_FIRST_ID:02x} d0 03 "
+    f"4c {_ghostb0.CPU_SETUP_META_LOAD & 0xFF:02x} {_ghostb0.CPU_SETUP_META_LOAD >> 8:02x} "
+    "a4 0e b9 d3 d9 60 "
+    # Init: the original hook input remains on the stack.
+    f"a5 05 29 fc c9 {GHOSTB0_FIRST_ID:02x} d0 03 "
+    f"4c {_ghostb0.CPU_INIT_STATUS & 0xFF:02x} {_ghostb0.CPU_INIT_STATUS >> 8:02x} "
+    "68 20 1c 9d a5 05 "
+    f"c9 {ICE_FLAME_ID:02x} d0 03 "
+    f"4c {_ice.CPU_INIT_STATUS & 0xFF:02x} {_ice.CPU_INIT_STATUS >> 8:02x} "
+    "60"
+)
+
+PRE_GHOSTB0_AI_ENTRY_RUNTIME = bytes.fromhex(
+    "48186914c986f034c987f034c988f034c989f034c98af034c99cf034c99df034"
+    "c9a09008c9b0b004684cbdbdc9c09008c9d8b004684cc0be684c29a3684ca2ed"
+    "684ca6ed684c25ee684cbeee684ce0ee684c1ee0684c28ec"
+)
+PRE_GHOSTB0_SETUP_ENTRY_RUNTIME = bytes.fromhex(
+    "a001b108c9c09004c9d89040c9839045c988f029c989f028c98af027c99cf026"
+    "c99df025c9a09007c9b0b0294c9cbd38e984aabd88ed850ea8b9d3d9604c06ee"
+    "4ca4ee4cc1ee4c00e04cf4eba914850ea8b9d3d960a40eb9d3d960"
+)
+PRE_GHOSTB0_INIT_ENTRY_RUNTIME = bytes.fromhex(
+    "48a505c9c09004c9d89035c986f036c987f032c988f031c989f030c98af02fc99c"
+    "f02ec99df02dc9a09007c9b0b0034ca5bd68201c9da505c982f001604c75e06820"
+    "1c9d604c8ced4c0fee4caeee4ccaee4c09e04cfceb"
+)
+PRE_GHOSTB0_ANIM_ENTRY_RUNTIME = bytes.fromhex(
+    "a001b108c9c09004c9d8906dc982f02dc99cf03ac99df05ec9a09004c9b0902029"
+    "fec95ef036c962f032c96af02ec96ef038c972f026c976f0304c89874c92e02089"
+    "87a013b10829330948910860208987a013b10829130948910860208987a013b108"
+    "29330948910860208987a013b10829339108604c01ed4c8987"
+)
+
 ENTRY_RUNTIMES = (
-    (OFF_AI_ENTRY, AI_ENTRY_RUNTIME, (), "$BBE2 new enemy AI dispatch"),
-    (OFF_SETUP_ENTRY, SETUP_ENTRY_RUNTIME, (), f"${CPU_SETUP_ENTRY:04X} new enemy setup dispatch"),
-    (OFF_INIT_ENTRY, INIT_ENTRY_RUNTIME, (), f"${CPU_INIT_ENTRY:04X} new enemy init dispatch"),
-    (OFF_ANIM_ENTRY, ANIM_ENTRY_RUNTIME, (OLD_ANIM_ENTRY_RUNTIME, PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME), f"${CPU_ANIM_ENTRY:04X} new enemy animation dispatch"),
+    (OFF_AI_ENTRY, AI_ENTRY_RUNTIME, (PRE_GHOSTB0_AI_ENTRY_RUNTIME,), "$BBE2 new enemy AI dispatch"),
+    (OFF_SETUP_ENTRY, SETUP_ENTRY_RUNTIME, (PRE_GHOSTB0_SETUP_ENTRY_RUNTIME,), f"${CPU_SETUP_ENTRY:04X} new enemy setup dispatch"),
+    (OFF_INIT_ENTRY, INIT_ENTRY_RUNTIME, (PRE_GHOSTB0_INIT_ENTRY_RUNTIME,), f"${CPU_INIT_ENTRY:04X} new enemy init dispatch"),
+    (OFF_ANIM_ENTRY, ANIM_ENTRY_RUNTIME, (OLD_ANIM_ENTRY_RUNTIME, PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME, PRE_GHOSTB0_ANIM_ENTRY_RUNTIME), f"${CPU_ANIM_ENTRY:04X} new enemy animation dispatch"),
 )
 
 HOOK_AI_DISPATCH_CALL = bytes((0x20, CPU_AI_ENTRY & 0xFF, CPU_AI_ENTRY >> 8))
@@ -412,6 +467,7 @@ RESERVED_SPANS = (
     (OFF_SETUP_ENTRY, len(SETUP_ENTRY_RUNTIME)),
     (OFF_INIT_ENTRY, len(INIT_ENTRY_RUNTIME)),
     (OFF_ANIM_ENTRY, len(ANIM_ENTRY_RUNTIME)),
+    (OFF_GHOSTB0_EXTENSION, len(GHOSTB0_EXTENSION_RUNTIME)),
     *_ice.RESERVED_SPANS,
     *_ghost86.RESERVED_SPANS,
     *_neul88.RESERVED_SPANS,
@@ -420,6 +476,7 @@ RESERVED_SPANS = (
     *_phantom_preset.RESERVED_SPANS,
     *_fairy9c.RESERVED_SPANS,
     *_radiance9d.RESERVED_SPANS,
+    *_ghostb0.RESERVED_SPANS,
 )
 
 assert len(PRE_PACKED_GHOST_AI_ENTRY_RUNTIME) == 40
@@ -427,6 +484,11 @@ assert len(PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME) == 32
 assert len(PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME) == 36
 assert len(OLD_ANIM_ENTRY_RUNTIME) == 14
 assert len(PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME) == 32
+assert len(AI_ENTRY_RUNTIME) == len(PRE_GHOSTB0_AI_ENTRY_RUNTIME)
+assert len(SETUP_ENTRY_RUNTIME) == len(PRE_GHOSTB0_SETUP_ENTRY_RUNTIME)
+assert len(INIT_ENTRY_RUNTIME) == len(PRE_GHOSTB0_INIT_ENTRY_RUNTIME)
+assert len(ANIM_ENTRY_RUNTIME) == len(PRE_GHOSTB0_ANIM_ENTRY_RUNTIME)
+assert len(GHOSTB0_EXTENSION_RUNTIME) == 52
 assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
 assert OFF_INIT_ENTRY == OFF_SETUP_ENTRY + len(SETUP_ENTRY_RUNTIME)
 assert OFF_ANIM_ENTRY == OFF_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
@@ -451,6 +513,7 @@ def levels_need_runtime(levels: list) -> bool:
         )
         or _fairy9c.levels_need_runtime(levels)
         or _radiance9d.levels_need_runtime(levels)
+        or _ghostb0.levels_need_runtime(levels)
     )
 
 
@@ -506,6 +569,8 @@ def apply(rom_data: bytearray) -> list[str]:
         _phantom_preset.OFF_RUNTIME + len(_phantom_preset.RUNTIME),
         _fairy9c.OFF_RUNTIME + len(_fairy9c.RUNTIME),
         _radiance9d.OFF_RUNTIME + len(_radiance9d.RUNTIME),
+        _ghostb0.OFF_RUNTIME + len(_ghostb0.RUNTIME),
+        OFF_GHOSTB0_EXTENSION + len(GHOSTB0_EXTENSION_RUNTIME),
         max(off + len(blob) for off, blob, _old_blobs, _name in ENTRY_RUNTIMES),
     )
     if rom_data is None or len(rom_data) < max_end:
@@ -614,6 +679,13 @@ def apply(rom_data: bytearray) -> list[str]:
         _write(rom_data, off, blob, changed, name)
     _write(
         rom_data,
+        OFF_GHOSTB0_EXTENSION,
+        GHOSTB0_EXTENSION_RUNTIME,
+        changed,
+        "$BD68-$BD9B Ghost B0-B3 entry classification extension",
+    )
+    _write(
+        rom_data,
         _ice.OFF_RUNTIME,
         _ice.RUNTIME,
         changed,
@@ -674,5 +746,12 @@ def apply(rom_data: bytearray) -> list[str]:
         _radiance9d.RUNTIME,
         changed,
         f"Seraphic Radiance9D runtime ${_radiance9d.CPU_RUNTIME:04X}-${_radiance9d.CPU_RUNTIME_END - 1:04X}",
+    )
+    _write(
+        rom_data,
+        _ghostb0.OFF_RUNTIME,
+        _ghostb0.RUNTIME,
+        changed,
+        f"Ghost B0-B3 runtime ${_ghostb0.CPU_RUNTIME:04X}-${_ghostb0.CPU_RUNTIME_END - 1:04X}",
     )
     return changed

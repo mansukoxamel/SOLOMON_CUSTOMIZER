@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from . import panel_bullet_speed_fix, panel_monster_variant, spark24_runtime, spark_ball_variant, stage_ext
+from . import ghostb0_runtime, panel_bullet_speed_fix, panel_monster_variant, spark24_runtime, spark_ball_variant, stage_ext
 
 
 class PanelMonsterStageVariantError(ValueError):
@@ -669,7 +669,8 @@ def _build_stage_property_hook() -> bytes:
     a.jsr(CPU_FINAL_PANEL_TYPE_CLASSIFIER)
     a.branch(0xB0, "panel")
     a.label("orig")
-    a.b(0xB9, 0x0E, 0xA3, 0x60)
+    a.jsr(ghostb0_runtime.CPU_PROPERTY_META_LOAD)
+    a.b(0x60)
     a.label("panel")
     a.b(0xA9, panel_monster_variant.PANEL_PROPERTY, 0x60)
     return a.finish()

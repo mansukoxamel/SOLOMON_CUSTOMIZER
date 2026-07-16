@@ -4506,6 +4506,10 @@ _TRANSLATIONS = {
         "ja": "ファントムバレット{group}（{direction}）",
         "en": "Phantom Bullet {group} ({direction})",
     },
+    "element_picker.enemy.ghost_preset.group_direction": {
+        "ja": "強化ゴースト{group}（{direction}）",
+        "en": "Enhanced Ghost {group} ({direction})",
+    },
     "element_picker.direction.right": {
         "ja": "右",
         "en": "right",
