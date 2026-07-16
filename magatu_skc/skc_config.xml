@@ -344,11 +344,8 @@
     <enemy no="0x81" description="Blue Burn" animation="47" />
     <enemy no="0x83" description="Blue Burn #2" animation="47" />
     <enemy no="0x82" description="Ice Burn" animation="105" />
-    <enemy no="0x86" description="Bomber Ghost" animation="63" />
-    <enemy no="0x87" description="Cannon Ghost" animation="63" />
     <enemy no="0x88" description="Neul Twin Cannon" animation="43" />
     <enemy no="0x89" description="Chaos Dragon" animation="64" />
-    <enemy no="0x8a" description="Back Fire" animation="63" />
     <enemy no="0x8b" description="Phantom Bullet" animation="59" />
     <enemy no="0x8c" description="Phantom Bullet" animation="59" />
     <enemy no="0x9c" description="Dark Fairy" animation="110" />
