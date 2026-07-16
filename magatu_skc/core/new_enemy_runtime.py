@@ -644,6 +644,14 @@ def apply(rom_data: bytearray) -> list[str]:
     phantom_runtime, _phantom_offsets = _phantom_preset.build_runtime(
         phantom_settings["groups"],
     )
+    ghostb0_settings = _ghostb0.current_settings(rom_data)
+    ghostb0_runtime = _ghostb0.build_runtime(ghostb0_settings["groups"])
+    _expect_blank_or_one_of(
+        rom_data,
+        _ghostb0.OFF_RUNTIME,
+        (ghostb0_runtime,),
+        "Ghost A/B runtime area",
+    )
     _expect_blank_or_one_of(
         rom_data,
         _phantom_preset.OFF_RUNTIME,
@@ -728,6 +736,13 @@ def apply(rom_data: bytearray) -> list[str]:
     )
     _write(
         rom_data,
+        _ghostb0.OFF_RUNTIME,
+        ghostb0_runtime,
+        changed,
+        f"Ghost A/B runtime ${_ghostb0.CPU_RUNTIME:04X}-${_ghostb0.CPU_RUNTIME_END - 1:04X}",
+    )
+    _write(
+        rom_data,
         _phantom_preset.OFF_PHYSICS_CALL,
         _phantom_preset.HOOK_PHYSICS_CALL,
         changed,
@@ -746,12 +761,5 @@ def apply(rom_data: bytearray) -> list[str]:
         _radiance9d.RUNTIME,
         changed,
         f"Seraphic Radiance9D runtime ${_radiance9d.CPU_RUNTIME:04X}-${_radiance9d.CPU_RUNTIME_END - 1:04X}",
-    )
-    _write(
-        rom_data,
-        _ghostb0.OFF_RUNTIME,
-        _ghostb0.RUNTIME,
-        changed,
-        f"Ghost B0-B3 runtime ${_ghostb0.CPU_RUNTIME:04X}-${_ghostb0.CPU_RUNTIME_END - 1:04X}",
     )
     return changed

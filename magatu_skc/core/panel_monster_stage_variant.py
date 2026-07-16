@@ -717,6 +717,7 @@ FINAL_STATE0_INTERVAL_HELPER = _build_final_state0_interval_helper()
 FINAL_GROUP_RAM_OFFSET_HELPER = _build_final_group_ram_offset_helper()
 FINAL_ABC_GROUP_OFFSET_HELPER = _build_abc_group_offset_helper()
 FINAL_STATIC_MARKER_HELPER = _build_static_marker_helper()
+assert ghostb0_runtime.CPU_BULLET_MARKER_WRITE == CPU_FINAL_STATIC_MARKER_HELPER
 FINAL_DYNAMIC_SPEED_MARKER_HELPER = _build_dynamic_speed_marker_helper(
     CPU_FINAL_GROUP_RAM_OFFSET_HELPER,
     CPU_FINAL_STATIC_MARKER_HELPER,

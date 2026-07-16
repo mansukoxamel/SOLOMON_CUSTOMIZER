@@ -4578,6 +4578,98 @@ _TRANSLATIONS = {
         "ja": "ファントムプリセット設定失敗",
         "en": "Phantom Preset settings failed",
     },
+    "hack_dialog.group.ghost_ab": {
+        "ja": "ゴースト強化版 A/B",
+        "en": "Enhanced Ghost A/B",
+    },
+    "hack_dialog.ghost_ab.body_speed.short": {
+        "ja": "本体速度",
+        "en": "Body speed",
+    },
+    "hack_dialog.ghost_ab.fire_interval.short": {
+        "ja": "発射間隔",
+        "en": "Fire interval",
+    },
+    "hack_dialog.ghost_ab.bullet_speed.short": {
+        "ja": "弾速度",
+        "en": "Bullet speed",
+    },
+    "hack_dialog.ghost_ab.fire_direction.short": {
+        "ja": "発射方向",
+        "en": "Fire direction",
+    },
+    "hack_dialog.ghost_ab.fire_direction.backward": {
+        "ja": "後方",
+        "en": "Backward",
+    },
+    "hack_dialog.ghost_ab.fire_direction.up": {
+        "ja": "上",
+        "en": "Up",
+    },
+    "hack_dialog.ghost_ab.fire_direction.down": {
+        "ja": "下",
+        "en": "Down",
+    },
+    "hack_dialog.ghost_ab.body_speed.normal": {
+        "ja": "通常",
+        "en": "Normal",
+    },
+    "hack_dialog.ghost_ab.body_speed.fast": {
+        "ja": "高速",
+        "en": "Fast",
+    },
+    "hack_dialog.ghost_ab.bullet_speed.stock": {
+        "ja": "原作",
+        "en": "Stock",
+    },
+    "hack_dialog.ghost_ab.bullet_speed.quarter": {
+        "ja": "1/4",
+        "en": "1/4",
+    },
+    "hack_dialog.ghost_ab.bullet_speed.half": {
+        "ja": "1/2",
+        "en": "1/2",
+    },
+    "hack_dialog.ghost_ab.bullet_speed.double": {
+        "ja": "2倍",
+        "en": "2x",
+    },
+    "hack_dialog.ghost_ab.bullet_speed.triple": {
+        "ja": "3倍",
+        "en": "3x",
+    },
+    "hack_dialog.frames_suffix": {
+        "ja": " フレーム",
+        "en": " frames",
+    },
+    "hack_dialog.setting.ghost_ab_body_speed": {
+        "ja": "ゴースト{group} 本体速度",
+        "en": "Ghost {group} body speed",
+    },
+    "hack_dialog.setting.ghost_ab_fire_interval": {
+        "ja": "ゴースト{group} 発射間隔",
+        "en": "Ghost {group} fire interval",
+    },
+    "hack_dialog.setting.ghost_ab_bullet_speed": {
+        "ja": "ゴースト{group} 弾速度",
+        "en": "Ghost {group} bullet speed",
+    },
+    "hack_dialog.setting.ghost_ab_fire_direction": {
+        "ja": "ゴースト{group} 発射方向",
+        "en": "Ghost {group} fire direction",
+    },
+    "hack_dialog.applied.ghost_ab": {
+        "ja": "ゴースト強化版: {settings}",
+        "en": "Enhanced Ghost: {settings}",
+    },
+    "hack_dialog.applied.ghost_ab.group": {
+        "ja": "{group}: 本体=${body:02X}、間隔={interval}、弾=${bullet:02X}、方向={direction}",
+        "en": "{group}: body=${body:02X}, interval={interval}, bullet=${bullet:02X}, direction={direction}",
+    },
+    "hack_dialog.error.ghost_ab": {
+        "ja": "ゴースト強化版設定失敗",
+        "en": "Enhanced Ghost settings failed",
+    },
     "common.complete": {
         "ja": "完了",
         "en": "Complete",

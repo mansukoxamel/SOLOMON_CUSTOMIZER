@@ -30,6 +30,7 @@ from ..core import neul_ghost_speed
 from ..core import spark_ball_speed
 from ..core import spark_ball_variant
 from ..core import phantom_preset_runtime
+from ..core import ghostb0_runtime
 from ..core import gargoyle_hack
 from ..core import gargoyle_variant
 from ..core import clearscreen_hack
@@ -936,6 +937,84 @@ class HackDialog(QDialog):
             self._phantom_preset_controls.append((speed, amplitude, phase))
         layout.addWidget(phantom_group)
 
+        ghost_ab_group = QGroupBox(
+            t("hack_dialog.group.ghost_ab", "ゴースト強化版 A/B")
+        )
+        ghost_ab_group.setProperty("settings_category", "敵・AI")
+        ghost_ab_form = QFormLayout(ghost_ab_group)
+        _setup_enemy_group(self, ghost_ab_group, ghost_ab_form, 34, (0xB0, 0xB1, 0xB2, 0xB3))
+        self._ghost_ab_controls = []
+        self._ghost_ab_ok = False
+        try:
+            ghost_ab_settings = ghostb0_runtime.current_settings(rom.data)
+            self._ghost_ab_ok = True
+        except ghostb0_runtime.GhostB0RuntimeError as e:
+            ghost_ab_settings = {"groups": ghostb0_runtime.default_group_settings()}
+            note = QLabel(
+                t("hack_dialog.disabled", "⚠ 無効: {error}").format(
+                    error=str(e).splitlines()[0]
+                )
+            )
+            note.setWordWrap(True)
+            note.setStyleSheet("color:#c33;")
+            ghost_ab_form.addRow(note)
+        for index, group_name in enumerate(ghostb0_runtime.GROUP_NAMES):
+            group_settings = ghost_ab_settings["groups"][index]
+            row = QWidget()
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(6)
+
+            body_speed = QComboBox()
+            body_speed.addItem(t("hack_dialog.ghost_ab.body_speed.normal", "通常"), ghostb0_runtime.BODY_SPEED_NORMAL)
+            body_speed.addItem(t("hack_dialog.ghost_ab.body_speed.fast", "高速"), ghostb0_runtime.BODY_SPEED_FAST)
+            self._set_combo_data(body_speed, group_settings["body_speed"])
+
+            fire_interval = QSpinBox()
+            fire_interval.setRange(ghostb0_runtime.MIN_FIRE_INTERVAL, ghostb0_runtime.MAX_FIRE_INTERVAL)
+            fire_interval.setSuffix(t("hack_dialog.frames_suffix", " フレーム"))
+            fire_interval.setValue(group_settings["fire_interval"])
+
+            bullet_speed = QComboBox()
+            for label_key, label, value in (
+                ("stock", "原作", ghostb0_runtime.BULLET_SPEED_STOCK),
+                ("quarter", "1/4", ghostb0_runtime.BULLET_SPEED_QUARTER),
+                ("half", "1/2", ghostb0_runtime.BULLET_SPEED_HALF),
+                ("double", "2倍", ghostb0_runtime.BULLET_SPEED_2X),
+                ("triple", "3倍", ghostb0_runtime.BULLET_SPEED_3X),
+            ):
+                bullet_speed.addItem(t(f"hack_dialog.ghost_ab.bullet_speed.{label_key}", label), value)
+            self._set_combo_data(bullet_speed, group_settings["bullet_speed"])
+
+            fire_direction = QComboBox()
+            for label_key, label, value in (
+                ("backward", "後方", ghostb0_runtime.DIRECTION_BACKWARD),
+                ("up", "上", ghostb0_runtime.DIRECTION_UP),
+                ("down", "下", ghostb0_runtime.DIRECTION_DOWN),
+            ):
+                fire_direction.addItem(t(f"hack_dialog.ghost_ab.fire_direction.{label_key}", label), value)
+            self._set_combo_data(fire_direction, group_settings["fire_direction"])
+
+            row_layout.addWidget(QLabel(t("hack_dialog.ghost_ab.body_speed.short", "本体速度")))
+            row_layout.addWidget(body_speed)
+            row_layout.addWidget(QLabel(t("hack_dialog.ghost_ab.fire_interval.short", "発射間隔")))
+            row_layout.addWidget(fire_interval)
+            row_layout.addWidget(QLabel(t("hack_dialog.ghost_ab.bullet_speed.short", "弾速度")))
+            row_layout.addWidget(bullet_speed)
+            row_layout.addWidget(QLabel(t("hack_dialog.ghost_ab.fire_direction.short", "発射方向")))
+            row_layout.addWidget(fire_direction)
+            row_layout.addStretch(1)
+
+            first_id = ghostb0_runtime.FIRST_ID + index * 2
+            ghost_ab_form.addRow(f"{group_name} (${first_id:02X}-${first_id + 1:02X}):", row)
+            if not self._ghost_ab_ok:
+                body_speed.setEnabled(False)
+                fire_interval.setEnabled(False)
+                bullet_speed.setEnabled(False)
+                fire_direction.setEnabled(False)
+            self._ghost_ab_controls.append((body_speed, fire_interval, bullet_speed, fire_direction))
+        layout.addWidget(ghost_ab_group)
+
         # ====== デーモンヘッド ======
         demonhead_group = QGroupBox(t("hack_dialog.group.demonhead", "デーモンヘッド"))
         demonhead_group.setProperty("settings_category", "敵・AI")
@@ -1470,6 +1549,22 @@ class HackDialog(QDialog):
             values[self._phantom_global_key(index, "speed")] = group["speed_value"]
             values[self._phantom_global_key(index, "amplitude_percent")] = group["amplitude_percent"]
             values[self._phantom_global_key(index, "phase_offset")] = group["phase_offset"]
+        return values
+
+    def _ghost_ab_group_settings_from_ui(self) -> tuple[dict[str, int], ...]:
+        return tuple({
+            "body_speed": int(body_speed.currentData()),
+            "fire_interval": int(fire_interval.value()),
+            "bullet_speed": int(bullet_speed.currentData()),
+            "fire_direction": int(fire_direction.currentData()),
+        } for body_speed, fire_interval, bullet_speed, fire_direction in self._ghost_ab_controls)
+
+    def _ghost_ab_global_settings_from_ui(self) -> dict:
+        values = {}
+        for index, group in enumerate(self._ghost_ab_group_settings_from_ui()):
+            name = ghostb0_runtime.GROUP_NAMES[index].lower()
+            for field, value in group.items():
+                values[f"ghost_ab_{name}_{field}"] = value
         return values
 
     def _on_spark_pause_digit_changed(self, _state):
@@ -2091,6 +2186,7 @@ class HackDialog(QDialog):
             "spark_ball_reverse_digits": self._selected_spark_reverse_digits(),
             "spark_ball_transparency_period": self._combo_data(self.combo_spark_transparency),
             **self._phantom_global_settings_from_ui(),
+            **self._ghost_ab_global_settings_from_ui(),
             "demonhead_snappy": self.chk_demonhead_snappy.isChecked(),
             "clear_screen_preset": self._combo_data(self.combo_clearscreen),
             "stage_frame_white_enabled": self.chk_stage_frame_white.isChecked(),
@@ -2120,6 +2216,7 @@ class HackDialog(QDialog):
             "spark_ball_speed": bool(getattr(self, "_spark_ball_spd_ok", False)),
             "spark_ball_variant": bool(getattr(self, "_spark_ball_variant_ok", False)),
             "phantom_preset": bool(getattr(self, "_phantom_preset_ok", False)),
+            "ghost_ab": bool(getattr(self, "_ghost_ab_ok", False)),
             "demonhead": bool(getattr(self, "_demonhead_ok", False)),
             "clear_screen": bool(getattr(self, "_cs_ok", False)),
             "stage_frame": bool(getattr(self, "_stage_frame_ok", False)),
@@ -2392,6 +2489,15 @@ class HackDialog(QDialog):
                     "Phantom group {group} sine table start",
                 ).format(group=group),
             )
+        for index, (body_speed, fire_interval, bullet_speed, fire_direction) in enumerate(
+            self._ghost_ab_controls
+        ):
+            group = ghostb0_runtime.GROUP_NAMES[index]
+            prefix = f"ghost_ab_{group.lower()}"
+            set_combo(f"{prefix}_body_speed", body_speed, t("hack_dialog.setting.ghost_ab_body_speed", "ゴースト{group} 本体速度").format(group=group))
+            set_spin(f"{prefix}_fire_interval", fire_interval, t("hack_dialog.setting.ghost_ab_fire_interval", "ゴースト{group} 発射間隔").format(group=group))
+            set_combo(f"{prefix}_bullet_speed", bullet_speed, t("hack_dialog.setting.ghost_ab_bullet_speed", "ゴースト{group} 弾速度").format(group=group))
+            set_combo(f"{prefix}_fire_direction", fire_direction, t("hack_dialog.setting.ghost_ab_fire_direction", "ゴースト{group} 発射方向").format(group=group))
         set_check("demonhead_snappy", self.chk_demonhead_snappy, t("hack_dialog.setting.demonhead_snappy", "デーモンヘッド キビキビ"))
         if has("clear_screen_preset") and self.combo_clearscreen.isEnabled():
             old = self.combo_clearscreen.currentIndex()
@@ -2840,6 +2946,30 @@ class HackDialog(QDialog):
                 )
                 return
 
+        if getattr(self, "_ghost_ab_ok", False):
+            try:
+                ghost_ab_changes = ghostb0_runtime.apply_settings(
+                    d,
+                    self._ghost_ab_group_settings_from_ui(),
+                )
+                if ghost_ab_changes:
+                    summaries = []
+                    for index, group in enumerate(self._ghost_ab_group_settings_from_ui()):
+                        summaries.append(t(
+                            "hack_dialog.applied.ghost_ab.group",
+                            "{group}: 本体=${body:02X}、間隔={interval}、弾=${bullet:02X}、方向={direction}",
+                        ).format(
+                            group=ghostb0_runtime.GROUP_NAMES[index],
+                            body=group["body_speed"],
+                            interval=group["fire_interval"],
+                            bullet=group["bullet_speed"],
+                            direction=group["fire_direction"],
+                        ))
+                    applied.append(t("hack_dialog.applied.ghost_ab", "ゴースト強化版: {settings}").format(settings=" / ".join(summaries)))
+            except ghostb0_runtime.GhostB0RuntimeError as e:
+                QMessageBox.warning(self, t("hack_dialog.error.ghost_ab", "ゴースト強化版設定失敗"), str(e))
+                return
+
         # デーモンヘッド キビキビ
         if self._demonhead_ok:
             try:
@@ -3031,6 +3161,12 @@ class HackDialog(QDialog):
                     phantom_preset_runtime.DEFAULT_AMPLITUDE_PERCENT,
                 )
                 phase.setValue(phantom_preset_runtime.DEFAULT_PHASE_OFFSET)
+        if getattr(self, "_ghost_ab_ok", False):
+            for body_speed, fire_interval, bullet_speed, fire_direction in self._ghost_ab_controls:
+                self._set_combo_data(body_speed, ghostb0_runtime.DEFAULT_BODY_SPEED)
+                fire_interval.setValue(ghostb0_runtime.DEFAULT_FIRE_INTERVAL)
+                self._set_combo_data(bullet_speed, ghostb0_runtime.DEFAULT_BULLET_SPEED)
+                self._set_combo_data(fire_direction, ghostb0_runtime.DEFAULT_FIRE_DIRECTION)
         if self._demonhead_ok:
             self.chk_demonhead_snappy.setChecked(False)
         if getattr(self, "_cs_ok", False):
