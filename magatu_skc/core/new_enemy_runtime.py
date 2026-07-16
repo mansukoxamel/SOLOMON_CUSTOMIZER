@@ -33,30 +33,19 @@ LEGACY_ICE_AI_DISPATCH = 0xE9C1
 LEGACY_ICE_SETUP_META_LOAD = 0xE9C4
 
 OFF_AI_ENTRY = 0x3BF2      # CPU $BBE2
-OFF_SETUP_ENTRY = 0x3C4A
-OFF_INIT_ENTRY = 0x3CA5
-OFF_ANIM_ENTRY = 0x3CFC
+OFF_SETUP_ENTRY = 0x3C32
+OFF_INIT_ENTRY = 0x3C8A
+OFF_ANIM_ENTRY = 0x3CC7
 
 CPU_AI_ENTRY = 0xBBE2
-CPU_SETUP_ENTRY = 0xBC3A
-CPU_INIT_ENTRY = 0xBC95
-CPU_ANIM_ENTRY = 0xBCEC
+CPU_SETUP_ENTRY = 0xBC22
+CPU_INIT_ENTRY = 0xBC7A
+CPU_ANIM_ENTRY = 0xBCB7
 
 OFF_GHOSTB0_EXTENSION = 0x3D78
 CPU_GHOSTB0_AI_CLASSIFY = 0xBD68
 CPU_GHOSTB0_SETUP_CLASSIFY = 0xBD74
 CPU_GHOSTB0_INIT_CLASSIFY = 0xBD83
-
-AI_ENTRY_CAPACITY = OFF_SETUP_ENTRY - OFF_AI_ENTRY
-SETUP_ENTRY_CAPACITY = OFF_INIT_ENTRY - OFF_SETUP_ENTRY
-INIT_ENTRY_CAPACITY = OFF_ANIM_ENTRY - OFF_INIT_ENTRY
-ANIM_ENTRY_CAPACITY = OFF_GHOSTB0_EXTENSION - OFF_ANIM_ENTRY
-
-
-def _pad_entry(blob: bytes, capacity: int, name: str) -> bytes:
-    if len(blob) > capacity:
-        raise ValueError(f"{name} exceeds its fixed entry capacity")
-    return blob + bytes((0xEA,)) * (capacity - len(blob))
 
 OLD_AI_ENTRY_RUNTIME = bytes.fromhex(
     "48"
@@ -109,7 +98,7 @@ def _build_ai_entry_runtime() -> bytes:
     return bytes(data)
 
 
-AI_ENTRY_RUNTIME = _pad_entry(_build_ai_entry_runtime(), AI_ENTRY_CAPACITY, "AI entry")
+AI_ENTRY_RUNTIME = _build_ai_entry_runtime()
 PRE_PACKED_GHOST_AI_ENTRY_RUNTIME = bytes.fromhex(
     "48"
     "18"
@@ -222,11 +211,10 @@ def _build_setup_entry_runtime() -> bytes:
     a.b(0xA9, 0x14, 0x85, 0x0E, 0xA8, 0xB9, 0xD3, 0xD9, 0x60)
     a.label("stock")
     a.jmp(CPU_GHOSTB0_SETUP_CLASSIFY)
-    a.b(0xEA, 0xEA, 0xEA)
     return a.finish()
 
 
-SETUP_ENTRY_RUNTIME = _pad_entry(_build_setup_entry_runtime(), SETUP_ENTRY_CAPACITY, "setup entry")
+SETUP_ENTRY_RUNTIME = _build_setup_entry_runtime()
 PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME = bytes.fromhex(
     "a0 01"
     "b1 08"
@@ -279,7 +267,6 @@ def _build_init_entry_runtime() -> bytes:
     a.jmp(_phantom_preset.CPU_INIT_STATUS)
     a.label("stock_init")
     a.jmp(CPU_GHOSTB0_INIT_CLASSIFY)
-    a.b(0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA)
     a.label("ice")
     a.jmp(_ice.CPU_INIT_STATUS)
     a.label("spark24")
@@ -295,7 +282,7 @@ def _build_init_entry_runtime() -> bytes:
     return a.finish()
 
 
-INIT_ENTRY_RUNTIME = _pad_entry(_build_init_entry_runtime(), INIT_ENTRY_CAPACITY, "init entry")
+INIT_ENTRY_RUNTIME = _build_init_entry_runtime()
 PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME = bytes.fromhex(
     "48"
     "a5 05"
@@ -400,11 +387,10 @@ def _build_anim_entry_runtime() -> bytes:
     a.jmp(_radiance9d.CPU_ANIM_UPDATE)
     a.label("spark24")
     a.jmp(0x8789)
-    a.b(0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA)
     return a.finish()
 
 
-ANIM_ENTRY_RUNTIME = _pad_entry(_build_anim_entry_runtime(), ANIM_ENTRY_CAPACITY, "animation entry")
+ANIM_ENTRY_RUNTIME = _build_anim_entry_runtime()
 
 GHOSTB0_EXTENSION_RUNTIME = bytes.fromhex(
     # AI: the restored dispatch value is enemy ID minus $14.
@@ -478,14 +464,15 @@ assert len(PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME) == 32
 assert len(PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME) == 36
 assert len(OLD_ANIM_ENTRY_RUNTIME) == 14
 assert len(PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME) == 32
-assert len(AI_ENTRY_RUNTIME) == AI_ENTRY_CAPACITY
-assert len(SETUP_ENTRY_RUNTIME) == SETUP_ENTRY_CAPACITY
-assert len(INIT_ENTRY_RUNTIME) == INIT_ENTRY_CAPACITY
-assert len(ANIM_ENTRY_RUNTIME) == ANIM_ENTRY_CAPACITY
+assert len(AI_ENTRY_RUNTIME) == 64
+assert len(SETUP_ENTRY_RUNTIME) == 88
+assert len(INIT_ENTRY_RUNTIME) == 61
+assert len(ANIM_ENTRY_RUNTIME) == 118
 assert len(GHOSTB0_EXTENSION_RUNTIME) == 52
 assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
 assert OFF_INIT_ENTRY == OFF_SETUP_ENTRY + len(SETUP_ENTRY_RUNTIME)
 assert OFF_ANIM_ENTRY == OFF_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
+assert OFF_ANIM_ENTRY + len(ANIM_ENTRY_RUNTIME) == 0x3D3D
 
 
 def levels_need_runtime(levels: list) -> bool:
@@ -646,8 +633,8 @@ def apply(rom_data: bytearray) -> list[str]:
         (bytes((0xEA,)) * len(_radiance9d.RUNTIME), _radiance9d.RUNTIME),
         "Seraphic Radiance9D runtime area",
     )
-    for off, blob, old_blobs, name in ENTRY_RUNTIMES:
-        _expect_blank_or_one_of(rom_data, off, (blob, *old_blobs), name)
+    for off, blob, _old_blobs, name in ENTRY_RUNTIMES:
+        _expect_blank_or_one_of(rom_data, off, (blob,), name)
 
     _write(rom_data, _ice.OFF_AI_DISPATCH_CALL, HOOK_AI_DISPATCH_CALL, changed, "$A1C3 new enemy AI dispatch hook")
     _write(rom_data, _ice.OFF_ANIM_UPDATE_CALL, HOOK_ANIM_UPDATE_CALL, changed, "$8676 new enemy animation hook")
