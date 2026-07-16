@@ -17,15 +17,11 @@ from __future__ import annotations
 import argparse
 import io
 import json
-import math
 import os
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from statistics import median
-from typing import Iterable
 
-from PIL import Image, ImageDraw, ImageEnhance, ImageOps
+from PIL import Image, ImageDraw, ImageOps
 
 
 GRID_WIDTH = 15
@@ -51,20 +47,6 @@ TYPE_SYMBOLS = {
     CRACKED: "C",
 }
 
-BAYER_4X4 = (
-    (0, 8, 2, 10),
-    (12, 4, 14, 6),
-    (3, 11, 1, 9),
-    (15, 7, 13, 5),
-)
-
-
-@dataclass(frozen=True)
-class CellFeatures:
-    luminance: float
-    detail: float
-
-
 def _parse_rgb(value: str) -> tuple[int, int, int]:
     text = value.strip().lstrip("#")
     if len(text) != 6:
@@ -80,6 +62,7 @@ def _fit_image(
     size: tuple[int, int],
     fit: str,
     background: tuple[int, int, int],
+    selection_box: tuple[int, int, int, int] | None = None,
 ) -> Image.Image:
     source = image.convert("RGBA")
     matte = Image.new("RGBA", source.size, (*background, 255))
@@ -88,128 +71,61 @@ def _fit_image(
 
     if fit == "stretch":
         return rgb.resize(size, Image.Resampling.LANCZOS)
-    if fit == "contain":
-        contained = ImageOps.contain(rgb, size, Image.Resampling.LANCZOS)
-        canvas = Image.new("RGB", size, background)
-        x = (size[0] - contained.width) // 2
-        y = (size[1] - contained.height) // 2
-        canvas.paste(contained, (x, y))
-        return canvas
+    if fit == "selection":
+        if selection_box is None:
+            raise ValueError("selection mode requires a selection box")
+        left, top, right, bottom = selection_box
+        left = max(0, min(rgb.width - 1, int(left)))
+        top = max(0, min(rgb.height - 1, int(top)))
+        right = max(left + 1, min(rgb.width, int(right)))
+        bottom = max(top + 1, min(rgb.height, int(bottom)))
+        return rgb.crop((left, top, right, bottom)).resize(
+            size, Image.Resampling.LANCZOS)
     return ImageOps.fit(rgb, size, Image.Resampling.LANCZOS, centering=(0.5, 0.5))
 
 
-def _percentile(values: Iterable[float], fraction: float) -> float:
-    ordered = sorted(float(v) for v in values)
-    if not ordered:
-        return 0.0
-    pos = max(0.0, min(1.0, fraction)) * (len(ordered) - 1)
-    lo = int(math.floor(pos))
-    hi = int(math.ceil(pos))
-    if lo == hi:
-        return ordered[lo]
-    weight = pos - lo
-    return ordered[lo] * (1.0 - weight) + ordered[hi] * weight
-
-
-def _normalize(value: float, low: float, high: float) -> float:
-    if high <= low:
-        return 0.5
-    return max(0.0, min(1.0, (value - low) / (high - low)))
-
-
-def _cell_features(
-    image: Image.Image,
-    sample_size: int,
-    contrast: float,
-) -> list[list[CellFeatures]]:
-    work_size = (GRID_WIDTH * sample_size, GRID_HEIGHT * sample_size)
-    gray = ImageOps.grayscale(image.resize(work_size, Image.Resampling.LANCZOS))
-    gray = ImageOps.autocontrast(gray, cutoff=1)
-    if contrast != 1.0:
-        gray = ImageEnhance.Contrast(gray).enhance(contrast)
-
-    result: list[list[CellFeatures]] = []
-    for gy in range(GRID_HEIGHT):
-        row: list[CellFeatures] = []
-        for gx in range(GRID_WIDTH):
-            left = gx * sample_size
-            top = gy * sample_size
-            cell = gray.crop((left, top, left + sample_size, top + sample_size))
-            pixels = list(cell.tobytes())
-            lum = sum(pixels) / (255.0 * len(pixels))
-
-            edge_sum = 0
-            edge_count = 0
-            for y in range(sample_size):
-                base = y * sample_size
-                for x in range(sample_size):
-                    current = pixels[base + x]
-                    if x + 1 < sample_size:
-                        edge_sum += abs(current - pixels[base + x + 1])
-                        edge_count += 1
-                    if y + 1 < sample_size:
-                        edge_sum += abs(current - pixels[base + sample_size + x])
-                        edge_count += 1
-            edge = edge_sum / (255.0 * max(1, edge_count))
-            mean = sum(pixels) / len(pixels)
-            variance = sum((p - mean) ** 2 for p in pixels) / len(pixels)
-            deviation = math.sqrt(variance) / 127.5
-            detail = edge * 0.65 + deviation * 0.35
-            row.append(CellFeatures(luminance=lum, detail=detail))
-        result.append(row)
-    return result
-
-
-def _classify(
-    features: list[list[CellFeatures]],
-    air_threshold: float,
-    white_threshold: float,
-    crack_quantile: float,
-    dither: float,
+def _four_level_grid(
+    gray: Image.Image,
     invert: bool,
-) -> list[list[int]]:
-    luminances = [cell.luminance for row in features for cell in row]
-    low = _percentile(luminances, 0.03)
-    high = _percentile(luminances, 0.97)
+    air_end: float,
+    crack_end: float,
+    brown_end: float,
+) -> tuple[Image.Image, list[list[int]]]:
+    pixels = list(gray.tobytes())
+    low = min(pixels)
+    high = max(pixels)
+    span = high - low
+    tone_values = (0, 85, 170, 255)
+    kind_values = (AIR, CRACKED, BROWN, WHITE)
+    tones: list[int] = []
+    kinds: list[int] = []
 
-    normalized: list[list[CellFeatures]] = []
-    middle_details: list[float] = []
-    for row in features:
-        normalized_row: list[CellFeatures] = []
-        for cell in row:
-            lum = _normalize(cell.luminance, low, high)
-            if invert:
-                lum = 1.0 - lum
-            normalized_cell = CellFeatures(lum, cell.detail)
-            normalized_row.append(normalized_cell)
-            if air_threshold <= lum < white_threshold:
-                middle_details.append(cell.detail)
-        normalized.append(normalized_row)
+    for value in pixels:
+        normalized = 0.5 if span == 0 else (value - low) / span
+        if invert:
+            normalized = 1.0 - normalized
+        if normalized < air_end:
+            level = 0
+        elif normalized < crack_end:
+            level = 1
+        elif normalized < brown_end:
+            level = 2
+        else:
+            level = 3
+        tones.append(tone_values[level])
+        kinds.append(kind_values[level])
 
-    if middle_details:
-        crack_threshold = _percentile(middle_details, crack_quantile)
-        detail_floor = median(middle_details) * 0.75
-        crack_threshold = max(crack_threshold, detail_floor)
-    else:
-        crack_threshold = 1.0
+    four_tone = Image.new("L", gray.size)
+    four_tone.putdata(tones)
+    grid = [
+        kinds[y * GRID_WIDTH:(y + 1) * GRID_WIDTH]
+        for y in range(GRID_HEIGHT)
+    ]
+    return four_tone, grid
 
-    grid: list[list[int]] = []
-    for y, row in enumerate(normalized):
-        out_row: list[int] = []
-        for x, cell in enumerate(row):
-            bayer = (BAYER_4X4[y % 4][x % 4] + 0.5) / 16.0 - 0.5
-            lum = max(0.0, min(1.0, cell.luminance + bayer * dither * 0.22))
-            if lum < air_threshold:
-                kind = AIR
-            elif lum >= white_threshold:
-                kind = WHITE
-            elif cell.detail >= crack_threshold:
-                kind = CRACKED
-            else:
-                kind = BROWN
-            out_row.append(kind)
-        grid.append(out_row)
-    return grid
+
+def _enlarge_stage(image: Image.Image, size: tuple[int, int] = (240, 192)) -> Image.Image:
+    return image.convert("RGB").resize(size, Image.Resampling.NEAREST)
 
 
 def _brick_tile(
@@ -339,13 +255,16 @@ def _write_json(
             "3": "cracked",
         },
         "settings": {
+            "method": "resize_then_grayscale_4level",
             "fit": args.fit,
-            "air_threshold": args.air_threshold,
-            "white_threshold": args.white_threshold,
-            "crack_quantile": args.crack_quantile,
-            "dither": args.dither,
-            "contrast": args.contrast,
             "invert": args.invert,
+            "air_end": args.air_end,
+            "crack_end": args.crack_end,
+            "brown_end": args.brown_end,
+            "selection_box": (
+                list(args.selection_box)
+                if getattr(args, "selection_box", None) else None
+            ),
         },
         "counts": counts,
         "symbols": ["".join(TYPE_SYMBOLS[cell] for cell in row) for row in grid],
@@ -373,18 +292,15 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--name", help="output name stem (default: input stem)")
     parser.add_argument(
         "--fit",
-        choices=("crop", "contain", "stretch"),
+        choices=("crop", "selection", "stretch"),
         default="stretch",
         help="how to fit the source to a 15:12 aspect ratio",
     )
     parser.add_argument("--background", type=_parse_rgb, default=(16, 18, 20))
-    parser.add_argument("--sample-size", type=int, default=16)
     parser.add_argument("--tile-size", type=int, default=DEFAULT_TILE_SIZE)
-    parser.add_argument("--air-threshold", type=float, default=0.30)
-    parser.add_argument("--white-threshold", type=float, default=0.70)
-    parser.add_argument("--crack-quantile", type=float, default=0.68)
-    parser.add_argument("--dither", type=float, default=0.35)
-    parser.add_argument("--contrast", type=float, default=1.15)
+    parser.add_argument("--air-end", type=float, default=0.25)
+    parser.add_argument("--crack-end", type=float, default=0.50)
+    parser.add_argument("--brown-end", type=float, default=0.75)
     parser.add_argument("--invert", action="store_true")
     parser.add_argument("--tile-air", type=Path)
     parser.add_argument("--tile-brown", type=Path)
@@ -403,18 +319,12 @@ def _validate_args(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
         parser.error("an input image is required in CLI mode")
     if not args.input.is_file():
         parser.error(f"input image does not exist: {args.input}")
-    if args.sample_size < 4:
-        parser.error("--sample-size must be at least 4")
     if args.tile_size < 8:
         parser.error("--tile-size must be at least 8")
-    if not 0.0 <= args.air_threshold < args.white_threshold <= 1.0:
-        parser.error("thresholds must satisfy 0 <= air < white <= 1")
-    if not 0.0 <= args.crack_quantile <= 1.0:
-        parser.error("--crack-quantile must be between 0 and 1")
-    if not 0.0 <= args.dither <= 1.0:
-        parser.error("--dither must be between 0 and 1")
-    if args.contrast <= 0.0:
-        parser.error("--contrast must be greater than 0")
+    if not 0.0 < args.air_end < args.crack_end < args.brown_end < 1.0:
+        parser.error("brightness boundaries must satisfy 0 < air < crack < brown < 1")
+    if args.fit == "selection" and not getattr(args, "selection_box", None):
+        parser.error("selection fit is available in GUI mode")
     for option in (args.tile_air, args.tile_brown, args.tile_white, args.tile_cracked):
         if option is not None and not option.is_file():
             parser.error(f"tile image does not exist: {option}")
@@ -422,30 +332,35 @@ def _validate_args(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
 
 def _convert_source(
     args: argparse.Namespace,
-) -> tuple[Image.Image, list[list[int]]]:
+) -> tuple[Image.Image, list[list[int]], dict[str, Image.Image]]:
     with Image.open(args.input) as source:
         fitted = _fit_image(
             source,
-            (GRID_WIDTH * args.sample_size, GRID_HEIGHT * args.sample_size),
+            (GRID_WIDTH, GRID_HEIGHT),
             args.fit,
             args.background,
+            getattr(args, "selection_box", None),
         )
-    features = _cell_features(fitted, args.sample_size, args.contrast)
-    grid = _classify(
-        features,
-        args.air_threshold,
-        args.white_threshold,
-        args.crack_quantile,
-        args.dither,
+    gray = ImageOps.grayscale(fitted)
+    four_tone, grid = _four_level_grid(
+        gray,
         args.invert,
+        args.air_end,
+        args.crack_end,
+        args.brown_end,
     )
     tiles = _tile_set(args)
     preview = _render_preview(grid, tiles, args.tile_size)
-    return preview, grid
+    stages = {
+        "resized": _enlarge_stage(fitted),
+        "grayscale": _enlarge_stage(gray),
+        "four_tone": _enlarge_stage(four_tone),
+    }
+    return preview, grid, stages
 
 
 def _run_cli(args: argparse.Namespace) -> int:
-    preview, grid = _convert_source(args)
+    preview, grid, _stages = _convert_source(args)
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     stem = args.name or args.input.stem
@@ -463,15 +378,21 @@ UI_TEXT = {
         "title": "画像から15x12ブロック変換",
         "open": "画像を開く",
         "save": "結果を保存",
-        "source": "入力画像",
-        "result": "変換結果",
+        "source": "0. 入力画像",
+        "resized": "1. 15×12へ縮小（カラー）",
+        "grayscale": "2. グレースケール",
+        "four_tone": "3. 明るさを4段階化",
+        "result": "4. ブロック割当",
         "drop": "ここへ画像をドラッグ＆ドロップ",
         "fit": "画像の合わせ方",
         "stretch": "全体を15x12へ縮小",
         "crop": "中央を切り抜く",
-        "contain": "全体を余白付きで収める",
-        "dither": "ディザ",
-        "crack": "ひび割れ感度",
+        "selection": "赤枠で任意範囲を選択",
+        "thresholds": "明るさの境界",
+        "air_end": "空気 / ひび",
+        "crack_end": "ひび / 茶",
+        "brown_end": "茶 / 白",
+        "selection_help": "赤枠の内側で移動、辺・角で拡大縮小、外側ドラッグで作り直し",
         "invert": "明暗を反転",
         "ready": "画像をドロップするか、開くボタンで選択してください。",
         "loaded": "変換完了: 空気 {air} / 茶 {brown} / 白 {white} / ひび {cracked}",
@@ -487,15 +408,21 @@ UI_TEXT = {
         "title": "Image to 15x12 Block Grid",
         "open": "Open Image",
         "save": "Save Result",
-        "source": "Source Image",
-        "result": "Converted Grid",
+        "source": "0. Source Image",
+        "resized": "1. Resize to 15x12 (Color)",
+        "grayscale": "2. Grayscale",
+        "four_tone": "3. Four Brightness Levels",
+        "result": "4. Assign Block Types",
         "drop": "Drag and drop an image here",
         "fit": "Image Fit",
         "stretch": "Scale entire image to 15x12",
         "crop": "Crop from center",
-        "contain": "Fit entire image with padding",
-        "dither": "Dither",
-        "crack": "Crack Sensitivity",
+        "selection": "Select any area with red frame",
+        "thresholds": "Brightness Boundaries",
+        "air_end": "Air / Cracked",
+        "crack_end": "Cracked / Brown",
+        "brown_end": "Brown / White",
+        "selection_help": "Drag inside to move; drag an edge or corner to resize; drag outside to redraw",
         "invert": "Invert brightness",
         "ready": "Drop an image or select one with the Open button.",
         "loaded": "Converted: air {air} / brown {brown} / white {white} / cracked {cracked}",
@@ -533,8 +460,8 @@ def _pil_pixmap(image: Image.Image):
 
 
 def _run_gui(args: argparse.Namespace) -> int:
-    from PyQt5.QtCore import Qt, QTimer
-    from PyQt5.QtGui import QFont, QFontDatabase, QKeySequence
+    from PyQt5.QtCore import QPointF, QRectF, Qt, QTimer
+    from PyQt5.QtGui import QColor, QFont, QFontDatabase, QKeySequence, QPainter, QPen
     from PyQt5.QtWidgets import (
         QApplication,
         QCheckBox,
@@ -564,9 +491,211 @@ def _run_gui(args: argparse.Namespace) -> int:
             self.setAcceptDrops(True)
             self.setAlignment(Qt.AlignCenter)
             self.setFrameShape(QFrame.StyledPanel)
-            self.setMinimumSize(360, 300)
+            self.setMinimumSize(220, 176)
             self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             self.setWordWrap(True)
+
+        def dragEnterEvent(self, event):
+            urls = event.mimeData().urls() if event.mimeData().hasUrls() else []
+            if any(url.isLocalFile() for url in urls):
+                event.acceptProposedAction()
+
+        def dropEvent(self, event):
+            for url in event.mimeData().urls():
+                if url.isLocalFile():
+                    self._on_drop(Path(url.toLocalFile()))
+                    event.acceptProposedAction()
+                    return
+
+    class SourceSelection(QWidget):
+        HANDLE = 10.0
+        MIN_SIZE = 0.02
+
+        def __init__(self, on_drop, on_changed):
+            super().__init__()
+            self._on_drop = on_drop
+            self._on_changed = on_changed
+            self._pixmap = None
+            self._source_size = (1, 1)
+            self._selection = QRectF(0.0, 0.0, 1.0, 1.0)
+            self._selection_enabled = False
+            self._drag_mode = None
+            self._drag_start = QPointF()
+            self._drag_original = QRectF()
+            self.setAcceptDrops(True)
+            self.setMinimumSize(560, 360)
+            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        def set_source(self, image: Image.Image):
+            self._pixmap = _pil_pixmap(image.convert("RGB"))
+            self._source_size = image.size
+            source_aspect = image.width / max(1, image.height)
+            target_aspect = GRID_WIDTH / GRID_HEIGHT
+            if source_aspect > target_aspect:
+                width = target_aspect / source_aspect
+                self._selection = QRectF((1.0 - width) / 2.0, 0.0, width, 1.0)
+            else:
+                height = source_aspect / target_aspect
+                self._selection = QRectF(0.0, (1.0 - height) / 2.0, 1.0, height)
+            self.update()
+
+        def set_selection_enabled(self, enabled: bool):
+            self._selection_enabled = bool(enabled)
+            self.update()
+
+        def selection_box(self) -> tuple[int, int, int, int]:
+            width, height = self._source_size
+            left = round(self._selection.left() * width)
+            top = round(self._selection.top() * height)
+            right = round(self._selection.right() * width)
+            bottom = round(self._selection.bottom() * height)
+            left = max(0, min(width - 1, left))
+            top = max(0, min(height - 1, top))
+            return (
+                left,
+                top,
+                max(left + 1, min(width, right)),
+                max(top + 1, min(height, bottom)),
+            )
+
+        def _image_rect(self) -> QRectF:
+            area = QRectF(self.rect()).adjusted(8.0, 8.0, -8.0, -8.0)
+            if self._pixmap is None:
+                return area
+            scale = min(
+                area.width() / max(1, self._pixmap.width()),
+                area.height() / max(1, self._pixmap.height()),
+            )
+            width = self._pixmap.width() * scale
+            height = self._pixmap.height() * scale
+            return QRectF(
+                area.center().x() - width / 2.0,
+                area.center().y() - height / 2.0,
+                width,
+                height,
+            )
+
+        def _selection_rect(self) -> QRectF:
+            image_rect = self._image_rect()
+            return QRectF(
+                image_rect.left() + self._selection.left() * image_rect.width(),
+                image_rect.top() + self._selection.top() * image_rect.height(),
+                self._selection.width() * image_rect.width(),
+                self._selection.height() * image_rect.height(),
+            )
+
+        def _normalized_point(self, point) -> QPointF:
+            image_rect = self._image_rect()
+            x = (point.x() - image_rect.left()) / max(1.0, image_rect.width())
+            y = (point.y() - image_rect.top()) / max(1.0, image_rect.height())
+            return QPointF(max(0.0, min(1.0, x)), max(0.0, min(1.0, y)))
+
+        def _hit_test(self, point) -> str:
+            rect = self._selection_rect()
+            near_left = abs(point.x() - rect.left()) <= self.HANDLE
+            near_right = abs(point.x() - rect.right()) <= self.HANDLE
+            near_top = abs(point.y() - rect.top()) <= self.HANDLE
+            near_bottom = abs(point.y() - rect.bottom()) <= self.HANDLE
+            within_x = rect.left() - self.HANDLE <= point.x() <= rect.right() + self.HANDLE
+            within_y = rect.top() - self.HANDLE <= point.y() <= rect.bottom() + self.HANDLE
+            parts = []
+            if within_y and near_left:
+                parts.append("left")
+            elif within_y and near_right:
+                parts.append("right")
+            if within_x and near_top:
+                parts.append("top")
+            elif within_x and near_bottom:
+                parts.append("bottom")
+            if parts:
+                return "_".join(parts)
+            if rect.contains(point):
+                return "move"
+            return "new"
+
+        def _bounded_rect(self, rect: QRectF) -> QRectF:
+            left = max(0.0, min(1.0, rect.left()))
+            top = max(0.0, min(1.0, rect.top()))
+            right = max(left + self.MIN_SIZE, min(1.0, rect.right()))
+            bottom = max(top + self.MIN_SIZE, min(1.0, rect.bottom()))
+            if right > 1.0:
+                left = max(0.0, 1.0 - max(self.MIN_SIZE, rect.width()))
+                right = 1.0
+            if bottom > 1.0:
+                top = max(0.0, 1.0 - max(self.MIN_SIZE, rect.height()))
+                bottom = 1.0
+            return QRectF(left, top, right - left, bottom - top)
+
+        def mousePressEvent(self, event):
+            if (
+                event.button() != Qt.LeftButton
+                or not self._selection_enabled
+                or self._pixmap is None
+                or not self._image_rect().contains(event.pos())
+            ):
+                return
+            self._drag_mode = self._hit_test(event.pos())
+            self._drag_start = self._normalized_point(event.pos())
+            self._drag_original = QRectF(self._selection)
+            event.accept()
+
+        def mouseMoveEvent(self, event):
+            if self._drag_mode is None:
+                return
+            current = self._normalized_point(event.pos())
+            original = self._drag_original
+            if self._drag_mode == "new":
+                rect = QRectF(self._drag_start, current).normalized()
+            elif self._drag_mode == "move":
+                dx = current.x() - self._drag_start.x()
+                dy = current.y() - self._drag_start.y()
+                x = max(0.0, min(1.0 - original.width(), original.x() + dx))
+                y = max(0.0, min(1.0 - original.height(), original.y() + dy))
+                rect = QRectF(x, y, original.width(), original.height())
+            else:
+                left, top = original.left(), original.top()
+                right, bottom = original.right(), original.bottom()
+                if "left" in self._drag_mode:
+                    left = min(current.x(), right - self.MIN_SIZE)
+                if "right" in self._drag_mode:
+                    right = max(current.x(), left + self.MIN_SIZE)
+                if "top" in self._drag_mode:
+                    top = min(current.y(), bottom - self.MIN_SIZE)
+                if "bottom" in self._drag_mode:
+                    bottom = max(current.y(), top + self.MIN_SIZE)
+                rect = QRectF(left, top, right - left, bottom - top)
+            self._selection = self._bounded_rect(rect)
+            self.update()
+            event.accept()
+
+        def mouseReleaseEvent(self, event):
+            if self._drag_mode is None:
+                return
+            self._drag_mode = None
+            self._on_changed()
+            event.accept()
+
+        def paintEvent(self, event):
+            painter = QPainter(self)
+            painter.fillRect(self.rect(), QColor(24, 27, 30))
+            if self._pixmap is None:
+                painter.setPen(QColor(220, 220, 220))
+                painter.drawText(self.rect(), Qt.AlignCenter, text["drop"])
+                return
+            image_rect = self._image_rect()
+            painter.drawPixmap(image_rect.toRect(), self._pixmap)
+            if not self._selection_enabled:
+                return
+            selection_rect = self._selection_rect()
+            painter.setPen(QPen(QColor(255, 35, 35), 3))
+            painter.drawRect(selection_rect)
+            painter.setBrush(QColor(255, 35, 35))
+            painter.setPen(Qt.NoPen)
+            for point in (
+                selection_rect.topLeft(), selection_rect.topRight(),
+                selection_rect.bottomLeft(), selection_rect.bottomRight(),
+            ):
+                painter.drawRect(QRectF(point.x() - 4, point.y() - 4, 8, 8))
 
         def dragEnterEvent(self, event):
             urls = event.mimeData().urls() if event.mimeData().hasUrls() else []
@@ -588,7 +717,7 @@ def _run_gui(args: argparse.Namespace) -> int:
             self.result_image: Image.Image | None = None
             self.result_grid: list[list[int]] | None = None
             self.setWindowTitle(text["title"])
-            self.resize(1080, 690)
+            self.resize(1320, 900)
             self.setAcceptDrops(True)
 
             root = QWidget()
@@ -619,29 +748,11 @@ def _run_gui(args: argparse.Namespace) -> int:
             toolbar.addWidget(QLabel(text["fit"]))
             self.fit_combo = QComboBox()
             self.fit_combo.setMinimumWidth(220)
-            for key in ("stretch", "crop", "contain"):
+            for key in ("stretch", "crop", "selection"):
                 self.fit_combo.addItem(text[key], key)
             self.fit_combo.setCurrentIndex(max(0, self.fit_combo.findData(args.fit)))
-            self.fit_combo.currentIndexChanged.connect(self.convert)
+            self.fit_combo.currentIndexChanged.connect(self.fit_changed)
             toolbar.addWidget(self.fit_combo)
-
-            toolbar.addSpacing(12)
-            toolbar.addWidget(QLabel(text["dither"]))
-            self.dither_slider = QSlider(Qt.Horizontal)
-            self.dither_slider.setRange(0, 100)
-            self.dither_slider.setValue(round(args.dither * 100))
-            self.dither_slider.setFixedWidth(120)
-            self.dither_slider.valueChanged.connect(self.convert)
-            toolbar.addWidget(self.dither_slider)
-
-            toolbar.addSpacing(12)
-            toolbar.addWidget(QLabel(text["crack"]))
-            self.crack_slider = QSlider(Qt.Horizontal)
-            self.crack_slider.setRange(5, 95)
-            self.crack_slider.setValue(round(args.crack_quantile * 100))
-            self.crack_slider.setFixedWidth(120)
-            self.crack_slider.valueChanged.connect(self.convert)
-            toolbar.addWidget(self.crack_slider)
 
             self.invert_check = QCheckBox(text["invert"])
             self.invert_check.setChecked(args.invert)
@@ -650,24 +761,73 @@ def _run_gui(args: argparse.Namespace) -> int:
             toolbar.addStretch(1)
             outer.addLayout(toolbar)
 
-            previews = QHBoxLayout()
+            threshold_group = QGroupBox(text["thresholds"])
+            threshold_layout = QHBoxLayout(threshold_group)
+            self.air_label = QLabel()
+            self.air_slider = QSlider(Qt.Horizontal)
+            self.crack_label = QLabel()
+            self.crack_slider = QSlider(Qt.Horizontal)
+            self.brown_label = QLabel()
+            self.brown_slider = QSlider(Qt.Horizontal)
+            for label, slider, value in (
+                (self.air_label, self.air_slider, args.air_end),
+                (self.crack_label, self.crack_slider, args.crack_end),
+                (self.brown_label, self.brown_slider, args.brown_end),
+            ):
+                label.setMinimumWidth(125)
+                slider.setRange(1, 99)
+                slider.setValue(round(value * 100))
+                slider.setMinimumWidth(150)
+                slider.valueChanged.connect(self.threshold_changed)
+                threshold_layout.addWidget(label)
+                threshold_layout.addWidget(slider, 1)
+            outer.addWidget(threshold_group)
+            self.update_threshold_labels()
+
+            large_previews = QHBoxLayout()
             source_group = QGroupBox(text["source"])
             source_layout = QVBoxLayout(source_group)
-            self.source_preview = DropPreview(self.load_image, text["drop"])
+            self.source_preview = SourceSelection(self.load_image, self.selection_changed)
             source_layout.addWidget(self.source_preview)
-            previews.addWidget(source_group, 1)
+            selection_help = QLabel(text["selection_help"])
+            selection_help.setWordWrap(True)
+            source_layout.addWidget(selection_help)
+            large_previews.addWidget(source_group, 1)
 
             result_group = QGroupBox(text["result"])
             result_layout = QVBoxLayout(result_group)
             self.result_preview = DropPreview(self.load_image, text["drop"])
+            self.result_preview.setMinimumSize(560, 360)
             result_layout.addWidget(self.result_preview)
-            previews.addWidget(result_group, 1)
-            outer.addLayout(previews, 1)
+            large_previews.addWidget(result_group, 1)
+            outer.addLayout(large_previews, 3)
+
+            stages = QHBoxLayout()
+            resized_group = QGroupBox(text["resized"])
+            resized_layout = QVBoxLayout(resized_group)
+            self.resized_preview = DropPreview(self.load_image, text["drop"])
+            resized_layout.addWidget(self.resized_preview)
+            stages.addWidget(resized_group, 1)
+
+            grayscale_group = QGroupBox(text["grayscale"])
+            grayscale_layout = QVBoxLayout(grayscale_group)
+            self.grayscale_preview = DropPreview(self.load_image, text["drop"])
+            grayscale_layout.addWidget(self.grayscale_preview)
+            stages.addWidget(grayscale_group, 1)
+
+            four_tone_group = QGroupBox(text["four_tone"])
+            four_tone_layout = QVBoxLayout(four_tone_group)
+            self.four_tone_preview = DropPreview(self.load_image, text["drop"])
+            four_tone_layout.addWidget(self.four_tone_preview)
+            stages.addWidget(four_tone_group, 1)
+            outer.addLayout(stages, 1)
 
             self.status = QLabel(text["ready"])
             self.status.setMinimumHeight(24)
             outer.addWidget(self.status)
             self.setCentralWidget(root)
+            self.source_preview.set_selection_enabled(
+                self.fit_combo.currentData() == "selection")
 
             QShortcut(QKeySequence.Open, self, activated=self.open_image)
             QShortcut(QKeySequence.Save, self, activated=self.save_result)
@@ -701,21 +861,53 @@ def _run_gui(args: argparse.Namespace) -> int:
                 return
             self.source_path = path
             self.source_image = source
-            display = Image.new("RGB", (480, 384), (20, 22, 25))
-            scaled = ImageOps.contain(source.convert("RGB"), display.size, Image.Resampling.LANCZOS)
-            display.paste(scaled, ((display.width - scaled.width) // 2, (display.height - scaled.height) // 2))
-            self.source_preview.setPixmap(_pil_pixmap(display))
-            self.source_preview.setScaledContents(False)
+            self.source_preview.set_source(source)
             self.convert()
+
+        def update_threshold_labels(self):
+            self.air_label.setText(
+                f'{text["air_end"]}: {self.air_slider.value()}%')
+            self.crack_label.setText(
+                f'{text["crack_end"]}: {self.crack_slider.value()}%')
+            self.brown_label.setText(
+                f'{text["brown_end"]}: {self.brown_slider.value()}%')
+
+        def threshold_changed(self):
+            sender = self.sender()
+            air = self.air_slider.value()
+            crack = self.crack_slider.value()
+            brown = self.brown_slider.value()
+            if sender is self.air_slider and air >= crack:
+                self.air_slider.setValue(crack - 1)
+            elif sender is self.crack_slider:
+                self.crack_slider.setValue(max(air + 1, min(brown - 1, crack)))
+            elif sender is self.brown_slider and brown <= crack:
+                self.brown_slider.setValue(crack + 1)
+            self.update_threshold_labels()
+            self.convert()
+
+        def fit_changed(self):
+            self.source_preview.set_selection_enabled(
+                self.fit_combo.currentData() == "selection")
+            self.convert()
+
+        def selection_changed(self):
+            if self.fit_combo.currentData() == "selection":
+                self.convert()
 
         def current_args(self) -> argparse.Namespace:
             current = argparse.Namespace(**vars(args))
             current.input = self.source_path
             current.fit = self.fit_combo.currentData()
-            current.dither = self.dither_slider.value() / 100.0
-            current.crack_quantile = self.crack_slider.value() / 100.0
             current.invert = self.invert_check.isChecked()
             current.tile_size = DEFAULT_TILE_SIZE
+            current.air_end = self.air_slider.value() / 100.0
+            current.crack_end = self.crack_slider.value() / 100.0
+            current.brown_end = self.brown_slider.value() / 100.0
+            current.selection_box = (
+                self.source_preview.selection_box()
+                if current.fit == "selection" else None
+            )
             return current
 
         def convert(self):
@@ -723,13 +915,17 @@ def _run_gui(args: argparse.Namespace) -> int:
                 return
             try:
                 current = self.current_args()
-                result, grid = _convert_source(current)
+                result, grid, stages = _convert_source(current)
             except (OSError, ValueError) as exc:
                 QMessageBox.warning(self, text["error"], str(exc))
                 return
             self.result_image = result
             self.result_grid = grid
-            self.result_preview.setPixmap(_pil_pixmap(result))
+            self.resized_preview.setPixmap(_pil_pixmap(stages["resized"]))
+            self.grayscale_preview.setPixmap(_pil_pixmap(stages["grayscale"]))
+            self.four_tone_preview.setPixmap(_pil_pixmap(stages["four_tone"]))
+            result_display = result.resize((480, 384), Image.Resampling.LANCZOS)
+            self.result_preview.setPixmap(_pil_pixmap(result_display))
             self.result_preview.setScaledContents(False)
             self.save_button.setEnabled(True)
             counts = {
