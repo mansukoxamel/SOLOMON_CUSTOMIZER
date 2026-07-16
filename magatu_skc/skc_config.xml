@@ -354,6 +354,14 @@
     <enemy no="0xb1" description="Enhanced Ghost A (left)" animation="62" />
     <enemy no="0xb2" description="Enhanced Ghost B (right)" animation="63" />
     <enemy no="0xb3" description="Enhanced Ghost B (left)" animation="62" />
+    <enemy no="0xb4" description="Enhanced Ghost C (right)" animation="63" />
+    <enemy no="0xb5" description="Enhanced Ghost C (left)" animation="62" />
+    <enemy no="0xb6" description="Enhanced Ghost D (right)" animation="63" />
+    <enemy no="0xb7" description="Enhanced Ghost D (left)" animation="62" />
+    <enemy no="0xb8" description="Enhanced Ghost E (right)" animation="63" />
+    <enemy no="0xb9" description="Enhanced Ghost E (left)" animation="62" />
+    <enemy no="0xba" description="Enhanced Ghost F (right)" animation="63" />
+    <enemy no="0xbb" description="Enhanced Ghost F (left)" animation="62" />
 
     <enemy no="0xc0" description="Spark Ball pause (right, speed 1)" animation="44" />
     <enemy no="0xc1" description="Spark Ball pause (left, speed 1)" animation="44" />

@@ -1,26 +1,28 @@
-"""Parameterized Ghost A/B runtime for enemy IDs $B0-$B3."""
+"""Parameterized Ghost A-F runtime for enemy IDs $B0-$BB."""
 from __future__ import annotations
 
 from .element import ElementType
 
 
 FIRST_ID = 0xB0
-LAST_ID = 0xB3
+LAST_ID = 0xBB
 NEW_ENEMY_IDS = tuple(range(FIRST_ID, LAST_ID + 1))
 
 OFF_RUNTIME = 0x6268
 CPU_RUNTIME = 0xE258
 MAX_RUNTIME_SIZE = 218
+OFF_PARAMETER_TABLE = 0x6D98
+CPU_PARAMETER_TABLE = 0xED88
 
 CPU_STOCK_GHOST_AI = 0xABF7
 CPU_FIND_FREE_SUB_SLOT = 0xB2EA
 CPU_STOCK_BULLET_SPAWN = 0xAE76
 CPU_SUB_SLOT_PTR = 0xB156
 CPU_BULLET_MARKER_WRITE = 0xE5D5
-CPU_BULLET_SPAWN = 0xE32A
+CPU_BULLET_SPAWN = 0xE323
 
 COOLDOWN_ARMED = 0x80
-GROUP_NAMES = ("A", "B")
+GROUP_NAMES = ("A", "B", "C", "D", "E", "F")
 GROUP_COUNT = len(GROUP_NAMES)
 
 BODY_SPEED_NORMAL = 0x1A
@@ -52,7 +54,7 @@ DEFAULT_FIRE_INTERVAL = 0x40
 DEFAULT_BULLET_SPEED = BULLET_SPEED_STOCK
 DEFAULT_FIRE_DIRECTION = DIRECTION_DOWN
 
-# Preset A ($B0/$B1) and preset B ($B2/$B3). Both initially match $86.
+# Presets A-F each own one right/left pair and initially share the same defaults.
 def default_group_settings() -> tuple[dict[str, int], ...]:
     return tuple({
         "body_speed": DEFAULT_BODY_SPEED,
@@ -70,7 +72,7 @@ def normalize_group_settings(settings) -> tuple[dict[str, int], ...]:
     if settings is None:
         return default_group_settings()
     if not isinstance(settings, (list, tuple)) or len(settings) != GROUP_COUNT:
-        raise GhostB0RuntimeError("Ghost A/B settings must contain exactly two groups")
+        raise GhostB0RuntimeError("Ghost A-F settings must contain exactly six groups")
     normalized = []
     for index, raw in enumerate(settings):
         if not isinstance(raw, dict):
@@ -109,18 +111,22 @@ def _build_parameter_tables(group_settings) -> bytes:
     )
 
 
+def build_parameter_tables(group_settings=None) -> bytes:
+    return _build_parameter_tables(group_settings)
+
+
 PARAMETER_TABLES = _build_parameter_tables(None)
 
-OFF_SETUP_META_LOAD = OFF_RUNTIME + len(PARAMETER_TABLES)
-CPU_SETUP_META_LOAD = CPU_RUNTIME + len(PARAMETER_TABLES)
+OFF_SETUP_META_LOAD = OFF_RUNTIME
+CPU_SETUP_META_LOAD = CPU_RUNTIME
 
 SETUP_META_RUNTIME = bytes((
     0xA0, 0x01,                         # LDY #$01
     0xB1, 0x08,                         # LDA ($08),Y: reload the unmasked enemy ID
-    0x29, 0x02,                         # AND #$02: A/B preset bit
+    0x29, 0x0E,                         # AND #$0E: right/left pair offset
     0x4A,                               # LSR A
     0xAA,                               # TAX
-    0xBD, CPU_RUNTIME & 0xFF, CPU_RUNTIME >> 8,
+    0xBD, CPU_PARAMETER_TABLE & 0xFF, CPU_PARAMETER_TABLE >> 8,
     0x85, 0x0E,                         # STA $0E
     0xA8,                               # TAY
     0xB9, 0xD3, 0xD9,                   # LDA $D9D3,Y
@@ -181,10 +187,10 @@ class _Asm:
 def _build_ai_runtime() -> bytes:
     a = _Asm()
     a.b(0xA0, 0x01, 0xB1, 0x2E)         # parent main[1] enemy ID
-    a.b(0x29, 0x02, 0x4A, 0xAA)         # X=0 preset A, X=1 preset B
-    a.b(0xBD, (CPU_RUNTIME + 2) & 0xFF, (CPU_RUNTIME + 2) >> 8, 0x48)
-    a.b(0xBD, (CPU_RUNTIME + 4) & 0xFF, (CPU_RUNTIME + 4) >> 8, 0x48)
-    a.b(0xBD, (CPU_RUNTIME + 6) & 0xFF, (CPU_RUNTIME + 6) >> 8, 0x48)
+    a.b(0x29, 0x0E, 0x4A, 0xAA)         # X=0..5 preset A..F
+    a.b(0xBD, (CPU_PARAMETER_TABLE + GROUP_COUNT) & 0xFF, (CPU_PARAMETER_TABLE + GROUP_COUNT) >> 8, 0x48)
+    a.b(0xBD, (CPU_PARAMETER_TABLE + GROUP_COUNT * 2) & 0xFF, (CPU_PARAMETER_TABLE + GROUP_COUNT * 2) >> 8, 0x48)
+    a.b(0xBD, (CPU_PARAMETER_TABLE + GROUP_COUNT * 3) & 0xFF, (CPU_PARAMETER_TABLE + GROUP_COUNT * 3) >> 8, 0x48)
     a.b(0xA5, 0x2C, 0x48, 0xA5, 0x2D, 0x48, 0xA5, 0x2E, 0x48, 0xA5, 0x2F, 0x48)
     a.jsr(CPU_STOCK_GHOST_AI)
     a.b(0x68, 0x85, 0x2F, 0x68, 0x85, 0x2E, 0x68, 0x85, 0x2D, 0x68, 0x85, 0x2C)
@@ -233,9 +239,10 @@ CPU_PROPERTY_META_LOAD = CPU_AI_DISPATCH + len(AI_RUNTIME)
 
 PROPERTY_META_RUNTIME = bytes((
     0xA5, 0x05,                         # LDA $05: spawn enemy ID
-    0x29, 0xFC,                         # AND #$FC: normalize $B0-$B3
-    0xC9, FIRST_ID,                     # CMP #$B0
-    0xD0, 0x03,                         # BNE stock property table
+    0x38,                               # SEC
+    0xE9, FIRST_ID,                     # SBC #$B0
+    0xC9, LAST_ID - FIRST_ID + 1,       # CMP #$0C
+    0xB0, 0x03,                         # BCS stock property table
     0xA9, 0x4A,                         # LDA #$4A: same property input as $86
     0x60,                               # RTS
     0xB9, 0x0E, 0xA3,                   # LDA $A30E,Y
@@ -252,9 +259,9 @@ BULLET_SPAWN_RUNTIME = bytes((
 ))
 
 def build_runtime(group_settings=None) -> bytes:
+    normalize_group_settings(group_settings)
     return (
-        _build_parameter_tables(group_settings)
-        + SETUP_META_RUNTIME
+        SETUP_META_RUNTIME
         + INIT_STATUS_RUNTIME
         + AI_RUNTIME
         + PROPERTY_META_RUNTIME
@@ -264,37 +271,42 @@ def build_runtime(group_settings=None) -> bytes:
 
 RUNTIME = build_runtime()
 CPU_RUNTIME_END = CPU_RUNTIME + len(RUNTIME)
-RESERVED_SPANS = ((OFF_RUNTIME, len(RUNTIME)),)
+RESERVED_SPANS = (
+    (OFF_RUNTIME, len(RUNTIME)),
+    (OFF_PARAMETER_TABLE, len(PARAMETER_TABLES)),
+)
 
-assert len(PARAMETER_TABLES) == 8
+assert len(PARAMETER_TABLES) == 24
 assert len(SETUP_META_RUNTIME) == 18
 assert len(INIT_STATUS_RUNTIME) == 25
 assert len(AI_RUNTIME) == 144
-assert len(PROPERTY_META_RUNTIME) == 15
+assert len(PROPERTY_META_RUNTIME) == 16
 assert len(BULLET_SPAWN_RUNTIME) == 8
-assert CPU_BULLET_SPAWN == 0xE32A
-assert len(RUNTIME) == 218
+assert CPU_BULLET_SPAWN == 0xE323
+assert len(RUNTIME) == 211
 assert len(RUNTIME) <= MAX_RUNTIME_SIZE
 assert CPU_RUNTIME + len(RUNTIME) == CPU_RUNTIME_END
 
 
 def current_settings(rom_data) -> dict[str, object]:
-    if rom_data is None or len(rom_data) < OFF_RUNTIME + len(RUNTIME):
-        raise GhostB0RuntimeError("ROM is too short for Ghost A/B runtime")
-    current = bytes(rom_data[OFF_RUNTIME:OFF_RUNTIME + len(RUNTIME)])
-    if all(value in (0x00, 0xEA) for value in current):
+    required_end = max(OFF_RUNTIME + len(RUNTIME), OFF_PARAMETER_TABLE + len(PARAMETER_TABLES))
+    if rom_data is None or len(rom_data) < required_end:
+        raise GhostB0RuntimeError("ROM is too short for Ghost A-F runtime")
+    current_runtime = bytes(rom_data[OFF_RUNTIME:OFF_RUNTIME + len(RUNTIME)])
+    current_parameters = bytes(rom_data[OFF_PARAMETER_TABLE:OFF_PARAMETER_TABLE + len(PARAMETER_TABLES)])
+    if all(value in (0x00, 0xEA) for value in current_runtime + current_parameters):
         return {"groups": default_group_settings()}
     groups = []
     for index in range(GROUP_COUNT):
         groups.append({
-            "body_speed": current[index],
-            "fire_interval": current[2 + index] & 0x7F,
-            "bullet_speed": current[4 + index],
-            "fire_direction": current[6 + index],
+            "body_speed": current_parameters[index],
+            "fire_interval": current_parameters[GROUP_COUNT + index] & 0x7F,
+            "bullet_speed": current_parameters[GROUP_COUNT * 2 + index],
+            "fire_direction": current_parameters[GROUP_COUNT * 3 + index],
         })
     groups = normalize_group_settings(groups)
-    if current != build_runtime(groups):
-        raise GhostB0RuntimeError("Ghost A/B runtime has unexpected bytes")
+    if current_runtime != build_runtime(groups) or current_parameters != _build_parameter_tables(groups):
+        raise GhostB0RuntimeError("Ghost A-F runtime has unexpected bytes")
     return {"groups": groups}
 
 
@@ -302,10 +314,13 @@ def apply_settings(rom_data, group_settings) -> list[str]:
     groups = normalize_group_settings(group_settings)
     current_settings(rom_data)
     runtime = build_runtime(groups)
-    current = bytes(rom_data[OFF_RUNTIME:OFF_RUNTIME + len(runtime)])
-    if current == runtime:
+    parameters = _build_parameter_tables(groups)
+    current_runtime = bytes(rom_data[OFF_RUNTIME:OFF_RUNTIME + len(runtime)])
+    current_parameters = bytes(rom_data[OFF_PARAMETER_TABLE:OFF_PARAMETER_TABLE + len(parameters)])
+    if current_runtime == runtime and current_parameters == parameters:
         return []
     rom_data[OFF_RUNTIME:OFF_RUNTIME + len(runtime)] = runtime
+    rom_data[OFF_PARAMETER_TABLE:OFF_PARAMETER_TABLE + len(parameters)] = parameters
     return [
         f"Ghost {GROUP_NAMES[index]} body=${group['body_speed']:02X} interval={group['fire_interval']} "
         f"bullet=${group['bullet_speed']:02X} direction={group['fire_direction']}"

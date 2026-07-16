@@ -42,10 +42,10 @@ CPU_SETUP_ENTRY = 0xBC22
 CPU_INIT_ENTRY = 0xBC7A
 CPU_ANIM_ENTRY = 0xBCB7
 
-OFF_GHOSTB0_EXTENSION = 0x3D78
-CPU_GHOSTB0_AI_CLASSIFY = 0xBD68
-CPU_GHOSTB0_SETUP_CLASSIFY = 0xBD74
-CPU_GHOSTB0_INIT_CLASSIFY = 0xBD83
+OFF_GHOSTB0_EXTENSION = 0x3D3D
+CPU_GHOSTB0_AI_CLASSIFY = 0xBD2D
+CPU_GHOSTB0_SETUP_CLASSIFY = 0xBD3B
+CPU_GHOSTB0_INIT_CLASSIFY = 0xBD4B
 
 OLD_AI_ENTRY_RUNTIME = bytes.fromhex(
     "48"
@@ -394,15 +394,16 @@ ANIM_ENTRY_RUNTIME = _build_anim_entry_runtime()
 
 GHOSTB0_EXTENSION_RUNTIME = bytes.fromhex(
     # AI: the restored dispatch value is enemy ID minus $14.
-    f"29 fc c9 {GHOSTB0_FIRST_ID - 0x14:02x} d0 03 "
+    f"c9 {GHOSTB0_FIRST_ID - 0x14:02x} 90 07 "
+    f"c9 {GHOSTB0_LAST_ID - 0x14 + 1:02x} b0 03 "
     f"4c {_ghostb0.CPU_AI_DISPATCH & 0xFF:02x} {_ghostb0.CPU_AI_DISPATCH >> 8:02x} "
     "4c 29 a3 "
     # Setup: A still contains the enemy ID.
-    f"29 fc c9 {GHOSTB0_FIRST_ID:02x} d0 03 "
+    f"38 e9 {GHOSTB0_FIRST_ID:02x} c9 {GHOSTB0_LAST_ID - GHOSTB0_FIRST_ID + 1:02x} b0 03 "
     f"4c {_ghostb0.CPU_SETUP_META_LOAD & 0xFF:02x} {_ghostb0.CPU_SETUP_META_LOAD >> 8:02x} "
     "a4 0e b9 d3 d9 60 "
     # Init: the original hook input remains on the stack.
-    f"a5 05 29 fc c9 {GHOSTB0_FIRST_ID:02x} d0 03 "
+    f"a5 05 38 e9 {GHOSTB0_FIRST_ID:02x} c9 {GHOSTB0_LAST_ID - GHOSTB0_FIRST_ID + 1:02x} b0 03 "
     f"4c {_ghostb0.CPU_INIT_STATUS & 0xFF:02x} {_ghostb0.CPU_INIT_STATUS >> 8:02x} "
     "68 20 1c 9d a5 05 "
     f"c9 {ICE_FLAME_ID:02x} d0 03 "
@@ -468,11 +469,12 @@ assert len(AI_ENTRY_RUNTIME) == 64
 assert len(SETUP_ENTRY_RUNTIME) == 88
 assert len(INIT_ENTRY_RUNTIME) == 61
 assert len(ANIM_ENTRY_RUNTIME) == 118
-assert len(GHOSTB0_EXTENSION_RUNTIME) == 52
+assert len(GHOSTB0_EXTENSION_RUNTIME) == 56
 assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
 assert OFF_INIT_ENTRY == OFF_SETUP_ENTRY + len(SETUP_ENTRY_RUNTIME)
 assert OFF_ANIM_ENTRY == OFF_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
-assert OFF_ANIM_ENTRY + len(ANIM_ENTRY_RUNTIME) == 0x3D3D
+assert OFF_GHOSTB0_EXTENSION == OFF_ANIM_ENTRY + len(ANIM_ENTRY_RUNTIME)
+assert OFF_GHOSTB0_EXTENSION + len(GHOSTB0_EXTENSION_RUNTIME) == 0x3D75
 
 
 def levels_need_runtime(levels: list) -> bool:
@@ -547,6 +549,7 @@ def apply(rom_data: bytearray) -> list[str]:
         _fairy9c.OFF_RUNTIME + len(_fairy9c.RUNTIME),
         _radiance9d.OFF_RUNTIME + len(_radiance9d.RUNTIME),
         _ghostb0.OFF_RUNTIME + len(_ghostb0.RUNTIME),
+        _ghostb0.OFF_PARAMETER_TABLE + len(_ghostb0.PARAMETER_TABLES),
         OFF_GHOSTB0_EXTENSION + len(GHOSTB0_EXTENSION_RUNTIME),
         max(off + len(blob) for off, blob, _old_blobs, _name in ENTRY_RUNTIMES),
     )
@@ -603,11 +606,18 @@ def apply(rom_data: bytearray) -> list[str]:
     )
     ghostb0_settings = _ghostb0.current_settings(rom_data)
     ghostb0_runtime = _ghostb0.build_runtime(ghostb0_settings["groups"])
+    ghostb0_parameters = _ghostb0.build_parameter_tables(ghostb0_settings["groups"])
     _expect_blank_or_one_of(
         rom_data,
         _ghostb0.OFF_RUNTIME,
         (ghostb0_runtime,),
-        "Ghost A/B runtime area",
+        "Ghost A-F runtime area",
+    )
+    _expect_blank_or_one_of(
+        rom_data,
+        _ghostb0.OFF_PARAMETER_TABLE,
+        (ghostb0_parameters,),
+        "Ghost A-F parameter table area",
     )
     _expect_blank_or_one_of(
         rom_data,
@@ -647,7 +657,7 @@ def apply(rom_data: bytearray) -> list[str]:
         OFF_GHOSTB0_EXTENSION,
         GHOSTB0_EXTENSION_RUNTIME,
         changed,
-        "$BD68-$BD9B Ghost B0-B3 entry classification extension",
+        "$BD2D-$BD64 Ghost B0-BB entry classification extension",
     )
     _write(
         rom_data,
@@ -682,7 +692,14 @@ def apply(rom_data: bytearray) -> list[str]:
         _ghostb0.OFF_RUNTIME,
         ghostb0_runtime,
         changed,
-        f"Ghost A/B runtime ${_ghostb0.CPU_RUNTIME:04X}-${_ghostb0.CPU_RUNTIME_END - 1:04X}",
+        f"Ghost A-F runtime ${_ghostb0.CPU_RUNTIME:04X}-${_ghostb0.CPU_RUNTIME_END - 1:04X}",
+    )
+    _write(
+        rom_data,
+        _ghostb0.OFF_PARAMETER_TABLE,
+        ghostb0_parameters,
+        changed,
+        f"Ghost A-F parameters ${_ghostb0.CPU_PARAMETER_TABLE:04X}-${_ghostb0.CPU_PARAMETER_TABLE + len(ghostb0_parameters) - 1:04X}",
     )
     _write(
         rom_data,

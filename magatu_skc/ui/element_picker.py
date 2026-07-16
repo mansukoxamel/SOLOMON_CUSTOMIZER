@@ -196,13 +196,13 @@ ENEMIES_LIST = [
             "element_picker.enemy.ghost_preset.group_direction",
             "Enhanced Ghost {group} ({direction})",
         ).format(
-            group=("A", "B")[(code - 0xB0) // 2],
+            group=("A", "B", "C", "D", "E", "F")[(code - 0xB0) // 2],
             direction=(
                 t("element_picker.direction.right", "right"),
                 t("element_picker.direction.left", "left"),
             )[code & 1],
         ),
-    ) for code in range(0xB0, 0xB4)),
+    ) for code in range(0xB0, 0xBC)),
     *((
         code,
         t(
@@ -234,7 +234,7 @@ DEVELOPER_ONLY_PICKER_ITEMS = {
     (MODE_ENEMY, 0x9C),
     (MODE_ENEMY, 0x9D),
     *((MODE_ENEMY, code) for code in range(0xA0, 0xB0)),
-    *((MODE_ENEMY, code) for code in range(0xB0, 0xB4)),
+    *((MODE_ENEMY, code) for code in range(0xB0, 0xBC)),
     *((MODE_ENEMY, code) for code in range(0xC0, 0xD8)),
 }
 
@@ -304,7 +304,7 @@ ENHANCED_ENEMY_CODES = {
     0x7a, 0x7b, 0x7e, 0x7f,  # Gargoyle slow Bullet
     0x88,  # Neul Twin Cannon
     0x89,  # Chaos Dragon
-    0xB0, 0xB1, 0xB2, 0xB3,  # Enhanced Ghost A/B direction pairs
+    *range(0xB0, 0xBC),  # Enhanced Ghost A-F direction pairs
 }
 
 
@@ -375,8 +375,7 @@ ENEMY_VISUAL_SOURCE = {
     0x76: 0x74, 0x77: 0x75,
     0x88: 0x30,  # Neul Twin Cannon uses the stock Neul up visual.
     0x89: 0x68,  # Chaos Dragon uses the stock Dragon right visual.
-    0xB0: 0x34, 0xB1: 0x36,
-    0xB2: 0x34, 0xB3: 0x36,
+    **{code: (0x36 if code & 1 else 0x34) for code in range(0xB0, 0xBC)},
     **{code: 0x20 + (code & 3) for code in range(0xA0, 0xB0)},
 }
 

@@ -4579,8 +4579,8 @@ _TRANSLATIONS = {
         "en": "Phantom Preset settings failed",
     },
     "hack_dialog.group.ghost_ab": {
-        "ja": "ゴースト強化版 A/B",
-        "en": "Enhanced Ghost A/B",
+        "ja": "ゴースト強化版 A-F",
+        "en": "Enhanced Ghost A-F",
     },
     "hack_dialog.ghost_ab.body_speed.short": {
         "ja": "本体速度",

@@ -938,11 +938,11 @@ class HackDialog(QDialog):
         layout.addWidget(phantom_group)
 
         ghost_ab_group = QGroupBox(
-            t("hack_dialog.group.ghost_ab", "ゴースト強化版 A/B")
+            t("hack_dialog.group.ghost_ab", "ゴースト強化版 A-F")
         )
         ghost_ab_group.setProperty("settings_category", "敵・AI")
         ghost_ab_form = QFormLayout(ghost_ab_group)
-        _setup_enemy_group(self, ghost_ab_group, ghost_ab_form, 34, (0xB0, 0xB1, 0xB2, 0xB3))
+        _setup_enemy_group(self, ghost_ab_group, ghost_ab_form, 34, ghostb0_runtime.NEW_ENEMY_IDS)
         self._ghost_ab_controls = []
         self._ghost_ab_ok = False
         try:
