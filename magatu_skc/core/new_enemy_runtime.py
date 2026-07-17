@@ -5,7 +5,7 @@ from . import ice_flame_runtime as _ice
 from . import spark24_runtime as _spark24
 from . import spark_ball_variant as _spark_variant
 from . import neul84_runtime as _neul84
-from . import flying_dragon89_runtime as _flying89
+from . import chaos_dragon9e_runtime as _chaos9e
 from . import ghostb0_runtime as _ghostb0
 from . import phantom_preset_runtime as _phantom_preset
 from . import fairy9c_runtime as _fairy9c
@@ -21,7 +21,7 @@ SPARK24_FIRST_ID = _spark24.FIRST_ID
 SPARK24_LAST_ID = _spark24.LAST_ID
 NEUL84_FIRST_ID = _neul84.FIRST_ID
 NEUL84_LAST_ID = _neul84.LAST_ID
-CHAOS89_ID = _flying89.NEW_ENEMY_ID
+CHAOS9E_ID = _chaos9e.NEW_ENEMY_ID
 PHANTOM_PRESET_FIRST_ID = _phantom_preset.FIRST_ID
 PHANTOM_PRESET_LAST_ID = _phantom_preset.LAST_ID
 FAIRY9C_ID = _fairy9c.NEW_ENEMY_ID
@@ -68,7 +68,7 @@ def _build_ai_entry_runtime() -> bytes:
     neul_target_operand = len(data) - 1
     neul_skip_offset = len(data)
     targets = (
-        (CHAOS89_ID, _flying89.CPU_AI_DISPATCH),
+        (CHAOS9E_ID, _chaos9e.CPU_AI_DISPATCH),
         (FAIRY9C_ID, _fairy9c.CPU_AI_DISPATCH),
         (RADIANCE9D_ID, _radiance9d.CPU_AI_ENTRY),
     )
@@ -169,8 +169,8 @@ def _build_setup_entry_runtime() -> bytes:
     a.label("below_neul84")
     a.b(0xC9, ICE_FLAME_ID + 1)          # $82 uses the stock-computed Flame group
     a.branch(0x90, "stock")
-    a.b(0xC9, CHAOS89_ID)
-    a.branch(0xF0, "chaos89")
+    a.b(0xC9, CHAOS9E_ID)
+    a.branch(0xF0, "chaos9e")
     a.b(0xC9, FAIRY9C_ID)
     a.branch(0xF0, "fairy9c")
     a.b(0xC9, RADIANCE9D_ID)
@@ -182,8 +182,8 @@ def _build_setup_entry_runtime() -> bytes:
     a.jmp(_phantom_preset.CPU_SETUP_META_LOAD)
     a.label("lower_custom")
     a.jmp(CPU_GHOSTB0_SETUP_CLASSIFY)
-    a.label("chaos89")
-    a.jmp(_flying89.CPU_SETUP_META_LOAD)
+    a.label("chaos9e")
+    a.jmp(_chaos9e.CPU_SETUP_META_LOAD)
     a.label("fairy9c")
     a.jmp(_fairy9c.CPU_SETUP_META_LOAD)
     a.label("radiance9d")
@@ -239,8 +239,8 @@ def _build_init_entry_runtime() -> bytes:
     a.branch(0xB0, "below_neul84")
     a.jmp(_neul84.CPU_INIT_STATUS)
     a.label("below_neul84")
-    a.b(0xC9, CHAOS89_ID)
-    a.branch(0xF0, "chaos89")
+    a.b(0xC9, CHAOS9E_ID)
+    a.branch(0xF0, "chaos9e")
     a.b(0xC9, FAIRY9C_ID)
     a.branch(0xF0, "fairy9c")
     a.b(0xC9, RADIANCE9D_ID)
@@ -256,8 +256,8 @@ def _build_init_entry_runtime() -> bytes:
     a.jmp(_ice.CPU_INIT_STATUS)
     a.label("spark24")
     a.b(0x68, 0x20, 0x1C, 0x9D, 0x60)
-    a.label("chaos89")
-    a.jmp(_flying89.CPU_INIT_STATUS)
+    a.label("chaos9e")
+    a.jmp(_chaos9e.CPU_INIT_STATUS)
     a.label("fairy9c")
     a.jmp(_fairy9c.CPU_INIT_STATUS)
     a.label("radiance9d")
@@ -415,7 +415,7 @@ RESERVED_SPANS = (
     (OFF_GHOSTB0_EXTENSION, len(GHOSTB0_EXTENSION_RUNTIME)),
     *_ice.RESERVED_SPANS,
     *_neul84.RESERVED_SPANS,
-    *_flying89.RESERVED_SPANS,
+    *_chaos9e.RESERVED_SPANS,
     *_phantom_preset.RESERVED_SPANS,
     *_fairy9c.RESERVED_SPANS,
     *_radiance9d.RESERVED_SPANS,
@@ -446,7 +446,7 @@ def levels_need_runtime(levels: list) -> bool:
             for enemy in (getattr(lv, "enemies", []) or [])
         )
         or _neul84.levels_need_runtime(levels)
-        or _flying89.levels_need_runtime(levels)
+        or _chaos9e.levels_need_runtime(levels)
         or any(
             PHANTOM_PRESET_FIRST_ID <= int(getattr(enemy, "element_no", -1)) <= PHANTOM_PRESET_LAST_ID
             for lv in (levels or [])
@@ -505,7 +505,7 @@ def apply(rom_data: bytearray) -> list[str]:
         _spark24.OFF_RUNTIME + len(_spark24.RUNTIME),
         _neul84.OFF_RUNTIME + len(_neul84.RUNTIME),
         _neul84.OFF_PARAMETER_TABLE + len(_neul84.PARAMETER_TABLES),
-        _flying89.OFF_RUNTIME + len(_flying89.RUNTIME),
+        _chaos9e.OFF_RUNTIME + len(_chaos9e.RUNTIME),
         _phantom_preset.OFF_RUNTIME + len(_phantom_preset.RUNTIME),
         _fairy9c.OFF_RUNTIME + len(_fairy9c.RUNTIME),
         _radiance9d.OFF_RUNTIME + len(_radiance9d.RUNTIME),
@@ -566,9 +566,9 @@ def apply(rom_data: bytearray) -> list[str]:
     )
     _expect_one(
         rom_data,
-        _flying89.OFF_RUNTIME,
-        (bytes((0xEA,)) * len(_flying89.RUNTIME), _flying89.RUNTIME),
-        "Chaos Dragon89 runtime area",
+        _chaos9e.OFF_RUNTIME,
+        (bytes((0xEA,)) * len(_chaos9e.RUNTIME), _chaos9e.RUNTIME),
+        "Chaos Dragon9E runtime area",
     )
     phantom_settings = _phantom_preset.current_settings(rom_data)
     phantom_runtime, _phantom_offsets = _phantom_preset.build_runtime(
@@ -656,10 +656,10 @@ def apply(rom_data: bytearray) -> list[str]:
     )
     _write(
         rom_data,
-        _flying89.OFF_RUNTIME,
-        _flying89.RUNTIME,
+        _chaos9e.OFF_RUNTIME,
+        _chaos9e.RUNTIME,
         changed,
-        f"Chaos Dragon89 runtime ${_flying89.CPU_RUNTIME:04X}-${_flying89.CPU_RUNTIME_END - 1:04X}",
+        f"Chaos Dragon9E runtime ${_chaos9e.CPU_RUNTIME:04X}-${_chaos9e.CPU_RUNTIME_END - 1:04X}",
     )
     _write(
         rom_data,

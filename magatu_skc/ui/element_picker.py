@@ -186,7 +186,7 @@ ENEMIES_LIST = [
     (0x80, "Red Burn"),
     (0x81, "Blue Burn"),
     (0x82, "Ice Burn"),
-    (0x89, "Chaos Dragon"),
+    (0x9E, "Chaos Dragon"),
     *((
         code,
         t(
@@ -241,7 +241,7 @@ ENEMIES_LIST = [
 ]
 
 DEVELOPER_ONLY_PICKER_ITEMS = {
-    (MODE_ENEMY, 0x89),
+    (MODE_ENEMY, 0x9E),
     *((MODE_ENEMY, code) for code in range(0x84, 0x88)),
     (MODE_ENEMY, 0x9C),
     (MODE_ENEMY, 0x9D),
@@ -314,7 +314,7 @@ ENHANCED_ENEMY_CODES = {
     0x41, 0x43, 0x45, 0x47,  # Panel Variant A
     0x49, 0x4b, 0x4d, 0x4f,  # Panel Variant B
     0x7a, 0x7b, 0x7e, 0x7f,  # Gargoyle slow Bullet
-    0x89,  # Chaos Dragon
+    0x9E,  # Chaos Dragon
     *range(0x84, 0x88),  # Enhanced Neul A/B direction pairs
     *range(0xB0, 0xBC),  # Enhanced Ghost A-F direction pairs
 }
@@ -385,7 +385,7 @@ ENEMY_VISUAL_SOURCE = {
     0x6E: 0x6C, 0x6F: 0x6D,
     0x72: 0x70, 0x73: 0x71,
     0x76: 0x74, 0x77: 0x75,
-    0x89: 0x68,  # Chaos Dragon uses the stock Dragon right visual.
+    0x9E: 0x68,  # Chaos Dragon uses the stock Dragon right visual.
     **{code: (0x30 if (code & 1) == 0 else 0x32) for code in range(0x84, 0x88)},
     **{code: (0x36 if code & 1 else 0x34) for code in range(0xB0, 0xBC)},
     **{code: 0x20 + (code & 3) for code in range(0xA0, 0xB0)},

@@ -344,7 +344,7 @@
     <enemy no="0x81" description="Blue Burn" animation="47" />
     <enemy no="0x83" description="Blue Burn #2" animation="47" />
     <enemy no="0x82" description="Ice Burn" animation="105" />
-    <enemy no="0x89" description="Chaos Dragon" animation="64" />
+    <enemy no="0x9e" description="Chaos Dragon" animation="64" />
     <enemy no="0x84" description="Enhanced Neul A (up)" animation="43" />
     <enemy no="0x85" description="Enhanced Neul A (down)" animation="43" />
     <enemy no="0x86" description="Enhanced Neul B (up)" animation="43" />
@@ -391,7 +391,7 @@
     <enemy no="0xd6" description="Spark Ball pause and reverse (up, speed 2)" animation="44" />
     <enemy no="0xd7" description="Spark Ball pause and reverse (down, speed 2)" animation="44" />
 
-    <!-- 0x8D-0x9B and 0x9E-0xBF and 0xD8-0xFF are undefined. -->
+    <!-- 0x8D-0x9B and 0x9F-0xBF and 0xD8-0xFF are undefined. -->
   </enemy_definitions>
 
   <enemy_editor>
