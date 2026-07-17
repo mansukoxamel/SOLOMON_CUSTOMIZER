@@ -18,10 +18,6 @@ _TRANSLATIONS = {
         "ja": "停止型($C0-$C7)は停止ポイント、透明型($C8-$CF)は透明化周期、停止後反転型($D0-$D7)は反転ポイントを個別に設定します。",
         "en": "Configure pause points for $C0-$C7, the transparency cycle for $C8-$CF, and reversal points for $D0-$D7 independently.",
     },
-    "hack_dialog.spark_ball_variant.hint24": {
-        "ja": "停止型($C0-$C7)は停止ポイント、透明型($C8-$CF)は透明化周期、停止後反転型($D0-$D7)は反転ポイントを個別に設定します。",
-        "en": "Configure pause points for $C0-$C7, the transparency cycle for $C8-$CF, and reversal points for $D0-$D7 independently.",
-    },
     "hack_dialog.spark_ball_variant.reverse_digits.label": {
         "ja": "反転するLIFE百の位:",
         "en": "Reverse on LIFE hundreds digit:",
@@ -1258,6 +1254,7 @@ _TRANSLATIONS = {
     "main.hover.meta.mirror": {"ja": "ミラー{number}", "en": "Mirror {number}"},
     "main.hover.meta.constellation": {"ja": "星座:{name}", "en": "Constellation: {name}"},
     "main.hover.meta.solomon_seal": {"ja": "ソロモンの紋章", "en": "Solomon's Seal"},
+    "main.hover.block.none": {"ja": "空白", "en": "Empty"},
     "main.hover.block.passable_brown": {"ja": "すり抜ける茶色ブロック", "en": "Passable brown block"},
     "main.hover.block.solid_brown": {"ja": "壊せない茶色ブロック", "en": "Solid brown block"},
     "main.hover.block.cracked": {"ja": "ひび割れブロック", "en": "Cracked block"},
@@ -3158,6 +3155,15 @@ _TRANSLATIONS = {
     "title_screen.text.edit_unavailable": {"ja": "文字編集不可", "en": "Text Edit Unavailable"},
     "title_screen.text.push_read_failed": {"ja": "PUSH START文字読込失敗", "en": "PUSH START Text Read Failed"},
     "title_screen.text.dialog_title": {"ja": "タイトル文字編集", "en": "Edit Title Text"},
+    "title_screen.text.input_note": {
+        "ja": "A-Z / 0-9 / スペース / , . \" が使えます。最大32文字。",
+        "en": "You can use A-Z, 0-9, spaces, commas, periods, and quotation marks. Maximum 32 characters.",
+    },
+    "title_screen.text.extra_short_label": {"ja": "追加文字", "en": "Extra text"},
+    "title_screen.text.push_short_label": {
+        "ja": "PUSH START位置の固定文字",
+        "en": "Fixed text at the PUSH START position",
+    },
     "title_screen.text.extra_label": {
         "ja": "追加文字 (A-Z / 0-9 / スペース / , . \"、最大32文字)",
         "en": "Extra text (A-Z / 0-9 / space / , . \"; max 32 characters)",
