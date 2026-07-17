@@ -180,12 +180,14 @@ ENEMIES_LIST = [
     (0x37, "Panel Variant C (down)"),
     (0x1c, "Fairy"),
     (0x1d, "Fairy Princess"),
+    (0x9C, "Dark Fairy"),
     (0x18, "Mighty Bomb Jack (R)"),
     (0x19, "Mighty Bomb Jack (L)"),
     # Burn family
     (0x80, "Red Burn"),
     (0x81, "Blue Burn"),
     (0x82, "Ice Burn"),
+    (0x9D, "熾天の眩光 / Seraphic Radiance"),
     (0x9E, "Chaos Dragon"),
     *((
         code,
@@ -200,8 +202,6 @@ ENEMIES_LIST = [
             )[code & 1],
         ),
     ) for code in range(0x84, 0x88)),
-    (0x9C, "Dark Fairy"),
-    (0x9D, "熾天の眩光 / Seraphic Radiance"),
     *((
         code,
         t(
