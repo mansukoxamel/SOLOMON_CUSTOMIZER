@@ -248,11 +248,11 @@ OFF_DOOR_CAVE   = 0x67E8   # $E7D8  DOORPREDRAW (11B)
 OFF_DOORTAB     = 0x4190   # $C180  DoorCellTable (64B; mapper66ではStageExtへ移設)
 OFF_TABLE       = 0x41D0   # $C1C0  RoomFlagTable (64B; mapper66ではStageExtへ移設)
 OFF_DARK_CAVE   = 0x67F3   # $E7E3  DARK / runtime dispatch
-OFF_TEMPO       = 0x682B   # $E81B  全体共通テンポ 2B [LIGHT, PERIOD]
+OFF_TEMPO       = 0x6825   # $E815  全体共通テンポ 2B [LIGHT, PERIOD]
 OFF_VISIBLE_INBLOCK_HELPER = 0x6244  # $E234  visible item bitmask -> white in-block helper
 VISIBLE_INBLOCK_HELPER_CAPACITY = 0x18
 OFF_WHITE_INBLOCK_RUNTIME_EXT = OFF_VISIBLE_INBLOCK_HELPER + VISIBLE_INBLOCK_HELPER_CAPACITY  # $E24C
-OFF_BW_CAVE     = 0x682D   # $E81D  runtime special-cell scanner
+OFF_BW_CAVE     = 0x6827   # $E817  runtime special-cell scanner
 OFF_CAVE_FREE0  = 0x3BEE   # $BBDE  (cave 空き判定の起点)
 OFF_CAVE_FREE1  = 0x4210   # $C200  (cave 空き判定の終点)
 OFF_TITLE_IDLE_DEMO_CLEAR = 0x6871  # $E861  wide-title idle demo cleanup (9B)
@@ -276,8 +276,8 @@ ORIG_8055       = bytes.fromhex("ad 01 03")  # LDA $0301
 HOOK_8055_NEW   = bytes.fromhex("20") + _word(CPU_DARK_CAVE)
 
 # DARK cave @ $E7E3: ROOMFLAGS bit3 & Dana実プレイ($057F>=$C0)
-#   の時だけ フェーズカウンタ $0779 を進め、$E81B(LIGHT)未満=明
-#   (原 $0301)/ 以上=暗(bit3クリアでBG-off) / $E81C(PERIOD)で0復帰。
+#   の時だけ フェーズカウンタ $0779 を進め、$E815(LIGHT)未満=明
+#   (原 $0301)/ 以上=暗(bit3クリアでBG-off) / $E816(PERIOD)で0復帰。
 #   暗フェーズ中でもダーナ火球slot $05A7 bit7 が立つ間は明として返す。
 #   $0779 は止めないため、火が消えるとその時点の暗闇周期へ戻る。
 #   非該当時は $0779=0 リセット → 暗闇面は必ず「明」から開始。
@@ -296,12 +296,11 @@ DARK_CAVE = (
     + bytes.fromhex("9010ada705300bad010329f760a9008d7907ad010360")
 )
 assert len(DARK_CAVE) == 50
-# 0x3CC8-0x3CDF is reserved by key_enemy_runtime's fall-death handler.
-DARK_CAVE_RESERVED_SIZE = 0x38
-DARK_CAVE_BLOB = DARK_CAVE + bytes([0xEA] * (DARK_CAVE_RESERVED_SIZE - len(DARK_CAVE)))
+DARK_CAVE_RESERVED_SIZE = len(DARK_CAVE)
+DARK_CAVE_BLOB = DARK_CAVE
 assert len(DARK_CAVE_BLOB) == DARK_CAVE_RESERVED_SIZE
 
-# Runtime block override routine @ $E81D.
+# Runtime block override routine @ $E817.
 # Replaces the stage-start $909A JSR $95E4 call. It first calls the original
 # grid -> nametable renderer, then converts the grid values before the screen is
 # shown. This preserves the special IDs for visual rendering while still giving
@@ -327,9 +326,8 @@ BW_CAVE = bytes.fromhex(
     "f018c9a4f014c950f014c9f9f010c9faf014c9a3f010"
     "cad0de60a9f8d00aa990d006a9d0d002a9109d1303d0e9"
 )
-BW_CAVE_RESERVED_SIZE = 68
-assert len(BW_CAVE) <= BW_CAVE_RESERVED_SIZE
-BW_CAVE_BLOB = BW_CAVE + bytes([0xEA] * (BW_CAVE_RESERVED_SIZE - len(BW_CAVE)))
+BW_CAVE_RESERVED_SIZE = len(BW_CAVE)
+BW_CAVE_BLOB = BW_CAVE
 assert len(BW_CAVE_BLOB) == BW_CAVE_RESERVED_SIZE
 
 VISIBLE_INBLOCK_HELPER = bytes.fromhex(
@@ -402,7 +400,7 @@ assert OFF_DOOR_CAVE == OFF_MAGIC_CAVE + len(MAGIC_CAVE)
 assert OFF_DARK_CAVE == OFF_DOOR_CAVE + len(DOOR_CAVE)
 assert OFF_TEMPO == OFF_DARK_CAVE + DARK_CAVE_RESERVED_SIZE
 assert OFF_BW_CAVE == OFF_TEMPO + 2
-assert OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE == 0x6871
+assert OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE == 0x686B
 
 
 BIT_FIRE_RESET = 0x10  # stage load clears carried fire scroll stock.
@@ -727,7 +725,7 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
             changed.append("WhiteInBlock runtime extension 注入 ($E24C)")
         if bytes(rom_data[OFF_BW_CAVE:OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE]) != BW_CAVE_BLOB:
             rom_data[OFF_BW_CAVE:OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE] = BW_CAVE_BLOB
-            changed.append("BreakableWhite cave 注入 ($E81D)")
+            changed.append("BreakableWhite cave 注入 ($E817)")
         if bytes(rom_data[OFF_HOOK_909A:OFF_HOOK_909A + 3]) != HOOK_909A_NEW:
             rom_data[OFF_HOOK_909A:OFF_HOOK_909A + 3] = HOOK_909A_NEW
             changed.append("$909A (特殊セル変換) フック有効化")

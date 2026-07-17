@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from . import ice_flame_runtime as _ice
 from . import spark24_runtime as _spark24
-from . import spark85_runtime as _spark85
 from . import spark_ball_variant as _spark_variant
 from . import neul88_runtime as _neul88
 from . import flying_dragon89_runtime as _flying89
@@ -99,30 +98,6 @@ def _build_ai_entry_runtime() -> bytes:
 
 
 AI_ENTRY_RUNTIME = _build_ai_entry_runtime()
-PRE_PACKED_GHOST_AI_ENTRY_RUNTIME = bytes.fromhex(
-    "48"
-    "18"
-    "69 14"
-    "c9 84"
-    "f0 10"
-    "c9 85"
-    "f0 10"
-    "c9 86"
-    "f0 10"
-    "c9 87"
-    "f0 10"
-    "68"
-    "4c 29 a3"
-    "68"
-    f"4c {LEGACY_ICE_AI_DISPATCH & 0xFF:02x} {LEGACY_ICE_AI_DISPATCH >> 8:02x}"
-    "68"
-    f"4c {_spark85.CPU_AI_DISPATCH & 0xFF:02x} {_spark85.CPU_AI_DISPATCH >> 8:02x}"
-    "68"
-    "4c 92 ed"
-    "68"
-    "4c 96 ed"
-)
-
 OLD_SETUP_ENTRY_RUNTIME = bytes.fromhex(
     "a0 01"
     "b1 08"
@@ -283,27 +258,6 @@ def _build_init_entry_runtime() -> bytes:
 
 
 INIT_ENTRY_RUNTIME = _build_init_entry_runtime()
-PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME = bytes.fromhex(
-    "48"
-    "a5 05"
-    "c9 86"
-    "f0 04"
-    "c9 87"
-    "d0 03"
-    "4c 7c ed"
-    "c9 85"
-    "f0 0e"
-    "68"
-    "20 1c 9d"
-    "a5 05"
-    "c9 84"
-    "f0 01"
-    "60"
-    f"4c {_ice.CPU_INIT_STATUS & 0xFF:02x} {_ice.CPU_INIT_STATUS >> 8:02x}"
-    "68"
-    f"4c {_spark85.CPU_INIT_STATUS & 0xFF:02x} {_spark85.CPU_INIT_STATUS >> 8:02x}"
-)
-
 OLD_ANIM_ENTRY_RUNTIME = bytes.fromhex(
     "a0 01"         # LDY #$01
     "b1 08"         # LDA ($08),Y -> main-slot type
@@ -434,9 +388,9 @@ PRE_GHOSTB0_ANIM_ENTRY_RUNTIME = bytes.fromhex(
 )
 
 ENTRY_RUNTIMES = (
-    (OFF_AI_ENTRY, AI_ENTRY_RUNTIME, (PRE_GHOSTB0_AI_ENTRY_RUNTIME,), "$BBE2 new enemy AI dispatch"),
+    (OFF_AI_ENTRY, AI_ENTRY_RUNTIME, (), "$BBE2 new enemy AI dispatch"),
     (OFF_SETUP_ENTRY, SETUP_ENTRY_RUNTIME, (PRE_GHOSTB0_SETUP_ENTRY_RUNTIME,), f"${CPU_SETUP_ENTRY:04X} new enemy setup dispatch"),
-    (OFF_INIT_ENTRY, INIT_ENTRY_RUNTIME, (PRE_GHOSTB0_INIT_ENTRY_RUNTIME,), f"${CPU_INIT_ENTRY:04X} new enemy init dispatch"),
+    (OFF_INIT_ENTRY, INIT_ENTRY_RUNTIME, (), f"${CPU_INIT_ENTRY:04X} new enemy init dispatch"),
     (OFF_ANIM_ENTRY, ANIM_ENTRY_RUNTIME, (OLD_ANIM_ENTRY_RUNTIME, PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME, PRE_GHOSTB0_ANIM_ENTRY_RUNTIME), f"${CPU_ANIM_ENTRY:04X} new enemy animation dispatch"),
 )
 
@@ -460,9 +414,7 @@ RESERVED_SPANS = (
     *_ghostb0.RESERVED_SPANS,
 )
 
-assert len(PRE_PACKED_GHOST_AI_ENTRY_RUNTIME) == 40
 assert len(PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME) == 32
-assert len(PRE_PACKED_GHOST_INIT_ENTRY_RUNTIME) == 36
 assert len(OLD_ANIM_ENTRY_RUNTIME) == 14
 assert len(PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME) == 32
 assert len(AI_ENTRY_RUNTIME) == 64
