@@ -4510,6 +4510,10 @@ _TRANSLATIONS = {
         "ja": "強化ゴースト{group}（{direction}）",
         "en": "Enhanced Ghost {group} ({direction})",
     },
+    "element_picker.enemy.neul_preset.group_direction": {
+        "ja": "強化ヌエル{group}（{direction}）",
+        "en": "Enhanced Neul {group} ({direction})",
+    },
     "element_picker.direction.right": {
         "ja": "右",
         "en": "right",
@@ -4582,6 +4586,50 @@ _TRANSLATIONS = {
         "ja": "ゴースト強化版 A-F",
         "en": "Enhanced Ghost A-F",
     },
+    "hack_dialog.group.neul_ab": {
+        "ja": "ヌエル強化版 A/B",
+        "en": "Enhanced Neul A/B",
+    },
+    "hack_dialog.neul_ab.body_speed.short": {
+        "ja": "本体速度",
+        "en": "Body speed",
+    },
+    "hack_dialog.neul_ab.fire_interval.short": {
+        "ja": "発射間隔",
+        "en": "Fire interval",
+    },
+    "hack_dialog.neul_ab.bullet_speed.short": {
+        "ja": "弾速度",
+        "en": "Bullet speed",
+    },
+    "hack_dialog.neul_ab.body_speed.normal": {
+        "ja": "通常",
+        "en": "Normal",
+    },
+    "hack_dialog.neul_ab.body_speed.fast": {
+        "ja": "高速",
+        "en": "Fast",
+    },
+    "hack_dialog.neul_ab.bullet_speed.stock": {
+        "ja": "原作",
+        "en": "Stock",
+    },
+    "hack_dialog.neul_ab.bullet_speed.quarter": {
+        "ja": "1/4",
+        "en": "1/4",
+    },
+    "hack_dialog.neul_ab.bullet_speed.half": {
+        "ja": "1/2",
+        "en": "1/2",
+    },
+    "hack_dialog.neul_ab.bullet_speed.double": {
+        "ja": "2倍",
+        "en": "2x",
+    },
+    "hack_dialog.neul_ab.bullet_speed.triple": {
+        "ja": "3倍",
+        "en": "3x",
+    },
     "hack_dialog.ghost_ab.body_speed.short": {
         "ja": "本体速度",
         "en": "Body speed",
@@ -4646,6 +4694,18 @@ _TRANSLATIONS = {
         "ja": "ゴースト{group} 本体速度",
         "en": "Ghost {group} body speed",
     },
+    "hack_dialog.setting.neul_ab_body_speed": {
+        "ja": "ヌエル{group} 本体速度",
+        "en": "Neul {group} body speed",
+    },
+    "hack_dialog.setting.neul_ab_fire_interval": {
+        "ja": "ヌエル{group} 発射間隔",
+        "en": "Neul {group} fire interval",
+    },
+    "hack_dialog.setting.neul_ab_bullet_speed": {
+        "ja": "ヌエル{group} 弾速度",
+        "en": "Neul {group} bullet speed",
+    },
     "hack_dialog.setting.ghost_ab_fire_interval": {
         "ja": "ゴースト{group} 発射間隔",
         "en": "Ghost {group} fire interval",
@@ -4669,6 +4729,18 @@ _TRANSLATIONS = {
     "hack_dialog.error.ghost_ab": {
         "ja": "ゴースト強化版設定失敗",
         "en": "Enhanced Ghost settings failed",
+    },
+    "hack_dialog.applied.neul_ab": {
+        "ja": "ヌエル強化版: {settings}",
+        "en": "Enhanced Neul: {settings}",
+    },
+    "hack_dialog.applied.neul_ab.group": {
+        "ja": "{group}: 本体=${body:02X}、間隔={interval}、弾=${bullet:02X}",
+        "en": "{group}: body=${body:02X}, interval={interval}, bullet=${bullet:02X}",
+    },
+    "hack_dialog.error.neul_ab": {
+        "ja": "ヌエル強化版設定失敗",
+        "en": "Enhanced Neul settings failed",
     },
     "common.complete": {
         "ja": "完了",

@@ -31,6 +31,7 @@ from ..core import spark_ball_speed
 from ..core import spark_ball_variant
 from ..core import phantom_preset_runtime
 from ..core import ghostb0_runtime
+from ..core import neul84_runtime
 from ..core import gargoyle_hack
 from ..core import gargoyle_variant
 from ..core import clearscreen_hack
@@ -937,6 +938,72 @@ class HackDialog(QDialog):
             self._phantom_preset_controls.append((speed, amplitude, phase))
         layout.addWidget(phantom_group)
 
+        neul_ab_group = QGroupBox(
+            t("hack_dialog.group.neul_ab", "ヌエル強化版 A/B")
+        )
+        neul_ab_group.setProperty("settings_category", "敵・AI")
+        neul_ab_form = QFormLayout(neul_ab_group)
+        _setup_enemy_group(self, neul_ab_group, neul_ab_form, 32, neul84_runtime.NEW_ENEMY_IDS)
+        self._neul_ab_controls = []
+        self._neul_ab_ok = False
+        try:
+            neul_ab_settings = neul84_runtime.current_settings(rom.data)
+            self._neul_ab_ok = True
+        except neul84_runtime.Neul84RuntimeError as e:
+            neul_ab_settings = {"groups": neul84_runtime.default_group_settings()}
+            note = QLabel(
+                t("hack_dialog.disabled", "⚠ 無効: {error}").format(
+                    error=str(e).splitlines()[0]
+                )
+            )
+            note.setWordWrap(True)
+            note.setStyleSheet("color:#c33;")
+            neul_ab_form.addRow(note)
+        for index, group_name in enumerate(neul84_runtime.GROUP_NAMES):
+            group_settings = neul_ab_settings["groups"][index]
+            row = QWidget()
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(6)
+
+            body_speed = QComboBox()
+            body_speed.addItem(t("hack_dialog.neul_ab.body_speed.normal", "通常"), neul84_runtime.BODY_SPEED_NORMAL)
+            body_speed.addItem(t("hack_dialog.neul_ab.body_speed.fast", "高速"), neul84_runtime.BODY_SPEED_FAST)
+            self._set_combo_data(body_speed, group_settings["body_speed"])
+
+            fire_interval = QSpinBox()
+            fire_interval.setRange(neul84_runtime.MIN_FIRE_INTERVAL, neul84_runtime.MAX_FIRE_INTERVAL)
+            fire_interval.setSuffix(t("hack_dialog.frames_suffix", " フレーム"))
+            fire_interval.setValue(group_settings["fire_interval"])
+
+            bullet_speed = QComboBox()
+            for label_key, label, value in (
+                ("stock", "原作", neul84_runtime.BULLET_SPEED_STOCK),
+                ("quarter", "1/4", neul84_runtime.BULLET_SPEED_QUARTER),
+                ("half", "1/2", neul84_runtime.BULLET_SPEED_HALF),
+                ("double", "2倍", neul84_runtime.BULLET_SPEED_2X),
+                ("triple", "3倍", neul84_runtime.BULLET_SPEED_3X),
+            ):
+                bullet_speed.addItem(t(f"hack_dialog.neul_ab.bullet_speed.{label_key}", label), value)
+            self._set_combo_data(bullet_speed, group_settings["bullet_speed"])
+
+            row_layout.addWidget(QLabel(t("hack_dialog.neul_ab.body_speed.short", "本体速度")))
+            row_layout.addWidget(body_speed)
+            row_layout.addWidget(QLabel(t("hack_dialog.neul_ab.fire_interval.short", "発射間隔")))
+            row_layout.addWidget(fire_interval)
+            row_layout.addWidget(QLabel(t("hack_dialog.neul_ab.bullet_speed.short", "弾速度")))
+            row_layout.addWidget(bullet_speed)
+            row_layout.addStretch(1)
+
+            first_id = neul84_runtime.FIRST_ID + index * 2
+            neul_ab_form.addRow(f"{group_name} (${first_id:02X}-${first_id + 1:02X}):", row)
+            if not self._neul_ab_ok:
+                body_speed.setEnabled(False)
+                fire_interval.setEnabled(False)
+                bullet_speed.setEnabled(False)
+            self._neul_ab_controls.append((body_speed, fire_interval, bullet_speed))
+        layout.addWidget(neul_ab_group)
+
         ghost_ab_group = QGroupBox(
             t("hack_dialog.group.ghost_ab", "ゴースト強化版 A-F")
         )
@@ -1558,6 +1625,21 @@ class HackDialog(QDialog):
             "bullet_speed": int(bullet_speed.currentData()),
             "fire_direction": int(fire_direction.currentData()),
         } for body_speed, fire_interval, bullet_speed, fire_direction in self._ghost_ab_controls)
+
+    def _neul_ab_group_settings_from_ui(self) -> tuple[dict[str, int], ...]:
+        return tuple({
+            "body_speed": int(body_speed.currentData()),
+            "fire_interval": int(fire_interval.value()),
+            "bullet_speed": int(bullet_speed.currentData()),
+        } for body_speed, fire_interval, bullet_speed in self._neul_ab_controls)
+
+    def _neul_ab_global_settings_from_ui(self) -> dict:
+        values = {}
+        for index, group in enumerate(self._neul_ab_group_settings_from_ui()):
+            name = neul84_runtime.GROUP_NAMES[index].lower()
+            for field, value in group.items():
+                values[f"neul_ab_{name}_{field}"] = value
+        return values
 
     def _ghost_ab_global_settings_from_ui(self) -> dict:
         values = {}
@@ -2186,6 +2268,7 @@ class HackDialog(QDialog):
             "spark_ball_reverse_digits": self._selected_spark_reverse_digits(),
             "spark_ball_transparency_period": self._combo_data(self.combo_spark_transparency),
             **self._phantom_global_settings_from_ui(),
+            **self._neul_ab_global_settings_from_ui(),
             **self._ghost_ab_global_settings_from_ui(),
             "demonhead_snappy": self.chk_demonhead_snappy.isChecked(),
             "clear_screen_preset": self._combo_data(self.combo_clearscreen),
@@ -2216,6 +2299,7 @@ class HackDialog(QDialog):
             "spark_ball_speed": bool(getattr(self, "_spark_ball_spd_ok", False)),
             "spark_ball_variant": bool(getattr(self, "_spark_ball_variant_ok", False)),
             "phantom_preset": bool(getattr(self, "_phantom_preset_ok", False)),
+            "neul_ab": bool(getattr(self, "_neul_ab_ok", False)),
             "ghost_ab": bool(getattr(self, "_ghost_ab_ok", False)),
             "demonhead": bool(getattr(self, "_demonhead_ok", False)),
             "clear_screen": bool(getattr(self, "_cs_ok", False)),
@@ -2489,6 +2573,14 @@ class HackDialog(QDialog):
                     "Phantom group {group} sine table start",
                 ).format(group=group),
             )
+        for index, (body_speed, fire_interval, bullet_speed) in enumerate(
+            self._neul_ab_controls
+        ):
+            group = neul84_runtime.GROUP_NAMES[index]
+            prefix = f"neul_ab_{group.lower()}"
+            set_combo(f"{prefix}_body_speed", body_speed, t("hack_dialog.setting.neul_ab_body_speed", "ヌエル{group} 本体速度").format(group=group))
+            set_spin(f"{prefix}_fire_interval", fire_interval, t("hack_dialog.setting.neul_ab_fire_interval", "ヌエル{group} 発射間隔").format(group=group))
+            set_combo(f"{prefix}_bullet_speed", bullet_speed, t("hack_dialog.setting.neul_ab_bullet_speed", "ヌエル{group} 弾速度").format(group=group))
         for index, (body_speed, fire_interval, bullet_speed, fire_direction) in enumerate(
             self._ghost_ab_controls
         ):
@@ -2946,6 +3038,29 @@ class HackDialog(QDialog):
                 )
                 return
 
+        if getattr(self, "_neul_ab_ok", False):
+            try:
+                neul_ab_changes = neul84_runtime.apply_settings(
+                    d,
+                    self._neul_ab_group_settings_from_ui(),
+                )
+                if neul_ab_changes:
+                    summaries = []
+                    for index, group in enumerate(self._neul_ab_group_settings_from_ui()):
+                        summaries.append(t(
+                            "hack_dialog.applied.neul_ab.group",
+                            "{group}: 本体=${body:02X}、間隔={interval}、弾=${bullet:02X}",
+                        ).format(
+                            group=neul84_runtime.GROUP_NAMES[index],
+                            body=group["body_speed"],
+                            interval=group["fire_interval"],
+                            bullet=group["bullet_speed"],
+                        ))
+                    applied.append(t("hack_dialog.applied.neul_ab", "ヌエル強化版: {settings}").format(settings=" / ".join(summaries)))
+            except neul84_runtime.Neul84RuntimeError as e:
+                QMessageBox.warning(self, t("hack_dialog.error.neul_ab", "ヌエル強化版設定失敗"), str(e))
+                return
+
         if getattr(self, "_ghost_ab_ok", False):
             try:
                 ghost_ab_changes = ghostb0_runtime.apply_settings(
@@ -3161,6 +3276,11 @@ class HackDialog(QDialog):
                     phantom_preset_runtime.DEFAULT_AMPLITUDE_PERCENT,
                 )
                 phase.setValue(phantom_preset_runtime.DEFAULT_PHASE_OFFSET)
+        if getattr(self, "_neul_ab_ok", False):
+            for body_speed, fire_interval, bullet_speed in self._neul_ab_controls:
+                self._set_combo_data(body_speed, neul84_runtime.DEFAULT_BODY_SPEED)
+                fire_interval.setValue(neul84_runtime.DEFAULT_FIRE_INTERVAL)
+                self._set_combo_data(bullet_speed, neul84_runtime.DEFAULT_BULLET_SPEED)
         if getattr(self, "_ghost_ab_ok", False):
             for body_speed, fire_interval, bullet_speed, fire_direction in self._ghost_ab_controls:
                 self._set_combo_data(body_speed, ghostb0_runtime.DEFAULT_BODY_SPEED)

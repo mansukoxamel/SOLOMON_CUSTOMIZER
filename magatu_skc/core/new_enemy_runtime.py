@@ -5,6 +5,7 @@ from . import ice_flame_runtime as _ice
 from . import spark24_runtime as _spark24
 from . import spark_ball_variant as _spark_variant
 from . import neul88_runtime as _neul88
+from . import neul84_runtime as _neul84
 from . import flying_dragon89_runtime as _flying89
 from . import ghostb0_runtime as _ghostb0
 from . import phantom_preset_runtime as _phantom_preset
@@ -20,6 +21,8 @@ ICE_FLAME_ID = _ice.NEW_ENEMY_ID
 SPARK24_FIRST_ID = _spark24.FIRST_ID
 SPARK24_LAST_ID = _spark24.LAST_ID
 NEUL88_ID = _neul88.NEW_ENEMY_ID
+NEUL84_FIRST_ID = _neul84.FIRST_ID
+NEUL84_LAST_ID = _neul84.LAST_ID
 CHAOS89_ID = _flying89.NEW_ENEMY_ID
 PHANTOM_PRESET_FIRST_ID = _phantom_preset.FIRST_ID
 PHANTOM_PRESET_LAST_ID = _phantom_preset.LAST_ID
@@ -32,19 +35,19 @@ LEGACY_ICE_AI_DISPATCH = 0xE9C1
 LEGACY_ICE_SETUP_META_LOAD = 0xE9C4
 
 OFF_AI_ENTRY = 0x3BF2      # CPU $BBE2
-OFF_SETUP_ENTRY = 0x3C32
-OFF_INIT_ENTRY = 0x3C8A
-OFF_ANIM_ENTRY = 0x3CC7
+OFF_SETUP_ENTRY = 0x3C3E
+OFF_INIT_ENTRY = 0x3C8F
+OFF_ANIM_ENTRY = 0x3CD7
 
 CPU_AI_ENTRY = 0xBBE2
-CPU_SETUP_ENTRY = 0xBC22
-CPU_INIT_ENTRY = 0xBC7A
-CPU_ANIM_ENTRY = 0xBCB7
+CPU_SETUP_ENTRY = 0xBC2E
+CPU_INIT_ENTRY = 0xBC7F
+CPU_ANIM_ENTRY = 0xBCC7
 
-OFF_GHOSTB0_EXTENSION = 0x3D3D
-CPU_GHOSTB0_AI_CLASSIFY = 0xBD2D
-CPU_GHOSTB0_SETUP_CLASSIFY = 0xBD3B
-CPU_GHOSTB0_INIT_CLASSIFY = 0xBD4B
+OFF_GHOSTB0_EXTENSION = 0x3D4D
+CPU_GHOSTB0_AI_CLASSIFY = 0xBD3D
+CPU_GHOSTB0_SETUP_CLASSIFY = 0xBD4B
+CPU_GHOSTB0_INIT_CLASSIFY = 0xBD5B
 
 OLD_AI_ENTRY_RUNTIME = bytes.fromhex(
     "48"
@@ -61,6 +64,11 @@ OLD_AI_ENTRY_RUNTIME = bytes.fromhex(
 def _build_ai_entry_runtime() -> bytes:
     data = bytearray((0x48, 0x18, 0x69, 0x14))
     fixups: list[tuple[int, int]] = []
+    data.extend((0xC9, NEUL84_FIRST_ID, 0x90, 0x00))
+    neul_skip_operand = len(data) - 1
+    data.extend((0xC9, NEUL84_LAST_ID + 1, 0x90, 0x00))
+    neul_target_operand = len(data) - 1
+    neul_skip_offset = len(data)
     targets = (
         (NEUL88_ID, _neul88.CPU_AI_DISPATCH),
         (CHAOS89_ID, _flying89.CPU_AI_DISPATCH),
@@ -89,6 +97,14 @@ def _build_ai_entry_runtime() -> bytes:
     for _enemy_id, target in targets:
         target_offsets.append(len(data))
         data.extend((0x68, 0x4C, target & 0xFF, target >> 8))
+    neul_target_offset = len(data)
+    data.extend((
+        0x68, 0x4C,
+        _neul84.CPU_AI_DISPATCH & 0xFF,
+        _neul84.CPU_AI_DISPATCH >> 8,
+    ))
+    data[neul_skip_operand] = (neul_skip_offset - (neul_skip_operand + 1)) & 0xFF
+    data[neul_target_operand] = (neul_target_offset - (neul_target_operand + 1)) & 0xFF
     for operand_pos, target_index in fixups:
         rel = target_offsets[target_index] - (operand_pos + 1)
         if not -128 <= rel <= 127:
@@ -148,6 +164,12 @@ def _build_setup_entry_runtime() -> bytes:
     a.b(0xC9, SPARK24_LAST_ID + 1)
     a.branch(0x90, "spark24")
     a.label("below_spark24")
+    a.b(0xC9, NEUL84_FIRST_ID)
+    a.branch(0x90, "below_neul84")
+    a.b(0xC9, NEUL84_LAST_ID + 1)
+    a.branch(0xB0, "below_neul84")
+    a.jmp(_neul84.CPU_SETUP_META_LOAD)
+    a.label("below_neul84")
     a.b(0xC9, ICE_FLAME_ID + 1)          # $82 uses the stock-computed Flame group
     a.branch(0x90, "stock")
     a.b(0xC9, NEUL88_ID)
@@ -164,16 +186,7 @@ def _build_setup_entry_runtime() -> bytes:
     a.branch(0xB0, "stock")
     a.jmp(_phantom_preset.CPU_SETUP_META_LOAD)
     a.label("lower_custom")
-    a.b(0xC9, 0x84)
-    a.branch(0xF0, "ice84_group")
-    a.b(0xC9, 0x85)
-    a.branch(0xD0, "stock")
-    a.b(0xA9, 0x14)                    # $85 Spark group
-    a.branch(0xD0, "group_ready")
-    a.label("ice84_group")
-    a.b(0xA9, 0x40)                    # $84 Ice Flame group
-    a.label("group_ready")
-    a.b(0x85, 0x0E, 0xA8, 0xB9, 0xD3, 0xD9, 0x60)
+    a.jmp(CPU_GHOSTB0_SETUP_CLASSIFY)
     a.label("neul88")
     a.jmp(_neul88.CPU_SETUP_META_LOAD)
     a.label("chaos89")
@@ -227,6 +240,12 @@ def _build_init_entry_runtime() -> bytes:
     a.b(0xC9, SPARK24_LAST_ID + 1)
     a.branch(0x90, "spark24")
     a.label("below_spark24")
+    a.b(0xC9, NEUL84_FIRST_ID)
+    a.branch(0x90, "below_neul84")
+    a.b(0xC9, NEUL84_LAST_ID + 1)
+    a.branch(0xB0, "below_neul84")
+    a.jmp(_neul84.CPU_INIT_STATUS)
+    a.label("below_neul84")
     a.b(0xC9, NEUL88_ID)
     a.branch(0xF0, "neul88")
     a.b(0xC9, CHAOS89_ID)
@@ -407,6 +426,7 @@ RESERVED_SPANS = (
     (OFF_GHOSTB0_EXTENSION, len(GHOSTB0_EXTENSION_RUNTIME)),
     *_ice.RESERVED_SPANS,
     *_neul88.RESERVED_SPANS,
+    *_neul84.RESERVED_SPANS,
     *_flying89.RESERVED_SPANS,
     *_phantom_preset.RESERVED_SPANS,
     *_fairy9c.RESERVED_SPANS,
@@ -417,16 +437,16 @@ RESERVED_SPANS = (
 assert len(PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME) == 32
 assert len(OLD_ANIM_ENTRY_RUNTIME) == 14
 assert len(PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME) == 32
-assert len(AI_ENTRY_RUNTIME) == 64
-assert len(SETUP_ENTRY_RUNTIME) == 88
-assert len(INIT_ENTRY_RUNTIME) == 61
+assert len(AI_ENTRY_RUNTIME) == 76
+assert len(SETUP_ENTRY_RUNTIME) == 81
+assert len(INIT_ENTRY_RUNTIME) == 72
 assert len(ANIM_ENTRY_RUNTIME) == 118
 assert len(GHOSTB0_EXTENSION_RUNTIME) == 56
 assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
 assert OFF_INIT_ENTRY == OFF_SETUP_ENTRY + len(SETUP_ENTRY_RUNTIME)
 assert OFF_ANIM_ENTRY == OFF_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
 assert OFF_GHOSTB0_EXTENSION == OFF_ANIM_ENTRY + len(ANIM_ENTRY_RUNTIME)
-assert OFF_GHOSTB0_EXTENSION + len(GHOSTB0_EXTENSION_RUNTIME) == 0x3D75
+assert OFF_GHOSTB0_EXTENSION + len(GHOSTB0_EXTENSION_RUNTIME) == 0x3D85
 
 
 def levels_need_runtime(levels: list) -> bool:
@@ -438,6 +458,7 @@ def levels_need_runtime(levels: list) -> bool:
             for enemy in (getattr(lv, "enemies", []) or [])
         )
         or _neul88.levels_need_runtime(levels)
+        or _neul84.levels_need_runtime(levels)
         or _flying89.levels_need_runtime(levels)
         or any(
             PHANTOM_PRESET_FIRST_ID <= int(getattr(enemy, "element_no", -1)) <= PHANTOM_PRESET_LAST_ID
@@ -496,6 +517,8 @@ def apply(rom_data: bytearray) -> list[str]:
         _ice.OFF_RUNTIME + len(_ice.RUNTIME),
         _spark24.OFF_RUNTIME + len(_spark24.RUNTIME),
         _neul88.OFF_RUNTIME + len(_neul88.RUNTIME),
+        _neul84.OFF_RUNTIME + len(_neul84.RUNTIME),
+        _neul84.OFF_PARAMETER_TABLE + len(_neul84.PARAMETER_TABLES),
         _flying89.OFF_RUNTIME + len(_flying89.RUNTIME),
         _phantom_preset.OFF_RUNTIME + len(_phantom_preset.RUNTIME),
         _fairy9c.OFF_RUNTIME + len(_fairy9c.RUNTIME),
@@ -545,6 +568,21 @@ def apply(rom_data: bytearray) -> list[str]:
         _neul88.OFF_RUNTIME,
         (bytes((0xEA,)) * len(_neul88.RUNTIME), _neul88.RUNTIME),
         "Neul88 runtime area",
+    )
+    neul84_settings = _neul84.current_settings(rom_data)
+    neul84_runtime = _neul84.build_runtime(neul84_settings["groups"])
+    neul84_parameters = _neul84.build_parameter_tables(neul84_settings["groups"])
+    _expect_blank_or_one_of(
+        rom_data,
+        _neul84.OFF_RUNTIME,
+        (neul84_runtime,),
+        "Neul A/B runtime area",
+    )
+    _expect_blank_or_one_of(
+        rom_data,
+        _neul84.OFF_PARAMETER_TABLE,
+        (neul84_parameters,),
+        "Neul A/B parameter table area",
     )
     _expect_one(
         rom_data,
@@ -609,7 +647,11 @@ def apply(rom_data: bytearray) -> list[str]:
         OFF_GHOSTB0_EXTENSION,
         GHOSTB0_EXTENSION_RUNTIME,
         changed,
-        "$BD2D-$BD64 Ghost B0-BB entry classification extension",
+        (
+            f"${CPU_GHOSTB0_AI_CLASSIFY:04X}-"
+            f"${CPU_GHOSTB0_AI_CLASSIFY + len(GHOSTB0_EXTENSION_RUNTIME) - 1:04X} "
+            "Ghost B0-BB entry classification extension"
+        ),
     )
     _write(
         rom_data,
@@ -624,6 +666,20 @@ def apply(rom_data: bytearray) -> list[str]:
         _neul88.RUNTIME,
         changed,
         f"Neul88 runtime ${_neul88.CPU_RUNTIME:04X}-${_neul88.CPU_RUNTIME_END - 1:04X}",
+    )
+    _write(
+        rom_data,
+        _neul84.OFF_RUNTIME,
+        neul84_runtime,
+        changed,
+        f"Neul A/B runtime ${_neul84.CPU_RUNTIME:04X}-${_neul84.CPU_RUNTIME_END - 1:04X}",
+    )
+    _write(
+        rom_data,
+        _neul84.OFF_PARAMETER_TABLE,
+        neul84_parameters,
+        changed,
+        f"Neul A/B parameters ${_neul84.CPU_PARAMETER_TABLE:04X}-${_neul84.CPU_PARAMETER_TABLE + len(neul84_parameters) - 1:04X}",
     )
     _write(
         rom_data,

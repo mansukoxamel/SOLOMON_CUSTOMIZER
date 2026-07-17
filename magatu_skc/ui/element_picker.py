@@ -188,6 +188,19 @@ ENEMIES_LIST = [
     (0x82, "Ice Burn"),
     (0x88, "Neul Twin Cannon"),
     (0x89, "Chaos Dragon"),
+    *((
+        code,
+        t(
+            "element_picker.enemy.neul_preset.group_direction",
+            "Enhanced Neul {group} ({direction})",
+        ).format(
+            group=("A", "B")[(code - 0x84) // 2],
+            direction=(
+                t("element_picker.direction.up", "up"),
+                t("element_picker.direction.down", "down"),
+            )[code & 1],
+        ),
+    ) for code in range(0x84, 0x88)),
     (0x9C, "Dark Fairy"),
     (0x9D, "熾天の眩光 / Seraphic Radiance"),
     *((
@@ -231,6 +244,7 @@ ENEMIES_LIST = [
 DEVELOPER_ONLY_PICKER_ITEMS = {
     (MODE_ENEMY, 0x88),
     (MODE_ENEMY, 0x89),
+    *((MODE_ENEMY, code) for code in range(0x84, 0x88)),
     (MODE_ENEMY, 0x9C),
     (MODE_ENEMY, 0x9D),
     *((MODE_ENEMY, code) for code in range(0xA0, 0xB0)),
@@ -304,6 +318,7 @@ ENHANCED_ENEMY_CODES = {
     0x7a, 0x7b, 0x7e, 0x7f,  # Gargoyle slow Bullet
     0x88,  # Neul Twin Cannon
     0x89,  # Chaos Dragon
+    *range(0x84, 0x88),  # Enhanced Neul A/B direction pairs
     *range(0xB0, 0xBC),  # Enhanced Ghost A-F direction pairs
 }
 
@@ -375,6 +390,7 @@ ENEMY_VISUAL_SOURCE = {
     0x76: 0x74, 0x77: 0x75,
     0x88: 0x30,  # Neul Twin Cannon uses the stock Neul up visual.
     0x89: 0x68,  # Chaos Dragon uses the stock Dragon right visual.
+    **{code: (0x30 if (code & 1) == 0 else 0x32) for code in range(0x84, 0x88)},
     **{code: (0x36 if code & 1 else 0x34) for code in range(0xB0, 0xBC)},
     **{code: 0x20 + (code & 3) for code in range(0xA0, 0xB0)},
 }

@@ -346,6 +346,10 @@
     <enemy no="0x82" description="Ice Burn" animation="105" />
     <enemy no="0x88" description="Neul Twin Cannon" animation="43" />
     <enemy no="0x89" description="Chaos Dragon" animation="64" />
+    <enemy no="0x84" description="Enhanced Neul A (up)" animation="43" />
+    <enemy no="0x85" description="Enhanced Neul A (down)" animation="43" />
+    <enemy no="0x86" description="Enhanced Neul B (up)" animation="43" />
+    <enemy no="0x87" description="Enhanced Neul B (down)" animation="43" />
     <enemy no="0x8b" description="Phantom Bullet" animation="59" />
     <enemy no="0x8c" description="Phantom Bullet" animation="59" />
     <enemy no="0x9c" description="Dark Fairy" animation="110" />
