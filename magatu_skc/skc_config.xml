@@ -344,7 +344,6 @@
     <enemy no="0x81" description="Blue Burn" animation="47" />
     <enemy no="0x83" description="Blue Burn #2" animation="47" />
     <enemy no="0x82" description="Ice Burn" animation="105" />
-    <enemy no="0x88" description="Neul Twin Cannon" animation="43" />
     <enemy no="0x89" description="Chaos Dragon" animation="64" />
     <enemy no="0x84" description="Enhanced Neul A (up)" animation="43" />
     <enemy no="0x85" description="Enhanced Neul A (down)" animation="43" />
