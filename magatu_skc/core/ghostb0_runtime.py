@@ -18,7 +18,7 @@ CPU_STOCK_GHOST_AI = 0xABF7
 CPU_FIND_FREE_SUB_SLOT = 0xB2EA
 CPU_STOCK_BULLET_SPAWN = 0xAE76
 CPU_SUB_SLOT_PTR = 0xB156
-CPU_BULLET_MARKER_WRITE = 0xE5D5
+CPU_BULLET_MARKER_WRITE = 0xE59B
 CPU_BULLET_SPAWN = 0xE323
 
 COOLDOWN_ARMED = 0x80
@@ -270,6 +270,7 @@ def build_runtime(group_settings=None) -> bytes:
 
 
 RUNTIME = build_runtime()
+PRE_COMPACT_RUNTIME = RUNTIME[:-2] + bytes((0xD5, 0xE5))
 CPU_RUNTIME_END = CPU_RUNTIME + len(RUNTIME)
 RESERVED_SPANS = (
     (OFF_RUNTIME, len(RUNTIME)),
@@ -305,7 +306,10 @@ def current_settings(rom_data) -> dict[str, object]:
             "fire_direction": current_parameters[GROUP_COUNT * 3 + index],
         })
     groups = normalize_group_settings(groups)
-    if current_runtime != build_runtime(groups) or current_parameters != _build_parameter_tables(groups):
+    if (
+        current_runtime not in (build_runtime(groups), PRE_COMPACT_RUNTIME)
+        or current_parameters != _build_parameter_tables(groups)
+    ):
         raise GhostB0RuntimeError("Ghost A-F runtime has unexpected bytes")
     return {"groups": groups}
 

@@ -598,7 +598,7 @@ class HackDialog(QDialog):
         pv_note = QLabel(
             t(
                 "hack_dialog.panel_variant.note",
-                "A/B/Cパネルモンスターはステージ別ではなく、全ステージ共通の固定値を使います。"
+                "A/B/C/Dパネルモンスターはステージ別ではなく、全ステージ共通の固定値を使います。"
                 "既存ステージデータ内の旧A/B/C個別値は読み込み互換のみで、保存時には使いません。",
             )
         )
@@ -609,7 +609,7 @@ class HackDialog(QDialog):
         pv_settings = normalize_panel_variant_settings(
             (self._app_config or {}).get("panel_variant_settings")
         )
-        for key, label in (("a", "A"), ("b", "B"), ("c", "C")):
+        for key, label in (("a", "A"), ("b", "B"), ("c", "C"), ("d", "D")):
             row = QWidget()
             row_layout = QHBoxLayout(row)
             row_layout.setContentsMargins(0, 0, 0, 0)
@@ -2531,7 +2531,7 @@ class HackDialog(QDialog):
         set_spin("panel_monster_cooldown_frames", self.spin_pm, t("hack_dialog.setting.panel_cooldown", "パネルモンスター クールダウン"))
         set_check("panel_bullet_speed_fix_enabled", self.chk_pm_bullet_speed_fix, t("hack_dialog.setting.panel_bullet_fix", "パネルモンスター 弾の左右速度バグ修正"))
         set_combo("panel_bullet_speed_fix_value", self.combo_pm_bullet_speed_fix, t("hack_dialog.setting.panel_bullet_speed", "パネルモンスター 弾速度"))
-        set_panel_variant_settings("panel_variant_settings", t("hack_dialog.setting.panel_variant", "パネルモンスター A/B/C共通値"))
+        set_panel_variant_settings("panel_variant_settings", t("hack_dialog.setting.panel_variant", "パネルモンスター A/B/C/D共通値"))
         set_spin("demo_stage", self.spin_ds, t("hack_dialog.setting.demo_stage", "デモステージ"))
         set_check("golem_snappy", self.chk_golem_snappy, t("hack_dialog.setting.golem_snappy", "ゴブリン キビキビ"))
         set_check("gargoyle_snappy", self.chk_gargoyle_snappy, t("hack_dialog.setting.gargoyle_snappy", "ガーゴイル キビキビ"))
@@ -3150,7 +3150,7 @@ class HackDialog(QDialog):
                     save_config(self._app_config)
                 except Exception:
                     pass
-                applied.append(t("hack_dialog.setting.panel_variant", "パネルモンスター A/B/C共通値"))
+                applied.append(t("hack_dialog.setting.panel_variant", "パネルモンスター A/B/C/D共通値"))
 
         if applied:
             QMessageBox.information(

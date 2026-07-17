@@ -469,6 +469,8 @@ _ENEMY_HORIZONTAL_MIRROR_PAIRS = [
     (0x68, 0x69), (0x6A, 0x6B), (0x6C, 0x6D), (0x6E, 0x6F),
     (0x70, 0x71), (0x72, 0x73), (0x74, 0x75), (0x76, 0x77),
     (0x78, 0x79), (0x7A, 0x7B), (0x7C, 0x7D), (0x7E, 0x7F),
+    (0xE0, 0xE1), (0xE4, 0xE5), (0xE8, 0xE9), (0xEC, 0xED),
+    (0xF0, 0xF1), (0xF4, 0xF5),
 ]
 _ENEMY_HORIZONTAL_MIRROR = {
     code: other
@@ -4405,6 +4407,8 @@ class MainWindow(QMainWindow):
                 "b_interval": table[3],
                 "c_speed": table[4],
                 "c_interval": table[5],
+                "d_speed": table[6],
+                "d_interval": table[7],
             }
             return normalize_panel_variant_settings(settings)
         except Exception:

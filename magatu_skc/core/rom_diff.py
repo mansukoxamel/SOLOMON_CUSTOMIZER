@@ -238,6 +238,8 @@ def _compare_meta(diff: StageDiff, left, right):
         ("panel_variant_b_interval", "パネルB間隔"),
         ("panel_variant_c_speed", "パネルC速度"),
         ("panel_variant_c_interval", "パネルC間隔"),
+        ("panel_variant_d_speed", "パネルD速度"),
+        ("panel_variant_d_interval", "パネルD間隔"),
     )
     for attr, label in attrs:
         left_value = getattr(left, attr, None)

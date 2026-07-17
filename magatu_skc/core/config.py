@@ -30,6 +30,8 @@ DEFAULT_PANEL_VARIANT_SETTINGS = {
     "b_interval": 0xC0,
     "c_speed": 2,
     "c_interval": 0xC0,
+    "d_speed": 3,
+    "d_interval": 0xC0,
 }
 DEFAULT_EMULATORS = []
 
@@ -154,14 +156,14 @@ def normalize_gamepad_shortcuts(value) -> dict:
 def normalize_panel_variant_settings(value) -> dict:
     settings = dict(DEFAULT_PANEL_VARIANT_SETTINGS)
     if isinstance(value, dict):
-        for key in ("a_speed", "b_speed", "c_speed"):
+        for key in ("a_speed", "b_speed", "c_speed", "d_speed"):
             settings[key] = normalize_int_setting(
                 value.get(key),
                 DEFAULT_PANEL_VARIANT_SETTINGS[key],
                 0,
                 3,
             )
-        for key in ("a_interval", "b_interval", "c_interval"):
+        for key in ("a_interval", "b_interval", "c_interval", "d_interval"):
             settings[key] = normalize_int_setting(
                 value.get(key),
                 DEFAULT_PANEL_VARIANT_SETTINGS[key],

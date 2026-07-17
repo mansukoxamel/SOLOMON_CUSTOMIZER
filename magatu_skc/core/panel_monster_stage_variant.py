@@ -1,17 +1,18 @@
-"""Panel Monster stage-variant patch.
+"""Panel Monster E0-F7 dedicated-ID runtime.
 
-This module is intentionally separate from ``panel_monster_variant.py``.
-The existing module owns the production 2-way/3-way borrowed-ID Panel Monster
-feature.  This module is for the newer global-parameterized A/B/C families:
+This module owns the production dedicated-ID Panel Monster families:
 
-  C: $31/$33/$35/$37
-  A: $41/$43/$45/$47
-  B: $49/$4B/$4D/$4F
+  A: $E0-$E3
+  B: $E4-$E7
+  C: $E8-$EB
+  D: $EC-$EF
+  2-way: $F0-$F3
+  3-way: $F4-$F7
 
 Current scope:
   - hook the state0 firing interval compare at $A575/$A579;
   - keep the state1 pre-shot fire gate at the stock $10;
-  - write one fixed PRG0 A/B/C speed+interval table on every expanded-ROM save;
+  - write one fixed PRG0 A/B/C/D speed+interval table on every expanded-ROM save;
   - read that PRG0 table directly from the runtime so no Panel Variant settings
     RAM is needed during rooms.
 
@@ -70,28 +71,27 @@ class _Asm:
         return bytes(self.code)
 
 
-PANEL_STAGE_VARIANT_IDS = frozenset((
-    0x31, 0x33, 0x35, 0x37,
-    0x41, 0x43, 0x45, 0x47,
-    0x49, 0x4B, 0x4D, 0x4F,
-))
-
-BORROWED_PANEL_RUNTIME_IDS = frozenset((0x52, 0x53, 0x56, 0x57, 0x5A, 0x5B, 0x66, 0x67))
-PANEL_STAGE_RUNTIME_IDS = PANEL_STAGE_VARIANT_IDS | BORROWED_PANEL_RUNTIME_IDS
+PANEL_STAGE_VARIANT_IDS = frozenset(range(0xE0, 0xF0))
+PANEL_FIRE_2WAY_IDS = frozenset(range(0xF0, 0xF4))
+PANEL_FIRE_3WAY_IDS = frozenset(range(0xF4, 0xF8))
+PANEL_STAGE_RUNTIME_IDS = frozenset(range(0xE0, 0xF8))
 BORROWED_FIRE_2WAY_CANONICAL_IDS = (0x52, 0x56)
 BORROWED_FIRE_3WAY_CANONICAL_IDS = (0x5A, 0x66)
 STOCK_PANEL_IDS = frozenset((0x24, 0x25, 0x26, 0x27))
 
-GROUP_C_IDS = frozenset((0x31, 0x33, 0x35, 0x37))
-GROUP_A_IDS = frozenset((0x41, 0x43, 0x45, 0x47))
-GROUP_B_IDS = frozenset((0x49, 0x4B, 0x4D, 0x4F))
+GROUP_A_IDS = frozenset(range(0xE0, 0xE4))
+GROUP_B_IDS = frozenset(range(0xE4, 0xE8))
+GROUP_C_IDS = frozenset(range(0xE8, 0xEC))
+GROUP_D_IDS = frozenset(range(0xEC, 0xF0))
 
 DEFAULT_C_INTERVAL = 0xC0
+DEFAULT_D_INTERVAL = 0xC0
 DEFAULT_A_INTERVAL = 0xC0
 DEFAULT_B_INTERVAL = 0xC0
 DEFAULT_A_SPEED_PRESET = 0
 DEFAULT_B_SPEED_PRESET = 1
 DEFAULT_C_SPEED_PRESET = 2
+DEFAULT_D_SPEED_PRESET = 3
 LEVEL_ATTRS = {
     "a_speed": "panel_variant_a_speed",
     "a_interval": "panel_variant_a_interval",
@@ -99,6 +99,8 @@ LEVEL_ATTRS = {
     "b_interval": "panel_variant_b_interval",
     "c_speed": "panel_variant_c_speed",
     "c_interval": "panel_variant_c_interval",
+    "d_speed": "panel_variant_d_speed",
+    "d_interval": "panel_variant_d_interval",
 }
 
 SPEED_PRESET_QUARTER = 0
@@ -137,8 +139,8 @@ SPEED_PRESET_TABLE_VALUES = {
     },
 }
 
-SETTINGS_TABLE_OFFSET = 0x6780  # CPU $E770, directly after the Panel runtime
-SETTINGS_TABLE_LENGTH = 6
+SETTINGS_TABLE_OFFSET = 0x6501  # CPU $E4F1, packed runtime block
+SETTINGS_TABLE_LENGTH = 8
 SETTINGS_TABLE_END = SETTINGS_TABLE_OFFSET + SETTINGS_TABLE_LENGTH
 CPU_SETTINGS_TABLE = _cpu(SETTINGS_TABLE_OFFSET)
 OFF_STAGE_EXT_GAMEPLAY_FLAG_HELPER = 0x8A76
@@ -168,68 +170,77 @@ OFF_AI_RANGE_4C_4F = 0xA34A - 0x8000 + 0x10
 
 OFF_FINAL_FIRE_DISPATCH = 0x6496  # CPU $E486, new cleanup runtime block
 CPU_FINAL_FIRE_DISPATCH = _cpu(OFF_FINAL_FIRE_DISPATCH)
-OFF_FINAL_FIRE_COMMON = 0x653B  # CPU $E52B, new cleanup runtime block
+PANEL_RUNTIME_BLOCK_OFFSET = OFF_FINAL_FIRE_DISPATCH
+PANEL_RUNTIME_BLOCK_LENGTH = 655
+PANEL_RUNTIME_BLOCK_END = PANEL_RUNTIME_BLOCK_OFFSET + PANEL_RUNTIME_BLOCK_LENGTH
+PRE_COMPACT_PANEL_RUNTIME_BLOCK_END = 0x6786
+OFF_FINAL_FIRE_COMMON = 0x650E  # CPU $E4FE, packed runtime block
 CPU_FINAL_FIRE_COMMON = _cpu(OFF_FINAL_FIRE_COMMON)
-OFF_FINAL_BULLET_SPEED_APPLY = 0x66C9  # CPU $E6B9, new cleanup runtime block
+OFF_FINAL_BULLET_SPEED_APPLY = 0x668F  # CPU $E67F, packed runtime block
 CPU_FINAL_BULLET_SPEED_APPLY = _cpu(OFF_FINAL_BULLET_SPEED_APPLY)
-OFF_FINAL_BULLET_SPEED_HOOK = 0x6747  # CPU $E737, new cleanup runtime block
+OFF_FINAL_BULLET_SPEED_HOOK = 0x66EC  # CPU $E6DC, packed runtime block
 CPU_FINAL_BULLET_SPEED_HOOK = _cpu(OFF_FINAL_BULLET_SPEED_HOOK)
-OFF_FINAL_STAGE_PROPERTY_HOOK = 0x674A  # CPU $E73A, new cleanup runtime block
+OFF_FINAL_STAGE_PROPERTY_HOOK = 0x66EF  # CPU $E6DF, packed runtime block
 CPU_FINAL_STAGE_PROPERTY_HOOK = _cpu(OFF_FINAL_STAGE_PROPERTY_HOOK)
-OFF_FINAL_STAGE_ANIM_HOOK = 0x6758  # CPU $E748, new cleanup runtime block
+OFF_FINAL_STAGE_ANIM_HOOK = 0x66FD  # CPU $E6ED, packed runtime block
 CPU_FINAL_STAGE_ANIM_HOOK = _cpu(OFF_FINAL_STAGE_ANIM_HOOK)
-OFF_FINAL_BULLET_SPEED_EXTRA_HELPER = 0x6612  # CPU $E602, new cleanup runtime block
+OFF_FINAL_BULLET_SPEED_EXTRA_HELPER = 0x65D8  # CPU $E5C8, packed runtime block
 CPU_FINAL_BULLET_SPEED_EXTRA_HELPER = _cpu(OFF_FINAL_BULLET_SPEED_EXTRA_HELPER)
-OFF_FINAL_STAGE_DISPATCH_HELPER = 0x673C  # CPU $E72C, new cleanup runtime block
+OFF_FINAL_STAGE_DISPATCH_HELPER = 0x66E1  # CPU $E6D1, packed runtime block
 CPU_FINAL_STAGE_DISPATCH_HELPER = _cpu(OFF_FINAL_STAGE_DISPATCH_HELPER)
-OFF_FINAL_STATE0_INTERVAL_HELPER = 0x65AD  # CPU $E59D, new cleanup runtime block
+OFF_FINAL_STATE0_INTERVAL_HELPER = 0x6580  # CPU $E570, packed runtime block
 CPU_FINAL_STATE0_INTERVAL_HELPER = _cpu(OFF_FINAL_STATE0_INTERVAL_HELPER)
 OFF_FINAL_STATE0_INTERVAL_THRESHOLD = OFF_FINAL_STATE0_INTERVAL_HELPER + 0x10
-OFF_FINAL_GROUP_RAM_OFFSET_HELPER = 0x65BF  # CPU $E5AF, new cleanup runtime block
+PRE_COMPACT_OFF_FINAL_STATE0_INTERVAL_HELPER = 0x65AD
+PRE_COMPACT_OFF_FINAL_STATE0_INTERVAL_THRESHOLD = PRE_COMPACT_OFF_FINAL_STATE0_INTERVAL_HELPER + 0x10
+OFF_FINAL_GROUP_RAM_OFFSET_HELPER = 0x6592  # CPU $E582, packed runtime block
 CPU_FINAL_GROUP_RAM_OFFSET_HELPER = _cpu(OFF_FINAL_GROUP_RAM_OFFSET_HELPER)
-OFF_FINAL_FIRE_MARKER_TABLE = OFF_FINAL_STAGE_DISPATCH_HELPER  # CPU $E72C, new cleanup runtime block
+OFF_FINAL_FIRE_MARKER_TABLE = OFF_FINAL_STAGE_DISPATCH_HELPER  # CPU $E6D1, packed runtime block
 CPU_FINAL_FIRE_MARKER_TABLE = _cpu(OFF_FINAL_FIRE_MARKER_TABLE)
-OFF_FINAL_STATIC_MARKER_HELPER = 0x65E5  # CPU $E5D5, new cleanup runtime block
+OFF_FINAL_STATIC_MARKER_HELPER = 0x65AB  # CPU $E59B, packed runtime block
 CPU_FINAL_STATIC_MARKER_HELPER = _cpu(OFF_FINAL_STATIC_MARKER_HELPER)
-OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER = 0x65F1  # CPU $E5E1, new cleanup runtime block
+OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER = 0x65B7  # CPU $E5A7, packed runtime block
 CPU_FINAL_DYNAMIC_SPEED_MARKER_HELPER = _cpu(OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER)
-OFF_FINAL_PARENT_FIELD_CLEAR_HELPER = 0x6601  # CPU $E5F1, new cleanup runtime block
+OFF_FINAL_PARENT_FIELD_CLEAR_HELPER = 0x65C7  # CPU $E5B7, packed runtime block
 CPU_FINAL_PARENT_FIELD_CLEAR_HELPER = _cpu(OFF_FINAL_PARENT_FIELD_CLEAR_HELPER)
-OFF_FINAL_BULLET_ENTRY_HELPER = 0x6662  # CPU $E652, new cleanup runtime block
+OFF_FINAL_BULLET_ENTRY_HELPER = 0x6628  # CPU $E618, packed runtime block
 CPU_FINAL_BULLET_ENTRY_HELPER = _cpu(OFF_FINAL_BULLET_ENTRY_HELPER)
-OFF_FINAL_BULLET_ENTRY_HELPER_END = 0x66A9
-OFF_FINAL_BULLET_ENTRY_TAIL_HELPER = 0x66A9  # CPU $E699, new cleanup runtime block
+OFF_FINAL_BULLET_ENTRY_HELPER_END = 0x666F
+OFF_FINAL_BULLET_ENTRY_TAIL_HELPER = 0x666F  # CPU $E65F, packed runtime block
 CPU_FINAL_BULLET_ENTRY_TAIL_HELPER = _cpu(OFF_FINAL_BULLET_ENTRY_TAIL_HELPER)
-OFF_FINAL_SHARED_AI_WRAPPER = 0x6701  # CPU $E6F1, new cleanup runtime block
+OFF_FINAL_SHARED_AI_WRAPPER = 0x66C7  # CPU $E6B7, packed runtime block
 CPU_FINAL_SHARED_AI_WRAPPER = _cpu(OFF_FINAL_SHARED_AI_WRAPPER)
 OFF_SPEED_INIT_CALL = 0x067D  # CPU $866D, original JSR $8AC0 speed initializer
-OFF_FINAL_AI_DISPATCH_HELPER = 0x64BF  # CPU $E4AF, new cleanup runtime block
+OFF_FINAL_AI_DISPATCH_HELPER = 0x64B9  # CPU $E4A9, packed runtime block
 CPU_FINAL_AI_DISPATCH_HELPER = _cpu(OFF_FINAL_AI_DISPATCH_HELPER)
-OFF_FINAL_AI_DISPATCH_PANEL_HELPER = 0x64D2  # CPU $E4C2, new cleanup runtime block
+OFF_FINAL_AI_DISPATCH_PANEL_HELPER = 0x64CC  # CPU $E4BC, packed runtime block
 CPU_FINAL_AI_DISPATCH_PANEL_HELPER = _cpu(OFF_FINAL_AI_DISPATCH_PANEL_HELPER)
-OFF_FINAL_PARENT_SPEED_GUARD = 0x64DE  # CPU $E4CE, new cleanup runtime block
+OFF_FINAL_PARENT_SPEED_GUARD = 0x64D8  # CPU $E4C8, packed runtime block
 CPU_FINAL_PARENT_SPEED_GUARD = _cpu(OFF_FINAL_PARENT_SPEED_GUARD)
 FINAL_AI_DISPATCH_PANEL_HELPER_CAPACITY = 0x0C
 FINAL_PARENT_FIELD_CLEAR_HELPER_CAPACITY = 0x11
 FINAL_PARENT_SPEED_GUARD_CAPACITY = 0x1D
-OFF_FINAL_PANEL_TYPE_CLASSIFIER = 0x64FB  # CPU $E4EB, new cleanup runtime block
+OFF_FINAL_PANEL_TYPE_CLASSIFIER = 0x64F5  # CPU $E4E5, packed runtime block
 CPU_FINAL_PANEL_TYPE_CLASSIFIER = _cpu(OFF_FINAL_PANEL_TYPE_CLASSIFIER)
-OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL = 0x6516  # CPU $E506, new cleanup runtime block
+OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL = 0x6509  # CPU $E4F9, packed runtime block
 CPU_FINAL_PANEL_TYPE_CLASSIFIER_TAIL = _cpu(OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL)
-OFF_FINAL_PANEL_ANIM_DIR_HELPER = 0x652A  # CPU $E51A, new cleanup runtime block
+OFF_FINAL_PANEL_ANIM_DIR_HELPER = 0x650B  # CPU $E4FB, packed runtime block
 CPU_FINAL_PANEL_ANIM_DIR_HELPER = _cpu(OFF_FINAL_PANEL_ANIM_DIR_HELPER)
-OFF_FINAL_ABC_GROUP_OFFSET_HELPER = 0x65C7  # CPU $E5B7, new cleanup runtime block
+OFF_FINAL_ABC_GROUP_OFFSET_HELPER = 0x659A  # CPU $E58A, packed runtime block
 CPU_FINAL_ABC_GROUP_OFFSET_HELPER = _cpu(OFF_FINAL_ABC_GROUP_OFFSET_HELPER)
 
 ORIG_STATE0_INTERVAL_HOOK = bytes.fromhex("a0 02 b1 2c c9 c0")
 ORIG_SPEED_INIT_CALL = bytes.fromhex("20 c0 8a")
 HOOK_SPEED_INIT_CALL = bytes.fromhex("20") + _word(CPU_FINAL_PARENT_SPEED_GUARD)
+PRE_COMPACT_HOOK_SPEED_INIT_CALL = bytes.fromhex("20") + _word(0xE4CE)
 HOOK_FINAL_PANEL_FIRE_HEAD = bytes.fromhex("4c") + _word(CPU_FINAL_FIRE_DISPATCH)
 HOOK_FINAL_PANEL_FIRE = (
     HOOK_FINAL_PANEL_FIRE_HEAD
     + panel_monster_variant.ORIG_PANEL_FIRE[len(HOOK_FINAL_PANEL_FIRE_HEAD):]
 )
 HOOK_FINAL_BULLET_MOVE = bytes.fromhex("20") + _word(CPU_FINAL_BULLET_SPEED_HOOK)
+PRE_COMPACT_HOOK_FINAL_BULLET_MOVE = bytes.fromhex("20") + _word(0xE737)
+PRE_COMPACT_FINAL_HOOK_STATE0_INTERVAL = bytes.fromhex("20") + _word(0xE59D) + bytes.fromhex("ea ea ea")
 HOOK_PREVIOUS_PANEL_FIRE_WITH_SPARK_PROPERTY = (
     panel_monster_variant.HOOK_PANEL_FIRE_HEAD
     + spark_ball_variant.CAVE_PROPERTY_HOOK
@@ -289,6 +300,12 @@ else:
     FINAL_SPARK_ANIM_HOOK = _anim_fallback + bytes(
         [0xEA] * (len(spark_ball_variant.CAVE_ANIM_HOOK) - len(_anim_fallback)))
 
+PRE_COMPACT_FINAL_SPARK_ANIM_HOOK = (
+    bytes.fromhex("4c")
+    + _word(0xE748)
+    + bytes([0xEA] * (len(spark_ball_variant.CAVE_ANIM_HOOK) - 3))
+)
+
 
 def _build_group_ram_offset_helper(cpu_base: int) -> bytes:
     a = _Asm()
@@ -300,19 +317,11 @@ def _build_group_ram_offset_helper(cpu_base: int) -> bytes:
 
 def _build_abc_group_offset_helper() -> bytes:
     a = _Asm()
-    a.b(0x4A)
+    a.b(0x38, 0xE9, 0xE0)
     a.branch(0x90, "orig")
-    a.b(0xC9, 0x18)
-    a.branch(0x90, "orig")
-    a.b(0xC9, 0x1C)
-    a.branch(0x90, "group_c")
-    a.b(0xC9, 0x20)
-    a.branch(0x90, "orig")
-    a.b(0xC9, 0x28)
+    a.b(0xC9, 0x10)
     a.branch(0xB0, "orig")
     a.b(0x29, 0x0C, 0x4A, 0xAA, 0x60)
-    a.label("group_c")
-    a.b(0xA2, 0x04, 0x60)
     a.label("orig")
     a.b(0xA2, 0xFF, 0x60)
     return a.finish()
@@ -375,6 +384,12 @@ def _current_global_panel_threshold(rom_data: bytearray) -> int:
         and rom_data[OFF_FINAL_STATE0_INTERVAL_THRESHOLD + 1] == 0x60
     ):
         return rom_data[OFF_FINAL_STATE0_INTERVAL_THRESHOLD]
+    if (
+        len(rom_data) > PRE_COMPACT_OFF_FINAL_STATE0_INTERVAL_THRESHOLD + 1
+        and rom_data[PRE_COMPACT_OFF_FINAL_STATE0_INTERVAL_THRESHOLD - 1] == 0xC9
+        and rom_data[PRE_COMPACT_OFF_FINAL_STATE0_INTERVAL_THRESHOLD + 1] == 0x60
+    ):
+        return rom_data[PRE_COMPACT_OFF_FINAL_STATE0_INTERVAL_THRESHOLD]
     if len(rom_data) > OFF_STATE0_INTERVAL_THRESHOLD and rom_data[OFF_STATE0_INTERVAL_CMP] == 0xC9:
         return rom_data[OFF_STATE0_INTERVAL_THRESHOLD]
     return 0xC0
@@ -557,35 +572,18 @@ def _build_parent_speed_guard() -> bytes:
 
 def _build_panel_type_classifier(tail_cpu: int) -> bytes:
     a = _Asm()
-    a.b(0x4A)
-    a.branch(0xB0, "stage")
-    a.jmp(tail_cpu)
-    a.label("stage")
-    a.b(0xC9, 0x18)
+    a.b(0xC9, 0xE0)
     a.branch(0x90, "normal")
-    a.b(0xC9, 0x1C)
-    a.branch(0x90, "panel")
-    a.b(0xC9, 0x20)
-    a.branch(0x90, "normal")
-    a.b(0xC9, 0x28)
-    a.branch(0x90, "panel")
-    a.label("normal")
-    a.jmp(tail_cpu)
-    a.label("panel")
+    a.b(0xC9, 0xF8)
+    a.branch(0xB0, "normal")
     a.b(0x38, 0x60)
+    a.label("normal")
+    a.b(0x18, 0x60)
     return a.finish()
 
 
 def _build_panel_type_classifier_tail() -> bytes:
-    a = _Asm()
-    for shifted_id in (0x29, 0x2B, 0x2D, 0x33):
-        a.b(0xC9, shifted_id)
-        a.branch(0xF0, "panel")
-    a.label("orig")
-    a.b(0x18, 0x60)
-    a.label("panel")
-    a.b(0x38, 0x60)
-    return a.finish()
+    return bytes((0x18, 0x60))
 
 
 def _build_previous_fire_dispatch(stage_tail_cpu: int, two_entry_cpu: int, three_entry_cpu: int) -> bytes:
@@ -612,13 +610,14 @@ def _build_final_fire_dispatch(
     three_entry_cpu: int,
 ) -> bytes:
     a = _Asm()
-    a.b(0xA0, 0x01, 0xB1, 0x2E, 0xAA, 0x29, 0xFE)
-    for enemy_id in BORROWED_FIRE_2WAY_CANONICAL_IDS:
-        a.b(0xC9, enemy_id)
-        a.branch(0xF0, "two")
-    for enemy_id in BORROWED_FIRE_3WAY_CANONICAL_IDS:
-        a.b(0xC9, enemy_id)
-        a.branch(0xF0, "three")
+    a.b(0xA0, 0x01, 0xB1, 0x2E, 0xAA)
+    a.b(0xC9, 0xF0)
+    a.branch(0x90, "classify")
+    a.b(0xC9, 0xF4)
+    a.branch(0x90, "two")
+    a.b(0xC9, 0xF8)
+    a.branch(0x90, "three")
+    a.label("classify")
     a.b(0x8A)
     a.jsr(CPU_FINAL_PANEL_TYPE_CLASSIFIER)
     a.branch(0xB0, "stage")
@@ -636,26 +635,13 @@ def _build_final_shared_ai_wrapper(cpu_base: int, clear_helper_cpu: int) -> tupl
     a = _Asm()
     a.label("entry")
     a.b(0xA0, 0x01, 0xB1, 0x2E)
-    a.b(0xC9, 0x52); a.branch(0x90, "orig")
-    a.b(0xC9, 0x5C); a.branch(0xB0, "orig")
-    a.b(0xC9, 0x54); a.branch(0x90, "demon_rl")
-    a.b(0xC9, 0x56); a.branch(0x90, "demon_orig")
-    a.b(0xC9, 0x58); a.branch(0x90, "demon_ud")
-    a.b(0xC9, 0x5A); a.branch(0x90, "demon_orig")
-    a.label("demon_rl")
-    a.b(0x29, 0x01)
-    a.branch(0x10, "set")
-    a.label("demon_ud")
-    a.b(0x29, 0x01, 0x09, 0x02)
+    a.b(0x29, 0x03)
     a.label("set")
     a.b(0x48)
     a.jsr(clear_helper_cpu)
     a.b(0xA0, 0x03, 0xB1, 0x2E, 0x29, 0xFC, 0x91, 0x2E)
     a.b(0x68, 0x11, 0x2E, 0x91, 0x2E)
     a.jmp(0xA54C)
-    a.label("demon_orig")
-    a.label("orig")
-    a.jmp(0xB208)
     blob = bytearray(a.finish())
     entries = {name: (int(cpu_base) + off) & 0xFFFF for name, off in a.labels.items()}
     for alias in ("right", "left", "up", "down"):
@@ -697,17 +683,7 @@ def _build_stage_anim_hook() -> bytes:
 
 
 def _build_panel_anim_dir_helper() -> bytes:
-    a = _Asm()
-    a.b(0xC9, 0x50)
-    a.branch(0x90, "abc")
-    a.b(0x29, 0x05, 0xC9, 0x04)
-    a.branch(0x90, "done")
-    a.b(0xE9, 0x02)
-    a.label("done")
-    a.b(0x60)
-    a.label("abc")
-    a.b(0x4A, 0x29, 0x03, 0x60)
-    return a.finish()
+    return bytes((0x29, 0x03, 0x60))
 
 
 FINAL_BULLET_SPEED_HOOK_CAPACITY = 0x03
@@ -718,6 +694,7 @@ FINAL_GROUP_RAM_OFFSET_HELPER = _build_final_group_ram_offset_helper()
 FINAL_ABC_GROUP_OFFSET_HELPER = _build_abc_group_offset_helper()
 FINAL_STATIC_MARKER_HELPER = _build_static_marker_helper()
 assert ghostb0_runtime.CPU_BULLET_MARKER_WRITE == CPU_FINAL_STATIC_MARKER_HELPER
+assert spark24_runtime.CPU_PANEL_PROPERTY_HOOK == CPU_FINAL_STAGE_PROPERTY_HOOK
 FINAL_DYNAMIC_SPEED_MARKER_HELPER = _build_dynamic_speed_marker_helper(
     CPU_FINAL_GROUP_RAM_OFFSET_HELPER,
     CPU_FINAL_STATIC_MARKER_HELPER,
@@ -796,7 +773,7 @@ assert len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL) <= 0x14
 assert len(FINAL_STAGE_PROPERTY_HOOK) <= len(panel_monster_variant.CAVE_PROPERTY_HOOK)
 assert len(FINAL_STAGE_ANIM_HOOK) <= len(panel_monster_variant.CAVE_ANIM_HOOK)
 assert OFF_FINAL_STAGE_PROPERTY_HOOK + len(FINAL_STAGE_PROPERTY_HOOK) == OFF_FINAL_STAGE_ANIM_HOOK
-assert OFF_FINAL_STAGE_ANIM_HOOK + len(FINAL_STAGE_ANIM_HOOK) <= 0x6780
+assert OFF_FINAL_STAGE_ANIM_HOOK + len(FINAL_STAGE_ANIM_HOOK) == PANEL_RUNTIME_BLOCK_END
 assert len(FINAL_PANEL_ANIM_DIR_HELPER) <= 0x11
 
 
@@ -882,6 +859,7 @@ def panel_variant_split_placement_report() -> dict[str, object]:
     v2_speed_sizes = _v2_split_speed_reserved_sizes()
     pieces = (
         ("fire_dispatch", OFF_FINAL_FIRE_DISPATCH, len(FINAL_FIRE_DISPATCH), len(FINAL_FIRE_DISPATCH)),
+        ("settings_table", SETTINGS_TABLE_OFFSET, SETTINGS_TABLE_LENGTH, SETTINGS_TABLE_LENGTH),
         ("ai_dispatch_helper", OFF_FINAL_AI_DISPATCH_HELPER, len(FINAL_AI_DISPATCH_HELPER), len(FINAL_AI_DISPATCH_HELPER)),
         ("ai_dispatch_panel_helper", OFF_FINAL_AI_DISPATCH_PANEL_HELPER, len(FINAL_AI_DISPATCH_PANEL_HELPER), FINAL_AI_DISPATCH_PANEL_HELPER_CAPACITY),
         ("parent_speed_guard", OFF_FINAL_PARENT_SPEED_GUARD, len(FINAL_PARENT_SPEED_GUARD), FINAL_PARENT_SPEED_GUARD_CAPACITY),
@@ -902,10 +880,13 @@ def panel_variant_split_placement_report() -> dict[str, object]:
         ("shared_ai_wrapper", OFF_FINAL_SHARED_AI_WRAPPER, len(FINAL_SHARED_AI_WRAPPER), len(FINAL_SHARED_AI_WRAPPER)),
         ("fire_marker_table", OFF_FINAL_FIRE_MARKER_TABLE, len(FINAL_FIRE_MARKER_TABLE), len(FINAL_FIRE_MARKER_TABLE)),
         ("v2_bullet_speed_hook", OFF_FINAL_BULLET_SPEED_HOOK, v2_speed_sizes["bullet_speed_hook"], FINAL_BULLET_SPEED_HOOK_CAPACITY),
+        ("stage_property_hook", OFF_FINAL_STAGE_PROPERTY_HOOK, len(FINAL_STAGE_PROPERTY_HOOK), len(FINAL_STAGE_PROPERTY_HOOK)),
+        ("stage_anim_hook", OFF_FINAL_STAGE_ANIM_HOOK, len(FINAL_STAGE_ANIM_HOOK), len(FINAL_STAGE_ANIM_HOOK)),
     )
     rows = []
     overlaps = []
     for name, off, size, capacity in pieces:
+        capacity = size
         rows.append({
             "name": name,
             "file_start": off,
@@ -920,10 +901,22 @@ def panel_variant_split_placement_report() -> dict[str, object]:
         for right in rows[left_index + 1:]:
             if left["file_end"] >= right["file_start"] and right["file_end"] >= left["file_start"]:
                 overlaps.append((left["name"], right["name"]))
+    sorted_rows = sorted(rows, key=lambda row: row["file_start"])
+    gaps = []
+    cursor = PANEL_RUNTIME_BLOCK_OFFSET
+    for row in sorted_rows:
+        if row["file_start"] > cursor:
+            gaps.append((cursor, row["file_start"] - 1))
+        cursor = max(cursor, row["file_end"] + 1)
+    if cursor < PANEL_RUNTIME_BLOCK_END:
+        gaps.append((cursor, PANEL_RUNTIME_BLOCK_END - 1))
     return {
         "pieces": rows,
         "overlaps": overlaps,
         "overlap_free": not overlaps,
+        "gaps": gaps,
+        "packed": not overlaps and not gaps,
+        "used_size": sum(row["size"] for row in rows),
     }
 
 
@@ -953,17 +946,19 @@ def _placement_reserved_coverage_report(
     placement_report: dict[str, object],
     reserved_report: dict[str, object],
 ) -> dict[str, object]:
-    reserved_pairs = {
-        (span["file_start"], span["size"])
-        for span in reserved_report["spans"]
-    }
     missing = []
     for piece in placement_report["pieces"]:
-        pair = (piece["file_start"], piece["size"])
-        if pair not in reserved_pairs:
+        piece_start = piece["file_start"]
+        piece_end = piece["file_end"]
+        covered = any(
+            span["file_start"] <= piece_start
+            and piece_end <= span["file_end"]
+            for span in reserved_report["spans"]
+        )
+        if not covered:
             missing.append({
                 "name": piece["name"],
-                "file_start": piece["file_start"],
+                "file_start": piece_start,
                 "size": piece["size"],
             })
     return {
@@ -1004,6 +999,67 @@ ORIG_FINAL_SHARED_AI_WRAPPER_SHIFTED = bytes.fromhex(
 ORIG_FINAL_ABC_GROUP_OFFSET_HELPER = bytes.fromhex(
     "00000000000000000000000000000000000000004004000000011c7136d9"
 )
+PRE_DEDICATED_FIRE_DISPATCH = bytes.fromhex(
+    "a001b12eaa29fec952f018c956f014c95af013c966f00f8a20ebe4b0034c2fe5"
+    "4c2be54c37e54c33e5"
+)
+PRE_DEDICATED_AI_DISPATCH_PANEL_HELPER = bytes.fromhex(
+    "2903aa686820f1e58a4c15e7"
+)
+PRE_DEDICATED_PANEL_TYPE_CLASSIFIER = bytes.fromhex(
+    "4ab0034c06e5c918900cc91c900bc9209004c92890034c06e53860"
+)
+PRE_DEDICATED_PANEL_TYPE_CLASSIFIER_TAIL = bytes.fromhex(
+    "c929f00ec92bf00ac92df006c933f00218603860"
+)
+PRE_DEDICATED_PANEL_ANIM_DIR_HELPER = bytes.fromhex(
+    "c95090092905c9049002e902604a290360"
+)
+PRE_DEDICATED_ABC_GROUP_OFFSET_HELPER = bytes.fromhex(
+    "4a9018c9189014c91c900dc920900cc928b008290c4aaa60a20460a2ff60"
+)
+PRE_DEDICATED_SHARED_AI_WRAPPER = bytes.fromhex(
+    "a001b12ec9529030c95cb02cc954900cc9569024c9589008c95a901c29011004"
+    "290109024820f1e5a003b12e29fc912e68112e912e4c4ca54c08b2"
+)
+PRE_COMPACT_DEDICATED_FIRE_DISPATCH = bytes.fromhex(
+    "a001b12eaac9f09008c9f49010c9f8900f8a20ebe4b0034c2fe54c2be54c37e54c33e5"
+)
+PRE_COMPACT_DEDICATED_PANEL_TYPE_CLASSIFIER = bytes.fromhex(
+    "c9e09006c9f8b00238601860"
+)
+PRE_COMPACT_DEDICATED_ABC_GROUP_OFFSET_HELPER = bytes.fromhex(
+    "38e9e09009c910b005290c4aaa60a2ff60"
+)
+PRE_COMPACT_DEDICATED_SHARED_AI_WRAPPER = bytes.fromhex(
+    "a001b12e29034820f1e5a003b12e29fc912e68112e912e4c4ca5"
+)
+PRE_COMPACT_OFF_PANEL_TYPE_CLASSIFIER = 0x64FB
+PRE_COMPACT_OFF_ABC_GROUP_OFFSET_HELPER = 0x65C7
+PRE_COMPACT_OFF_SHARED_AI_WRAPPER = 0x6701
+
+
+def _is_pre_compact_panel_runtime(rom_data: bytearray) -> bool:
+    fingerprints = (
+        (
+            (OFF_FINAL_FIRE_DISPATCH, PRE_DEDICATED_FIRE_DISPATCH),
+            (PRE_COMPACT_OFF_PANEL_TYPE_CLASSIFIER, PRE_DEDICATED_PANEL_TYPE_CLASSIFIER),
+            (PRE_COMPACT_OFF_ABC_GROUP_OFFSET_HELPER, PRE_DEDICATED_ABC_GROUP_OFFSET_HELPER),
+            (PRE_COMPACT_OFF_SHARED_AI_WRAPPER, PRE_DEDICATED_SHARED_AI_WRAPPER),
+        ),
+        (
+            (OFF_FINAL_FIRE_DISPATCH, PRE_COMPACT_DEDICATED_FIRE_DISPATCH),
+            (PRE_COMPACT_OFF_PANEL_TYPE_CLASSIFIER, PRE_COMPACT_DEDICATED_PANEL_TYPE_CLASSIFIER),
+            (PRE_COMPACT_OFF_ABC_GROUP_OFFSET_HELPER, PRE_COMPACT_DEDICATED_ABC_GROUP_OFFSET_HELPER),
+            (PRE_COMPACT_OFF_SHARED_AI_WRAPPER, PRE_COMPACT_DEDICATED_SHARED_AI_WRAPPER),
+        ),
+    )
+    return any(
+        all(bytes(rom_data[off:off + len(blob)]) == blob for off, blob in layout)
+        for layout in fingerprints
+    )
+
+
 def _fill(byte: int, size: int) -> bytes:
     return bytes([byte & 0xFF] * int(size))
 
@@ -1060,11 +1116,15 @@ def _validate_runtime_loader_signature(rom_data: bytearray) -> None:
         (ORIG_M66_LOADER_TAIL, HOOK_M66_LOADER_TAIL),
     )
     cur = bytes(rom_data[OFF_PRG1_RUNTIME_LOADER:OFF_PRG1_RUNTIME_LOADER + 0x60])
+    from . import fire2_item_runtime
+    fire2_hook = fire2_item_runtime.HOOK_PRG1_LOADER
     accepted = (
         _fill(0x00, 0x60),
         stage_ext.RUNTIME_LOADER + _fill(0x00, 0x60 - len(stage_ext.RUNTIME_LOADER)),
         _previous_runtime_loader_slot(),
         _runtime_loader_slot(),
+        fire2_hook + _previous_runtime_loader_slot()[len(fire2_hook):],
+        fire2_hook + _runtime_loader_slot()[len(fire2_hook):],
     )
     if cur in accepted:
         return
@@ -1078,11 +1138,18 @@ def _validate_runtime_loader_signature(rom_data: bytearray) -> None:
 def _validate_final_split_signatures(
     rom_data: bytearray,
     final_state0_interval_helper: bytes,
+    pre_compact_layout: bool = False,
 ) -> None:
     """Verify every final split writer before mutating ROM bytes."""
     _validate_runtime_loader_signature(rom_data)
     panel_bullet_speed_fix.current_state(rom_data)
     v2_speed = panel_monster_v2_split_speed_runtime_blobs()
+    previous_state0_interval_helper = bytearray(final_state0_interval_helper)
+    previous_state0_interval_helper[12:14] = _word(0xE771)
+    previous_state0_interval_helper = bytes(previous_state0_interval_helper)
+    previous_dynamic_speed_marker_helper = bytearray(FINAL_DYNAMIC_SPEED_MARKER_HELPER)
+    previous_dynamic_speed_marker_helper[6:8] = _word(0xE770)
+    previous_dynamic_speed_marker_helper = bytes(previous_dynamic_speed_marker_helper)
 
     _expect_signature(
         rom_data,
@@ -1105,6 +1172,7 @@ def _validate_final_split_signatures(
             panel_monster_variant.ORIG_BULLET_MOVE_HOOK,
             panel_monster_variant.HOOK_BULLET_MOVE,
             HOOK_FINAL_BULLET_MOVE,
+            PRE_COMPACT_HOOK_FINAL_BULLET_MOVE,
         ),
     )
     _expect_signature(
@@ -1114,6 +1182,7 @@ def _validate_final_split_signatures(
         (
             ORIG_STATE0_INTERVAL_HOOK,
             FINAL_HOOK_STATE0_INTERVAL,
+            PRE_COMPACT_FINAL_HOOK_STATE0_INTERVAL,
         ),
     )
     _expect_signature(
@@ -1147,11 +1216,13 @@ def _validate_final_split_signatures(
         (
             ORIG_SPEED_INIT_CALL,
             HOOK_SPEED_INIT_CALL,
+            PRE_COMPACT_HOOK_SPEED_INIT_CALL,
         ),
     )
 
     ai_entry = _word(FINAL_AI_DISPATCH_ENTRIES["entry"])
     panel_ai_entry = _word(CPU_FINAL_SHARED_AI_WRAPPER)
+    pre_compact_panel_ai_entry = _word(0xE6F1)
     for off, name in (
         (panel_monster_variant.OFF_AI_DEMON_52_53, "$A34C Panel Monster 2-way borrowed AI"),
         (panel_monster_variant.OFF_AI_DEMON_56_57, "$A34E Panel Monster 2-way borrowed AI"),
@@ -1165,6 +1236,7 @@ def _validate_final_split_signatures(
                 panel_monster_variant.ORIG_AI_DEMON,
                 _word(panel_monster_variant.CPU_AI_DEMON_WRAPPER),
                 panel_ai_entry,
+                pre_compact_panel_ai_entry,
             ),
         )
     for off, name in (
@@ -1175,7 +1247,16 @@ def _validate_final_split_signatures(
         (OFF_AI_RANGE_48_4B, "$A348 Panel Variant B AI"),
         (OFF_AI_RANGE_4C_4F, "$A34A Panel Variant B AI"),
     ):
-        _expect_signature(rom_data, off, name, (_word(0xABF7), ai_entry))
+        _expect_signature(rom_data, off, name, (_word(0xABF7), ai_entry, _word(0xE4AF)))
+    _expect_signature(
+        rom_data,
+        panel_monster_variant.OFF_AI_SARAM_66_67,
+        "$A356 former Panel Monster borrowed AI",
+        (
+            panel_monster_variant.ORIG_AI_SARAM,
+            _word(panel_monster_variant.CPU_AI_SARAM_WRAPPER),
+        ),
+    )
 
     for off, blob, name, signatures in (
         (
@@ -1187,7 +1268,8 @@ def _validate_final_split_signatures(
                 FINAL_FIRE_DISPATCH,
                 panel_monster_variant.CAVE_FIRE_DISPATCH + _fill(0xEA, len(FINAL_FIRE_DISPATCH) - len(panel_monster_variant.CAVE_FIRE_DISPATCH)),
                 panel_monster_variant.CAVE_FIRE_DISPATCH + FINAL_FIRE_DISPATCH[len(panel_monster_variant.CAVE_FIRE_DISPATCH):],
-                PREVIOUS_FIRE_DISPATCH + PREVIOUS_STAGE_DISPATCH_TAIL + FINAL_FIRE_MARKER_TABLE[:0x07],
+                (PREVIOUS_FIRE_DISPATCH + PREVIOUS_STAGE_DISPATCH_TAIL + FINAL_FIRE_MARKER_TABLE[:0x07])[:len(FINAL_FIRE_DISPATCH)],
+                PRE_DEDICATED_FIRE_DISPATCH[:len(FINAL_FIRE_DISPATCH)],
             ),
         ),
         (
@@ -1200,7 +1282,11 @@ def _validate_final_split_signatures(
             OFF_FINAL_AI_DISPATCH_PANEL_HELPER,
             FINAL_AI_DISPATCH_PANEL_HELPER,
             "Panel Variant final AI dispatch panel tail",
-            (_fill(0xEA, len(FINAL_AI_DISPATCH_PANEL_HELPER)), _fill(0x00, len(FINAL_AI_DISPATCH_PANEL_HELPER))),
+            (
+                _fill(0xEA, len(FINAL_AI_DISPATCH_PANEL_HELPER)),
+                _fill(0x00, len(FINAL_AI_DISPATCH_PANEL_HELPER)),
+                PRE_DEDICATED_AI_DISPATCH_PANEL_HELPER[:len(FINAL_AI_DISPATCH_PANEL_HELPER)],
+            ),
         ),
         (
             OFF_FINAL_PARENT_SPEED_GUARD,
@@ -1212,7 +1298,10 @@ def _validate_final_split_signatures(
             OFF_FINAL_PANEL_TYPE_CLASSIFIER,
             FINAL_PANEL_TYPE_CLASSIFIER,
             "Panel Variant final shared Panel type classifier",
-            (_fill(0xEA, len(FINAL_PANEL_TYPE_CLASSIFIER)),),
+            (
+                _fill(0xEA, len(FINAL_PANEL_TYPE_CLASSIFIER)),
+                PRE_DEDICATED_PANEL_TYPE_CLASSIFIER[:len(FINAL_PANEL_TYPE_CLASSIFIER)],
+            ),
         ),
         (
             OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL,
@@ -1222,6 +1311,7 @@ def _validate_final_split_signatures(
                 _fill(0xEA, len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL)),
                 _fill(0x00, len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL)),
                 panel_monster_variant.CAVE_BULLET_HOOK[3:3 + len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL)],
+                PRE_DEDICATED_PANEL_TYPE_CLASSIFIER_TAIL[:len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL)],
             ),
         ),
         (
@@ -1230,6 +1320,7 @@ def _validate_final_split_signatures(
             "Panel Variant final animation direction helper",
             (
                 _fill(0xEA, len(FINAL_PANEL_ANIM_DIR_HELPER)),
+                PRE_DEDICATED_PANEL_ANIM_DIR_HELPER[:len(FINAL_PANEL_ANIM_DIR_HELPER)],
             ),
         ),
         (
@@ -1245,6 +1336,7 @@ def _validate_final_split_signatures(
             (
                 _fill(0xEA, len(final_state0_interval_helper)),
                 spark_ball_variant.CAVE_PROPERTY_HOOK[:len(final_state0_interval_helper)],
+                previous_state0_interval_helper,
             ),
         ),
         (
@@ -1256,8 +1348,13 @@ def _validate_final_split_signatures(
         (
             OFF_FINAL_ABC_GROUP_OFFSET_HELPER,
             FINAL_ABC_GROUP_OFFSET_HELPER,
-            "Panel Variant final A/B/C-only group offset helper",
-            (_fill(0xEA, len(FINAL_ABC_GROUP_OFFSET_HELPER)), _fill(0x00, len(FINAL_ABC_GROUP_OFFSET_HELPER)), ORIG_FINAL_ABC_GROUP_OFFSET_HELPER),
+            "Panel Variant final A/B/C/D group offset helper",
+            (
+                _fill(0xEA, len(FINAL_ABC_GROUP_OFFSET_HELPER)),
+                _fill(0x00, len(FINAL_ABC_GROUP_OFFSET_HELPER)),
+                ORIG_FINAL_ABC_GROUP_OFFSET_HELPER[:len(FINAL_ABC_GROUP_OFFSET_HELPER)],
+                PRE_DEDICATED_ABC_GROUP_OFFSET_HELPER[:len(FINAL_ABC_GROUP_OFFSET_HELPER)],
+            ),
         ),
         (
             OFF_FINAL_STATIC_MARKER_HELPER,
@@ -1274,6 +1371,7 @@ def _validate_final_split_signatures(
                 _fill(0x00, len(FINAL_DYNAMIC_SPEED_MARKER_HELPER)),
                 PREVIOUS_DYNAMIC_SPEED_MARKER_HELPER[:len(FINAL_DYNAMIC_SPEED_MARKER_HELPER)],
                 PREVIOUS_INLINE_DYNAMIC_SPEED_MARKER_HELPER[:len(FINAL_DYNAMIC_SPEED_MARKER_HELPER)],
+                previous_dynamic_speed_marker_helper,
             ),
         ),
         (
@@ -1320,8 +1418,9 @@ def _validate_final_split_signatures(
             "Panel Variant final shared AI wrapper",
             (
                 _fill(0xEA, len(FINAL_SHARED_AI_WRAPPER)),
-                ORIG_FINAL_SHARED_AI_WRAPPER_SHIFTED,
+                ORIG_FINAL_SHARED_AI_WRAPPER_SHIFTED[:len(FINAL_SHARED_AI_WRAPPER)],
                 PREVIOUS_SHARED_AI_WRAPPER_SHIFTED,
+                PRE_DEDICATED_SHARED_AI_WRAPPER[:len(FINAL_SHARED_AI_WRAPPER)],
             ),
         ),
         (
@@ -1350,6 +1449,7 @@ def _validate_final_split_signatures(
             (
                 _fill(0xEA, len(FINAL_SPARK_ANIM_HOOK)),
                 spark_ball_variant.CAVE_ANIM_HOOK,
+                PRE_COMPACT_FINAL_SPARK_ANIM_HOOK,
             ),
         ),
         (
@@ -1371,6 +1471,8 @@ def _validate_final_split_signatures(
             ),
         ),
     ):
+        if pre_compact_layout and PANEL_RUNTIME_BLOCK_OFFSET <= off < PRE_COMPACT_PANEL_RUNTIME_BLOCK_END:
+            continue
         _expect_signature(rom_data, off, name, (*signatures, blob))
 
 
@@ -1382,6 +1484,9 @@ def apply_panel_monster_v2_runtime(
     """Apply the current Panel Monster v2 runtime."""
     if rom_data is None:
         raise PanelMonsterStageVariantError("ROM is missing.")
+    packed_report = panel_variant_split_placement_report()
+    if not packed_report["packed"] or packed_report["used_size"] != PANEL_RUNTIME_BLOCK_LENGTH:
+        raise PanelMonsterStageVariantError("Panel Monster v2 runtime layout is not tightly packed.")
     v2_speed = panel_monster_v2_split_speed_runtime_blobs()
     min_len = max(
         OFF_FINAL_BULLET_SPEED_APPLY + len(v2_speed["speed_decode"]),
@@ -1403,8 +1508,13 @@ def apply_panel_monster_v2_runtime(
     if len(rom_data) < min_len:
         raise PanelMonsterStageVariantError("ROM is too short for Panel Monster v2 runtime.")
 
+    pre_compact_layout = _is_pre_compact_panel_runtime(rom_data)
     final_state0_interval_helper = _final_state0_interval_helper_for_rom(rom_data)
-    _validate_final_split_signatures(rom_data, final_state0_interval_helper)
+    _validate_final_split_signatures(
+        rom_data,
+        final_state0_interval_helper,
+        pre_compact_layout=pre_compact_layout,
+    )
     _validate_pmv2_speed_core_runtime_contract()
     _validate_pmv2_settings_runtime_contract()
     _validate_pmv2_fire_marker_runtime_contract()
@@ -1412,9 +1522,14 @@ def apply_panel_monster_v2_runtime(
     _validate_pmv2_classifier_runtime_contract()
 
     changed: list[str] = []
+    changed.extend(apply_runtime_loader(rom_data))
+    if pre_compact_layout:
+        rom_data[PANEL_RUNTIME_BLOCK_OFFSET:PRE_COMPACT_PANEL_RUNTIME_BLOCK_END] = bytes(
+            [0xEA] * (PRE_COMPACT_PANEL_RUNTIME_BLOCK_END - PANEL_RUNTIME_BLOCK_OFFSET)
+        )
+        changed.append("Panel Variant compact PRG0 runtime block")
     if patch_settings_table(rom_data, common_settings):
         changed.append("Panel Variant PRG0 settings table")
-    changed.extend(apply_runtime_loader(rom_data))
 
     _write_blob(rom_data, panel_monster_variant.OFF_HOOK_PANEL_FIRE, HOOK_FINAL_PANEL_FIRE, changed, "$A556 Panel Variant fire hook")
     _write_blob(rom_data, panel_monster_variant.OFF_HOOK_BULLET_MOVE, HOOK_FINAL_BULLET_MOVE, changed, "$AFBB Panel Variant Bullet hook")
@@ -1425,20 +1540,26 @@ def apply_panel_monster_v2_runtime(
     if cur_speed not in (
         ORIG_SPEED_INIT_CALL,
         HOOK_SPEED_INIT_CALL,
+        PRE_COMPACT_HOOK_SPEED_INIT_CALL,
     ):
         raise PanelMonsterStageVariantError(
             f"$866D speed init call signature mismatch: got {cur_speed.hex(' ')}"
         )
     _write_blob(rom_data, OFF_SPEED_INIT_CALL, HOOK_SPEED_INIT_CALL, changed, "$866D Panel Variant parent speed guard hook")
 
-    ai_entry = _word(FINAL_AI_DISPATCH_ENTRIES["entry"])
-    panel_ai_entry = _word(CPU_FINAL_SHARED_AI_WRAPPER)
     for off, name in (
         (panel_monster_variant.OFF_AI_DEMON_52_53, "$A34C Panel Monster 2-way borrowed AI"),
         (panel_monster_variant.OFF_AI_DEMON_56_57, "$A34E Panel Monster 2-way borrowed AI"),
         (panel_monster_variant.OFF_AI_DEMON_5A_5B, "$A350 Panel Monster 3-way borrowed AI"),
     ):
-        _write_blob(rom_data, off, panel_ai_entry, changed, name)
+        _write_blob(rom_data, off, panel_monster_variant.ORIG_AI_DEMON, changed, name)
+    _write_blob(
+        rom_data,
+        panel_monster_variant.OFF_AI_SARAM_66_67,
+        panel_monster_variant.ORIG_AI_SARAM,
+        changed,
+        "$A356 restore Saramandor #2 AI",
+    )
     for off, name in (
         (OFF_AI_RANGE_30_33, "$A33C Panel Variant C AI"),
         (OFF_AI_RANGE_34_37, "$A33E Panel Variant C AI"),
@@ -1447,7 +1568,7 @@ def apply_panel_monster_v2_runtime(
         (OFF_AI_RANGE_48_4B, "$A348 Panel Variant B AI"),
         (OFF_AI_RANGE_4C_4F, "$A34A Panel Variant B AI"),
     ):
-        _write_blob(rom_data, off, ai_entry, changed, name)
+        _write_blob(rom_data, off, _word(0xABF7), changed, name)
 
     for off, blob, name in (
         (OFF_FINAL_FIRE_DISPATCH, FINAL_FIRE_DISPATCH, "Panel Variant final fire dispatch"),
@@ -1460,7 +1581,7 @@ def apply_panel_monster_v2_runtime(
         (OFF_FINAL_FIRE_COMMON, FINAL_FIRE_COMMON, "Panel Variant final common fire loop"),
         (OFF_FINAL_STATE0_INTERVAL_HELPER, final_state0_interval_helper, "Panel Variant final interval helper"),
         (OFF_FINAL_GROUP_RAM_OFFSET_HELPER, FINAL_GROUP_RAM_OFFSET_HELPER_WRITE, "Panel Variant final group RAM offset helper"),
-        (OFF_FINAL_ABC_GROUP_OFFSET_HELPER, FINAL_ABC_GROUP_OFFSET_HELPER, "Panel Variant final A/B/C-only group offset helper"),
+        (OFF_FINAL_ABC_GROUP_OFFSET_HELPER, FINAL_ABC_GROUP_OFFSET_HELPER, "Panel Variant final A/B/C/D group offset helper"),
         (OFF_FINAL_STATIC_MARKER_HELPER, FINAL_STATIC_MARKER_HELPER, "Panel Variant final static marker helper"),
         (OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER, FINAL_DYNAMIC_SPEED_MARKER_HELPER, "Panel Variant final dynamic speed marker helper"),
         (OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, FINAL_PARENT_FIELD_CLEAR_HELPER, "Panel Variant final parent field clear helper"),
@@ -1740,7 +1861,7 @@ def build_panel_monster_v2_speed_core_blob(base_cpu: int = 0x8000) -> PanelMonst
         },
         notes={
             "scope": "Static v2 speed core and Bullet entry only; no ROM writer uses this blob.",
-            "entry_policy": "Keep normal, 2-way/3-way, and A/B/C entries separate if that is smaller.",
+            "entry_policy": "Keep normal, 2-way/3-way, and A/B/C/D entries separate if that is smaller.",
             "shared_policy": "Share Bullet marker decode and 2x/3x substep loop only.",
         },
     )
@@ -2085,10 +2206,10 @@ def _validate_pmv2_speed_core_runtime_contract() -> None:
 
 
 def _validate_pmv2_settings_runtime_contract() -> None:
-    """Guard the normal ROM save path against a widened A/B/C settings contract."""
-    if SETTINGS_TABLE_LENGTH != 6:
+    """Guard the normal ROM save path against a widened A/B/C/D settings contract."""
+    if SETTINGS_TABLE_LENGTH != 8:
         raise PanelMonsterStageVariantError(
-            "Panel Monster v2 settings table must stay a 6-byte PRG0 image."
+            "Panel Monster v2 settings table must be an 8-byte A/B/C/D PRG0 image."
         )
     loader = _runtime_loader_slot()
     if bytes.fromhex("99 40 07") in loader:
@@ -2184,8 +2305,8 @@ def _validate_pmv2_parent_runtime_contract() -> None:
         ),
         "main +9/+8 clear": (FINAL_PARENT_SPEED_GUARD, bytes((0xA0, 0x09, 0x91, 0x08, 0x88, 0x91, 0x08))),
         "main +6/+5 clear": (FINAL_PARENT_SPEED_GUARD, bytes((0xA0, 0x06, 0x91, 0x08, 0x88, 0x91, 0x08))),
-        "A/B/C entry +9/+8 clear": (FINAL_PARENT_FIELD_CLEAR_HELPER, bytes((0xA0, 0x09, 0x91, 0x2E, 0x88, 0x91, 0x2E))),
-        "A/B/C entry +6/+5 clear": (FINAL_PARENT_FIELD_CLEAR_HELPER, bytes((0xA0, 0x06, 0x91, 0x2E, 0x88, 0x91, 0x2E))),
+        "Panel entry +9/+8 clear": (FINAL_PARENT_FIELD_CLEAR_HELPER, bytes((0xA0, 0x09, 0x91, 0x2E, 0x88, 0x91, 0x2E))),
+        "Panel entry +6/+5 clear": (FINAL_PARENT_FIELD_CLEAR_HELPER, bytes((0xA0, 0x06, 0x91, 0x2E, 0x88, 0x91, 0x2E))),
     }
     for name, (blob, pattern) in required_patterns.items():
         if pattern not in blob:
@@ -2196,44 +2317,20 @@ def _validate_pmv2_parent_runtime_contract() -> None:
 
 def _validate_pmv2_classifier_runtime_contract() -> None:
     """Guard the Panel Monster type-classification contract."""
-    if PANEL_STAGE_RUNTIME_IDS != PANEL_STAGE_VARIANT_IDS | BORROWED_PANEL_RUNTIME_IDS:
+    if PANEL_STAGE_RUNTIME_IDS != frozenset(range(0xE0, 0xF8)):
         raise PanelMonsterStageVariantError(
-            "Panel Monster v2 runtime ID set must include A/B/C and borrowed 2-way/3-way IDs."
-        )
-    expected_borrowed = frozenset((0x52, 0x53, 0x56, 0x57, 0x5A, 0x5B, 0x66, 0x67))
-    if BORROWED_PANEL_RUNTIME_IDS != expected_borrowed:
-        raise PanelMonsterStageVariantError(
-            f"Panel Monster v2 borrowed runtime IDs mismatch: {sorted(BORROWED_PANEL_RUNTIME_IDS)!r}"
+            "Panel Monster v2 runtime IDs must be the contiguous $E0-$F7 range."
         )
     required_patterns = {
-        "A/B/C lower bound $30": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0x18))),
-        "C upper split $38": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0x1C))),
-        "A lower bound $40": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0x20))),
-        "B upper bound $50": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0x28))),
+        "Panel lower bound $E0": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0xE0))),
+        "Panel upper bound $F8": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0xF8))),
         "classifier panel return": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0x38, 0x60))),
+        "2-way lower bound $F0": (FINAL_FIRE_DISPATCH, bytes((0xC9, 0xF0))),
+        "3-way lower bound $F4": (FINAL_FIRE_DISPATCH, bytes((0xC9, 0xF4))),
     }
-    for enemy_id in BORROWED_FIRE_2WAY_CANONICAL_IDS:
-        required_patterns[f"2-way fire dispatch ${enemy_id:02X}"] = (
-            FINAL_FIRE_DISPATCH,
-            bytes((0xC9, enemy_id)),
-        )
-    for enemy_id in BORROWED_FIRE_3WAY_CANONICAL_IDS:
-        required_patterns[f"3-way fire dispatch ${enemy_id:02X}"] = (
-            FINAL_FIRE_DISPATCH,
-            bytes((0xC9, enemy_id)),
-        )
-    for shifted_id in (0x29, 0x2B, 0x2D, 0x33):
-        required_patterns[f"borrowed Panel tail ${shifted_id:02X}"] = (
-            FINAL_PANEL_TYPE_CLASSIFIER_TAIL,
-            bytes((0xC9, shifted_id)),
-        )
-    required_patterns["borrowed Panel animation direction mask"] = (
+    required_patterns["Panel animation direction low bits"] = (
         FINAL_PANEL_ANIM_DIR_HELPER,
-        bytes((0x29, 0x05, 0xC9, 0x04)),
-    )
-    required_patterns["A/B/C Panel animation direction shift"] = (
-        FINAL_PANEL_ANIM_DIR_HELPER,
-        bytes((0x4A, 0x29, 0x03, 0x60)),
+        bytes((0x29, 0x03, 0x60)),
     )
     for name, (blob, pattern) in required_patterns.items():
         if pattern not in blob:
@@ -2243,31 +2340,8 @@ def _validate_pmv2_classifier_runtime_contract() -> None:
 
 
 RESERVED_SPANS = (
-    (OFF_FINAL_FIRE_DISPATCH, len(FINAL_FIRE_DISPATCH)),
-    (OFF_FINAL_AI_DISPATCH_HELPER, len(FINAL_AI_DISPATCH_HELPER)),
-    (OFF_FINAL_AI_DISPATCH_PANEL_HELPER, len(FINAL_AI_DISPATCH_PANEL_HELPER)),
-    (OFF_FINAL_PARENT_SPEED_GUARD, len(FINAL_PARENT_SPEED_GUARD)),
-    (OFF_FINAL_PANEL_TYPE_CLASSIFIER, len(FINAL_PANEL_TYPE_CLASSIFIER)),
-    (OFF_FINAL_PANEL_TYPE_CLASSIFIER_TAIL, len(FINAL_PANEL_TYPE_CLASSIFIER_TAIL)),
-    (OFF_FINAL_PANEL_ANIM_DIR_HELPER, len(FINAL_PANEL_ANIM_DIR_HELPER)),
-    (OFF_FINAL_FIRE_COMMON, len(FINAL_FIRE_COMMON)),
-    (OFF_FINAL_STATE0_INTERVAL_HELPER, len(FINAL_STATE0_INTERVAL_HELPER)),
-    (OFF_FINAL_GROUP_RAM_OFFSET_HELPER, len(FINAL_GROUP_RAM_OFFSET_HELPER)),
-    (OFF_FINAL_ABC_GROUP_OFFSET_HELPER, len(FINAL_ABC_GROUP_OFFSET_HELPER)),
-    (OFF_FINAL_STATIC_MARKER_HELPER, len(FINAL_STATIC_MARKER_HELPER)),
-    (OFF_FINAL_DYNAMIC_SPEED_MARKER_HELPER, len(FINAL_DYNAMIC_SPEED_MARKER_HELPER)),
-    (OFF_FINAL_PARENT_FIELD_CLEAR_HELPER, len(FINAL_PARENT_FIELD_CLEAR_HELPER)),
-    (OFF_FINAL_BULLET_ENTRY_HELPER, _v2_split_speed_reserved_sizes()["bullet_entry_helper"]),
-    (OFF_FINAL_BULLET_ENTRY_TAIL_HELPER, _v2_split_speed_reserved_sizes()["bullet_entry_tail_helper"]),
-    (OFF_FINAL_BULLET_SPEED_EXTRA_HELPER, _v2_split_speed_reserved_sizes()["tables_and_fast_loop"]),
-    (OFF_FINAL_BULLET_SPEED_APPLY, _v2_split_speed_reserved_sizes()["speed_decode"]),
-    (OFF_FINAL_SHARED_AI_WRAPPER, len(FINAL_SHARED_AI_WRAPPER)),
-    (OFF_FINAL_FIRE_MARKER_TABLE, len(FINAL_FIRE_MARKER_TABLE)),
-    (OFF_FINAL_BULLET_SPEED_HOOK, _v2_split_speed_reserved_sizes()["bullet_speed_hook"]),
-    (OFF_FINAL_STAGE_PROPERTY_HOOK, len(FINAL_STAGE_PROPERTY_HOOK)),
-    (OFF_FINAL_STAGE_ANIM_HOOK, len(FINAL_STAGE_ANIM_HOOK)),
+    (PANEL_RUNTIME_BLOCK_OFFSET, PANEL_RUNTIME_BLOCK_LENGTH),
     (OFF_PRG1_RUNTIME_LOADER, 0x60),
-    (SETTINGS_TABLE_OFFSET, SETTINGS_TABLE_LENGTH),
     (OFF_STAGE_EXT_GAMEPLAY_FLAG_HELPER, STAGE_EXT_GAMEPLAY_FLAG_HELPER_LENGTH),
 )
 
@@ -2282,7 +2356,7 @@ def is_panel_stage_variant_id(enemy_id: int) -> bool:
 
 
 def has_panel_stage_variant_ids(levels: list) -> bool:
-    """Return True if any level currently uses an A/B/C stage-variant ID."""
+    """Return True if any level currently uses an A/B/C/D stage-variant ID."""
     for lv in levels or []:
         for enemy in getattr(lv, "enemies", []) or []:
             if is_panel_stage_variant_id(getattr(enemy, "element_no", -1)):
@@ -2298,9 +2372,9 @@ def has_panel_stage_runtime_ids(levels: list) -> bool:
     """Return True when the final split Panel runtime is needed.
 
     This helper is kept for callers that need to inspect level contents, but
-    the expanded-ROM save path writes the v2 runtime unconditionally.  A/B/C
-    IDs use the PRG0 settings table, and older 2-way/
-    3-way borrowed Panel IDs use the same relocated shared wrapper.
+    the expanded-ROM save path writes the v2 runtime unconditionally.  The
+    dedicated $E0-$F7 IDs use the relocated shared wrapper; A/B/C/D also read
+    their fixed speed and interval values from the PRG0 settings table.
     """
     for lv in levels or []:
         for enemy in getattr(lv, "enemies", []) or []:
@@ -2326,6 +2400,10 @@ def init_level_defaults(level) -> None:
         setattr(level, LEVEL_ATTRS["c_speed"], DEFAULT_C_SPEED_PRESET)
     if not hasattr(level, LEVEL_ATTRS["c_interval"]):
         setattr(level, LEVEL_ATTRS["c_interval"], DEFAULT_C_INTERVAL)
+    if not hasattr(level, LEVEL_ATTRS["d_speed"]):
+        setattr(level, LEVEL_ATTRS["d_speed"], DEFAULT_D_SPEED_PRESET)
+    if not hasattr(level, LEVEL_ATTRS["d_interval"]):
+        setattr(level, LEVEL_ATTRS["d_interval"], DEFAULT_D_INTERVAL)
 
 
 def normalize_speed_preset(value: int) -> int:
@@ -2351,11 +2429,14 @@ def build_entry(
     b_interval: int = DEFAULT_B_INTERVAL,
     c_speed: int = DEFAULT_C_SPEED_PRESET,
     c_interval: int = DEFAULT_C_INTERVAL,
+    d_speed: int = DEFAULT_D_SPEED_PRESET,
+    d_interval: int = DEFAULT_D_INTERVAL,
 ) -> bytes:
-    """Build one 16-byte Panel Variant stage entry.
+    """Build the legacy-sized Panel Variant settings record.
 
-    The entry format is A speed/interval, B speed/interval, C speed/interval.
-    There is no normal-speed preset and no rhythm field.
+    The first eight bytes are A/B/C/D speed+interval pairs.  The trailing
+    eight bytes stay zero so existing in-memory stage records keep their
+    established fixed width; the ROM runtime table writes only the first eight.
     """
     return bytes((
         normalize_speed_preset(a_speed),
@@ -2364,7 +2445,8 @@ def build_entry(
         int(b_interval) & 0xFF,
         normalize_speed_preset(c_speed),
         int(c_interval) & 0xFF,
-        0x00, 0x00,
+        normalize_speed_preset(d_speed),
+        int(d_interval) & 0xFF,
         0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00,
     ))
@@ -2379,6 +2461,8 @@ def normalize_common_settings(settings: dict | None = None) -> dict:
         "b_interval": int(settings.get("b_interval", DEFAULT_B_INTERVAL)) & 0xFF,
         "c_speed": normalize_speed_preset(settings.get("c_speed", DEFAULT_C_SPEED_PRESET)),
         "c_interval": int(settings.get("c_interval", DEFAULT_C_INTERVAL)) & 0xFF,
+        "d_speed": normalize_speed_preset(settings.get("d_speed", DEFAULT_D_SPEED_PRESET)),
+        "d_interval": int(settings.get("d_interval", DEFAULT_D_INTERVAL)) & 0xFF,
     }
 
 
@@ -2391,6 +2475,8 @@ def common_entry(settings: dict | None = None) -> bytes:
         values["b_interval"],
         values["c_speed"],
         values["c_interval"],
+        values["d_speed"],
+        values["d_interval"],
     )
 
 
@@ -2406,11 +2492,11 @@ def patch_settings_table(rom_data: bytearray, common_settings: dict | None = Non
 
 def _runtime_settings_entry(common_settings: dict | None = None) -> bytes:
     entry = common_entry(common_settings)
-    return entry[:6]
+    return entry[:8]
 
 
 def panel_monster_v2_settings_contract(common_settings: dict | None = None) -> dict[str, object]:
-    """Return the A/B/C PRG0 settings-table contract."""
+    """Return the A/B/C/D PRG0 settings-table contract."""
     settings_entry = _runtime_settings_entry(common_settings)
     return {
         "settings_table": {
@@ -2431,6 +2517,8 @@ def panel_monster_v2_settings_contract(common_settings: dict | None = None) -> d
             "b_interval": settings_entry[3],
             "c_speed": settings_entry[4],
             "c_interval": settings_entry[5],
+            "d_speed": settings_entry[6],
+            "d_interval": settings_entry[7],
         },
     }
 
@@ -2439,7 +2527,7 @@ def panel_monster_v2_settings_save_report(
     rom_data: bytes | bytearray,
     common_settings: dict | None = None,
 ) -> dict[str, object]:
-    """Report whether saved ROM data carries the current A/B/C settings path."""
+    """Report whether saved ROM data carries the current A/B/C/D settings path."""
     if rom_data is None:
         raise PanelMonsterStageVariantError("ROM is missing.")
     contract = panel_monster_v2_settings_contract(common_settings)

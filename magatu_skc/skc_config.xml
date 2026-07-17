@@ -289,16 +289,16 @@
 
     <enemy no="0x50" description="Demonhead (right, speed 1)" animation="71" />
     <enemy no="0x51" description="Demonhead (left, speed 1)" animation="75" />
-    <enemy no="0x52" description="Panel Monster 2-way (right)" animation="50" />
-    <enemy no="0x53" description="Panel Monster 2-way (left)" animation="45" />
+    <enemy no="0x52" description="Demonhead (right, speed 1) #2" animation="71" />
+    <enemy no="0x53" description="Demonhead (left, speed 1) #2" animation="75" />
     <enemy no="0x54" description="Demonhead (right, speed 2)" animation="71" />
     <enemy no="0x55" description="Demonhead (left, speed 2)" animation="75" />
-    <enemy no="0x56" description="Panel Monster 2-way (up)" animation="51" />
-    <enemy no="0x57" description="Panel Monster 2-way (down)" animation="52" />
+    <enemy no="0x56" description="Demonhead (right, speed 2) #2" animation="71" />
+    <enemy no="0x57" description="Demonhead (left, speed 2) #2" animation="75" />
     <enemy no="0x58" description="Demonhead (right, speed 3)" animation="71" />
     <enemy no="0x59" description="Demonhead (left, speed 3)" animation="75" />
-    <enemy no="0x5a" description="Panel Monster 3-way (right)" animation="50" />
-    <enemy no="0x5b" description="Panel Monster 3-way (left)" animation="45" />
+    <enemy no="0x5a" description="Demonhead (right, speed 3) #2" animation="71" />
+    <enemy no="0x5b" description="Demonhead (left, speed 3) #2" animation="75" />
 
     <enemy no="0x5c" description="Saramandor (right, speed 1)" animation="73" />
     <enemy no="0x5d" description="Saramandor (left, speed 1)" animation="72" />
@@ -310,8 +310,8 @@
     <enemy no="0x63" description="Saramandor (left, speed 2) #2" animation="72" />
     <enemy no="0x64" description="Saramandor (right, speed 3)" animation="73" />
     <enemy no="0x65" description="Saramandor (left, speed 3)" animation="72" />
-    <enemy no="0x66" description="Panel Monster 3-way (up)" animation="51" />
-    <enemy no="0x67" description="Panel Monster 3-way (down)" animation="52" />
+    <enemy no="0x66" description="Saramandor (right, speed 3) #2" animation="73" />
+    <enemy no="0x67" description="Saramandor (left, speed 3) #2" animation="72" />
 
     <enemy no="0x68" description="Dragon (right, speed 1)" animation="64" />
     <enemy no="0x69" description="Dragon (left, speed 1)" animation="41" />
@@ -391,7 +391,32 @@
     <enemy no="0xd6" description="Spark Ball pause and reverse (up, speed 2)" animation="44" />
     <enemy no="0xd7" description="Spark Ball pause and reverse (down, speed 2)" animation="44" />
 
-    <!-- 0x8D-0x9B and 0x9F-0xBF and 0xD8-0xFF are undefined. -->
+    <enemy no="0xe0" description="Panel Monster A (right)" animation="50" />
+    <enemy no="0xe1" description="Panel Monster A (left)" animation="45" />
+    <enemy no="0xe2" description="Panel Monster A (up)" animation="51" />
+    <enemy no="0xe3" description="Panel Monster A (down)" animation="52" />
+    <enemy no="0xe4" description="Panel Monster B (right)" animation="50" />
+    <enemy no="0xe5" description="Panel Monster B (left)" animation="45" />
+    <enemy no="0xe6" description="Panel Monster B (up)" animation="51" />
+    <enemy no="0xe7" description="Panel Monster B (down)" animation="52" />
+    <enemy no="0xe8" description="Panel Monster C (right)" animation="50" />
+    <enemy no="0xe9" description="Panel Monster C (left)" animation="45" />
+    <enemy no="0xea" description="Panel Monster C (up)" animation="51" />
+    <enemy no="0xeb" description="Panel Monster C (down)" animation="52" />
+    <enemy no="0xec" description="Panel Monster D (right)" animation="50" />
+    <enemy no="0xed" description="Panel Monster D (left)" animation="45" />
+    <enemy no="0xee" description="Panel Monster D (up)" animation="51" />
+    <enemy no="0xef" description="Panel Monster D (down)" animation="52" />
+    <enemy no="0xf0" description="Panel Monster 2-way (right)" animation="50" />
+    <enemy no="0xf1" description="Panel Monster 2-way (left)" animation="45" />
+    <enemy no="0xf2" description="Panel Monster 2-way (up)" animation="51" />
+    <enemy no="0xf3" description="Panel Monster 2-way (down)" animation="52" />
+    <enemy no="0xf4" description="Panel Monster 3-way (right)" animation="50" />
+    <enemy no="0xf5" description="Panel Monster 3-way (left)" animation="45" />
+    <enemy no="0xf6" description="Panel Monster 3-way (up)" animation="51" />
+    <enemy no="0xf7" description="Panel Monster 3-way (down)" animation="52" />
+
+    <!-- 0x8D-0x9B and 0x9F-0xBF and 0xD8-0xDF and 0xF8-0xFF are undefined. -->
   </enemy_definitions>
 
   <enemy_editor>

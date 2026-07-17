@@ -165,6 +165,7 @@ def apply(rom_data) -> list[str]:
         "$866D",
         extra_hooks=(
             panel_monster_stage_variant.HOOK_SPEED_INIT_CALL,
+            panel_monster_stage_variant.PRE_COMPACT_HOOK_SPEED_INIT_CALL,
             HOOK_PANEL_STAGE_SPEED_GUARD,
             HOOK_PANEL_STAGE_SPEED_GUARD_OLD,
         ),
