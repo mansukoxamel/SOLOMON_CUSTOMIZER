@@ -34,7 +34,7 @@
 | 9 | [New Enemy ID shared entry center](09_new_enemy_entry_center.md) | `new_enemy_runtime.py` | 完了（確定問題3件） |
 | 10 | [Ice Flame / Ice Burn](10_ice_burn.md) | `ice_flame_runtime.py` | 完了（6502本体問題なし、validation候補1件） |
 | 11 | [Dark Fairy `$9C`](11_dark_fairy_9c.md) | `fairy9c_runtime.py` | 完了（6502本体問題なし、候補2件） |
-| 12 | Seraphic Radiance `$9D` | `seraphic_radiance9d_runtime.py` | 未着手 |
+| 12 | [Seraphic Radiance `$9D`](12_seraphic_radiance_9d.md) | `seraphic_radiance9d_runtime.py` | 完了（確定問題4件） |
 | 13 | Chaos Dragon `$9E` | `chaos_dragon9e_runtime.py` | 未着手 |
 | 14 | Phantom preset A-D | `phantom_preset_runtime.py` | 未着手 |
 | 15 | Enhanced Gargoyle A/B | `gargoyle_variant.py` | 未着手 |
