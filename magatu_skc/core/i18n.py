@@ -2491,8 +2491,8 @@ _TRANSLATIONS = {
         "en": "The selected key enemy number exceeded this stage's enemy count, so it was cleared.",
     },
     "main.key_enemy.tooltip": {
-        "ja": "0=なし。1から{max_enemy}は初期配置敵の順番です。Flame系と妖精化敵と同じ番号は指定できません。",
-        "en": "0 = none. 1 through {max_enemy} are the initial enemy placement order. Flame-type enemies and the fairy enemy cannot use the same number.",
+        "ja": "0=なし。1から{max_enemy}は初期配置敵の順番です。Blue Burn系（$81/$83）、熾天の眩光（$9D）、妖精化敵と同じ番号は指定できません。",
+        "en": "0 = none. 1 through {max_enemy} are the initial enemy placement order. Blue Burn variants ($81/$83), Seraphic Radiance ($9D), and the fairy enemy cannot use the same number.",
     },
     "main.fairy_enemy.reset.title": {
         "ja": "妖精化敵設定を解除",

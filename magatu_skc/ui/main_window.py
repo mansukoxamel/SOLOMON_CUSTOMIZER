@@ -12080,7 +12080,7 @@ class MainWindow(QMainWindow):
         self.spin_key_enemy.setToolTip(
             t(
                 "main.key_enemy.tooltip",
-                "0=なし。1から{max_enemy}は初期配置敵の順番です。Flame系と妖精化敵と同じ番号は指定できません。",
+                "0=なし。1から{max_enemy}は初期配置敵の順番です。Blue Burn系（$81/$83）、熾天の眩光（$9D）、妖精化敵と同じ番号は指定できません。",
             ).format(max_enemy=max_enemy)
         )
 
