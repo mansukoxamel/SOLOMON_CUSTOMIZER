@@ -31,7 +31,7 @@
   出現敵、出現スケジュール、敵寿命、ミラー反転を編集できます。
 
 - **敵AI・弾速・特殊敵をGUIから調整**  
-  強化サラマンダー、強化ガーゴイル、強化スパークボール2種類、強化パネルモンスター3種類を追加できます。
+  強化サラマンダー、強化ガーゴイルA/B、強化スパークボール2種類、強化パネルモンスター3種類を追加できます。
 
 - **ゲーム挙動編集・バグ修正・移動速度変更**  
   敵の移動速度、弾速、敵ドロップ、合鍵を持つ敵、落下死で妖精化する敵を調整できます。
@@ -121,7 +121,7 @@ SOLOMON_CUSTOMIZER is a customizer for the Famicom version of *Solomon's Key*, c
   Edit spawned enemies, spawn schedules, enemy lifetimes, and mirror behavior.
 
 - **Adjust enemy AI, projectile speed, and special enemies**  
-  Add enhanced Saramandor, enhanced Gargoyle, 2 enhanced Spark Ball variants, and 3 enhanced Panel Monster variants.
+  Add enhanced Saramandor, Enhanced Gargoyle A/B, 2 enhanced Spark Ball variants, and 3 enhanced Panel Monster variants.
 
 - **Gameplay behavior edits, bug fixes, and movement speed changes**  
   Adjust enemy movement, projectile speed, enemy drops, key-carrying enemies, and falling-death fairy enemies.

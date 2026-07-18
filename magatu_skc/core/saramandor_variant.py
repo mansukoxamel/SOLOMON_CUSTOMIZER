@@ -3,9 +3,8 @@
 JP/JPC66 only.  This patch makes the unused Saramandor #2 IDs act as a
 clean variant without changing the global Bullet speed table:
 
-  $5E/$5F -> Bullet, normal speed
-  $62/$63 -> Bullet, normal speed
-  $66/$67 -> reserved / unchanged for now
+  $5E/$5F -> Bullet, speed 1
+  $62-$67 -> stock behavior
 
 Those active #2 IDs also use a 6-tile horizontal Dana reaction range.  The
 stock Saramandor/Dragon shared distance check remains at the original range.
@@ -47,9 +46,9 @@ ORIG_DISTANCE_CHECK = bytes.fromhex(
 )
 
 CPU_CAVE_SPAWN_SETUP = 0xE3C9
-CPU_CAVE_SUBSTATUS = CPU_CAVE_SPAWN_SETUP + 0x2F
-CPU_CAVE_FLAME_BEHAVIOR = CPU_CAVE_SUBSTATUS + 0x22
-CPU_CAVE_DISTANCE_CHECK = CPU_CAVE_FLAME_BEHAVIOR + 0x14
+CPU_CAVE_SUBSTATUS = CPU_CAVE_SPAWN_SETUP + 0x29
+CPU_CAVE_FLAME_BEHAVIOR = CPU_CAVE_SUBSTATUS + 0x1C
+CPU_CAVE_DISTANCE_CHECK = CPU_CAVE_FLAME_BEHAVIOR + 0x0E
 
 HOOK_SPAWN_SETUP = bytes((0x20, *(_word(CPU_CAVE_SPAWN_SETUP)))) + bytes([0xEA] * 11)
 HOOK_SUBSTATUS = bytes((0x20, *(_word(CPU_CAVE_SUBSTATUS)))) + bytes([0xEA] * 4)
@@ -67,9 +66,9 @@ OFF_CAVE_FLAME_BEHAVIOR = _cf(CPU_CAVE_FLAME_BEHAVIOR)
 OFF_CAVE_DISTANCE_CHECK = _cf(CPU_CAVE_DISTANCE_CHECK)
 
 CAVE_SPAWN_SETUP = bytes.fromhex(
-    # If parent type is $5E/$5F/$62/$63, spawn Bullet type $20.
+    # Only parent type $5E/$5F spawns Bullet type $20.
     # Otherwise reproduce the original Flame setup.
-    "a0 01 b1 2e c9 5e 90 18 c9 64 b0 14 29 02 f0 10"
+    "a0 01 b1 2e 29 fe c9 5e d0 10"
     "a9 20 85 05 a9 c0 85 04 a0 03 b1 2e 29 01 aa 60"
     "a9 04 85 05 a9 c6 85 04 66 02 a9 05 2a aa 60"
 )
@@ -77,22 +76,22 @@ CAVE_SPAWN_SETUP = bytes.fromhex(
 CAVE_SUBSTATUS = bytes.fromhex(
     # Original: JSR $B0D9 / ORA #$02 / STA ($00),Y.
     # For Bullet variants, skip ORA #$02.
-    "20 d9 b0 48 a0 01 b1 2e c9 5e 90 0e c9 64 b0 0a"
-    "29 02 f0 06 68 a0 00 91 00 60"
+    "20 d9 b0 48 a0 01 b1 2e 29 fe c9 5e d0 06"
+    "68 a0 00 91 00 60"
     "68 09 02 a0 00 91 00 60"
 )
 
 CAVE_FLAME_BEHAVIOR = bytes.fromhex(
     # For Bullet variants, do not run the Flame-specific behavior setup.
-    "a0 01 b1 2e c9 5e 90 09 c9 64 b0 05 29 02 f0 01 60"
+    "a0 01 b1 2e 29 fe c9 5e d0 01 60"
     "4c 5e b0"
 )
 
 CAVE_DISTANCE_CHECK = bytes.fromhex(
     # Replacement for SUB_B1E9.
-    # #2 Saramandor IDs $5E/$5F/$62/$63 get X threshold $60 (6 tiles).
+    # #2 Saramandor IDs $5E/$5F get X threshold $60 (6 tiles).
     # Everything else, including stock Saramandor and Dragon, uses $14.
-    "a0 01 b1 2e c9 5e 90 20 c9 64 b0 1c 29 02 f0 18"
+    "a0 01 b1 2e 29 fe c9 5e d0 18"
     "a0 05 b1 2c 0a b0 02 49 ff c9 60 b0 0a"
     "88 b1 2c 0a b0 02 49 ff c9 10 60"
     "a0 05 b1 2c 0a b0 02 49 ff c9 14 b0 0a"
@@ -174,9 +173,9 @@ def apply(rom_data) -> list[str]:
 
     changed: list[str] = []
     _write_blob(rom_data, OFF_CAVE_SPAWN_SETUP, CAVE_SPAWN_SETUP, changed, "Saramandor variant cave $E3C9")
-    _write_blob(rom_data, OFF_CAVE_SUBSTATUS, CAVE_SUBSTATUS, changed, "Saramandor variant cave $E3F8")
-    _write_blob(rom_data, OFF_CAVE_FLAME_BEHAVIOR, CAVE_FLAME_BEHAVIOR, changed, "Saramandor variant cave $E41A")
-    _write_blob(rom_data, OFF_CAVE_DISTANCE_CHECK, CAVE_DISTANCE_CHECK, changed, "Saramandor variant cave $E42E")
+    _write_blob(rom_data, OFF_CAVE_SUBSTATUS, CAVE_SUBSTATUS, changed, "Saramandor variant cave $E3F2")
+    _write_blob(rom_data, OFF_CAVE_FLAME_BEHAVIOR, CAVE_FLAME_BEHAVIOR, changed, "Saramandor variant cave $E40E")
+    _write_blob(rom_data, OFF_CAVE_DISTANCE_CHECK, CAVE_DISTANCE_CHECK, changed, "Saramandor variant cave $E41C")
 
     _write_blob(rom_data, OFF_HOOK_SPAWN_SETUP, HOOK_SPAWN_SETUP, changed, "$B105 Saramandor spawn hook")
     _write_blob(rom_data, OFF_HOOK_SUBSTATUS, HOOK_SUBSTATUS, changed, "$B0A9 Saramandor substatus hook")

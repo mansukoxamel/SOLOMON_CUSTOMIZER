@@ -217,6 +217,7 @@ OFF_FINAL_AI_DISPATCH_PANEL_HELPER = 0x64CC  # CPU $E4BC, packed runtime block
 CPU_FINAL_AI_DISPATCH_PANEL_HELPER = _cpu(OFF_FINAL_AI_DISPATCH_PANEL_HELPER)
 OFF_FINAL_PARENT_SPEED_GUARD = 0x64D8  # CPU $E4C8, packed runtime block
 CPU_FINAL_PARENT_SPEED_GUARD = _cpu(OFF_FINAL_PARENT_SPEED_GUARD)
+CPU_GARGOYLE_SPEED1_INIT = 0xEDA0
 FINAL_AI_DISPATCH_PANEL_HELPER_CAPACITY = 0x0C
 FINAL_PARENT_FIELD_CLEAR_HELPER_CAPACITY = 0x11
 FINAL_PARENT_SPEED_GUARD_CAPACITY = 0x1D
@@ -558,7 +559,9 @@ def _build_parent_field_clear_helper() -> bytes:
 
 def _build_parent_speed_guard() -> bytes:
     a = _Asm()
-    a.jsr(0x8AC0)
+    # Gargoyle B ($7E/$7F) keeps its identity but uses Gargoyle A's stock
+    # speed-1 metadata group before the Panel-specific cleanup runs.
+    a.jsr(CPU_GARGOYLE_SPEED1_INIT)
     a.b(0xA0, 0x01, 0xB1, 0x08)
     a.jsr(CPU_FINAL_PANEL_TYPE_CLASSIFIER)
     a.branch(0x90, "done")
@@ -2298,7 +2301,10 @@ def _validate_pmv2_parent_runtime_contract() -> None:
             "Panel Monster v2 speed-init hook no longer enters the parent speed guard."
         )
     required_patterns = {
-        "stock speed init call": (FINAL_PARENT_SPEED_GUARD, bytes((0x20, 0xC0, 0x8A))),
+        "Gargoyle-aware speed init call": (
+            FINAL_PARENT_SPEED_GUARD,
+            bytes((0x20, CPU_GARGOYLE_SPEED1_INIT & 0xFF, CPU_GARGOYLE_SPEED1_INIT >> 8)),
+        ),
         "panel type classifier call": (
             FINAL_PARENT_SPEED_GUARD,
             bytes((0x20, CPU_FINAL_PANEL_TYPE_CLASSIFIER & 0xFF, CPU_FINAL_PANEL_TYPE_CLASSIFIER >> 8)),

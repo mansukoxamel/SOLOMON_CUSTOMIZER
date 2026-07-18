@@ -1,9 +1,10 @@
-"""Gargoyle borrowed-ID enhanced-shot experiment.
+"""Gargoyle borrowed-ID enhanced-shot variants.
 
-JP/JPC66 only. Gargoyle #2 IDs ($7A/$7B/$7E/$7F) share configurable Bullet
-speed, inter-shot gap, and post-shot cooldown settings. They fire twice when
-the LIFE hundreds digit is even and three times when it is odd. Normal
-Gargoyles retain stock behavior.
+JP/JPC66 only.  $7A/$7B are Enhanced Gargoyle A and $7E/$7F are Enhanced
+Gargoyle B.  Both variants use the stock speed-1 movement group and have
+independent Bullet speed, inter-shot gap, and post-shot cooldown settings.
+Both fire twice when the LIFE hundreds digit is even and three times when it
+is odd.  Normal Gargoyles retain stock behavior.
 """
 from __future__ import annotations
 
@@ -27,10 +28,15 @@ OFF_HOOK_STATE3 = _cf(0xAE28)
 OFF_HOOK_STATE4 = _cf(0xAE2A)
 OFF_CAVE_GATE = 0x634F
 OFF_CAVE_SECOND_SHOT = 0x6D2D
+OFF_CAVE_HELPERS = 0x6DB0
 
 CPU_CAVE_GATE = 0xE33F
-CPU_CAVE_COOLDOWN = CPU_CAVE_GATE + 0x3E
+CPU_CAVE_COOLDOWN = CPU_CAVE_GATE + 0x2B
 CPU_CAVE_SECOND_SHOT = 0xED1D
+CPU_CAVE_SPEED_INIT = 0xEDA0
+CPU_CAVE_MARKER = 0xEDAF
+CPU_CAVE_COOLDOWN_COMPARE = 0xEDCE
+CPU_CAVE_INTER_SHOT_COMPARE = 0xEDDC
 
 BULLET_SPEED_MARKER_QUARTER = 0x88
 BULLET_SPEED_MARKER_HALF = 0x89
@@ -65,36 +71,66 @@ SNAPPY_WAIT = bytes.fromhex("a0 01 b1 2c c9 01 90 24")
 OLD_HOOK_WAIT = bytes((0x4C, *(_word(0xBEC7)))) + bytes([0xEA] * 5)
 
 CAVE_GATE = bytes.fromhex(
-    # Every Bullet receives an explicit child sub[7] value: normal IDs write
-    # $00, enhanced IDs write the half-speed marker $89. This prevents a
-    # recycled child slot from leaking enhanced speed into a normal Gargoyle.
-    "a0 01 b1 2e 29 fa c9 7a f0 04 a9 00 f0 02 a9 89 48"
     "a0 03 b1 2e aa 09 02 91 2e 20 76 ae"
-    "a0 06 b1 2c 20 56 b1 68 a0 07 91 00 c9 00 f0 10"
+    # The shared marker helper writes $00 for normal Gargoyles and the
+    # independently configured A/B marker for enhanced Gargoyles.
+    "a0 06 b1 2c 20 56 b1 20 af ed c9 00 f0 10"
     "a0 03 b1 2e 29 03 09 0c 91 2e a9 00 a0 01 91 2c 60"
-    # Normal and enhanced cooldown thresholds are stored independently.
+    # Normal and A/B enhanced cooldown thresholds are stored independently.
     "a0 01 b1 2e 29 fa c9 7a f0 07"
-    "e0 50 90 0a 4c 4c ae"
-    "e0 78 90 03 4c 4c ae 4c c1 ae"
+    "e0 50 90 0b 4c 4c ae"
+    "20 ce ed 90 03 4c 4c ae 4c c1 ae"
 )
-assert len(CAVE_GATE) == 89
+assert len(CAVE_GATE) == 71
 
 CAVE_SECOND_SHOT = bytes.fromhex(
     # States 3 and 4 share this handler. State 3 fires shot two, then either
     # enters cooldown or resets the counter in state 4 when LIFE hundreds is
     # odd. State 4 waits the same interval, fires shot three, and cools down.
-    "a0 01 b1 2e 29 fa c9 7a d0 5e"
-    "b1 2c c9 0c 90 57 20 ea b2 90 42"
+    "a0 01 b1 2e 29 fa c9 7a d0 5c"
+    "b1 2c 20 dc ed 90 55 20 ea b2 90 49"
     "8a a0 06 91 2c a0 00 a9 80 91 04 a9 01 11 2c 91 2c"
     "a0 03 b1 2e 29 01 aa 20 76 ae"
-    "a0 06 b1 2c 20 56 b1 a9 89 a0 07 91 00"
+    "a0 06 b1 2c 20 56 b1 20 af ed"
     "a0 03 b1 2e 29 10 d0 12"
     "ad 39 04 29 01 f0 0b"
-    "b1 2e 29 03 09 10 91 2e 4c 7e ed"
+    # Enter state 4 and reset sub-slot[1] from LDA #$00 so the configured
+    # interval is also measured between shots two and three.
+    "b1 2e 29 03 09 10 91 2e 4c 7c ed"
     "a0 03 b1 2e 29 03 09 02 91 2e"
     "a9 00 a0 01 91 2c 60 4c 1c a4"
 )
-assert len(CAVE_SECOND_SHOT) == 107
+assert len(CAVE_SECOND_SHOT) == 105
+assert CAVE_SECOND_SHOT[0x52:0x55] == bytes.fromhex("4c 7c ed")
+assert CAVE_SECOND_SHOT[0x5F:0x61] == bytes.fromhex("a9 00")
+
+CAVE_SPEED_INIT = bytes.fromhex(
+    # $7E/$7F are the B identity pair, not a speed-2 pair.  Normalize only X
+    # for the stock metadata/speed initializer; the entity ID itself and the
+    # state value in A must remain unchanged.
+    "e0 7e 90 08 e0 80 b0 04 ca ca ca ca 4c c0 8a"
+)
+CAVE_MARKER = bytes.fromhex(
+    # Return and store $00 for normal Gargoyles, marker A for $7A/$7B, and
+    # marker B for $7E/$7F.
+    "a0 01 b1 2e 29 fa c9 7a f0 04 a9 00 f0 0c"
+    "b1 2e 29 04 f0 04 a9 89 d0 02 a9 89"
+    "a0 07 91 00 60"
+)
+CAVE_COOLDOWN_COMPARE = bytes.fromhex(
+    "a0 01 b1 2e 29 04 f0 03 e0 78 60 e0 78 60"
+)
+CAVE_INTER_SHOT_COMPARE = bytes.fromhex(
+    # Preserve the current shot timer in A while selecting the A/B threshold.
+    "48 a0 01 b1 2e 29 04 f0 04 68 c9 0c 60 68 c9 0c 60"
+)
+CAVE_HELPERS = (
+    CAVE_SPEED_INIT
+    + CAVE_MARKER
+    + CAVE_COOLDOWN_COMPARE
+    + CAVE_INTER_SHOT_COMPARE
+)
+assert len(CAVE_HELPERS) == 77
 
 OLD_PACKED_CAVE = bytes.fromhex(
     "a0 01 b1 2e 29 fa c9 7a f0 04 a9 00 f0 0c"
@@ -109,20 +145,27 @@ OLD_PACKED_CAVE = bytes.fromhex(
 OLD_PACKED_CAVE_OFF = _cf(0xE357)
 OLD_NORMAL_COOLDOWN_OFF = OLD_PACKED_CAVE_OFF + 52 + 0x0B
 
-OFF_CAVE_COOLDOWN_NORMAL_VALUE = OFF_CAVE_GATE + 0x49
-OFF_CAVE_SPEED_MARKER_VALUE = OFF_CAVE_GATE + 0x0F
-OFF_CAVE_COOLDOWN_VALUE = OFF_CAVE_GATE + 0x50
-OFF_SECOND_INTER_SHOT_VALUE = OFF_CAVE_SECOND_SHOT + 0x0D
-OFF_SECOND_SPEED_MARKER_VALUE = OFF_CAVE_SECOND_SHOT + 0x38
+OFF_CAVE_COOLDOWN_NORMAL_VALUE = OFF_CAVE_GATE + CAVE_GATE.index(bytes.fromhex("e0 50")) + 1
+OFF_MARKER_B_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + 0x15
+OFF_MARKER_A_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + 0x19
+OFF_COOLDOWN_B_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + len(CAVE_MARKER) + 0x09
+OFF_COOLDOWN_A_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + len(CAVE_MARKER) + 0x0C
+OFF_INTER_SHOT_B_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + len(CAVE_MARKER) + len(CAVE_COOLDOWN_COMPARE) + 0x0B
+OFF_INTER_SHOT_A_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + len(CAVE_MARKER) + len(CAVE_COOLDOWN_COMPARE) + 0x0F
 _GATE_MASK = bytearray(CAVE_GATE)
-_GATE_MASK[OFF_CAVE_SPEED_MARKER_VALUE - OFF_CAVE_GATE] = 0x00
 _GATE_MASK[OFF_CAVE_COOLDOWN_NORMAL_VALUE - OFF_CAVE_GATE] = 0x00
-_GATE_MASK[OFF_CAVE_COOLDOWN_VALUE - OFF_CAVE_GATE] = 0x00
 _GATE_MASK = bytes(_GATE_MASK)
-_SECOND_MASK = bytearray(CAVE_SECOND_SHOT)
-_SECOND_MASK[OFF_SECOND_INTER_SHOT_VALUE - OFF_CAVE_SECOND_SHOT] = 0x00
-_SECOND_MASK[OFF_SECOND_SPEED_MARKER_VALUE - OFF_CAVE_SECOND_SHOT] = 0x00
-_SECOND_MASK = bytes(_SECOND_MASK)
+_HELPERS_MASK = bytearray(CAVE_HELPERS)
+for _off in (
+    OFF_MARKER_A_VALUE,
+    OFF_MARKER_B_VALUE,
+    OFF_COOLDOWN_A_VALUE,
+    OFF_COOLDOWN_B_VALUE,
+    OFF_INTER_SHOT_A_VALUE,
+    OFF_INTER_SHOT_B_VALUE,
+):
+    _HELPERS_MASK[_off - OFF_CAVE_HELPERS] = 0x00
+_HELPERS_MASK = bytes(_HELPERS_MASK)
 
 OLD_TWO_BULLET_BODY = bytes.fromhex(
     "a0 03 b1 2e aa 09 02 91 2e 20 76 ae 20 ea b2 90 3a"
@@ -135,6 +178,7 @@ OLD_TWO_BULLET_BODY = bytes.fromhex(
 RESERVED_SPANS = (
     (OFF_CAVE_GATE, len(CAVE_GATE)),
     (OFF_CAVE_SECOND_SHOT, len(CAVE_SECOND_SHOT)),
+    (OFF_CAVE_HELPERS, len(CAVE_HELPERS)),
 )
 
 
@@ -202,33 +246,44 @@ def _is_gate_blob(blob: bytes) -> bool:
     if len(blob) < len(CAVE_GATE):
         return False
     cur = bytearray(blob[:len(CAVE_GATE)])
-    cur[OFF_CAVE_SPEED_MARKER_VALUE - OFF_CAVE_GATE] = 0x00
     cur[OFF_CAVE_COOLDOWN_NORMAL_VALUE - OFF_CAVE_GATE] = 0x00
-    cur[OFF_CAVE_COOLDOWN_VALUE - OFF_CAVE_GATE] = 0x00
     return bytes(cur) == _GATE_MASK
 
 
 def _is_second_blob(blob: bytes) -> bool:
-    if len(blob) < len(CAVE_SECOND_SHOT):
+    return len(blob) >= len(CAVE_SECOND_SHOT) and blob[:len(CAVE_SECOND_SHOT)] == CAVE_SECOND_SHOT
+
+
+def _is_helpers_blob(blob: bytes) -> bool:
+    if len(blob) < len(CAVE_HELPERS):
         return False
-    cur = bytearray(blob[:len(CAVE_SECOND_SHOT)])
-    cur[OFF_SECOND_INTER_SHOT_VALUE - OFF_CAVE_SECOND_SHOT] = 0x00
-    cur[OFF_SECOND_SPEED_MARKER_VALUE - OFF_CAVE_SECOND_SHOT] = 0x00
-    return bytes(cur) == _SECOND_MASK
+    cur = bytearray(blob[:len(CAVE_HELPERS)])
+    for off in (
+        OFF_MARKER_A_VALUE,
+        OFF_MARKER_B_VALUE,
+        OFF_COOLDOWN_A_VALUE,
+        OFF_COOLDOWN_B_VALUE,
+        OFF_INTER_SHOT_A_VALUE,
+        OFF_INTER_SHOT_B_VALUE,
+    ):
+        cur[off - OFF_CAVE_HELPERS] = 0x00
+    return bytes(cur) == _HELPERS_MASK
 
 
-def _build_gate(normal_cooldown: int, speed_preset: int, cooldown_frames: int) -> bytes:
+def _build_gate(normal_cooldown: int) -> bytes:
     body = bytearray(CAVE_GATE)
     body[OFF_CAVE_COOLDOWN_NORMAL_VALUE - OFF_CAVE_GATE] = int(normal_cooldown) & 0xFF
-    body[OFF_CAVE_SPEED_MARKER_VALUE - OFF_CAVE_GATE] = _marker_for_speed_preset(speed_preset)
-    body[OFF_CAVE_COOLDOWN_VALUE - OFF_CAVE_GATE] = normalize_cooldown(cooldown_frames)
     return bytes(body)
 
 
-def _build_second(speed_preset: int, inter_shot_frames: int) -> bytes:
-    body = bytearray(CAVE_SECOND_SHOT)
-    body[OFF_SECOND_INTER_SHOT_VALUE - OFF_CAVE_SECOND_SHOT] = normalize_inter_shot(inter_shot_frames)
-    body[OFF_SECOND_SPEED_MARKER_VALUE - OFF_CAVE_SECOND_SHOT] = _marker_for_speed_preset(speed_preset)
+def _build_helpers(settings_a: dict[str, int], settings_b: dict[str, int]) -> bytes:
+    body = bytearray(CAVE_HELPERS)
+    body[OFF_MARKER_A_VALUE - OFF_CAVE_HELPERS] = _marker_for_speed_preset(settings_a["speed_preset"])
+    body[OFF_MARKER_B_VALUE - OFF_CAVE_HELPERS] = _marker_for_speed_preset(settings_b["speed_preset"])
+    body[OFF_COOLDOWN_A_VALUE - OFF_CAVE_HELPERS] = normalize_cooldown(settings_a["cooldown_frames"])
+    body[OFF_COOLDOWN_B_VALUE - OFF_CAVE_HELPERS] = normalize_cooldown(settings_b["cooldown_frames"])
+    body[OFF_INTER_SHOT_A_VALUE - OFF_CAVE_HELPERS] = normalize_inter_shot(settings_a["inter_shot_frames"])
+    body[OFF_INTER_SHOT_B_VALUE - OFF_CAVE_HELPERS] = normalize_inter_shot(settings_b["inter_shot_frames"])
     return bytes(body)
 
 
@@ -251,6 +306,7 @@ def _ensure_available(rom_data, off: int, blob: bytes, name: str) -> None:
         cur == blob
         or (off == OFF_CAVE_GATE and _is_gate_blob(cur))
         or (off == OFF_CAVE_SECOND_SHOT and _is_second_blob(cur))
+        or (off == OFF_CAVE_HELPERS and _is_helpers_blob(cur))
         or old_body == OLD_TWO_BULLET_BODY
         or all(b in (0xEA, 0x00) for b in cur)
     ):
@@ -274,6 +330,9 @@ def is_applied(rom_data) -> bool:
         and _is_second_blob(
             bytes(rom_data[OFF_CAVE_SECOND_SHOT:OFF_CAVE_SECOND_SHOT + len(CAVE_SECOND_SHOT)])
         )
+        and _is_helpers_blob(
+            bytes(rom_data[OFF_CAVE_HELPERS:OFF_CAVE_HELPERS + len(CAVE_HELPERS)])
+        )
         and bytes(rom_data[OFF_HOOK_STATE3:OFF_HOOK_STATE3 + 2]) == HOOK_STATE3
         and bytes(rom_data[OFF_HOOK_STATE4:OFF_HOOK_STATE4 + 2]) == HOOK_STATE4
     )
@@ -283,7 +342,7 @@ def current_speed_label(rom_data) -> str:
     return BULLET_SPEED_LABEL if is_applied(rom_data) else BULLET_SPEED_LABEL
 
 
-def current_settings(rom_data) -> dict[str, int]:
+def current_settings(rom_data, variant: str = "a") -> dict[str, int]:
     settings = {
         "speed_preset": DEFAULT_SPEED_PRESET,
         "inter_shot_frames": DEFAULT_INTER_SHOT_FRAMES,
@@ -291,10 +350,21 @@ def current_settings(rom_data) -> dict[str, int]:
     }
     if not is_applied(rom_data):
         return settings
-    marker = int(rom_data[OFF_CAVE_SPEED_MARKER_VALUE])
+    suffix = str(variant).strip().lower()
+    if suffix not in ("a", "b"):
+        raise GargoyleVariantError(f"unsupported Gargoyle variant: {variant!r}")
+    if suffix == "a":
+        marker_off = OFF_MARKER_A_VALUE
+        inter_off = OFF_INTER_SHOT_A_VALUE
+        cooldown_off = OFF_COOLDOWN_A_VALUE
+    else:
+        marker_off = OFF_MARKER_B_VALUE
+        inter_off = OFF_INTER_SHOT_B_VALUE
+        cooldown_off = OFF_COOLDOWN_B_VALUE
+    marker = int(rom_data[marker_off])
     settings["speed_preset"] = _speed_preset_from_marker(marker, DEFAULT_SPEED_PRESET)
-    settings["inter_shot_frames"] = int(rom_data[OFF_SECOND_INTER_SHOT_VALUE])
-    settings["cooldown_frames"] = int(rom_data[OFF_CAVE_COOLDOWN_VALUE])
+    settings["inter_shot_frames"] = int(rom_data[inter_off])
+    settings["cooldown_frames"] = int(rom_data[cooldown_off])
     return settings
 
 
@@ -315,8 +385,12 @@ def apply(
     speed_preset=None,
     inter_shot_frames=None,
     cooldown_frames=None,
+    b_speed_preset=None,
+    b_inter_shot_frames=None,
+    b_cooldown_frames=None,
 ) -> list[str]:
-    cur_settings = current_settings(rom_data)
+    cur_settings = current_settings(rom_data, "a")
+    cur_settings_b = current_settings(rom_data, "b")
     if speed_preset is None:
         speed_preset = cur_settings["speed_preset"]
     if inter_shot_frames is None:
@@ -326,15 +400,29 @@ def apply(
     speed_preset = normalize_speed_preset(speed_preset)
     inter_shot_frames = normalize_inter_shot(inter_shot_frames)
     cooldown_frames = normalize_cooldown(cooldown_frames)
-    gate_body = _build_gate(
-        _current_normal_cooldown(rom_data),
-        speed_preset,
-        cooldown_frames,
-    )
-    second_body = _build_second(speed_preset, inter_shot_frames)
+    if b_speed_preset is None:
+        b_speed_preset = cur_settings_b["speed_preset"]
+    if b_inter_shot_frames is None:
+        b_inter_shot_frames = cur_settings_b["inter_shot_frames"]
+    if b_cooldown_frames is None:
+        b_cooldown_frames = cur_settings_b["cooldown_frames"]
+    settings_a = {
+        "speed_preset": speed_preset,
+        "inter_shot_frames": inter_shot_frames,
+        "cooldown_frames": cooldown_frames,
+    }
+    settings_b = {
+        "speed_preset": normalize_speed_preset(b_speed_preset),
+        "inter_shot_frames": normalize_inter_shot(b_inter_shot_frames),
+        "cooldown_frames": normalize_cooldown(b_cooldown_frames),
+    }
+    gate_body = _build_gate(_current_normal_cooldown(rom_data))
+    second_body = CAVE_SECOND_SHOT
+    helpers_body = _build_helpers(settings_a, settings_b)
     min_len = max(
         OFF_CAVE_GATE + len(gate_body),
         OFF_CAVE_SECOND_SHOT + len(second_body),
+        OFF_CAVE_HELPERS + len(helpers_body),
         OFF_HOOK_MATERIALIZE + len(ORIG_MATERIALIZE),
         OFF_HOOK_COOLDOWN + len(ORIG_COOLDOWN),
         OFF_HOOK_STATE3 + len(HOOK_STATE3),
@@ -376,6 +464,7 @@ def apply(
         second_body,
         "Gargoyle second/third-shot state",
     )
+    _ensure_available(rom_data, OFF_CAVE_HELPERS, helpers_body, "Gargoyle A/B shared helpers")
 
     changed: list[str] = []
     _write(rom_data, OFF_CAVE_GATE, gate_body, changed, "Gargoyle enhanced-shot primary $E33F")
@@ -385,6 +474,13 @@ def apply(
         second_body,
         changed,
         "Gargoyle second/third-shot state $ED1D",
+    )
+    _write(
+        rom_data,
+        OFF_CAVE_HELPERS,
+        helpers_body,
+        changed,
+        "Gargoyle A/B shared helpers $EDA0",
     )
     _write(
         rom_data,
