@@ -713,6 +713,32 @@ def _require_helper_available(rom_data: bytearray, offset: int, blob: bytes, lab
         )
 
 
+def _preflight_special_high_id_fields(rom_data: bytearray,
+                                      respawn_patch: bytes) -> None:
+    """Validate legacy in-place fields only when that layout owns them.
+
+    The current F0-F3 gate and helper layouts move or replace these bytes, so
+    their complete patch signatures are the authoritative validation.
+    """
+    if respawn_patch in (
+            RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE,
+            RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER,
+    ):
+        return
+    _require_patch_value(
+        rom_data[SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF],
+        (SPECIAL_HIGH_ID_THRESHOLD_OLD, SPECIAL_HIGH_ID_THRESHOLD_NEW),
+        "mapper66 special-ID threshold",
+        SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF,
+    )
+    _require_patch_value(
+        rom_data[SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF],
+        (SPECIAL_HIGH_ID_PRESERVE_OLD, SPECIAL_HIGH_ID_PRESERVE_NEW),
+        "mapper66 special-ID preserve branch",
+        SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF,
+    )
+
+
 def _preflight_runtime_block_loader(rom_data: bytearray) -> None:
     required_end = max(
         RESPAWN_DIRECT_CELL_COPY_PATCH_OFF + len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN),
@@ -743,17 +769,7 @@ def _preflight_runtime_block_loader(rom_data: bytearray) -> None:
         "mapper66 respawn direct-cell patch",
         off,
     )
-    threshold_values = (SPECIAL_HIGH_ID_THRESHOLD_OLD, SPECIAL_HIGH_ID_THRESHOLD_NEW)
-    preserve_values = (SPECIAL_HIGH_ID_PRESERVE_OLD, SPECIAL_HIGH_ID_PRESERVE_NEW)
-    if respawn_patch == RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER:
-        threshold_values += (0xEA,)
-        preserve_values += (0xEA,)
-    _require_patch_value(
-        rom_data[SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF],
-        threshold_values,
-        "mapper66 special-ID threshold",
-        SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF,
-    )
+    _preflight_special_high_id_fields(rom_data, respawn_patch)
     _require_patch_value(
         bytes(rom_data[
             INITIAL_DRAW_LOW_CLASSIFIER_PATCH_OFF:
@@ -780,12 +796,6 @@ def _preflight_runtime_block_loader(rom_data: bytearray) -> None:
         (KEY_CELL_VALUE_NO_KEY_BRANCH_OLD, KEY_CELL_VALUE_NO_KEY_BRANCH_NEW),
         "mapper66 no-key branch",
         KEY_CELL_VALUE_NO_KEY_BRANCH_OFF,
-    )
-    _require_patch_value(
-        rom_data[SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF],
-        preserve_values,
-        "mapper66 special-ID preserve branch",
-        SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF,
     )
     off = RUNTIME_BLOCK_LIST_COPY_PATCH_OFF
     ln = RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_LEN
