@@ -2,6 +2,12 @@
 
 ## v0.9.39 (2026-07-18) 強化敵runtimeとピッカー表示を統合
 
+### 重要：旧バージョンで作成したデータの互換性について
+v0.9.39では、追加敵IDおよびruntime配置に破壊的な変更が行われました。v0.9.39より前のバージョンで作成したROMに配置・設定されている追加敵IDは、正しく引き継がれない場合があります。元の日本版ROMから新しくROMを作成し、追加敵を配置・設定し直してください。
+
+### Important: Compatibility of Data Created with Older Versions
+In v0.9.39, breaking changes were made to additional enemy IDs and runtime placement. Additional enemy IDs placed or configured in ROMs created with versions earlier than v0.9.39 may not be carried over correctly. Create a new ROM from the original Japanese ROM, then place and configure the additional enemies again.
+
 ### 強化敵・新敵runtime
 - 強化GhostをA-Fの6group・12IDへ拡張し、移動速度、発射間隔、弾速、発射方向をgroupごとに設定できるようにした。
 - 強化Neul A/Bの4ID、Chaos Dragon `$9E`、Enhanced Gargoyle A/B、Enhanced Saramandor A/B/Cを現行の新敵ID共通入口センターへ統合した。
