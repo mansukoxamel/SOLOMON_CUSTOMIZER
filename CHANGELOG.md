@@ -1,5 +1,28 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.39 (2026-07-18) 強化敵runtimeとピッカー表示を統合
+
+### 強化敵・新敵runtime
+- 強化GhostをA-Fの6group・12IDへ拡張し、移動速度、発射間隔、弾速、発射方向をgroupごとに設定できるようにした。
+- 強化Neul A/Bの4ID、Chaos Dragon `$9E`、Enhanced Gargoyle A/B、Enhanced Saramandor A/B/Cを現行の新敵ID共通入口センターへ統合した。
+- Enhanced Gargoyleの本体速度、弾速、連射間隔、LIFEによる発射数と、Enhanced Saramandorの本体速度、炎速度、発射間隔を個別に設定できるようにした。
+- Ice Burnを敵ID `$82` へ整理し、Red Burnの消滅時に鍵を生成する処理を追加した。使用を終了した実験敵と借用ID処理は削除した。
+
+### Panel Monster・Spark Ball・Phantom
+- Panel MonsterをA-D、2-way、3-wayの専用24IDへ移行し、通常Panel Monsterを含む発射方向・速度・弾処理を共通runtimeへ統合した。
+- Spark Ballを停止、透明、停止後反転の3系統・24IDとして実装し、速度切替、アニメーション、配置後の表示を揃えた。
+- Phantom presetをA-Dの4group・16IDへ拡張し、進行速度、振幅、sine開始位置を設定可能にした。
+
+### ピッカー・キャンバス・PNG表示
+- 強化敵のピッカー順序と青／黄フィルター分類を整理し、Panel Monster、Spark Ball、Enhanced Ghost、Enhanced Neulなどの表示を統一した。
+- フィルター合成を1つの共通処理へ集約し、透明ピクセルを変更せず通常スプライト部分だけを着色するよう修正した。
+- メインピッカー、ミラー敵セット、キャンバス、ステージPNG、サムネイル、敵ドロップ、統計、改造画面で同じフィルター処理を使うようにした。
+
+### ツール・ROM管理
+- 画像をステージのブロックgridへ変換する調整可能な画像変換ツールを追加した。
+- JP mapper66 ROM管理簿を現行runtimeの正規配置へ再構築し、ROM領域重複、管理簿と`RESERVED_SPANS`、敵IDとruntime登録を一括検査する整合性チェッカーを追加した。
+- 新敵入口、各runtime、設定表と空き範囲を詰め直し、現行ROMで使用していない予約を解放した。
+
 ## v0.9.38 (2026-07-12) 青鍵で女王様を召喚
 - 青鍵アイテム `$1A` の取得時に、原作の妖精spawn予約を使ってFairy Princess `$1D` を扉位置へ召喚するようにした。
 - 敵スロットが満杯の場合も空きができるまで予約を保持し、通常のベルによるFairy `$1C` 生成と共存するよう `$0087 bit1` で次の生成種別を区別した。
