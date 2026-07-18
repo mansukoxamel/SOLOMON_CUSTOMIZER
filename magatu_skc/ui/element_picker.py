@@ -428,10 +428,12 @@ def enemy_picker_overlay_color(enemy_no: int) -> tuple[int, int, int, int] | Non
     return None
 
 
-def enemy_picker_overlay_uses_transparent_sprite(enemy_no: int) -> bool:
-    """Return whether the picker applies its overlay to sprite pixels only."""
-    code = int(enemy_no) & 0xFF
-    return code in PANEL_VARIANT_VISUAL_SOURCE and code < 0xF0
+def apply_enemy_picker_overlay(source: QImage, enemy_no: int) -> QImage:
+    """Apply the canonical enemy overlay without touching transparent pixels."""
+    overlay = enemy_picker_overlay_color(enemy_no)
+    if overlay is None:
+        return source
+    return tint_image_preserving_alpha(source, QColor(*overlay))
 
 
 def apply_enemy_speed(base_code: int, speed: int) -> int:
@@ -925,6 +927,7 @@ class MirrorEnemyPanel(QWidget):
                 transparent=True,
                 palette_no_override=ENEMY_PICKER_PALETTE_OVERRIDE.get(enemy_code),
             )
+            sprite = apply_enemy_picker_overlay(sprite, enemy_code)
             icon_size = self._rows[0]._icon_size if self._rows else ICON_SIZE
             bg = QImage(icon_size, icon_size, QImage.Format_ARGB32)
             bg.fill(_QC(0, 0, 0, 0))
@@ -1674,7 +1677,8 @@ class ElementPicker(QWidget):
                              transparent_background: bool = False,
                              tile_transparent: bool = False,
                              palette_no_override: int | None = None,
-                             overlay_preserve_alpha: bool = False) -> QIcon:
+                             overlay_preserve_alpha: bool = False,
+                             enemy_overlay_code: int | None = None) -> QIcon:
         """tile_definitions の tile_no から QIcon 生成
 
         skchain互換: 現在レベルのタイルセット番号を使って描画。これにより
@@ -1704,6 +1708,8 @@ class ElementPicker(QWidget):
             bg_main_color=self.current_wall_color,
             palette_no_override=palette_no_override,
         )
+        if enemy_overlay_code is not None:
+            sprite = apply_enemy_picker_overlay(sprite, enemy_overlay_code)
 
         icon_size = self._icon_size
         if transparent_background:
@@ -1835,22 +1841,12 @@ class ElementPicker(QWidget):
             return QIcon()
         visual_enemy_no = ENEMY_VISUAL_SOURCE.get(enemy_no, enemy_no)
         anim = self.config.enemy_map.get(visual_enemy_no, 0)
-        overlay = enemy_picker_overlay_color(enemy_no)
-        if enemy_picker_overlay_uses_transparent_sprite(enemy_no):
-            return self._make_icon_from_tile(
-                anim,
-                overlay_color=overlay,
-                transparent_background=True,
-                tile_transparent=True,
-                overlay_preserve_alpha=True,
-            )
         return self._make_icon_from_tile(
             anim,
-            overlay_color=overlay,
             transparent_background=True,
             tile_transparent=True,
             palette_no_override=ENEMY_PICKER_PALETTE_OVERRIDE.get(enemy_no),
-            overlay_preserve_alpha=overlay is not None,
+            enemy_overlay_code=enemy_no,
         )
 
     def _make_meta_icon(self, meta_kind: str) -> QIcon:

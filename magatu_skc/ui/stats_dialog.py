@@ -18,7 +18,12 @@ from ..core.element import Wall
 from ..core import room_flags as _rf
 from ..core import stage_ext as _se
 from ..core.i18n import t
-from .element_picker import ENEMY_VISUAL_SOURCE, ITEMS_LIST
+from .element_picker import (
+    ENEMY_PICKER_PALETTE_OVERRIDE,
+    ENEMY_VISUAL_SOURCE,
+    ITEMS_LIST,
+    apply_enemy_picker_overlay,
+)
 
 
 # ★重要アイテムの「コード一覧」のみ(=どれを集計するか・順序)。
@@ -540,7 +545,13 @@ class StatsDialog(QDialog):
         try:
             visual_code = ENEMY_VISUAL_SOURCE.get(code, code)
             anim = self.config.enemy_map.get(visual_code, 0)
-            sprite = self.tile_renderer.get_tile_image(anim, tileset_no, transparent=True)
+            sprite = self.tile_renderer.get_tile_image(
+                anim,
+                tileset_no,
+                transparent=True,
+                palette_no_override=ENEMY_PICKER_PALETTE_OVERRIDE.get(code),
+            )
+            sprite = apply_enemy_picker_overlay(sprite, code)
             bg = QImage(ITEM_THUMB, ITEM_THUMB, QImage.Format_ARGB32)
             bg.fill(QColor(20, 20, 20))
             p = QPainter(bg)

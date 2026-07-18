@@ -11,9 +11,7 @@ from ..core.element import Wall, ElementType
 from ..core.level import Level
 from .tile_renderer import TileRenderer
 from ..ui.element_picker import (
-    enemy_picker_overlay_color,
-    enemy_picker_overlay_uses_transparent_sprite,
-    tint_image_preserving_alpha,
+    apply_enemy_picker_overlay,
 )
 
 
@@ -693,27 +691,15 @@ class LevelRenderer:
                 if not (0 <= ex < c.LEVEL_W and 0 <= ey < c.LEVEL_H):
                     continue
                 anim = self.get_enemy_animation(enemy.element_no)
-                picker_overlay = (
-                    enemy_picker_overlay_color(enemy.element_no)
-                    if show_enemy_variant_overlays else None
-                )
-                enemy_transparent = (
-                    enemy_picker_overlay_uses_transparent_sprite(enemy.element_no)
-                    if picker_overlay is not None else None
-                )
                 en_img = self.tr.get_tile_image(
-                    anim, ts_no, transparent=enemy_transparent, bg_main_color=wall_color,
+                    anim, ts_no, transparent=True, bg_main_color=wall_color,
                     palette_no_override=ENEMY_PALETTE_OVERRIDE.get(enemy.element_no))
+                if show_enemy_variant_overlays:
+                    en_img = apply_enemy_picker_overlay(en_img, enemy.element_no)
                 is_key_enemy = key_enemy_img is not None and enemy_index == key_enemy_number
                 is_fairy_enemy = fairy_enemy_img is not None and enemy_index == fairy_enemy_number
                 if is_key_enemy or is_fairy_enemy:
                     en_img = self._darkened_sprite_image(en_img)
-                overlay_color = (
-                    QColor(*picker_overlay) if picker_overlay is not None else None
-                )
-                if overlay_color is not None:
-                    en_img = tint_image_preserving_alpha(
-                        en_img, overlay_color)
                 painter.drawImage(ex * tw, ey * tw, en_img)
                 if is_key_enemy:
                     painter.drawImage(ex * tw, ey * tw, key_enemy_img)

@@ -60,9 +60,21 @@ def _enemy_group_pixmap(tile_renderer, config, enemy_code: int) -> QPixmap:
     if tile_renderer is None or config is None:
         return QPixmap()
     from PyQt5.QtGui import QImage, QPainter
-    anim = config.enemy_map.get(enemy_code, 0)
+    from .element_picker import (
+        ENEMY_PICKER_PALETTE_OVERRIDE,
+        ENEMY_VISUAL_SOURCE,
+        apply_enemy_picker_overlay,
+    )
+    visual_code = ENEMY_VISUAL_SOURCE.get(enemy_code, enemy_code)
+    anim = config.enemy_map.get(visual_code, 0)
     try:
-        sprite = tile_renderer.get_tile_image(anim, 0, transparent=True)
+        sprite = tile_renderer.get_tile_image(
+            anim,
+            0,
+            transparent=True,
+            palette_no_override=ENEMY_PICKER_PALETTE_OVERRIDE.get(enemy_code),
+        )
+        sprite = apply_enemy_picker_overlay(sprite, enemy_code)
     except Exception:
         return QPixmap()
     bg = QImage(36, 36, QImage.Format_ARGB32)
