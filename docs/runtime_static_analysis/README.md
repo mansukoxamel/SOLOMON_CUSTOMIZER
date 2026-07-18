@@ -43,7 +43,7 @@
 | 18 | [Final Stage Redirect](18_final_stage_redirect.md) | `final_stage_redirect.py` | 完了（確定バグ2件） |
 | 19 | [Room Flags](19_room_flags.md) | `room_flags.py` | 完了（6502本体問題なし、確定バグ1件） |
 | 20 | [StageExt loader](20_stage_ext_loader.md) | `stage_ext.py` | 完了（6502本体問題なし、確定バグ1件） |
-| 21 | Solomon Seal Block | `solomon_seal_block.py` | 未着手 |
+| 21 | [Solomon Seal Block](21_solomon_seal_block.md) | `solomon_seal_block.py` | 完了（6502本体問題なし、確定問題2件） |
 | 22 | Stage Announcement | `stage_announcement.py` | 未着手 |
 | 23 | mapper66特殊セルloader | `m66.py` | 未着手 |
 | 24 | mapper66拡張l_a1/l_a2 | `m66_expander.py` | 未着手 |
