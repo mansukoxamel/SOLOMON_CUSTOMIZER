@@ -119,8 +119,12 @@ ENEMIES_LIST = [
     # 大型敵（sp1/sp2、Demonhead/Saramandor は sp3 もあり）
     (0x68, "Dragon (right)"),
     (0x69, "Dragon (left)"),
+    (0x6a, "Dragon color variant (right)"),
+    (0x6b, "Dragon color variant (left)"),
     (0x70, "Goblin (right)"),
     (0x71, "Goblin (left)"),
+    (0x72, "Goblin color variant (right)"),
+    (0x73, "Goblin color variant (left)"),
     (0x78, "Gargoyle (right)"),
     (0x79, "Gargoyle (left)"),
     (0x7a, "Enhanced Gargoyle A (right)"),
@@ -152,10 +156,6 @@ ENEMIES_LIST = [
     (0x29, "Fireball (left)"),
     (0x2a, "Fireball (up)"),
     (0x2b, "Fireball (down)"),
-    (0x6a, "Dragon color variant (right)"),
-    (0x6b, "Dragon color variant (left)"),
-    (0x72, "Goblin color variant (right)"),
-    (0x73, "Goblin color variant (left)"),
     (0x20, "Bullet (right)"),
     (0x21, "Bullet (left)"),
     (0x22, "Bullet (up)"),
@@ -1922,6 +1922,9 @@ class ElementPicker(QWidget):
                     continue
                 label = f"0x{code:02x} {name}"
                 self._add_picker_item(3, MODE_ENEMY, code, label, self._make_enemy_icon(code))
+                if code == 0x9E:
+                    self._add_picker_blank(3)
+                    self._add_picker_blank(3)
 
             # 各リストの高さをコンテンツに合わせる
             for lst in self._picker_lists:
@@ -1981,6 +1984,13 @@ class ElementPicker(QWidget):
         it = QListWidgetItem(icon, "")
         it.setToolTip(f"[{mode}] {label}")
         it.setData(Qt.UserRole, (mode, val))
+        it.setSizeHint(_picker_cell_size(self._icon_size))
+        self._picker_lists[category].addItem(it)
+
+    def _add_picker_blank(self, category: int):
+        """選択・ドラッグできない空白セルを追加する。"""
+        it = QListWidgetItem()
+        it.setFlags(Qt.NoItemFlags)
         it.setSizeHint(_picker_cell_size(self._icon_size))
         self._picker_lists[category].addItem(it)
 

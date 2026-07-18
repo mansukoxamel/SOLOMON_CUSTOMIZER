@@ -1,8 +1,8 @@
 """Gargoyle borrowed-ID enhanced-shot variants.
 
 JP/JPC66 only.  $7A/$7B are Enhanced Gargoyle A and $7E/$7F are Enhanced
-Gargoyle B.  Both variants use the stock speed-1 movement group and have
-independent Bullet speed, inter-shot gap, and post-shot cooldown settings.
+Gargoyle B.  Both variants have independent movement speed, Bullet speed,
+inter-shot gap, and post-shot cooldown settings.
 Both fire twice when the LIFE hundreds digit is even and three times when it
 is odd.  Normal Gargoyles retain stock behavior.
 """
@@ -34,9 +34,14 @@ CPU_CAVE_GATE = 0xE33F
 CPU_CAVE_COOLDOWN = CPU_CAVE_GATE + 0x2B
 CPU_CAVE_SECOND_SHOT = 0xED1D
 CPU_CAVE_SPEED_INIT = 0xEDA0
-CPU_CAVE_MARKER = 0xEDAF
-CPU_CAVE_COOLDOWN_COMPARE = 0xEDCE
-CPU_CAVE_INTER_SHOT_COMPARE = 0xEDDC
+CPU_CAVE_MOVEMENT_TABLE = 0xEDC9
+CPU_CAVE_MARKER = 0xEDCB
+CPU_CAVE_COOLDOWN_COMPARE = 0xEDEA
+CPU_CAVE_INTER_SHOT_COMPARE = 0xEDF8
+
+MOVEMENT_SPEED_PRESETS = (1, 2)
+MOVEMENT_SPEED_BASE_IDS = {1: 0x7A, 2: 0x7E}
+DEFAULT_MOVEMENT_SPEED = 1
 
 BULLET_SPEED_MARKER_QUARTER = 0x88
 BULLET_SPEED_MARKER_HALF = 0x89
@@ -74,12 +79,12 @@ CAVE_GATE = bytes.fromhex(
     "a0 03 b1 2e aa 09 02 91 2e 20 76 ae"
     # The shared marker helper writes $00 for normal Gargoyles and the
     # independently configured A/B marker for enhanced Gargoyles.
-    "a0 06 b1 2c 20 56 b1 20 af ed c9 00 f0 10"
+    "a0 06 b1 2c 20 56 b1 20 cb ed c9 00 f0 10"
     "a0 03 b1 2e 29 03 09 0c 91 2e a9 00 a0 01 91 2c 60"
     # Normal and A/B enhanced cooldown thresholds are stored independently.
     "a0 01 b1 2e 29 fa c9 7a f0 07"
     "e0 50 90 0b 4c 4c ae"
-    "20 ce ed 90 03 4c 4c ae 4c c1 ae"
+    "20 ea ed 90 03 4c 4c ae 4c c1 ae"
 )
 assert len(CAVE_GATE) == 71
 
@@ -88,10 +93,10 @@ CAVE_SECOND_SHOT = bytes.fromhex(
     # enters cooldown or resets the counter in state 4 when LIFE hundreds is
     # odd. State 4 waits the same interval, fires shot three, and cools down.
     "a0 01 b1 2e 29 fa c9 7a d0 5c"
-    "b1 2c 20 dc ed 90 55 20 ea b2 90 49"
+    "b1 2c 20 f8 ed 90 55 20 ea b2 90 49"
     "8a a0 06 91 2c a0 00 a9 80 91 04 a9 01 11 2c 91 2c"
     "a0 03 b1 2e 29 01 aa 20 76 ae"
-    "a0 06 b1 2c 20 56 b1 20 af ed"
+    "a0 06 b1 2c 20 56 b1 20 cb ed"
     "a0 03 b1 2e 29 10 d0 12"
     "ad 39 04 29 01 f0 0b"
     # Enter state 4 and reset sub-slot[1] from LDA #$00 so the configured
@@ -105,11 +110,15 @@ assert CAVE_SECOND_SHOT[0x52:0x55] == bytes.fromhex("4c 7c ed")
 assert CAVE_SECOND_SHOT[0x5F:0x61] == bytes.fromhex("a9 00")
 
 CAVE_SPEED_INIT = bytes.fromhex(
-    # $7E/$7F are the B identity pair, not a speed-2 pair.  Normalize only X
-    # for the stock metadata/speed initializer; the entity ID itself and the
-    # state value in A must remain unchanged.
-    "e0 7e 90 08 e0 80 b0 04 ca ca ca ca 4c c0 8a"
+    # Keep the entity ID in RAM unchanged.  Only X is changed to the selected
+    # stock speed-1 ($7A/$7B) or speed-2 ($7E/$7F) metadata pair before $8AC0.
+    f"48 e0 7a 90 20 e0 80 b0 1c 8a 29 02 f0 17"
+    f"8a 48 29 04 4a 4a a8 b9 {_word(CPU_CAVE_MOVEMENT_TABLE).hex()}"
+    "a8 68 29 01 f0 01 c8 98 aa 68 4c c0 8a"
+    "68 4c c0 8a"
 )
+assert len(CAVE_SPEED_INIT) == 41
+CAVE_MOVEMENT_TABLE = bytes((0x7A, 0x7A))
 CAVE_MARKER = bytes.fromhex(
     # Return and store $00 for normal Gargoyles, marker A for $7A/$7B, and
     # marker B for $7E/$7F.
@@ -126,11 +135,17 @@ CAVE_INTER_SHOT_COMPARE = bytes.fromhex(
 )
 CAVE_HELPERS = (
     CAVE_SPEED_INIT
+    + CAVE_MOVEMENT_TABLE
     + CAVE_MARKER
     + CAVE_COOLDOWN_COMPARE
     + CAVE_INTER_SHOT_COMPARE
 )
-assert len(CAVE_HELPERS) == 77
+assert len(CAVE_HELPERS) == 105
+assert CPU_CAVE_MOVEMENT_TABLE == CPU_CAVE_SPEED_INIT + len(CAVE_SPEED_INIT)
+assert CPU_CAVE_MARKER == CPU_CAVE_MOVEMENT_TABLE + len(CAVE_MOVEMENT_TABLE)
+assert CPU_CAVE_COOLDOWN_COMPARE == CPU_CAVE_MARKER + len(CAVE_MARKER)
+assert CPU_CAVE_INTER_SHOT_COMPARE == CPU_CAVE_COOLDOWN_COMPARE + len(CAVE_COOLDOWN_COMPARE)
+assert OFF_CAVE_HELPERS + len(CAVE_HELPERS) - 1 == 0x6E18
 
 OLD_PACKED_CAVE = bytes.fromhex(
     "a0 01 b1 2e 29 fa c9 7a f0 04 a9 00 f0 0c"
@@ -146,17 +161,21 @@ OLD_PACKED_CAVE_OFF = _cf(0xE357)
 OLD_NORMAL_COOLDOWN_OFF = OLD_PACKED_CAVE_OFF + 52 + 0x0B
 
 OFF_CAVE_COOLDOWN_NORMAL_VALUE = OFF_CAVE_GATE + CAVE_GATE.index(bytes.fromhex("e0 50")) + 1
-OFF_MARKER_B_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + 0x15
-OFF_MARKER_A_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + 0x19
-OFF_COOLDOWN_B_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + len(CAVE_MARKER) + 0x09
-OFF_COOLDOWN_A_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + len(CAVE_MARKER) + 0x0C
-OFF_INTER_SHOT_B_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + len(CAVE_MARKER) + len(CAVE_COOLDOWN_COMPARE) + 0x0B
-OFF_INTER_SHOT_A_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + len(CAVE_MARKER) + len(CAVE_COOLDOWN_COMPARE) + 0x0F
+OFF_MOVEMENT_A_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT)
+OFF_MOVEMENT_B_VALUE = OFF_MOVEMENT_A_VALUE + 1
+OFF_MARKER_B_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + len(CAVE_MOVEMENT_TABLE) + 0x15
+OFF_MARKER_A_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + len(CAVE_MOVEMENT_TABLE) + 0x19
+OFF_COOLDOWN_B_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + len(CAVE_MOVEMENT_TABLE) + len(CAVE_MARKER) + 0x09
+OFF_COOLDOWN_A_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + len(CAVE_MOVEMENT_TABLE) + len(CAVE_MARKER) + 0x0C
+OFF_INTER_SHOT_B_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + len(CAVE_MOVEMENT_TABLE) + len(CAVE_MARKER) + len(CAVE_COOLDOWN_COMPARE) + 0x0B
+OFF_INTER_SHOT_A_VALUE = OFF_CAVE_HELPERS + len(CAVE_SPEED_INIT) + len(CAVE_MOVEMENT_TABLE) + len(CAVE_MARKER) + len(CAVE_COOLDOWN_COMPARE) + 0x0F
 _GATE_MASK = bytearray(CAVE_GATE)
 _GATE_MASK[OFF_CAVE_COOLDOWN_NORMAL_VALUE - OFF_CAVE_GATE] = 0x00
 _GATE_MASK = bytes(_GATE_MASK)
 _HELPERS_MASK = bytearray(CAVE_HELPERS)
 for _off in (
+    OFF_MOVEMENT_A_VALUE,
+    OFF_MOVEMENT_B_VALUE,
     OFF_MARKER_A_VALUE,
     OFF_MARKER_B_VALUE,
     OFF_COOLDOWN_A_VALUE,
@@ -211,6 +230,18 @@ def normalize_speed_preset(value) -> int:
     return preset
 
 
+def normalize_movement_speed(value) -> int:
+    try:
+        preset = int(value)
+    except (TypeError, ValueError):
+        preset = DEFAULT_MOVEMENT_SPEED
+    if preset not in MOVEMENT_SPEED_PRESETS:
+        raise GargoyleVariantError(
+            f"unsupported Gargoyle movement speed preset: {value!r}"
+        )
+    return preset
+
+
 def normalize_cooldown(value) -> int:
     try:
         frames = int(value)
@@ -259,6 +290,8 @@ def _is_helpers_blob(blob: bytes) -> bool:
         return False
     cur = bytearray(blob[:len(CAVE_HELPERS)])
     for off in (
+        OFF_MOVEMENT_A_VALUE,
+        OFF_MOVEMENT_B_VALUE,
         OFF_MARKER_A_VALUE,
         OFF_MARKER_B_VALUE,
         OFF_COOLDOWN_A_VALUE,
@@ -278,6 +311,12 @@ def _build_gate(normal_cooldown: int) -> bytes:
 
 def _build_helpers(settings_a: dict[str, int], settings_b: dict[str, int]) -> bytes:
     body = bytearray(CAVE_HELPERS)
+    body[OFF_MOVEMENT_A_VALUE - OFF_CAVE_HELPERS] = MOVEMENT_SPEED_BASE_IDS[
+        normalize_movement_speed(settings_a["movement_speed"])
+    ]
+    body[OFF_MOVEMENT_B_VALUE - OFF_CAVE_HELPERS] = MOVEMENT_SPEED_BASE_IDS[
+        normalize_movement_speed(settings_b["movement_speed"])
+    ]
     body[OFF_MARKER_A_VALUE - OFF_CAVE_HELPERS] = _marker_for_speed_preset(settings_a["speed_preset"])
     body[OFF_MARKER_B_VALUE - OFF_CAVE_HELPERS] = _marker_for_speed_preset(settings_b["speed_preset"])
     body[OFF_COOLDOWN_A_VALUE - OFF_CAVE_HELPERS] = normalize_cooldown(settings_a["cooldown_frames"])
@@ -344,6 +383,7 @@ def current_speed_label(rom_data) -> str:
 
 def current_settings(rom_data, variant: str = "a") -> dict[str, int]:
     settings = {
+        "movement_speed": DEFAULT_MOVEMENT_SPEED,
         "speed_preset": DEFAULT_SPEED_PRESET,
         "inter_shot_frames": DEFAULT_INTER_SHOT_FRAMES,
         "cooldown_frames": DEFAULT_COOLDOWN_FRAMES,
@@ -354,14 +394,25 @@ def current_settings(rom_data, variant: str = "a") -> dict[str, int]:
     if suffix not in ("a", "b"):
         raise GargoyleVariantError(f"unsupported Gargoyle variant: {variant!r}")
     if suffix == "a":
+        movement_off = OFF_MOVEMENT_A_VALUE
         marker_off = OFF_MARKER_A_VALUE
         inter_off = OFF_INTER_SHOT_A_VALUE
         cooldown_off = OFF_COOLDOWN_A_VALUE
     else:
+        movement_off = OFF_MOVEMENT_B_VALUE
         marker_off = OFF_MARKER_B_VALUE
         inter_off = OFF_INTER_SHOT_B_VALUE
         cooldown_off = OFF_COOLDOWN_B_VALUE
     marker = int(rom_data[marker_off])
+    movement_base = int(rom_data[movement_off])
+    for preset, base_id in MOVEMENT_SPEED_BASE_IDS.items():
+        if movement_base == base_id:
+            settings["movement_speed"] = preset
+            break
+    else:
+        raise GargoyleVariantError(
+            f"unsupported Gargoyle movement-speed base ID: ${movement_base:02X}"
+        )
     settings["speed_preset"] = _speed_preset_from_marker(marker, DEFAULT_SPEED_PRESET)
     settings["inter_shot_frames"] = int(rom_data[inter_off])
     settings["cooldown_frames"] = int(rom_data[cooldown_off])
@@ -388,30 +439,39 @@ def apply(
     b_speed_preset=None,
     b_inter_shot_frames=None,
     b_cooldown_frames=None,
+    movement_speed=None,
+    b_movement_speed=None,
 ) -> list[str]:
     cur_settings = current_settings(rom_data, "a")
     cur_settings_b = current_settings(rom_data, "b")
     if speed_preset is None:
         speed_preset = cur_settings["speed_preset"]
+    if movement_speed is None:
+        movement_speed = cur_settings["movement_speed"]
     if inter_shot_frames is None:
         inter_shot_frames = cur_settings["inter_shot_frames"]
     if cooldown_frames is None:
         cooldown_frames = cur_settings["cooldown_frames"]
     speed_preset = normalize_speed_preset(speed_preset)
+    movement_speed = normalize_movement_speed(movement_speed)
     inter_shot_frames = normalize_inter_shot(inter_shot_frames)
     cooldown_frames = normalize_cooldown(cooldown_frames)
     if b_speed_preset is None:
         b_speed_preset = cur_settings_b["speed_preset"]
+    if b_movement_speed is None:
+        b_movement_speed = cur_settings_b["movement_speed"]
     if b_inter_shot_frames is None:
         b_inter_shot_frames = cur_settings_b["inter_shot_frames"]
     if b_cooldown_frames is None:
         b_cooldown_frames = cur_settings_b["cooldown_frames"]
     settings_a = {
+        "movement_speed": movement_speed,
         "speed_preset": speed_preset,
         "inter_shot_frames": inter_shot_frames,
         "cooldown_frames": cooldown_frames,
     }
     settings_b = {
+        "movement_speed": normalize_movement_speed(b_movement_speed),
         "speed_preset": normalize_speed_preset(b_speed_preset),
         "inter_shot_frames": normalize_inter_shot(b_inter_shot_frames),
         "cooldown_frames": normalize_cooldown(b_cooldown_frames),
