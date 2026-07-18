@@ -131,8 +131,12 @@ ENEMIES_LIST = [
     (0x51, "Demonhead (L)"),
     (0x5c, "Saramandor (R)"),
     (0x5d, "Saramandor (L)"),
-    (0x5e, "Saramandor #2 (R)"),
-    (0x5f, "Saramandor #2 (L)"),
+    (0x5e, "Enhanced Saramandor A (R)"),
+    (0x5f, "Enhanced Saramandor A (L)"),
+    (0x62, "Enhanced Saramandor B (R)"),
+    (0x63, "Enhanced Saramandor B (L)"),
+    (0x66, "Enhanced Saramandor C (R)"),
+    (0x67, "Enhanced Saramandor C (L)"),
     # 中型敵
     (0x34, "Ghost (right)"),
     (0x36, "Ghost (left)"),
@@ -275,9 +279,13 @@ ENEMY_SPEED_TABLE = {
     # Saramandor: +4 ずつで sp2/sp3
     0x5c: [0x5c, 0x60, 0x64],
     0x5d: [0x5d, 0x61, 0x65],
-    # Saramandor #2.
+    # Enhanced Saramandor A/B/C identities have runtime-configured movement.
     0x5e: [0x5e, None, None],
     0x5f: [0x5f, None, None],
+    0x62: [0x62, None, None],
+    0x63: [0x63, None, None],
+    0x66: [0x66, None, None],
+    0x67: [0x67, None, None],
     # Dragon: +4 で sp2
     0x68: [0x68, 0x6c, None],
     0x69: [0x69, 0x6d, None],
@@ -305,6 +313,7 @@ ENHANCED_ENEMY_CODES = {
     0x44, 0x46, 0x4c, 0x4e,  # Ghost noslow
     *range(0xE0, 0xF8),       # Panel Monster A-D / 2-way / 3-way
     0x7a, 0x7b, 0x7e, 0x7f,  # Gargoyle slow Bullet
+    0x5e, 0x5f, 0x62, 0x63, 0x66, 0x67,  # Enhanced Saramandor A/B/C
     0x9E,  # Chaos Dragon
     *range(0x84, 0x88),  # Enhanced Neul A/B direction pairs
     *range(0xB0, 0xBC),  # Enhanced Ghost A-F direction pairs
@@ -331,8 +340,8 @@ ENEMY_ENHANCE_CYCLES = (
     # Neul/Ghost: noslow is the enhanced form; borrowed #2 IDs are not used here.
     (0x30, 0x40), (0x32, 0x42), (0x38, 0x48), (0x3a, 0x4a),
     (0x34, 0x44), (0x36, 0x46), (0x3c, 0x4c), (0x3e, 0x4e),
-    # Saramandor #2.
-    (0x5c, 0x5e), (0x5d, 0x5f),
+    # Enhanced Saramandor A/B/C.
+    (0x5c, 0x5e, 0x62, 0x66), (0x5d, 0x5f, 0x63, 0x67),
     # Dragon/Goblin color variants restored after releasing borrowed Spark IDs.
     (0x68, 0x6a), (0x69, 0x6b), (0x6c, 0x6e), (0x6d, 0x6f),
     (0x70, 0x72), (0x71, 0x73), (0x74, 0x76), (0x75, 0x77),
@@ -351,10 +360,10 @@ ENEMY_ENHANCE_NEXT = {
     for cycle in ENEMY_ENHANCE_CYCLES
     for idx, code in enumerate(cycle)
 }
-# Enhancing a stock speed-2/3 enemy selects the enhanced speed-1 identity.
+# Enhancing a stock speed-2/3 enemy selects the matching enhanced identity.
 ENEMY_ENHANCE_NEXT.update({
-    0x60: 0x5E, 0x61: 0x5F,
-    0x64: 0x5E, 0x65: 0x5F,
+    0x60: 0x62, 0x61: 0x63,
+    0x64: 0x66, 0x65: 0x67,
     0x7C: 0x7A, 0x7D: 0x7B,
 })
 
@@ -373,6 +382,7 @@ ENEMY_VISUAL_SOURCE = {
     **PANEL_VARIANT_VISUAL_SOURCE,
     0x5E: 0x5C, 0x5F: 0x5D,
     0x62: 0x60, 0x63: 0x61,
+    0x66: 0x64, 0x67: 0x65,
     **{
         code: (0x2C if (code & 0x04) else 0x28) + (code & 0x03)
         for code in range(0xC0, 0xD8)
@@ -390,6 +400,7 @@ ENEMY_VISUAL_SOURCE = {
 ENEMY_PICKER_PALETTE_OVERRIDE = {
     0x5E: 6, 0x5F: 6,
     0x62: 6, 0x63: 6,
+    0x66: 6, 0x67: 6,
     0x6A: 6, 0x6B: 6,  # Dragon color variant speed 1 uses SPR #2.
     0x72: 6, 0x73: 6,  # Goblin color variant speed 1 uses SPR #2.
     **{code: 6 for code in range(0xA0, 0xB0)},

@@ -3,9 +3,12 @@
 JP/JPC66 only.  This patch makes the unused Saramandor #2 IDs act as a
 clean variant without changing the global Bullet speed table:
 
-  $5E/$5F -> Bullet, movement speed 1, configurable flame speed/re-fire wait/
-              post-fire stop
-  $62-$67 -> stock behavior
+  $5E/$5F -> Enhanced Saramandor A
+  $62/$63 -> Enhanced Saramandor B
+  $66/$67 -> Enhanced Saramandor C
+
+Each identity has independent movement speed, flame speed, re-fire wait, and
+post-fire stop settings.
 
 Those active #2 IDs also use a 6-tile horizontal Dana reaction range.  The
 stock Saramandor/Dragon shared distance check remains at the original range.
@@ -55,9 +58,9 @@ CPU_CAVE_SUBSTATUS = 0xE3ED
 CPU_CAVE_FLAME_BEHAVIOR = 0xE402
 CPU_CAVE_DISTANCE_CHECK = 0xE40B
 CPU_CAVE_CHILD_MARK = 0xE430
-CPU_CAVE_REFIRE_WAIT = 0xE444
-CPU_CAVE_IS_ENHANCED = 0xE45A
-CPU_CAVE_FIRE_STATE_EXIT = 0xE462
+CPU_CAVE_REFIRE_WAIT = 0xE448
+CPU_CAVE_FIRE_STATE_EXIT = 0xE465
+CPU_CAVE_EXTENSION = 0xE9A9
 
 HOOK_SPAWN_SETUP = bytes((0x20, *(_word(CPU_CAVE_SPAWN_SETUP)))) + bytes([0xEA] * 11)
 HOOK_SUBSTATUS = bytes((0x20, *(_word(CPU_CAVE_SUBSTATUS)))) + bytes([0xEA] * 4)
@@ -77,8 +80,14 @@ OFF_CAVE_SUBSTATUS = _cf(CPU_CAVE_SUBSTATUS)
 OFF_CAVE_FLAME_BEHAVIOR = _cf(CPU_CAVE_FLAME_BEHAVIOR)
 OFF_CAVE_DISTANCE_CHECK = _cf(CPU_CAVE_DISTANCE_CHECK)
 OFF_CAVE_CHILD_MARK = _cf(CPU_CAVE_CHILD_MARK)
-OFF_CAVE_IS_ENHANCED = _cf(CPU_CAVE_IS_ENHANCED)
 OFF_CAVE_FIRE_STATE_EXIT = _cf(CPU_CAVE_FIRE_STATE_EXIT)
+OFF_CAVE_EXTENSION = _cf(CPU_CAVE_EXTENSION)
+
+VARIANT_COUNT = 3
+VARIANT_NAMES = ("A", "B", "C")
+MOVEMENT_SPEED_PRESETS = (1, 2, 3)
+DEFAULT_MOVEMENT_SPEEDS = (1, 2, 3)
+MOVEMENT_SPEED_BASE_IDS = {1: 0x5E, 2: 0x62, 3: 0x66}
 
 SPEED_PRESET_QUARTER = 0
 SPEED_PRESET_HALF = 1
@@ -103,9 +112,9 @@ MIN_POST_FIRE_STOP = ORIGINAL_POST_FIRE_STOP
 MAX_POST_FIRE_STOP = 0xFF - FLAME_SPAWN_COUNTER
 
 CAVE_SPAWN_SETUP = bytes.fromhex(
-    # Only parent type $5E/$5F spawns Bullet type $20.
+    # Only Enhanced Saramandor A/B/C spawns Bullet type $20.
     # Otherwise reproduce the original Flame setup.
-    f"20 {_word(CPU_CAVE_IS_ENHANCED).hex()} d0 10"
+    f"20 {_word(CPU_CAVE_EXTENSION + 42).hex()} f0 10"
     "a9 20 85 05 a9 c0 85 04 a0 03 b1 2e 29 01 aa 60"
     "a9 04 85 05 a9 c6 85 04 66 02 a9 05 2a aa 60"
 )
@@ -115,7 +124,7 @@ CAVE_SUBSTATUS = bytes.fromhex(
     # Original: JSR $B0D9 / ORA #$02 / STA ($00),Y.
     # For Bullet variants, skip ORA #$02.  The shared ID helper returns Y=1;
     # DEY restores the original child-status index Y=0 before the write.
-    f"20 d9 b0 48 20 {_word(CPU_CAVE_IS_ENHANCED).hex()} d0 05"
+    f"20 d9 b0 48 20 {_word(CPU_CAVE_EXTENSION + 42).hex()} f0 05"
     "68 88 91 00 60"
     "68 09 02 88 91 00 60"
 )
@@ -123,34 +132,30 @@ assert len(CAVE_SUBSTATUS) == 21
 
 CAVE_FLAME_BEHAVIOR = bytes.fromhex(
     # For Bullet variants, do not run the Flame-specific behavior setup.
-    f"20 {_word(CPU_CAVE_IS_ENHANCED).hex()} d0 01 60"
+    f"20 {_word(CPU_CAVE_EXTENSION + 42).hex()} f0 01 60"
     "4c 5e b0"
 )
 assert len(CAVE_FLAME_BEHAVIOR) == 9
 
 CAVE_DISTANCE_CHECK = bytes.fromhex(
     # Replacement for SUB_B1E9.
-    # #2 Saramandor IDs $5E/$5F get X threshold $60 (6 tiles).
+    # Enhanced A/B/C IDs get X threshold $60 (6 tiles).
     # Everything else, including stock Saramandor and Dragon, uses $14.
     "a0 05 b1 2c 0a b0 02 49 ff aa"
-    f"20 {_word(CPU_CAVE_IS_ENHANCED).hex()} d0 06"
+    f"20 {_word(CPU_CAVE_EXTENSION + 42).hex()} f0 06"
     "e0 60 b0 11 d0 04"
     "e0 14 b0 0b"
     "a0 04 b1 2c 0a b0 02 49 ff c9 10 60"
 )
 assert len(CAVE_DISTANCE_CHECK) == 37
 CAVE_CHILD_MARK = bytes.fromhex(
-    # Enhanced Saramandor $5E/$5F writes its selected speed marker to the
-    # spawned Bullet's sub-slot[7].  $B156 preserves Y=7, and $B124 replaces
-    # A/X/Y before using them, so no register save block is needed here.
-    f"20 1c 9d 20 {_word(CPU_CAVE_IS_ENHANCED).hex()} d0 0b"
-    "a0 07 b1 2c 20 56 b1 a9 00 91 00 60"
+    # Enhanced Saramandor A/B/C writes its selected flame-speed marker to the
+    # spawned Bullet's sub-slot[7].  Preserve the A/B/C selector on the stack
+    # because $B156 replaces A/X/Y while finding the child slot.
+    f"20 1c 9d 20 {_word(CPU_CAVE_EXTENSION + 42).hex()} f0 10"
+    f"48 a0 07 b1 2c 20 56 b1 68 aa bd {_word(CPU_CAVE_EXTENSION + 74).hex()} 91 00 60"
 )
-assert len(CAVE_CHILD_MARK) == 20
-OFF_CAVE_SPEED_MARKER_VALUE = OFF_CAVE_CHILD_MARK + 0x10
-_CHILD_MARK_MASK = bytearray(CAVE_CHILD_MARK)
-_CHILD_MARK_MASK[OFF_CAVE_SPEED_MARKER_VALUE - OFF_CAVE_CHILD_MARK] = 0x00
-_CHILD_MARK_MASK = bytes(_CHILD_MARK_MASK)
+assert len(CAVE_CHILD_MARK) == 24
 CAVE_REFIRE_WAIT = bytes.fromhex(
     # Replacement for $B17B-$B182.  Before the first attack sub-slot[7] is
     # zero, so Enhanced Saramandor retains the stock #$20 threshold.  Entering
@@ -158,46 +163,56 @@ CAVE_REFIRE_WAIT = bytes.fromhex(
     # sub-slot[7]; subsequent attacks use the configured 1-255 threshold.
     # Stock IDs always retain #$20.
     "a0 01 b1 2c aa"
-    f"20 {_word(CPU_CAVE_IS_ENHANCED).hex()} d0 09"
-    "a0 07 b1 2c f0 03"
-    "e0 20 60"
-    "e0 20 60"
+    f"20 {_word(CPU_CAVE_EXTENSION + 42).hex()} f0 0f"
+    "48 a0 07 b1 2c f0 07"
+    f"68 a8 8a d9 {_word(CPU_CAVE_EXTENSION + 77).hex()} 60"
+    "68 8a c9 20 60"
 )
-assert len(CAVE_REFIRE_WAIT) == 22
-assert CAVE_REFIRE_WAIT[8:10] == bytes.fromhex("d0 09")
-assert CAVE_REFIRE_WAIT[14:16] == bytes.fromhex("f0 03")
-assert CAVE_REFIRE_WAIT[16] == 0xE0
-assert CAVE_REFIRE_WAIT[19:21] == bytes.fromhex("e0 20")
+assert len(CAVE_REFIRE_WAIT) == 29
 OFF_CAVE_REFIRE_WAIT = _cf(CPU_CAVE_REFIRE_WAIT)
-OFF_CAVE_REFIRE_WAIT_VALUE = OFF_CAVE_REFIRE_WAIT + 0x11
-_REFIRE_WAIT_MASK = bytearray(CAVE_REFIRE_WAIT)
-_REFIRE_WAIT_MASK[OFF_CAVE_REFIRE_WAIT_VALUE - OFF_CAVE_REFIRE_WAIT] = 0x00
-_REFIRE_WAIT_MASK = bytes(_REFIRE_WAIT_MASK)
-CAVE_IS_ENHANCED = bytes.fromhex("a0 01 b1 2e 49 5e 4a 60")
-assert len(CAVE_IS_ENHANCED) == 8
 CAVE_FIRE_STATE_EXIT = bytes.fromhex(
-    # $B0B3 replacement.  Stock IDs retain CPX #$34.  Enhanced $5E/$5F
+    # $B0B3 replacement.  Stock IDs retain CPX #$34.  Enhanced A/B/C
     # compare against flame spawn $18 + configured post-fire stop.  Waiting
     # jumps to the original RTS; expiry enters the untouched cleanup/state-5
     # transition, which reloads the correct directional walk speed next NMI.
-    f"20 {_word(CPU_CAVE_IS_ENHANCED).hex()} f0 08"
-    "e0 34 90 08 88 4c b7 b0"
-    "e0 34 b0 f8 4c d8 b0"
+    f"20 {_word(CPU_CAVE_EXTENSION + 42).hex()} f0 0c"
+    f"a8 8a d9 {_word(CPU_CAVE_EXTENSION + 80).hex()} 90 0e a0 00 4c b7 b0"
+    "e0 34 90 05 a0 00 4c b7 b0 4c d8 b0"
 )
-assert len(CAVE_FIRE_STATE_EXIT) == 20
-OFF_CAVE_POST_FIRE_STOP_END_VALUE = OFF_CAVE_FIRE_STATE_EXIT + 0x0E
-_FIRE_STATE_EXIT_MASK = bytearray(CAVE_FIRE_STATE_EXIT)
-_FIRE_STATE_EXIT_MASK[
-    OFF_CAVE_POST_FIRE_STOP_END_VALUE - OFF_CAVE_FIRE_STATE_EXIT
-] = 0x00
-_FIRE_STATE_EXIT_MASK = bytes(_FIRE_STATE_EXIT_MASK)
+assert len(CAVE_FIRE_STATE_EXIT) == 29
+
+# $E9A9 extension: movement-speed normalization, A/B/C classifier, then four
+# compact three-byte parameter columns.  Only these 84 bytes are reserved.
+CPU_CAVE_GROUP = CPU_CAVE_EXTENSION + 42
+CPU_CAVE_PARAM_TABLE = CPU_CAVE_EXTENSION + 72
+OFF_CAVE_PARAM_TABLE = _cf(CPU_CAVE_PARAM_TABLE)
+PARAM_MOVEMENT = 0
+PARAM_FLAME = 3
+PARAM_REFIRE = 6
+PARAM_STOP_END = 9
+
+CAVE_SPEED_INIT = bytes.fromhex(
+    f"48 e0 5e 90 21 e0 68 b0 1d 8a 29 02 f0 18"
+    f"8a 48 38 e9 5e 4a 4a a8 b9 {_word(CPU_CAVE_PARAM_TABLE).hex()}"
+    "a8 68 29 01 f0 01 c8 98 aa 68 4c a0 ed"
+    "68 4c a0 ed"
+)
+assert len(CAVE_SPEED_INIT) == 42
+CAVE_GROUP = bytes.fromhex(
+    "a0 01 b1 2e 38 e9 5e c9 0a b0 10"
+    "48 29 02 f0 04 68 a9 00 60"
+    "68 4a 4a 18 69 01 60 a9 00 60"
+)
+assert len(CAVE_GROUP) == 30
+assert CPU_CAVE_PARAM_TABLE == 0xE9F1
+assert OFF_CAVE_EXTENSION + 84 - 1 == 0x6A0C
 assert CPU_CAVE_SUBSTATUS == CPU_CAVE_SPAWN_SETUP + len(CAVE_SPAWN_SETUP)
 assert CPU_CAVE_FLAME_BEHAVIOR == CPU_CAVE_SUBSTATUS + len(CAVE_SUBSTATUS)
 assert CPU_CAVE_DISTANCE_CHECK == CPU_CAVE_FLAME_BEHAVIOR + len(CAVE_FLAME_BEHAVIOR)
 assert CPU_CAVE_CHILD_MARK == CPU_CAVE_DISTANCE_CHECK + len(CAVE_DISTANCE_CHECK)
 assert CPU_CAVE_REFIRE_WAIT == CPU_CAVE_CHILD_MARK + len(CAVE_CHILD_MARK)
-assert CPU_CAVE_IS_ENHANCED == CPU_CAVE_REFIRE_WAIT + len(CAVE_REFIRE_WAIT)
-assert CPU_CAVE_FIRE_STATE_EXIT == CPU_CAVE_IS_ENHANCED + len(CAVE_IS_ENHANCED)
+assert CPU_CAVE_FIRE_STATE_EXIT == CPU_CAVE_REFIRE_WAIT + len(CAVE_REFIRE_WAIT)
+assert OFF_CAVE_FIRE_STATE_EXIT + len(CAVE_FIRE_STATE_EXIT) - 1 == 0x6491
 
 RESERVED_SPANS = (
     (
@@ -211,9 +226,9 @@ RESERVED_SPANS = (
         OFF_CAVE_CHILD_MARK,
         len(CAVE_CHILD_MARK)
         + len(CAVE_REFIRE_WAIT)
-        + len(CAVE_IS_ENHANCED)
         + len(CAVE_FIRE_STATE_EXIT),
     ),
+    (OFF_CAVE_EXTENSION, 84),
 )
 
 
@@ -268,37 +283,70 @@ def _speed_preset_from_marker(marker: int) -> int:
     )
 
 
-def _is_child_mark_blob(blob: bytes) -> bool:
-    if len(blob) < len(CAVE_CHILD_MARK):
-        return False
-    current = bytearray(blob[:len(CAVE_CHILD_MARK)])
-    current[OFF_CAVE_SPEED_MARKER_VALUE - OFF_CAVE_CHILD_MARK] = 0x00
-    return bytes(current) == _CHILD_MARK_MASK
+def normalize_movement_speed(value) -> int:
+    try:
+        preset = int(value)
+    except (TypeError, ValueError) as exc:
+        raise SaramandorVariantError(
+            "Enhanced Saramandor movement speed must be numeric."
+        ) from exc
+    if preset not in MOVEMENT_SPEED_PRESETS:
+        raise SaramandorVariantError(
+            f"unsupported Enhanced Saramandor movement speed: {value!r}"
+        )
+    return preset
 
 
-def current_speed_preset(rom_data) -> int:
-    if rom_data is None or len(rom_data) < OFF_CAVE_CHILD_MARK + len(CAVE_CHILD_MARK):
-        raise SaramandorVariantError("ROM is too short for Saramandor variant patch.")
-    hook = bytes(rom_data[OFF_HOOK_CHILD_MARK:OFF_HOOK_CHILD_MARK + len(ORIG_CHILD_MARK)])
-    if hook in (ORIG_CHILD_MARK, BAD_HOOK_CHILD_MARK_CLEANUP):
+def _variant_index(variant) -> int:
+    try:
+        index = int(variant)
+    except (TypeError, ValueError) as exc:
+        raise SaramandorVariantError("invalid Enhanced Saramandor variant") from exc
+    if not (0 <= index < VARIANT_COUNT):
+        raise SaramandorVariantError("invalid Enhanced Saramandor variant")
+    return index
+
+
+def _original_or_hook(rom_data, off: int, original: bytes, hook: bytes) -> bool:
+    current = bytes(rom_data[off:off + len(original)])
+    if current == original:
+        return True
+    if current != hook:
+        raise SaramandorVariantError(
+            f"Saramandor signature mismatch at file 0x{off:X}: got {current.hex(' ')}"
+        )
+    return False
+
+
+def _require_extension(rom_data) -> None:
+    fixed = CAVE_SPEED_INIT + CAVE_GROUP
+    current = bytes(rom_data[OFF_CAVE_EXTENSION:OFF_CAVE_EXTENSION + len(fixed)])
+    if current != fixed:
+        raise SaramandorVariantError(
+            f"Enhanced Saramandor A/B/C extension mismatch at file 0x{OFF_CAVE_EXTENSION:X}."
+        )
+
+
+def current_movement_speed(rom_data, variant=0) -> int:
+    index = _variant_index(variant)
+    if _original_or_hook(rom_data, OFF_HOOK_CHILD_MARK, ORIG_CHILD_MARK, HOOK_CHILD_MARK):
+        return DEFAULT_MOVEMENT_SPEEDS[index]
+    _require_extension(rom_data)
+    raw = int(rom_data[OFF_CAVE_PARAM_TABLE + PARAM_MOVEMENT + index])
+    for preset, base_id in MOVEMENT_SPEED_BASE_IDS.items():
+        if raw == base_id:
+            return preset
+    raise SaramandorVariantError(f"unsupported movement-speed base ID: ${raw:02X}")
+
+
+def current_speed_preset(rom_data, variant=0) -> int:
+    index = _variant_index(variant)
+    if _original_or_hook(rom_data, OFF_HOOK_CHILD_MARK, ORIG_CHILD_MARK, HOOK_CHILD_MARK):
         return DEFAULT_SPEED_PRESET
-    if hook != HOOK_CHILD_MARK:
-        raise SaramandorVariantError(
-            f"$B121 signature mismatch at file 0x{OFF_HOOK_CHILD_MARK:X}: "
-            f"got {hook.hex(' ')}"
-        )
-    blob = bytes(rom_data[OFF_CAVE_CHILD_MARK:OFF_CAVE_CHILD_MARK + len(CAVE_CHILD_MARK)])
-    if not _is_child_mark_blob(blob):
-        raise SaramandorVariantError(
-            f"Enhanced Saramandor speed helper mismatch at file 0x{OFF_CAVE_CHILD_MARK:X}."
-        )
-    return _speed_preset_from_marker(rom_data[OFF_CAVE_SPEED_MARKER_VALUE])
-
-
-def _build_child_mark(speed_preset: int) -> bytes:
-    body = bytearray(CAVE_CHILD_MARK)
-    body[OFF_CAVE_SPEED_MARKER_VALUE - OFF_CAVE_CHILD_MARK] = _marker_for_speed_preset(speed_preset)
-    return bytes(body)
+    _require_extension(rom_data)
+    return _speed_preset_from_marker(
+        rom_data[OFF_CAVE_PARAM_TABLE + PARAM_FLAME + index]
+    )
 
 
 def normalize_post_fire_stop(value) -> int:
@@ -316,54 +364,15 @@ def normalize_post_fire_stop(value) -> int:
     return frames
 
 
-def _is_fire_state_exit_blob(blob: bytes) -> bool:
-    if len(blob) < len(CAVE_FIRE_STATE_EXIT):
-        return False
-    current = bytearray(blob[:len(CAVE_FIRE_STATE_EXIT)])
-    current[
-        OFF_CAVE_POST_FIRE_STOP_END_VALUE - OFF_CAVE_FIRE_STATE_EXIT
-    ] = 0x00
-    return bytes(current) == _FIRE_STATE_EXIT_MASK
-
-
-def current_post_fire_stop(rom_data) -> int:
-    if rom_data is None or len(rom_data) < OFF_CAVE_FIRE_STATE_EXIT + len(CAVE_FIRE_STATE_EXIT):
-        raise SaramandorVariantError("ROM is too short for Saramandor variant patch.")
-    hook = bytes(
-        rom_data[
-            OFF_HOOK_FIRE_STATE_EXIT:
-            OFF_HOOK_FIRE_STATE_EXIT + len(ORIG_FIRE_STATE_EXIT)
-        ]
-    )
-    if hook == ORIG_FIRE_STATE_EXIT:
+def current_post_fire_stop(rom_data, variant=0) -> int:
+    index = _variant_index(variant)
+    if _original_or_hook(
+        rom_data, OFF_HOOK_FIRE_STATE_EXIT, ORIG_FIRE_STATE_EXIT, HOOK_FIRE_STATE_EXIT
+    ):
         return ORIGINAL_POST_FIRE_STOP
-    if hook != HOOK_FIRE_STATE_EXIT:
-        raise SaramandorVariantError(
-            f"Saramandor fire-state exit hook mismatch at "
-            f"file 0x{OFF_HOOK_FIRE_STATE_EXIT:X}: "
-            f"got {hook.hex(' ')}"
-        )
-    blob = bytes(
-        rom_data[
-            OFF_CAVE_FIRE_STATE_EXIT:
-            OFF_CAVE_FIRE_STATE_EXIT + len(CAVE_FIRE_STATE_EXIT)
-        ]
-    )
-    if not _is_fire_state_exit_blob(blob):
-        raise SaramandorVariantError(
-            f"Enhanced Saramandor fire-state exit helper mismatch at "
-            f"file 0x{OFF_CAVE_FIRE_STATE_EXIT:X}."
-        )
-    end_counter = int(rom_data[OFF_CAVE_POST_FIRE_STOP_END_VALUE])
+    _require_extension(rom_data)
+    end_counter = int(rom_data[OFF_CAVE_PARAM_TABLE + PARAM_STOP_END + index])
     return normalize_post_fire_stop(end_counter - FLAME_SPAWN_COUNTER)
-
-
-def _build_fire_state_exit(post_fire_stop: int) -> bytes:
-    body = bytearray(CAVE_FIRE_STATE_EXIT)
-    body[OFF_CAVE_POST_FIRE_STOP_END_VALUE - OFF_CAVE_FIRE_STATE_EXIT] = (
-        FLAME_SPAWN_COUNTER + normalize_post_fire_stop(post_fire_stop)
-    )
-    return bytes(body)
 
 
 def normalize_refire_wait(value) -> int:
@@ -381,55 +390,19 @@ def normalize_refire_wait(value) -> int:
     return counter
 
 
-def _is_refire_wait_blob(blob: bytes) -> bool:
-    if len(blob) < len(CAVE_REFIRE_WAIT):
-        return False
-    current = bytearray(blob[:len(CAVE_REFIRE_WAIT)])
-    current[OFF_CAVE_REFIRE_WAIT_VALUE - OFF_CAVE_REFIRE_WAIT] = 0x00
-    return bytes(current) == _REFIRE_WAIT_MASK
-
-
-def current_refire_wait(rom_data) -> int:
-    if rom_data is None or len(rom_data) < OFF_CAVE_REFIRE_WAIT + len(CAVE_REFIRE_WAIT):
-        raise SaramandorVariantError("ROM is too short for Saramandor variant patch.")
-    hook = bytes(
-        rom_data[
-            OFF_HOOK_REFIRE_WAIT:
-            OFF_HOOK_REFIRE_WAIT + len(ORIG_REFIRE_WAIT)
-        ]
-    )
-    if hook == ORIG_REFIRE_WAIT:
+def current_refire_wait(rom_data, variant=0) -> int:
+    index = _variant_index(variant)
+    if _original_or_hook(rom_data, OFF_HOOK_REFIRE_WAIT, ORIG_REFIRE_WAIT, HOOK_REFIRE_WAIT):
         return ORIGINAL_REFIRE_WAIT
-    if hook != HOOK_REFIRE_WAIT:
-        raise SaramandorVariantError(
-            f"Saramandor re-fire wait mismatch at file 0x{OFF_HOOK_REFIRE_WAIT:X}: "
-            f"got {hook.hex(' ')}"
-        )
-    blob = bytes(
-        rom_data[
-            OFF_CAVE_REFIRE_WAIT:
-            OFF_CAVE_REFIRE_WAIT + len(CAVE_REFIRE_WAIT)
-        ]
+    _require_extension(rom_data)
+    return normalize_refire_wait(
+        rom_data[OFF_CAVE_PARAM_TABLE + PARAM_REFIRE + index]
     )
-    if not _is_refire_wait_blob(blob):
-        raise SaramandorVariantError(
-            f"Enhanced Saramandor re-fire helper mismatch at "
-            f"file 0x{OFF_CAVE_REFIRE_WAIT:X}."
-        )
-    return normalize_refire_wait(rom_data[OFF_CAVE_REFIRE_WAIT_VALUE])
-
-
-def _build_refire_wait(value: int) -> bytes:
-    body = bytearray(CAVE_REFIRE_WAIT)
-    body[OFF_CAVE_REFIRE_WAIT_VALUE - OFF_CAVE_REFIRE_WAIT] = (
-        normalize_refire_wait(value)
-    )
-    return bytes(body)
 
 
 def _ensure_child_mark_available(rom_data) -> None:
     current = bytes(rom_data[OFF_CAVE_CHILD_MARK:OFF_CAVE_CHILD_MARK + len(CAVE_CHILD_MARK)])
-    if _is_child_mark_blob(current) or all(value in (0x00, 0xEA) for value in current):
+    if current == CAVE_CHILD_MARK or all(value in (0x00, 0xEA) for value in current):
         return
     raise SaramandorVariantError(
         f"Enhanced Saramandor speed helper area is occupied at file 0x{OFF_CAVE_CHILD_MARK:X}."
@@ -443,7 +416,7 @@ def _ensure_refire_wait_available(rom_data) -> None:
             OFF_CAVE_REFIRE_WAIT + len(CAVE_REFIRE_WAIT)
         ]
     )
-    if _is_refire_wait_blob(current) or all(value in (0x00, 0xEA) for value in current):
+    if current == CAVE_REFIRE_WAIT or all(value in (0x00, 0xEA) for value in current):
         return
     raise SaramandorVariantError(
         f"Enhanced Saramandor re-fire helper area is occupied at "
@@ -452,52 +425,81 @@ def _ensure_refire_wait_available(rom_data) -> None:
 
 
 def _ensure_fire_state_exit_available(rom_data) -> None:
-    current_id = bytes(
-        rom_data[OFF_CAVE_IS_ENHANCED:OFF_CAVE_IS_ENHANCED + len(CAVE_IS_ENHANCED)]
-    )
     current_exit = bytes(
         rom_data[
             OFF_CAVE_FIRE_STATE_EXIT:
             OFF_CAVE_FIRE_STATE_EXIT + len(CAVE_FIRE_STATE_EXIT)
         ]
     )
-    id_available = current_id == CAVE_IS_ENHANCED or all(
-        value in (0x00, 0xEA) for value in current_id
-    )
-    exit_available = _is_fire_state_exit_blob(current_exit) or all(
+    exit_available = current_exit == CAVE_FIRE_STATE_EXIT or all(
         value in (0x00, 0xEA) for value in current_exit
     )
-    if id_available and exit_available:
+    if exit_available:
         return
     raise SaramandorVariantError(
         f"Enhanced Saramandor post-fire stop area is occupied at "
-        f"file 0x{OFF_CAVE_IS_ENHANCED:X}."
+        f"file 0x{OFF_CAVE_FIRE_STATE_EXIT:X}."
     )
+
+
+def _ensure_extension_available(rom_data) -> None:
+    current = bytes(rom_data[OFF_CAVE_EXTENSION:OFF_CAVE_EXTENSION + 84])
+    fixed = CAVE_SPEED_INIT + CAVE_GROUP
+    if current[:len(fixed)] == fixed:
+        return
+    if all(value in (0x00, 0xEA) for value in current):
+        return
+    raise SaramandorVariantError(
+        f"Enhanced Saramandor extension area is occupied at file 0x{OFF_CAVE_EXTENSION:X}."
+    )
+
+
+def _normalize_settings(variant_settings) -> list[dict[str, int]]:
+    if variant_settings is None or len(variant_settings) != VARIANT_COUNT:
+        raise SaramandorVariantError("Enhanced Saramandor requires A/B/C settings.")
+    result = []
+    for item in variant_settings:
+        result.append({
+            "movement_speed": normalize_movement_speed(item["movement_speed"]),
+            "flame_speed": normalize_speed_preset(item["flame_speed"]),
+            "refire_wait": normalize_refire_wait(item["refire_wait"]),
+            "post_fire_stop": normalize_post_fire_stop(item["post_fire_stop"]),
+        })
+    return result
+
+
+def _build_extension(variant_settings) -> bytes:
+    settings = _normalize_settings(variant_settings)
+    table = bytes(
+        [MOVEMENT_SPEED_BASE_IDS[item["movement_speed"]] for item in settings]
+        + [_marker_for_speed_preset(item["flame_speed"]) for item in settings]
+        + [item["refire_wait"] for item in settings]
+        + [FLAME_SPAWN_COUNTER + item["post_fire_stop"] for item in settings]
+    )
+    assert len(table) == 12
+    return CAVE_SPEED_INIT + CAVE_GROUP + table
 
 
 def apply(
     rom_data,
-    speed_preset=None,
-    refire_wait=None,
-    post_fire_stop=None,
+    variant_settings=None,
 ) -> list[str]:
     """Apply the always-on Saramandor variant patch."""
-    if rom_data is None or len(rom_data) < OFF_CAVE_REFIRE_WAIT + len(CAVE_REFIRE_WAIT):
+    if rom_data is None or len(rom_data) < OFF_CAVE_EXTENSION + 84:
         raise SaramandorVariantError("ROM is too short for Saramandor variant patch.")
     from . import panel_monster_stage_variant
 
-    if speed_preset is None:
-        speed_preset = current_speed_preset(rom_data)
-    speed_preset = normalize_speed_preset(speed_preset)
-    child_mark = _build_child_mark(speed_preset)
-    if refire_wait is None:
-        refire_wait = current_refire_wait(rom_data)
-    refire_wait = normalize_refire_wait(refire_wait)
-    refire_body = _build_refire_wait(refire_wait)
-    if post_fire_stop is None:
-        post_fire_stop = current_post_fire_stop(rom_data)
-    post_fire_stop = normalize_post_fire_stop(post_fire_stop)
-    fire_state_exit_body = _build_fire_state_exit(post_fire_stop)
+    if variant_settings is None:
+        variant_settings = [
+            {
+                "movement_speed": current_movement_speed(rom_data, index),
+                "flame_speed": current_speed_preset(rom_data, index),
+                "refire_wait": current_refire_wait(rom_data, index),
+                "post_fire_stop": current_post_fire_stop(rom_data, index),
+            }
+            for index in range(VARIANT_COUNT)
+        ]
+    extension = _build_extension(variant_settings)
 
     _expect_or_hooked(rom_data, OFF_HOOK_SPAWN_SETUP, ORIG_SPAWN_SETUP, HOOK_SPAWN_SETUP, "$B105")
     _expect_or_hooked(rom_data, OFF_HOOK_SUBSTATUS, ORIG_SUBSTATUS, HOOK_SUBSTATUS, "$B0A9")
@@ -542,16 +544,17 @@ def apply(
     _ensure_child_mark_available(rom_data)
     _ensure_refire_wait_available(rom_data)
     _ensure_fire_state_exit_available(rom_data)
+    _ensure_extension_available(rom_data)
 
     changed: list[str] = []
     _write_blob(rom_data, OFF_CAVE_SPAWN_SETUP, CAVE_SPAWN_SETUP, changed, "Saramandor variant cave $E3C9")
     _write_blob(rom_data, OFF_CAVE_SUBSTATUS, CAVE_SUBSTATUS, changed, "Saramandor variant cave $E3ED")
     _write_blob(rom_data, OFF_CAVE_FLAME_BEHAVIOR, CAVE_FLAME_BEHAVIOR, changed, "Saramandor variant cave $E402")
     _write_blob(rom_data, OFF_CAVE_DISTANCE_CHECK, CAVE_DISTANCE_CHECK, changed, "Saramandor variant cave $E40B")
-    _write_blob(rom_data, OFF_CAVE_CHILD_MARK, child_mark, changed, "Saramandor flame-speed helper $E430")
-    _write_blob(rom_data, OFF_CAVE_REFIRE_WAIT, refire_body, changed, "Saramandor re-fire helper $E444")
-    _write_blob(rom_data, OFF_CAVE_IS_ENHANCED, CAVE_IS_ENHANCED, changed, "Saramandor enhanced-ID helper $E45A")
-    _write_blob(rom_data, OFF_CAVE_FIRE_STATE_EXIT, fire_state_exit_body, changed, "Saramandor post-fire stop helper $E462")
+    _write_blob(rom_data, OFF_CAVE_CHILD_MARK, CAVE_CHILD_MARK, changed, "Saramandor flame-speed helper $E430")
+    _write_blob(rom_data, OFF_CAVE_REFIRE_WAIT, CAVE_REFIRE_WAIT, changed, "Saramandor re-fire helper $E448")
+    _write_blob(rom_data, OFF_CAVE_FIRE_STATE_EXIT, CAVE_FIRE_STATE_EXIT, changed, "Saramandor post-fire stop helper $E465")
+    _write_blob(rom_data, OFF_CAVE_EXTENSION, extension, changed, "Saramandor A/B/C extension $E9A9")
 
     _write_blob(rom_data, OFF_HOOK_SPAWN_SETUP, HOOK_SPAWN_SETUP, changed, "$B105 Saramandor spawn hook")
     _write_blob(rom_data, OFF_HOOK_SUBSTATUS, HOOK_SUBSTATUS, changed, "$B0A9 Saramandor substatus hook")

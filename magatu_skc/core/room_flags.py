@@ -499,7 +499,7 @@ def _verify(rom_data) -> None:
         (OFF_TEMPO, 2),                      # 暗闇テンポ
         (OFF_BW_CAVE, BW_CAVE_RESERVED_SIZE),
         (OFF_WHITE_INBLOCK_RUNTIME_EXT, len(WHITE_INBLOCK_RUNTIME_EXT)),
-        *_sv.RESERVED_SPANS,                 # Saramandor #2 bullet variant
+        *_sv.RESERVED_SPANS,                 # Enhanced Saramandor A/B/C
         *_gv.RESERVED_SPANS,                 # Gargoyle #2 slow-Bullet variant
         *_pmsv.RESERVED_SPANS,               # Panel Variant A/B/C split runtime
         *pmsv_capacity_spans,                # Panel Variant legacy tail compatibility

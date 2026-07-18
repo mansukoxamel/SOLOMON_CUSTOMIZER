@@ -217,7 +217,7 @@ OFF_FINAL_AI_DISPATCH_PANEL_HELPER = 0x64CC  # CPU $E4BC, packed runtime block
 CPU_FINAL_AI_DISPATCH_PANEL_HELPER = _cpu(OFF_FINAL_AI_DISPATCH_PANEL_HELPER)
 OFF_FINAL_PARENT_SPEED_GUARD = 0x64D8  # CPU $E4C8, packed runtime block
 CPU_FINAL_PARENT_SPEED_GUARD = _cpu(OFF_FINAL_PARENT_SPEED_GUARD)
-CPU_GARGOYLE_SPEED1_INIT = 0xEDA0
+CPU_SARAMANDOR_ABC_SPEED_INIT = 0xE9A9
 FINAL_AI_DISPATCH_PANEL_HELPER_CAPACITY = 0x0C
 FINAL_PARENT_FIELD_CLEAR_HELPER_CAPACITY = 0x11
 FINAL_PARENT_SPEED_GUARD_CAPACITY = 0x1D
@@ -559,9 +559,10 @@ def _build_parent_field_clear_helper() -> bytes:
 
 def _build_parent_speed_guard() -> bytes:
     a = _Asm()
-    # Gargoyle B ($7E/$7F) keeps its identity but uses Gargoyle A's stock
-    # speed-1 metadata group before the Panel-specific cleanup runs.
-    a.jsr(CPU_GARGOYLE_SPEED1_INIT)
+    # Enhanced Saramandor A/B/C first selects its configured stock movement
+    # group.  The wrapper then chains through the Gargoyle A/B normalizer and
+    # the original speed initializer before Panel-specific cleanup runs.
+    a.jsr(CPU_SARAMANDOR_ABC_SPEED_INIT)
     a.b(0xA0, 0x01, 0xB1, 0x08)
     a.jsr(CPU_FINAL_PANEL_TYPE_CLASSIFIER)
     a.branch(0x90, "done")
@@ -2301,9 +2302,9 @@ def _validate_pmv2_parent_runtime_contract() -> None:
             "Panel Monster v2 speed-init hook no longer enters the parent speed guard."
         )
     required_patterns = {
-        "Gargoyle-aware speed init call": (
+        "Saramandor/Gargoyle-aware speed init call": (
             FINAL_PARENT_SPEED_GUARD,
-            bytes((0x20, CPU_GARGOYLE_SPEED1_INIT & 0xFF, CPU_GARGOYLE_SPEED1_INIT >> 8)),
+            bytes((0x20, CPU_SARAMANDOR_ABC_SPEED_INIT & 0xFF, CPU_SARAMANDOR_ABC_SPEED_INIT >> 8)),
         ),
         "panel type classifier call": (
             FINAL_PARENT_SPEED_GUARD,

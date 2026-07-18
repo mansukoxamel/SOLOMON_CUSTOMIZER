@@ -1116,44 +1116,30 @@ class HackDialog(QDialog):
         )
         saramandor_variant_group.setProperty("settings_category", "敵・AI")
         svf = QFormLayout(saramandor_variant_group)
-        _setup_enemy_group(self, saramandor_variant_group, svf, 59, (0x5E,))
-        self.combo_saramandor_variant_speed = QComboBox()
-        self.spin_saramandor_refire_wait = QSpinBox()
-        self.spin_saramandor_post_fire_stop = QSpinBox()
-        self.spin_saramandor_refire_wait.setRange(
-            saramandor_variant.MIN_REFIRE_WAIT,
-            saramandor_variant.MAX_REFIRE_WAIT,
-        )
-        self.spin_saramandor_post_fire_stop.setRange(
-            saramandor_variant.MIN_POST_FIRE_STOP,
-            saramandor_variant.MAX_POST_FIRE_STOP,
-        )
-        self.spin_saramandor_post_fire_stop.setSuffix(
-            t("hack_dialog.frame.suffix", " フレーム")
-        )
-        for preset, key, label in (
-            (saramandor_variant.SPEED_PRESET_NORMAL, "normal", "通常"),
-            (saramandor_variant.SPEED_PRESET_HALF, "half", "1/2"),
-            (saramandor_variant.SPEED_PRESET_QUARTER, "quarter", "1/4"),
-        ):
-            self.combo_saramandor_variant_speed.addItem(
-                t(f"hack_dialog.saramandor_variant.speed.{key}", label),
-                preset,
-            )
+        _setup_enemy_group(self, saramandor_variant_group, svf, 59, (0x5E, 0x62, 0x66))
+        self._saramandor_variant_controls = []
         self._saramandor_variant_ok = False
         try:
-            self._set_combo_data(
-                self.combo_saramandor_variant_speed,
-                saramandor_variant.current_speed_preset(rom.data),
-            )
-            self.spin_saramandor_refire_wait.setValue(
-                saramandor_variant.current_refire_wait(rom.data)
-            )
-            self.spin_saramandor_post_fire_stop.setValue(
-                saramandor_variant.current_post_fire_stop(rom.data)
-            )
+            initial_saramandor_settings = [
+                {
+                    "movement_speed": saramandor_variant.current_movement_speed(rom.data, index),
+                    "flame_speed": saramandor_variant.current_speed_preset(rom.data, index),
+                    "refire_wait": saramandor_variant.current_refire_wait(rom.data, index),
+                    "post_fire_stop": saramandor_variant.current_post_fire_stop(rom.data, index),
+                }
+                for index in range(saramandor_variant.VARIANT_COUNT)
+            ]
             self._saramandor_variant_ok = True
         except saramandor_variant.SaramandorVariantError as e:
+            initial_saramandor_settings = [
+                {
+                    "movement_speed": saramandor_variant.DEFAULT_MOVEMENT_SPEEDS[index],
+                    "flame_speed": saramandor_variant.DEFAULT_SPEED_PRESET,
+                    "refire_wait": saramandor_variant.ORIGINAL_REFIRE_WAIT,
+                    "post_fire_stop": saramandor_variant.ORIGINAL_POST_FIRE_STOP,
+                }
+                for index in range(saramandor_variant.VARIANT_COUNT)
+            ]
             note = QLabel(
                 t("hack_dialog.disabled", "⚠ 無効: {error}").format(
                     error=str(e).splitlines()[0]
@@ -1162,31 +1148,55 @@ class HackDialog(QDialog):
             note.setWordWrap(True)
             note.setStyleSheet("color:#c33;")
             svf.addRow(note)
-            self.combo_saramandor_variant_speed.setEnabled(False)
-            self.spin_saramandor_refire_wait.setEnabled(False)
-            self.spin_saramandor_post_fire_stop.setEnabled(False)
-        svf.addRow(
-            t("hack_dialog.saramandor_variant.flame_speed.label", "炎の速度:"),
-            self.combo_saramandor_variant_speed,
-        )
-        svf.addRow(
-            t(
-                "hack_dialog.saramandor_variant.refire_wait.label",
-                "最低歩行時間:",
-            ),
-            self.spin_saramandor_refire_wait,
-        )
-        svf.addRow(
-            t(
-                "hack_dialog.saramandor_variant.post_fire_stop.label",
-                "発射後停止時間:",
-            ),
-            self.spin_saramandor_post_fire_stop,
-        )
+        for index, group_name in enumerate(saramandor_variant.VARIANT_NAMES):
+            row = QWidget()
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(6)
+
+            movement = QComboBox()
+            for preset in saramandor_variant.MOVEMENT_SPEED_PRESETS:
+                movement.addItem(
+                    t(f"hack_dialog.saramandor_variant.movement_speed.{preset}", f"速度{preset}"),
+                    preset,
+                )
+            flame = QComboBox()
+            for preset, key, label in (
+                (saramandor_variant.SPEED_PRESET_NORMAL, "normal", "通常"),
+                (saramandor_variant.SPEED_PRESET_HALF, "half", "1/2"),
+                (saramandor_variant.SPEED_PRESET_QUARTER, "quarter", "1/4"),
+            ):
+                flame.addItem(t(f"hack_dialog.saramandor_variant.speed.{key}", label), preset)
+            refire = QSpinBox()
+            refire.setRange(saramandor_variant.MIN_REFIRE_WAIT, saramandor_variant.MAX_REFIRE_WAIT)
+            stop = QSpinBox()
+            stop.setRange(saramandor_variant.MIN_POST_FIRE_STOP, saramandor_variant.MAX_POST_FIRE_STOP)
+            stop.setSuffix(t("hack_dialog.frame.suffix", " フレーム"))
+
+            values = initial_saramandor_settings[index]
+            self._set_combo_data(movement, values["movement_speed"])
+            self._set_combo_data(flame, values["flame_speed"])
+            refire.setValue(values["refire_wait"])
+            stop.setValue(values["post_fire_stop"])
+            for control in (movement, flame, refire, stop):
+                control.setEnabled(self._saramandor_variant_ok)
+
+            row_layout.addWidget(QLabel(t("hack_dialog.saramandor_variant.movement.short", "移動速度")))
+            row_layout.addWidget(movement)
+            row_layout.addWidget(QLabel(t("hack_dialog.saramandor_variant.flame.short", "炎速度")))
+            row_layout.addWidget(flame)
+            row_layout.addWidget(QLabel(t("hack_dialog.saramandor_variant.refire.short", "最低歩行")))
+            row_layout.addWidget(refire)
+            row_layout.addWidget(QLabel(t("hack_dialog.saramandor_variant.stop.short", "発射後停止")))
+            row_layout.addWidget(stop)
+            row_layout.addStretch(1)
+            first_id = 0x5E + index * 4
+            svf.addRow(f"{group_name} (${first_id:02X}-${first_id + 1:02X}):", row)
+            self._saramandor_variant_controls.append((movement, flame, refire, stop))
         svhint = QLabel(
             t(
                 "hack_dialog.saramandor_variant.hint",
-                "炎速度、最低歩行時間、発射後停止時間は、強化サラマンダー $5E/$5F だけに適用します。"
+                "移動速度、炎速度、最低歩行時間、発射後停止時間をA/B/Cごとに設定します。"
                 "最低歩行時間は1～255、原作32です。初回発射は原作32のまま、"
                 "発射後停止を終えて歩き始めた後の2回目以降だけ設定値を適用します。"
                 "ダーナが範囲外なら設定時間を過ぎても歩き続けます。"
@@ -1710,6 +1720,17 @@ class HackDialog(QDialog):
             "inter_shot_frames": int(inter_shot.value()),
             "cooldown_frames": int(cooldown.value()),
         }
+
+    def _saramandor_variant_settings_from_ui(self) -> list[dict[str, int]]:
+        return [
+            {
+                "movement_speed": int(movement.currentData()),
+                "flame_speed": int(flame.currentData()),
+                "refire_wait": int(refire.value()),
+                "post_fire_stop": int(stop.value()),
+            }
+            for movement, flame, refire, stop in self._saramandor_variant_controls
+        ]
 
     def _phantom_group_settings_from_ui(self) -> tuple[dict[str, int], ...]:
         return tuple(
@@ -2374,15 +2395,7 @@ class HackDialog(QDialog):
             "panel_variant_settings": self._panel_variant_settings_from_ui(),
             "demo_stage": self.spin_ds.value(),
             "golem_snappy": self.chk_golem_snappy.isChecked(),
-            "saramandor_variant_flame_speed": self._combo_data(
-                self.combo_saramandor_variant_speed
-            ),
-            "saramandor_variant_refire_wait": (
-                self.spin_saramandor_refire_wait.value()
-            ),
-            "saramandor_variant_post_fire_stop": (
-                self.spin_saramandor_post_fire_stop.value()
-            ),
+            "saramandor_variant_settings": self._saramandor_variant_settings_from_ui(),
             "gargoyle_snappy": self.chk_gargoyle_snappy.isChecked(),
             "gargoyle_cooldown_frames": self.spin_gargoyle_cooldown.value(),
             "gargoyle_variant_settings": self._gargoyle_variant_settings_from_ui("a"),
@@ -2541,6 +2554,26 @@ class HackDialog(QDialog):
             if self._gargoyle_variant_settings_from_ui(variant) != old:
                 changed.append(label)
 
+        def set_saramandor_variant_settings(key, label):
+            if not has(key) or not getattr(self, "_saramandor_variant_ok", False):
+                return
+            raw = settings[key]
+            if not isinstance(raw, (list, tuple)) or len(raw) != saramandor_variant.VARIANT_COUNT:
+                return
+            old = self._saramandor_variant_settings_from_ui()
+            try:
+                values = saramandor_variant._normalize_settings(raw)
+            except (KeyError, TypeError, saramandor_variant.SaramandorVariantError):
+                return
+            for controls, item in zip(self._saramandor_variant_controls, values):
+                movement, flame, refire, stop = controls
+                self._set_combo_data(movement, item["movement_speed"])
+                self._set_combo_data(flame, item["flame_speed"])
+                refire.setValue(item["refire_wait"])
+                stop.setValue(item["post_fire_stop"])
+            if self._saramandor_variant_settings_from_ui() != old:
+                changed.append(label)
+
         set_spin("start_stage", self.spin_stage, t("hack_dialog.setting.start_stage", "開始ステージ"))
         set_spin("continue_max_stage", self.spin_continue, t("hack_dialog.setting.continue_limit", "コンティニュー上限"))
         if has("final_stage_redirect_after_stage"):
@@ -2673,26 +2706,9 @@ class HackDialog(QDialog):
         set_panel_variant_settings("panel_variant_settings", t("hack_dialog.setting.panel_variant", "パネルモンスター A/B/C/D共通値"))
         set_spin("demo_stage", self.spin_ds, t("hack_dialog.setting.demo_stage", "デモステージ"))
         set_check("golem_snappy", self.chk_golem_snappy, t("hack_dialog.setting.golem_snappy", "ゴブリン キビキビ"))
-        set_combo(
-            "saramandor_variant_flame_speed",
-            self.combo_saramandor_variant_speed,
-            t("hack_dialog.setting.saramandor_variant_speed", "強化サラマンダー 炎の速度"),
-        )
-        set_spin(
-            "saramandor_variant_refire_wait",
-            self.spin_saramandor_refire_wait,
-            t(
-                "hack_dialog.setting.saramandor_variant_refire_wait",
-                "強化サラマンダー 最低歩行時間",
-            ),
-        )
-        set_spin(
-            "saramandor_variant_post_fire_stop",
-            self.spin_saramandor_post_fire_stop,
-            t(
-                "hack_dialog.setting.saramandor_variant_post_fire_stop",
-                "強化サラマンダー 発射後停止時間",
-            ),
+        set_saramandor_variant_settings(
+            "saramandor_variant_settings",
+            t("hack_dialog.setting.saramandor_variant_abc", "強化サラマンダーA/B/C"),
         )
         set_check("gargoyle_snappy", self.chk_gargoyle_snappy, t("hack_dialog.setting.gargoyle_snappy", "ガーゴイル キビキビ"))
         set_spin("gargoyle_cooldown_frames", self.spin_gargoyle_cooldown, t("hack_dialog.setting.gargoyle_cooldown", "ガーゴイル クールダウン"))
@@ -3026,15 +3042,13 @@ class HackDialog(QDialog):
             except walk_speed.WalkSpeedError as e:
                 QMessageBox.warning(self, t("hack_dialog.error.walk_speed", "歩行速度の改造失敗"), str(e))
 
-        # Saramandor #2 reaction range is handled by saramandor_variant.
+        # Enhanced Saramandor A/B/C reaction range is handled by saramandor_variant.
         # Do not rewrite the shared stock Saramandor/Dragon distance bytes.
         if getattr(self, "_saramandor_variant_ok", False):
             try:
                 svch = saramandor_variant.apply(
                     d,
-                    self._combo_data(self.combo_saramandor_variant_speed),
-                    self.spin_saramandor_refire_wait.value(),
-                    self.spin_saramandor_post_fire_stop.value(),
+                    self._saramandor_variant_settings_from_ui(),
                 )
                 if svch:
                     applied.append(
