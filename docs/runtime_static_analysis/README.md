@@ -48,7 +48,7 @@
 | 23 | [mapper66特殊セルloader](23_m66_special_cell_loader.md) | `m66.py` | 完了（確定バグ1件、方針不一致1件） |
 | 24 | [mapper66拡張l_a1/l_a2](24_mapper66_l_a1_l_a2.md) | `m66_expander.py` | 完了（確定バグ1件、文書不一致1件） |
 | 25 | [Gap Fix](25_gap_fix.md) | `gap_fix.py` | 完了（6502本体問題なし、確定問題1件、文書不一致1件） |
-| 26 | Wide Title runtime | `title_screen.py` | 未着手 |
+| 26 | [Wide Title runtime](26_wide_title_runtime.md) | `title_screen.py` | 完了（6502本体問題なし、確定問題2件、方針不一致1件） |
 
 ## 対象外
 
