@@ -65,6 +65,12 @@ CPU_DRAW_CELL = 0x9D53
 CPU_DRAW_CONTINUE = 0x9DEB
 RAM_DOOR_CELL = 0x077C
 
+RAM_RESERVED_SPANS = (
+    (RAM_SPECIAL_ITEM_CELLS, 0x10),
+    (RAM_FAIRY2_DELAY, RAM_FIRE_RANGE_BACKUP_HI - RAM_FAIRY2_DELAY + 1),
+    (RAM_DOOR_CELL, 1),
+)
+
 OFF_PRG1_LOADER_HELPER = 0x9280
 CPU_PRG1_LOADER_HELPER = 0x9270
 OFF_PRG1_SPECIAL_ITEM_TABLE = 0x9310
@@ -567,10 +573,6 @@ def apply(rom_data: bytearray, levels: list | None = None) -> list[str]:
     return changed
 
 
-RESERVED_SPANS = (
-    (OFF_RUNTIME, len(RUNTIME)),
-)
-
 PRG1_RESERVED_SPANS = (
     (OFF_PRG1_LOADER_HELPER, len(_build_loader_helper(bytes.fromhex(
         "a9 ff 8d 2a 07 8d 7f 07"
@@ -586,6 +588,11 @@ PRG1_RESERVED_SPANS = (
         "4c 66 8a"
     )))),
     (OFF_PRG1_SPECIAL_ITEM_TABLE, PRG1_SPECIAL_ITEM_TABLE_SIZE),
+)
+
+RESERVED_SPANS = (
+    (OFF_RUNTIME, len(RUNTIME)),
+    *PRG1_RESERVED_SPANS,
 )
 
 

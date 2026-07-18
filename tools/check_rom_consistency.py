@@ -92,6 +92,21 @@ def collect_reserved_spans() -> list[ReservedSpan]:
     return spans
 
 
+def collect_ram_reserved_spans() -> list[ReservedSpan]:
+    spans: list[ReservedSpan] = []
+    for path in sorted(CORE_DIR.glob("*.py")):
+        module = importlib.import_module(f"magatu_skc.core.{path.stem}")
+        for raw_start, raw_size in getattr(module, "RAM_RESERVED_SPANS", ()):
+            start = int(raw_start)
+            size = int(raw_size)
+            if start < 0 or start > 0x07FF:
+                raise AssertionError(f"{path.stem}: invalid RAM start 0x{start:X}")
+            if size <= 0 or start + size > 0x0800:
+                raise AssertionError(f"{path.stem}: invalid RAM size {size} at 0x{start:X}")
+            spans.append(ReservedSpan(path.stem, start, start + size - 1))
+    return spans
+
+
 def unique_reserved_spans(spans: list[ReservedSpan]) -> list[ReservedSpan]:
     unique: dict[tuple[int, int], ReservedSpan] = {}
     for span in spans:
@@ -115,11 +130,16 @@ class RomReservationTests(unittest.TestCase):
             grouped.setdefault((span.start, span.end), []).append(span)
 
         aggregators = {"new_enemy_runtime", "spark_ball_variant"}
+        shared_direct_owners = {
+            frozenset(("panel_monster_stage_variant", "stage_ext")),
+        }
         for duplicates in grouped.values():
             if len(duplicates) == 1:
                 continue
             aggregate_copies = [span for span in duplicates if span.module in aggregators]
             direct_owners = [span for span in duplicates if span.module not in aggregators]
+            if not aggregate_copies and frozenset(span.module for span in direct_owners) in shared_direct_owners:
+                continue
             self.assertEqual(
                 len(aggregate_copies),
                 1,
@@ -187,6 +207,37 @@ class RomLedgerTests(unittest.TestCase):
         self.assertEqual(declared, actual, "ROM ledger summary does not match its rows")
 
 
+class RamReservationTests(unittest.TestCase):
+    def test_custom_ram_reservations_are_complete_and_overlap_only_by_contract(self) -> None:
+        spans = collect_ram_reserved_spans()
+        self.assertGreater(len(spans), 0, "No RAM_RESERVED_SPANS were found")
+
+        owners_by_byte: dict[int, set[str]] = {}
+        for span in spans:
+            for address in range(span.start, span.end + 1):
+                owners_by_byte.setdefault(address, set()).add(span.module)
+
+        expected_bytes = (
+            set(range(0x0723, 0x073A))
+            | set(range(0x0740, 0x0774))
+            | set(range(0x0778, 0x077B))
+            | set(range(0x077C, 0x0780))
+        )
+        self.assertEqual(set(owners_by_byte), expected_bytes, "Customizer RAM allocation changed")
+
+        shared_owners = {
+            0x0724: {"enemy_clear_key_open", "key_enemy_runtime"},
+            0x0770: {"enemy_clear_key_open", "panel_monster_stage_variant", "warp_zone_trial"},
+            0x0771: {"enemy_clear_key_open", "fire2_item_runtime"},
+            0x077C: {"fire2_item_runtime", "stage_ext"},
+            0x077D: {"solomon_seal_block", "stage_ext"},
+        }
+        actual_shared = {
+            address: owners for address, owners in owners_by_byte.items() if len(owners) > 1
+        }
+        self.assertEqual(actual_shared, shared_owners, "Customizer RAM sharing contract changed")
+
+
 class NewEnemyRegistrationTests(unittest.TestCase):
     def test_enemy_ids_and_runtimes_are_registered(self) -> None:
         from magatu_skc.core import chaos_dragon9e_runtime
@@ -196,6 +247,7 @@ class NewEnemyRegistrationTests(unittest.TestCase):
         from magatu_skc.core import neul84_runtime
         from magatu_skc.core import new_enemy_runtime
         from magatu_skc.core import phantom_preset_runtime
+        from magatu_skc.core import panel_monster_stage_variant
         from magatu_skc.core import seraphic_radiance9d_runtime
         from magatu_skc.core import spark24_runtime
         from magatu_skc.core import spark_ball_variant
@@ -209,6 +261,7 @@ class NewEnemyRegistrationTests(unittest.TestCase):
             "phantom_preset": tuple(range(phantom_preset_runtime.FIRST_ID, phantom_preset_runtime.LAST_ID + 1)),
             "enhanced_ghost": tuple(ghostb0_runtime.NEW_ENEMY_IDS),
             "spark24": tuple(range(spark24_runtime.FIRST_ID, spark24_runtime.LAST_ID + 1)),
+            "panel_monster": tuple(panel_monster_stage_variant.PANEL_STAGE_RUNTIME_IDS),
         }
         expected = {
             "ice_flame": (0x82,),
@@ -219,6 +272,7 @@ class NewEnemyRegistrationTests(unittest.TestCase):
             "phantom_preset": tuple(range(0xA0, 0xB0)),
             "enhanced_ghost": tuple(range(0xB0, 0xBC)),
             "spark24": tuple(range(0xC0, 0xD8)),
+            "panel_monster": tuple(range(0xE0, 0xF8)),
         }
         self.assertEqual(families, expected, "A formal enemy ID assignment changed")
 
@@ -244,7 +298,8 @@ class NewEnemyRegistrationTests(unittest.TestCase):
             "enhanced_ghost": tuple(range(new_enemy_runtime.GHOSTB0_FIRST_ID, new_enemy_runtime.GHOSTB0_LAST_ID + 1)),
             "spark24": tuple(range(new_enemy_runtime.SPARK24_FIRST_ID, new_enemy_runtime.SPARK24_LAST_ID + 1)),
         }
-        self.assertEqual(exported_ids, expected, "new_enemy_runtime exports the wrong enemy IDs")
+        expected_common = {name: ids for name, ids in expected.items() if name != "panel_monster"}
+        self.assertEqual(exported_ids, expected_common, "new_enemy_runtime exports the wrong enemy IDs")
 
         common_spans = {tuple(span) for span in new_enemy_runtime.RESERVED_SPANS}
         common_modules = (

@@ -402,6 +402,21 @@ assert OFF_TEMPO == OFF_DARK_CAVE + DARK_CAVE_RESERVED_SIZE
 assert OFF_BW_CAVE == OFF_TEMPO + 2
 assert OFF_BW_CAVE + BW_CAVE_RESERVED_SIZE == 0x686B
 
+RESERVED_SPANS = (
+    (OFF_VISIBLE_INBLOCK_HELPER, len(VISIBLE_INBLOCK_HELPER)),
+    (OFF_WHITE_INBLOCK_RUNTIME_EXT, len(WHITE_INBLOCK_RUNTIME_EXT)),
+    (OFF_LOADER_CAVE, len(LOADER_CAVE)),
+    (OFF_MAGIC_CAVE, len(MAGIC_CAVE)),
+    (OFF_DOOR_CAVE, len(DOOR_CAVE)),
+    (OFF_DARK_CAVE, DARK_CAVE_RESERVED_SIZE),
+    (OFF_TEMPO, 2),
+    (OFF_BW_CAVE, BW_CAVE_RESERVED_SIZE),
+)
+
+RAM_ROOM_FLAGS = 0x0778
+RAM_DARK_PHASE = 0x0779
+RAM_RESERVED_SPANS = ((RAM_ROOM_FLAGS, RAM_DARK_PHASE - RAM_ROOM_FLAGS + 1),)
+
 
 BIT_FIRE_RESET = 0x10  # stage load clears carried fire scroll stock.
 
@@ -417,6 +432,15 @@ def normalize_flags(flags: int) -> int:
 
 class RoomFlagError(ValueError):
     """Room Flag Table 改造の検証失敗 (改造ROM/拡張ROM/破損の可能性)"""
+
+
+def _verify_runtime_cave(rom_data, offset: int, blob: bytes, name: str) -> None:
+    current = bytes(rom_data[offset:offset + len(blob)])
+    if current != blob and any(b not in (0x00, 0xEA) for b in current):
+        raise RoomFlagError(
+            f"{name} cave is not blank at file 0x{offset:X}: "
+            f"{current[:16].hex(' ')}..."
+        )
 
 
 def _verify(rom_data) -> None:
@@ -668,6 +692,20 @@ def apply(rom_data, room_flags: list, door_cells: list = None,
     runtime_needed = any((f & RUNTIME_ONLY_FLAGS) for f in room_flags or [])
     expanded = len(rom_data) == 0x18010
     fixed_runtime = expanded
+
+    required_caves = []
+    if fixed_runtime or prg0_needed:
+        required_caves.extend((
+            (OFF_LOADER_CAVE, LOADER_CAVE, "RoomFlag loader"),
+            (OFF_MAGIC_CAVE, MAGIC_CAVE, "RoomFlag magic gate"),
+            (OFF_DOOR_CAVE, DOOR_CAVE, "RoomFlag door predraw"),
+        ))
+    if fixed_runtime or runtime_needed:
+        required_caves.append((OFF_BW_CAVE, BW_CAVE_BLOB, "RoomFlag special cell"))
+    if fixed_runtime or _dark_needed(room_flags):
+        required_caves.append((OFF_DARK_CAVE, DARK_CAVE_BLOB, "RoomFlag dark"))
+    for off, blob, name in required_caves:
+        _verify_runtime_cave(rom_data, off, blob, name)
 
     if not fixed_runtime and not prg0_needed and not runtime_needed:
         # 原作復元: フック3点のみ原作へ戻す。cave/表は死にコード化で

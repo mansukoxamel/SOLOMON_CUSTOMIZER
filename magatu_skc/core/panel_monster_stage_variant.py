@@ -147,6 +147,7 @@ OFF_STAGE_EXT_GAMEPLAY_FLAG_HELPER = 0x8A76
 CPU_STAGE_EXT_GAMEPLAY_FLAG_HELPER = OFF_STAGE_EXT_GAMEPLAY_FLAG_HELPER - 0x10
 STAGE_EXT_GAMEPLAY_FLAG_HELPER_LENGTH = 22
 RAM_GAMEPLAY_STAGE_FLAGS = 0x0770
+RAM_RESERVED_SPANS = ((RAM_GAMEPLAY_STAGE_FLAGS, 1),)
 CPU_PRG1_RUNTIME_LOADER = 0x8A00
 OFF_PRG1_RUNTIME_LOADER = 0x8A10
 OFF_M66_LOADER_TAIL = 0x80C4
@@ -1926,14 +1927,14 @@ def panel_monster_v2_split_speed_placement_report() -> dict[str, object]:
             "file_start": OFF_FINAL_BULLET_SPEED_APPLY,
             "cpu_start": CPU_FINAL_BULLET_SPEED_APPLY,
             "size": decode_size,
-            "capacity": 0x3A,
+            "capacity": decode_size,
         },
         {
             "name": "v2_speed_tables_and_fast_loop",
             "file_start": OFF_FINAL_BULLET_SPEED_EXTRA_HELPER,
             "cpu_start": CPU_FINAL_BULLET_SPEED_EXTRA_HELPER,
             "size": table_loop_size,
-            "capacity": 0x79,
+            "capacity": table_loop_size,
         },
         {
             "name": "v2_bullet_entry_helper",
@@ -1967,7 +1968,7 @@ def panel_monster_v2_split_speed_placement_report() -> dict[str, object]:
         "total_size": decode_size + table_loop_size + entry_helper_size + entry_tail_helper_size + hook_size,
         "total_capacity": sum(row["capacity"] for row in rows),
         "static_blob_size": len(blob.data),
-        "layout_rule": "Put the Panel Variant v2 speed runtime in the new PRG0 cleanup block starting at $E602; keep the $AFBB hook pointing at the new $E737 entry.",
+        "layout_rule": "Use the exact occupied sizes in the packed PRG0 layout; no piece has independent growth capacity without relocating the following packed sections.",
     }
 
 

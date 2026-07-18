@@ -15,6 +15,10 @@ TABLE_END = TABLE_OFFSET + TABLE_LENGTH
 MAGIC = b"MGSTGEXT"
 FORMAT = 2
 
+
+class StageExtRuntimeError(ValueError):
+    pass
+
 FLAG_FIRE_RESET = 0x01
 FLAG_KEY_ENEMY = 0x02
 FLAG_ANNOUNCE = 0x04
@@ -30,6 +34,10 @@ RUNTIME_ROOM_FLAGS_OFFSET = 6
 RUNTIME_DOOR_CELL_OFFSET = 7
 RAM_RUNTIME_DOOR_CELL = 0x077C
 RAM_SEAL_BLOCK_VALUE = 0x077D
+RAM_RESERVED_SPANS = (
+    (RAM_RUNTIME_DOOR_CELL, 1),
+    (RAM_SEAL_BLOCK_VALUE, 1),
+)
 RUNTIME_ROOM_FLAGS_USER_MASK = 0x9F
 
 OFF_M66_LOADER_TAIL = 0x80C4
@@ -38,6 +46,11 @@ OFF_PRG1_STAGE_EXT_COPY = 0x8A10
 PRG1_STAGE_EXT_COPY_SLOT_SIZE = 0x60
 ORIG_M66_LOADER_TAIL = bytes.fromhex("60 00 00")
 HOOK_M66_LOADER_TAIL = bytes((0x4C, CPU_PRG1_STAGE_EXT_COPY & 0xFF, CPU_PRG1_STAGE_EXT_COPY >> 8))
+
+RESERVED_SPANS = (
+    (TABLE_OFFSET, TABLE_LENGTH),
+    (OFF_PRG1_STAGE_EXT_COPY, PRG1_STAGE_EXT_COPY_SLOT_SIZE),
+)
 
 
 def _blank_entry() -> bytearray:
@@ -179,13 +192,44 @@ RUNTIME_LOADER_SLOT = (
 
 
 def apply_runtime_loader(rom_data: bytearray) -> list:
-    if len(rom_data) < OFF_PRG1_STAGE_EXT_COPY + len(RUNTIME_LOADER_SLOT):
-        return []
+    required_end = max(
+        OFF_PRG1_STAGE_EXT_COPY + len(RUNTIME_LOADER_SLOT),
+        OFF_M66_LOADER_TAIL + len(ORIG_M66_LOADER_TAIL),
+    )
+    if len(rom_data) < required_end:
+        raise StageExtRuntimeError("ROM is too small for the StageExt runtime loader")
     cur = bytes(rom_data[OFF_M66_LOADER_TAIL:OFF_M66_LOADER_TAIL + len(ORIG_M66_LOADER_TAIL)])
     if cur not in (ORIG_M66_LOADER_TAIL, HOOK_M66_LOADER_TAIL):
-        return []
+        raise StageExtRuntimeError(
+            f"mapper66 loader tail signature mismatch at file 0x{OFF_M66_LOADER_TAIL:X}: "
+            f"{cur.hex(' ')}"
+        )
+
+    slot_cur = bytes(
+        rom_data[
+            OFF_PRG1_STAGE_EXT_COPY:
+            OFF_PRG1_STAGE_EXT_COPY + len(RUNTIME_LOADER_SLOT)
+        ]
+    )
+    from . import fire2_item_runtime, key_enemy_runtime, panel_monster_stage_variant
+    panel_slot = panel_monster_stage_variant.RUNTIME_LOADER_SLOT
+    fire2_panel_slot = (
+        fire2_item_runtime.HOOK_PRG1_LOADER
+        + panel_slot[len(fire2_item_runtime.HOOK_PRG1_LOADER):]
+    )
+    accepted_slots = (
+        RUNTIME_LOADER_SLOT,
+        key_enemy_runtime.PRG1_STAGE_EXT_COPY,
+        panel_slot,
+        fire2_panel_slot,
+    )
+    if slot_cur not in accepted_slots and not all(b in (0x00, 0xEA) for b in slot_cur):
+        raise StageExtRuntimeError(
+            f"StageExt runtime loader slot is not blank or recognized at file "
+            f"0x{OFF_PRG1_STAGE_EXT_COPY:X}: {slot_cur[:16].hex(' ')}..."
+        )
     changed = []
-    if bytes(rom_data[OFF_PRG1_STAGE_EXT_COPY:OFF_PRG1_STAGE_EXT_COPY + len(RUNTIME_LOADER_SLOT)]) != RUNTIME_LOADER_SLOT:
+    if slot_cur != RUNTIME_LOADER_SLOT:
         rom_data[OFF_PRG1_STAGE_EXT_COPY:OFF_PRG1_STAGE_EXT_COPY + len(RUNTIME_LOADER_SLOT)] = RUNTIME_LOADER_SLOT
         changed.append("StageExt runtime loader")
     if cur != HOOK_M66_LOADER_TAIL:

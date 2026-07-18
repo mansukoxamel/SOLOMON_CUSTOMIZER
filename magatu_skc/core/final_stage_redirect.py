@@ -23,6 +23,8 @@ SIG_AFTER_CLEAR_RESET = bytes.fromhex("8d 2a 04 8d 29 04 a9 ee 25 7c 85 7c")
 
 CAVE = bytes.fromhex("ad 7a 07 10 05 a9 31 8d 28 04 4c 0e c7")
 RESERVED_SPANS = ((OFF_CAVE, len(CAVE)),)
+RAM_FINAL_STAGE_REDIRECT = 0x077A
+RAM_RESERVED_SPANS = ((RAM_FINAL_STAGE_REDIRECT, 1),)
 
 
 def enabled_in_any_level(levels: list) -> bool:

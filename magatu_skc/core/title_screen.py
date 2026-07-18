@@ -1882,6 +1882,7 @@ _WT_SW_B1_OFF   = 0xBB96               # bank1 file (=$FF 予約・書込)
 _WT_RAM_IN      = 0x072C               # RAM trampoline IN  (8B)
 _WT_RAM_OUT     = 0x0734               # RAM trampoline OUT (6B、IN直後)
 _WT_RAM_END     = 0x0739               # 予約 $072C-$0739 (14B)
+RAM_RESERVED_SPANS = ((_WT_RAM_IN, _WT_RAM_END - _WT_RAM_IN + 1),)
 _WT_DEC_FILE    = 0x80D0               # bank1 decoder 配置 file (m66 loader直後)
 _WT_DEC_CPU     = 0x8000 + (_WT_DEC_FILE - 0x8010)   # = $80C0
 _WT_TITLE_CHARACTER_MAX = 20

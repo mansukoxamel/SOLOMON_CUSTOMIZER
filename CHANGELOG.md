@@ -1,5 +1,11 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.40 (2026-07-18) runtime配置検査と事前検証を強化
+- StageExt、Room Flags、mapper66、Fire2の未登録ROM使用範囲を`RESERVED_SPANS`へ統合し、共有loader領域を明示的な共同所有として検査するようにした。
+- CustomizerのRAM配置と共有契約、Panel Monster専用ID `$E0-$F7`を中央整合性検査の対象へ追加した。
+- Seraphic RadianceとPanel Monster v2の容量表示を実際の占有サイズに合わせ、後続runtimeの領域を空きとして扱わないようにした。
+- StageExt、mapper66、Blue Key Queen、Room FlagsのROM書き込みを事前一括検証方式にし、未知の署名やcave競合を検出した場合に部分書き込みを残さず中止するようにした。正常ROMの出力バイト列は従来と同一。
+
 ## v0.9.39 (2026-07-18) 強化敵runtimeとピッカー表示を統合
 
 ### 重要：旧バージョンで作成したデータの互換性について

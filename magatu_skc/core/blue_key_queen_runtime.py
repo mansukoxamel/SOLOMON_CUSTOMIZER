@@ -76,6 +76,12 @@ def apply(rom_data: bytearray) -> list[str]:
         HOOK_FAIRY_TYPE_LOAD,
         "fairy type load",
     )
+    runtime_cur = bytes(rom_data[OFF_RUNTIME:OFF_RUNTIME + len(RUNTIME)])
+    if runtime_cur != RUNTIME and any(b not in (0x00, 0xEA) for b in runtime_cur):
+        raise BlueKeyQueenRuntimeError(
+            f"runtime cave is not blank at file 0x{OFF_RUNTIME:X}: "
+            f"{runtime_cur.hex(' ')}"
+        )
     rom_data[OFF_RUNTIME:OFF_RUNTIME + len(RUNTIME)] = RUNTIME
     rom_data[OFF_ITEM_HANDLER:OFF_ITEM_HANDLER + len(HOOK_ITEM_HANDLER)] = HOOK_ITEM_HANDLER
     rom_data[OFF_FAIRY_TYPE_LOAD:OFF_FAIRY_TYPE_LOAD + len(HOOK_FAIRY_TYPE_LOAD)] = HOOK_FAIRY_TYPE_LOAD

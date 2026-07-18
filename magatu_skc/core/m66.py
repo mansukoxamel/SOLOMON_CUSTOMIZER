@@ -10,6 +10,10 @@ from .element import (
 from .level import Level
 
 
+class M66RuntimePatchError(ValueError):
+    pass
+
+
 # M66 定数（C++ Rom_expander.h より）
 COUNT_M66_LEVELS = 53
 LENGTH_M66_LVL_DATA = 256
@@ -37,6 +41,12 @@ CELL_SOLID_BROWN = 0xA4
 CELL_WHITE_IN_BLOCK_KEY = c.ITEM_FLAG_WHITE_IN_BLOCK | 0x06
 OFFSET_M66_LOADER_A2 = 32784
 RUNTIME_BLOCK_LIST_RAM = 0x0740
+RAM_VISIBLE_IN_BLOCK_ITEM_MASK = 0x0750
+RAM_CRACKED_IN_BLOCK_LIST = 0x0768
+RAM_RESERVED_SPANS = (
+    (RAM_VISIBLE_IN_BLOCK_ITEM_MASK, LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_MASK_BYTES),
+    (RAM_CRACKED_IN_BLOCK_LIST, LENGTH_M66_CRACKED_IN_BLOCK_LIST_BYTES),
+)
 SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF = OFFSET_M66_LOADER_A2 + 31
 SPECIAL_HIGH_ID_PRESERVE_OLD = 0xF0  # BEQ: only $F8 survives the m66 loader.
 SPECIAL_HIGH_ID_PRESERVE_NEW = 0xB0  # BCS: threshold-$FF survive for special IDs.
@@ -157,6 +167,7 @@ VISIBLE_IN_BLOCK_RESERVED_SPANS = (
     (VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF, len(VISIBLE_IN_BLOCK_MASK_COPY_HELPER)),
     (INITIAL_DRAW_LOW_CLASSIFIER_HELPER_OFF, len(INITIAL_DRAW_LOW_CLASSIFIER_HELPER)),
 )
+RESERVED_SPANS = VISIBLE_IN_BLOCK_RESERVED_SPANS
 INITIAL_DRAW_WHITE_THRESHOLD_PATCH_OFF = 0x10 + (0x9617 - 0x8000)
 INITIAL_DRAW_WHITE_THRESHOLD_OLD = 0xF8
 INITIAL_DRAW_WHITE_THRESHOLD_NEW = 0xC0
@@ -680,9 +691,135 @@ def patch_breakable_white_data(rom_data: bytearray, levels: list):
     data = build_breakable_white_data(levels)
     end = OFFSET_M66_BREAKABLE_WHITE_DATA + len(data)
     if len(rom_data) < end:
-        return
+        raise M66RuntimePatchError("ROM is too small for mapper66 breakable-white data")
     patch_runtime_block_loader(rom_data)
     rom_data[OFFSET_M66_BREAKABLE_WHITE_DATA:end] = data
+
+
+def _require_patch_value(actual, accepted, label: str, offset: int) -> None:
+    if actual not in accepted:
+        shown = actual.hex(' ') if isinstance(actual, bytes) else f"0x{actual:02X}"
+        raise M66RuntimePatchError(
+            f"{label} signature mismatch at file 0x{offset:X}: {shown}"
+        )
+
+
+def _require_helper_available(rom_data: bytearray, offset: int, blob: bytes, label: str) -> None:
+    current = bytes(rom_data[offset:offset + len(blob)])
+    if current != blob and any(b not in (0x00, 0xEA) for b in current):
+        raise M66RuntimePatchError(
+            f"{label} helper is not blank at file 0x{offset:X}: "
+            f"{current[:16].hex(' ')}..."
+        )
+
+
+def _preflight_runtime_block_loader(rom_data: bytearray) -> None:
+    required_end = max(
+        RESPAWN_DIRECT_CELL_COPY_PATCH_OFF + len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN),
+        RESPAWN_DIRECT_CELL_COPY_HELPER_OFF + len(RESPAWN_DIRECT_CELL_COPY_HELPER),
+        INITIAL_DRAW_LOW_CLASSIFIER_PATCH_OFF + len(INITIAL_DRAW_LOW_CLASSIFIER_PATCH),
+        KEY_CELL_VALUE_PATCH_OFF + len(KEY_CELL_VALUE_PATCH_NEW),
+        RUNTIME_BLOCK_LIST_COPY_PATCH_OFF + RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_LEN,
+        VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF + len(VISIBLE_IN_BLOCK_MASK_COPY_HELPER),
+        CRACKED_IN_BLOCK_RESPAWN_HELPER_OFF + len(CRACKED_IN_BLOCK_RESPAWN_HELPER),
+        INITIAL_DRAW_LOW_CLASSIFIER_HELPER_OFF + len(INITIAL_DRAW_LOW_CLASSIFIER_HELPER),
+        M66_LOADER_TAIL_GUARD_OFF + len(M66_LOADER_TAIL_GUARD),
+    )
+    if len(rom_data) < required_end:
+        raise M66RuntimePatchError("ROM is too small for mapper66 runtime block loader")
+
+    off = RESPAWN_DIRECT_CELL_COPY_PATCH_OFF
+    ln = len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN)
+    respawn_patch = bytes(rom_data[off:off + ln])
+    _require_patch_value(
+        respawn_patch,
+        (
+            RESPAWN_DIRECT_CELL_COPY_SKCHAIN,
+            RESPAWN_DIRECT_CELL_COPY_THRESHOLD_C0,
+            RESPAWN_DIRECT_CELL_COPY_BYPASS,
+            RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE,
+            RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER,
+        ),
+        "mapper66 respawn direct-cell patch",
+        off,
+    )
+    threshold_values = (SPECIAL_HIGH_ID_THRESHOLD_OLD, SPECIAL_HIGH_ID_THRESHOLD_NEW)
+    preserve_values = (SPECIAL_HIGH_ID_PRESERVE_OLD, SPECIAL_HIGH_ID_PRESERVE_NEW)
+    if respawn_patch == RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER:
+        threshold_values += (0xEA,)
+        preserve_values += (0xEA,)
+    _require_patch_value(
+        rom_data[SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF],
+        threshold_values,
+        "mapper66 special-ID threshold",
+        SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF,
+    )
+    _require_patch_value(
+        bytes(rom_data[
+            INITIAL_DRAW_LOW_CLASSIFIER_PATCH_OFF:
+            INITIAL_DRAW_LOW_CLASSIFIER_PATCH_OFF + len(INITIAL_DRAW_LOW_CLASSIFIER_PATCH)
+        ]),
+        (INITIAL_DRAW_LOW_CLASSIFIER_OLD, INITIAL_DRAW_LOW_CLASSIFIER_PATCH),
+        "mapper66 initial-draw classifier",
+        INITIAL_DRAW_LOW_CLASSIFIER_PATCH_OFF,
+    )
+    _require_patch_value(
+        rom_data[INITIAL_DRAW_WHITE_THRESHOLD_PATCH_OFF],
+        (INITIAL_DRAW_WHITE_THRESHOLD_OLD, INITIAL_DRAW_WHITE_THRESHOLD_NEW),
+        "mapper66 initial-draw white threshold",
+        INITIAL_DRAW_WHITE_THRESHOLD_PATCH_OFF,
+    )
+    _require_patch_value(
+        bytes(rom_data[KEY_CELL_VALUE_PATCH_OFF:KEY_CELL_VALUE_PATCH_OFF + len(KEY_CELL_VALUE_PATCH_NEW)]),
+        (KEY_CELL_VALUE_PATCH_OLD, KEY_CELL_VALUE_PATCH_NEW),
+        "mapper66 key-cell value patch",
+        KEY_CELL_VALUE_PATCH_OFF,
+    )
+    _require_patch_value(
+        rom_data[KEY_CELL_VALUE_NO_KEY_BRANCH_OFF],
+        (KEY_CELL_VALUE_NO_KEY_BRANCH_OLD, KEY_CELL_VALUE_NO_KEY_BRANCH_NEW),
+        "mapper66 no-key branch",
+        KEY_CELL_VALUE_NO_KEY_BRANCH_OFF,
+    )
+    _require_patch_value(
+        rom_data[SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF],
+        preserve_values,
+        "mapper66 special-ID preserve branch",
+        SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF,
+    )
+    off = RUNTIME_BLOCK_LIST_COPY_PATCH_OFF
+    ln = RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_LEN
+    _require_patch_value(
+        bytes(rom_data[off:off + ln]),
+        (
+            RUNTIME_BLOCK_LIST_COPY_PATCH_OLD,
+            RUNTIME_BLOCK_LIST_COPY_PATCH_NEW,
+            RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED,
+            RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_OLD,
+            RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH,
+        ),
+        "mapper66 runtime block-list copy",
+        off,
+    )
+    for helper_off, helper_blob, label in (
+        (RESPAWN_DIRECT_CELL_COPY_HELPER_OFF, RESPAWN_DIRECT_CELL_COPY_HELPER, "respawn direct-cell"),
+        (VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF, VISIBLE_IN_BLOCK_MASK_COPY_HELPER, "visible in-block mask"),
+        (CRACKED_IN_BLOCK_RESPAWN_HELPER_OFF, CRACKED_IN_BLOCK_RESPAWN_HELPER, "cracked in-block respawn"),
+        (INITIAL_DRAW_LOW_CLASSIFIER_HELPER_OFF, INITIAL_DRAW_LOW_CLASSIFIER_HELPER, "initial-draw classifier"),
+    ):
+        _require_helper_available(rom_data, helper_off, helper_blob, label)
+    _require_patch_value(
+        bytes(rom_data[M66_LOADER_TAIL_OFF:M66_LOADER_TAIL_OFF + len(M66_LOADER_TAIL_HOOK)]),
+        (bytes.fromhex("60 00 00"), M66_LOADER_TAIL_HOOK),
+        "mapper66 loader tail",
+        M66_LOADER_TAIL_OFF,
+    )
+    guard = bytes(rom_data[M66_LOADER_TAIL_GUARD_OFF:M66_LOADER_TAIL_GUARD_OFF + len(M66_LOADER_TAIL_GUARD)])
+    if guard != M66_LOADER_TAIL_GUARD and any(b not in (0x00, 0xEA) for b in guard):
+        raise M66RuntimePatchError(
+            f"mapper66 loader guard is not blank at file 0x{M66_LOADER_TAIL_GUARD_OFF:X}: "
+            f"{guard.hex(' ')}"
+        )
 
 
 def patch_runtime_block_loader(rom_data: bytearray):
@@ -705,6 +842,7 @@ def patch_runtime_block_loader(rom_data: bytearray):
     white in-block items become an empty breakable white block ($F9) after death, without
     changing the original brown in-block one-shot fallback ($90).
     """
+    _preflight_runtime_block_loader(rom_data)
     off = RESPAWN_DIRECT_CELL_COPY_PATCH_OFF
     ln = len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN)
     if len(rom_data) >= off + ln:
