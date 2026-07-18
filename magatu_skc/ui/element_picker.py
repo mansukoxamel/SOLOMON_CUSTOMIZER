@@ -318,6 +318,11 @@ ENHANCED_ENEMY_CODES = {
     *range(0xB0, 0xBC),  # Enhanced Ghost A-F direction pairs
 }
 
+ENHANCED_PICKER_BLUE_CODES = {
+    *range(0x84, 0x88),
+    *range(0xB0, 0xBC),
+}
+
 
 def tint_image_preserving_alpha(source: QImage, color: QColor) -> QImage:
     """Tint only pixels covered by the source image while preserving its alpha."""
@@ -409,6 +414,12 @@ SPARK24_OVERLAY_COLORS = {
     **{code: (245, 220, 80, 80) for code in range(0xC0, 0xC8)},
     **{code: (55, 135, 255, 115) for code in range(0xC8, 0xD0)},
     **{code: (245, 110, 180, 80) for code in range(0xD0, 0xD8)},
+}
+
+SPARK24_PICKER_YELLOW_CODES = {
+    code
+    for first in (0xC0, 0xC8, 0xD0)
+    for code in range(first, first + 4)
 }
 
 
@@ -1813,7 +1824,7 @@ class ElementPicker(QWidget):
             return QIcon()
         visual_enemy_no = ENEMY_VISUAL_SOURCE.get(enemy_no, enemy_no)
         anim = self.config.enemy_map.get(visual_enemy_no, 0)
-        if enemy_no in PANEL_VARIANT_VISUAL_SOURCE:
+        if enemy_no in PANEL_VARIANT_VISUAL_SOURCE and enemy_no < 0xF0:
             return self._make_icon_from_tile(
                 anim,
                 overlay_color=(55, 135, 255, 115),
@@ -1821,7 +1832,12 @@ class ElementPicker(QWidget):
                 tile_transparent=True,
                 overlay_preserve_alpha=True,
             )
-        overlay = SPARK24_OVERLAY_COLORS.get(enemy_no)
+        if enemy_no in ENHANCED_PICKER_BLUE_CODES:
+            overlay = (55, 135, 255, 115)
+        elif enemy_no in SPARK24_PICKER_YELLOW_CODES:
+            overlay = (245, 220, 80, 80)
+        else:
+            overlay = SPARK24_OVERLAY_COLORS.get(enemy_no)
         if overlay is None and enemy_no in ENHANCED_ENEMY_CODES:
             overlay = (245, 220, 80, 80)
         return self._make_icon_from_tile(
