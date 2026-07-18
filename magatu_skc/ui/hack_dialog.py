@@ -34,6 +34,7 @@ from ..core import ghostb0_runtime
 from ..core import neul84_runtime
 from ..core import gargoyle_hack
 from ..core import gargoyle_variant
+from ..core import saramandor_variant
 from ..core import clearscreen_hack
 from ..core import clear_message
 from ..core import demo_input
@@ -1108,6 +1109,56 @@ class HackDialog(QDialog):
         else:
             self.chk_demonhead_snappy.setEnabled(False)
         layout.addWidget(demonhead_group)
+
+        # ====== 強化サラマンダー ======
+        saramandor_variant_group = QGroupBox(
+            t("hack_dialog.group.saramandor_variant", "強化サラマンダー")
+        )
+        saramandor_variant_group.setProperty("settings_category", "敵・AI")
+        svf = QFormLayout(saramandor_variant_group)
+        _setup_enemy_group(self, saramandor_variant_group, svf, 59, (0x5E,))
+        self.combo_saramandor_variant_speed = QComboBox()
+        for preset, key, label in (
+            (saramandor_variant.SPEED_PRESET_NORMAL, "normal", "通常"),
+            (saramandor_variant.SPEED_PRESET_HALF, "half", "1/2"),
+            (saramandor_variant.SPEED_PRESET_QUARTER, "quarter", "1/4"),
+        ):
+            self.combo_saramandor_variant_speed.addItem(
+                t(f"hack_dialog.saramandor_variant.speed.{key}", label),
+                preset,
+            )
+        self._saramandor_variant_ok = False
+        try:
+            self._set_combo_data(
+                self.combo_saramandor_variant_speed,
+                saramandor_variant.current_speed_preset(rom.data),
+            )
+            self._saramandor_variant_ok = True
+        except saramandor_variant.SaramandorVariantError as e:
+            note = QLabel(
+                t("hack_dialog.disabled", "⚠ 無効: {error}").format(
+                    error=str(e).splitlines()[0]
+                )
+            )
+            note.setWordWrap(True)
+            note.setStyleSheet("color:#c33;")
+            svf.addRow(note)
+            self.combo_saramandor_variant_speed.setEnabled(False)
+        svf.addRow(
+            t("hack_dialog.saramandor_variant.flame_speed.label", "炎の速度:"),
+            self.combo_saramandor_variant_speed,
+        )
+        svhint = QLabel(
+            t(
+                "hack_dialog.saramandor_variant.hint",
+                "強化サラマンダー $5E/$5F が発射する炎だけに適用します。"
+                "通常サラマンダーとドラゴンには影響しません。",
+            )
+        )
+        svhint.setWordWrap(True)
+        svhint.setStyleSheet("color:#888; font-size:11px;")
+        svf.addRow(svhint)
+        layout.addWidget(saramandor_variant_group)
 
         # ====== ガーゴイル ======
         gargoyle_group = QGroupBox(t("hack_dialog.group.gargoyle", "ガーゴイル"))
@@ -2285,6 +2336,9 @@ class HackDialog(QDialog):
             "panel_variant_settings": self._panel_variant_settings_from_ui(),
             "demo_stage": self.spin_ds.value(),
             "golem_snappy": self.chk_golem_snappy.isChecked(),
+            "saramandor_variant_flame_speed": self._combo_data(
+                self.combo_saramandor_variant_speed
+            ),
             "gargoyle_snappy": self.chk_gargoyle_snappy.isChecked(),
             "gargoyle_cooldown_frames": self.spin_gargoyle_cooldown.value(),
             "gargoyle_variant_settings": self._gargoyle_variant_settings_from_ui("a"),
@@ -2320,6 +2374,9 @@ class HackDialog(QDialog):
             "panel_bullet_speed_fix": bool(getattr(self, "_pm_bullet_speed_ok", False)),
             "demo_stage": bool(getattr(self, "_ds_ok", False)),
             "golem": bool(getattr(self, "_golem_ok", False)),
+            "saramandor_variant": bool(
+                getattr(self, "_saramandor_variant_ok", False)
+            ),
             "gargoyle": bool(getattr(self, "_gargoyle_ok", False)),
             "gargoyle_variant": bool(getattr(self, "_gargoyle_variant_ok", False)),
             "dragon": bool(getattr(self, "_dragon_ok", False)),
@@ -2572,6 +2629,11 @@ class HackDialog(QDialog):
         set_panel_variant_settings("panel_variant_settings", t("hack_dialog.setting.panel_variant", "パネルモンスター A/B/C/D共通値"))
         set_spin("demo_stage", self.spin_ds, t("hack_dialog.setting.demo_stage", "デモステージ"))
         set_check("golem_snappy", self.chk_golem_snappy, t("hack_dialog.setting.golem_snappy", "ゴブリン キビキビ"))
+        set_combo(
+            "saramandor_variant_flame_speed",
+            self.combo_saramandor_variant_speed,
+            t("hack_dialog.setting.saramandor_variant_speed", "強化サラマンダー 炎の速度"),
+        )
         set_check("gargoyle_snappy", self.chk_gargoyle_snappy, t("hack_dialog.setting.gargoyle_snappy", "ガーゴイル キビキビ"))
         set_spin("gargoyle_cooldown_frames", self.spin_gargoyle_cooldown, t("hack_dialog.setting.gargoyle_cooldown", "ガーゴイル クールダウン"))
         set_gargoyle_variant_settings("gargoyle_variant_settings", t("hack_dialog.setting.gargoyle_variant_a", "強化ガーゴイルA"), "a")
@@ -2906,6 +2968,29 @@ class HackDialog(QDialog):
 
         # Saramandor #2 reaction range is handled by saramandor_variant.
         # Do not rewrite the shared stock Saramandor/Dragon distance bytes.
+        if getattr(self, "_saramandor_variant_ok", False):
+            try:
+                svch = saramandor_variant.apply(
+                    d,
+                    self._combo_data(self.combo_saramandor_variant_speed),
+                )
+                if svch:
+                    applied.append(
+                        t(
+                            "hack_dialog.applied.saramandor_variant",
+                            "強化サラマンダー: {changes}",
+                        ).format(changes=" / ".join(svch))
+                    )
+            except saramandor_variant.SaramandorVariantError as e:
+                QMessageBox.warning(
+                    self,
+                    t(
+                        "hack_dialog.error.saramandor_variant",
+                        "強化サラマンダー設定失敗",
+                    ),
+                    str(e),
+                )
+                return
 
         # パネルモンスター
         if self._pm_ok:

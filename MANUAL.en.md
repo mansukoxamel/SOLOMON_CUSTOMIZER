@@ -308,7 +308,7 @@ Includes player movement and player-related behavior changes.
 
 Includes enemy movement, attack behavior, enhanced variants, Panel Monster variants, Spark Ball behavior, Gargoyle behavior, Salamander behavior, and other enemy logic.
 
-Enhanced Saramandor uses movement speed 1 only. Enhanced Gargoyle A and B also both use movement speed 1, retain the LIFE-hundreds two/three-shot switch, and have independent bullet speed, shot interval, and cooldown settings.
+Enhanced Saramandor uses movement speed 1 only and lets you set its flame speed to Normal, 1/2, or 1/4. Enhanced Gargoyle A and B also both use movement speed 1, retain the LIFE-hundreds two/three-shot switch, and have independent bullet speed, shot interval, and cooldown settings.
 
 Panel bullet speed correction affects enemies that use the same bullet speed table. This is intentional because the correction is based on the original game's shared bullet behavior.
 
