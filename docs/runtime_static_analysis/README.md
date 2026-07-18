@@ -45,7 +45,7 @@
 | 20 | [StageExt loader](20_stage_ext_loader.md) | `stage_ext.py` | 完了（6502本体問題なし、確定バグ1件） |
 | 21 | [Solomon Seal Block](21_solomon_seal_block.md) | `solomon_seal_block.py` | 完了（6502本体問題なし、確定問題2件） |
 | 22 | [Stage Announcement](22_stage_announcement.md) | `stage_announcement.py` | 完了（確定バグ3件） |
-| 23 | mapper66特殊セルloader | `m66.py` | 未着手 |
+| 23 | [mapper66特殊セルloader](23_m66_special_cell_loader.md) | `m66.py` | 完了（確定バグ1件、方針不一致1件） |
 | 24 | mapper66拡張l_a1/l_a2 | `m66_expander.py` | 未着手 |
 | 25 | Gap Fix | `gap_fix.py` | 未着手 |
 | 26 | Wide Title runtime | `title_screen.py` | 未着手 |
