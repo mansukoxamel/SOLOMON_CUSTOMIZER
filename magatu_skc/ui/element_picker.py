@@ -170,12 +170,12 @@ ENEMIES_LIST = [
         code,
         f"Panel Monster {group} ({('right', 'left', 'up', 'down')[code & 3]})",
     ) for first, group in (
+        (0xF0, "2-way"),
+        (0xF4, "3-way"),
         (0xE0, "A"),
         (0xE4, "B"),
         (0xE8, "C"),
         (0xEC, "D"),
-        (0xF0, "2-way"),
-        (0xF4, "3-way"),
     ) for code in range(first, first + 4)),
     (0x1c, "Fairy"),
     (0x1d, "Fairy Princess"),
@@ -313,7 +313,6 @@ ENHANCED_ENEMY_CODES = {
     0x44, 0x46, 0x4c, 0x4e,  # Ghost noslow
     *range(0xE0, 0xF8),       # Panel Monster A-D / 2-way / 3-way
     0x7a, 0x7b, 0x7e, 0x7f,  # Gargoyle slow Bullet
-    0x5e, 0x5f, 0x62, 0x63, 0x66, 0x67,  # Enhanced Saramandor A/B/C
     0x9E,  # Chaos Dragon
     *range(0x84, 0x88),  # Enhanced Neul A/B direction pairs
     *range(0xB0, 0xBC),  # Enhanced Ghost A-F direction pairs
