@@ -37,7 +37,7 @@
 | 12 | [Seraphic Radiance `$9D`](12_seraphic_radiance_9d.md) | `seraphic_radiance9d_runtime.py` | 完了（確定問題4件） |
 | 13 | [Chaos Dragon `$9E`](13_chaos_dragon_9e.md) | `chaos_dragon9e_runtime.py` | 完了（6502本体問題なし、候補3件） |
 | 14 | [Phantom preset A-D](14_phantom_preset_ad.md) | `phantom_preset_runtime.py` | 完了（確定バグ2件、候補2件） |
-| 15 | Enhanced Gargoyle A/B | `gargoyle_variant.py` | 未着手 |
+| 15 | [Enhanced Gargoyle A/B](15_enhanced_gargoyle_ab.md) | `gargoyle_variant.py` | 完了（6502本体問題なし、候補2件） |
 | 16 | Blue Key Queen | `blue_key_queen_runtime.py` | 未着手 |
 | 17 | Warp Mirror Mode | `warp_zone_trial.py` | 未着手 |
 | 18 | Final Stage Redirect | `final_stage_redirect.py` | 未着手 |
