@@ -151,19 +151,21 @@ ENEMIES_LIST = [
     (0x46, "Ghost (left, noslow)"),
     (0x40, "Neul (up, noslow)"),
     (0x42, "Neul (down, noslow)"),
+    (0x20, "Bullet (right)"),
+    (0x21, "Bullet (left)"),
+    (0x22, "Bullet (up)"),
+    (0x23, "Bullet (down)"),
     # 小型/弾系
     (0x28, "Fireball (right)"),
     (0x29, "Fireball (left)"),
     (0x2a, "Fireball (up)"),
     (0x2b, "Fireball (down)"),
-    (0x20, "Bullet (right)"),
-    (0x21, "Bullet (left)"),
-    (0x22, "Bullet (up)"),
-    (0x23, "Bullet (down)"),
     (0x24, "Panel Monster (right)"),
     (0x25, "Panel Monster (left)"),
     (0x26, "Panel Monster (up)"),
     (0x27, "Panel Monster (down)"),
+    (0x9D, "熾天の眩光 / Seraphic Radiance"),
+    (0x9E, "Chaos Dragon"),
     *((
         code,
         f"Panel Monster {group} ({('right', 'left', 'up', 'down')[code & 3]})",
@@ -184,21 +186,6 @@ ENEMIES_LIST = [
     (0x80, "Red Burn"),
     (0x81, "Blue Burn"),
     (0x82, "Ice Burn"),
-    (0x9D, "熾天の眩光 / Seraphic Radiance"),
-    (0x9E, "Chaos Dragon"),
-    *((
-        code,
-        t(
-            "element_picker.enemy.neul_preset.group_direction",
-            "Enhanced Neul {group} ({direction})",
-        ).format(
-            group=("A", "B")[(code - 0x84) // 2],
-            direction=(
-                t("element_picker.direction.up", "up"),
-                t("element_picker.direction.down", "down"),
-            )[code & 1],
-        ),
-    ) for code in range(0x84, 0x88)),
     *((
         code,
         t(
@@ -212,6 +199,19 @@ ENEMIES_LIST = [
             )[code & 1],
         ),
     ) for code in range(0xB0, 0xBC)),
+    *((
+        code,
+        t(
+            "element_picker.enemy.neul_preset.group_direction",
+            "Enhanced Neul {group} ({direction})",
+        ).format(
+            group=("A", "B")[(code - 0x84) // 2],
+            direction=(
+                t("element_picker.direction.up", "up"),
+                t("element_picker.direction.down", "down"),
+            )[code & 1],
+        ),
+    ) for code in range(0x84, 0x88)),
     *((
         code,
         t(
