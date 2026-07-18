@@ -211,7 +211,7 @@ def apply_runtime_loader(rom_data: bytearray) -> list:
             OFF_PRG1_STAGE_EXT_COPY + len(RUNTIME_LOADER_SLOT)
         ]
     )
-    from . import fire2_item_runtime, key_enemy_runtime, panel_monster_stage_variant
+    from . import fire2_item_runtime, panel_monster_stage_variant
     panel_slot = panel_monster_stage_variant.RUNTIME_LOADER_SLOT
     fire2_panel_slot = (
         fire2_item_runtime.HOOK_PRG1_LOADER
@@ -219,7 +219,6 @@ def apply_runtime_loader(rom_data: bytearray) -> list:
     )
     accepted_slots = (
         RUNTIME_LOADER_SLOT,
-        key_enemy_runtime.PRG1_STAGE_EXT_COPY,
         panel_slot,
         fire2_panel_slot,
     )

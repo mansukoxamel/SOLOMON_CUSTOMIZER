@@ -40,20 +40,18 @@
 | 敵 | 現ID | ID方式 | ID判断 | runtime監査 | 実機検査 | 主な残件 |
 |---|---:|---|---|---|---|---|
 | Dark Fairy | `$9C` | 専用ID | `$9C`固定 | 静的監査済み | 今回未検査 | 管理簿のanimation attr説明訂正 |
-| Ice Burn | `$84` | 専用ID | `$82`再配置推奨・未実装 | 静的監査済み | 今回未検査 | ID移動、名称統一、実ROM比較 |
+| Ice Burn | `$82` | 専用ID | `$82`確定 | 静的監査済み | 今回未検査 | 実ROM比較 |
 | Spark85 / 停止後反転型 | `$85` | 専用ID | Spark系24連番の後半8IDへ統合・番号保留 | 静的監査済み | 未検査 | 4方向×2速度、借用Spark群との統合 |
-| Bomber Ghost | `$86` | 専用ID | Ghost系8連番内の先頭4IDへ再配置・番号保留 | 静的監査済み | 今回未検査 | 左向き追加、8連番確定、共通射撃化 |
-| Cannon Ghost | `$87` | 専用ID | Ghost系8連番内の先頭4IDへ再配置・番号保留 | 静的監査済み | 今回未検査 | 左向き追加、8連番確定、共通射撃化 |
-| Neul Twin Cannon | `$88` | 専用ID | 上下2連番へ再配置・番号保留 | 静的監査済み | 現行上移動・左右壁破壊はユーザー確認済み | 上下2ID実装後の実機・実ROM比較 |
-| Chaos Dragon | `$89` | 専用ID | 単独1ID・開始位置保留 | 静的監査済み | 今回未検査 | 最終ID配置、実ROM比較、鍵検査 |
-| Back Fire | `$8A` | 専用ID | Ghost系8連番内の`+4/+5`・番号保留 | 静的監査済み | 今回未検査 | 左向き追加、共通射撃化、実ROM比較 |
+| Enhanced Ghost A-F | `$B0-$BB` | 専用12ID | A-Fの右左6pairで確定 | 詳細静的監査済み | 今回未検査 | 実ROM比較、長時間slot試験 |
+| Enhanced Neul A/B | `$84-$87` | 専用4ID | A/Bの上下2pairで確定 | 詳細静的監査済み | 今回未検査 | 実ROM比較、slot不足時仕様確認 |
+| Chaos Dragon | `$9E` | 専用ID | `$9E`確定 | 静的監査済み | 今回未検査 | 実ROM比較、鍵検査 |
 | Phantom Bullet | `$8B` | 専用ID | Phantom系16連番の先頭8IDへ再配置・番号保留 | 静的監査済み | 今回未検査 | 4方向×2速度、速度値、鍵適性 |
 | Phantom Bullet Wave | `$8C` | 専用ID | Phantom系16連番の後半8IDへ再配置・番号保留 | 静的監査済み | 今回未検査 | 4方向×2速度、上下Wave軸、鍵適性 |
 | Seraphic Radiance | `$9D` | 専用ID | 単独1ID・最終番号保留 | 再監査済み・現状維持 | 今回未検査 | 鍵持ち禁止、鍵持ち敵消去副作用、実ROM比較 |
 | Panel Monster variants | 原作ID借用20ID | 借用ID | 借用維持 | 静的監査済み・現状維持 | 既存73ケース保存検査確認済み・今回実機未検査 | 最終ROM比較、原作Stage 29 `$4D` 正規化維持 |
 | Spark Ball variants | `$C0-$D7` | 専用24ID | 停止・透明・停止後反転を連続配置 | 実装・静的監査済み | ユーザー動作確認済み | 3種類×4方向×2速度、借用解除済み |
 | Gargoyle variants | `$7A/$7B/$7E/$7F` | 借用ID | 借用維持 | 動作成立・静的経路確認済み・再整理待ち | ユーザー動作確認済み | 2分割runtimeの1ブロック統合、重複・冗長処理の再監査、最終ROM比較 |
-| Saramandor variants | `$5E/$5F/$62/$63` | 借用ID | 借用維持・強化速度3は作らない | 165B静的監査済み・現状維持 | 今回実機未検査 | 速度1/2・左右、Bullet消滅、原作敵副作用の最終ROM検査 |
+| Saramandor variants | `$5E/$5F/$62/$63/$66/$67` | 借用ID | A/B/Cの3groupを維持 | 詳細静的監査済み・slot漏れ修正済み | 今回実機未検査 | 3group・左右、Bullet消滅、原作敵副作用の最終ROM検査 |
 
 敵名と対象は今後の現物調査で追加・整理する。この一覧だけを根拠に現行実装の全追加敵を網羅済みとは扱わない。
 
@@ -501,6 +499,8 @@ ID下位bit、4ID単位のAI group、見た目、方向、速度、死亡経路�
 ---
 
 ## Bomber Ghost / Cannon Ghost
+
+> **現行実装への訂正:** この節の`$86/$87`、`ghost86_runtime.py`、8ID構想、`0x6D98-0x6E15`本体配置は過去設計であり、現行実装の根拠に使わない。現行は`ghostb0_runtime.py`のEnhanced Ghost A-F、ID `$B0-$BB`、本体`0x6268-0x633A`、parameter表`0x6D98-0x6DAF`である。A-Fは6つの右左pairで、発射方向と速度をparameter化している。詳細は`docs/runtime_static_analysis/04_enhanced_ghost_af.md`を正とする。
 
 ### 1. 基本情報
 
@@ -1745,6 +1745,8 @@ Spark系24IDは種類ごとに独立runtimeを3本作らず、共通部分を統
 ---
 
 ## Saramandor / Saramandor #2 Bullet variant
+
+> **現行実装への訂正:** 「強化速度3は作らない」「`$66/$67`をPanelへ貸し出す」という記述は過去設計である。現行は`$5E/$5F`=A、`$62/$63`=B、`$66/$67`=Cの3groupを使用し、Panel AI table側は原作Saramandor #2入口へ復元する。現行runtime範囲は`0x63D9-0x6495`と`0x69B9-0x6A0C`である。詳細は`docs/runtime_static_analysis/02_enhanced_saramandor_abc.md`を正とする。
 
 ### 1. ID構成と最終判断
 

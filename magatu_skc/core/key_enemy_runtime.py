@@ -38,17 +38,9 @@ RAM_RESERVED_SPANS = (
     (RAM_FAIRY_SELECTED_INITIAL_SLOT, RAM_FAIRY_TARGET_RUNTIME_SLOT - RAM_FAIRY_SELECTED_INITIAL_SLOT + 1),
 )
 
-RAM_RESERVED_SPANS = (
-    (RAM_DROP_TILE_PLUS1, RAM_SELECTED_INITIAL_SLOT - RAM_DROP_TILE_PLUS1 + 1),
-    (RAM_FAIRY_SELECTED_INITIAL_SLOT, RAM_FAIRY_TARGET_RUNTIME_SLOT - RAM_FAIRY_SELECTED_INITIAL_SLOT + 1),
-)
-
-
 from . import stage_ext
 
 OFF_M66_LOADER_TAIL = stage_ext.OFF_M66_LOADER_TAIL
-CPU_PRG1_STAGE_EXT_COPY = stage_ext.CPU_PRG1_STAGE_EXT_COPY
-OFF_PRG1_STAGE_EXT_COPY = stage_ext.OFF_PRG1_STAGE_EXT_COPY
 
 OFF_HOOK_ENEMY_INIT = _cf(0x95C5)
 OFF_HOOK_ENEMY_STATUS = _cf(0x95CA)
@@ -286,7 +278,6 @@ def _build_flame_key_handler() -> bytes:
     )
 
 
-PRG1_STAGE_EXT_COPY = stage_ext.RUNTIME_LOADER
 ENEMY_INIT = _build_enemy_init()
 ENEMY_STATUS = _build_enemy_status()
 ENEMY_STATUS_VALUE = _build_enemy_status_value()
@@ -362,7 +353,6 @@ def apply(rom_data) -> list[str]:
     _expect(rom_data, OFF_HOOK_FLAME_DESPAWN, ORIG_FLAME_DESPAWN, HOOK_FLAME_DESPAWN, "$A5CB Flame despawn")
     changed: list[str] = []
     for off, blob, name in (
-        (OFF_PRG1_STAGE_EXT_COPY, PRG1_STAGE_EXT_COPY, "key enemy StageExt loader"),
         (OFF_ENEMY_INIT, ENEMY_INIT, "key enemy initial-slot binder"),
         (OFF_ENEMY_STATUS, ENEMY_STATUS, "key enemy status writer"),
         (OFF_ENEMY_STATUS_VALUE, ENEMY_STATUS_VALUE, "key/fairy enemy status value helper"),
@@ -376,7 +366,6 @@ def apply(rom_data) -> list[str]:
     ):
         _ensure_available(rom_data, off, blob, name)
 
-    _write(rom_data, OFF_PRG1_STAGE_EXT_COPY, PRG1_STAGE_EXT_COPY, changed, "key enemy StageExt loader")
     _write(rom_data, OFF_ENEMY_INIT, ENEMY_INIT, changed, "key enemy initial-slot binder")
     _write(rom_data, OFF_ENEMY_STATUS, ENEMY_STATUS, changed, "key enemy status writer")
     _write(rom_data, OFF_ENEMY_STATUS_VALUE, ENEMY_STATUS_VALUE, changed, "key/fairy enemy status value helper")

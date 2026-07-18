@@ -258,9 +258,25 @@ def current_settings(rom_data) -> dict[str, object]:
     return {"groups": groups}
 
 
+def validate_runtime_dependencies(rom_data) -> None:
+    dependency_end = _ghostb0.OFF_BULLET_SPAWN + len(_ghostb0.BULLET_SPAWN_RUNTIME)
+    if rom_data is None or len(rom_data) < dependency_end:
+        raise Neul84RuntimeError("ROM is too short for Neul A/B runtime dependencies")
+    current = bytes(rom_data[_ghostb0.OFF_BULLET_SPAWN:dependency_end])
+    if current != _ghostb0.BULLET_SPAWN_RUNTIME and not all(
+        value in (0x00, 0xEA) for value in current
+    ):
+        raise Neul84RuntimeError("Neul A/B Bullet spawn dependency has unexpected bytes")
+    try:
+        _ghostb0.validate_runtime_dependencies(rom_data)
+    except _ghostb0.GhostB0RuntimeError as exc:
+        raise Neul84RuntimeError(str(exc)) from exc
+
+
 def apply_settings(rom_data, group_settings) -> list[str]:
     groups = normalize_group_settings(group_settings)
     current_settings(rom_data)
+    validate_runtime_dependencies(rom_data)
     runtime = build_runtime(groups)
     parameters = _build_parameter_tables(groups)
     current_runtime = bytes(rom_data[OFF_RUNTIME:OFF_RUNTIME + len(runtime)])

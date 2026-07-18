@@ -270,7 +270,6 @@ def build_runtime(group_settings=None) -> bytes:
 
 
 RUNTIME = build_runtime()
-PRE_COMPACT_RUNTIME = RUNTIME[:-2] + bytes((0xD5, 0xE5))
 CPU_RUNTIME_END = CPU_RUNTIME + len(RUNTIME)
 RESERVED_SPANS = (
     (OFF_RUNTIME, len(RUNTIME)),
@@ -306,17 +305,27 @@ def current_settings(rom_data) -> dict[str, object]:
             "fire_direction": current_parameters[GROUP_COUNT * 3 + index],
         })
     groups = normalize_group_settings(groups)
-    if (
-        current_runtime not in (build_runtime(groups), PRE_COMPACT_RUNTIME)
-        or current_parameters != _build_parameter_tables(groups)
-    ):
+    if current_runtime != build_runtime(groups) or current_parameters != _build_parameter_tables(groups):
         raise GhostB0RuntimeError("Ghost A-F runtime has unexpected bytes")
     return {"groups": groups}
+
+
+def validate_runtime_dependencies(rom_data) -> None:
+    from . import panel_monster_stage_variant as panel
+    end = panel.OFF_FINAL_STATIC_MARKER_HELPER + len(panel.FINAL_STATIC_MARKER_HELPER)
+    if rom_data is None or len(rom_data) < end:
+        raise GhostB0RuntimeError("ROM is too short for Ghost A-F runtime dependencies")
+    current = bytes(rom_data[panel.OFF_FINAL_STATIC_MARKER_HELPER:end])
+    if current != panel.FINAL_STATIC_MARKER_HELPER and not all(
+        value in (0x00, 0xEA) for value in current
+    ):
+        raise GhostB0RuntimeError("Ghost A-F Bullet marker helper has unexpected bytes")
 
 
 def apply_settings(rom_data, group_settings) -> list[str]:
     groups = normalize_group_settings(group_settings)
     current_settings(rom_data)
+    validate_runtime_dependencies(rom_data)
     runtime = build_runtime(groups)
     parameters = _build_parameter_tables(groups)
     current_runtime = bytes(rom_data[OFF_RUNTIME:OFF_RUNTIME + len(runtime)])

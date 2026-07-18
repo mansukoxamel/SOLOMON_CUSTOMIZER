@@ -573,14 +573,13 @@ def apply(rom_data: bytearray) -> list[str]:
         _radiance9d.OFF_RUNTIME + len(_radiance9d.RUNTIME),
         _ghostb0.OFF_RUNTIME + len(_ghostb0.RUNTIME),
         _ghostb0.OFF_PARAMETER_TABLE + len(_ghostb0.PARAMETER_TABLES),
+        _panel.OFF_FINAL_STATIC_MARKER_HELPER + len(_panel.FINAL_STATIC_MARKER_HELPER),
         OFF_GHOSTB0_EXTENSION + len(GHOSTB0_EXTENSION_RUNTIME),
         max(off + len(blob) for off, blob, _old_blobs, _name in ENTRY_RUNTIMES),
     )
     if rom_data is None or len(rom_data) < max_end:
         raise NewEnemyRuntimeError("ROM is too short for new enemy runtime.")
 
-    changed: list[str] = []
-    changed.extend(_spark_variant.apply(rom_data))
     _expect_one(
         rom_data,
         _ice.OFF_AI_DISPATCH_CALL,
@@ -654,10 +653,12 @@ def apply(rom_data: bytearray) -> list[str]:
     ghostb0_settings = _ghostb0.current_settings(rom_data)
     ghostb0_runtime = _ghostb0.build_runtime(ghostb0_settings["groups"])
     ghostb0_parameters = _ghostb0.build_parameter_tables(ghostb0_settings["groups"])
+    _ghostb0.validate_runtime_dependencies(rom_data)
+    _neul84.validate_runtime_dependencies(rom_data)
     _expect_blank_or_one_of(
         rom_data,
         _ghostb0.OFF_RUNTIME,
-        (ghostb0_runtime, _ghostb0.PRE_COMPACT_RUNTIME),
+        (ghostb0_runtime,),
         "Ghost A-F runtime area",
     )
     _expect_blank_or_one_of(
@@ -701,6 +702,8 @@ def apply(rom_data: bytearray) -> list[str]:
         for off, blob, _old_blobs, name in ENTRY_RUNTIMES:
             _expect_blank_or_one_of(rom_data, off, (*_old_blobs, blob), name)
 
+    changed: list[str] = []
+    changed.extend(_spark_variant.apply(rom_data))
     _write(rom_data, _ice.OFF_AI_DISPATCH_CALL, HOOK_AI_DISPATCH_CALL, changed, "$A1C3 new enemy AI dispatch hook")
     _write(rom_data, _ice.OFF_ANIM_UPDATE_CALL, HOOK_ANIM_UPDATE_CALL, changed, "$8676 new enemy animation hook")
     _write(rom_data, _ice.OFF_INIT_WRITE_CALL, HOOK_INIT_WRITE_CALL, changed, "$A2F2 new enemy init/status hook")

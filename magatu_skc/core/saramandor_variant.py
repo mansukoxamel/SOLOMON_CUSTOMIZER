@@ -56,22 +56,19 @@ ORIG_FIRE_STATE_EXIT = bytes.fromhex("e0 34 90")
 CPU_CAVE_SPAWN_SETUP = 0xE3C9
 CPU_CAVE_SUBSTATUS = 0xE3ED
 CPU_CAVE_FLAME_BEHAVIOR = 0xE402
-CPU_CAVE_DISTANCE_CHECK = 0xE40B
-CPU_CAVE_CHILD_MARK = 0xE430
-CPU_CAVE_REFIRE_WAIT = 0xE448
-CPU_CAVE_FIRE_STATE_EXIT = 0xE465
+CPU_CAVE_DISTANCE_CHECK = 0xE40F
+CPU_CAVE_CHILD_MARK = 0xE434
+CPU_CAVE_REFIRE_WAIT = 0xE44C
+CPU_CAVE_FIRE_STATE_EXIT = 0xE469
 CPU_CAVE_EXTENSION = 0xE9A9
 
 HOOK_SPAWN_SETUP = bytes((0x20, *(_word(CPU_CAVE_SPAWN_SETUP)))) + bytes([0xEA] * 11)
 HOOK_SUBSTATUS = bytes((0x20, *(_word(CPU_CAVE_SUBSTATUS)))) + bytes([0xEA] * 4)
 HOOK_FLAME_BEHAVIOR = bytes((0x20, *(_word(CPU_CAVE_FLAME_BEHAVIOR))))
 HOOK_CHILD_MARK = bytes((0x20, *(_word(CPU_CAVE_CHILD_MARK))))
-BAD_HOOK_CHILD_MARK_CLEANUP = bytes.fromhex("20 9f be")
 HOOK_DISTANCE_CHECK = bytes((0x4C, *(_word(CPU_CAVE_DISTANCE_CHECK))))
 HOOK_REFIRE_WAIT = bytes((0x20, *(_word(CPU_CAVE_REFIRE_WAIT)), 0x90, 0x08, 0xEA, 0xEA, 0xEA))
 HOOK_FIRE_STATE_EXIT = bytes((0x4C, *(_word(CPU_CAVE_FIRE_STATE_EXIT))))
-HOOK_PANEL_STAGE_SPEED_GUARD = bytes.fromhex("20 a4 e7")
-HOOK_PANEL_STAGE_SPEED_GUARD_OLD = bytes.fromhex("20 76 e8")
 
 
 # Packed PRG0 cleanup layout.
@@ -131,11 +128,15 @@ CAVE_SUBSTATUS = bytes.fromhex(
 assert len(CAVE_SUBSTATUS) == 21
 
 CAVE_FLAME_BEHAVIOR = bytes.fromhex(
-    # For Bullet variants, do not run the Flame-specific behavior setup.
-    f"20 {_word(CPU_CAVE_EXTENSION + 42).hex()} f0 01 60"
+    # Stock IDs keep the original child-link mask in X and despawn both
+    # linked children. Enhanced A/B/C keeps the materialized Bullet in
+    # sub-slot[7], but must release the unused reservation in sub-slot[6].
+    f"20 {_word(CPU_CAVE_EXTENSION + 42).hex()} d0 03"
+    "4c 5e b0"
+    "a2 01"
     "4c 5e b0"
 )
-assert len(CAVE_FLAME_BEHAVIOR) == 9
+assert len(CAVE_FLAME_BEHAVIOR) == 13
 
 CAVE_DISTANCE_CHECK = bytes.fromhex(
     # Replacement for SUB_B1E9.
@@ -212,7 +213,7 @@ assert CPU_CAVE_DISTANCE_CHECK == CPU_CAVE_FLAME_BEHAVIOR + len(CAVE_FLAME_BEHAV
 assert CPU_CAVE_CHILD_MARK == CPU_CAVE_DISTANCE_CHECK + len(CAVE_DISTANCE_CHECK)
 assert CPU_CAVE_REFIRE_WAIT == CPU_CAVE_CHILD_MARK + len(CAVE_CHILD_MARK)
 assert CPU_CAVE_FIRE_STATE_EXIT == CPU_CAVE_REFIRE_WAIT + len(CAVE_REFIRE_WAIT)
-assert OFF_CAVE_FIRE_STATE_EXIT + len(CAVE_FIRE_STATE_EXIT) - 1 == 0x6491
+assert OFF_CAVE_FIRE_STATE_EXIT + len(CAVE_FIRE_STATE_EXIT) - 1 == 0x6495
 
 RESERVED_SPANS = (
     (
@@ -409,6 +410,15 @@ def _ensure_child_mark_available(rom_data) -> None:
     )
 
 
+def _ensure_runtime_blob_available(rom_data, off: int, blob: bytes, name: str) -> None:
+    current = bytes(rom_data[off:off + len(blob)])
+    if current == blob or all(value in (0x00, 0xEA) for value in current):
+        return
+    raise SaramandorVariantError(
+        f"Enhanced Saramandor {name} area is occupied at file 0x{off:X}."
+    )
+
+
 def _ensure_refire_wait_available(rom_data) -> None:
     current = bytes(
         rom_data[
@@ -510,7 +520,6 @@ def apply(
         ORIG_CHILD_MARK,
         HOOK_CHILD_MARK,
         "$B121",
-        extra_hooks=(BAD_HOOK_CHILD_MARK_CLEANUP,),
     )
     _expect_or_hooked(rom_data, OFF_HOOK_BULLET_INIT, ORIG_BULLET_INIT, ORIG_BULLET_INIT, "$AFD1")
     _expect_or_hooked(
@@ -521,9 +530,6 @@ def apply(
         "$866D",
         extra_hooks=(
             panel_monster_stage_variant.HOOK_SPEED_INIT_CALL,
-            panel_monster_stage_variant.PRE_COMPACT_HOOK_SPEED_INIT_CALL,
-            HOOK_PANEL_STAGE_SPEED_GUARD,
-            HOOK_PANEL_STAGE_SPEED_GUARD_OLD,
         ),
     )
     _expect_or_hooked(rom_data, OFF_HOOK_DISTANCE_CHECK, ORIG_DISTANCE_CHECK, HOOK_DISTANCE_CHECK, "$B1E9")
@@ -541,6 +547,13 @@ def apply(
         HOOK_FIRE_STATE_EXIT,
         "$B0B3",
     )
+    for off, blob, name in (
+        (OFF_CAVE_SPAWN_SETUP, CAVE_SPAWN_SETUP, "spawn setup"),
+        (OFF_CAVE_SUBSTATUS, CAVE_SUBSTATUS, "substatus"),
+        (OFF_CAVE_FLAME_BEHAVIOR, CAVE_FLAME_BEHAVIOR, "flame behavior"),
+        (OFF_CAVE_DISTANCE_CHECK, CAVE_DISTANCE_CHECK, "distance check"),
+    ):
+        _ensure_runtime_blob_available(rom_data, off, blob, name)
     _ensure_child_mark_available(rom_data)
     _ensure_refire_wait_available(rom_data)
     _ensure_fire_state_exit_available(rom_data)
@@ -550,10 +563,10 @@ def apply(
     _write_blob(rom_data, OFF_CAVE_SPAWN_SETUP, CAVE_SPAWN_SETUP, changed, "Saramandor variant cave $E3C9")
     _write_blob(rom_data, OFF_CAVE_SUBSTATUS, CAVE_SUBSTATUS, changed, "Saramandor variant cave $E3ED")
     _write_blob(rom_data, OFF_CAVE_FLAME_BEHAVIOR, CAVE_FLAME_BEHAVIOR, changed, "Saramandor variant cave $E402")
-    _write_blob(rom_data, OFF_CAVE_DISTANCE_CHECK, CAVE_DISTANCE_CHECK, changed, "Saramandor variant cave $E40B")
-    _write_blob(rom_data, OFF_CAVE_CHILD_MARK, CAVE_CHILD_MARK, changed, "Saramandor flame-speed helper $E430")
-    _write_blob(rom_data, OFF_CAVE_REFIRE_WAIT, CAVE_REFIRE_WAIT, changed, "Saramandor re-fire helper $E448")
-    _write_blob(rom_data, OFF_CAVE_FIRE_STATE_EXIT, CAVE_FIRE_STATE_EXIT, changed, "Saramandor post-fire stop helper $E465")
+    _write_blob(rom_data, OFF_CAVE_DISTANCE_CHECK, CAVE_DISTANCE_CHECK, changed, "Saramandor variant cave $E40F")
+    _write_blob(rom_data, OFF_CAVE_CHILD_MARK, CAVE_CHILD_MARK, changed, "Saramandor flame-speed helper $E434")
+    _write_blob(rom_data, OFF_CAVE_REFIRE_WAIT, CAVE_REFIRE_WAIT, changed, "Saramandor re-fire helper $E44C")
+    _write_blob(rom_data, OFF_CAVE_FIRE_STATE_EXIT, CAVE_FIRE_STATE_EXIT, changed, "Saramandor post-fire stop helper $E469")
     _write_blob(rom_data, OFF_CAVE_EXTENSION, extension, changed, "Saramandor A/B/C extension $E9A9")
 
     _write_blob(rom_data, OFF_HOOK_SPAWN_SETUP, HOOK_SPAWN_SETUP, changed, "$B105 Saramandor spawn hook")

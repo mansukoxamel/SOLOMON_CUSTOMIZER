@@ -1,34 +1,4 @@
-"""Spark Ball borrowed-ID variants.
-
-JP/JPC66 only.  The accepted Dragon #2 IDs are reused as Spark Ball variants:
-
-  $6A -> Spark Ball up phase, speed 1
-  $6B -> Spark Ball right-hand/down phase, speed 1
-  $6E -> Spark Ball up phase, speed 2
-  $6F -> Spark Ball right-hand/down phase, speed 2
-
-The accepted Golem #2 IDs are reused as transparent Spark Ball variants:
-
-  $72 -> Transparent Spark Ball up phase, speed 1
-  $73 -> Transparent Spark Ball down phase, speed 1
-  $76 -> Transparent Spark Ball up phase, speed 2
-  $77 -> Transparent Spark Ball down phase, speed 2
-
-The normal Dragon IDs in the same AI-table groups ($68/$69/$6C/$6D) are sent
-back to the stock Dragon routine.  The borrowed IDs enter the confirmed stock
-Spark Ball AI while keeping their original type byte.  Property and animation
-metadata are selected by type-specific hooks so the shared Dragon groups remain
-unchanged for stock Dragons.
-
-The normal Golem IDs in the same AI-table groups ($70/$71/$74/$75) are sent
-back to the stock Golem routine.  The transparent variants use the same Spark
-Ball metadata and additionally hide their OAM tiles every other long phase
-after the normal draw routine has completed.
-
-The LIFE-hundreds pause hook checks main-slot +1 for the borrowed IDs.  Stock
-$28-$2F Spark Balls do not match and continue through the original speed commit.
-"""
-
+"""Integrated 24-ID Spark Ball settings and ROM writer."""
 from __future__ import annotations
 
 from . import spark24_runtime as _spark24
@@ -38,109 +8,28 @@ class SparkBallVariantError(ValueError):
     pass
 
 
-# Issue 75 temporarily returns every borrowed Dragon/Golem ID to its stock
-# enemy.  Keep this implementation intact: the completed 24-ID Spark layout
-# will reuse it after the new IDs are assigned.
-BORROWED_ID_RUNTIME_ENABLED = False
-
-
 def _cf(cpu: int) -> int:
     return 0x10 + (cpu - 0x8000)
 
 
-def _cpu(file_off: int) -> int:
-    return 0x8000 + (file_off - 0x10)
-
-
-def _word(cpu: int) -> bytes:
-    return bytes((cpu & 0xFF, (cpu >> 8) & 0xFF))
-
-
-class _Asm:
-    def __init__(self):
-        self.code = bytearray()
-        self.labels: dict[str, int] = {}
-        self.fixups: list[tuple[int, str]] = []
-
-    def b(self, *vals: int) -> None:
-        self.code.extend(v & 0xFF for v in vals)
-
-    def label(self, name: str) -> None:
-        self.labels[name] = len(self.code)
-
-    def branch(self, opcode: int, label: str) -> None:
-        self.b(opcode, 0x00)
-        self.fixups.append((len(self.code) - 1, label))
-
-    def jmp(self, cpu: int) -> None:
-        self.b(0x4C, cpu & 0xFF, (cpu >> 8) & 0xFF)
-
-    def finish(self) -> bytes:
-        for off, label in self.fixups:
-            target = self.labels[label]
-            rel = target - (off + 1)
-            if not -128 <= rel <= 127:
-                raise SparkBallVariantError(f"branch to {label} is out of range")
-            self.code[off] = rel & 0xFF
-        return bytes(self.code)
-
-
-OFF_AI_DRAGON_SLOW = _cf(0xA358)
-OFF_AI_DRAGON_FAST = _cf(0xA35A)
-OFF_AI_GOLEM_SLOW = _cf(0xA35C)
-OFF_AI_GOLEM_FAST = _cf(0xA35E)
-
-ORIG_AI_DRAGON = _word(0xA64A)
-ORIG_AI_GOLEM = _word(0xAD11)
 ORIG_AB13_HEAD = bytes.fromhex("A0 07 B5")
 ORIG_A2CC_HEAD = bytes.fromhex("B9 0E A3")
-ORIG_8B05_HEAD = bytes.fromhex("B9 E8 D0 85 0A B9 E9 D0 85 0B")
 ORIG_85FA = bytes.fromhex("9D 16 02 4C 08 86")
 
-OFF_PROPERTY_DRAGON_SLOW = _cf(0xA322)
-OFF_PROPERTY_DRAGON_FAST = _cf(0xA323)
-ORIG_DRAGON_PROPERTY = 0x00
-SPARK_PROPERTY = 0x19
-
-OFF_ANIM_META_DRAGON_SLOW = 0x512C
-OFF_ANIM_META_DRAGON_FAST = 0x512E
-ORIG_DRAGON_ANIM_META = _word(0xD4CA)
-SPARK_ANIM_META = _word(0xD35A)
-
-CPU_AI_DRAGON_SLOW_WRAPPER = _cpu(0x6280)  # $E270
-CPU_AI_DRAGON_FAST_WRAPPER = _cpu(0x6290)      # $E280
-CPU_AI_GOLEM_WRAPPER = _cpu(0x62A0)            # $E290
-CPU_PAUSE_HOOK = _cpu(0x62B7)                  # $E2A7
-CPU_PROPERTY_HOOK = _cpu(0x632A)               # $E31A
-CPU_OLD_ANIM_HOOK = _cpu(0x62E8)               # $E2D8, overlapped Panel Variant settings
-CPU_ANIM_HOOK = _cpu(0x4FEE)                   # $CFDE
-CPU_ANIM_SPARK_SET = _cpu(0x62FF)              # $E2EF
-CPU_OAM_HIDE_HOOK = _cpu(0x6308)               # $E2F8
-CPU_PANEL_PROPERTY_HOOK = _cpu(0x5BEF)         # $DBDF
-CPU_PANEL_ANIM_HOOK = _cpu(0x40D2)             # $C0C2
-
-DEFAULT_PAUSE_DIGITS = (0, 3, 6, 9)
-DEFAULT_REVERSE_DIGITS = _spark24.DEFAULT_REVERSE_DIGITS
-PAUSE_DIGIT_COUNT = 4
-TRANSPARENCY_PERIODS = (0x20, 0x30, 0x40, 0x60, 0x80)
-DEFAULT_TRANSPARENCY_PERIOD = 0x40
-
-OFF_AI_DRAGON_SLOW_WRAPPER = _cf(CPU_AI_DRAGON_SLOW_WRAPPER)
-OFF_AI_DRAGON_FAST_WRAPPER = _cf(CPU_AI_DRAGON_FAST_WRAPPER)
-OFF_AI_GOLEM_WRAPPER = _cf(CPU_AI_GOLEM_WRAPPER)
-OFF_PAUSE_HOOK = _cf(CPU_PAUSE_HOOK)
-OFF_PROPERTY_HOOK = _cf(CPU_PROPERTY_HOOK)
-OFF_OLD_ANIM_HOOK = _cf(CPU_OLD_ANIM_HOOK)
-OFF_ANIM_HOOK = _cf(CPU_ANIM_HOOK)
-OFF_ANIM_SPARK_SET = _cf(CPU_ANIM_SPARK_SET)
-OFF_OAM_HIDE_HOOK = _cf(CPU_OAM_HIDE_HOOK)
 OFF_AB13 = _cf(0xAB13)
 OFF_A2CC = _cf(0xA2CC)
-OFF_8B05 = _cf(0x8B05)
 OFF_85FA = _cf(0x85FA)
 
-OFF_PAUSE_DIGITS = tuple(OFF_PAUSE_HOOK + rel for rel in (0x1F, 0x23, 0x27, 0x2B))
-OFF_TRANSPARENCY_PERIOD = OFF_OAM_HIDE_HOOK + 0x14
+CPU_PANEL_PROPERTY_HOOK = _spark24.CPU_PANEL_PROPERTY_HOOK
+
+DEFAULT_PAUSE_DIGITS = _spark24.DEFAULT_PAUSE_DIGITS
+DEFAULT_REVERSE_DIGITS = _spark24.DEFAULT_REVERSE_DIGITS
+PAUSE_DIGIT_COUNT = _spark24.PAUSE_DIGIT_COUNT
+TRANSPARENCY_PERIODS = _spark24.TRANSPARENCY_PERIODS
+DEFAULT_TRANSPARENCY_PERIOD = _spark24.DEFAULT_TRANSPARENCY_PERIOD
+
+RESERVED_SPANS = _spark24.RESERVED_SPANS
+
 
 def normalize_pause_digits(digits) -> tuple[int, int, int, int]:
     vals = []
@@ -159,174 +48,20 @@ def normalize_pause_digits(digits) -> tuple[int, int, int, int]:
     return tuple(vals)
 
 
-def _build_ai_wrapper(low_type: int, high_type: int, low_spark: int,
-                      high_spark: int, spark_ai: int, stock_ai: int = 0xA64A) -> bytes:
-    a = _Asm()
-    a.b(0xA0, 0x01, 0xB1, 0x2E)       # LDY #1 / LDA ($2E),Y
-    a.b(0x29, 0xFE)                   # normalize phase bit
-    a.b(0xC9, low_type); a.branch(0xF0, "spark")
-    a.jmp(stock_ai)
-    a.label("spark")
-    a.jmp(spark_ai)
-    return a.finish()
-
-
-def _build_pause_hook(pause_digits=DEFAULT_PAUSE_DIGITS) -> bytes:
-    pause_digits = normalize_pause_digits(pause_digits)
-    a = _Asm()
-    a.b(0xA0, 0x01, 0xB1, 0x2E)       # LDY #1 / LDA ($2E),Y
-    a.b(0x29, 0xFE)                   # normalize phase bit
-    for type_id in (0x6A, 0x6E):
-        a.b(0xC9, type_id); a.branch(0xF0, "check_pause")
-    a.label("commit")
-    a.b(0xA0, 0x07, 0xB5, 0x02, 0x91, 0x2E)
-    a.b(0xA0, 0x0A, 0xB5, 0x03, 0x91, 0x2E, 0x60)
-    a.label("check_pause")
-    a.b(0xAD, 0x39, 0x04)             # LDA $0439 (LIFE hundreds digit)
-    for digit in pause_digits:
-        a.b(0xC9, digit); a.branch(0xF0, "stop")
-    a.branch(0xD0, "commit")
-    a.label("stop")
-    a.b(0x60)
-    return a.finish()
-
-
-def _build_property_hook() -> bytes:
-    a = _Asm()
-    a.b(0xA5, 0x05)                      # LDA $05 (spawn type)
-    a.b(0x29, 0xFE)                      # pair-normalize direction bit
-    a.b(0x38, 0xE9, 0x6A)                # accepted offsets: 0, 4, 8, 12
-    a.b(0xC9, 0x0D); a.branch(0xB0, "orig")
-    a.b(0x29, 0x03); a.branch(0xD0, "orig")
-    a.label("spark")
-    a.b(0xA9, SPARK_PROPERTY, 0x60)      # LDA #$19 / RTS
-    a.label("orig")
-    a.jmp(CPU_PANEL_PROPERTY_HOOK)        # fall through to Panel/stock selector
-    return a.finish()
-
-
-def _build_anim_hook() -> bytes:
-    a = _Asm()
-    a.b(0xA0, 0x01, 0xB1, 0x08)          # LDY #1 / LDA ($08),Y (entity type)
-    a.b(0x29, 0xFE)                      # ignore right/left phase bit
-    a.b(0x38, 0xE9, 0x6A)                # accepted offsets: 0, 4, 8, 12
-    a.b(0xC9, 0x0D); a.branch(0xB0, "orig")
-    a.b(0x29, 0x03); a.branch(0xD0, "orig")
-    a.label("spark")
-    a.b(0x4C, CPU_ANIM_SPARK_SET & 0xFF, (CPU_ANIM_SPARK_SET >> 8) & 0xFF)
-    a.label("orig")
-    a.jmp(CPU_PANEL_ANIM_HOOK)            # fall through to Panel/stock selector
-    return a.finish()
-
-
-def _build_anim_spark_set() -> bytes:
-    return bytes((
-        0xA9, SPARK_ANIM_META[0], 0x85, 0x0A,
-        0xA9, SPARK_ANIM_META[1], 0x85, 0x0B,
-        0x60,
-    ))
-
-
-def _build_golem_ai_wrapper() -> bytes:
-    a = _Asm()
-    a.b(0xA0, 0x01, 0xB1, 0x2E, 0x29, 0xFE)  # read type, normalize phase bit
-    a.b(0xC9, 0x72); a.branch(0xF0, "slow")
-    a.b(0xC9, 0x76); a.branch(0xF0, "fast")
-    a.jmp(0xAD11)
-    a.label("slow")
-    a.jmp(0xA929)
-    a.label("fast")
-    a.jmp(0xA92D)
-    return a.finish()
-
-
-def _build_oam_hide_hook(transparency_period=DEFAULT_TRANSPARENCY_PERIOD) -> bytes:
-    transparency_period = int(transparency_period)
-    if transparency_period not in TRANSPARENCY_PERIODS:
-        raise SparkBallVariantError(
-            f"未対応の透明スパークボール周期です: ${transparency_period:02X}")
-    a = _Asm()
-    a.b(0x9D, 0x16, 0x02)             # original STA $0216,X
-    a.b(0xA0, 0x01, 0xB1, 0x08)       # LDY #1 / LDA ($08),Y (entity type)
-    a.b(0x29, 0xFE)                   # normalize up/down phase bit
-    a.b(0xC9, 0x72); a.branch(0xF0, "maybe_hide")
-    a.b(0xC9, 0x76); a.branch(0xD0, "done")
-    a.label("maybe_hide")
-    a.b(0xA5, 0x21, 0x29, transparency_period)  # LDA frame counter / AND #mask
-    a.branch(0xF0, "done")
-    a.b(0xA9, 0xF8, 0x9D, 0x10, 0x02, 0x9D, 0x14, 0x02)
-    a.label("done")
-    a.jmp(0x8608)
-    return a.finish()
-
-
-CAVE_AI_DRAGON_SLOW_WRAPPER = _build_ai_wrapper(0x6A, 0x6B, 0x2A, 0x2B, 0xA929)
-CAVE_AI_DRAGON_FAST_WRAPPER = _build_ai_wrapper(0x6E, 0x6F, 0x2E, 0x2F, 0xA92D)
-CAVE_AI_GOLEM_WRAPPER = _build_golem_ai_wrapper()
-CAVE_PAUSE_HOOK = _build_pause_hook()
-CAVE_PROPERTY_HOOK = _build_property_hook()
-CAVE_ANIM_HOOK = _build_anim_hook()
-CAVE_ANIM_SPARK_SET = _build_anim_spark_set()
-CAVE_OAM_HIDE_HOOK = _build_oam_hide_hook()
-OFF_SPARK_BALL_FREE = OFF_PROPERTY_HOOK + len(CAVE_PROPERTY_HOOK)
-SPARK_BALL_FREE_LEN = 3
-assert OFF_AI_DRAGON_FAST_WRAPPER == OFF_AI_DRAGON_SLOW_WRAPPER + len(CAVE_AI_DRAGON_SLOW_WRAPPER)
-assert OFF_AI_GOLEM_WRAPPER == OFF_AI_DRAGON_FAST_WRAPPER + len(CAVE_AI_DRAGON_FAST_WRAPPER)
-assert OFF_PAUSE_HOOK == OFF_AI_GOLEM_WRAPPER + len(CAVE_AI_GOLEM_WRAPPER)
-assert OFF_OLD_ANIM_HOOK == OFF_PAUSE_HOOK + len(CAVE_PAUSE_HOOK)
-assert OFF_ANIM_HOOK + len(CAVE_ANIM_HOOK) - 1 == 0x5004
-assert OFF_OAM_HIDE_HOOK == OFF_ANIM_SPARK_SET + len(CAVE_ANIM_SPARK_SET)
-assert OFF_PROPERTY_HOOK == OFF_OAM_HIDE_HOOK + len(CAVE_OAM_HIDE_HOOK)
-assert OFF_SPARK_BALL_FREE == OFF_PROPERTY_HOOK + len(CAVE_PROPERTY_HOOK)
-assert SPARK_BALL_FREE_LEN == 3
-
-_BORROWED_RESERVED_SPANS = (
-    (OFF_AI_DRAGON_SLOW_WRAPPER, len(CAVE_AI_DRAGON_SLOW_WRAPPER)),
-    (OFF_AI_DRAGON_FAST_WRAPPER, len(CAVE_AI_DRAGON_FAST_WRAPPER)),
-    (OFF_AI_GOLEM_WRAPPER, len(CAVE_AI_GOLEM_WRAPPER)),
-    (OFF_PAUSE_HOOK, len(CAVE_PAUSE_HOOK)),
-    (OFF_PROPERTY_HOOK, len(CAVE_PROPERTY_HOOK)),
-    (OFF_ANIM_HOOK, len(CAVE_ANIM_HOOK)),
-    (OFF_ANIM_SPARK_SET, len(CAVE_ANIM_SPARK_SET)),
-    (OFF_OAM_HIDE_HOOK, len(CAVE_OAM_HIDE_HOOK)),
-)
-RESERVED_SPANS = (
-    _BORROWED_RESERVED_SPANS
-    if BORROWED_ID_RUNTIME_ENABLED
-    else _spark24.RESERVED_SPANS
-)
-
-
 def _write_blob(rom_data, off: int, blob: bytes, changed: list[str], name: str) -> None:
     if bytes(rom_data[off:off + len(blob)]) != blob:
         rom_data[off:off + len(blob)] = blob
         changed.append(name)
 
 
-def _expect_or_hooked(rom_data, off: int, orig: bytes, hook: bytes, name: str) -> None:
-    cur = bytes(rom_data[off:off + len(orig)])
-    if cur == orig:
-        return
-    if cur[:len(hook)] == hook:
-        return
-    raise SparkBallVariantError(
-        f"{name} signature mismatch at file 0x{off:X}: "
-        f"expected {orig.hex(' ')} or hook {hook.hex(' ')}, got {cur.hex(' ')}"
-    )
-
-
-def _has_pause_hook(rom_data) -> bool:
-    return bytes(rom_data[OFF_PAUSE_HOOK:OFF_PAUSE_HOOK + 4]) == bytes((0xA0, 0x01, 0xB1, 0x2E))
-
-
-def _has_oam_hide_hook(rom_data) -> bool:
-    return bytes(rom_data[OFF_OAM_HIDE_HOOK:OFF_OAM_HIDE_HOOK + 3]) == bytes((0x9D, 0x16, 0x02))
+def _runtime_present(rom_data) -> bool:
+    return bytes(rom_data[_spark24.OFF_RUNTIME:_spark24.OFF_RUNTIME + 3]) == _spark24.RUNTIME[:3]
 
 
 def current_pause_digits(rom_data) -> tuple[int, int, int, int]:
     if rom_data is None:
         raise SparkBallVariantError("ROM is not loaded")
-    if bytes(rom_data[_spark24.OFF_RUNTIME:_spark24.OFF_RUNTIME + 3]) == _spark24.RUNTIME[:3]:
+    if _runtime_present(rom_data):
         return tuple(int(rom_data[off]) for off in _spark24.OFF_PAUSE_DIGITS)
     return DEFAULT_PAUSE_DIGITS
 
@@ -334,7 +69,7 @@ def current_pause_digits(rom_data) -> tuple[int, int, int, int]:
 def current_transparency_period(rom_data) -> int:
     if rom_data is None:
         raise SparkBallVariantError("ROM is not loaded")
-    if bytes(rom_data[_spark24.OFF_RUNTIME:_spark24.OFF_RUNTIME + 3]) == _spark24.RUNTIME[:3]:
+    if _runtime_present(rom_data):
         value = int(rom_data[_spark24.OFF_TRANSPARENCY_PERIOD])
         return value if value in TRANSPARENCY_PERIODS else DEFAULT_TRANSPARENCY_PERIOD
     return DEFAULT_TRANSPARENCY_PERIOD
@@ -343,192 +78,63 @@ def current_transparency_period(rom_data) -> int:
 def current_reverse_digits(rom_data) -> tuple[int, int, int, int]:
     if rom_data is None:
         raise SparkBallVariantError("ROM is not loaded")
-    if bytes(rom_data[_spark24.OFF_RUNTIME:_spark24.OFF_RUNTIME + 3]) == _spark24.RUNTIME[:3]:
+    if _runtime_present(rom_data):
         return tuple(int(rom_data[off]) for off in _spark24.OFF_REVERSE_DIGITS)
-    return _spark24.DEFAULT_REVERSE_DIGITS
-
-
-def _apply_spark24(rom_data, pause_digits=None, reverse_digits=None,
-                   transparency_period=None) -> list[str]:
-    try:
-        pause_digits = _spark24.normalize_digits(
-            current_pause_digits(rom_data) if pause_digits is None else pause_digits)
-        reverse_digits = _spark24.normalize_digits(
-            current_reverse_digits(rom_data) if reverse_digits is None else reverse_digits)
-        if transparency_period is None:
-            transparency_period = current_transparency_period(rom_data)
-        runtime, offsets = _spark24.build_runtime(
-            pause_digits, reverse_digits, transparency_period)
-    except _spark24.Spark24RuntimeError as exc:
-        raise SparkBallVariantError(str(exc)) from exc
-    changed: list[str] = []
-    hook_ab13 = bytes((0x4C, offsets["pause"] & 0xFF, offsets["pause"] >> 8))
-    hook_a2cc = bytes((0x20, offsets["property"] & 0xFF, offsets["property"] >> 8))
-    hook_85fa = bytes((0x4C, offsets["oam"] & 0xFF, offsets["oam"] >> 8))
-    current_ab13 = bytes(rom_data[OFF_AB13:OFF_AB13 + 3])
-    current_a2cc = bytes(rom_data[OFF_A2CC:OFF_A2CC + 3])
-    current_85fa = bytes(rom_data[OFF_85FA:OFF_85FA + len(ORIG_85FA)])
-    accepted_ab13 = (ORIG_AB13_HEAD, hook_ab13)
-    accepted_a2cc = (
-        ORIG_A2CC_HEAD,
-        bytes((0x20, CPU_PANEL_PROPERTY_HOOK & 0xFF, CPU_PANEL_PROPERTY_HOOK >> 8)),
-        hook_a2cc,
-    )
-    new_oam = hook_85fa + bytes((0xEA,)) * 3
-    if current_ab13 not in accepted_ab13:
-        raise SparkBallVariantError(f"$AB13 signature mismatch: got {current_ab13.hex(' ')}")
-    if current_a2cc not in accepted_a2cc:
-        raise SparkBallVariantError(f"$A2CC signature mismatch: got {current_a2cc.hex(' ')}")
-    if current_85fa not in (ORIG_85FA, new_oam):
-        raise SparkBallVariantError(f"$85FA signature mismatch: got {current_85fa.hex(' ')}")
-    _write_blob(rom_data, _spark24.OFF_RUNTIME, runtime, changed,
-                "Spark24 integrated runtime")
-    _write_blob(rom_data, OFF_AB13, hook_ab13, changed, "$AB13 Spark24 pause dispatch")
-    _write_blob(rom_data, OFF_A2CC, hook_a2cc, changed, "$A2CC Spark24 property dispatch")
-    _write_blob(rom_data, OFF_85FA,
-                new_oam,
-                changed, "$85FA Spark24 transparency dispatch")
-    return changed
+    return DEFAULT_REVERSE_DIGITS
 
 
 def apply(rom_data, pause_digits=None, transparency_period=None,
           reverse_digits=None) -> list[str]:
-    if not BORROWED_ID_RUNTIME_ENABLED:
-        return _apply_spark24(
-            rom_data, pause_digits, reverse_digits, transparency_period)
-    if pause_digits is None:
-        pause_digits = current_pause_digits(rom_data)
-    else:
-        pause_digits = normalize_pause_digits(pause_digits)
-    if transparency_period is None:
-        transparency_period = current_transparency_period(rom_data)
-    else:
-        transparency_period = int(transparency_period)
-        if transparency_period not in TRANSPARENCY_PERIODS:
-            raise SparkBallVariantError(
-                f"未対応の透明スパークボール周期です: ${transparency_period:02X}")
-    pause_hook = _build_pause_hook(pause_digits)
-    oam_hide_hook = _build_oam_hide_hook(transparency_period)
-
     min_len = max(
-        OFF_AI_DRAGON_SLOW_WRAPPER + len(CAVE_AI_DRAGON_SLOW_WRAPPER),
-        OFF_AI_DRAGON_FAST_WRAPPER + len(CAVE_AI_DRAGON_FAST_WRAPPER),
-        OFF_AI_GOLEM_WRAPPER + len(CAVE_AI_GOLEM_WRAPPER),
-        OFF_PAUSE_HOOK + len(pause_hook),
-        OFF_PROPERTY_HOOK + len(CAVE_PROPERTY_HOOK),
-        OFF_ANIM_HOOK + len(CAVE_ANIM_HOOK),
-        OFF_ANIM_SPARK_SET + len(CAVE_ANIM_SPARK_SET),
-        OFF_OAM_HIDE_HOOK + len(oam_hide_hook),
+        _spark24.OFF_RUNTIME + len(_spark24.RUNTIME),
+        OFF_AB13 + 3,
+        OFF_A2CC + 3,
+        OFF_85FA + len(ORIG_85FA),
     )
     if rom_data is None or len(rom_data) < min_len:
-        raise SparkBallVariantError("ROM is too short for Spark Ball variant patch.")
+        raise SparkBallVariantError("ROM is too short for Spark24 runtime patch.")
+    try:
+        pause_digits = _spark24.normalize_digits(
+            current_pause_digits(rom_data) if pause_digits is None else pause_digits
+        )
+        reverse_digits = _spark24.normalize_digits(
+            current_reverse_digits(rom_data) if reverse_digits is None else reverse_digits
+        )
+        if transparency_period is None:
+            transparency_period = current_transparency_period(rom_data)
+        runtime, offsets = _spark24.build_runtime(
+            pause_digits, reverse_digits, transparency_period
+        )
+    except _spark24.Spark24RuntimeError as exc:
+        raise SparkBallVariantError(str(exc)) from exc
 
-    for off, hooks, name in (
-        (OFF_AI_DRAGON_SLOW, (_word(CPU_AI_DRAGON_SLOW_WRAPPER),), "$A358"),
-        (OFF_AI_DRAGON_FAST, (_word(CPU_AI_DRAGON_FAST_WRAPPER),), "$A35A"),
-    ):
-        cur = bytes(rom_data[off:off + 2])
-        if cur not in (ORIG_AI_DRAGON, *hooks):
-            raise SparkBallVariantError(f"{name} AI table signature mismatch: got {cur.hex(' ')}")
-    for off, hooks, name in (
-        (OFF_AI_GOLEM_SLOW, (_word(CPU_AI_GOLEM_WRAPPER),), "$A35C"),
-        (OFF_AI_GOLEM_FAST, (_word(CPU_AI_GOLEM_WRAPPER),), "$A35E"),
-    ):
-        cur = bytes(rom_data[off:off + 2])
-        if cur not in (ORIG_AI_GOLEM, *hooks):
-            raise SparkBallVariantError(f"{name} AI table signature mismatch: got {cur.hex(' ')}")
+    hook_ab13 = bytes((0x4C, offsets["pause"] & 0xFF, offsets["pause"] >> 8))
+    hook_a2cc = bytes((0x20, offsets["property"] & 0xFF, offsets["property"] >> 8))
+    hook_85fa = bytes((0x4C, offsets["oam"] & 0xFF, offsets["oam"] >> 8))
+    panel_a2cc = bytes((0x20, CPU_PANEL_PROPERTY_HOOK & 0xFF, CPU_PANEL_PROPERTY_HOOK >> 8))
+    new_oam = hook_85fa + bytes((0xEA,)) * 3
+
+    current_runtime = bytes(
+        rom_data[_spark24.OFF_RUNTIME:_spark24.OFF_RUNTIME + len(runtime)]
+    )
+    if current_runtime != runtime and not all(value in (0x00, 0xEA) for value in current_runtime):
+        raise SparkBallVariantError(
+            f"Spark24 runtime area is not blank at file 0x{_spark24.OFF_RUNTIME:X}: "
+            f"got {current_runtime.hex(' ')}"
+        )
+    current_ab13 = bytes(rom_data[OFF_AB13:OFF_AB13 + 3])
+    current_a2cc = bytes(rom_data[OFF_A2CC:OFF_A2CC + 3])
+    current_85fa = bytes(rom_data[OFF_85FA:OFF_85FA + len(ORIG_85FA)])
+    if current_ab13 not in (ORIG_AB13_HEAD, hook_ab13):
+        raise SparkBallVariantError(f"$AB13 signature mismatch: got {current_ab13.hex(' ')}")
+    if current_a2cc not in (ORIG_A2CC_HEAD, panel_a2cc, hook_a2cc):
+        raise SparkBallVariantError(f"$A2CC signature mismatch: got {current_a2cc.hex(' ')}")
+    if current_85fa not in (ORIG_85FA, new_oam):
+        raise SparkBallVariantError(f"$85FA signature mismatch: got {current_85fa.hex(' ')}")
 
     changed: list[str] = []
-    cur_ab13 = bytes(rom_data[OFF_AB13:OFF_AB13 + 3])
-    hook_ab13 = bytes((0x4C, CPU_PAUSE_HOOK & 0xFF, (CPU_PAUSE_HOOK >> 8) & 0xFF))
-    if cur_ab13 not in (ORIG_AB13_HEAD, hook_ab13):
-        raise SparkBallVariantError(f"$AB13 signature mismatch: got {cur_ab13.hex(' ')}")
-    hook_a2cc = bytes((0x20, CPU_PROPERTY_HOOK & 0xFF, (CPU_PROPERTY_HOOK >> 8) & 0xFF))
-    hook_a2cc_panel = bytes((0x20, CPU_PANEL_PROPERTY_HOOK & 0xFF, (CPU_PANEL_PROPERTY_HOOK >> 8) & 0xFF))
-    cur_a2cc = bytes(rom_data[OFF_A2CC:OFF_A2CC + len(ORIG_A2CC_HEAD)])
-    if cur_a2cc not in (ORIG_A2CC_HEAD, hook_a2cc, hook_a2cc_panel):
-        raise SparkBallVariantError(f"$A2CC property signature mismatch: got {cur_a2cc.hex(' ')}")
-    hook_8b05 = bytes((0x20, CPU_ANIM_HOOK & 0xFF, (CPU_ANIM_HOOK >> 8) & 0xFF))
-    anim_patch = hook_8b05 + bytes((0xEA,)) * (len(ORIG_8B05_HEAD) - len(hook_8b05))
-    old_hook_8b05 = bytes((0x20, CPU_OLD_ANIM_HOOK & 0xFF, (CPU_OLD_ANIM_HOOK >> 8) & 0xFF))
-    old_anim_patch = old_hook_8b05 + bytes((0xEA,)) * (len(ORIG_8B05_HEAD) - len(old_hook_8b05))
-    hook_8b05_panel = bytes((0x20, CPU_PANEL_ANIM_HOOK & 0xFF, (CPU_PANEL_ANIM_HOOK >> 8) & 0xFF))
-    anim_patch_panel = hook_8b05_panel + bytes((0xEA,)) * (len(ORIG_8B05_HEAD) - len(hook_8b05_panel))
-    cur_8b05 = bytes(rom_data[OFF_8B05:OFF_8B05 + len(ORIG_8B05_HEAD)])
-    if cur_8b05 not in (ORIG_8B05_HEAD, anim_patch, old_anim_patch, anim_patch_panel):
-        raise SparkBallVariantError(f"$8B05 animation signature mismatch: got {cur_8b05.hex(' ')}")
-    hook_85fa = bytes((0x4C, CPU_OAM_HIDE_HOOK & 0xFF, (CPU_OAM_HIDE_HOOK >> 8) & 0xFF))
-    oam_patch = hook_85fa + bytes((0xEA,)) * (len(ORIG_85FA) - len(hook_85fa))
-    cur_85fa = bytes(rom_data[OFF_85FA:OFF_85FA + len(ORIG_85FA)])
-    if cur_85fa not in (ORIG_85FA, oam_patch):
-        raise SparkBallVariantError(f"$85FA OAM signature mismatch: got {cur_85fa.hex(' ')}")
-
-    _write_blob(
-        rom_data,
-        OFF_AI_DRAGON_SLOW_WRAPPER,
-        CAVE_AI_DRAGON_SLOW_WRAPPER,
-        changed,
-        "Spark Ball Dragon-ID slow AI wrapper $E270",
-    )
-    _write_blob(
-        rom_data,
-        OFF_AI_DRAGON_FAST_WRAPPER,
-        CAVE_AI_DRAGON_FAST_WRAPPER,
-        changed,
-        "Spark Ball Dragon-ID fast AI wrapper $E280",
-    )
-    _write_blob(
-        rom_data,
-        OFF_AI_GOLEM_WRAPPER,
-        CAVE_AI_GOLEM_WRAPPER,
-        changed,
-        "Transparent Spark Ball Golem-ID AI wrapper $E290",
-    )
-    _write_blob(
-        rom_data,
-        OFF_PAUSE_HOOK,
-        pause_hook,
-        changed,
-        "Spark Ball Dragon-ID pause hook $E2A7",
-    )
-    _write_blob(
-        rom_data,
-        OFF_PROPERTY_HOOK,
-        CAVE_PROPERTY_HOOK,
-        changed,
-        "Spark Ball property hook $E31A",
-    )
-    _write_blob(
-        rom_data,
-        OFF_ANIM_HOOK,
-        CAVE_ANIM_HOOK,
-        changed,
-        "Spark Ball Dragon-ID animation hook $CFDE",
-    )
-    _write_blob(
-        rom_data,
-        OFF_ANIM_SPARK_SET,
-        CAVE_ANIM_SPARK_SET,
-        changed,
-        "Spark Ball Dragon-ID animation setter $E2EF",
-    )
-    _write_blob(
-        rom_data,
-        OFF_OAM_HIDE_HOOK,
-        oam_hide_hook,
-        changed,
-        "Transparent Spark Ball OAM hide hook $E2F8",
-    )
-    _write_blob(rom_data, OFF_AI_DRAGON_SLOW, _word(CPU_AI_DRAGON_SLOW_WRAPPER), changed, "$A358 Spark Ball Dragon-ID AI")
-    _write_blob(rom_data, OFF_AI_DRAGON_FAST, _word(CPU_AI_DRAGON_FAST_WRAPPER), changed, "$A35A Spark Ball Dragon-ID AI")
-    _write_blob(rom_data, OFF_AI_GOLEM_SLOW, _word(CPU_AI_GOLEM_WRAPPER), changed, "$A35C Transparent Spark Ball Golem-ID AI")
-    _write_blob(rom_data, OFF_AI_GOLEM_FAST, _word(CPU_AI_GOLEM_WRAPPER), changed, "$A35E Transparent Spark Ball Golem-ID AI")
-    _write_blob(rom_data, OFF_AB13, hook_ab13, changed, "$AB13 Spark Ball Dragon-ID pause dispatch")
-    _write_blob(rom_data, OFF_A2CC, hook_a2cc, changed, "$A2CC Spark Ball Dragon-ID property dispatch")
-    _write_blob(rom_data, OFF_8B05, anim_patch, changed, "$8B05 Spark Ball Dragon-ID animation dispatch")
-    _write_blob(rom_data, OFF_85FA, oam_patch, changed, "$85FA Transparent Spark Ball OAM dispatch")
-    _write_blob(rom_data, OFF_PROPERTY_DRAGON_SLOW, bytes((ORIG_DRAGON_PROPERTY,)), changed, "$A322 restore Dragon property")
-    _write_blob(rom_data, OFF_PROPERTY_DRAGON_FAST, bytes((ORIG_DRAGON_PROPERTY,)), changed, "$A323 restore Dragon property")
-    _write_blob(rom_data, OFF_ANIM_META_DRAGON_SLOW, ORIG_DRAGON_ANIM_META, changed, "restore Dragon slow animation")
-    _write_blob(rom_data, OFF_ANIM_META_DRAGON_FAST, ORIG_DRAGON_ANIM_META, changed, "restore Dragon fast animation")
+    _write_blob(rom_data, _spark24.OFF_RUNTIME, runtime, changed, "Spark24 integrated runtime")
+    _write_blob(rom_data, OFF_AB13, hook_ab13, changed, "$AB13 Spark24 pause dispatch")
+    _write_blob(rom_data, OFF_A2CC, hook_a2cc, changed, "$A2CC Spark24 property dispatch")
+    _write_blob(rom_data, OFF_85FA, new_oam, changed, "$85FA Spark24 transparency dispatch")
     return changed
