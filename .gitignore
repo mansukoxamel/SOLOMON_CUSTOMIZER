@@ -32,6 +32,8 @@
 !docs/original_rom_trivia.md
 !docs/prg0_layout_refactor.md
 !docs/sound_analysis.html
+!docs/runtime_static_analysis/
+!docs/runtime_static_analysis/**
 !docs/images/
 !docs/images/dana.png
 !docs/images/dana.ico
