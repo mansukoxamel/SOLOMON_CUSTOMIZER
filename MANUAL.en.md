@@ -308,7 +308,7 @@ Includes player movement and player-related behavior changes.
 
 Includes enemy movement, attack behavior, enhanced variants, Panel Monster variants, Spark Ball behavior, Gargoyle behavior, Salamander behavior, and other enemy logic.
 
-Enhanced Saramandor uses movement speed 1 only and lets you set its flame speed to Normal, 1/2, or 1/4. Enhanced Gargoyle A and B also both use movement speed 1, retain the LIFE-hundreds two/three-shot switch, and have independent bullet speed, shot interval, and cooldown settings.
+Enhanced Saramandor uses movement speed 1 only and lets you set its flame speed to Normal, 1/2, or 1/4. Minimum walk time ranges from 1 to 255 frames, with stock at 32; it starts when post-fire stopping ends and walking begins, and controls when the next attack against Dana becomes possible. If Dana is outside the attack range, it keeps walking after the configured time. The first attack keeps the stock wait. Post-fire stop controls the time from the flame appearing at the mouth until walking resumes; it ranges from 28 to 231 frames, with stock at 28. Enhanced Gargoyle A and B also both use movement speed 1, retain the LIFE-hundreds two/three-shot switch, and have independent bullet speed, shot interval, and cooldown settings.
 
 Panel bullet speed correction affects enemies that use the same bullet speed table. This is intentional because the correction is based on the original game's shared bullet behavior.
 
