@@ -42,7 +42,7 @@
 | 17 | [Warp Mirror Mode](17_warp_mirror_mode.md) | `warp_zone_trial.py` | 完了（6502本体問題なし、候補1件） |
 | 18 | [Final Stage Redirect](18_final_stage_redirect.md) | `final_stage_redirect.py` | 完了（確定バグ2件） |
 | 19 | [Room Flags](19_room_flags.md) | `room_flags.py` | 完了（6502本体問題なし、確定バグ1件） |
-| 20 | StageExt loader | `stage_ext.py` | 未着手 |
+| 20 | [StageExt loader](20_stage_ext_loader.md) | `stage_ext.py` | 完了（6502本体問題なし、確定バグ1件） |
 | 21 | Solomon Seal Block | `solomon_seal_block.py` | 未着手 |
 | 22 | Stage Announcement | `stage_announcement.py` | 未着手 |
 | 23 | mapper66特殊セルloader | `m66.py` | 未着手 |
