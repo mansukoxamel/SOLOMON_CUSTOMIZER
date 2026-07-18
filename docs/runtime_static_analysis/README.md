@@ -30,7 +30,7 @@
 | 5 | [Enhanced Neul A/B](05_enhanced_neul_ab.md) | `neul84_runtime.py` | 完了（問題2件） |
 | 6 | [Key Enemy / Fairy Enemy](06_key_fairy_enemy.md) | `key_enemy_runtime.py` | 完了（問題2件） |
 | 7 | [Enemy Clear Key Open](07_enemy_clear_key_open.md) | `enemy_clear_key_open.py` | 完了（確定問題2件） |
-| 8 | Special Item / Fire2 | `fire2_item_runtime.py` | 未着手 |
+| 8 | [Special Item / Fire2](08_special_item_fire2.md) | `fire2_item_runtime.py` | 完了（問題5件） |
 | 9 | 新敵ID共通入口センター | `new_enemy_runtime.py` | 未着手 |
 | 10 | Ice Flame / Ice Burn | `ice_flame_runtime.py` | 未着手 |
 | 11 | Dark Fairy `$9C` | `fairy9c_runtime.py` | 未着手 |
