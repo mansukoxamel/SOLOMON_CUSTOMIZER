@@ -17,7 +17,8 @@ from PyQt5.QtGui import QImage, QPixmap, QPainter, QColor
 from ..core import enemy_drop as ED
 from ..core.i18n import get_language, t
 from .element_picker import (
-    ENEMIES_LIST, ENEMY_VISUAL_SOURCE, ENHANCED_ENEMY_CODES, PANEL_VARIANT_VISUAL_SOURCE,
+    ENEMIES_LIST, ENEMY_VISUAL_SOURCE, enemy_picker_overlay_color,
+    enemy_picker_overlay_uses_transparent_sprite,
     tint_image_preserving_alpha,
 )
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
@@ -181,7 +182,15 @@ class EnemyDropDialog(QDialog):
         try:
             visual_code = ENEMY_VISUAL_SOURCE.get(code, code)
             anim = self.config.enemy_map.get(visual_code, 0)
-            sprite = self.tile_renderer.get_tile_image(anim, 0, transparent=True)
+            picker_overlay = enemy_picker_overlay_color(code)
+            sprite = self.tile_renderer.get_tile_image(
+                anim,
+                0,
+                transparent=(
+                    enemy_picker_overlay_uses_transparent_sprite(code)
+                    if picker_overlay is not None else True
+                ),
+            )
             bg = QImage(ENEMY_THUMB, ENEMY_THUMB, QImage.Format_ARGB32)
             bg.fill(QColor(20, 20, 20))
             p = QPainter(bg)
@@ -191,12 +200,9 @@ class EnemyDropDialog(QDialog):
             )
             ox = (ENEMY_THUMB - scaled.width()) // 2
             oy = (ENEMY_THUMB - scaled.height()) // 2
-            if code in PANEL_VARIANT_VISUAL_SOURCE:
+            if picker_overlay is not None:
                 scaled = tint_image_preserving_alpha(
-                    scaled, QColor(55, 135, 255, 70))
-            elif code in ENHANCED_ENEMY_CODES:
-                scaled = tint_image_preserving_alpha(
-                    scaled, QColor(245, 220, 80, 45))
+                    scaled, QColor(*picker_overlay))
             p.drawImage(ox, oy, scaled)
             p.setPen(QColor(90, 90, 90))
             p.drawRect(0, 0, ENEMY_THUMB - 1, ENEMY_THUMB - 1)

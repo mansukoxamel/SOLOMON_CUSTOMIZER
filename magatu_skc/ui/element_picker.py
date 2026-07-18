@@ -410,17 +410,28 @@ ENEMY_PICKER_PALETTE_OVERRIDE = {
     **{code: 6 for code in range(0xA0, 0xB0)},
 }
 
-SPARK24_OVERLAY_COLORS = {
-    **{code: (245, 220, 80, 80) for code in range(0xC0, 0xC8)},
-    **{code: (55, 135, 255, 115) for code in range(0xC8, 0xD0)},
-    **{code: (245, 110, 180, 80) for code in range(0xD0, 0xD8)},
-}
+ENEMY_PICKER_BLUE_OVERLAY = (55, 135, 255, 115)
+ENEMY_PICKER_YELLOW_OVERLAY = (245, 220, 80, 80)
 
-SPARK24_PICKER_YELLOW_CODES = {
-    code
-    for first in (0xC0, 0xC8, 0xD0)
-    for code in range(first, first + 4)
-}
+# The 12 visible picker entries have +4 speed variants in placed level data.
+SPARK24_PICKER_YELLOW_CODES = set(range(0xC0, 0xD8))
+
+
+def enemy_picker_overlay_color(enemy_no: int) -> tuple[int, int, int, int] | None:
+    """Return the picker-standard overlay color for an enemy code."""
+    code = int(enemy_no) & 0xFF
+    if ((code in PANEL_VARIANT_VISUAL_SOURCE and code < 0xF0) or
+            code in ENHANCED_PICKER_BLUE_CODES):
+        return ENEMY_PICKER_BLUE_OVERLAY
+    if code in SPARK24_PICKER_YELLOW_CODES or code in ENHANCED_ENEMY_CODES:
+        return ENEMY_PICKER_YELLOW_OVERLAY
+    return None
+
+
+def enemy_picker_overlay_uses_transparent_sprite(enemy_no: int) -> bool:
+    """Return whether the picker applies its overlay to sprite pixels only."""
+    code = int(enemy_no) & 0xFF
+    return code in PANEL_VARIANT_VISUAL_SOURCE and code < 0xF0
 
 
 def apply_enemy_speed(base_code: int, speed: int) -> int:
@@ -1824,22 +1835,15 @@ class ElementPicker(QWidget):
             return QIcon()
         visual_enemy_no = ENEMY_VISUAL_SOURCE.get(enemy_no, enemy_no)
         anim = self.config.enemy_map.get(visual_enemy_no, 0)
-        if enemy_no in PANEL_VARIANT_VISUAL_SOURCE and enemy_no < 0xF0:
+        overlay = enemy_picker_overlay_color(enemy_no)
+        if enemy_picker_overlay_uses_transparent_sprite(enemy_no):
             return self._make_icon_from_tile(
                 anim,
-                overlay_color=(55, 135, 255, 115),
+                overlay_color=overlay,
                 transparent_background=True,
                 tile_transparent=True,
                 overlay_preserve_alpha=True,
             )
-        if enemy_no in ENHANCED_PICKER_BLUE_CODES:
-            overlay = (55, 135, 255, 115)
-        elif enemy_no in SPARK24_PICKER_YELLOW_CODES:
-            overlay = (245, 220, 80, 80)
-        else:
-            overlay = SPARK24_OVERLAY_COLORS.get(enemy_no)
-        if overlay is None and enemy_no in ENHANCED_ENEMY_CODES:
-            overlay = (245, 220, 80, 80)
         return self._make_icon_from_tile(
             anim,
             overlay_color=overlay,
