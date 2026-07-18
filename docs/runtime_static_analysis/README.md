@@ -39,7 +39,7 @@
 | 14 | [Phantom preset A-D](14_phantom_preset_ad.md) | `phantom_preset_runtime.py` | 完了（確定バグ2件、候補2件） |
 | 15 | [Enhanced Gargoyle A/B](15_enhanced_gargoyle_ab.md) | `gargoyle_variant.py` | 完了（6502本体問題なし、候補2件） |
 | 16 | [Blue Key Queen](16_blue_key_queen.md) | `blue_key_queen_runtime.py` | 完了（確定バグ1件） |
-| 17 | Warp Mirror Mode | `warp_zone_trial.py` | 未着手 |
+| 17 | [Warp Mirror Mode](17_warp_mirror_mode.md) | `warp_zone_trial.py` | 完了（6502本体問題なし、候補1件） |
 | 18 | Final Stage Redirect | `final_stage_redirect.py` | 未着手 |
 | 19 | Room Flags | `room_flags.py` | 未着手 |
 | 20 | StageExt loader | `stage_ext.py` | 未着手 |
