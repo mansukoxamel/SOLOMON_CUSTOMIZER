@@ -338,6 +338,12 @@ def remove_blocks_behind_demon_mirrors(levels: list):
                     lvl.tiles[y][x] = Wall.NONE
 
 
+def _install_loadtime_runtimes(rom_data: bytearray, levels: list) -> None:
+    """Clear obsolete PRG0 data before validating and installing runtimes."""
+    _clear_legacy_prg0_level_area(rom_data)
+    m66.patch_breakable_white_data(rom_data, levels)
+
+
 def expand_rom(rom, levels: list):
     """通常ROM → 拡張ROM 変換のメインエントリ
 
@@ -378,8 +384,7 @@ def expand_rom(rom, levels: list):
     patch_mirror_drop_schedule_bytes(new_data, drop_schedules, levels)
     stage_ext.patch_table(new_data, levels)
     special_process.disable_falling_fairy_subroutine(new_data, src_region)
-    m66.patch_breakable_white_data(new_data, levels)
-    _clear_legacy_prg0_level_area(new_data)
+    _install_loadtime_runtimes(new_data, levels)
 
     # rom オブジェクトを書き換え
     rom.data = new_data

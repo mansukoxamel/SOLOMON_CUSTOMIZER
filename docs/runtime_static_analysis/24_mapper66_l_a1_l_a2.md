@@ -11,9 +11,11 @@ mapper66拡張の基礎loaderは、PRG0 `$E988`のl_a1が16Bのbank-switch tramp
 l_a1の自己参照、RAM trampoline、JSR/RTS収支、l_a2の3種類のpointer計算、192B room grid copy、64B room tail copy、16B mirror schedule copyは命令上成立している。確定問題は1件、文書不一致は1件である。
 
 1. `expand_rom()`は`m66.patch_breakable_white_data()`でPRG0 `$E0BC-$E0E5`へ42Bの初期描画classifier helperを書いた直後、`_clear_legacy_prg0_level_area()`でfile `0x6010-0x700F`をEA消去する。l_a1だけを退避・復元し、classifier helperを復元しない。hook `$9620`は`JMP $E0BC`のまま残るため、`expand_rom()`直後のメモリ上ROMはhook先がEA列になった不整合状態である。
-2. `change_mapper()`内コメントはl_a2を「152B」と記すが、実際のliteral、書込、正式管理簿はいずれも180Bである。
+2. `change_mapper()`内コメントはl_a2を「152B」と記すが、実際のliteralは181Bである。正式管理簿は基礎body 180Bと直後のtail hook 3Bへ分けて管理している。
 
-通常の「ROMを作る」保存経路では`save_all_levels_m66()`が`patch_breakable_white_data()`を再実行し、消されたhelperを再配置する。このため保存完了ROMが常に欠落するとは断定しない。ただし`expand_rom()`単体の契約と、自動展開直後から次回save-time patchまでの内部ROMは不整合である。ROM/RAM配置は変更していない。修正も行っていない。
+通常の「ROMを作る」保存経路では`save_all_levels_m66()`が`patch_breakable_white_data()`を再実行し、消されたhelperを再配置する。このため保存完了ROMが常に欠落するとは断定しない。ただし解析時点の`expand_rom()`単体の契約と、自動展開直後から次回save-time patchまでの内部ROMは不整合であった。
+
+修正状況: 2026-07-19にPRG0旧level領域の消去をruntime検査・注入より前へ移し、`expand_rom()`完了時にhelperが残る順序へ修正した。ROM/RAM配置と使用量は変更していない。
 
 ## 配置と入口
 
@@ -22,7 +24,8 @@ l_a1の自己参照、RAM trampoline、JSR/RTS収支、l_a2の3種類のpointer�
 | `0x1985-0x1987` | `$9975-$9977` | 3B | `JMP $E988` hook |
 | `0x6998-0x69B8` | `$E988-$E9A8` | 33B | l_a1本体＋RAMへ複写する16B trampoline |
 | `0x8010` | PRG1 `$8000` | 1B | `RTI` guard |
-| `0x8011-0x80C3` | PRG1 `$8001-$80B3` | 179B | l_a2入口と基礎loader、末尾`RTS` |
+| `0x8011-0x80C3` | PRG1 `$8001-$80B3` | 179B | l_a2入口と基礎loader |
+| `0x80C4-0x80C6` | PRG1 `$80B4-$80B6` | 3B | 元literalの末尾`RTS`位置から始まる現行tail hook |
 | `0xC010-0xF50F` | PRG1 `$C000-$F4FF` | 13568B | 53 room×256B level record |
 | `0xF510-0xF85F` | PRG1 `$F500-$F84F` | 848B | 53 room×16B mirror/drop schedule |
 
@@ -123,7 +126,7 @@ UIの通常読込はこの後にlevelを再読込しwide-title正規化を行う
 
 ## 管理簿と検証範囲
 
-正式ROM管理簿はl_a1 33B、l_a2 180B、PRG1 level/mirror領域を実配置どおり記載している。RAM管理簿は`$0780-$07DF`をprobe書込あり・使用禁止とし、l_a1 trampolineおよび各staging領域と矛盾しない。
+正式ROM管理簿はl_a1 33B、l_a2基礎body 180B、直後のtail hook 3B、PRG1 level/mirror領域を実配置どおり記載している。Pythonの初期literalは基礎bodyに元`RTS` 1Bを加えた181Bで、後続patchがそのRTS位置から3B hookを置く。RAM管理簿は`$0780-$07DF`をprobe書込あり・使用禁止とし、l_a1 trampolineおよび各staging領域と矛盾しない。
 
 原作ROMのbank markerはfile `0x00FF-0x0102`が`10 11 12 13`で、mapper変換は`00 01 02 03`へ変更する。l_a1/l_a2のbank-switch値とともに管理簿へ登録済みである。
 
@@ -139,11 +142,11 @@ ROM生成は行っていない。日本版原作ROMの固定byte、Python生成l
 - 16B mirror/drop schedule pointer/copy: 正常
 - stack収支: 正常
 - `expand_rom()`完了時のruntime整合性: 異常。初期描画classifier helperを消去する
-- l_a2 size記載: 誤記。152Bではなく180B
+- l_a2 size記載: 誤記。Python初期literalは152Bではなく181B（管理簿上は180B body＋3B tail hook）
 
 ## 修正優先度
 
 1. 高: `expand_rom()`のclearとruntime patch順序を直し、関数終了時点でhook/helperを一致させる。
-2. 低: l_a2コメントを152Bから180Bへ直す。
+2. 低: l_a2コメントを152Bから181Bへ直し、180B body＋tailの区分を明記する。
 
 実装修正時は、23件目のside-data pointer修正と混同せず、展開直後と通常保存後の双方でhook/helper byte列を比較する必要がある。
