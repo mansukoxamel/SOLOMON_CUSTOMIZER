@@ -10,14 +10,14 @@ Phantom presetは敵ID `$A0-$AF`をA-Dの4group、各groupを右・左・上・�
 
 専用領域は292Bで、file `0x3DAC-0x3ECF`、CPU `$BD9C-$BEBF`に置かれる。加えて原作共通物理call `$8670-$8672`をpre-physics入口へ置換する。builderのdefault 292Bとhookは既存mapper66保存ROM 3本に一致した。
 
-全section、設定生成、4group×4方向、原作property前後、phase、signed scale、pre-physics、共通物理、animation paletteを追跡し、確定バグは2件である。
+全section、設定生成、4group×4方向、原作property前後、phase、signed scale、pre-physics、共通物理、animation paletteを追跡し、確定バグ2件を修正した。
 
-1. 上方向のY速度へ原作物理が毎frame`+3`するため、上下速度が非対称になる。速度1・2は上指定でも下へ進み、速度3は停止する。
-2. group Aだけ原作property後段がsub-slot `[6]`の`$FF` sentinelを方向0-3で上書きし、条件一致時に最初のwave deltaを飛ばす。
+1. 上方向tableを`-(speed+3)`として、直後の原作物理`+3`適用後が`-speed`になるよう補償した。
+2. last phaseを`$40-$7F`の印付きで保存し、group Aのproperty後段が書く方向0-3と衝突しないようにした。
 
-技術的負債は、追加敵16IDが原作property table外4Bへ依存すること、standard ROM検出がDemon Mirror内のPhantomを見ないことである。
+技術的負債は、追加敵16IDが原作property table外4Bへ依存することである。standard ROM検出のDemon Mirror漏れは9/26の共通修正で解消済みである。
 
-ROM/RAM配置は変更していない。修正も行っていない。
+runtimeはstate 2を2B増やし、振幅0が呼出前に除外されるscale helperから不要な2Bを削った。総量292B、ROM/RAM配置、予約範囲、台帳は変更していない。
 
 ## IDと設定対応
 
@@ -137,7 +137,7 @@ down         = +speed
 
 水平左のX velocityにはY重力処理がないため、右左は対称である。問題は上方向だけである。
 
-同size修正候補は、上方向table byteだけ`-(speed+3)`として焼き込み、原作物理後に`-speed`へなるよう補償することである。speed最大63でもrawは`$BE`で表現可能であり、table size、runtime size、ROM/RAM配置は変わらない。実装修正は別承認後に行う。
+上方向table byteだけ`-(speed+3)`として焼き込み、原作物理後に`-speed`へなるよう補償した。speed最大63でもrawは`$BE`で表現でき、table size、runtime size、ROM/RAM配置は変わらない。
 
 ## state 2 wave `$BDC9`
 
@@ -145,8 +145,8 @@ down         = +speed
 
 1. amplitude tableを読む。0ならwave計算をせずrestoreする。
 2. `$043C >> 1`へgroup phase offsetを加え、`& $3F`でphase 0-63を作る。
-3. sub `[6]`の前回phaseと同じならrestoreする。
-4. 新phaseをsub `[6]`へ保存する。
+3. raw phaseをXへ保持し、`$40`をORした印付きphaseをsub `[6]`と比較する。
+4. 前回の印付きphaseと同じならrestoreし、異なれば`$40-$7F`をsub `[6]`へ保存する。
 5. 64B sine delta tableを読む。
 6. `$BE0C`で振幅units 1-8を掛け、4で割る。
 7. 横進行ならmain Y `[7]`、縦進行ならmain X `[10]`へsigned deltaを直接加える。
@@ -171,9 +171,9 @@ phaseはglobal frame low byteを2frame単位で使うため、周期は128frame�
 
 state 2へ初めて入った時のglobal phaseとgroup phase offsetの合計がそのdirection値と一致すると、`CMP sub[6] / BEQ restore`が成立する。最初のdeltaを適用せず、次phaseから開始する。
 
-group B-Dはsentinel `$FF`が残るため必ず最初のdeltaを適用する。group Aだけ、生成frame・phase offset・方向の組合せで開始波形が1stepずれる。1周期合計0でも、飛ばした1step分だけ中心線offsetが残る場合がある。
+修正後は比較・保存するphaseに`$40`をORする。正規phaseは0-63なので保存値は`$40-$7F`となり、group Aの0-3とも、group B-Dの`$FF`とも一致しない。raw phaseは先にXへ保存するためsine table indexは0-63のままである。全groupで初回deltaを必ず適用し、同phaseの2frame目だけを抑止する。
 
-修正には原作`$A2F5`後段の書込を抑えるか、後段より後でsentinelを設定する必要がある。現行292Bは直後まで使用中なので、必要byteと利用範囲を算定してから修正する。現時点ではROM/RAM空きや台帳を変更していない。
+state 2はraw phase保持とmarker付与で2B増えた。scale helperは振幅0がstate 2入口で除外済みなので、到達不能だった`LDX $0E / BEQ divide`のBEQ 2Bを削った。後続sectionの開始位置、現行292B、ROM/RAM空き、台帳は変えていない。
 
 ## animation palette
 
@@ -194,8 +194,8 @@ mask `$33`はpacked attrのsprite1 H/V flip bits4-5とsprite2 H/V flip bits0-1�
 | `0x3DAC-0x3DB4` | `$BD9C-$BDA4` | 9B | setup |
 | `0x3DB5-0x3DCC` | `$BDA5-$BDBC` | 24B | init |
 | `0x3DCD-0x3DD8` | `$BDBD-$BDC8` | 12B | state dispatch |
-| `0x3DD9-0x3E1B` | `$BDC9-$BE0B` | 67B | state 2 wave |
-| `0x3E1C-0x3E41` | `$BE0C-$BE31` | 38B | signed scale |
+| `0x3DD9-0x3E1D` | `$BDC9-$BE0D` | 69B | state 2 wave |
+| `0x3E1E-0x3E41` | `$BE0E-$BE31` | 36B | signed scale |
 | `0x3E42-0x3E59` | `$BE32-$BE49` | 24B | apply speed |
 | `0x3E5A-0x3E75` | `$BE4A-$BE65` | 28B | pre-physics entry |
 | `0x3E76-0x3E85` | `$BE66-$BE75` | 16B | velocity table |
@@ -230,24 +230,24 @@ state 2のamplitude 0、同phase、horizontal、verticalの全経路でouter X�
 - 右左と下方向の進行速度table、axis選択は成立する。
 - 横進行はY、縦進行はXへwave deltaを加える。
 - scaleは0-200%の全設定で符号対称かつ1周期合計0である。
-- same phaseの二重加算をsub `[6]`で防ぐ。ただしgroup A初回を除く。
+- 印付きphaseをsub `[6]`へ保存し、全groupで初回適用とsame phaseの二重加算防止を両立する。
 - amplitude 0ではwave座標もphase記録も変更しない。
 - state 2、scale、apply speed、pre-physicsのstackは全branchで均衡する。
 - default 292Bとhook、設定読出は既存mapper66保存ROM 3本に一致する。
 
 ## 確定問題
 
-### [P1] 上方向速度へ重力`+3`が混入する
+### [解消] 上方向速度へ重力`+3`が混入する
 
 pre-physicsが上方向Y velocityを`-speed`へしても、直後の原作物理が負のY velocityへ`+3`する。UIの最小値1-3では方向自体が壊れ、全設定で上下が非対称である。
 
-上方向tableを`-(speed+3)`へ補償する修正は16B tableの値だけが変わる。同sizeなのでROM/RAM使用量、予約範囲、残り空き、正式管理簿に変更はない。既存ROM救済は行わず、これから新しく作るROMの生成tableだけを直す候補である。
+上方向tableを`-(speed+3)`へ補償した。16B tableの値だけが変わり、ROM/RAM使用量、予約範囲、残り空き、正式管理簿に変更はない。
 
-### [P2] group Aだけ初回phase sentinelが壊れる
+### [解消] group Aだけ初回phase sentinelが壊れる
 
 原作property後段が専用init後にsub `[6]`を0-3へ書き、phase一致時の初回deltaを飛ばす。group B-Dには発生せず、同じ設定でもAだけ開始位置が条件付きでずれる。
 
-原作postlude stackまたはsentinel表現を変える必要がある。現時点で追加byte数は確定していない。PRG0を増やす場合は直前19B空きの現物確認、runtime入口移動、4入口/hook、`RESERVED_SPANS`、管理簿更新が必要になるため、修正前に配置案を提示する。
+phase保存値を`$40-$7F`へ変更して、原作postludeの0-3と値域を分離した。state 2の2B増加はscale helperの到達不能な0分岐2Bを削って相殺したため、PRG0使用量と全後続入口は不変である。
 
 ## 技術的負債・問題候補
 
@@ -257,11 +257,9 @@ pre-physicsが上方向Y velocityを`-speed`へしても、直後の原作物理
 
 property入口で追加敵を正式分類する修正はSpark/Panel/他追加敵と共有するため、Phantom局所修正として扱わない。
 
-### [P3] Demon Mirror内のPhantomをstandard ROM検出が見ない
+### [解消] Demon Mirror内のPhantomをstandard ROM検出が見ない
 
-`new_enemy_runtime.levels_need_runtime()`はdirect enemyの`$A0-$AF`だけを走査し、Demon Mirrorの`enemy_codes`を見ない。expanded mapper66保存ではruntime常設のため主経路には影響しないが、非expanded ROM拒否用validationとして漏れている。
-
-修正はlevel走査だけでROM/RAM配置、空き、台帳に影響しない。9/26の共通validation修正へまとめる候補である。
+9/26の共通入口センター修正でDemon Mirrorの`enemy_codes`も走査するようになった。mirror内だけに置いた`$A0-$AF`も共通runtime必要判定で検出される。
 
 ## 仕様として成立しているが注意が必要な点
 
@@ -288,4 +286,3 @@ property入口で追加敵を正式分類する修正はSpark/Panel/他追加敵
 - 64phase後のwave軸累積差分が0へ戻ること。
 - pre-physics OFF経路でDana、原作Bullet、Panel Monster、他追加敵のvelocityが変わらないこと。
 - 4方向の壁貫通、画面外、火球撃破、鍵dropを実機確認すること。
-

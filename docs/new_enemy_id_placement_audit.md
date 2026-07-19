@@ -45,8 +45,7 @@
 | Enhanced Ghost A-F | `$B0-$BB` | 専用12ID | A-Fの右左6pairで確定 | 詳細静的監査済み | 今回未検査 | 実ROM比較、長時間slot試験 |
 | Enhanced Neul A/B | `$84-$87` | 専用4ID | A/Bの上下2pairで確定 | 詳細静的監査済み | 今回未検査 | 実ROM比較、slot不足時仕様確認 |
 | Chaos Dragon | `$9E` | 専用ID | `$9E`確定 | 静的監査済み | 今回未検査 | 実ROM比較、鍵検査 |
-| Phantom Bullet | `$8B` | 専用ID | Phantom系16連番の先頭8IDへ再配置・番号保留 | 静的監査済み | 今回未検査 | 4方向×2速度、速度値、鍵適性 |
-| Phantom Bullet Wave | `$8C` | 専用ID | Phantom系16連番の後半8IDへ再配置・番号保留 | 静的監査済み | 今回未検査 | 4方向×2速度、上下Wave軸、鍵適性 |
+| Phantom preset A-D | `$A0-$AF` | 専用16ID | 4group×右左上下で確定 | 静的問題2件修正済み | 今回未検査 | 長時間画面外挙動、鍵実機検査 |
 | Seraphic Radiance | `$9D` | 専用ID | 単独1ID・正式ID維持 | 静的問題4件修正済み | 今回未検査 | 鍵持ち禁止、動的挙動、実ROM比較 |
 | Panel Monster variants | 原作ID借用20ID | 借用ID | 借用維持 | 静的監査済み・現状維持 | 既存73ケース保存検査確認済み・今回実機未検査 | 最終ROM比較、原作Stage 29 `$4D` 正規化維持 |
 | Spark Ball variants | `$C0-$D7` | 専用24ID | 停止・透明・停止後反転を連続配置 | 実装・静的監査済み | ユーザー動作確認済み | 3種類×4方向×2速度、借用解除済み |
@@ -1010,7 +1009,26 @@ Chaos Dragonは初期状態を右向きで開始するが、原作Dragon AIの�
 
 ---
 
-## Phantom Bullet / Phantom Bullet Wave
+## Phantom preset A-D
+
+### 現行確定情報
+
+- ID: `$A0-$AF`。A-Dの4groupで、各groupは右・左・上・下の4ID。
+- 設定: groupごとに進行速度`$01-$3F`、wave振幅0-200%、開始phase 0-63を持つ。
+- runtime: `magatu_skc/core/phantom_preset_runtime.py`、292B、file `0x3DAC-0x3ECF`、CPU `$BD9C-$BEBF`。
+- setup/init/AI/animationの共通入口と、原作共通物理前hook `$8670-$8672`を使う。
+- state 0は原作Bullet待機を再利用し、state 2は壁・block判定を通らない専用wave移動を使う。
+- 右左はX進行・Y wave、上下はY進行・X wave。
+- 上方向tableは`-(speed+3)`とし、原作物理の`+3`適用後に下方向と同じ絶対速度になるよう補償済み。
+- last phaseは`$40-$7F`の印付きでsub-slot `[6]`へ保存する。group Aの原作property後段が書く0-3と衝突せず、全groupで初回deltaを適用する。
+- state 2を2B増やしscale helperを2B削ったため、総量292Bと後続入口は不変。
+- Demon Mirror内の`$A0-$AF`も共通runtime必要判定で検出する。
+- 通常state graphでは原作Bulletのstate 1消滅へ入らない。画面外wrap、長時間slot存続、鍵出現は実機未確認。
+- 6502詳細は`docs/runtime_static_analysis/14_phantom_preset_ad.md`を現行正本とする。
+
+### 旧計画記録（現行判断に使用しない）
+
+以下は`$8B/$8C`を通常/Waveへ分ける構想段階の記録であり、現行`$A0-$AF`実装には適用しない。
 
 ### 1. 基本情報
 

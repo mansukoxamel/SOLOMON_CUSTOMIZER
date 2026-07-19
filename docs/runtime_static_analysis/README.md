@@ -36,7 +36,7 @@
 | 11 | [Dark Fairy `$9C`](11_dark_fairy_9c.md) | `fairy9c_runtime.py` | 完了（property範囲外読出し・mirror検出漏れ修正済み） |
 | 12 | [Seraphic Radiance `$9D`](12_seraphic_radiance_9d.md) | `seraphic_radiance9d_runtime.py` | 完了（Y速度・上端branch・鍵slot・mirror検出修正済み） |
 | 13 | [Chaos Dragon `$9E`](13_chaos_dragon_9e.md) | `chaos_dragon9e_runtime.py` | 完了（6502本体問題なし、文書訂正・mirror検出修正確認済み） |
-| 14 | [Phantom preset A-D](14_phantom_preset_ad.md) | `phantom_preset_runtime.py` | 完了（確定バグ2件、候補2件） |
+| 14 | [Phantom preset A-D](14_phantom_preset_ad.md) | `phantom_preset_runtime.py` | 完了（上方向速度・初回phase修正済み） |
 | 15 | [Enhanced Gargoyle A/B](15_enhanced_gargoyle_ab.md) | `gargoyle_variant.py` | 完了（6502本体問題なし、候補2件） |
 | 16 | [Blue Key Queen](16_blue_key_queen.md) | `blue_key_queen_runtime.py` | 完了（確定バグ1件） |
 | 17 | [Warp Mirror Mode](17_warp_mirror_mode.md) | `warp_zone_trial.py` | 完了（6502本体問題なし、候補1件） |

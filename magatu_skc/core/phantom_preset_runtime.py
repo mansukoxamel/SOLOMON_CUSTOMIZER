@@ -95,7 +95,8 @@ def normalize_speed_value(value) -> int:
 def velocity_bytes(speed_value: int) -> bytes:
     speed = normalize_speed_value(speed_value)
     reverse = (-speed) & 0xFF
-    return bytes((speed, reverse, reverse, speed))
+    upward = (-(speed + 3)) & 0xFF
+    return bytes((speed, reverse, upward, speed))
 
 
 def default_group_settings() -> tuple[dict[str, int], ...]:
@@ -198,9 +199,10 @@ def _build_state2(
     a.b(0xAD, RAM_FRAME_COUNTER_LOW & 0xFF, RAM_FRAME_COUNTER_LOW >> 8)
     a.b(0x4A, 0x18)
     a.b(0x7D, cpu_phase_table & 0xFF, cpu_phase_table >> 8, 0x29, 0x3F)
+    a.b(0xAA, 0x09, 0x40)                 # X=raw phase; mark stored phase as $40-$7F
     a.b(0xA0, 0x06, 0xD1, 0x2C)
     a.branch(0xF0, "restore")
-    a.b(0x91, 0x2C, 0xAA)
+    a.b(0x91, 0x2C)
     a.b(0xBD, cpu_sine_table & 0xFF, cpu_sine_table >> 8)
     a.jsr(cpu_scale_delta)
     a.b(0x48)
@@ -225,7 +227,7 @@ def _build_scale_delta() -> bytes:
     a.b(0xC8, 0x49, 0xFF, 0x18, 0x69, 0x01)
     a.label("absolute")
     a.b(0x85, 0x0F, 0xA9, 0x00, 0xA6, 0x0E)
-    a.branch(0xF0, "divide")
+    # Amplitude zero is rejected by state2 before this helper is called.
     a.label("multiply")
     a.b(0x18, 0x65, 0x0F, 0xCA)
     a.branch(0xD0, "multiply")
@@ -269,8 +271,8 @@ def build_runtime(group_settings=None) -> tuple[bytes, dict[str, int]]:
     setup = _build_setup()
     init_size = 24
     ai_size = 12
-    state2_size = 67
-    scale_size = 38
+    state2_size = 69
+    scale_size = 36
     speed_size = 24
     prephysics_size = 28
     velocity_size = 16
