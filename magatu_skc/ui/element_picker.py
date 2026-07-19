@@ -237,15 +237,9 @@ ENEMIES_LIST = [
     ) for code in range(first, first + 4)),
 ]
 
-DEVELOPER_ONLY_PICKER_ITEMS = {
-    (MODE_ENEMY, 0x9E),
-    *((MODE_ENEMY, code) for code in range(0x84, 0x88)),
-    (MODE_ENEMY, 0x9C),
-    (MODE_ENEMY, 0x9D),
-    *((MODE_ENEMY, code) for code in range(0xA0, 0xB0)),
-    *((MODE_ENEMY, code) for code in range(0xB0, 0xBC)),
-    *((MODE_ENEMY, code) for code in range(0xC0, 0xD8)),
-}
+# Keep this gate for unfinished picker entries added in the future.
+# Every enemy currently in ENEMIES_LIST is complete and public.
+DEVELOPER_ONLY_PICKER_ITEMS = set()
 
 
 # 敵コード → スピードバリアントの対応表

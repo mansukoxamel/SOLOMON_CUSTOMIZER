@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -20,7 +21,7 @@ from PyQt5.QtWidgets import (
 
 from magatu_skc.core import config
 from magatu_skc.core.i18n import get_language, set_language
-from magatu_skc.ui.element_picker import ElementPicker
+from magatu_skc.ui.element_picker import ENEMIES_LIST, MODE_ENEMY, ElementPicker
 from magatu_skc.ui.hack_dialog import HackDialog
 from magatu_skc.ui.main_window import MainWindow
 from magatu_skc.ui.settings_dialog import SettingsDialog
@@ -123,6 +124,18 @@ class FavoritesVisibilityTests(unittest.TestCase):
         self.assertFalse(picker._bottom_stack.isHidden())
         picker.set_bonus_mode(False)
         self.assertTrue(picker._bottom_stack.isHidden())
+
+    def test_all_completed_enemies_are_visible_without_developer_mode(self):
+        picker = ElementPicker()
+        picker.set_app_config({"developer_mode": False})
+        visible_codes = {
+            item.data(Qt.UserRole)[1]
+            for index in range(picker._picker_lists[3].count())
+            for item in (picker._picker_lists[3].item(index),)
+            if item.data(Qt.UserRole)
+            and item.data(Qt.UserRole)[0] == MODE_ENEMY
+        }
+        self.assertEqual(visible_codes, {code for code, _name in ENEMIES_LIST})
 
 
 class GlobalSettingsImportSafetyTests(unittest.TestCase):
