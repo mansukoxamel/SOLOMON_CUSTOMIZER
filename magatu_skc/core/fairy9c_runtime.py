@@ -38,15 +38,14 @@ CPU_AI_DISPATCH = CPU_INIT_STATUS + len(INIT_STATUS_RUNTIME)
 
 AI_DISPATCH_RUNTIME = bytes(
     (
-        0xA0, 0x07,                               # LDY #$07: poison delay in sub-slot[7]
+        0xA0, 0x07,                               # LDY #$07: nonzero after Dark Fairy pickup
         0xB1, 0x2C,                               # LDA ($2C),Y
-        0xF0, 0x12,                               # BEQ stock_ai
-        0x38,                                     # SEC
-        0xE9, 0x01,                               # SBC #$01
-        0xF0, 0x03,                               # BEQ poison
-        0x91, 0x2C,                               # STA ($2C),Y
+        0xF0, 0x11,                               # BEQ stock_ai
+        0xA0, 0x02,                               # LDY #$02: NMI-frame accumulator updated by $A134
+        0xB1, 0x2C,                               # LDA ($2C),Y
+        0xC9, POISON_DELAY_FRAMES,                # CMP #$3C
+        0xB0, 0x01,                               # BCS poison
         0x60,                                     # RTS
-        0x91, 0x2C,                               # poison: clear sub-slot[7]
         0xA9, 0x31,                               # LDA #$31: Dana death sequence
         0x20, CPU_TRIGGER_ACTION & 0xFF, CPU_TRIGGER_ACTION >> 8,
         0x4C, CPU_DESPAWN & 0xFF, CPU_DESPAWN >> 8,
@@ -61,10 +60,13 @@ AI_DISPATCH_RUNTIME = bytes(
         0x91, 0x2E,                               # STA ($2E),Y: restore Dark Fairy type
         0x68,                                     # PLA
         0xCD, 0x53, 0x04,                         # CMP $0453
-        0xF0, 0x06,                               # BEQ done
+        0xF0, 0x0C,                               # BEQ done
+        0xA0, 0x02,                               # LDY #$02
+        0xA9, 0x00,                               # LDA #$00
+        0x91, 0x2C,                               # reset NMI-frame accumulator on pickup
         0xA0, 0x07,                               # LDY #$07
-        0xA9, POISON_DELAY_FRAMES,                # LDA #$3C
-        0x91, 0x2C,                               # STA ($2C),Y
+        0xA9, 0x01,                               # LDA #$01
+        0x91, 0x2C,                               # mark poison timer active
         0x60,                                     # RTS
     )
 )
@@ -76,8 +78,8 @@ RESERVED_SPANS = ((OFF_RUNTIME, len(RUNTIME)),)
 
 assert len(SETUP_META_RUNTIME) == 9
 assert len(INIT_STATUS_RUNTIME) == 4
-assert len(AI_DISPATCH_RUNTIME) == 56
-assert len(RUNTIME) == 69
+assert len(AI_DISPATCH_RUNTIME) == 61
+assert len(RUNTIME) == 74
 assert CPU_RUNTIME + len(RUNTIME) == CPU_RUNTIME_END
 
 
