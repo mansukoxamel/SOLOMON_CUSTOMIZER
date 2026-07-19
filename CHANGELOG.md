@@ -1,5 +1,12 @@
 # SOLOMON_CUSTOMIZER CHANGELOG
 
+## v0.9.41 (2026-07-19) 自作runtimeの静的検証と物理処理を修正
+- 自作6502 runtime全26件の解析資料を整備し、ROM範囲、分岐、入力値、依存関係、レジスタと副作用を静的検証した。
+- mapper66変換とruntime書き込みの事前検証を整理し、原作ROM変換時の署名不一致、部分更新、side-data参照先、StageExt設定値の境界検査を修正した。
+- Enhanced Saramandor Cの表示色、ミラー敵検出、特殊アイテム描画、All Kill対象外敵、Stage 49以降の開始表示など、検証中に判明した不整合を修正した。
+- Phantom Bulletの上方向が速度 `$3E/$3F` で下向きへ反転する問題を修正し、上下方向を設定速度どおり対称にした。
+- ROM/RAM管理簿と`RESERVED_SPANS`を現行runtime配置へ同期し、整合性検査の対象を補強した。
+
 ## v0.9.40 (2026-07-18) runtime配置検査と事前検証を強化
 - StageExt、Room Flags、mapper66、Fire2の未登録ROM使用範囲を`RESERVED_SPANS`へ統合し、共有loader領域を明示的な共同所有として検査するようにした。
 - CustomizerのRAM配置と共有契約、Panel Monster専用ID `$E0-$F7`を中央整合性検査の対象へ追加した。
