@@ -6,13 +6,26 @@ from magatu_skc.core import phantom_preset_runtime as target
 
 
 class PhantomPresetRuntimeTests(unittest.TestCase):
-    def test_upward_velocity_compensates_stock_gravity(self) -> None:
-        for speed in (1, 2, 3, 4, 0x3F):
+    def test_direction_velocities_are_symmetric(self) -> None:
+        for speed in range(1, 0x40):
             velocity = target.velocity_bytes(speed)
             self.assertEqual(velocity[0], speed)
             self.assertEqual(velocity[1], (-speed) & 0xFF)
-            self.assertEqual((velocity[2] + 3) & 0xFF, (-speed) & 0xFF)
+            self.assertEqual(velocity[2], (-speed) & 0xFF)
             self.assertEqual(velocity[3], speed)
+
+    def test_vertical_physics_bypasses_stock_gravity(self) -> None:
+        self.assertEqual(target.OFF_VERTICAL_PHYSICS, 0x3D9D)
+        self.assertEqual(target.CPU_VERTICAL_PHYSICS, 0xBD8D)
+        self.assertEqual(
+            target.VERTICAL_PHYSICS,
+            bytes.fromhex("c0 05 f0 03 4c 89 86 85 0a 0a 4c 99 86"),
+        )
+        runtime, offsets = target.build_runtime()
+        prephysics_start = offsets["prephysics"] - target.CPU_RUNTIME
+        velocity_start = offsets["velocity_table"] - target.CPU_RUNTIME
+        prephysics = runtime[prephysics_start:velocity_start]
+        self.assertTrue(prephysics.endswith(bytes.fromhex("4c 8d bd")))
 
     def test_last_phase_is_stored_with_non_property_marker(self) -> None:
         runtime, offsets = target.build_runtime()
@@ -36,6 +49,7 @@ class PhantomPresetRuntimeTests(unittest.TestCase):
         self.assertEqual(offsets["apply_speed"], 0xBE32)
         self.assertEqual(offsets["velocity_table"], 0xBE66)
         self.assertEqual(target.CPU_RUNTIME_END, 0xBEC0)
+        self.assertEqual(target.OFF_VERTICAL_PHYSICS + len(target.VERTICAL_PHYSICS), 0x3DAA)
 
 
 if __name__ == "__main__":

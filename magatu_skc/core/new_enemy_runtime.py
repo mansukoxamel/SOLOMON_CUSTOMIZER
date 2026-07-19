@@ -529,6 +529,12 @@ def apply(rom_data: bytearray) -> list[str]:
         phantom_runtime,
         "Phantom preset runtime area",
     )
+    _expect_blank_or(
+        rom_data,
+        _phantom_preset.OFF_VERTICAL_PHYSICS,
+        _phantom_preset.VERTICAL_PHYSICS,
+        "Phantom preset vertical physics helper",
+    )
     _expect_one(
         rom_data,
         _phantom_preset.OFF_PHYSICS_CALL,
@@ -602,6 +608,17 @@ def apply(rom_data: bytearray) -> list[str]:
         _chaos9e.RUNTIME,
         changed,
         f"Chaos Dragon9E runtime ${_chaos9e.CPU_RUNTIME:04X}-${_chaos9e.CPU_RUNTIME_END - 1:04X}",
+    )
+    _write(
+        rom_data,
+        _phantom_preset.OFF_VERTICAL_PHYSICS,
+        _phantom_preset.VERTICAL_PHYSICS,
+        changed,
+        (
+            f"Phantom vertical physics helper "
+            f"${_phantom_preset.CPU_VERTICAL_PHYSICS:04X}-"
+            f"${_phantom_preset.CPU_VERTICAL_PHYSICS + len(_phantom_preset.VERTICAL_PHYSICS) - 1:04X}"
+        ),
     )
     _write(
         rom_data,

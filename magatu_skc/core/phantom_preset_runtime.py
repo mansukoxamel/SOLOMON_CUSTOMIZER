@@ -14,9 +14,12 @@ IDS_PER_GROUP = 4
 
 OFF_RUNTIME = 0x3DAC
 CPU_RUNTIME = 0xBD9C
+OFF_VERTICAL_PHYSICS = 0x3D9D
+CPU_VERTICAL_PHYSICS = 0xBD8D
 OFF_PHYSICS_CALL = 0x0680
 ORIG_PHYSICS_CALL = bytes.fromhex("20 89 86")
 CPU_STOCK_PHYSICS = 0x8689
+CPU_STOCK_PHYSICS_AFTER_GRAVITY = 0x8699
 
 MIN_SPEED_VALUE = 0x01
 MAX_SPEED_VALUE = 0x3F
@@ -95,8 +98,18 @@ def normalize_speed_value(value) -> int:
 def velocity_bytes(speed_value: int) -> bytes:
     speed = normalize_speed_value(speed_value)
     reverse = (-speed) & 0xFF
-    upward = (-(speed + 3)) & 0xFF
-    return bytes((speed, reverse, upward, speed))
+    return bytes((speed, reverse, reverse, speed))
+
+
+def _build_vertical_physics() -> bytes:
+    a = _Asm(CPU_VERTICAL_PHYSICS)
+    a.b(0xC0, 0x05)                       # vertical Phantom: Y velocity axis
+    a.branch(0xF0, "vertical")
+    a.jmp(CPU_STOCK_PHYSICS)              # stock entities and horizontal Phantom
+    a.label("vertical")
+    a.b(0x85, 0x0A, 0x0A)                # preserve Y velocity; double for stock fixed-point path
+    a.jmp(CPU_STOCK_PHYSICS_AFTER_GRAVITY)
+    return a.finish()
 
 
 def default_group_settings() -> tuple[dict[str, int], ...]:
@@ -250,7 +263,7 @@ def _build_apply_speed(cpu_velocity_table: int, cpu_axis_table: int) -> bytes:
     return a.finish()
 
 
-def _build_prephysics(cpu_apply_speed: int) -> bytes:
+def _build_prephysics(cpu_apply_speed: int, cpu_vertical_physics: int) -> bytes:
     a = _Asm(0)
     a.b(0xA0, 0x01, 0xB1, 0x08)
     a.b(0xC9, FIRST_ID)
@@ -261,7 +274,7 @@ def _build_prephysics(cpu_apply_speed: int) -> bytes:
     a.branch(0xD0, "stock")
     a.jsr(cpu_apply_speed)
     a.label("stock")
-    a.jmp(CPU_STOCK_PHYSICS)
+    a.jmp(cpu_vertical_physics)
     return a.finish()
 
 
@@ -300,7 +313,7 @@ def build_runtime(group_settings=None) -> tuple[bytes, dict[str, int]]:
     )
     scale = _build_scale_delta()
     speed = _build_apply_speed(cpu_velocity, cpu_axis)
-    prephysics = _build_prephysics(cpu_speed)
+    prephysics = _build_prephysics(cpu_speed, CPU_VERTICAL_PHYSICS)
     velocity = b"".join(
         velocity_bytes(group["speed_value"])
         for group in group_settings
@@ -392,6 +405,7 @@ def apply_settings(rom_data, group_settings) -> list[str]:
 
 
 RUNTIME, _OFFSETS = build_runtime()
+VERTICAL_PHYSICS = _build_vertical_physics()
 CPU_SETUP_META_LOAD = _OFFSETS["setup"]
 CPU_INIT_STATUS = _OFFSETS["init"]
 CPU_AI_DISPATCH = _OFFSETS["ai"]
@@ -400,10 +414,16 @@ CPU_RUNTIME_END = CPU_RUNTIME + len(RUNTIME)
 HOOK_PHYSICS_CALL = bytes((0x20, CPU_PREPHYSICS & 0xFF, CPU_PREPHYSICS >> 8))
 OFF_AMPLITUDE_TABLE = OFF_RUNTIME + (_OFFSETS["amplitude_table"] - CPU_RUNTIME)
 OFF_PHASE_TABLE = OFF_RUNTIME + (_OFFSETS["phase_table"] - CPU_RUNTIME)
-RESERVED_SPANS = ((OFF_PHYSICS_CALL, len(HOOK_PHYSICS_CALL)), (OFF_RUNTIME, len(RUNTIME)))
+RESERVED_SPANS = (
+    (OFF_PHYSICS_CALL, len(HOOK_PHYSICS_CALL)),
+    (OFF_VERTICAL_PHYSICS, len(VERTICAL_PHYSICS)),
+    (OFF_RUNTIME, len(RUNTIME)),
+)
 
 assert len(SINE_DELTA_TABLE) == 64
 assert sum(value if value < 0x80 else value - 0x100 for value in SINE_DELTA_TABLE) == 0
+assert len(VERTICAL_PHYSICS) == 13
+assert OFF_VERTICAL_PHYSICS + len(VERTICAL_PHYSICS) == 0x3DAA
 assert len(RUNTIME) == 292
 assert OFF_RUNTIME + len(RUNTIME) == 0x3ED0
 assert CPU_RUNTIME_END == 0xBEC0
