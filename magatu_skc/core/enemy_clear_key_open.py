@@ -71,14 +71,13 @@ class _Asm:
         return bytes(self.data)
 
 
-def _build_runtime(include_fairy2_delay: bool = True) -> bytes:
+def _build_runtime() -> bytes:
     a = _Asm()
-    if include_fairy2_delay:
-        a.abs(0xAD, RAM_FAIRY2_DELAY)   # LDA $0771
-        a.rel(0xF0, "mode_check")       # BEQ mode_check
-        a.abs(0xCE, RAM_FAIRY2_DELAY)   # DEC $0771
-        a.rel(0xD0, "mode_check")       # BNE mode_check
-        a.abs(0x20, CPU_ADD_FAIRY_QUEUE)
+    a.abs(0xAD, RAM_FAIRY2_DELAY)       # LDA $0771
+    a.rel(0xF0, "mode_check")           # BEQ mode_check
+    a.abs(0xCE, RAM_FAIRY2_DELAY)       # DEC $0771
+    a.rel(0xD0, "mode_check")           # BNE mode_check
+    a.abs(0x20, CPU_ADD_FAIRY_QUEUE)
 
     a.label("mode_check")
     a.abs(0xAD, RAM_RUNTIME_STATE)     # LDA $0770
@@ -108,6 +107,9 @@ def _build_runtime(include_fairy2_delay: bool = True) -> bytes:
     a.rel(0xF0, "scan_next")           # item remnant is ignored
     a.b(0xC9, 0x9D)                    # CMP #$9D
     a.rel(0xF0, "scan_next")           # Seraphic Radiance is ignored
+    a.b(0x29, 0xFD)                    # AND #$FD maps $81/$83 to $81
+    a.b(0xC9, 0x81)                    # CMP #$81
+    a.rel(0xF0, "scan_next")           # unbeatable Blue Burn is ignored
     a.abs(0x4C, CPU_MAIN_LOOP_CONTINUE)
 
     a.label("scan_next")
@@ -142,9 +144,6 @@ def _build_runtime(include_fairy2_delay: bool = True) -> bytes:
 
 
 RUNTIME = _build_runtime()
-RUNTIME_WITHOUT_FAIRY2_DELAY = _build_runtime(include_fairy2_delay=False)
-_GROUP4_WAIT_BYTES = bytes.fromhex("ad 03 03 29 10 f0 03 4c c0 9e")
-RUNTIME_BEFORE_GROUP4_WAIT = RUNTIME.replace(_GROUP4_WAIT_BYTES, b"", 1)
 
 
 def levels_need_runtime(levels: list) -> bool:
@@ -165,12 +164,6 @@ def _expect(data: bytes | bytearray, off: int, allowed: tuple[bytes, ...], name:
 def _expect_blank_or(data: bytes | bytearray, off: int, blob: bytes, name: str) -> None:
     cur = bytes(data[off:off + len(blob)])
     if cur == blob or all(b in (0xEA, 0x00) for b in cur):
-        return
-    old_size = len(RUNTIME_WITHOUT_FAIRY2_DELAY)
-    if cur[:old_size] == RUNTIME_WITHOUT_FAIRY2_DELAY and all(b in (0xEA, 0x00) for b in cur[old_size:]):
-        return
-    old_size = len(RUNTIME_BEFORE_GROUP4_WAIT)
-    if cur[:old_size] == RUNTIME_BEFORE_GROUP4_WAIT and all(b in (0xEA, 0x00) for b in cur[old_size:]):
         return
     raise EnemyClearKeyOpenError(
         f"{name} area is not blank at 0x{off:X}: expected EA/00 or existing runtime, got {cur.hex(' ')}"
@@ -205,6 +198,4 @@ RESERVED_SPANS = (
     (OFF_RUNTIME, len(RUNTIME)),
 )
 
-assert len(RUNTIME) == 124
-assert len(RUNTIME_WITHOUT_FAIRY2_DELAY) == 111
-assert len(RUNTIME_BEFORE_GROUP4_WAIT) == 114
+assert len(RUNTIME) == 130
