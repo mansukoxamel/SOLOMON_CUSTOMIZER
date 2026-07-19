@@ -234,6 +234,7 @@ DEFAULT_CONFIG = {
     "test_play_quick_start": True,
     "stage_png_show_secrets": True,
     "developer_mode": False,
+    "picker_favorites_visible": True,
     # ピッカーのお気に入り（10スロット, [mode, value] or null）
     "picker_favorites": [None] * 10,
     "picker_block_order": [

@@ -20,6 +20,7 @@ from PyQt5.QtWidgets import (
 
 from magatu_skc.core import config
 from magatu_skc.core.i18n import get_language, set_language
+from magatu_skc.ui.element_picker import ElementPicker
 from magatu_skc.ui.hack_dialog import HackDialog
 from magatu_skc.ui.main_window import MainWindow
 from magatu_skc.ui.settings_dialog import SettingsDialog
@@ -97,6 +98,31 @@ class LiveRetranslationTests(unittest.TestCase):
             self.assertIn("ROMを開く:", labels)
         finally:
             set_language(old_language)
+
+
+class FavoritesVisibilityTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_setting_is_gathered_without_losing_favorites(self):
+        cfg = dict(config.DEFAULT_CONFIG)
+        cfg["picker_favorites"] = [["item", 1]] + [None] * 9
+        dialog = SettingsDialog(cfg)
+        dialog.chk_favorites_visible.setChecked(False)
+        dialog._gather()
+        gathered = dialog.get_config()
+        self.assertFalse(gathered["picker_favorites_visible"])
+        self.assertEqual(gathered["picker_favorites"], cfg["picker_favorites"])
+
+    def test_bonus_panel_remains_visible_when_favorites_are_hidden(self):
+        picker = ElementPicker()
+        picker.set_favorites_visible(False)
+        self.assertTrue(picker._bottom_stack.isHidden())
+        picker.set_bonus_mode(True)
+        self.assertFalse(picker._bottom_stack.isHidden())
+        picker.set_bonus_mode(False)
+        self.assertTrue(picker._bottom_stack.isHidden())
 
 
 class GlobalSettingsImportSafetyTests(unittest.TestCase):

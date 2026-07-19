@@ -115,6 +115,18 @@ _TRANSLATIONS = {
         "ja": "太字",
         "en": "Bold",
     },
+    "settings.favorites_visible.label": {
+        "ja": "お気に入り欄:",
+        "en": "Favorites bar:",
+    },
+    "settings.favorites_visible.checkbox": {
+        "ja": "表示する",
+        "en": "Show",
+    },
+    "settings.favorites_visible.tooltip": {
+        "ja": "OFFにすると通常ステージのピッカー下部にあるお気に入り欄を隠します。登録内容とショートカットは保持されます。",
+        "en": "When off, hides the favorites bar below the picker on normal stages. Saved favorites and shortcuts are preserved.",
+    },
     "settings.group.colors_markers": {"ja": "色・マーカー", "en": "Colors / Markers"},
     "settings.theme_gray.label": {"ja": "黒テーマ明度:", "en": "Dark theme brightness:"},
     "settings.theme_gray.tooltip": {

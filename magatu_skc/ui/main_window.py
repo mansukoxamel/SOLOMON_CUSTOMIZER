@@ -1525,6 +1525,9 @@ class MainWindow(QMainWindow):
         # 中右: 要素ピッカー
         self.picker = ElementPicker()
         self.picker.set_app_config(self._app_config)
+        self.picker.set_favorites_visible(
+            self._app_config.get("picker_favorites_visible", True)
+        )
         self.picker.set_icon_size_value(self._app_config.get("picker_icon_size", 36))
         self.picker.icon_size_changed.connect(self._on_picker_icon_size_changed)
         self.picker.set_marker_overlay_scale(
@@ -10702,6 +10705,9 @@ class MainWindow(QMainWindow):
         self._apply_hover_info_popup_style()
         self._update_hover_info_popup(self._hover_tile)
         self.picker.set_app_config(self._app_config)
+        self.picker.set_favorites_visible(
+            self._app_config.get("picker_favorites_visible", True)
+        )
         self.level_view.set_marker_overlay_scale(
             self._app_config.get("marker_overlay_scale", 3)
         )

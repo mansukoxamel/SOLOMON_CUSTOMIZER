@@ -205,6 +205,23 @@ class SettingsDialog(QDialog):
         self.chk_font_bold.setChecked(bool(self.config.get("font_bold", False)))
         df.addRow(t("settings.bold.label", "太字:"), self.chk_font_bold)
 
+        self.chk_favorites_visible = QCheckBox(t(
+            "settings.favorites_visible.checkbox",
+            "表示する",
+        ))
+        self.chk_favorites_visible.setChecked(
+            bool(self.config.get("picker_favorites_visible", True))
+        )
+        self.chk_favorites_visible.setToolTip(t(
+            "settings.favorites_visible.tooltip",
+            "OFFにすると通常ステージのピッカー下部にあるお気に入り欄を隠します。"
+            "登録内容とショートカットは保持されます。",
+        ))
+        df.addRow(
+            t("settings.favorites_visible.label", "お気に入り欄:"),
+            self.chk_favorites_visible,
+        )
+
         general_layout.addWidget(disp_group)
 
         # ====== 色・マーカー ======
@@ -810,6 +827,9 @@ class SettingsDialog(QDialog):
             self.config["font_family"] = \
                 self.cmb_font_family.currentFont().family()
         self.config["font_bold"] = self.chk_font_bold.isChecked()
+        self.config["picker_favorites_visible"] = (
+            self.chk_favorites_visible.isChecked()
+        )
         self.config["theme_gray"] = self.spin_theme_gray.value()
         self.config["marker_overlay_scale"] = int(
             self.cmb_marker_overlay_scale.currentData()

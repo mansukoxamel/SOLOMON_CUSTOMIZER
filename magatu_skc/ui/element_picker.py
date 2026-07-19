@@ -1518,6 +1518,7 @@ class ElementPicker(QWidget):
         bonus_lay.addWidget(self.bonus_panel)
         self._bottom_stack.addWidget(bonus_page)  # index 1
 
+        self._favorites_visible = True
         self._bottom_stack.setCurrentIndex(0)
         layout.addWidget(self._bottom_stack)
 
@@ -2304,6 +2305,11 @@ class ElementPicker(QWidget):
 
     # ========== ボーナスアイテムパネル (Level 51) ==========
 
+    def set_favorites_visible(self, enabled: bool):
+        self._favorites_visible = bool(enabled)
+        if self._bottom_stack.currentIndex() == 0:
+            self._bottom_stack.setVisible(self._favorites_visible)
+
     def set_bonus_mode(self, enabled: bool, item_bytes=None):
         """Level 51 のとき下部をボーナスアイテムパネルに切替"""
         if enabled:
@@ -2312,5 +2318,7 @@ class ElementPicker(QWidget):
             if item_bytes is not None:
                 self.bonus_panel.load_items(item_bytes)
             self._bottom_stack.setCurrentIndex(1)
+            self._bottom_stack.setVisible(True)
         else:
             self._bottom_stack.setCurrentIndex(0)
+            self._bottom_stack.setVisible(self._favorites_visible)
