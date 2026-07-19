@@ -49,6 +49,7 @@ from ..core import wall_color_hack
 from ..core import stage_frame
 from ..core import solomon_seal_stage
 from ..core import stage_ext
+from ..core import final_stage_redirect
 from ..core import constants as c
 from ..core.config import normalize_panel_variant_settings
 from ..core.element import Wall
@@ -217,6 +218,8 @@ class HackDialog(QDialog):
         ff = QFormLayout(final_group)
         self.combo_final_stage_redirect = QComboBox()
         for stage_no in range(1, 54):
+            if stage_no == final_stage_redirect.FINAL_STAGE_NO:
+                continue
             label = t(
                 "hack_dialog.final_stage.option",
                 "{stage}面をクリアした後",
@@ -2338,7 +2341,10 @@ class HackDialog(QDialog):
 
     def _current_final_stage_redirect_level_no(self) -> int:
         for i, level in enumerate(self.levels or []):
-            if stage_ext.final_stage_redirect_enabled(level):
+            if (
+                i != final_stage_redirect.FINAL_STAGE_INDEX
+                and stage_ext.final_stage_redirect_enabled(level)
+            ):
                 return i
         return -1
 
@@ -2353,7 +2359,11 @@ class HackDialog(QDialog):
             stage_no = int(stage_no)
         except Exception:
             stage_no = DEFAULT_FINAL_STAGE_REDIRECT_STAGE_NO
-        if stage_no < 1 or stage_no > len(self.levels):
+        if (
+            stage_no < 1
+            or stage_no > len(self.levels)
+            or stage_no == final_stage_redirect.FINAL_STAGE_NO
+        ):
             stage_no = DEFAULT_FINAL_STAGE_REDIRECT_STAGE_NO
         selected = -1 if stage_no == DEFAULT_FINAL_STAGE_REDIRECT_STAGE_NO else stage_no - 1
         old = self._current_final_stage_redirect_level_no()

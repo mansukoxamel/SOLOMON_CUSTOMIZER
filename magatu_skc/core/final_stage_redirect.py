@@ -16,6 +16,8 @@ OFF_HOOK_CLEAR_RESET = _cf(0xC6F5)
 OFF_SIG_AFTER_CLEAR_RESET = _cf(0xC6F8)
 OFF_CAVE = 0x6342
 CPU_CAVE = 0xE332
+FINAL_STAGE_NO = 50
+FINAL_STAGE_INDEX = FINAL_STAGE_NO - 1
 
 ORIG_HOOK_CLEAR_RESET = bytes.fromhex("20 0e c7")
 HOOK_CLEAR_RESET = bytes((0x20, CPU_CAVE & 0xFF, CPU_CAVE >> 8))
@@ -31,8 +33,22 @@ def enabled_in_any_level(levels: list) -> bool:
     return any(stage_ext.final_stage_redirect_enabled(lv) for lv in levels or [])
 
 
+def validate_levels(levels: list) -> None:
+    if len(levels or []) > FINAL_STAGE_INDEX and stage_ext.final_stage_redirect_enabled(
+        levels[FINAL_STAGE_INDEX]
+    ):
+        raise FinalStageRedirectError(
+            "Stage 50 cannot redirect to itself after clear."
+        )
+
+
 def _verify(rom_data: bytes) -> None:
-    if len(rom_data) < OFF_SIG_AFTER_CLEAR_RESET + len(SIG_AFTER_CLEAR_RESET):
+    required_end = max(
+        OFF_HOOK_CLEAR_RESET + len(ORIG_HOOK_CLEAR_RESET),
+        OFF_SIG_AFTER_CLEAR_RESET + len(SIG_AFTER_CLEAR_RESET),
+        OFF_CAVE + len(CAVE),
+    )
+    if len(rom_data) < required_end:
         raise FinalStageRedirectError("ROM is too small for final-stage redirect runtime.")
     sig = bytes(rom_data[OFF_SIG_AFTER_CLEAR_RESET:OFF_SIG_AFTER_CLEAR_RESET + len(SIG_AFTER_CLEAR_RESET)])
     if sig != SIG_AFTER_CLEAR_RESET:
@@ -46,6 +62,7 @@ def _verify(rom_data: bytes) -> None:
 
 
 def apply(rom_data: bytearray, levels: list) -> list[str]:
+    validate_levels(levels)
     _verify(rom_data)
     changed: list[str] = []
     if bytes(rom_data[OFF_CAVE:OFF_CAVE + len(CAVE)]) != CAVE:

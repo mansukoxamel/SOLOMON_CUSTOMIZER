@@ -8,12 +8,12 @@
 
 Final Stage Redirectは、選択したroomをクリアした後、原作の通常進行・特殊route判定で決まった次room番号をStage 50へ上書きする常設13B runtimeである。直接endingを起動せず、原作Stage 50を経由する。
 
-13B本体、stage clearの全room更新、StageExt loader、hook/stack、UIの全選択肢、Python書込み境界を追跡した。確定バグは2件である。
+13B本体、stage clearの全room更新、StageExt loader、hook/stack、UIの全選択肢、Python書込み境界を追跡し、確定バグ2件を修正した。
 
-1. UIで「50面をクリアした後」を選べるため、行先であるStage 50をクリアしてもStage 50へ戻り、無限に同じ面を繰り返す。
-2. Python `_verify()`はhook後続までのROM長しか確認せず、より後方のcave終端を確認しない。短いbytearrayでは空sliceを空きと誤認し、cave byte列を所定offsetでなく末尾へappendし得る。
+1. UIからStage 50を除外し、保存前にもStage 50自身のflagを拒否する。Stage 51～53からStage 50へ戻す設定は維持する。
+2. Python `_verify()`の必要長をhook、後続signature、cave終端の最大値へ修正した。
 
-通常のmapper66拡張ROMで、redirect元がStage 50以外なら6502本体の分岐・stack・room番号は成立する。ROM/RAM配置は変更していない。修正も行っていない。
+redirect元がStage 50以外なら6502本体の分岐・stack・room番号は成立する。ROM/RAM配置と6502バイト列は変更していない。
 
 ## 原作stage clearのroom更新
 
@@ -82,9 +82,9 @@ runtimeは`JMP $C70E`を使うため、`$C70E`末尾のRTSが最初の`JSR $E332
 
 redirect実行時に`$0428`はStage 50へ変わるが、`$077A`はその場ではclearされない。ただしclear演出後のStage 50 loadでentryを読み直すため、Stage 50自身にflagが無ければ0になる。通常のredirect元では再発火しない。
 
-## 確定したバグ
+## 修正済みバグ
 
-### [P1] Stage 50をredirect元にするとStage 50を永久loopする
+### [解消] Stage 50をredirect元にするとStage 50を永久loopする
 
 ゲーム挙動改造dialogはStage 1～53を全てcomboへ追加し、原作相当のStage 48だけを特別値`-1`にする。Stage 50も正常な選択肢として残る。
 
@@ -101,9 +101,9 @@ Stage 50をclear
 
 毎回同じ条件が再構築されるため脱出できず、通常のendingへ到達しない。UI操作だけで作れる確定バグである。
 
-最小のvalidation方針はStage 50を選択不可にするか、Stage 50選択を原作相当のOFFとして扱うことである。ただしStage 51～53からStage 50へ戻す選択を許すかは仕様判断が必要で、本解析では変更していない。
+UI comboからStage 50を除外し、global設定から50が渡された場合は原作相当のStage 48へ正規化する。さらに`final_stage_redirect.validate_levels()`を保存前整合性検査とruntime writerの両方から呼び、XML等でStage 50自身のbit4が立っていても拒否する。Stage 51～53からStage 50へ戻す設定は有効な用途として維持する。
 
-### [P2] cave終端を含むROM長検査がない
+### [解消] cave終端を含むROM長検査がない
 
 `_verify()`の最初の長さ検査は次だけを見る。
 
@@ -121,7 +121,7 @@ cur != CAVE and any(b not in (0xEA, 0x00) for b in cur)
 
 空`cur`では`any(...)`がFalseなのでエラーにならない。`apply()`の`rom_data[0x6342:0x634F] = CAVE`は、startが現在長より後なら所定offsetを埋めず現在末尾へ13Bをappendする。hookだけは本来位置へ書かれるため、壊れた部分適用になる。
 
-通常save経路は`rom.is_expanded()`内だけで呼び、対象ROMは十分大きいため通常操作では発生しない。それでもwriter単体の入力検証としては確定した境界バグである。必要長をhook、signature、caveの最大終端で検査すればROM/RAM配置を変えず直せる。
+`_verify()`はhook終端、後続signature終端、cave終端の最大値を`required_end`とし、それより短い入力をslice検査前に拒否する。writer単体へ短いbytearrayを渡しても末尾appendや部分適用は起きない。ROM/RAM配置は変わらない。
 
 ## ROM/RAM配置
 
@@ -166,5 +166,5 @@ runtime直前`0x633F-0x6341`は3B空きで、直後`0x634F`からEnhanced Gargoy
 
 - ROM生成
 - emulatorでの動的実行
-- 修正実装
+- emulatorでのredirect動的実行
 - ROM/RAM管理簿の変更

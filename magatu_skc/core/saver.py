@@ -69,6 +69,9 @@ def validate_level_consistency(levels: list):
     from . import enemy_slot_rules
     from . import stage_ext
     from . import warp_zone_trial
+    from . import final_stage_redirect
+
+    final_stage_redirect.validate_levels(levels)
 
     for i, lv in enumerate(levels):
         if (
