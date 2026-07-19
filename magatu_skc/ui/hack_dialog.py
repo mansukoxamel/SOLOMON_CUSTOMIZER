@@ -551,7 +551,7 @@ class HackDialog(QDialog):
         pm_group = QGroupBox(t("hack_dialog.group.panel_monster", "パネルモンスター"))
         pm_group.setProperty("settings_category", "敵・AI")
         pmf = QFormLayout(pm_group)
-        _setup_enemy_group(self, pm_group, pmf, 10, (0x24, 0x52, 0x5A))
+        _setup_enemy_group(self, pm_group, pmf, 10, (0x24,))
         self._pm_ok = False
         try:
             pm_region = panel_monster_hack.detect_region(rom.data)
@@ -786,7 +786,7 @@ class HackDialog(QDialog):
         sb_speed_group = QGroupBox(t("hack_dialog.group.spark_ball_speed", "スパークボール移動速度"))
         sb_speed_group.setProperty("settings_category", "敵・AI")
         sbf = QFormLayout(sb_speed_group)
-        _setup_enemy_group(self, sb_speed_group, sbf, 40, (0x28, 0x6A, 0x72))
+        _setup_enemy_group(self, sb_speed_group, sbf, 40, (0x28,))
         self.combo_spark_ball_speed = QComboBox()
         self._spark_ball_spd_ok = False
         try:
@@ -885,7 +885,16 @@ class HackDialog(QDialog):
         )
         phantom_group.setProperty("settings_category", "敵・AI")
         phantom_form = QFormLayout(phantom_group)
-        _setup_enemy_group(self, phantom_group, phantom_form, 42, (0x20, 0x21, 0x22, 0x23))
+        _setup_enemy_group(
+            self,
+            phantom_group,
+            phantom_form,
+            42,
+            range(
+                phantom_preset_runtime.FIRST_ID,
+                phantom_preset_runtime.FIRST_ID + phantom_preset_runtime.IDS_PER_GROUP,
+            ),
+        )
         self._phantom_preset_controls = []
         self._phantom_preset_ok = False
         try:
@@ -1025,7 +1034,13 @@ class HackDialog(QDialog):
         )
         ghost_ab_group.setProperty("settings_category", "敵・AI")
         ghost_ab_form = QFormLayout(ghost_ab_group)
-        _setup_enemy_group(self, ghost_ab_group, ghost_ab_form, 34, ghostb0_runtime.NEW_ENEMY_IDS)
+        _setup_enemy_group(
+            self,
+            ghost_ab_group,
+            ghost_ab_form,
+            34,
+            (ghostb0_runtime.FIRST_ID,),
+        )
         self._ghost_ab_controls = []
         self._ghost_ab_ok = False
         try:
