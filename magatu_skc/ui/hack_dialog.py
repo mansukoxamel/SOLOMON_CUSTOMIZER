@@ -2866,6 +2866,50 @@ class HackDialog(QDialog):
             t("hack_dialog.export.complete.body", "共通設定を保存しました:\n{path}").format(path=path),
         )
 
+    def _apply_imported_global_settings_transaction(self, settings: dict) -> list:
+        """Apply imported settings and restore every touched state on failure."""
+        rom_before = bytes(self.rom.data)
+        settings_before = self._collect_global_settings()["settings"]
+        cfg = self._level_meta_config()
+        meta_before = [
+            (mi, tuple(getattr(mi, "position", (0, 0))), int(getattr(mi, "level_no", -1)))
+            for mi in (getattr(cfg, "level_meta_items", []) or [])
+        ] if cfg is not None else []
+        parent = self.parent()
+        dirty_before = getattr(parent, "_dirty", None)
+        session_log = getattr(parent, "_session_log", None)
+        session_log_length = len(session_log) if isinstance(session_log, list) else None
+        try:
+            return self._apply_imported_global_settings(settings)
+        except Exception:
+            self.rom.data[:] = rom_before
+            for mi, position, level_no in meta_before:
+                mi.position = position
+                mi.level_no = level_no
+            try:
+                self._apply_imported_global_settings(settings_before)
+            except Exception:
+                pass
+            if parent is not None:
+                sync_wall_preview = getattr(parent, "_sync_wall_color_preview", None)
+                if callable(sync_wall_preview):
+                    sync_wall_preview()
+                load_bonus = getattr(parent, "_load_bonus_stage_table", None)
+                if callable(load_bonus):
+                    load_bonus(self.rom)
+                refresh = getattr(parent, "_refresh_view", None)
+                if callable(refresh):
+                    refresh()
+                refresh_thumbs = getattr(parent, "_generate_all_thumbnails", None)
+                if callable(refresh_thumbs):
+                    refresh_thumbs()
+                set_dirty = getattr(parent, "_set_dirty", None)
+                if dirty_before is not None and callable(set_dirty):
+                    set_dirty(bool(dirty_before))
+                if session_log_length is not None:
+                    del session_log[session_log_length:]
+            raise
+
     def _on_import_global_settings(self):
         ans = QMessageBox.warning(
             self,
@@ -2900,6 +2944,13 @@ class HackDialog(QDialog):
         except Exception as e:
             QMessageBox.critical(self, t("hack_dialog.import.failed", "インポート失敗"), f"{type(e).__name__}: {e}")
             return
+        if not isinstance(payload, dict):
+            QMessageBox.warning(
+                self,
+                t("hack_dialog.import.format_error.title", "形式エラー"),
+                t("hack_dialog.import.format_error.not_global", "このファイルは共通設定JSONではありません。"),
+            )
+            return
         if payload.get("format") != "solomon_customizer_global_settings":
             QMessageBox.warning(
                 self,
@@ -2916,7 +2967,7 @@ class HackDialog(QDialog):
             )
             return
         try:
-            changed = self._apply_imported_global_settings(settings)
+            changed = self._apply_imported_global_settings_transaction(settings)
         except Exception as e:
             QMessageBox.critical(self, t("hack_dialog.import.failed", "インポート失敗"), f"{type(e).__name__}: {e}")
             return

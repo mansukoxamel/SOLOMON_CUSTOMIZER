@@ -58,7 +58,7 @@ from ..core.config import (
 from ..core import (
     saver, ips, wall_color_hack, stage50_book_color, stage_ext, save_validation,
 )
-from ..core.i18n import get_language, set_language, t
+from ..core.i18n import get_language, set_language, t, translate_existing_text
 from ..gfx.tile_renderer import TileRenderer
 from ..gfx.level_renderer import LevelRenderer
 from ..nes.config_loader import SkcConfig
@@ -10695,7 +10695,7 @@ class MainWindow(QMainWindow):
         self._apply_shortcut_settings()
         self._apply_history_limit_settings()
         from ..core.config import save_config
-        save_config(self._app_config)
+        config_saved = save_config(self._app_config)
         self._update_title()
         self._apply_theme()
         self._apply_font_size()
@@ -10727,6 +10727,60 @@ class MainWindow(QMainWindow):
                 t("main.status.language_changed", "表示言語を切り替えました"),
                 2500,
             )
+        if not config_saved:
+            QMessageBox.warning(
+                self,
+                t("config.save_error.title", "設定を保存できません"),
+                t(
+                    "config.save_error.message",
+                    "設定は現在の画面には反映されましたが、設定ファイルへ保存できませんでした。\n"
+                    "書き込み権限とディスクの空き容量を確認してください。",
+                ),
+            )
+
+    def _retranslate_widget_tree(self):
+        """Retranslate static text on already-created child widgets and actions."""
+        from PyQt5.QtCore import QSignalBlocker
+        from PyQt5.QtWidgets import QAbstractButton, QTabWidget
+
+        objects = [self]
+        objects.extend(self.findChildren(QWidget))
+        objects.extend(self.findChildren(QAction))
+        seen = set()
+        for obj in objects:
+            obj_id = id(obj)
+            if obj_id in seen:
+                continue
+            seen.add(obj_id)
+
+            if isinstance(obj, (QLabel, QAbstractButton, QAction)):
+                obj.setText(translate_existing_text(obj.text()))
+            if isinstance(obj, QGroupBox):
+                obj.setTitle(translate_existing_text(obj.title()))
+            if isinstance(obj, QWidget):
+                if obj.windowTitle():
+                    obj.setWindowTitle(translate_existing_text(obj.windowTitle()))
+                if obj.toolTip():
+                    obj.setToolTip(translate_existing_text(obj.toolTip()))
+                if obj.statusTip():
+                    obj.setStatusTip(translate_existing_text(obj.statusTip()))
+                if obj.whatsThis():
+                    obj.setWhatsThis(translate_existing_text(obj.whatsThis()))
+            if isinstance(obj, QAction):
+                if obj.toolTip():
+                    obj.setToolTip(translate_existing_text(obj.toolTip()))
+                if obj.statusTip():
+                    obj.setStatusTip(translate_existing_text(obj.statusTip()))
+                if obj.whatsThis():
+                    obj.setWhatsThis(translate_existing_text(obj.whatsThis()))
+            if isinstance(obj, QComboBox):
+                blocker = QSignalBlocker(obj)
+                for index in range(obj.count()):
+                    obj.setItemText(index, translate_existing_text(obj.itemText(index)))
+                del blocker
+            if isinstance(obj, QTabWidget):
+                for index in range(obj.count()):
+                    obj.setTabText(index, translate_existing_text(obj.tabText(index)))
 
     def _retranslate_main_ui(self):
         """Update already-created main-window text after runtime language changes."""
@@ -10904,6 +10958,7 @@ class MainWindow(QMainWindow):
         self._update_stage_compare_diff_label()
         self._update_stage_compare_edit_label()
         self._update_info()
+        self._retranslate_widget_tree()
 
     def _autosave_keep_count(self) -> int:
         return normalize_int_setting(

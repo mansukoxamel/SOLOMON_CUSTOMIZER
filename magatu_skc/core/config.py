@@ -4,7 +4,9 @@
 """
 import json
 from json import JSONDecodeError
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -469,15 +471,32 @@ def save_config(cfg: dict):
     if isinstance(cfg, dict) and cfg.get("_config_load_error"):
         return False
     p = get_config_path()
+    temp_path = None
     try:
         p.parent.mkdir(parents=True, exist_ok=True)
-        with open(p, "w", encoding="utf-8") as f:
+        fd, temp_name = tempfile.mkstemp(
+            prefix=f".{p.name}.",
+            suffix=".tmp",
+            dir=str(p.parent),
+        )
+        temp_path = Path(temp_name)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(
                 {k: v for k, v in cfg.items() if not str(k).startswith("_config_")},
                 f,
                 ensure_ascii=False,
                 indent=2,
             )
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temp_path, p)
+        temp_path = None
         return True
     except Exception:
         return False
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except Exception:
+                pass

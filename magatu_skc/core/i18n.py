@@ -3,6 +3,7 @@
 This module intentionally keeps translation state outside save data, XML
 schemas, ROM metadata, and other stable internal keys.
 """
+from functools import lru_cache
 
 DEFAULT_LANGUAGE = "ja"
 LANGUAGE_OPTIONS = (
@@ -4803,6 +4804,14 @@ _TRANSLATIONS = {
         "ja": "適用",
         "en": "Apply",
     },
+    "config.save_error.title": {
+        "ja": "設定を保存できません",
+        "en": "Could not save settings",
+    },
+    "config.save_error.message": {
+        "ja": "設定は現在の画面には反映されましたが、設定ファイルへ保存できませんでした。\n書き込み権限とディスクの空き容量を確認してください。",
+        "en": "The settings were applied to the current session, but could not be saved to the settings file.\nCheck write permissions and available disk space.",
+    },
 }
 
 
@@ -4836,3 +4845,35 @@ def t(key: str, default: str = "") -> str:
     if not entry:
         return default
     return entry.get(_current_language) or entry.get(DEFAULT_LANGUAGE) or default
+
+
+@lru_cache(maxsize=len(SUPPORTED_LANGUAGES))
+def _existing_text_lookup(language: str) -> dict:
+    lookup = {}
+    for entry in _TRANSLATIONS.values():
+        if not isinstance(entry, dict):
+            continue
+        translated = entry.get(language) or entry.get(DEFAULT_LANGUAGE)
+        if not translated:
+            continue
+        for source_language in SUPPORTED_LANGUAGES:
+            source = entry.get(source_language)
+            if source:
+                lookup.setdefault(source, translated)
+    return lookup
+
+
+def translate_existing_text(value: str) -> str:
+    """Translate an already-created static UI string by exact dictionary match."""
+    text = str(value or "")
+    if not text:
+        return text
+    lookup = _existing_text_lookup(_current_language)
+    translated = lookup.get(text)
+    if translated:
+        return translated
+    if text.endswith(":"):
+        translated = lookup.get(text[:-1])
+        if translated:
+            return translated + ":"
+    return text
