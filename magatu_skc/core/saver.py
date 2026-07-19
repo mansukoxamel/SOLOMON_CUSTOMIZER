@@ -308,7 +308,6 @@ def save_levels_to_rom(
         rom.data,
         gap_fix.is_applied(rom.data),
     )
-    _run_save_step("wide-title trampoline RAM移行", title_screen.migrate_wide_title_trampoline_ram, rom.data)
     _run_save_step("wide-title idle demo cleanup検証/適用", title_screen.apply_wide_title_idle_demo_cleanup, rom.data)
     _run_save_step(
         "タイトル初期テキスト確認/適用",

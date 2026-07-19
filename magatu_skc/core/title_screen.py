@@ -1074,22 +1074,24 @@ def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b,
             raise TitleScreenError(
                 f"internal error: title stream write 0x{off:X}+{ln}B "
                 "overlaps the Room Flag bank0 cave band.")
-    _wt_install_bootstrap_and_restore_stock(target_rom, boot)
-    target_rom[_WT_DEC_FILE:_WT_DEC_FILE + len(decoder)] = decoder
+    out = bytearray(target_rom)
+    _wt_install_bootstrap_and_restore_stock(out, boot)
+    out[_WT_DEC_FILE:_WT_DEC_FILE + len(decoder)] = decoder
     for i in range(a_file, _WT_WIDE_END):
-        target_rom[i] = 0
-    target_rom[a_file:a_file + len(stream_a)] = stream_a
-    target_rom[b_file:b_file + len(stream_b)] = stream_b
+        out[i] = 0
+    out[a_file:a_file + len(stream_a)] = stream_a
+    out[b_file:b_file + len(stream_b)] = stream_b
     a_cpu = 0x8000 + (a_file - 0x8010)
     b_cpu = 0x8000 + (b_file - 0x8010)
-    target_rom[_wjp_cf(_WT_PTRA_LO)] = a_cpu & 0xFF
-    target_rom[_wjp_cf(_WT_PTRA_HI)] = (a_cpu >> 8) & 0xFF
-    target_rom[_wjp_cf(_WT_PTRB_LO)] = b_cpu & 0xFF
-    target_rom[_wjp_cf(_WT_PTRB_HI)] = (b_cpu >> 8) & 0xFF
-    _wt_install_title_oam_clear(target_rom)
-    _wt_install_idle_demo_cleanup(target_rom)
-    _wt_install_legacy_attr_write_suppress(target_rom)
-    _wt_install_ending_draw_separation(target_rom)
+    out[_wjp_cf(_WT_PTRA_LO)] = a_cpu & 0xFF
+    out[_wjp_cf(_WT_PTRA_HI)] = (a_cpu >> 8) & 0xFF
+    out[_wjp_cf(_WT_PTRB_LO)] = b_cpu & 0xFF
+    out[_wjp_cf(_WT_PTRB_HI)] = (b_cpu >> 8) & 0xFF
+    _wt_install_title_oam_clear(out)
+    _wt_install_idle_demo_cleanup(out)
+    _wt_install_legacy_attr_write_suppress(out)
+    _wt_install_ending_draw_separation(out)
+    target_rom[:] = out
     return len(stream_a), len(stream_b)
 
 
@@ -1926,8 +1928,6 @@ _WT_CALLERB_SIG = bytes.fromhex("207396A9A38500A9CE8501204FCC")
 # bootstrap コード部 (template を除く 14B・完全決定論=正規化済判定に使用)
 #   $E919: A2 0D / BD 27 E9 / 9D 2C 07 / CA / 10 F7 / 4C 2C 07
 _WT_BOOT_SIG = bytes.fromhex("A20DBD27E99D2C07CA10F74C2C07")
-_WT_BOOT_SIG_OLD_CC4F = bytes.fromhex("A20DBD5DCC9D2C07CA10F74C2C07")
-_WT_BOOT_SIG_LEGACY_03C0 = bytes.fromhex("A20DBD5DCC9DC003CA10F74CC003")
 _WT_IDLE_DEMO_TIMEOUT_CPU = 0xCB9E
 _WT_IDLE_DEMO_CLEAR_STUB_CPU = 0xE861
 _WT_IDLE_DEMO_TIMEOUT_ORIG = bytes.fromhex("A918205F8D")
@@ -1954,10 +1954,16 @@ RESERVED_SPANS = (
     (_wjp_cf(_WT_BOOT_CPU), 87),                   # title PRG0 helpers
     (_wjp_cf(_WT_BOOT_CALL_A_CPU), 3),
     (_wjp_cf(_WT_BOOT_CALL_B_CPU), 3),
+    (_wjp_cf(_WT_TITLE_START_CLEAR_CPU), 3),
+    (_wjp_cf(_WT_IDLE_DEMO_TIMEOUT_CPU), 5),
     (_wjp_cf(_WT_IDLE_DEMO_CLEAR_STUB_CPU), len(_WT_IDLE_DEMO_CLEAR_STUB)),
+    *((_wjp_cf(cpu), len(orig)) for cpu, orig in _WT_LEGACY_ATTR_WRITE_SITES),
+    *((_wjp_cf(cpu), 1) for cpu in (
+        _WT_PTRA_LO, _WT_PTRA_HI, _WT_PTRB_LO, _WT_PTRB_HI)),
     (_wjp_cf(_WT_ENDING_CALL_CPU), 3),
     (_WT_DEC_FILE, _WT_WIDE_END - _WT_DEC_FILE),
     (_WT_ENDING_DEC_FILE, _WT_ENDING_RESERVED_END - _WT_ENDING_DEC_FILE),
+    (_WT_SW_B1_OFF, 1),
 )
 
 
@@ -1966,15 +1972,8 @@ def _wt_has_current_ram_bootstrap(rom_data) -> bool:
     return bytes(rom_data[o:o + len(_WT_BOOT_SIG)]) == _WT_BOOT_SIG
 
 
-def _wt_has_legacy_03c0_bootstrap(rom_data) -> bool:
-    o = _wjp_cf(_WT_OLD_BOOT_CPU)
-    return bytes(rom_data[o:o + len(_WT_BOOT_SIG_LEGACY_03C0)]) == \
-        _WT_BOOT_SIG_LEGACY_03C0
-
-
 def _wt_has_ram_bootstrap(rom_data) -> bool:
-    return _wt_has_current_ram_bootstrap(rom_data) or \
-        _wt_has_legacy_03c0_bootstrap(rom_data)
+    return _wt_has_current_ram_bootstrap(rom_data)
 
 
 def title_character_max() -> int:
@@ -1989,19 +1988,12 @@ def _wt_install_bootstrap_and_restore_stock(rom_data, boot: bytes) -> bool:
     old_off = _wjp_cf(_WT_OLD_BOOT_CPU)
     boot_off = _wjp_cf(_WT_BOOT_CPU)
     old_cur = bytes(rom_data[old_off:old_off + len(_WT_STOCK_CC4F_DECODER)])
-    if old_cur != _WT_STOCK_CC4F_DECODER and \
-            not old_cur.startswith(_WT_BOOT_SIG_OLD_CC4F) and \
-            not old_cur.startswith(_WT_BOOT_SIG_LEGACY_03C0):
+    if old_cur != _WT_STOCK_CC4F_DECODER:
         raise TitleScreenError(
             f"title stock decoder restore signature mismatch at "
             f"${_WT_OLD_BOOT_CPU:04X}: got {old_cur[:14].hex(' ')}")
 
-    changed = old_cur != _WT_STOCK_CC4F_DECODER or \
-        bytes(rom_data[boot_off:boot_off + len(boot)]) != boot
-    rom_data[old_off:old_off + len(_WT_STOCK_CC4F_DECODER)] = \
-        _WT_STOCK_CC4F_DECODER
-    rom_data[boot_off:boot_off + len(boot)] = boot
-
+    calls = []
     for call_cpu in (_WT_BOOT_CALL_A_CPU, _WT_BOOT_CALL_B_CPU):
         call_off = _wjp_cf(call_cpu)
         cur = bytes(rom_data[call_off:call_off + len(_WT_BOOT_CALL_ORIG)])
@@ -2009,8 +2001,14 @@ def _wt_install_bootstrap_and_restore_stock(rom_data, boot: bytes) -> bool:
             raise TitleScreenError(
                 f"title bootstrap call signature mismatch at "
                 f"${call_cpu:04X}: got {cur.hex(' ')}")
-        if cur != _WT_BOOT_CALL_HOOK:
-            changed = True
+        calls.append((call_off, cur))
+
+    changed = bytes(rom_data[boot_off:boot_off + len(boot)]) != boot or \
+        any(cur != _WT_BOOT_CALL_HOOK for _off, cur in calls)
+    rom_data[old_off:old_off + len(_WT_STOCK_CC4F_DECODER)] = \
+        _WT_STOCK_CC4F_DECODER
+    rom_data[boot_off:boot_off + len(boot)] = boot
+    for call_off, _cur in calls:
         rom_data[call_off:call_off + len(_WT_BOOT_CALL_HOOK)] = \
             _WT_BOOT_CALL_HOOK
     return changed
@@ -2022,23 +2020,6 @@ def _wt_title_oam_default_table() -> bytes:
 
 def _wt_title_oam_is_active(entry: bytes) -> bool:
     return len(entry) >= _WT_TITLE_SLOT_ENTRY_BYTES and bool(entry[0] & 0x80)
-
-
-def migrate_wide_title_trampoline_ram(rom_data) -> list:
-    """Move existing JP66 wide-title RAM trampoline out of block-grid RAM.
-
-    Older internal mapper66 wide-title ROMs copied the bank-switch stub to
-    $03C0-$03CD. That overlaps the room block grid ($0304-$03E3) and can leak
-    transient garbage into demo/start/clear transitions. New ROMs use the
-    quiet post-entity band $072C-$0739 instead.
-    """
-    if not _wt_has_legacy_03c0_bootstrap(rom_data):
-        return []
-    boot, _decoder = _wt_build_trampoline(_WT_DEC_CPU)
-    _wt_install_bootstrap_and_restore_stock(rom_data, boot)
-    return [
-        "wide-title RAM trampoline migrated: $03C0-$03CD -> $072C-$0739"
-    ]
 
 
 def _wt_install_idle_demo_cleanup(rom_data) -> bool:
@@ -2264,12 +2245,14 @@ def apply_wide_title_idle_demo_cleanup(rom_data) -> list:
     """Install the timeout-only demo clear hook on current wide-title ROMs."""
     if not _wt_has_current_ram_bootstrap(rom_data):
         return []
-    changed = _wt_install_title_oam_clear(rom_data)
-    changed = _wt_install_idle_demo_cleanup(rom_data) or changed
-    changed = _wt_install_legacy_attr_write_suppress(rom_data) or changed
-    changed = _wt_install_ending_draw_separation(rom_data) or changed
+    out = bytearray(rom_data)
+    changed = _wt_install_title_oam_clear(out)
+    changed = _wt_install_idle_demo_cleanup(out) or changed
+    changed = _wt_install_legacy_attr_write_suppress(out) or changed
+    changed = _wt_install_ending_draw_separation(out) or changed
     if not changed:
         return []
+    rom_data[:] = out
     return [
         "wide-title title/demo OAM cleanup and ending split installed"
     ]

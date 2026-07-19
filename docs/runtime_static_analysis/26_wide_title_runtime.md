@@ -8,13 +8,13 @@
 
 Wide Title runtimeは、PRG0 bootstrapが14Bのbank-switch trampolineをRAM `$072C-$0739`へcopyし、PRG1 `$80C0`のLEN-stream decoderへ切り替える。decoderはnametable stream、64B attribute table、20 main-slot character tableを処理し、RAM側からPRG0へ戻る。title exit、idle demo、endingは専用helperへ分離されている。
 
-bootstrap、RAM trampoline、LEN decoder、attribute writer、20-slot writer、title clear、idle-demo cleanup、ending専用rendererを命令単位で追跡した。6502本体に確定した制御フロー・stackバグは見つからない。確定問題は2件、方針不一致は1件である。
+bootstrap、RAM trampoline、LEN decoder、attribute writer、20-slot writer、title clear、idle-demo cleanup、ending専用rendererを命令単位で追跡した。6502本体に確定した制御フロー・stackバグは見つからない。確定問題2件と方針不一致1件は修正した。
 
-1. `RESERVED_SPANS`が実際の全書込箇所を登録していない。title start/idle hook、4 attribute抑止site、4 stream pointer byte、bank1 switch byteが機械重複検査から漏れる。
-2. `apply_wide_title_idle_demo_cleanup()`とlegacy migrationは、全preflightを一括完了する前に入力ROMを段階的に直接更新する。後段の署名・容量検証で例外になると部分適用が残り得る。
-3. `$03C0-$03CD`を使う旧wide-title ROMを検出して自動移行する`migrate_wide_title_trampoline_ram()`は、現在の救済・移行禁止方針と一致しない。
+1. `RESERVED_SPANS`へ実際の全書込箇所を登録した。title start/idle hook、4 attribute抑止site、4 stream pointer byte、bank1 switch byteを機械重複検査へ含めた。
+2. `apply_wide_title_idle_demo_cleanup()`とtitle stream編集処理をcopy-on-success化し、後段検査で例外になっても入力ROMを変更しないようにした。
+3. `$03C0-$03CD`を使う旧wide-title ROMの自動移行を保存経路から削除し、旧`$03C0` bootstrapを正規扱いしないようにした。
 
-ROM/RAM配置は変更していない。修正も行っていない。
+ROM/RAM配置と6502 byte列は変更していない。既存書込範囲の予約登録、失敗時原子性、現行形式限定の方針を実装へ反映した。
 
 ## runtime全体配置
 
@@ -104,7 +104,7 @@ title編集用LEN streamとending用stock streamを分離しているため、ti
 
 `normalize_title_to_wide()`はJP66、複数stock署名、caller B列、bank0/bank1 `$BB86`、PRG1空き、Room Flags帯非交差、stream decode量、予約容量を検査する。書込は一度`out = bytearray(rom)`へ行い、round-trip decodeが元gridと一致した後だけ`rom[:] = out`する。この主正規化経路はtransactionalである。
 
-一方、save-time `apply_wide_title_idle_demo_cleanup()`は入力`rom_data`へ次を順次直接適用する。
+修正前のsave-time `apply_wide_title_idle_demo_cleanup()`は入力`rom_data`へ次を順次直接適用していた。
 
 ```text
 title OAM clear
@@ -113,13 +113,11 @@ idle-demo cleanup
 ending draw separation
 ```
 
-前段を書いた後に後段の署名不一致やending容量超過が起きると、例外までに書いた変更を戻さない。`migrate_wide_title_trampoline_ram()`も、bootstrap/stock restoreを書いた後で2 call siteを順番に検査する内部routineを直接使うため、後側callの不一致時に部分更新が残り得る。
+現在は入力ROMのcopyへ全処理を適用し、全検査と書込が成功した時だけ`rom_data[:]`へ反映する。title stream編集処理も同じ方式へ統一した。bootstrap helper内部でも2つのcall siteを両方検査してから書き始めるため、単体呼出しでも後側call不一致による部分更新は残らない。
 
-修正時は全preflightを先に完了するか、copyへ全変更を適用して成功時だけ原本へ反映する必要がある。
+## 解消済み: `RESERVED_SPANS`の登録漏れ
 
-## `RESERVED_SPANS`の登録漏れ
-
-現行登録はPRG0 helper 87B、2 boot call、idle stub、ending call、PRG1 title capacity、PRG1 ending capacityである。実際に書き換える次の範囲は登録されていない。
+修正前の登録はPRG0 helper 87B、2 boot call、idle stub、ending call、PRG1 title capacity、PRG1 ending capacityだけだった。次の範囲を追加登録した。
 
 | file/CPU | size | 実書込 |
 |---|---:|---|
@@ -129,13 +127,13 @@ ending draw separation
 | `$CCBA,$CCBE,$CD84,$CD88` | 各1B | block A/B stream pointer |
 | `0xBB96` / PRG1 `$BB86` | 1B | bus-conflict-safe switch byte `$FF` |
 
-正式ROM管理簿にはこれらの多くが個別使用行として載るが、`tools/check_rom_consistency.py`のmodule予約重複検査にはtitle_screenのspanとして入らない。特にPRG1 `0xBB96`は独立1Bであり、別moduleが同位置を予約してもtitle runtimeとの重複を機械的に検出できない。
+正式ROM管理簿に不足していたtitle start/idle hookと4 stream pointer byteも追加した。これにより全範囲が`tools/check_rom_consistency.py`のmodule予約重複検査と正式台帳照合の対象になった。既存の使用範囲を登録しただけなので、ROM使用量と空き量は変わらない。
 
-## 方針不一致: legacy RAM migration
+## 解消済み: legacy RAM migration
 
-`migrate_wide_title_trampoline_ram()`は旧bootstrap署名を検出し、block gridと重なるRAM `$03C0-$03CD`から現行`$072C-$0739`へ自動移行する。これは過去の内部ROMを現行形式へ変換する明示的migrationであり、現在の「古いROM・途中生成ROMの救済・移行を追加しない」方針と一致しない。
+修正前の`migrate_wide_title_trampoline_ram()`は旧bootstrap署名を検出し、block gridと重なるRAM `$03C0-$03CD`から現行`$072C-$0739`へ自動移行していた。これは過去の内部ROMを現行形式へ変換する明示的migrationであり、現在の「古いROM・途中生成ROMの救済・移行を追加しない」方針と一致しなかった。
 
-今回は削除していない。修正段階では、現行新規ROM生成に必要かを切り分け、救済禁止を維持するならmigration callと旧署名受入を除く必要がある。
+保存時のmigration call、migration関数、旧`$03C0` bootstrap判定と受入れを削除した。新しく正規化するROMと現行wide-title ROMはいずれも`$072C-$0739`形式を使うため、現行処理への影響はない。旧`$03C0`内部ROMは自動変換せず、現行形式として扱わない。
 
 ## 判定
 
@@ -147,14 +145,14 @@ ending draw separation
 - title exitとidle-demo cleanup 6502本体: 正常
 - ending専用rendererと原作復帰: 正常
 - `normalize_title_to_wide()`の事前検証とtransaction: 正常
-- save-time cleanup/migrationの失敗時原子性: 異常。部分適用の可能性
-- ROM予約の機械登録: 不完全
-- legacy `$03C0` migration: 現行方針と不一致
+- save-time cleanupとtitle stream編集の失敗時原子性: 正常。copy-on-success化済み
+- ROM予約の機械登録: 正常。全直接書込範囲を登録済み
+- legacy `$03C0` migration: 削除済み。旧`$03C0` bootstrapは受け入れない
 
-## 修正優先度
+## 修正確認
 
-1. 高: cleanup/migrationをcopy-on-success化し、失敗時に入力ROMを一切変更しない。
-2. 高: 全実書込範囲を`RESERVED_SPANS`へ登録し、正式管理簿と共通ROM整合性検査を一致させる。
-3. 中: 救済禁止方針に従いlegacy `$03C0` migrationと旧署名受入を整理する。
-
-ROM生成は行っていない。Python生成命令列、原作ASM、branch、配置定数、正式管理簿を静的に照合した。
+- 後段署名エラー時に入力ROMがbyte単位で不変である回帰テストを追加した。
+- bootstrapの後側call署名エラー時に部分更新が残らない回帰テストを追加した。
+- 全直接書込範囲と`RESERVED_SPANS`の一致をテストで固定した。
+- 旧`$03C0` bootstrapを現行形式と判定しないことをテストした。
+- ROM生成は行っていない。Python生成命令列、原作ASM、branch、配置定数、正式管理簿を静的に照合した。
