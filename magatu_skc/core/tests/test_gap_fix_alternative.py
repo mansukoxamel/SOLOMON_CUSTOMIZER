@@ -20,7 +20,7 @@ class GapFixAlternativeTests(unittest.TestCase):
         self.assertEqual(len(target.CAVE), 120)
         self.assertEqual(target.OFF_CAVE + len(target.CAVE), 0x6901)
         self.assertEqual(target.LEGACY_CAVE_SIZE - len(target.CAVE), 16)
-        self.assertEqual(target.DEFAULT_WINDOW_FRAMES, 20)
+        self.assertEqual(target.DEFAULT_WINDOW_FRAMES, 10)
         self.assertEqual(target.CPU_COLLISION_ENTRY, 0xE8C2)
         self.assertEqual(target.COLLISION_HOOK, bytes.fromhex("4c c2 e8"))
         self.assertIn(self.PREVIOUS_TRIAL_HASH, target.KNOWN_REPLACEABLE_CAVE_SHA256)
@@ -51,7 +51,7 @@ class GapFixAlternativeTests(unittest.TestCase):
         self.assertEqual(rom[target.OFF_COLLISION_HOOK:target.OFF_COLLISION_HOOK + 3], target.COLLISION_HOOK)
         self.assertEqual(rom[target.OFF_CAVE:target.OFF_CAVE + target.LEGACY_CAVE_SIZE], target.CAVE_WRITE_IMAGE)
         self.assertTrue(target.is_applied(rom))
-        self.assertEqual(target.get_window_frames(rom), 20)
+        self.assertEqual(target.get_window_frames(rom), 10)
 
         target.apply(rom, True, 17)
         self.assertEqual(target.get_window_frames(rom), 17)
