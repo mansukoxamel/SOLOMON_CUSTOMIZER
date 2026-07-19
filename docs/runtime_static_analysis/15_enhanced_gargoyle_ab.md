@@ -12,12 +12,12 @@ Enhanced Gargoyleは借用ID `$7A/$7B`をA、`$7E/$7F`をBとして使う。A/B�
 
 全ID分岐、state 0/3/4、slot成功/失敗、LIFE parity、marker、速度hook、cooldown、stackを追跡し、6502本体の確定ロジックバグは見つからなかった。
 
-問題候補は2件である。
+確認事項は2件である。
 
-1. `current_settings()`は未知のBullet速度markerをエラーにせずdefault 1/2として読む。runtime byte破損の検出として弱い。
-2. ID配置監査資料は旧2発共通設定・旧172B配置のままで、現行A/B独立設定・2/3発・281B配置と一致しない。
+1. `current_settings()`が未知のBullet速度markerをdefault 1/2として読む問題は、未知値を明示エラーにする修正と単体テストを追加した。
+2. ID配置監査資料へ現行A/B独立設定・2/3発・281B配置を正本として追記し、旧2発共通設定を旧計画として分離した。
 
-ROM/RAM配置は変更していない。修正も行っていない。
+ROM/RAM配置と6502バイト列は変更していない。
 
 ## 対象ID
 
@@ -165,17 +165,17 @@ threshold 0/255の境界はcooldownと同じく成立する。
 
 ## 技術的負債・問題候補
 
-### [P3] 未知markerをdefaultとして読む
+### [解消] 未知markerをdefaultとして読む
 
 `is_applied()`はhelper内の設定byteをmaskして構造一致を確認する。`current_settings()`はmarkerが`$01/$88/$89`のどれでもない場合、エラーにせずdefault 1/2を返す。
 
-runtime実行時は未知正値`<$88`ならstock 1x扱い、未知負値は別marker処理へ入る可能性があり、UI表示と実ROM挙動が一致しない。設定読出時に未知markerを拒否する方が正直である。修正はPython validationだけでROM/RAM配置、空き、台帳に影響しない。
+runtime実行時は未知正値`<$88`ならstock 1x扱い、未知負値は別marker処理へ入る可能性があり、UI表示と実ROM挙動が一致しなかった。設定読出時に`$01/$88/$89`以外を`GargoyleVariantError`として拒否するよう修正した。Python validationだけの変更でROM/RAM配置、空き、台帳に影響しない。
 
-### [P3] ID配置監査資料が現行実装より古い
+### [解消] ID配置監査資料が現行実装より古い
 
 `docs/new_enemy_id_placement_audit.md`は2発固定、A/B共通設定、172Bの旧2blockを記載する。現行はLIFE parityによる2/3発、A/B独立設定、281Bの3blockである。
 
-runtime挙動には影響しない文書不一致である。管理簿は現行3領域と一致しているため、正式ROM台帳の変更は不要である。
+現行確定情報を監査資料の先頭へ追記し、旧2発構想は現行判断に使用しない旧計画だと明記した。管理簿は現行3領域と一致しているため、正式ROM台帳の変更は不要である。
 
 ## 未検証点
 
@@ -194,4 +194,3 @@ runtime挙動には影響しない文書不一致である。管理簿は現行3
 - slot不足では不正pointerを書かず、空き発生後に同じ発射を再試行すること。
 - 通常Bullet child sub `[7]`が0、Enhanced各弾が設定markerになること。
 - `$866D`速度hook連鎖でSaramandor、Panel Monster、通常GargoyleのX/A/stackを壊さないこと。
-

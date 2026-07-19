@@ -49,7 +49,7 @@
 | Seraphic Radiance | `$9D` | 専用ID | 単独1ID・正式ID維持 | 静的問題4件修正済み | 今回未検査 | 鍵持ち禁止、動的挙動、実ROM比較 |
 | Panel Monster variants | 原作ID借用20ID | 借用ID | 借用維持 | 静的監査済み・現状維持 | 既存73ケース保存検査確認済み・今回実機未検査 | 最終ROM比較、原作Stage 29 `$4D` 正規化維持 |
 | Spark Ball variants | `$C0-$D7` | 専用24ID | 停止・透明・停止後反転を連続配置 | 実装・静的監査済み | ユーザー動作確認済み | 3種類×4方向×2速度、借用解除済み |
-| Gargoyle variants | `$7A/$7B/$7E/$7F` | 借用ID | 借用維持 | 動作成立・静的経路確認済み・再整理待ち | ユーザー動作確認済み | 2分割runtimeの1ブロック統合、重複・冗長処理の再監査、最終ROM比較 |
+| Gargoyle variants | `$7A/$7B/$7E/$7F` | 借用ID | 借用維持 | 詳細静的監査・marker検証済み | ユーザー動作確認済み | 2/3発動的trace、最終ROM比較 |
 | Saramandor variants | `$5E/$5F/$62/$63/$66/$67` | 借用ID | A/B/Cの3groupを維持 | 詳細静的監査済み・slot漏れ修正済み | 今回実機未検査 | 3group・左右、Bullet消滅、原作敵副作用の最終ROM検査 |
 
 敵名と対象は今後の現物調査で追加・整理する。この一覧だけを根拠に現行実装の全追加敵を網羅済みとは扱わない。
@@ -1697,7 +1697,22 @@ Spark系24IDは種類ごとに独立runtimeを3本作らず、共通部分を統
 
 ---
 
-## Gargoyle / 強化Gargoyle 2発variant
+## Gargoyle / Enhanced Gargoyle A/B
+
+### 現行確定情報
+
+- ID: A=`$7A/$7B`、B=`$7E/$7F`。通常`$78/$79/$7C/$7D`は原作1発を維持する。
+- A/Bは本体移動速度、Bullet速度、1発目と2発目/3発目の間隔、発射後cooldownを独立設定する。
+- LIFE百の位が偶数なら2発、奇数なら3発。2発目と3発目の前に同じ設定intervalを待つ。
+- slot不足ではstateとtimerを保持し、空きが出るまで同じ発射を再試行する。
+- Bullet markerは1x=`$01`、1/2=`$89`、1/4=`$88`。未知markerは設定読出時に明示エラーにする。
+- runtimeは71B、105B、105Bの3領域、合計281B。詳細位置は`docs/runtime_static_analysis/15_enhanced_gargoyle_ab.md`を正本とする。
+- 現行`RESERVED_SPANS`と正式ROM管理簿は3領域に一致する。
+- 6502本体の確定ロジックバグは見つかっていない。2/3発、slot再試行、全markerの動的traceは未実施。
+
+### 旧計画記録（現行判断に使用しない）
+
+以下の2発固定・A/B共通設定・172B配置は構想段階の記録であり、現行実装には適用しない。
 
 ### 1. ID構成と最終判断
 

@@ -266,11 +266,13 @@ def _marker_for_speed_preset(preset: int) -> int:
     return BULLET_SPEED_PRESETS[normalize_speed_preset(preset)][1]
 
 
-def _speed_preset_from_marker(marker: int, default: int) -> int:
+def _speed_preset_from_marker(marker: int) -> int:
     for preset, (_label, value) in BULLET_SPEED_PRESETS.items():
         if int(marker) == value:
             return preset
-    return default
+    raise GargoyleVariantError(
+        f"unsupported Gargoyle Bullet speed marker: ${int(marker) & 0xFF:02X}"
+    )
 
 
 def _is_gate_blob(blob: bytes) -> bool:
@@ -413,7 +415,7 @@ def current_settings(rom_data, variant: str = "a") -> dict[str, int]:
         raise GargoyleVariantError(
             f"unsupported Gargoyle movement-speed base ID: ${movement_base:02X}"
         )
-    settings["speed_preset"] = _speed_preset_from_marker(marker, DEFAULT_SPEED_PRESET)
+    settings["speed_preset"] = _speed_preset_from_marker(marker)
     settings["inter_shot_frames"] = int(rom_data[inter_off])
     settings["cooldown_frames"] = int(rom_data[cooldown_off])
     return settings
