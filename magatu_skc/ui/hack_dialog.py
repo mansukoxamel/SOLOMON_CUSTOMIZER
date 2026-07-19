@@ -551,7 +551,7 @@ class HackDialog(QDialog):
         pm_group = QGroupBox(t("hack_dialog.group.panel_monster", "パネルモンスター"))
         pm_group.setProperty("settings_category", "敵・AI")
         pmf = QFormLayout(pm_group)
-        _setup_enemy_group(self, pm_group, pmf, 10, (0x24, 0x52, 0x5A))
+        _setup_enemy_group(self, pm_group, pmf, 10, (0x24,))
         self._pm_ok = False
         try:
             pm_region = panel_monster_hack.detect_region(rom.data)
@@ -786,7 +786,7 @@ class HackDialog(QDialog):
         sb_speed_group = QGroupBox(t("hack_dialog.group.spark_ball_speed", "スパークボール移動速度"))
         sb_speed_group.setProperty("settings_category", "敵・AI")
         sbf = QFormLayout(sb_speed_group)
-        _setup_enemy_group(self, sb_speed_group, sbf, 40, (0x28, 0x6A, 0x72))
+        _setup_enemy_group(self, sb_speed_group, sbf, 40, (0x28,))
         self.combo_spark_ball_speed = QComboBox()
         self._spark_ball_spd_ok = False
         try:
@@ -885,7 +885,16 @@ class HackDialog(QDialog):
         )
         phantom_group.setProperty("settings_category", "敵・AI")
         phantom_form = QFormLayout(phantom_group)
-        _setup_enemy_group(self, phantom_group, phantom_form, 42, (0x20, 0x21, 0x22, 0x23))
+        _setup_enemy_group(
+            self,
+            phantom_group,
+            phantom_form,
+            42,
+            range(
+                phantom_preset_runtime.FIRST_ID,
+                phantom_preset_runtime.FIRST_ID + phantom_preset_runtime.IDS_PER_GROUP,
+            ),
+        )
         self._phantom_preset_controls = []
         self._phantom_preset_ok = False
         try:
@@ -1025,7 +1034,13 @@ class HackDialog(QDialog):
         )
         ghost_ab_group.setProperty("settings_category", "敵・AI")
         ghost_ab_form = QFormLayout(ghost_ab_group)
-        _setup_enemy_group(self, ghost_ab_group, ghost_ab_form, 34, ghostb0_runtime.NEW_ENEMY_IDS)
+        _setup_enemy_group(
+            self,
+            ghost_ab_group,
+            ghost_ab_form,
+            34,
+            (ghostb0_runtime.FIRST_ID,),
+        )
         self._ghost_ab_controls = []
         self._ghost_ab_ok = False
         try:
@@ -1147,12 +1162,7 @@ class HackDialog(QDialog):
             self._saramandor_variant_ok = True
         except saramandor_variant.SaramandorVariantError as e:
             initial_saramandor_settings = [
-                {
-                    "movement_speed": saramandor_variant.DEFAULT_MOVEMENT_SPEEDS[index],
-                    "flame_speed": saramandor_variant.DEFAULT_SPEED_PRESET,
-                    "refire_wait": saramandor_variant.ORIGINAL_REFIRE_WAIT,
-                    "post_fire_stop": saramandor_variant.ORIGINAL_POST_FIRE_STOP,
-                }
+                saramandor_variant.default_settings(index)
                 for index in range(saramandor_variant.VARIANT_COUNT)
             ]
             note = QLabel(
@@ -1276,14 +1286,8 @@ class HackDialog(QDialog):
         gvf = QFormLayout(gargoyle_variant_group)
         _setup_enemy_group(self, gargoyle_variant_group, gvf, 71, (0x7A, 0x7E))
         self._gargoyle_variant_ok = False
-        gv_default_settings = {
-            "movement_speed": gargoyle_variant.DEFAULT_MOVEMENT_SPEED,
-            "speed_preset": gargoyle_variant.DEFAULT_SPEED_PRESET,
-            "inter_shot_frames": gargoyle_variant.DEFAULT_INTER_SHOT_FRAMES,
-            "cooldown_frames": gargoyle_variant.DEFAULT_COOLDOWN_FRAMES,
-        }
-        gv_settings = dict(gv_default_settings)
-        gv_settings_b = dict(gv_default_settings)
+        gv_settings = gargoyle_variant.default_settings("a")
+        gv_settings_b = gargoyle_variant.default_settings("b")
         try:
             gv_settings = gargoyle_variant.current_settings(rom.data, "a")
             gv_settings_b = gargoyle_variant.current_settings(rom.data, "b")
@@ -2581,18 +2585,19 @@ class HackDialog(QDialog):
             if not isinstance(raw, dict):
                 return
             old = self._gargoyle_variant_settings_from_ui(variant)
+            defaults = gargoyle_variant.default_settings(variant)
             try:
                 movement_speed = gargoyle_variant.normalize_movement_speed(
-                    raw.get("movement_speed", gargoyle_variant.DEFAULT_MOVEMENT_SPEED)
+                    raw.get("movement_speed", defaults["movement_speed"])
                 )
                 speed = gargoyle_variant.normalize_speed_preset(
-                    raw.get("speed_preset", gargoyle_variant.DEFAULT_SPEED_PRESET)
+                    raw.get("speed_preset", defaults["speed_preset"])
                 )
                 inter_shot = gargoyle_variant.normalize_inter_shot(
-                    raw.get("inter_shot_frames", gargoyle_variant.DEFAULT_INTER_SHOT_FRAMES)
+                    raw.get("inter_shot_frames", defaults["inter_shot_frames"])
                 )
                 cooldown = gargoyle_variant.normalize_cooldown(
-                    raw.get("cooldown_frames", gargoyle_variant.DEFAULT_COOLDOWN_FRAMES)
+                    raw.get("cooldown_frames", defaults["cooldown_frames"])
                 )
             except gargoyle_variant.GargoyleVariantError:
                 return
@@ -3546,26 +3551,44 @@ class HackDialog(QDialog):
         if self._gargoyle_ok:
             self.chk_gargoyle_snappy.setChecked(False)
             self.spin_gargoyle_cooldown.setValue(0x50)
+        if getattr(self, "_saramandor_variant_ok", False):
+            for index, controls in enumerate(self._saramandor_variant_controls):
+                movement, flame, refire, stop = controls
+                defaults = saramandor_variant.default_settings(index)
+                self._set_combo_data(movement, defaults["movement_speed"])
+                self._set_combo_data(flame, defaults["flame_speed"])
+                refire.setValue(defaults["refire_wait"])
+                stop.setValue(defaults["post_fire_stop"])
         if getattr(self, "_gargoyle_variant_ok", False):
+            gargoyle_a_defaults = gargoyle_variant.default_settings("a")
+            gargoyle_b_defaults = gargoyle_variant.default_settings("b")
+            self._set_combo_data(
+                self.combo_gargoyle_variant_movement,
+                gargoyle_a_defaults["movement_speed"],
+            )
             self._set_combo_data(
                 self.combo_gargoyle_variant_speed,
-                gargoyle_variant.DEFAULT_SPEED_PRESET,
+                gargoyle_a_defaults["speed_preset"],
             )
             self.spin_gargoyle_variant_inter_shot.setValue(
-                gargoyle_variant.DEFAULT_INTER_SHOT_FRAMES
+                gargoyle_a_defaults["inter_shot_frames"]
             )
             self.spin_gargoyle_variant_cooldown.setValue(
-                gargoyle_variant.DEFAULT_COOLDOWN_FRAMES
+                gargoyle_a_defaults["cooldown_frames"]
+            )
+            self._set_combo_data(
+                self.combo_gargoyle_variant_b_movement,
+                gargoyle_b_defaults["movement_speed"],
             )
             self._set_combo_data(
                 self.combo_gargoyle_variant_b_speed,
-                gargoyle_variant.DEFAULT_SPEED_PRESET,
+                gargoyle_b_defaults["speed_preset"],
             )
             self.spin_gargoyle_variant_b_inter_shot.setValue(
-                gargoyle_variant.DEFAULT_INTER_SHOT_FRAMES
+                gargoyle_b_defaults["inter_shot_frames"]
             )
             self.spin_gargoyle_variant_b_cooldown.setValue(
-                gargoyle_variant.DEFAULT_COOLDOWN_FRAMES
+                gargoyle_b_defaults["cooldown_frames"]
             )
         if self._dragon_ok:
             self.chk_dragon_snappy.setChecked(False)

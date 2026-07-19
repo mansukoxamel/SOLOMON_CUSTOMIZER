@@ -22,6 +22,26 @@ def _applied_rom() -> bytearray:
 
 
 class GargoyleVariantRuntimeTests(unittest.TestCase):
+    def test_tuned_defaults(self) -> None:
+        self.assertEqual(
+            target.default_settings("a"),
+            {
+                "movement_speed": 1,
+                "speed_preset": 4,
+                "inter_shot_frames": 16,
+                "cooldown_frames": 150,
+            },
+        )
+        self.assertEqual(
+            target.default_settings("b"),
+            {
+                "movement_speed": 1,
+                "speed_preset": 1,
+                "inter_shot_frames": 48,
+                "cooldown_frames": 120,
+            },
+        )
+
     def test_all_supported_markers_round_trip(self) -> None:
         for preset, (_label, marker) in target.BULLET_SPEED_PRESETS.items():
             self.assertEqual(target._speed_preset_from_marker(marker), preset)

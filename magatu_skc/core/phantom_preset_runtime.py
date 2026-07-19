@@ -113,13 +113,27 @@ def _build_vertical_physics() -> bytes:
 
 
 def default_group_settings() -> tuple[dict[str, int], ...]:
-    return tuple(
+    return (
         {
-            "speed_value": DEFAULT_SPEED_VALUE,
-            "amplitude_percent": DEFAULT_AMPLITUDE_PERCENT,
-            "phase_offset": DEFAULT_PHASE_OFFSET,
-        }
-        for _group in GROUP_NAMES
+            "speed_value": 0x3F,
+            "amplitude_percent": 100,
+            "phase_offset": 0,
+        },
+        {
+            "speed_value": 0x18,
+            "amplitude_percent": 75,
+            "phase_offset": 32,
+        },
+        {
+            "speed_value": 0x2A,
+            "amplitude_percent": 50,
+            "phase_offset": 45,
+        },
+        {
+            "speed_value": 0x3F,
+            "amplitude_percent": 25,
+            "phase_offset": 0,
+        },
     )
 
 

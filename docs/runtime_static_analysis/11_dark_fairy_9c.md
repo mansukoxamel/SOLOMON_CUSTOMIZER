@@ -6,7 +6,7 @@
 
 ## 結論
 
-Dark FairyはFairyを取る動作を原作へ実行させ、取得を検出した60frame後にDanaの死亡action `$31`を起動する罠敵である。専用本体はsetup 9B、init 4B、AI 56Bの計69Bで、file `0x6010-0x6054`、CPU `$E000-$E044`に置かれる。animation palette補正は新敵ID共通入口センター側にある。
+Dark FairyはFairyを取る動作を原作へ実行させ、取得を検出した実フレーム60F後にDanaの死亡action `$31`を起動する罠敵である。専用本体はsetup 9B、init 4B、AI 61Bの計74Bで、file `0x6010-0x6059`、CPU `$E000-$E049`に置かれる。animation palette補正は新敵ID共通入口センター側にある。
 
 修正前workstateの86Bが修正前builderと一致することを確認した。原作Fairy取得経路、`$0453`の10個目wrap、typeの一時変更、毒counter、stack、despawnを静的追跡し、AI本体の確定ロジックバグは見つからなかった。
 
@@ -15,7 +15,7 @@ Dark FairyはFairyを取る動作を原作へ実行させ、取得を検出し�
 1. 共有property末端で`$9C`へ原作Fairyと同じproperty `$0A`を返し、原作property table範囲外の`$A3`を読まないようにした。
 2. standard ROM保存用`levels_need_runtime()`は10/26の共通修正でDemon Mirror内の`$9C`も検出する。
 
-Dark Fairy initから不要になった17Bを削除し、共有property末端を7B拡張したため、PRG0明示空きは差引10B増加して1035Bとなった。RAM追加と後続runtime移動はない。正式ROM管理簿は同じ修正で更新した。
+Dark Fairy initと共有property末端を整理した時点の現行台帳では、PRG0明示空きは1030Bだった。今回の実フレーム化で5B使用するため、現在の明示空きは1025Bである。RAM追加と後続runtime移動はない。正式ROM管理簿は同じ修正で更新した。
 
 ## ID `$9C`固定の理由
 
@@ -59,7 +59,7 @@ init側でstatus/type/behaviorやY velocityを作り直す後処理は不要に�
 
 ## 通常AIとtype一時変更
 
-毒counterが0なら次を行う。
+取得済み印であるsub-slot `[7]`が0なら次を行う。
 
 1. `$0453`のFairy取得数をPHAで保存する。
 2. main-slot type `[1]`を`$9C`から`$1C`へ一時変更する。
@@ -83,18 +83,18 @@ init側でstatus/type/behaviorやY velocityを作り直す後処理は不要に�
 
 専用AIは原作AIの直前と直後で`$0453`を比較する。通常増加でも9から0へのwrapでも値が変わるため、どちらも取得として検出できる。
 
-値が変わった時はsub-slot `[7]=#$3C`を設定する。保存した旧値はPLAで必ず消費され、取得有無の両経路でstack差分は0である。
+値が変わった時はsub-slot `[2]=#$00`へ戻し、sub-slot `[7]=#$01`を取得済み印として設定する。保存した旧値はPLAで必ず消費され、取得有無の両経路でstack差分は0である。
 
 ## 60frame毒counter
 
-次frame以降、sub-slot `[7]`が非0なら原作Fairy AIを呼ばない。
+次frame以降、sub-slot `[7]`が非0なら原作Fairy AIを呼ばない。原作の敵前段処理`$A134`は、NMIで実際に経過したフレーム数を各active敵のsub-slot `[2]`へ加算する。処理落ちで複数フレーム経過した場合も、その差分がまとめて加算される。
 
 ```text
-counter > 1  : counter--, RTS
-counter == 1 : counter=0, death action, despawn
+sub-slot[2] < 60  : RTS
+sub-slot[2] >= 60 : death action, despawn
 ```
 
-取得frameに`#$3C`を設定し、そのframeでは減算しない。次の59回は`$3B`から1まで進み、counter 1のframeで0へして毒処理を行う。設定から毒処理までのAI invocation間隔は60回である。
+取得frameにsub-slot `[2]`を0へ戻す。以後はAIの呼出回数ではなくNMI経過数を数えるため、active敵数や敵AI処理量によって毒の待ち時間が伸びる問題を避けられる。設定から毒処理までの基準時間は実フレーム60Fである。
 
 毒処理はA=`$31`で`JSR $8D5F`を呼び、Dana死亡sequenceを起動する。その後`JMP $B376`でDark Fairy自身をdespawnする。JMP先のRTSが共通AI hookの呼出元へ戻るため、専用AIに余分なreturn addressは残らない。
 
@@ -115,11 +115,11 @@ counter == 1 : counter=0, death action, despawn
 |---:|---:|---:|---|
 | `0x6010-0x6018` | `$E000-$E008` | 9B | setup |
 | `0x6019-0x601C` | `$E009-$E00C` | 4B | init tail-call |
-| `0x601D-0x6054` | `$E00D-$E044` | 56B | AI/poison |
-| `0x6055-0x6065` | `$E045-$E055` | 17B | 現行runtime予約なし |
+| `0x601D-0x6059` | `$E00D-$E049` | 61B | AI/poison |
+| `0x605A-0x6065` | `$E04A-$E055` | 12B | 現行runtime予約なし |
 | `0x6066-0x6084` | `$E056-$E074` | 31B | Blue Key Queen runtime |
 
-共有property末端はGhost runtime内の`$E313-$E329`でDark Fairy/Ghost/原作を分類する。Ghost runtimeは218Bの既定上限まで使用する。Dark Fairy直後には17Bの空きができた。専用RAMは確保せず、Dark Fairy自身のsub-slot `[7]` 1Bを毒counterとして時分割利用する。原作Fairy AIの静的経路ではsub-slot `[7]`の競合はない。
+共有property末端はGhost runtime内の`$E313-$E329`でDark Fairy/Ghost/原作を分類する。Ghost runtimeは218Bの既定上限まで使用する。Dark Fairy直後には12Bの空きがある。専用RAMは確保せず、Dark Fairy自身のsub-slot `[2]`を実フレームcounter、sub-slot `[7]`を取得済み印として時分割利用する。取得後は原作Fairy AIを呼ばないため、この2byteを原作AIと同時使用しない。
 
 ## レジスタ・flag・stack
 
@@ -128,11 +128,11 @@ counter == 1 : counter=0, death action, despawn
 | setup | pointer lowを返す | 維持 | `$0E` | stack操作なし、RTS |
 | init | 保存Aを復元後、原作writerでclobber | 原作Xを維持 | 原作writerでclobber | 共通入口PHAをPLA、JMP先RTSで復帰 |
 | stock AI wrapper | count/type/AIでclobber | 原作AIでclobber | type書込でclobber | count PHA/PLA 1対1 |
-| countdown | counterでclobber | 維持 | `[7]` | stack操作なし |
-| poison | A=`$31`後clobber | action/despawnでclobber | `[7]` | JSR後JMP、最終RTSは`$B376` |
+| countdown | counterでclobber | 維持 | `[2]` | stack操作なし |
+| poison | A=`$31`後clobber | action/despawnでclobber | `[2]` | JSR後JMP、最終RTSは`$B376` |
 | animation | attrでclobber | entity index維持 | `$13` | JSR/RTS 1対1 |
 
-countdownのSBC結果はcounter 1でZero setになるためBEQ poisonが成立する。counter 0は先にBEQ stock_aiへ入るため、SBC underflowは起きない。
+countdownはsub-slot `[2]`を`#$3C`と比較し、60未満ならRTS、60以上ならpoisonへ進む。sub-slot `[7]`が0の取得前は先にstock AIへ入る。
 
 ## 成立している点
 
@@ -140,10 +140,10 @@ countdownのSBC結果はcounter 1でZero setになるためBEQ poisonが成立�
 - setup group `$0E`と一時type `$1C`により原作Fairyの見た目・取得分岐を使う。
 - `$0453`比較は同期的な原作AI呼出の前後だけで行われ、10個目wrapも検出する。
 - 取得後はstock AIを止めるがslotをactiveのまま保持し、専用counterを実行できる。
-- counter 60回後にdeath actionを呼び、自身をdespawnする。
+- NMI実フレーム60F後にdeath actionを呼び、自身をdespawnする。
 - property `$0A`で原作前段のstatus/behaviorが正式に成立し、範囲外tableを読まない。
 - init/AI/animationのstackとreturnは均衡する。
-- Dark Fairy 69B、共有property末端を含むGhost 218B、正式ROM管理簿の範囲が一致する。
+- Dark Fairy 74B、共有property末端を含むGhost 218B、正式ROM管理簿の範囲が一致する。
 
 ## 修正した問題
 
@@ -168,5 +168,5 @@ countdownのSBC結果はcounter 1でZero setになるためBEQ poisonが成立�
 - `$9C`はproperty `$0A`、Ghost `$B0-$BB`は`$4A`、Spark/Panel/stock fallbackは従来経路を維持すること。
 - 取得前後の`$0453`が通常増加と9->0の両方で検出されること。
 - typeを`$1C`へしている間だけ原作Fairy AIを呼び、return後は必ず`$9C`へ戻すこと。
-- poison counterが60 AI invocationで、death action後にslotを解放すること。
+- poison counterがNMI実フレーム60Fを基準にし、death action後にslotを解放すること。
 - 原作Fairy `$1C`とFairy Princess/Seal `$1D-$1F`へ副作用を出さないこと。

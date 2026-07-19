@@ -23,14 +23,30 @@ class DarkFairyPropertyTests(unittest.TestCase):
     def test_dark_fairy_init_tail_calls_stock_writer(self) -> None:
         self.assertEqual(fairy.INIT_STATUS_RUNTIME, bytes.fromhex("68 4c 1c 9d"))
         self.assertEqual(fairy.CPU_AI_DISPATCH, 0xE00D)
-        self.assertEqual(len(fairy.RUNTIME), 69)
+        self.assertEqual(len(fairy.RUNTIME), 74)
         self.assertIn(bytes.fromhex("4c 0d e0"), new_enemy_runtime.AI_ENTRY_RUNTIME)
+
+    def test_dark_fairy_poison_delay_uses_nmi_frame_accumulator(self) -> None:
+        runtime = fairy.AI_DISPATCH_RUNTIME
+        self.assertIn(bytes.fromhex("a0 02 b1 2c c9 3c b0 01 60"), runtime)
+        self.assertIn(bytes.fromhex("a0 02 a9 00 91 2c a0 07 a9 01 91 2c"), runtime)
 
     def test_shared_tail_uses_the_complete_ghost_capacity(self) -> None:
         self.assertEqual(len(shared.SHARED_PROPERTY_META_RUNTIME), 23)
         self.assertEqual(shared.CPU_BULLET_SPAWN, 0xE32A)
         self.assertEqual(len(shared.RUNTIME), shared.MAX_RUNTIME_SIZE)
         self.assertIn(bytes.fromhex("20 2a e3"), shared.AI_RUNTIME)
+
+    def test_ghost_a_to_f_defaults_match_the_approved_presets(self) -> None:
+        self.assertEqual(
+            shared.PARAMETER_TABLES,
+            bytes.fromhex(
+                "1a 1e 1a 1e 1a 1e "
+                "c0 b0 c0 d0 c0 a8 "
+                "00 89 00 88 00 00 "
+                "03 03 02 02 00 00"
+            ),
+        )
 
     def test_panel_property_fallback_calls_the_shared_tail(self) -> None:
         expected = bytes((

@@ -56,14 +56,46 @@ DEFAULT_FIRE_INTERVAL = 0x40
 DEFAULT_BULLET_SPEED = BULLET_SPEED_STOCK
 DEFAULT_FIRE_DIRECTION = DIRECTION_DOWN
 
-# Presets A-F each own one right/left pair and initially share the same defaults.
+# Presets A-F each own one right/left pair.
 def default_group_settings() -> tuple[dict[str, int], ...]:
-    return tuple({
-        "body_speed": DEFAULT_BODY_SPEED,
-        "fire_interval": DEFAULT_FIRE_INTERVAL,
-        "bullet_speed": DEFAULT_BULLET_SPEED,
-        "fire_direction": DEFAULT_FIRE_DIRECTION,
-    } for _name in GROUP_NAMES)
+    return (
+        {
+            "body_speed": BODY_SPEED_NORMAL,
+            "fire_interval": 0x40,
+            "bullet_speed": BULLET_SPEED_STOCK,
+            "fire_direction": DIRECTION_DOWN,
+        },
+        {
+            "body_speed": BODY_SPEED_FAST,
+            "fire_interval": 0x30,
+            "bullet_speed": BULLET_SPEED_HALF,
+            "fire_direction": DIRECTION_DOWN,
+        },
+        {
+            "body_speed": BODY_SPEED_NORMAL,
+            "fire_interval": 0x40,
+            "bullet_speed": BULLET_SPEED_STOCK,
+            "fire_direction": DIRECTION_UP,
+        },
+        {
+            "body_speed": BODY_SPEED_FAST,
+            "fire_interval": 0x50,
+            "bullet_speed": BULLET_SPEED_QUARTER,
+            "fire_direction": DIRECTION_UP,
+        },
+        {
+            "body_speed": BODY_SPEED_NORMAL,
+            "fire_interval": 0x40,
+            "bullet_speed": BULLET_SPEED_STOCK,
+            "fire_direction": DIRECTION_BACKWARD,
+        },
+        {
+            "body_speed": BODY_SPEED_FAST,
+            "fire_interval": 0x28,
+            "bullet_speed": BULLET_SPEED_STOCK,
+            "fire_direction": DIRECTION_BACKWARD,
+        },
+    )
 
 
 class GhostB0RuntimeError(ValueError):

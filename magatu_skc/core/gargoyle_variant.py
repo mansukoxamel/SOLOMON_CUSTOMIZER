@@ -52,9 +52,23 @@ BULLET_SPEED_PRESETS = {
     4: ("1x", ENHANCED_NORMAL_SPEED_MARKER),
 }
 SELECTABLE_SPEED_PRESETS = (4, 1, 0)
-DEFAULT_SPEED_PRESET = 1
-DEFAULT_INTER_SHOT_FRAMES = 0x0C
-DEFAULT_COOLDOWN_FRAMES = 0x78
+DEFAULT_SPEED_PRESET = 4
+DEFAULT_INTER_SHOT_FRAMES = 0x10
+DEFAULT_COOLDOWN_FRAMES = 0x96
+DEFAULT_VARIANT_SETTINGS = {
+    "a": {
+        "movement_speed": 1,
+        "speed_preset": 4,
+        "inter_shot_frames": 0x10,
+        "cooldown_frames": 0x96,
+    },
+    "b": {
+        "movement_speed": 1,
+        "speed_preset": 1,
+        "inter_shot_frames": 0x30,
+        "cooldown_frames": 0x78,
+    },
+}
 BULLET_SPEED_LABEL = "1x / 1/2 / 1/4"
 
 ORIG_MATERIALIZE = bytes.fromhex("b1 2e aa 09 02 91 2e")
@@ -385,13 +399,16 @@ def current_speed_label(rom_data) -> str:
     return BULLET_SPEED_LABEL if is_applied(rom_data) else BULLET_SPEED_LABEL
 
 
+def default_settings(variant: str = "a") -> dict[str, int]:
+    suffix = str(variant).strip().lower()
+    try:
+        return dict(DEFAULT_VARIANT_SETTINGS[suffix])
+    except KeyError as exc:
+        raise GargoyleVariantError(f"unsupported Gargoyle variant: {variant!r}") from exc
+
+
 def current_settings(rom_data, variant: str = "a") -> dict[str, int]:
-    settings = {
-        "movement_speed": DEFAULT_MOVEMENT_SPEED,
-        "speed_preset": DEFAULT_SPEED_PRESET,
-        "inter_shot_frames": DEFAULT_INTER_SHOT_FRAMES,
-        "cooldown_frames": DEFAULT_COOLDOWN_FRAMES,
-    }
+    settings = default_settings(variant)
     if not is_applied(rom_data):
         return settings
     suffix = str(variant).strip().lower()

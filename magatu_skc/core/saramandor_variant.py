@@ -83,7 +83,7 @@ OFF_CAVE_EXTENSION = _cf(CPU_CAVE_EXTENSION)
 VARIANT_COUNT = 3
 VARIANT_NAMES = ("A", "B", "C")
 MOVEMENT_SPEED_PRESETS = (1, 2, 3)
-DEFAULT_MOVEMENT_SPEEDS = (1, 2, 3)
+DEFAULT_MOVEMENT_SPEEDS = (1, 1, 3)
 MOVEMENT_SPEED_BASE_IDS = {1: 0x5E, 2: 0x62, 3: 0x66}
 
 SPEED_PRESET_QUARTER = 0
@@ -95,16 +95,23 @@ SELECTABLE_SPEED_PRESETS = (
     SPEED_PRESET_QUARTER,
 )
 DEFAULT_SPEED_PRESET = SPEED_PRESET_NORMAL
+DEFAULT_SPEED_PRESETS = (
+    SPEED_PRESET_NORMAL,
+    SPEED_PRESET_HALF,
+    SPEED_PRESET_NORMAL,
+)
 SPEED_PRESET_MARKERS = {
     SPEED_PRESET_NORMAL: 0x00,
     SPEED_PRESET_HALF: 0x89,
     SPEED_PRESET_QUARTER: 0x88,
 }
 ORIGINAL_REFIRE_WAIT = 0x20
+DEFAULT_REFIRE_WAITS = (0x20, 0x3C, 0x2D)
 MIN_REFIRE_WAIT = 1
 MAX_REFIRE_WAIT = 0xFF
 FLAME_SPAWN_COUNTER = 0x18
 ORIGINAL_POST_FIRE_STOP = 0x1C
+DEFAULT_POST_FIRE_STOPS = (0x3C, 0x50, 0x78)
 MIN_POST_FIRE_STOP = ORIGINAL_POST_FIRE_STOP
 MAX_POST_FIRE_STOP = 0xFF - FLAME_SPAWN_COUNTER
 
@@ -310,6 +317,16 @@ def _variant_index(variant) -> int:
     return index
 
 
+def default_settings(variant=0) -> dict[str, int]:
+    index = _variant_index(variant)
+    return {
+        "movement_speed": DEFAULT_MOVEMENT_SPEEDS[index],
+        "flame_speed": DEFAULT_SPEED_PRESETS[index],
+        "refire_wait": DEFAULT_REFIRE_WAITS[index],
+        "post_fire_stop": DEFAULT_POST_FIRE_STOPS[index],
+    }
+
+
 def _original_or_hook(rom_data, off: int, original: bytes, hook: bytes) -> bool:
     current = bytes(rom_data[off:off + len(original)])
     if current == original:
@@ -345,7 +362,7 @@ def current_movement_speed(rom_data, variant=0) -> int:
 def current_speed_preset(rom_data, variant=0) -> int:
     index = _variant_index(variant)
     if _original_or_hook(rom_data, OFF_HOOK_CHILD_MARK, ORIG_CHILD_MARK, HOOK_CHILD_MARK):
-        return DEFAULT_SPEED_PRESET
+        return DEFAULT_SPEED_PRESETS[index]
     _require_extension(rom_data)
     return _speed_preset_from_marker(
         rom_data[OFF_CAVE_PARAM_TABLE + PARAM_FLAME + index]
@@ -372,7 +389,7 @@ def current_post_fire_stop(rom_data, variant=0) -> int:
     if _original_or_hook(
         rom_data, OFF_HOOK_FIRE_STATE_EXIT, ORIG_FIRE_STATE_EXIT, HOOK_FIRE_STATE_EXIT
     ):
-        return ORIGINAL_POST_FIRE_STOP
+        return DEFAULT_POST_FIRE_STOPS[index]
     _require_extension(rom_data)
     end_counter = int(rom_data[OFF_CAVE_PARAM_TABLE + PARAM_STOP_END + index])
     return normalize_post_fire_stop(end_counter - FLAME_SPAWN_COUNTER)
@@ -396,7 +413,7 @@ def normalize_refire_wait(value) -> int:
 def current_refire_wait(rom_data, variant=0) -> int:
     index = _variant_index(variant)
     if _original_or_hook(rom_data, OFF_HOOK_REFIRE_WAIT, ORIG_REFIRE_WAIT, HOOK_REFIRE_WAIT):
-        return ORIGINAL_REFIRE_WAIT
+        return DEFAULT_REFIRE_WAITS[index]
     _require_extension(rom_data)
     return normalize_refire_wait(
         rom_data[OFF_CAVE_PARAM_TABLE + PARAM_REFIRE + index]
