@@ -13,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CORE_DIR = ROOT / "magatu_skc" / "core"
 LEDGER_PATH = ROOT / "docs" / "rom_map_jp_mapper66_current.html"
+INACTIVE_RESERVATION_MODULES = {"gap_fix"}
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -78,6 +79,8 @@ def _module_defines_reserved_spans(path: Path) -> bool:
 def collect_reserved_spans() -> list[ReservedSpan]:
     spans: list[ReservedSpan] = []
     for path in sorted(CORE_DIR.glob("*.py")):
+        if path.stem in INACTIVE_RESERVATION_MODULES:
+            continue
         if not _module_defines_reserved_spans(path):
             continue
         module = importlib.import_module(f"magatu_skc.core.{path.stem}")
@@ -220,6 +223,7 @@ class RamReservationTests(unittest.TestCase):
         expected_bytes = (
             set(range(0x0723, 0x073A))
             | set(range(0x0740, 0x0774))
+            | set(range(0x0774, 0x0777))
             | set(range(0x0778, 0x077B))
             | set(range(0x077C, 0x0780))
         )

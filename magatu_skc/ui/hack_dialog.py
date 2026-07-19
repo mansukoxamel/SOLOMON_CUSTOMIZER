@@ -39,7 +39,7 @@ from ..core import clearscreen_hack
 from ..core import clear_message
 from ..core import demo_input
 from ..core import enemy_drop
-from ..core import gap_fix
+from ..core import gap_fix_alternative as gap_fix
 from ..core import room_flags
 from ..core import warp_feather
 from ..core import initial_magic
@@ -1521,32 +1521,41 @@ class HackDialog(QDialog):
         frame_f.addWidget(frame_hint)
         layout.addWidget(frame_group)
 
-        # 原作バグ回避: 落下中の横穴侵入を安定化 (グローバル)
+        # 原作バグ回避: 左右の新規入力後、横穴縁の位相拒否だけを無視 (グローバル)
         gf_group = QGroupBox(t("hack_dialog.group.gap_fix", "原作バグ回避"))
         gf_group.setProperty("settings_category", "保守・特殊")
         gff = QVBoxLayout(gf_group)
         self.chk_gapfix = QCheckBox(
-            t("hack_dialog.gap_fix.checkbox", "落下中の横穴侵入を安定化（運ゲー解消・左右対応）"))
+            t("hack_dialog.gap_fix.checkbox", "横穴侵入を安定させる"))
         self.chk_gapfix.setToolTip(
             t(
                 "hack_dialog.gap_fix.tooltip",
-                "上から落ちながら左/右で横穴に入れる時と入れない時がある"
-                "原作の挙動(サブピクセル位相依存)を解消し、毎回入れるように\n"
-                "します。横穴がある時だけ作用し通常の壁・歩行・着地は原作"
-                "どおり(副作用なし、実機確認済)。Mesen解析 asm R182",
+                "左/右の新規入力から設定フレーム中、上側角が壁・下側角が空間の時だけ"
+                "上側の位相拒否bitを消します。\n"
+                "上下とも壁の普通の壁では原作結果を変更しません。",
             ))
         try:
             self.chk_gapfix.setChecked(gap_fix.is_applied(self.rom.data))
+            gap_frames = gap_fix.get_window_frames(self.rom.data)
             self._gapfix_ok = True
         except gap_fix.GapFixError:
+            gap_frames = gap_fix.DEFAULT_WINDOW_FRAMES
             self._gapfix_ok = False
             self.chk_gapfix.setEnabled(False)
         gff.addWidget(self.chk_gapfix)
+        gap_frames_row = QHBoxLayout()
+        gap_frames_row.addWidget(QLabel(t("hack_dialog.gap_fix.frames", "押し直し後の受付フレーム数:")))
+        self.spin_gapfix_frames = QSpinBox()
+        self.spin_gapfix_frames.setRange(gap_fix.MIN_WINDOW_FRAMES, gap_fix.MAX_WINDOW_FRAMES)
+        self.spin_gapfix_frames.setValue(gap_frames)
+        self.spin_gapfix_frames.setEnabled(self._gapfix_ok)
+        gap_frames_row.addWidget(self.spin_gapfix_frames)
+        gap_frames_row.addStretch(1)
+        gff.addLayout(gap_frames_row)
         gfhint = QLabel(
             t(
                 "hack_dialog.gap_fix.hint",
-                "ソロモンの鍵 積年の謎「横穴に入れる/入れないが運任せ」を"
-                "機構解明し回避。詳細 docs/gap_entry_mechanism.html",
+                "横穴の少し上から、穴へ向かって入力し直すと入れます。押しっぱなしは原作どおりです。",
             ))
         gfhint.setWordWrap(True)
         gfhint.setStyleSheet("color:#888; font-size:11px;")
@@ -2458,6 +2467,7 @@ class HackDialog(QDialog):
             "clear_screen_preset": self._combo_data(self.combo_clearscreen),
             "stage_frame_white_enabled": self.chk_stage_frame_white.isChecked(),
             "gap_fix_enabled": self.chk_gapfix.isChecked(),
+            "gap_fix_frames": self.spin_gapfix_frames.value(),
             "dark_light_frames": self.spin_dark_light.value(),
             "dark_dark_frames": self.spin_dark_dark.value(),
             "solomon_seal_stages": self._selected_solomon_seal_stages(),
@@ -2824,6 +2834,7 @@ class HackDialog(QDialog):
                 changed.append(t("hack_dialog.setting.clear_screen_char", "クリア画面キャラ"))
         set_check("stage_frame_white_enabled", self.chk_stage_frame_white, t("hack_dialog.setting.stage_frame", "ステージ外枠"))
         set_check("gap_fix_enabled", self.chk_gapfix, t("hack_dialog.setting.gap_fix", "横穴侵入安定化"))
+        set_spin("gap_fix_frames", self.spin_gapfix_frames, t("hack_dialog.setting.gap_fix_frames", "横穴侵入 許可フレーム"))
         set_spin("dark_light_frames", self.spin_dark_light, t("hack_dialog.setting.dark_light", "暗闇 明フレーム"))
         set_spin("dark_dark_frames", self.spin_dark_dark, t("hack_dialog.setting.dark_dark", "暗闇 暗フレーム"))
         return changed
@@ -3375,7 +3386,7 @@ class HackDialog(QDialog):
         if getattr(self, "_gapfix_ok", False):
             want = self.chk_gapfix.isChecked()
             try:
-                gch = gap_fix.apply(d, want)
+                gch = gap_fix.apply(d, want, self.spin_gapfix_frames.value())
                 if gch:
                     applied.append(
                         t("hack_dialog.applied.gap_fix", "横穴侵入安定化 {state}").format(state=("ON" if want else "OFF")))

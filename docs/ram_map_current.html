@@ -83,7 +83,7 @@
       <div class="seg mod" style="width:.04%">$0770<br><small>warp</small></div>
       <div class="seg mod" style="width:.04%">$0771<br><small>fairy2 delay</small></div>
       <div class="seg mod" style="width:.08%">$0772-$0773<br><small>fire range</small></div>
-      <div class="seg free" style="width:.14%">$0774-$0777<br><small>4B candidate</small></div>
+      <div class="seg custom" style="width:.11%">$0774-$0776<br><small>3B gap input</small></div><div class="seg free" style="width:.03%">$0777<br><small>1B candidate</small></div>
       <div class="seg mod" style="width:.25%">$0778-$0779</div>
       <div class="seg mod" style="width:.1%">$077C</div>
         <div class="seg mod" style="width:.07%">$077D<br><small>seal</small></div>
@@ -125,7 +125,7 @@
     <tr><td class="num">$0770</td><td>GAMEPLAY_STAGE_FLAGS</td><td class="ok">Customizer予約済</td><td>bit4=Enemy Clear Key Open有効、bit5=現在部屋のWarp Mirror Mode有効、bit6=鏡接触中クールダウン、bit7=Enemy Clear Key Open発火済みラッチ。mapper66 room loader後のPRG1 helperがStageExtTable byte0 bit5/bit6から初期化する。</td></tr>
     <tr><td class="num">$0771</td><td>FAIRY2_DELAY</td><td class="ok">Customizer予約済</td><td>Fairy x2取得後、2体目の妖精spawn予約を約32フレーム遅らせるカウンタ。<code>$9F09</code> main-loop hookで毎フレーム減算し、0になった時だけ原作ベル処理 <code>$C7AA</code> を呼ぶ。</td></tr>
     <tr><td class="num">$0772-$0773</td><td>FIRE_RANGE_BACKUP</td><td class="ok">Customizer予約済</td><td>Crystal max fire range取得前の<code>$0432/$0433</code>退避値。Max中は<code>$1F1F</code>へ一時変更し、部屋ロード時に<code>$0433 &gt;= $1F</code>ならここから復元する。</td></tr>
-    <tr><td class="num">$0774-$0777</td><td>entity終端後の沈黙帯</td><td class="warn">補助候補 4B</td><td>旧特殊ブロック32Bリスト跡の残り。$0778/$0779等の予約RAMに隣接するため、$0750-$076Fより優先度は下げる。</td></tr>
+    <tr><td class="num">$0774-$0776</td><td>横穴侵入入力状態</td><td class="ok">Customizer予約済 3B</td><td>$0774=前フレームの左右入力、$0775=右入力受付カウンタ、$0776=左入力受付カウンタ。</td></tr><tr><td class="num">$0777</td><td>entity終端後の沈黙帯</td><td class="warn">補助候補 1B</td><td>予約RAMに隣接するため、使用前に用途別probeが必要。</td></tr>
     <tr><td class="num">$0778</td><td>ROOMFLAGS</td><td class="ok">Customizer予約済</td><td>RoomFlagTableの現在部屋フラグcache。特殊扉(隠し/茶ブロック内/白ブロック内)/B禁止/A禁止/暗闇、bit4=ステージ開始時ファイヤー所持リセット、bit5=透明ブロック内アイテムmaskあり、bit6=特殊セル変換ありなど。</td></tr>
     <tr><td class="num">$0779</td><td>DARK_PHASE</td><td class="ok">Customizer予約済</td><td>暗闇モードの明滅フェーズカウンタ。暗フェーズ中でもダーナ火球slot <code>$05A7</code> bit7 が立つ間は明表示にするが、このカウンタ自体は進め続ける。</td></tr>
     <tr><td class="num">$077A-$077B</td><td>FINAL_STAGE_REDIRECT / legacy work</td><td class="ok">Customizer予約済</td><td><code>$077A</code> bit7 は現在部屋クリア後に次ステージを原作最終面へ差し替えるruntimeフラグ。mapper66部屋ロードruntimeがStageExtTable byte0 bit4からコピーする。<code>$077B</code> は旧一時値候補。</td></tr>
@@ -167,16 +167,16 @@
   <div class="note">
     <b>新規RAMが必要な時の優先順位:</b>
     まずRAMを増やさずROMテーブル再読込や既存カウンタ派生で済ませる。まとまったRAMが必要なら旧特殊ブロックリスト跡の
-      <code>$0740-$074F</code> はSpecial item位置リスト用、<code>$0750-$0767</code> は透明ブロック内アイテム用、<code>$0768-$076F</code> はひび割れブロック内アイテム用、<code>$0770</code> はワープミラー/全敵消滅オープン状態用、<code>$0771</code> はFairy x2遅延用、<code>$0772-$0773</code> はCrystal max fire range復元用に予約済み。まとまったRAMは <code>$0774-$0777</code> を候補にする。
+      <code>$0740-$074F</code> はSpecial item位置リスト用、<code>$0750-$0767</code> は透明ブロック内アイテム用、<code>$0768-$076F</code> はひび割れブロック内アイテム用、<code>$0770</code> はワープミラー/全敵消滅オープン状態用、<code>$0771</code> はFairy x2遅延用、<code>$0772-$0773</code> はCrystal max fire range復元用、<code>$0774-$0776</code> は横穴侵入安定化用に予約済み。小フラグには <code>$0777</code> を候補にする。
     長期保存・毎NMI書込・複数バイト連続使用は、先に専用probeで実機確認してから予約する。予約後は <code>room_flags.py</code> のASCII mirrorも同期する。
   </div>
 
   <h2>5. 判定の強さ</h2>
   <table>
     <tr><th>分類</th><th>意味</th><th>例</th></tr>
-    <tr><td class="ok">予約済/確定</td><td>コード・実機probe・現在実装のいずれかで用途が確定している。</td><td><code>$0723-$072B</code>, <code>$072C-$0739</code>, <code>$0740-$074F</code>, <code>$0750-$0767</code>, <code>$0768-$076F</code>, <code>$0770</code>, <code>$0771</code>, <code>$0772-$0773</code>, <code>$0778</code>, <code>$0779</code>, <code>$077C</code>, <code>$077D</code>, <code>$077E-$077F</code></td></tr>
+    <tr><td class="ok">予約済/確定</td><td>コード・実機probe・現在実装のいずれかで用途が確定している。</td><td><code>$0723-$072B</code>, <code>$072C-$0739</code>, <code>$0740-$074F</code>, <code>$0750-$0767</code>, <code>$0768-$076F</code>, <code>$0770</code>, <code>$0771</code>, <code>$0772-$0773</code>, <code>$0774-$0776</code>, <code>$0778</code>, <code>$0779</code>, <code>$077C</code>, <code>$077D</code>, <code>$077E-$077F</code></td></tr>
     <tr><td>本編使用</td><td>用途は概ね分かるが、内部構造の詳細は必要時に追加解析。</td><td><code>$0426-$0455</code>, <code>$04F7-$057E</code></td></tr>
-    <tr><td class="warn">候補/非推奨</td><td>probe上は沈黙したが、構造保証が弱い、または重要領域に隣接。</td><td><code>$073A-$073F</code>, <code>$0774-$0777</code>, <code>$07E0-$07EF</code></td></tr>
+    <tr><td class="warn">候補/非推奨</td><td>probe上は沈黙したが、構造保証が弱い、または重要領域に隣接。</td><td><code>$073A-$073F</code>, <code>$0777</code>, <code>$07E0-$07EF</code></td></tr>
     <tr><td class="ng">禁止</td><td>既知の本編領域。改造RAMにしない。</td><td><code>$0200-$02FF</code>, <code>$0304-$03E3</code>, <code>$0456-$04D5</code>, <code>$057F-$0722</code></td></tr>
   </table>
 </main>

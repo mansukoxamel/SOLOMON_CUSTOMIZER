@@ -90,7 +90,10 @@ verbatim コピーするため file offset 不変):
 #                               bit7=enemy-clear key open fired latch
 #   $0771       FAIRY2_DELAY Fairy x2 second spawn delay counter 予約済(使用中)
 #   $0772-$0773 FIRE_RANGE_BACKUP Crystal max fire range復元用 予約済(使用中)
-#   $0774-$0777 ENTITY_TAIL_CANDIDATE 補助候補4B          要probe
+#   $0774       GAP_PREVIOUS_LR 前フレーム左右入力          予約済(使用中)
+#   $0775       GAP_RIGHT_WINDOW 右入力受付カウンタ          予約済(使用中)
+#   $0776       GAP_LEFT_WINDOW 左入力受付カウンタ           予約済(使用中)
+#   $0777       ENTITY_TAIL_CANDIDATE 補助候補1B            要probe
 #   $0778       ROOMFLAGS       room flag table cache         予約済(使用中)
 #   $0779       DARK_PHASE      暗闇 明滅フェーズカウンタ      予約済(使用中)
 #   $077A       FINAL_STAGE_REDIRECT  current room final-stage redirect bit7,
@@ -139,7 +142,7 @@ verbatim コピーするため file offset 不変):
 #        $0740-$074F はPanel Variant settings copyとして予約した後、
 #        現行ではspecial item位置リストとして使用中。
 #        $0750-$0767 は透明ブロック内アイテムruntime maskとして予約済み。
-#        $073A-$073F / $0774-$0777 は補助候補だが、
+#        $073A-$073F / $0777 は補助候補だが、
 #        沈黙でも構造保証は弱いので正式使用前に用途別probe必須。
 #   ・$0780-$07DF = probe で書込検出 = ★使用禁止。
 #
@@ -157,7 +160,7 @@ verbatim コピーするため file offset 不変):
 #   1. ★まず "増やさない" を検討。既存値から再計算できないか?
 #      例: room flag は $0428→$C1C0,X ROMテーブル再読込で RAM不要化可。
 #          暗闇周期も $043C/$043D(global frame counter)から導出余地。
-#   2. まとまったRAMが必要 → $0774-$0777 を候補にする。
+#   2. 小フラグが必要 → $0777 を候補にする。
 #      小フラグだけでも予約済み範囲は使わない。
 #      用途名を決めて上の表に追記してからコードで使う。
 #   3. 長期保存 / 毎NMI書込 / 複数バイト連続使用 → ★再プローブ必須
@@ -179,7 +182,10 @@ verbatim コピーするため file offset 不変):
 #                               bit7=enemy-clear key open fired latch
 #   $0771       FAIRY2_DELAY           Fairy x2 second spawn delay counter, reserved in use
 #   $0772-$0773 FIRE_RANGE_BACKUP      Crystal max fire range restore backup, reserved in use
-#   $0774-$0777 ENTITY_TAIL_CANDIDATE  secondary 4-byte candidate, probe before use
+#   $0774       GAP_PREVIOUS_LR        previous-frame Left/Right input, reserved in use
+#   $0775       GAP_RIGHT_WINDOW       right-entry window counter, reserved in use
+#   $0776       GAP_LEFT_WINDOW        left-entry window counter, reserved in use
+#   $0777       ENTITY_TAIL_CANDIDATE  secondary 1-byte candidate, probe before use
 #   $0778       ROOMFLAGS              room flag table cache, reserved in use
 #   $0779       DARK_PHASE             dark-room phase counter, reserved in use
 #   $077A       FINAL_STAGE_REDIRECT   bit7 redirects next stage to final room after clear
@@ -502,9 +508,8 @@ def _verify(rom_data) -> None:
                 "あるため中止します。"
             )
     # cave 空き: 原作(EA/00) / 既注入の各 cave・table は許容。
-    # ★gap_fix(原作バグ回避 横穴侵入安定化) の cave も4096B跡地側に
-    #   置くため、両機能を同時適用できるよう許容スパンに含める。
-    from . import gap_fix as _gf
+    # 横穴侵入安定化runtimeも4096B空き側へ置くため許容する。
+    from . import gap_fix_alternative as _gf
     from . import gargoyle_variant as _gv
     from . import panel_monster_stage_variant as _pmsv
     from . import saramandor_variant as _sv
@@ -537,7 +542,7 @@ def _verify(rom_data) -> None:
         (OFF_TITLE_IDLE_DEMO_CLEAR, TITLE_IDLE_DEMO_CLEAR_SIZE),
         (OFF_TITLE_IDLE_DEMO_CLEAR_OLD, TITLE_IDLE_DEMO_CLEAR_SIZE),
         *table_spans,
-        (_gf.OFF_CAVE, len(_gf.CAVE)),       # gap_fix 共存
+        (_gf.OFF_CAVE, len(_gf.CAVE)),       # 横穴侵入安定化runtime
         (OFF_DARK_CAVE, DARK_CAVE_RESERVED_SIZE),  # 暗闇 cave
         (OFF_TEMPO, 2),                      # 暗闇テンポ
         (OFF_BW_CAVE, BW_CAVE_RESERVED_SIZE),

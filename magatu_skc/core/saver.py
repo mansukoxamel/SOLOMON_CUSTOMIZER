@@ -287,9 +287,10 @@ def save_levels_to_rom(
         spark_ball_variant, gargoyle_variant,
         stage_ext, key_enemy_runtime, stage_announcement, title_screen,
         drop_pickup_guard, special_process, solomon_seal_block,
-        final_stage_redirect, gap_fix, new_enemy_runtime, warp_zone_trial,
+        final_stage_redirect, new_enemy_runtime, warp_zone_trial,
         enemy_clear_key_open, fire2_item_runtime, blue_key_queen_runtime,
     )
+    from . import gap_fix_alternative as gap_fix
     from .element import byte_from_position
     # IMPORTANT: this apply order is part of the ROM layout contract.
     # panel_monster_stage_variant owns the current Panel runtime, and its PRG1
