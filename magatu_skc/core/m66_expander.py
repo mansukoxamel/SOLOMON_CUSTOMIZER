@@ -240,7 +240,9 @@ def change_mapper(src: bytes, region: str = "JP") -> bytearray:
     l_a1 = _build_l_a1(L_A1_NEW_CPU)
     result[L_A1_NEW_OFF:L_A1_NEW_OFF + len(l_a1)] = l_a1
 
-    # サブルーチン2 (152B at offset 32784 = 拡張領域の先頭)
+    # l_a2 initial literal (181B at offset 32784).  The current layout treats
+    # the first 180B as the base body and replaces the final RTS with a 3B
+    # StageExt tail hook.
     l_a2 = bytes([
         64, 173, 40, 4, 24, 105, 191, 133, 1, 169, 255, 133, 0, 160, 192, 165,
         124, 106, 144, 36, 177, 0, 201, 244, 176, 30, 201, 240, 176, 4, 201, 192,

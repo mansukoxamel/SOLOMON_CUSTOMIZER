@@ -8,12 +8,12 @@
 
 mapper66拡張の基礎loaderは、PRG0 `$E988`のl_a1が16Bのbank-switch trampolineをRAM `$07D0-$07DF`へ複写し、PRG1 `$8001`のl_a2を呼び、room grid、敵/metadata、mirror scheduleをRAMへ展開してPRG0へ復帰する構成である。
 
-l_a1の自己参照、RAM trampoline、JSR/RTS収支、l_a2の3種類のpointer計算、192B room grid copy、64B room tail copy、16B mirror schedule copyは命令上成立している。確定問題は1件、文書不一致は1件である。
+l_a1の自己参照、RAM trampoline、JSR/RTS収支、l_a2の3種類のpointer計算、192B room grid copy、64B room tail copy、16B mirror schedule copyは命令上成立している。確定問題1件と文書不一致1件は修正済みである。
 
-1. `expand_rom()`は`m66.patch_breakable_white_data()`でPRG0 `$E0BC-$E0E5`へ42Bの初期描画classifier helperを書いた直後、`_clear_legacy_prg0_level_area()`でfile `0x6010-0x700F`をEA消去する。l_a1だけを退避・復元し、classifier helperを復元しない。hook `$9620`は`JMP $E0BC`のまま残るため、`expand_rom()`直後のメモリ上ROMはhook先がEA列になった不整合状態である。
-2. `change_mapper()`内コメントはl_a2を「152B」と記すが、実際のliteralは181Bである。正式管理簿は基礎body 180Bと直後のtail hook 3Bへ分けて管理している。
+1. 修正前の`expand_rom()`はclassifier helper注入後にPRG0旧level領域をEA消去していた。現在は消去を先に行い、helperを最後に注入する順序へ修正済みである。
+2. `change_mapper()`内コメントのl_a2「152B」を、実際のliteral 181B、正式配置180B body＋3B tail hookへ訂正した。
 
-通常の「ROMを作る」保存経路では`save_all_levels_m66()`が`patch_breakable_white_data()`を再実行し、消されたhelperを再配置する。このため保存完了ROMが常に欠落するとは断定しない。ただし解析時点の`expand_rom()`単体の契約と、自動展開直後から次回save-time patchまでの内部ROMは不整合であった。
+修正前も通常の「ROMを作る」保存経路では`save_all_levels_m66()`がhelperを再配置していたため、保存完了ROMが常に欠落する状態ではなかった。ただし`expand_rom()`単体の終了時点は不整合だったため、現在の呼出順へ修正した。
 
 修正状況: 2026-07-19にPRG0旧level領域の消去をruntime検査・注入より前へ移し、`expand_rom()`完了時にhelperが残る順序へ修正した。ROM/RAM配置と使用量は変更していない。
 
@@ -122,7 +122,7 @@ UIの通常読込はこの後にlevelを再読込しwide-title正規化を行う
 - 自動展開後、save-time runtime再適用前の`rom.data`を正しい完成形とみなす処理
 - 今後、保存処理の順序変更や途中失敗で再patchが実行されない場合
 
-修正方針は別作業で決める必要がある。候補はclearをruntime patchより前へ移すか、clear後に全該当runtimeを再適用することである。現段階では実装変更していない。
+修正はclearをruntime patchより前へ移す方針で実装済みである。`_install_loadtime_runtimes()`が`_clear_legacy_prg0_level_area()`の完了後に`m66.patch_breakable_white_data()`を呼ぶため、関数終了時にhookとhelperが揃う。
 
 ## 管理簿と検証範囲
 
@@ -141,12 +141,12 @@ ROM生成は行っていない。日本版原作ROMの固定byte、Python生成l
 - 64B room tail pointer/copy: 正常
 - 16B mirror/drop schedule pointer/copy: 正常
 - stack収支: 正常
-- `expand_rom()`完了時のruntime整合性: 異常。初期描画classifier helperを消去する
-- l_a2 size記載: 誤記。Python初期literalは152Bではなく181B（管理簿上は180B body＋3B tail hook）
+- `expand_rom()`完了時のruntime整合性: 正常。PRG0消去後に初期描画classifier helperを注入する
+- l_a2 size記載: 訂正済み。Python初期literalは181B（管理簿上は180B body＋3B tail hook）
 
-## 修正優先度
+## 修正確認
 
-1. 高: `expand_rom()`のclearとruntime patch順序を直し、関数終了時点でhook/helperを一致させる。
-2. 低: l_a2コメントを152Bから181Bへ直し、180B body＋tailの区分を明記する。
-
-実装修正時は、23件目のside-data pointer修正と混同せず、展開直後と通常保存後の双方でhook/helper byte列を比較する必要がある。
+- clear→runtime事前検査・注入の呼出順を回帰テストで固定した。
+- PRG0消去がclassifier caveを空け、l_a1だけを保持することをテストした。
+- l_a2コメントを181B literal、180B body＋3B tail hookへ訂正した。
+- ROM生成とemulator動的実行は行っていない。
