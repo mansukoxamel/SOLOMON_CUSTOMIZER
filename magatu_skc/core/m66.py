@@ -48,14 +48,14 @@ RAM_RESERVED_SPANS = (
     (RAM_CRACKED_IN_BLOCK_LIST, LENGTH_M66_CRACKED_IN_BLOCK_LIST_BYTES),
 )
 RUNTIME_BLOCK_LIST_COPY_PATCH_OFF = OFFSET_M66_LOADER_A2 + 146
-RUNTIME_BLOCK_LIST_COPY_PATCH_OLD = bytes.fromhex(
-    "ad28040a0a0a0a18694f8500ad28044a4a4a4a1869f88501a010b100995f0788d0f8"
+RUNTIME_BLOCK_LIST_COPY_PATCH_LEN = 34
+RUNTIME_BLOCK_LIST_COPY_MAPPER66_BASE = bytes(
+    [0xEA] * RUNTIME_BLOCK_LIST_COPY_PATCH_LEN
 )
-RUNTIME_BLOCK_LIST_COPY_PATCH_LEN = len(RUNTIME_BLOCK_LIST_COPY_PATCH_OLD)
 RESPAWN_DIRECT_CELL_COPY_PATCH_OFF = OFFSET_M66_LOADER_A2 + 15
-RESPAWN_DIRECT_CELL_COPY_SKCHAIN = bytes.fromhex(
-    "ad2804c930f022a57c6a901db100c9f8b017293fc92e9011b10029802a9005"
-    "a990189007a910189002b10099130388d0cf"
+RESPAWN_DIRECT_CELL_COPY_MAPPER66_BASE = bytes.fromhex(
+    "a57c6a9024b100c9f4b01ec9f0b004c9c0b016293fc92e9010b10029802a"
+    "9005a990189006a9109002b10099130388d0cf"
 )
 RESPAWN_DIRECT_CELL_COPY_HELPER_OFF = 0x9019
 RESPAWN_DIRECT_CELL_COPY_HELPER_CPU = 0x9009
@@ -67,13 +67,13 @@ RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER = (
         RESPAWN_DIRECT_CELL_COPY_HELPER_CPU & 0xFF,
         RESPAWN_DIRECT_CELL_COPY_HELPER_CPU >> 8,
     ))
-    + bytes([0xEA] * (len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN) - 3))
+    + bytes([0xEA] * (len(RESPAWN_DIRECT_CELL_COPY_MAPPER66_BASE) - 3))
 )
 RESPAWN_DIRECT_CELL_COPY_HELPER = bytes.fromhex(
     "a57c6a9026b100c9f4b020c9f09004a9f9d01ac9c0b014293fc92e900e"
     "b1002980f004a990d006a910d002b10099130388d0cd60"
 )
-assert len(RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER) == len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN)
+assert len(RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER) == len(RESPAWN_DIRECT_CELL_COPY_MAPPER66_BASE)
 assert len(RESPAWN_DIRECT_CELL_COPY_HELPER) == 52
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF = 0x8E80
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER_CPU = 0x8E70
@@ -691,7 +691,7 @@ def _require_helper_available(rom_data: bytearray, offset: int, blob: bytes, lab
 
 def _preflight_runtime_block_loader(rom_data: bytearray) -> None:
     required_end = max(
-        RESPAWN_DIRECT_CELL_COPY_PATCH_OFF + len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN),
+        RESPAWN_DIRECT_CELL_COPY_PATCH_OFF + len(RESPAWN_DIRECT_CELL_COPY_MAPPER66_BASE),
         RESPAWN_DIRECT_CELL_COPY_HELPER_OFF + len(RESPAWN_DIRECT_CELL_COPY_HELPER),
         INITIAL_DRAW_LOW_CLASSIFIER_PATCH_OFF + len(INITIAL_DRAW_LOW_CLASSIFIER_PATCH),
         KEY_CELL_VALUE_PATCH_OFF + len(KEY_CELL_VALUE_PATCH_NEW),
@@ -705,12 +705,12 @@ def _preflight_runtime_block_loader(rom_data: bytearray) -> None:
         raise M66RuntimePatchError("ROM is too small for mapper66 runtime block loader")
 
     off = RESPAWN_DIRECT_CELL_COPY_PATCH_OFF
-    ln = len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN)
+    ln = len(RESPAWN_DIRECT_CELL_COPY_MAPPER66_BASE)
     respawn_patch = bytes(rom_data[off:off + ln])
     _require_patch_value(
         respawn_patch,
         (
-            RESPAWN_DIRECT_CELL_COPY_SKCHAIN,
+            RESPAWN_DIRECT_CELL_COPY_MAPPER66_BASE,
             RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER,
         ),
         "mapper66 respawn direct-cell patch",
@@ -748,7 +748,7 @@ def _preflight_runtime_block_loader(rom_data: bytearray) -> None:
     _require_patch_value(
         bytes(rom_data[off:off + ln]),
         (
-            RUNTIME_BLOCK_LIST_COPY_PATCH_OLD,
+            RUNTIME_BLOCK_LIST_COPY_MAPPER66_BASE,
             RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH,
         ),
         "mapper66 runtime block-list copy",
@@ -797,10 +797,10 @@ def patch_runtime_block_loader(rom_data: bytearray):
     """
     _preflight_runtime_block_loader(rom_data)
     off = RESPAWN_DIRECT_CELL_COPY_PATCH_OFF
-    ln = len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN)
+    ln = len(RESPAWN_DIRECT_CELL_COPY_MAPPER66_BASE)
     if len(rom_data) >= off + ln:
         cur = bytes(rom_data[off:off + ln])
-        if cur == RESPAWN_DIRECT_CELL_COPY_SKCHAIN:
+        if cur == RESPAWN_DIRECT_CELL_COPY_MAPPER66_BASE:
             rom_data[off:off + ln] = RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER
         elif cur != RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER:
             return
@@ -833,7 +833,7 @@ def patch_runtime_block_loader(rom_data: bytearray):
     if len(rom_data) < off + ln:
         return
     cur = bytes(rom_data[off:off + ln])
-    if cur == RUNTIME_BLOCK_LIST_COPY_PATCH_OLD:
+    if cur == RUNTIME_BLOCK_LIST_COPY_MAPPER66_BASE:
         rom_data[off:off + ln] = RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH
     elif cur != RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH:
         return

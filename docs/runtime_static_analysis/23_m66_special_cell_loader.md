@@ -11,7 +11,7 @@ mapper66特殊セルloaderは、roomの192 cellを直接PRG1から読むl_a2へ�
 4 helper計203B、l_a2内2 patch、原作描画hook、鍵patch、24B mask＋8B position listを命令単位で追跡した。確定問題2件は修正した。
 
 1. 32B side-data copy helper `$8E70`のroom pointer high計算を、`$F84F + room*32`の16bit加算へ修正した。全53 roomで期待pointerと一致する。
-2. preflightは初期変換直後のmapper66 base loaderと現行形だけを受け入れ、中間世代のl_a2 patch受入れを削除した。
+2. preflightは初期変換直後のmapper66 base loaderと現行形だけを受け入れ、中間世代のl_a2 patch受入れを削除した。初回修正ではbase loader定数を誤って別世代の配列へ向けていたため、`change_mapper()`が実際に生成するrespawn 49Bとside-copy空き34Bへ訂正した。
 
 respawn変換、cracked one-shot復元、初期描画mask classifier、白block内鍵の各命令列自体は成立する。side-data helperは43Bから42Bへ縮み、file `0x8EAA`の1Bを空きとして解放した。runtime移動、PRG0/RAM消費はない。
 
@@ -168,7 +168,15 @@ ASLのCarryで元bit7を保持し、元bit6はASL後のbit7として`AND #$80`�
 
 `_preflight_runtime_block_loader()`は全patch、4 helper、loader tail、guardの最大終端までROM長とsignatureを先に検査する。通常の未知競合では部分適用を残さない。
 
-修正後は、respawn入口とside-copy入口のどちらも、初期変換直後のmapper66 base loaderと現行helper-callだけを受け入れる。threshold-C0、bypass、旧F0-F3 gate、disabled、旧mask-copyなど中間世代の受入れは削除した。
+修正後は、respawn入口とside-copy入口のどちらも、初期変換直後のmapper66 base loaderと現行helper-callだけを受け入れる。respawn入口のbase署名は`change_mapper()`のl_a2 literal file `0x801F-0x804F`から直接確定した次の49Bである。
+
+```text
+a5 7c 6a 90 24 b1 00 c9 f4 b0 1e c9 f0 b0 04 c9
+c0 b0 16 29 3f c9 2e 90 10 b1 00 29 80 2a 90 05
+a9 90 18 90 06 a9 10 90 02 b1 00 99 13 03 88 d0 cf
+```
+
+side-copy入口file `0x80A2-0x80C3`のbase署名は34Bすべて`EA`である。変換直後の空きに現行の`JSR $8E70 / JSR $903D`を入れる契約なので、別世代の`ad 28 04 0a ...`命令列はbaseとして受け入れない。respawn側の`ad 28 04 c9 30 ...`、threshold-C0、bypass、disabled、旧mask-copyなど他の中間世代も引き続き拒否する。
 
 ## 現行ROM・配置照合
 
@@ -187,6 +195,7 @@ ASLのCarryで元bit7を保持し、元bit6はASL後のbit7として`AND #$80`�
 - 現行ROM byte列、`RESERVED_SPANS`、正式ROM/RAM配置
 - 全53 roomの`$F84F + room*32` pointer
 - 中間世代respawn layoutと旧43B helperの拒否
+- `change_mapper()`出力のrespawn 49B・side-copy空き34Bとpreflight定数の完全一致
 
 ## 未実施
 

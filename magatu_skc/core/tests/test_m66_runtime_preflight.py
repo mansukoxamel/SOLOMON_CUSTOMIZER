@@ -6,10 +6,16 @@ from magatu_skc.core import m66
 def _base_loader_rom():
     rom = bytearray(0x9100)
     for offset, patch in (
-        (m66.RESPAWN_DIRECT_CELL_COPY_PATCH_OFF, m66.RESPAWN_DIRECT_CELL_COPY_SKCHAIN),
+        (
+            m66.RESPAWN_DIRECT_CELL_COPY_PATCH_OFF,
+            m66.RESPAWN_DIRECT_CELL_COPY_MAPPER66_BASE,
+        ),
         (m66.INITIAL_DRAW_LOW_CLASSIFIER_PATCH_OFF, m66.INITIAL_DRAW_LOW_CLASSIFIER_OLD),
         (m66.KEY_CELL_VALUE_PATCH_OFF, m66.KEY_CELL_VALUE_PATCH_OLD),
-        (m66.RUNTIME_BLOCK_LIST_COPY_PATCH_OFF, m66.RUNTIME_BLOCK_LIST_COPY_PATCH_OLD),
+        (
+            m66.RUNTIME_BLOCK_LIST_COPY_PATCH_OFF,
+            m66.RUNTIME_BLOCK_LIST_COPY_MAPPER66_BASE,
+        ),
     ):
         rom[offset:offset + len(patch)] = patch
     rom[m66.INITIAL_DRAW_WHITE_THRESHOLD_PATCH_OFF] = (
@@ -74,6 +80,16 @@ class M66RuntimePreflightTests(unittest.TestCase):
             "a990189007a910189002b10099130388d0cf"
         )
         start = m66.RESPAWN_DIRECT_CELL_COPY_PATCH_OFF
+        rom[start:start + len(intermediate)] = intermediate
+        with self.assertRaises(m66.M66RuntimePatchError):
+            m66._preflight_runtime_block_loader(rom)
+
+    def test_intermediate_side_copy_layout_is_rejected(self):
+        rom = _base_loader_rom()
+        intermediate = bytes.fromhex(
+            "ad28040a0a0a0a18694f8500ad28044a4a4a4a1869f88501a010b100995f0788d0f8"
+        )
+        start = m66.RUNTIME_BLOCK_LIST_COPY_PATCH_OFF
         rom[start:start + len(intermediate)] = intermediate
         with self.assertRaises(m66.M66RuntimePatchError):
             m66._preflight_runtime_block_loader(rom)

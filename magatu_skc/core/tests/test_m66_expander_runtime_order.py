@@ -5,6 +5,18 @@ from magatu_skc.core import m66, m66_expander
 
 
 class M66ExpanderRuntimeOrderTests(unittest.TestCase):
+    def test_change_mapper_emits_the_canonical_respawn_base_layout(self):
+        source = bytes(65552)
+        with mock.patch.object(m66_expander, "_require_jp_standard_rom"):
+            expanded = m66_expander.change_mapper(source, "JP")
+
+        start = m66.RESPAWN_DIRECT_CELL_COPY_PATCH_OFF
+        expected = m66.RESPAWN_DIRECT_CELL_COPY_MAPPER66_BASE
+        self.assertEqual(bytes(expanded[start:start + len(expected)]), expected)
+        start = m66.RUNTIME_BLOCK_LIST_COPY_PATCH_OFF
+        expected = m66.RUNTIME_BLOCK_LIST_COPY_MAPPER66_BASE
+        self.assertEqual(bytes(expanded[start:start + len(expected)]), expected)
+
     def test_prg0_clear_runs_before_runtime_preflight_and_install(self):
         calls = []
         rom_data = bytearray()
