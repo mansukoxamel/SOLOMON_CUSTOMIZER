@@ -83,6 +83,20 @@ def current_reverse_digits(rom_data) -> tuple[int, int, int, int]:
     return DEFAULT_REVERSE_DIGITS
 
 
+def _runtime_matches_supported_configuration(rom_data, current_runtime: bytes) -> bool:
+    if not _runtime_present(rom_data):
+        return False
+    try:
+        expected, _offsets = _spark24.build_runtime(
+            current_pause_digits(rom_data),
+            current_reverse_digits(rom_data),
+            current_transparency_period(rom_data),
+        )
+    except _spark24.Spark24RuntimeError:
+        return False
+    return current_runtime == expected
+
+
 def apply(rom_data, pause_digits=None, transparency_period=None,
           reverse_digits=None) -> list[str]:
     min_len = max(
@@ -117,7 +131,11 @@ def apply(rom_data, pause_digits=None, transparency_period=None,
     current_runtime = bytes(
         rom_data[_spark24.OFF_RUNTIME:_spark24.OFF_RUNTIME + len(runtime)]
     )
-    if current_runtime != runtime and not all(value in (0x00, 0xEA) for value in current_runtime):
+    current_is_blank = all(value in (0x00, 0xEA) for value in current_runtime)
+    current_is_supported = _runtime_matches_supported_configuration(
+        rom_data, current_runtime
+    )
+    if current_runtime != runtime and not current_is_blank and not current_is_supported:
         raise SparkBallVariantError(
             f"Spark24 runtime area is not blank at file 0x{_spark24.OFF_RUNTIME:X}: "
             f"got {current_runtime.hex(' ')}"
