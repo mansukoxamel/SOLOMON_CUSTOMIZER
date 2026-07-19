@@ -1,5 +1,6 @@
 import unittest
 
+from magatu_skc.core import m66_expander
 from magatu_skc.core import stage_announcement as target
 
 
@@ -41,18 +42,27 @@ class StageAnnouncementRangeTests(unittest.TestCase):
             target.apply(rom, [], [])
         self.assertEqual(bytes(rom), before)
 
-    def test_apply_does_not_write_chr_bank_three(self):
+    def test_apply_does_not_rewrite_gameplay_font_tiles(self):
         rom = _blank_mapper66_rom()
-        chr_base = 0x10010
-        bank3_k = chr_base + 3 * 0x2000 + target.CUSTOM_K_CHR * 16
-        bank3_p = chr_base + 3 * 0x2000 + target.CUSTOM_P_CHR * 16
-        before_k = bytes(rom[bank3_k:bank3_k + 16])
-        before_p = bytes(rom[bank3_p:bank3_p + 16])
+        watched = []
+        for bank in range(m66_expander.GAMEPLAY_FONT_BANK_COUNT):
+            base = (
+                m66_expander.M66_CHR_BASE
+                + bank * m66_expander.GAMEPLAY_FONT_BANK_SIZE
+            )
+            for tile in (
+                m66_expander.GAMEPLAY_K_CHR,
+                m66_expander.GAMEPLAY_P_CHR,
+            ):
+                off = base + tile * 16
+                marker = bytes([0x40 + bank * 2 + (tile & 1)]) * 16
+                rom[off:off + 16] = marker
+                watched.append((off, marker))
 
         target.apply(rom, [], [])
 
-        self.assertEqual(bytes(rom[bank3_k:bank3_k + 16]), before_k)
-        self.assertEqual(bytes(rom[bank3_p:bank3_p + 16]), before_p)
+        for off, marker in watched:
+            self.assertEqual(bytes(rom[off:off + 16]), marker)
 
     def test_previous_direct_main_hook_is_not_accepted(self):
         rom = _blank_mapper66_rom()

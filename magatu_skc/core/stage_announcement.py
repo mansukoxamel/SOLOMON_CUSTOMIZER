@@ -6,7 +6,7 @@ message layout on top of the stock stage intro screen.
 """
 from __future__ import annotations
 
-from . import room_flags, stage_ext
+from . import m66_expander, room_flags, stage_ext
 
 
 class StageAnnouncementError(ValueError):
@@ -56,13 +56,9 @@ STAGE_RANGE_GATE = bytes.fromhex(
     "4c 5e 91"  # Stage 49-53 skip additions and run the stock update.
 )
 
-K_TILE = 0x25
-P_TILE = 0x27
+K_TILE = m66_expander.GAMEPLAY_K_TILE
+P_TILE = m66_expander.GAMEPLAY_P_TILE
 SPACE_TILE = 0x24
-CUSTOM_K_CHR = 0x125
-CUSTOM_P_CHR = 0x127
-K_TILE_BYTES = bytes.fromhex("f2 f4 fc f2 f2 f2 00 00 f2 f4 fc f2 f2 f2 00 00")
-P_TILE_BYTES = bytes.fromhex("fc f2 f2 f2 fc f0 00 00 fc f2 f2 f2 fc f0 00 00")
 
 
 SCRIPT_SPECS = (
@@ -209,32 +205,18 @@ assert OFF_STAGE_RANGE_GATE + len(STAGE_RANGE_GATE) == OFF_MAIN
 assert FREE_AFTER_STAGE_ANNOUNCEMENT_LEN == 0
 
 
-def _chr_start(rom_data: bytes) -> int:
+def _validate_rom_bounds(rom_data: bytes) -> None:
     if len(rom_data) < 16 or bytes(rom_data[:4]) != b"NES\x1a":
         raise StageAnnouncementError("Not an iNES ROM.")
-    return 16 + int(rom_data[4]) * 0x4000
-
-
-def _validate_rom_bounds(rom_data: bytes) -> int:
-    chr_base = _chr_start(rom_data)
-    if int(rom_data[5]) < 3:
-        raise StageAnnouncementError("Stage announcements require three CHR banks.")
-    chr_end = (
-        chr_base
-        + 2 * 0x2000
-        + (max(CUSTOM_K_CHR, CUSTOM_P_CHR) + 1) * 16
-    )
     required_end = max(
         OFF_HOOK_START_UPDATE + len(ORIG_START_UPDATE),
         OFF_FREE_AFTER_STAGE_ANNOUNCEMENT,
-        chr_end,
     )
     if len(rom_data) < required_end:
         raise StageAnnouncementError(
             f"ROM is too small for stage announcements "
             f"(len=0x{len(rom_data):X}, required=0x{required_end:X})."
         )
-    return chr_base
 
 
 def _write(rom_data: bytearray, off: int, blob: bytes, changed: list[str], name: str) -> None:
@@ -279,7 +261,7 @@ def is_needed(levels: list, runtime_room_flags: list[int]) -> bool:
 
 def apply(rom_data: bytearray, levels: list, runtime_room_flags: list[int]) -> list[str]:
     changed: list[str] = []
-    chr_base = _validate_rom_bounds(rom_data)
+    _validate_rom_bounds(rom_data)
 
     cur = bytes(rom_data[OFF_HOOK_START_UPDATE:OFF_HOOK_START_UPDATE + 3])
     if cur not in (ORIG_START_UPDATE, HOOK_START_UPDATE):
@@ -310,11 +292,6 @@ def apply(rom_data: bytearray, levels: list, runtime_room_flags: list[int]) -> l
     _write(rom_data, OFF_WARP_GATE, WARP_GATE, changed, "stage announcement warp gate")
     for off, script, text in SCRIPTS:
         _write(rom_data, off, script, changed, f"stage announcement script {text}")
-
-    for bank in range(3):
-        base = chr_base + bank * 0x2000
-        _write(rom_data, base + CUSTOM_K_CHR * 16, K_TILE_BYTES, changed, f"CHR bank{bank} K tile")
-        _write(rom_data, base + CUSTOM_P_CHR * 16, P_TILE_BYTES, changed, f"CHR bank{bank} P tile")
 
     _write(rom_data, OFF_HOOK_START_UPDATE, HOOK_START_UPDATE, changed, "$9061 stage announcement hook")
     return changed

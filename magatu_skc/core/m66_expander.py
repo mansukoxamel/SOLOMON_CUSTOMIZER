@@ -16,6 +16,19 @@ from .level import Level
 
 # C++ Constants_application.h より
 ROM_M66_FILE_SIZE = 98320  # 96KB + 16バイトiNESヘッダ
+M66_CHR_BASE = 0x10010
+GAMEPLAY_FONT_BANK_COUNT = 3
+GAMEPLAY_FONT_BANK_SIZE = 0x2000
+GAMEPLAY_K_TILE = 0x25
+GAMEPLAY_P_TILE = 0x27
+GAMEPLAY_K_CHR = 0x100 + GAMEPLAY_K_TILE
+GAMEPLAY_P_CHR = 0x100 + GAMEPLAY_P_TILE
+GAMEPLAY_K_TILE_BYTES = bytes.fromhex(
+    "f2 f4 fc f2 f2 f2 00 00 f2 f4 fc f2 f2 f2 00 00"
+)
+GAMEPLAY_P_TILE_BYTES = bytes.fromhex(
+    "fc f2 f2 f2 fc f0 00 00 fc f2 f2 f2 fc f0 00 00"
+)
 LOADTIME_PRG0_CLEAR_START = 0x6010
 LOADTIME_PRG0_CLEAR_LENGTH = 0x1000
 L_A1_OLD_HOOK_OFF = 0x1985
@@ -346,6 +359,26 @@ def _install_loadtime_runtimes(rom_data: bytearray, levels: list) -> None:
     m66.patch_breakable_white_data(rom_data, levels)
 
 
+def _install_gameplay_kp_tiles(rom_data: bytearray) -> None:
+    """Install the missing gameplay K/P glyphs once during mapper66 expansion."""
+    required_end = (
+        M66_CHR_BASE
+        + (GAMEPLAY_FONT_BANK_COUNT - 1) * GAMEPLAY_FONT_BANK_SIZE
+        + (GAMEPLAY_P_CHR + 1) * 16
+    )
+    if len(rom_data) < required_end:
+        raise ValueError(
+            "mapper66 expanded ROM is too short for gameplay K/P tiles "
+            f"(len=0x{len(rom_data):X}, required=0x{required_end:X})."
+        )
+    for bank in range(GAMEPLAY_FONT_BANK_COUNT):
+        base = M66_CHR_BASE + bank * GAMEPLAY_FONT_BANK_SIZE
+        k_off = base + GAMEPLAY_K_CHR * 16
+        p_off = base + GAMEPLAY_P_CHR * 16
+        rom_data[k_off:k_off + 16] = GAMEPLAY_K_TILE_BYTES
+        rom_data[p_off:p_off + 16] = GAMEPLAY_P_TILE_BYTES
+
+
 def expand_rom(rom, levels: list):
     """通常ROM → 拡張ROM 変換のメインエントリ
 
@@ -367,6 +400,7 @@ def expand_rom(rom, levels: list):
 
     # ROMフレームを mapper 66 形式に再構成（JP版パッチアドレス）
     new_data = change_mapper(src_data, region=src_region)
+    _install_gameplay_kp_tiles(new_data)
 
     # ミラー裏のブロックを除去（C++と同じ前処理）
     remove_blocks_behind_demon_mirrors(levels)
