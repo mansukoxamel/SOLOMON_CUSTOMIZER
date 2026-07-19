@@ -1,4 +1,9 @@
-"""Blue-key item $1A runtime that queues the stock Fairy Princess $1D."""
+"""Blue-key item $1A runtime that queues the stock Fairy Princess $1D.
+
+Design regulation: a room may contain at most one blue-key item.  UI-side
+placement enforcement is a separate task; this runtime intentionally keeps a
+single pending bit and does not implement multi-key ordering or recovery.
+"""
 from __future__ import annotations
 
 
