@@ -8,12 +8,12 @@
 
 Gap Fixは、Danaの4隅衝突maskを`$058A`へ保存する直前の原作3Bをhookし、落下state、左右入力、壁の縁cell、直下の開口cellを確認した時だけ左/右衝突bitを消す136B runtimeである。
 
-全命令、左右経路、grid index、branch、A/X/Y、zero page、stack収支を追跡した。6502本体に確定バグは見つからない。確定した管理上の問題が1件、古い資料の不一致が1件ある。
+全命令、左右経路、grid index、branch、A/X/Y、zero page、stack収支を追跡した。6502本体に確定バグは見つからない。確定した管理上の問題1件と古い資料の不一致1件は修正した。
 
-1. `gap_fix.py`は`RESERVED_SPANS`を定義していない。`tools/check_rom_consistency.py`は、この定義を持つmoduleだけを収集するため、hook 3Bとcave 136Bの両方がROM重複検査から完全に抜ける。
-2. コメント付きASMと`docs/i18n_string_inventory.md`の一部は旧配置`$C000`を残している。現行配置は`$E879-$E900`である。
+1. 修正前の`gap_fix.py`には`RESERVED_SPANS`がなく、hook 3Bとcave 136BがROM重複検査から抜けていた。
+2. コメント付きASMと`docs/i18n_string_inventory.md`に残っていた旧配置`$C000`を、現行`$E879-$E900`へ訂正した。
 
-正式ROM管理簿には現行caveが使用中として載り、`room_flags.py`の空き検証もGap Fix spanを明示的に許容している。しかし共通機械検査から漏れる事実は変わらない。ROM/RAM配置は変更していない。修正も行っていない。
+hook 3Bとcave 136Bを`RESERVED_SPANS`へ登録し、正式ROM管理簿にもhook行を追加した。コメント付きASMと文字列inventoryの旧`$C000`表記は現行`$E879`へ訂正した。ROM/RAM配置と6502 byte列は変更していない。
 
 ## 配置とhook
 
@@ -104,7 +104,7 @@ X加算前はCLC、Y減算前はSECである。左と同様に縁cellがsolid、
 
 未知byteは例外で停止し、競合領域へ上書きしない。ON/OFFにかかわらずcave本体を毎回書く方針も固定ROM構造と一致する。古いcaveや旧hookを受け入れる互換分岐はない。
 
-## 確定問題: `RESERVED_SPANS`欠落
+## 解消済み問題: `RESERVED_SPANS`欠落
 
 `tools/check_rom_consistency.py`の`collect_reserved_spans()`は、AST上でmodule直下に`RESERVED_SPANS`代入があるPython fileだけをimport・収集する。`gap_fix.py`には定義がないため、次の両範囲が検査母集団に入らない。
 
@@ -113,11 +113,11 @@ X加算前はCLC、Y減算前はSECである。左と同様に縁cellがsolid、
 
 `room_flags.py`は自身の4096B空き検査で`(_gf.OFF_CAVE, len(_gf.CAVE))`を個別許容しているが、これはGap Fixを共通重複検査へ登録する代わりにはならない。他moduleが将来この範囲を予約しても、正式な機械検査がGap Fixとの重複を報告できない状態である。
 
-修正時は`RESERVED_SPANS = ((OFF_HOOK, len(HOOK)), (OFF_CAVE, len(CAVE)))`相当を登録し、正式管理簿との一致と重複検査を通す必要がある。これは配置移動ではなく既存配置の登録修正だが、実装・台帳・検査を同一コミットで確定するべきである。
+`RESERVED_SPANS = ((OFF_HOOK, len(HOOK)), (OFF_CAVE, len(CAVE)))`を登録し、正式管理簿へhook 3Bを追加した。これにより両範囲が共通ROM重複検査と台帳照合の対象になった。
 
 ## 資料不一致
 
-コメント付きASMの統合経緯と`docs/i18n_string_inventory.md`の一部には旧cave `$C000`が残る。現行Python、正式ROM管理簿、PRG0配置資料はいずれも`$E879-$E900`で一致するため、旧記述が誤りである。今回は解析資料の修正は行っていない。
+コメント付きASMの統合経緯と`docs/i18n_string_inventory.md`に残っていた旧cave `$C000`を、現行`$E879-$E900`へ訂正した。単なるCPU address `$C000`の原作ASM行はGap Fixと無関係なので変更していない。
 
 ## 判定
 
@@ -128,12 +128,12 @@ X加算前はCLC、Y減算前はSECである。左と同様に縁cellがsolid、
 - 通常壁fallback: 正常
 - A/X/Y、zero page、stack収支: 正常
 - ON/OFF固定caveとpreflight: 正常
-- ROM予約の機械登録: 異常。`RESERVED_SPANS`欠落
-- 古い資料のcave address: 不一致
+- ROM予約の機械登録: 正常。hook/caveを登録済み
+- 古い資料のcave address: 現行`$E879`へ訂正済み
 
-## 修正優先度
+## 修正確認
 
-1. 中: hook/caveを`RESERVED_SPANS`へ登録し、共通ROM重複検査の対象にする。
-2. 低: コメント付きASMと文字列inventoryの旧`$C000`記述を現行`$E879`へ更新する。
-
-6502本体は現状維持が妥当である。
+- hook 3Bとcave 136Bの登録値を回帰テストで固定した。
+- ROM重複、正式管理簿照合、敵ID/runtime登録の共通検査を実行する。
+- 6502本体は正常なので変更していない。
+- ROM生成とemulator動的実行は行っていない。

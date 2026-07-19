@@ -38,7 +38,7 @@ ORIG       = bytes.fromhex("a0 0b 91")    # LDY #$0B / STA ($08),Y 先頭
 HOOK       = bytes.fromhex("4c 79 e8")    # JMP $E879
 OFF_CAVE   = 0x6889                       # $E879
 
-# v8 実機成功確定 cave (位置独立=内部絶対JMP無し、$C000へそのまま配置)
+# v8 実機成功確定 cave (位置独立=内部絶対JMP無し、$E879へ配置)
 CAVE = bytes.fromhex(
  "48ad82054a4a2907c906f004c902d072a9ff850bade4032902f02c"
  "ad890538e9044a4a4a4a850cad860538e90d29f0050ca8b90403101098186910a8"
@@ -49,6 +49,11 @@ CAVE = bytes.fromhex(
  "68250ba00b91086068a00b910860"
 )
 assert len(CAVE) == 136
+
+RESERVED_SPANS = (
+    (OFF_HOOK, len(HOOK)),
+    (OFF_CAVE, len(CAVE)),
+)
 
 
 class GapFixError(ValueError):
