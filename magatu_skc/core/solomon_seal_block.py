@@ -79,30 +79,12 @@ TRANSPARENT_SEAL_SUPPRESS_HELPER = bytes((
 ))
 assert len(TRANSPARENT_SEAL_SUPPRESS_HELPER) == 33
 
-_OLD_TRANSPARENT_SEAL_SUPPRESS_HELPER_BMI = bytes((
-    0xBD, 0xDB, 0x8E, 0x30, 0x19, 0xA8, 0xBD, 0x1B, 0x8F, 0x25, 0x7A,
-    0xF0, 0x11, 0xA9, 0x50, 0x99, 0x04, 0x03, 0xBC, 0x5B, 0x8F,
-    0xB9, 0x50, 0x07, 0x3D, 0x9B, 0x8F, 0x99, 0x50, 0x07, 0x60,
-))
-assert len(_OLD_TRANSPARENT_SEAL_SUPPRESS_HELPER_BMI) == 31
-
-TRANSPARENT_SEAL_PANEL_TAIL_HELPER_CAPACITY = 13
 TRANSPARENT_SEAL_PANEL_TAIL_HELPER = bytes((
     0x4C,
     CPU_PRG1_TRANSPARENT_SEAL_SUPPRESS_HELPER & 0xFF,
     CPU_PRG1_TRANSPARENT_SEAL_SUPPRESS_HELPER >> 8,
 ))
-TRANSPARENT_SEAL_PANEL_TAIL_HELPER_SLOT = (
-    TRANSPARENT_SEAL_PANEL_TAIL_HELPER
-    + bytes([0x00] * (TRANSPARENT_SEAL_PANEL_TAIL_HELPER_CAPACITY - len(TRANSPARENT_SEAL_PANEL_TAIL_HELPER)))
-)
 assert len(TRANSPARENT_SEAL_PANEL_TAIL_HELPER) == 3
-_OLD_CPU_PRG1_TRANSPARENT_SEAL_PANEL_TAIL_HELPER = 0x8FFA
-_OLD_TRANSPARENT_SEAL_PANEL_TAIL_HELPER = bytes((
-    0xA0, 0x0F, 0xB1, 0x00, 0x99, 0x40, 0x07, 0x88, 0x10, 0xF8,
-    0x4C, CPU_PRG1_TRANSPARENT_SEAL_SUPPRESS_HELPER & 0xFF,
-    CPU_PRG1_TRANSPARENT_SEAL_SUPPRESS_HELPER >> 8,
-))
 
 TRANSPARENT_SEAL_TABLE_LEN = 64
 
@@ -252,7 +234,7 @@ def _verify(rom_data: bytearray) -> None:
     need = max(
         OFF_SEAL_HELPER + len(SEAL_HELPER),
         OFF_PRG1_SEAL_BLOCK_TABLE + SEAL_BLOCK_TABLE_LEN,
-        OFF_PRG1_TRANSPARENT_SEAL_PANEL_TAIL_HELPER + len(TRANSPARENT_SEAL_PANEL_TAIL_HELPER_SLOT),
+        OFF_PRG1_TRANSPARENT_SEAL_PANEL_TAIL_HELPER + len(TRANSPARENT_SEAL_PANEL_TAIL_HELPER),
     )
     if rom_data is None or len(rom_data) < need:
         raise SolomonSealBlockError("ROM is too short for Solomon Seal block patch.")
@@ -273,10 +255,8 @@ def _verify(rom_data: bytearray) -> None:
             OFF_PRG1_TRANSPARENT_SEAL_SUPPRESS_HELPER + len(TRANSPARENT_SEAL_SUPPRESS_HELPER)
         ]
     )
-    suppress_is_old = suppress[:len(_OLD_TRANSPARENT_SEAL_SUPPRESS_HELPER_BMI)] == _OLD_TRANSPARENT_SEAL_SUPPRESS_HELPER_BMI
     if (
         suppress != TRANSPARENT_SEAL_SUPPRESS_HELPER
-        and not suppress_is_old
         and any(b not in (0xEA, 0x00) for b in suppress)
     ):
         raise SolomonSealBlockError(
@@ -286,13 +266,11 @@ def _verify(rom_data: bytearray) -> None:
     panel_tail = bytes(
         rom_data[
             OFF_PRG1_TRANSPARENT_SEAL_PANEL_TAIL_HELPER:
-            OFF_PRG1_TRANSPARENT_SEAL_PANEL_TAIL_HELPER + len(TRANSPARENT_SEAL_PANEL_TAIL_HELPER_SLOT)
+            OFF_PRG1_TRANSPARENT_SEAL_PANEL_TAIL_HELPER + len(TRANSPARENT_SEAL_PANEL_TAIL_HELPER)
         ]
     )
-    old_tail_overlap = panel_tail[:len(_OLD_TRANSPARENT_SEAL_PANEL_TAIL_HELPER) - 2] == _OLD_TRANSPARENT_SEAL_PANEL_TAIL_HELPER[2:]
     if (
-        panel_tail != TRANSPARENT_SEAL_PANEL_TAIL_HELPER_SLOT
-        and not old_tail_overlap
+        panel_tail != TRANSPARENT_SEAL_PANEL_TAIL_HELPER
         and any(b not in (0xEA, 0x00) for b in panel_tail)
     ):
         raise SolomonSealBlockError(
@@ -318,7 +296,7 @@ def apply(rom_data: bytearray, levels: list) -> list[str]:
         ),
         (
             OFF_PRG1_TRANSPARENT_SEAL_PANEL_TAIL_HELPER,
-            TRANSPARENT_SEAL_PANEL_TAIL_HELPER_SLOT,
+            TRANSPARENT_SEAL_PANEL_TAIL_HELPER,
             "Transparent Seal Panel loader tail helper",
         ),
         (OFF_SEAL_HELPER, SEAL_HELPER, "Solomon Seal block helper $EFF5"),

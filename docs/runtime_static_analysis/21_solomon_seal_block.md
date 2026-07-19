@@ -8,12 +8,12 @@
 
 Solomon Seal Blockは、原作が常に隠しitem値`$60`で配置する8個のSolomon's Sealを、room編集内容に応じて茶ブロック内`$A0`、白ブロック内`$E0`、透明breakable block内へ拡張するruntimeである。
 
-PRG0書込みhelper 11B、PRG1取得済み抑止helper 33B、room別5 table、StageExt loaderとの順序、全8 Seal bit/座標/mask対応を追跡した。6502本体の確定バグは見つからなかった。配置・writer上の確定問題は2件である。
+PRG0書込みhelper 11B、PRG1取得済み抑止helper 33B、room別5 table、StageExt loaderとの順序、全8 Seal bit/座標/mask対応を追跡した。6502本体の確定バグは見つからなかった。配置・writer上の確定問題2件は修正した。
 
 1. 管理簿と`RESERVED_SPANS`はfile `0x900C-0x900E`の3Bだけを使用中とするが、writerは`0x900C-0x9018`の13Bを検査・書込みする。空きとされる後続10Bを他runtimeが実際には使用できない。
 2. `_verify()`が旧31B helperと旧13B tail配置を明示的に受け入れる互換分岐を残しており、現在の救済禁止方針と一致しない。
 
-通常のアプリ生成mapper66 ROMでは、Seal書込み値、取得済み抑止、mask解除、stack・register・flag契約は成立する。ROM/RAM配置は変更していない。修正も行っていない。
+通常のアプリ生成mapper66 ROMでは、Seal書込み値、取得済み抑止、mask解除、stack・register・flag契約は成立する。tailの検査・書込み範囲を実処理3Bへ限定し、旧runtime受入れ分岐を削除した。ROM/RAM配置と6502 byte列は変更していない。
 
 ## 原作Seal配置処理
 
@@ -112,7 +112,7 @@ grid位置は`((y+1)<<4)|x`で、`$0304,Y`の原作位置表現と一致する�
 
 ## 確定した問題
 
-### [P2] 3B使用領域のwriter footprintが13Bある
+### [解消] 3B使用領域のwriter footprintが13Bある
 
 現行tail helper本体は次の3Bだけである。
 
@@ -124,17 +124,17 @@ $8FFC: JMP $8FDB
 
 しかし実装は`TRANSPARENT_SEAL_PANEL_TAIL_HELPER_SLOT`を13Bで作り、後ろ10Bを0で埋める。`_verify()`は13B全体を既定slot、旧配置、または全`00/EA`に限定し、`apply()`も13B全体を書き直す。
 
-従って別runtimeが管理簿上の空き10Bを使うと、Solomon Seal writerは競合として保存を拒否する。予約表では空きだがwriter契約では空きでない確定不一致である。現行tailは3Bだけを検査・書込みし、paddingをwriter対象から外すのが配置を変えない最小方針になる。
+従って別runtimeが管理簿上の空き10Bを使うと、Solomon Seal writerは競合として保存を拒否する。予約表では空きだがwriter契約では空きでない確定不一致だった。現行tail 3Bだけを検査・書込み対象とし、後続10Bを変更も検査もしないよう修正した。
 
-### [P3] 旧runtime受入れが救済禁止方針と不一致
+### [解消] 旧runtime受入れが救済禁止方針と不一致
 
 `_verify()`は `_OLD_TRANSPARENT_SEAL_SUPPRESS_HELPER_BMI` と、2Bずれた旧tailの重なりを明示判定して受け入れる。受入れ後は現行byte列へ上書きするため、通常の新規ROM動作には影響しない。
 
-ただし現在のプロジェクト方針は、正式版前の古い実験ROM・途中生成ROMを救う互換判定を持たないことである。この2分岐は目的が旧配置救済そのもので、現行方針と一致しない。機能修正とは分けて削除対象を判断すべきである。
+ただし現在のプロジェクト方針は、正式版前の古い実験ROM・途中生成ROMを救う互換判定を持たないことである。この2分岐は目的が旧配置救済そのものだったため削除し、現行helper、空き`00/EA`、原作hookだけを受け入れるよう修正した。
 
 ## Python writerの正常事項
 
-必要長はPRG0 helper、PRG1 table群、tail slotの最大終端`0x9019`まで検査する。`$BB90` hook、PRG0 helper、PRG1 suppress helper、tailを事前検証してからtableとcodeを書くため、通常の未知code競合では部分適用しない。
+必要長はPRG0 helper、PRG1 table群、3B tailの最大終端`0x900F`まで検査する。`$BB90` hook、PRG0 helper、PRG1 suppress helper、tailを事前検証してからtableとcodeを書くため、通常の未知code競合では部分適用しない。
 
 Seal block tableと4透明tableは現在のlevel内容から毎回全64Bを再構築する。未使用roomには0または`$FF`を明示し、前回room設定を残さない。
 
@@ -167,10 +167,11 @@ Seal block tableと4透明tableは現在のlevel内容から毎回全64Bを再�
 - StageExt/Panel/Special Item loaderとの実行順
 - `$50 -> $90`変換前のmask解除
 - 現行ROM code byte列と正式ROM/RAM管理簿の位置
+- tail直後10Bを検査・変更しないこと
+- 旧31B suppress helperを拒否すること
 
 ## 未実施
 
 - ROM生成
 - emulatorでの動的実行
-- 修正実装
 - ROM/RAM管理簿の変更
