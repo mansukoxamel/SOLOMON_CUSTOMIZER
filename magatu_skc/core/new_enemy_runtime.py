@@ -361,9 +361,31 @@ assert OFF_GHOSTB0_EXTENSION == OFF_ANIM_ENTRY + len(ANIM_ENTRY_RUNTIME)
 assert OFF_GHOSTB0_EXTENSION + len(GHOSTB0_EXTENSION_RUNTIME) == 0x3D9D
 
 
+def _mirror_enemy_code_needs_runtime(enemy_code: object) -> bool:
+    try:
+        enemy_id = int(enemy_code)
+    except (TypeError, ValueError):
+        return False
+    return (
+        enemy_id == ICE_FLAME_ID
+        or _neul84.FIRST_ID <= enemy_id <= _neul84.LAST_ID
+        or enemy_id in (FAIRY9C_ID, RADIANCE9D_ID, CHAOS9E_ID)
+        or PHANTOM_PRESET_FIRST_ID <= enemy_id <= PHANTOM_PRESET_LAST_ID
+        or _ghostb0.FIRST_ID <= enemy_id <= _ghostb0.LAST_ID
+        or _spark24.FIRST_ID <= enemy_id <= _spark24.LAST_ID
+        or _panel.is_panel_stage_variant_id(enemy_id)
+    )
+
+
 def levels_need_runtime(levels: list) -> bool:
     return (
-        _ice.levels_need_runtime(levels)
+        any(
+            _mirror_enemy_code_needs_runtime(code)
+            for lv in (levels or [])
+            for mirror in (getattr(lv, "demon_mirrors", []) or [])
+            for code in (getattr(mirror, "enemy_codes", []) or [])
+        )
+        or _ice.levels_need_runtime(levels)
         or any(
             _spark24.FIRST_ID <= int(getattr(enemy, "element_no", -1)) <= _spark24.LAST_ID
             for lv in (levels or [])

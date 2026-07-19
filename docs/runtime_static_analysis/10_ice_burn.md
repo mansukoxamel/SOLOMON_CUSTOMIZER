@@ -10,9 +10,9 @@ Ice Burnは敵ID `$82`を利用し、原作Flame AIとsetupをそのまま借り
 
 現行workstateの30Bがbuilderと一致することを確認した。原作AI/setupへの合流、initの呼出順、main-slot field、stack、固定frameとanimation停止を静的追跡し、6502本体の確定ロジックバグは見つからなかった。
 
-周辺validationの問題候補は1件である。standard ROM保存用`levels_need_runtime()`がdirect配置だけを調べ、Demon Mirrorのenemy set内にある`$82`を検出しない。通常の日本版入力はmapper66へ拡張されるため主経路には影響しないが、検出関数の契約としては不完全である。
+周辺validationで見つかった問題1件を修正した。standard ROM保存用`levels_need_runtime()`がdirect配置だけを調べ、Demon Mirrorのenemy set内にある`$82`を検出していなかったため、共通判定でミラー内の全追加敵IDを走査するようにした。通常の日本版入力はmapper66へ拡張されるため主経路には影響しないが、非expanded ROM保存時の拒否判定が完全になった。
 
-ROM/RAM配置は変更していない。修正も行っていない。
+ROM/RAM配置は変更していない。追加使用量は0Bで、正式ROM管理簿の更新もない。
 
 ## ID `$82`を使う理由
 
@@ -115,27 +115,27 @@ initはYを0、3、17、18、19へ変更し、Aを各定数でclobberする。�
 - stack操作とJSR/RTSは全経路で均衡する。
 - 現行workstateの30BはPython定義と一致する。
 
-## 問題候補
+## 修正した問題
 
 ### [P3] Demon Mirror内の`$82`をstandard ROM検出が見ない
 
-`ice_flame_runtime.levels_need_runtime()`は各levelの`enemies`だけを走査する。Demon Mirrorの`enemy_codes`に`$82`がある場合はFalseのままである。
+`ice_flame_runtime.levels_need_runtime()`は各levelの`enemies`だけを走査していた。Demon Mirrorの`enemy_codes`に`$82`がある場合はFalseのままだった。
 
 この関数は非expanded ROM保存時に「新敵IDはmapper66専用」と拒否するための集合判定から呼ばれる。通常編集対象の日本版ROMは読み込み時にmapper66へ拡張され、expanded保存ではruntimeが無条件配置されるため、通常主経路でruntimeが欠落する問題ではない。ただし、関数単体の「levelがIce Burn runtimeを必要とするか」という判定としては漏れである。
 
-修正はmirror enemy codeの走査追加だけで、ROM/RAM配置、空き、台帳に影響しない。9/26共通入口センターで他の追加敵にも同じ問題があるため、個別関数ではなく共通validationとしてまとめて直す方が一貫する。
+`new_enemy_runtime.levels_need_runtime()`へmirror enemy codeの共通走査を追加し、`$82`だけでなく全追加敵ID familyを同じ経路で検出するようにした。stock IDだけのミラーはFalseを維持する。ROM/RAM配置、空き、台帳には影響しない。
 
 ## 未検証点
 
 - Mesenで足場変化、Dana接触、通常火球撃破、死亡変換まで連続した動的traceは採取していない。
 - `D6 D4 5A`の実機画面とピッカー画像のpixel単位比較は行っていない。
-- standard ROM保存は通常サポート経路ではないため、Demon Mirror検出漏れの到達可能なUI操作列は確認していない。
+- standard ROM保存は通常サポート経路ではないため、修正後の拒否判定へ至るUI操作列は動的確認していない。
 
 ## 修正時の検証条件
 
-- direct配置とDemon Mirror生成の両方で`$82`を検出すること。
+- direct配置とDemon Mirror生成の両方で`$82`を検出すること（単体テスト済み）。
+- Demon Mirror内の各追加敵familyを検出し、stock IDだけならFalseを維持すること（単体テスト済み）。
 - `$82`のAIが原作`$A5A0`、setup groupが`$40`であること。
 - init後に`[0]=$E0`、`[1]=$82`、`[3]=$14`、`[17..19]=D6 D4 5A`となること。
 - `$80/$81/$83`の原作Flame/Burnを変更しないこと。
 - 死亡等でtypeが変わった後は固定animation分岐から外れること。
-

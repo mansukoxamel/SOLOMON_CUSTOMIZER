@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import unittest
+from types import SimpleNamespace
 
+from magatu_skc.core.element import ElementType
 from magatu_skc.core import new_enemy_runtime as target
 
 
@@ -67,6 +69,27 @@ class NewEnemyEntryCenterTests(unittest.TestCase):
                 (target._ice.ORIG_AI_DISPATCH_CALL, target.HOOK_AI_DISPATCH_CALL),
                 "AI hook",
             )
+
+    def test_mirror_enemy_sets_detect_every_new_enemy_family(self) -> None:
+        new_enemy_ids = (
+            0x82, 0x84, 0x87, 0x9C, 0x9D, 0x9E,
+            0xA0, 0xAF, 0xB0, 0xBB, 0xC0, 0xD7, 0xE0, 0xF7,
+        )
+        for enemy_id in new_enemy_ids:
+            with self.subTest(enemy_id=enemy_id):
+                mirror = SimpleNamespace(enemy_codes=[enemy_id])
+                level = SimpleNamespace(enemies=[], demon_mirrors=[mirror])
+                self.assertTrue(target.levels_need_runtime([level]))
+
+    def test_stock_mirror_enemy_set_does_not_require_new_enemy_runtime(self) -> None:
+        mirror = SimpleNamespace(enemy_codes=[0x14, 0x80, 0x81, 0x83])
+        level = SimpleNamespace(enemies=[], demon_mirrors=[mirror])
+        self.assertFalse(target.levels_need_runtime([level]))
+
+    def test_direct_ice_burn_still_requires_new_enemy_runtime(self) -> None:
+        enemy = SimpleNamespace(type=ElementType.ENEMY, element_no=0x82)
+        level = SimpleNamespace(enemies=[enemy], demon_mirrors=[])
+        self.assertTrue(target.levels_need_runtime([level]))
 
 
 if __name__ == "__main__":
