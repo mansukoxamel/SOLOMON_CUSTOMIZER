@@ -41,9 +41,6 @@ ORIG_ITEM_PICKUP_HOOK = bytes.fromhex("c9 38 b0")
 OFF_DRAW_HOOK = 0x1DF8          # CPU $9DE8
 CPU_DRAW_HOOK = 0x9DE8
 ORIG_DRAW_HOOK = bytes.fromhex("0a 0a a8")
-OLD_DRAW_HOOK = bytes.fromhex("4c f0 ec")
-PRE_PHILOSOPHER_STONE_DRAW_HOOK = bytes.fromhex("4c ac ec")
-PRE_CRYSTAL_DRAW_HOOK = bytes.fromhex("4c 0d ed")
 
 OFF_FIRE_HIT_HOOK = 0x0163     # CPU $8153
 CPU_FIRE_HIT_HOOK = 0x8153
@@ -78,35 +75,12 @@ CPU_PRG1_SPECIAL_ITEM_TABLE = 0x9300
 PRG1_SPECIAL_ITEM_TABLE_ROOMS = 64
 PRG1_SPECIAL_ITEM_TABLE_SIZE = PRG1_SPECIAL_ITEM_TABLE_ROOMS * SPECIAL_ITEM_CELLS_PER_ROOM
 
-OLD_RUNTIME = bytes.fromhex(
-    "c934f00cc935f024c938b0034c5fc560a5874ab0faa9342018c8a0408402a00d208d8e20"
-    "a3c720a3c7a90160a5874ab0dea9352018c8a0408402a00d208d8e20aac720aac7a90160"
-    "c934f00ac935f0120a0aa84ceb9da9db8506a9ec8507a900f0eea9df8506a9ec8507a900"
-    "f0e2606566679c9d9e9f"
-)
-PRE_PHILOSOPHER_STONE_RUNTIME = bytes.fromhex(
-    "488600a00fb94007c500f00b8810f668c938b01d4c5fc568c915f00bc918f012"
-    "c938b00d4c5fc5205fc5a502f00320a3c760205fc5a502f005a9208d71076048"
-    "a00fb94007c500f00a8810f6680a0aa84ceb9d68c915f006c918f00ed0efa9e3"
-    "8506a9ec8507a900f0e3a9e78506a9ec8507a900f0d7606566679c9d9e9f"
-)
-PRE_CRYSTAL_RUNTIME = bytes.fromhex(
-    "488600a00fb94007c500f00b8810f668c938b0214c5fc568c915f00fc918f016"
-    "c908f01fc938b00d4c5fc5205fc5a502f00320a3c760205fc5a502f005a920"
-    "8d710760205fc5a502f055a210ec7c07f02fbd0403c9409028c9f8b024293"
-    "fc906f00cc908901ac934b016c910f0129d04038600860285038a48a5032053"
-    "9d68aae8e0d0d0c7ad7c078502a902850320539dae7c07a9469d0403a940"
-    "8502a9016048a00fb94007c500f00a8810f6680a0aa84ceb9d68c915f00a"
-    "c918f012c908f01ad0eba9548506a9ed8507a900f0dfa9588506a9ed8507a"
-    "900f0d3a95c8506a9ed8507a900f0c7606566679c9d9e9f70717273"
-)
-
-
 class _Asm:
     def __init__(self):
         self.data = bytearray()
         self.labels: dict[str, int] = {}
         self.fixups: list[tuple[int, str]] = []
+        self.abs_fixups: list[tuple[int, str]] = []
 
     def label(self, name: str) -> None:
         self.labels[name] = len(self.data)
@@ -121,7 +95,11 @@ class _Asm:
         self.b(opcode, 0x00)
         self.fixups.append((len(self.data) - 1, label))
 
-    def finish(self) -> bytes:
+    def abs_label(self, opcode: int, label: str) -> None:
+        self.b(opcode, 0x00, 0x00)
+        self.abs_fixups.append((len(self.data) - 2, label))
+
+    def finish(self, cpu_base: int = 0) -> bytes:
         for pos, label in self.fixups:
             if label not in self.labels:
                 raise AssertionError(f"missing label: {label}")
@@ -129,6 +107,12 @@ class _Asm:
             if not -128 <= delta <= 127:
                 raise AssertionError(f"branch out of range: {label} {delta}")
             self.data[pos] = delta & 0xFF
+        for pos, label in self.abs_fixups:
+            if label not in self.labels:
+                raise AssertionError(f"missing label: {label}")
+            target = cpu_base + self.labels[label]
+            self.data[pos] = target & 0xFF
+            self.data[pos + 1] = target >> 8
         return bytes(self.data)
 
 
@@ -146,6 +130,7 @@ def _build_item_runtime() -> bytes:
     a.rel(0x10, "scan")                   # BPL scan
     a.label("normal")
     a.b(0x68)                             # PLA original cell value
+    a.label("stock_fallback")
     a.b(0xC9, 0x38)                       # original $C55B range check
     a.rel(0xB0, "rts")
     a.abs(0x4C, CPU_STOCK_ITEM_CHECK_AFTER_RANGE)
@@ -160,9 +145,7 @@ def _build_item_runtime() -> bytes:
     a.rel(0xF0, "stone")
     a.b(0xC9, ITEM_CRYSTAL_MAX_RANGE_BASE)
     a.rel(0xF0, "crystal")
-    a.b(0xC9, 0x38)
-    a.rel(0xB0, "rts")
-    a.abs(0x4C, CPU_STOCK_ITEM_CHECK_AFTER_RANGE)
+    a.rel(0xD0, "stock_fallback")
 
     a.label("fire2")
     a.abs(0x20, CPU_STOCK_ITEM_CHECK_AFTER_RANGE)  # stock pickup/effect once
@@ -236,7 +219,11 @@ def _build_item_runtime() -> bytes:
     a.b(0xE0, 0xD0)
     a.rel(0xD0, "reveal_loop")
 
-    a.abs(0xAE, RAM_DOOR_CELL)             # skip hidden-door redraw after the door was opened
+    a.abs(0xAE, RAM_DOOR_CELL)             # redraw only a visible hidden-door cell
+    a.b(0xE0, 0x10)
+    a.rel(0x90, "stone_done")
+    a.b(0xE0, 0xD0)
+    a.rel(0xB0, "stone_done")
     a.b(0xBD, 0x04, 0x03)                  # LDA $0304,X
     a.b(0xC9, 0x07)
     a.rel(0xF0, "stone_done")
@@ -295,27 +282,25 @@ def _build_draw_runtime(
     a.label("fire2")
     a.b(0xA9, fire_metatile_cpu & 0xFF, 0x85, 0x06)
     a.b(0xA9, fire_metatile_cpu >> 8, 0x85, 0x07)
-    a.b(0xA9, 0x00)
-    a.rel(0xF0, "normal")
+    a.abs_label(0x4C, "custom_normal")
 
     a.label("fairy2")
     a.b(0xA9, fairy_metatile_cpu & 0xFF, 0x85, 0x06)
     a.b(0xA9, fairy_metatile_cpu >> 8, 0x85, 0x07)
-    a.b(0xA9, 0x00)
-    a.rel(0xF0, "normal")
+    a.abs_label(0x4C, "custom_normal")
 
     a.label("stone")
     a.b(0xA9, stone_metatile_cpu & 0xFF, 0x85, 0x06)
     a.b(0xA9, stone_metatile_cpu >> 8, 0x85, 0x07)
-    a.b(0xA9, 0x00)
-    a.rel(0xF0, "normal")
+    a.abs_label(0x4C, "custom_normal")
 
     a.label("crystal")
     a.b(0xA9, crystal_metatile_cpu & 0xFF, 0x85, 0x06)
     a.b(0xA9, crystal_metatile_cpu >> 8, 0x85, 0x07)
+    a.label("custom_normal")
     a.b(0xA9, 0x00)
     a.rel(0xF0, "normal")
-    return a.finish()
+    return a.finish(CPU_DRAW_RUNTIME)
 
 
 def _build_fire_hit_runtime() -> bytes:
@@ -455,6 +440,12 @@ def _build_loader_helper(base_loader: bytes) -> bytes:
     return a.finish()
 
 
+def _build_current_loader_helper() -> bytes:
+    from . import panel_monster_stage_variant
+
+    return _build_loader_helper(panel_monster_stage_variant.RUNTIME_LOADER)
+
+
 def _expect(data: bytes | bytearray, off: int, allowed: tuple[bytes, ...], name: str) -> None:
     size = len(allowed[0])
     cur = bytes(data[off:off + size])
@@ -469,23 +460,6 @@ def _expect(data: bytes | bytearray, off: int, allowed: tuple[bytes, ...], name:
 def _expect_blank_or(data: bytes | bytearray, off: int, blob: bytes, name: str) -> None:
     cur = bytes(data[off:off + len(blob)])
     if cur == blob or all(b in (0xEA, 0x00) for b in cur):
-        return
-    old = OLD_RUNTIME
-    if off == OFF_RUNTIME and bytes(data[off:off + len(old)]) == old:
-        return
-    pre_stone = PRE_PHILOSOPHER_STONE_RUNTIME
-    if (
-        off == OFF_RUNTIME
-        and bytes(data[off:off + len(pre_stone)]) == pre_stone
-        and all(b in (0xEA, 0x00) for b in data[off + len(pre_stone):off + len(blob)])
-    ):
-        return
-    pre_crystal = PRE_CRYSTAL_RUNTIME
-    if (
-        off == OFF_RUNTIME
-        and bytes(data[off:off + len(pre_crystal)]) == pre_crystal
-        and all(b in (0xEA, 0x00) for b in data[off + len(pre_crystal):off + len(blob)])
-    ):
         return
     raise Fire2ItemRuntimeError(
         f"{name} area is not blank at 0x{off:X}: expected EA/00 or existing runtime, got {cur.hex(' ')}"
@@ -507,7 +481,7 @@ def apply(rom_data: bytearray, levels: list | None = None) -> list[str]:
     _expect(
         rom_data,
         OFF_DRAW_HOOK,
-        (ORIG_DRAW_HOOK, OLD_DRAW_HOOK, PRE_PHILOSOPHER_STONE_DRAW_HOOK, PRE_CRYSTAL_DRAW_HOOK, HOOK_DRAW),
+        (ORIG_DRAW_HOOK, HOOK_DRAW),
         "$9DE8 special item draw hook",
     )
     _expect_blank_or(rom_data, OFF_RUNTIME, RUNTIME, "special item runtime")
@@ -532,7 +506,7 @@ def apply(rom_data: bytearray, levels: list | None = None) -> list[str]:
             "Panel Variant PRG1 runtime loader slot does not match expected entry bytes."
         )
 
-    loader_helper = _build_loader_helper(panel_monster_stage_variant.RUNTIME_LOADER)
+    loader_helper = CURRENT_PRG1_LOADER_HELPER
     _expect_blank_or(
         rom_data,
         OFF_PRG1_LOADER_HELPER,
@@ -573,20 +547,10 @@ def apply(rom_data: bytearray, levels: list | None = None) -> list[str]:
     return changed
 
 
+CURRENT_PRG1_LOADER_HELPER = _build_current_loader_helper()
+
 PRG1_RESERVED_SPANS = (
-    (OFF_PRG1_LOADER_HELPER, len(_build_loader_helper(bytes.fromhex(
-        "a9 ff 8d 2a 07 8d 7f 07"
-        "a9 00 8d 23 07 8d 24 07 8d 29 07 8d 7a 07"
-        "ad 28 04 aa bd 9b 8e 8d 7d 07"
-        "8a 0a 0a 0a 85 00"
-        "a9 88 69 00 85 01"
-        "a0 00 b1 00 29 10 0a 0a 0a 8d 7a 07"
-        "a0 06 b1 00 8d 78 07"
-        "c8 b1 00 8d 7c 07"
-        "a0 02 b1 00 8d 2b 07"
-        "c8 b1 00 8d 7e 07"
-        "4c 66 8a"
-    )))),
+    (OFF_PRG1_LOADER_HELPER, len(CURRENT_PRG1_LOADER_HELPER)),
     (OFF_PRG1_SPECIAL_ITEM_TABLE, PRG1_SPECIAL_ITEM_TABLE_SIZE),
 )
 
@@ -596,9 +560,9 @@ RESERVED_SPANS = (
 )
 
 
-assert len(ITEM_RUNTIME) == 210
-assert len(DRAW_RUNTIME) == 87
+assert len(ITEM_RUNTIME) == 213
+assert len(DRAW_RUNTIME) == 84
 assert len(SPECIAL_ITEM_RUNTIME) == 313
 assert len(FIRE_HIT_RUNTIME) == 13
 assert len(RUNTIME) == 326
-assert len(PRE_CRYSTAL_RUNTIME) == 243
+assert len(CURRENT_PRG1_LOADER_HELPER) == 140

@@ -8,7 +8,6 @@
 
 Special Item runtimeは、通常item IDと部屋別16cell位置表を組み合わせ、Firejar x2、Fairy x2、Philosopher's Stone、Crystal max fire rangeの4効果を実現する。PRG0には取得、描画、通常火球hitの326Bを置き、PRG1にはroom loader 140Bと64room×16B表を置く。
 
-現行workstateでPRG0本体、4hook/patch、PRG1 loader helper、loader entry、range capがbuilderと一致することを確認した。全builderのbranch、stack、原作fallbackを静的追跡した。
 
 確定問題・要仕様確認は5件である。
 
@@ -18,7 +17,6 @@ Special Item runtimeは、通常item IDと部屋別16cell位置表を組み合�
 4. 旧runtime 3世代と旧draw hook 3世代を受け入れる救済経路が残る。
 5. PRG1予約長が現行Panel loaderではなくhard-coded snapshotから算出され、将来のloader変更で実書込長と予約長がずれ得る。
 
-ROM/RAM配置は変更していない。修正もまだ行っていない。
 
 ## データ方式
 
@@ -39,6 +37,19 @@ room loaderは現在room番号`$0428`から次のpointerを作る。
 low  = room << 4
 high = $93 + (room >> 4)
 ```
+
+## 修正状況（2026-07-19）
+
+確定問題5件は処理済みである。
+
+- Stoneの扉再描画は、door cellがvisible範囲`$10-$CF`の時だけ実行する。扉削除値`$00`ではgridへ触らない。
+- item fallbackを5B、drawの共通tailを3B短縮し、上記guardの8Bを同じ領域内へ収めた。item runtimeは213B、draw runtimeは84Bとなり、PRG0全体は326Bのままである。
+- Crystal終了時は、base `$1B`の恒久効果`+$04`適用後の値へ戻す仕様として説明を訂正した。
+- 通常range itemの成長上限`#$0F`は意図した仕様として維持する。Crystalの一時最大値`$1F1F`とは別の上限である。
+- 旧runtime 3世代と旧draw hook 3世代の受入れ経路を削除した。
+- PRG1 loader helper本体と予約長は、同じ現行Panel loaderから生成するよう統一した。
+
+以下の「確定した問題・要仕様確認」は、修正前の解析結果と判断理由を記録したものである。
 
 これによりPRG1 CPU `$9300 + room*16`を指し、16Bを逆順でRAM `$0740-$074F`へコピーする。
 
@@ -182,8 +193,8 @@ Fire2 writerはPanel loader slot先頭3Bだけを`JMP $9270`へ変える。helpe
 
 | file | CPU | size | 内容 |
 |---:|---:|---:|---|
-| `0x4010-0x40E1` | `$C000-$C0D1` | 210B | item取得runtime |
-| `0x40E2-0x4138` | `$C0D2-$C128` | 87B | 描画runtime |
+| `0x4010-0x40E4` | `$C000-$C0D4` | 213B | item取得runtime |
+| `0x40E5-0x4138` | `$C0D5-$C128` | 84B | 描画runtime |
 | `0x4139-0x4148` | `$C129-$C138` | 16B | 4 metatile |
 | `0x4149-0x4155` | `$C139-$C145` | 13B | 通常火球hit helper |
 
@@ -214,7 +225,7 @@ Fire2 writerはPanel loader slot先頭3Bだけを`JMP $9270`へ変える。helpe
 | 入口 | A | X | Y | stack/戻り |
 |---|---|---|---|---|
 | item `$C000` | live cellを受け、各effectでclobber | cell indexを保持、Stoneでscan | table/effectでclobber | 入口PHAは全経路で1回PLA |
-| draw `$C0D2` | live cellを受け、原作metatile index計算へ渡す | custom branch以外保持 | table scan後metatile index | 入口PHAは全経路で1回PLA |
+| draw `$C0D5` | live cellを受け、原作metatile index計算へ渡す | custom branch以外保持 | table scan後metatile index | 入口PHAは全経路で1回PLA |
 | fire hit `$C139` | fire typeを読みclobber | 保持 | 保持 | JSR/RTS 1対1 |
 | Stone draw loop | item ID | scan Xをpush/popで復元 | `$9D53`でclobber可 | cellごとにPHA/PLA 1対1 |
 | PRG1 loader | clobber | base loaderでclobber | copy loopでclobber | inline tail、local stack操作なし |
@@ -288,11 +299,9 @@ writerはSpecial itemの有無に関係なく`$C7C6`を`$02→$0F`へ変える�
 - 開扉後に隠し扉を閉じた表示へ戻さないguard
 - draw runtime全経路のPHA/PLA収支
 - PRG1 loaderがPanel/StageExt処理をinlineして維持すること
-- 現行workstateの本体、hook、loader、range capがbuilderと一致
 - 正式ROM/RAM管理簿と現行予約の一致
 
 ## 未実施
 
 - ROMを新規生成していない。
 - Mesenで4itemの通常/隠し/各block内取得、複数Fairy x2、Crystal取得・死亡・次面、扉削除面Stoneを新規動的試験していない。
-- 問題5件は記録のみで修正していない。

@@ -65,7 +65,8 @@ In v0.9.39, breaking changes were made to additional enemy IDs and runtime place
 - Firejar x2 / Fairy x2 / Philosopher's Stone / Crystal max fire range の特殊アイテム指定が、Ctrl+左ドラッグで通常アイテム本体と一緒に移動するようにした。
 
 ## v0.9.32 (2026-07-10) Crystal max fire rangeを一時強化型へ変更
-- Crystal max fire range取得時に火球距離を一時的なMax値へ変更し、ステージ開始時に取得前の成長値へ復元するruntimeへ整理した。
+- Crystal max fire range取得時は火球距離を一時的に`$1F1F`へ変更し、ステージ開始時に基礎アイテム`$1B`の恒久効果`+$04`適用後の成長値へ復元する。
+- 通常の飛距離アイテムは、成長上限を原作の`#$02`から意図的に`#$0F`へ引き上げている。Crystalの一時最大値`$1F1F`とは別の上限として扱う。
 - 通常火球は敵ヒット時に消滅するよう、通常火球ヒット処理を追加した。Super Fireの貫通挙動は維持する。
 - 旧Panel Monster予約を現行ROM占有から外し、`$C000-$C1FF` 周辺の空き判定とROM/RAM管理簿を更新した。
 
