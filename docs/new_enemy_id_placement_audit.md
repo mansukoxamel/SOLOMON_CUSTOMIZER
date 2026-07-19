@@ -867,15 +867,15 @@ Neul Twin Cannonは移動方向だけを上・下で分ければ完結する。�
 
 ### 1. 基本情報
 
-- 現在のID: `$89`
+- 現在のID: `$9E`
 - ID方式: 専用ID
 - モデル敵: Dragon右 `$68`
 - 初期方向: 右
 - 方向別ID: 作らない
 - 速度別・追加派生: 作らない
 - 必要ID数: 1
-- 現在の判断: 単独1IDで確定する。最終IDは全体配置図まで保留する。
-- 実装本体: `magatu_skc/core/flying_dragon89_runtime.py`
+- 現在の判断: `$9E`の単独1IDで確定。
+- 実装本体: `magatu_skc/core/chaos_dragon9e_runtime.py`
 - 共通分類: `magatu_skc/core/new_enemy_runtime.py`
 
 ### 2. ID配置の根拠
@@ -888,20 +888,20 @@ Chaos Dragonは初期状態を右向きで開始するが、原作Dragon AIの�
 
 したがって右開始の単独1IDだけを用意する。方向IDを揃えるためだけに左向きIDを追加しない。
 
-単独IDの配置場所と隣接予約の有無は、全敵の最終配置図で決める。
+単独IDは`$9E`に確定済みである。
 
 ### 3. 新敵ID共通入口センター
 
-現行 `$89` は次の3入口で専用分類され、animationは原作処理を使う。
+現行 `$9E` は次の3入口で専用分類され、animationは原作処理を使う。
 
 | 入口 | 現行処理 | 完成形での方針 |
 |---|---|---|
-| AI | `$89` をChaos Dragon AI入口へ分岐 | 単独ID比較を維持する候補 |
-| setup | `$89` をDragon metadata読込へ分岐 | 単独ID比較を維持する候補 |
-| init | `$89` を専用initへ分岐 | 単独ID比較を維持する候補 |
-| animation | 専用分類なし。原作 `$8789` を使用 | 専用分類なしを維持する |
+| AI | `$9E` をChaos Dragon AI入口へ分岐 | 単独ID比較を維持 |
+| setup | `$9E` をDragon metadata読込へ分岐 | 単独ID比較を維持 |
+| init | `$9E` を専用initへ分岐 | 単独ID比較を維持 |
+| animation | 専用分類なし。原作 `$8789` を使用 | 専用分類なしを維持 |
 
-方向別分類は追加しない。最終IDが移動した場合はAI/setup/initの比較値だけを一括更新する。
+方向別分類は追加しない。Demon Mirror内の`$9E`も共通runtime必要判定で検出する。
 
 ### 4. runtime処理
 
@@ -909,13 +909,13 @@ Chaos Dragonは初期状態を右向きで開始するが、原作Dragon AIの�
 
 - setup/animation group `$34`、原作Dragon右 `$68` のvisual classを使用する。
 - group `$34` を `$0E` へ保存し、原作animation setupがDragon metadataを使えるようにする。
-- metadata読込自体はindex `$00` を使用し、初期Y速度を書かない構成である。
+- speed metadataはgroup 0を使う。state 5 setupが同frameにY速度`$80`を書き、落下・貫通挙動を開始する。
 
 #### init
 
-- 共通init入口がstackへ保存した、custom type `$89` 由来のbehaviorを破棄する。
-- status `$C0`、無重力activeを設定する。
-- main-slot `[5]` の初期Y速度を `$00` にする。
+- 共通init入口がstackへ保存した、custom type `$9E` 由来のbehaviorを破棄する。
+- status `$C0`を設定する。
+- property前段が書いたmain-slot `[5]` のY速度を一旦`$00`にする。同frameのstate 5 setupで`$80`へ更新される。
 - behavior `$14`、Dragon state 5・右方向で原作init writer `$9D1C` へ接続する。
 
 #### AI
@@ -937,9 +937,9 @@ Chaos Dragonは初期状態を右向きで開始するが、原作Dragon AIの�
 - CPU: `$EEA4-$EEC0`
 - 使用量: 29B
 - 内訳: setup 10B、init 16B、AI 3B
-- 直前の現行予約: Neul Twin Cannon `0x6E16-0x6EB3`
-- 直後の現行予約: Back Fire `0x6ED1-0x6F52`
-- 本体前後の連続空き: 0B
+- 直前の現行runtime予約なし領域: `0x6E19-0x6EB3`、155B
+- 直後の現行予約: Neul A/B `0x6ED1-0x6FA4`
+- 本体直後の空き: 0B
 
 #### RAM
 
@@ -951,7 +951,7 @@ Chaos Dragonは初期状態を右向きで開始するが、原作Dragon AIの�
 #### 成立している点
 
 - 右向きDragonの見た目と原作Dragon AIを最小runtimeで再利用している。
-- status `$C0` とY速度 `$00` により、原作Dragonの通常出現降下を省いた飛行型として開始する。
+- 専用init後のstate 5 setupがgroup 0のY速度`$80`を設定し、落下・貫通・不規則な火吹きという現行仕様を開始する。
 - behavior `$14` により、出現stateを経由せずDragonの主行動state 5へ直接入る。
 - 方向変更をAIへ任せるため、単独IDという仕様と実装が一致している。
 - runtimeはステージ使用有無に関係なく完成形ROMへ毎回書かれる。
@@ -965,33 +965,32 @@ Chaos Dragonは初期状態を右向きで開始するが、原作Dragon AIの�
 - AI本体は3Bの原作AI jumpだけなので、削減対象となる重複はほぼない。
 - setup 10Bとinit 16Bを入口センターへインライン化するとPRG1は減るが、PRG0入口センターが増える。
 - PRG0を狭い通路として扱う方針では、現行の小さなPRG1本体を維持する方がよい候補である。
-- 最終runtime再配置時は29Bを前後のruntimeと詰めるが、処理自体を複雑にして数B削る必要はない。
+- 現行29Bは固定テストを追加済みで、処理を複雑にして数B削る必要はない。
 
 #### 要確認事項
 
-- 原作Dragon AIには通常Dragonの落下・寿命消滅stateがある。
-- Chaos Dragonは無重力かつstate 5から始まるため、その消滅stateへ実際に入るかは今回未検査である。
+- 原作Dragon AIには通常Dragonの寿命・消滅処理がある。
+- Chaos Dragonはstate 5から始まり、静的に到達する通常graphはstate 5とstate 3である。外部status変更や画面外座標wrapを含む長時間動作は未検査である。
 - ユーザー確認済みの頻繁な左右反転は仕様として扱うが、長時間動作、壁際、足場崩壊、Dana接近時の全state遷移は別途確認する。
 
 ### 7. 鍵持ち判定
 
-- Chaos Dragonはダーナ火球で撃破可能な敵として扱うため、鍵持ち指定可能候補である。
-- ただし原作Dragon AIの自然消滅stateへ入る場合、その経路は鍵drop hookを通らない可能性がある。
-- 鍵持ち可否を最終確定する前に、Chaos Dragonが火球撃破以外で消滅する経路を実機確認する。
-- 自然消滅しないことを確認できれば、通常火球撃破の既存 `$C267` 鍵drop hookだけでよい。
+- Chaos Dragonはダーナ火球で撃破可能であり、鍵持ち指定可能である。
+- state 5/3の静的graphには自然消滅state 1への遷移がなく、通常火球撃破は既存`$C267`鍵drop hookを通る。
+- 現行設定では鍵持ち指定可能。長時間動作と実機での鍵出現は未確認として残す。
 
 ### 8. 検査状況
 
 | 検査 | 状態 | 備考 |
 |---|---|---|
-| 現行ID・名称確認 | 済み | `$89` Chaos Dragon |
+| 現行ID・名称確認 | 済み | `$9E` Chaos Dragon |
 | 必要ID数 | 仕様確定 | 右開始の単独1ID |
-| 現行runtime静的解析 | 済み | 29B本体を確認 |
+| 現行runtime静的解析 | 済み | 29B本体を確認、固定テスト追加済み |
 | 共通入口静的解析 | 済み | AI/setup/initあり、animation専用分類なし |
 | 左右反転仕様 | ユーザー実機確認済み | 方向別IDは不要 |
 | 現行保存ROMの本体バイト列比較 | 未検査 | 現行完成形ROMを新規出力して比較が必要 |
-| 長時間・壁際・足場崩壊 | 未検査 | 自然消滅stateへ入るか確認する |
-| 火球撃破・鍵出現 | 未検査 | 鍵持ち可否の確定に必要 |
+| 長時間・壁際・足場崩壊 | 未検査 | 外部要因を含むstate遷移を確認する |
+| 火球撃破・鍵出現 | 未検査 | 静的経路は成立、実機で最終確認する |
 | 原作Dragon副作用 | 未検査 | 原作Dragonを残した比較ROMが必要 |
 
 未検査項目はOK扱いにしない。
@@ -1002,12 +1001,12 @@ Chaos Dragonは初期状態を右向きで開始するが、原作Dragon AIの�
 - 初期方向: 右だけ
 - 左向きID: 作らない
 - 速度違い・追加派生: 作らない
-- ID配置: 単独1ID。最終番号と隣接予約は全体配置図まで保留
+- ID配置: `$9E`の単独1IDで確定
 - 入口センター: AI/setup/initの単独分類、animation専用分類なし
-- runtime: 現行29Bを維持する候補
+- runtime: 現行29Bを維持
 - 方向反転: 原作Dragon AIによる頻繁な左右反転を仕様として維持
-- 鍵持ち敵仕様: 指定可能候補。自然消滅経路の有無を確認後に確定
-- 実装状態: 未変更
+- 鍵持ち敵仕様: 指定可能。通常撃破経路は鍵drop hookを通る
+- 実装状態: 6502本体変更なし。コメント・監査資料・固定テストを更新
 
 ---
 

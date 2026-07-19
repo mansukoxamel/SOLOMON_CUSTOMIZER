@@ -8,15 +8,15 @@
 
 Chaos Dragonは原作Dragonの見た目とAIを使い、speed metadataだけを別groupへ接続して落下・貫通・不規則な火吹き挙動を作る敵である。専用本体はsetup 10B、init 16B、AI 3Bの計29Bで、file `0x6EB4-0x6ED0`、CPU `$EEA4-$EEC0`に置かれる。専用animation本体はない。
 
-builderの29Bは既存mapper66保存ROM 3本の同範囲と一致した。新敵共通入口、原作property前段、entity setup、共通物理、Dragon state dispatch、火炎child、通常撃破・鍵dropを追跡し、6502本体の確定ロジックバグは見つからなかった。
+builderの29Bは既存mapper66保存ROM 3本の同範囲と一致した。新敵共通入口、原作property前段、entity setup、共通物理、Dragon state dispatch、火炎child、通常撃破・鍵dropを追跡し、6502本体の確定ロジックバグは見つからなかった。現行29Bを固定する単体テストを追加した。
 
-問題候補・文書不一致は3件である。
+確認事項は次の3件である。
 
 1. type `$9E`は原作property table範囲外`$A32F=$A3`を読む。専用initで現行副作用を打ち消すが、表外byteへの構造的依存は残る。
-2. setupの「Y速度を書かない」とinitの「初期Y速度0」は実際の最初のsetup後状態を表していない。state 5 setupは同frameにY速度`$80`を書き直す。挙動はCHANGELOGの仕様と一致するため、runtimeバグではなくコメント・監査資料の不一致である。
-3. standard ROM保存用`levels_need_runtime()`がDemon Mirror内の`$9E`を検出しない。
+2. setupの「Y速度を書かない」とinitの「初期Y速度0」は実際の最初のsetup後状態を表していなかった。state 5 setupは同frameにY速度`$80`を書き直すため、コードコメントと監査資料を現物に合わせて訂正した。
+3. standard ROM保存用`levels_need_runtime()`のDemon Mirror内`$9E`検出漏れは、9/26の共通入口センター修正で解消済みである。
 
-ROM/RAM配置は変更していない。修正も行っていない。
+ROM/RAM配置と6502バイト列は変更していない。
 
 ## 入口構成
 
@@ -175,17 +175,15 @@ type `$9E`は原作property tableの外を読む。現行`$A3`が残すstatus、
 
 ただし`$A32F`、原作property前段、共通init hook位置が変わると副作用が変わる。追加敵propertyを正式分類する共通修正は`$A2CC`周辺のSpark/Panelを含むため、Chaos Dragon局所修正として扱わない。
 
-### [P3] setup/initコメントと実速度の不一致
+### [解消] setup/initコメントと実速度の不一致
 
 `chaos_dragon9e_runtime.py`はsetupを「speed metadata with no vertical write」、initを「no initial vertical movement」と説明する。しかしgroup 0のstate 5 entryはY速度`$80`を書き、最初の共通物理前に有効になる。
 
-実挙動はCHANGELOGの「落下・貫通・不規則な火吹き」と一致するため、コード変更対象ではない。修正するならコメントとID配置監査資料を実際の速度表に合わせるだけで、ROM/RAM、空き、台帳に影響しない。
+実挙動はCHANGELOGの「落下・貫通・不規則な火吹き」と一致する。コードコメントとID配置監査資料を実際の速度表に合わせて訂正した。6502バイト列、ROM/RAM、空き、台帳には影響しない。
 
-### [P3] Demon Mirror内の`$9E`をstandard ROM検出が見ない
+### [解消] Demon Mirror内の`$9E`をstandard ROM検出が見ない
 
-`levels_need_runtime()`はdirect enemyだけを走査し、Demon Mirrorの`enemy_codes`を見ない。expanded mapper66保存ではruntime常設のため主経路には影響しないが、非expanded ROM拒否用validationとして漏れている。
-
-修正はlevel走査だけでROM/RAM配置、空き、台帳に影響しない。9/26の共通validation修正へまとめる候補である。
+9/26の共通入口センター修正で、Demon Mirrorの`enemy_codes`も追加敵全familyについて走査するようになった。`$9E`をmirror内だけに設定したlevelも`new_enemy_runtime.levels_need_runtime()`で検出される単体テストがある。
 
 ## 未検証点
 
