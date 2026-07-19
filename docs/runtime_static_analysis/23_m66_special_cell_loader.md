@@ -8,12 +8,12 @@
 
 mapper66特殊セルloaderは、roomの192 cellを直接PRG1から読むl_a2へ複数patchを加え、`$C0-$FF`特殊cellの保持、white/cracked in-block itemのside data copy、死亡respawn、初期描画class、白block内鍵を成立させるruntime群である。
 
-4 helper計204B、l_a2内2 patch、原作描画hook、鍵patch、24B mask＋8B position listを命令単位で追跡した。確定問題は2件である。
+4 helper計203B、l_a2内2 patch、原作描画hook、鍵patch、24B mask＋8B position listを命令単位で追跡した。確定問題2件は修正した。
 
-1. 32B side-data copy helper `$8E70`のroom pointer high計算が誤っている。Stage 1～6だけ正しく、Stage 7～53は1～4 page前の誤ったデータを`$0750-$076F`へコピーする。visible/cracked in-block itemが大半のstageで成立しない重大な6502バグである。
-2. preflightが複数世代の旧l_a2 patchを明示的に受け入れ、現行へ変換する互換分岐を残しており、現在の救済禁止方針と一致しない。
+1. 32B side-data copy helper `$8E70`のroom pointer high計算を、`$F84F + room*32`の16bit加算へ修正した。全53 roomで期待pointerと一致する。
+2. preflightは初期変換直後のmapper66 base loaderと現行形だけを受け入れ、中間世代のl_a2 patch受入れを削除した。
 
-respawn変換、cracked one-shot復元、初期描画mask classifier、白block内鍵の各命令列自体は成立する。現行ROM byte列はPython定数と一致しているが、それはpointer計算バグもそのまま書かれていることを意味する。ROM/RAM配置は変更していない。修正も行っていない。
+respawn変換、cracked one-shot復元、初期描画mask classifier、白block内鍵の各命令列自体は成立する。side-data helperは43Bから42Bへ縮み、file `0x8EAA`の1Bを空きとして解放した。runtime移動、PRG0/RAM消費はない。
 
 ## runtime構成
 
@@ -21,7 +21,8 @@ respawn変換、cracked one-shot復元、初期描画mask classifier、白block�
 |---:|---:|---:|---|
 | `0x801F-0x804F` | PRG1 `$800F-$803F` | 49B | l_a2 respawn入口を`JSR $9009`へ置換 |
 | `0x80A2-0x80C3` | PRG1 `$8092-$80B3` | 34B | side copy `$8E70`＋cracked helper `$903D` call |
-| `0x8E80-0x8EAA` | PRG1 `$8E70-$8E9A` | 43B | 32B side-data copy helper |
+| `0x8E80-0x8EA9` | PRG1 `$8E70-$8E99` | 42B | 32B side-data copy helper |
+| `0x8EAA` | PRG1 `$8E9A` | 1B | 空き |
 | `0x9019-0x904C` | PRG1 `$9009-$903C` | 52B | respawn direct-cell helper |
 | `0x904D-0x908F` | PRG1 `$903D-$907F` | 67B | cracked in-block respawn helper＋8B mask table |
 | `0x1627` | `$9617` | 1B | initial white threshold `$F8->$C0` |
@@ -87,7 +88,7 @@ high = $F8 + (room >> 4)
 
 ## 確定した6502バグ
 
-### [P1] Stage 7以降のside-data source pointerが誤る
+### [解消] Stage 7以降のside-data source pointerが誤る
 
 全53 roomについて現行命令を模擬し、期待値`$F84F + room*32`と比較した。正しく一致するのは0-based room 0～5、すなわちStage 1～6だけである。
 
@@ -116,7 +117,15 @@ Stage 7～8はside tableより前のmirror/drop schedule末尾を読み、以後
 
 正式ROM管理簿には「page-crossing carry preserved」と記載されているが、現行命令列はcarryを維持せず、上記の通りである。管理簿記述も現物と不一致である。
 
-修正には43B helper内で`$F84F + room*32`を正しく作る必要がある。命令数が増える可能性があるため、実装前に現行43B領域と直後Seal tableの境界、使用バイト数、移動有無を提示する必要がある。本解析では変更していない。
+helperを次の計算へ変更した。
+
+```text
+low  = (room << 5) & $FF
+high = room >> 3
+pointer = $F84F + (high:low)
+```
+
+low byteへの`ADC #$4F`で出たCarryを、high byteへの`ADC #$F8`へそのまま渡す。全53 roomを機械計算し、`$F84F + room*32`と一致した。新helperは42Bで、旧43B枠から1Bを解放した。
 
 ## cracked in-block respawn helper `$903D`
 
@@ -159,7 +168,7 @@ ASLのCarryで元bit7を保持し、元bit6はASL後のbit7として`AND #$80`�
 
 `_preflight_runtime_block_loader()`は全patch、4 helper、loader tail、guardの最大終端までROM長とsignatureを先に検査する。通常の未知競合では部分適用を残さない。
 
-一方、respawn入口はSKCHAIN、threshold-C0、bypass、F0-F3 gate、現行helper-callの5形を許容する。side-copy入口も旧block-list 2形、disabled、旧mask-copy、現行形の5形を許容する。これは過去の途中runtimeを現行へ変換するための互換受入れで、現在の救済禁止方針と一致しない。
+修正後は、respawn入口とside-copy入口のどちらも、初期変換直後のmapper66 base loaderと現行helper-callだけを受け入れる。threshold-C0、bypass、旧F0-F3 gate、disabled、旧mask-copyなど中間世代の受入れは削除した。
 
 ## 現行ROM・配置照合
 
@@ -176,10 +185,10 @@ ASLのCarryで元bit7を保持し、元bit6はASL後のbit7として`AND #$80`�
 - l_a2 call、register、stack、branch終端
 - Python preflightの必要長と事前signature検査
 - 現行ROM byte列、`RESERVED_SPANS`、正式ROM/RAM配置
+- 全53 roomの`$F84F + room*32` pointer
+- 中間世代respawn layoutと旧43B helperの拒否
 
 ## 未実施
 
 - ROM生成
 - emulatorでの動的実行
-- 修正実装
-- ROM/RAM管理簿の変更

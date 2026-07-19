@@ -47,39 +47,15 @@ RAM_RESERVED_SPANS = (
     (RAM_VISIBLE_IN_BLOCK_ITEM_MASK, LENGTH_M66_VISIBLE_IN_BLOCK_ITEM_MASK_BYTES),
     (RAM_CRACKED_IN_BLOCK_LIST, LENGTH_M66_CRACKED_IN_BLOCK_LIST_BYTES),
 )
-SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF = OFFSET_M66_LOADER_A2 + 31
-SPECIAL_HIGH_ID_PRESERVE_OLD = 0xF0  # BEQ: only $F8 survives the m66 loader.
-SPECIAL_HIGH_ID_PRESERVE_NEW = 0xB0  # BCS: threshold-$FF survive for special IDs.
-SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF = OFFSET_M66_LOADER_A2 + 30
-SPECIAL_HIGH_ID_THRESHOLD_OLD = 0xF8
-SPECIAL_HIGH_ID_THRESHOLD_NEW = 0xC0
 RUNTIME_BLOCK_LIST_COPY_PATCH_OFF = OFFSET_M66_LOADER_A2 + 146
 RUNTIME_BLOCK_LIST_COPY_PATCH_OLD = bytes.fromhex(
     "ad28040a0a0a0a18694f8500ad28044a4a4a4a1869f88501a010b100995f0788d0f8"
 )
-RUNTIME_BLOCK_LIST_COPY_PATCH_NEW = bytes.fromhex(
-    "ad28040a0a0a0a0a18694f8500ad28044a4a4a1869f88501a020b100993f0788d0f8"
-)
-RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED = bytes([0xEA] * len(RUNTIME_BLOCK_LIST_COPY_PATCH_NEW))
-RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_OLD = bytes.fromhex(
-    "ad28040a0a0a0a0a18694f8500ad28044a4a4a1869f88501a018b100994f0788d0f8"
-)
+RUNTIME_BLOCK_LIST_COPY_PATCH_LEN = len(RUNTIME_BLOCK_LIST_COPY_PATCH_OLD)
 RESPAWN_DIRECT_CELL_COPY_PATCH_OFF = OFFSET_M66_LOADER_A2 + 15
 RESPAWN_DIRECT_CELL_COPY_SKCHAIN = bytes.fromhex(
     "ad2804c930f022a57c6a901db100c9f8b017293fc92e9011b10029802a9005"
     "a990189007a910189002b10099130388d0cf"
-)
-RESPAWN_DIRECT_CELL_COPY_THRESHOLD_C0 = bytes.fromhex(
-    "ad2804c930f022a57c6a901db100c9c0b017293fc92e9011b10029802a9005"
-    "a990189007a910189002b10099130388d0cf"
-)
-RESPAWN_DIRECT_CELL_COPY_BYPASS = bytes.fromhex(
-    "ad2804c930f022d0206a901db100c9c0b017293fc92e9011b10029802a9005"
-    "a990189007a910189002b10099130388d0cf"
-)
-RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE = bytes.fromhex(
-    "a57c6a9024b100c9f4b01ec9f0b004c9c0b016293fc92e9010b10029802a"
-    "9005a990189006a9109002b10099130388d0cf"
 )
 RESPAWN_DIRECT_CELL_COPY_HELPER_OFF = 0x9019
 RESPAWN_DIRECT_CELL_COPY_HELPER_CPU = 0x9009
@@ -102,7 +78,7 @@ assert len(RESPAWN_DIRECT_CELL_COPY_HELPER) == 52
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER_OFF = 0x8E80
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER_CPU = 0x8E70
 VISIBLE_IN_BLOCK_MASK_COPY_HELPER = bytes.fromhex(
-    "ad28040a0a0a0a0a18694f8500a90069008501ad28044a4a4a18650169f88501"
+    "ad28040a0a0a0a0a8500ad28044a4a4a850118a500694f8500a50169f88501"
     "a020b100994f0788d0f860"
 )
 RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH = (
@@ -114,7 +90,7 @@ RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH = (
         CRACKED_IN_BLOCK_RESPAWN_HELPER_CPU & 0xFF,
         CRACKED_IN_BLOCK_RESPAWN_HELPER_CPU >> 8,
     ))
-    + bytes([0xEA] * (len(RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_OLD) - 6))
+    + bytes([0xEA] * (RUNTIME_BLOCK_LIST_COPY_PATCH_LEN - 6))
 )
 RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_LEN = len(RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH)
 M66_LOADER_TAIL_OFF = 0x80C4
@@ -122,7 +98,7 @@ M66_LOADER_TAIL_HOOK = bytes.fromhex("4c008a")
 M66_LOADER_TAIL_GUARD_OFF = 0x80C7
 M66_LOADER_TAIL_GUARD = bytes([0x00] * 9)
 assert RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_LEN == 34
-assert len(VISIBLE_IN_BLOCK_MASK_COPY_HELPER) == 43
+assert len(VISIBLE_IN_BLOCK_MASK_COPY_HELPER) == 42
 CRACKED_IN_BLOCK_RESPAWN_HELPER = bytes.fromhex(
     "a57c6a9035a008883030b96807c9fff0f6aabd0403c910d0eea9019d0403"
     "98488a38e910484a4a4aa8682907aab950073d789099500768a810cd60"
@@ -713,32 +689,6 @@ def _require_helper_available(rom_data: bytearray, offset: int, blob: bytes, lab
         )
 
 
-def _preflight_special_high_id_fields(rom_data: bytearray,
-                                      respawn_patch: bytes) -> None:
-    """Validate legacy in-place fields only when that layout owns them.
-
-    The current F0-F3 gate and helper layouts move or replace these bytes, so
-    their complete patch signatures are the authoritative validation.
-    """
-    if respawn_patch in (
-            RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE,
-            RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER,
-    ):
-        return
-    _require_patch_value(
-        rom_data[SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF],
-        (SPECIAL_HIGH_ID_THRESHOLD_OLD, SPECIAL_HIGH_ID_THRESHOLD_NEW),
-        "mapper66 special-ID threshold",
-        SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF,
-    )
-    _require_patch_value(
-        rom_data[SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF],
-        (SPECIAL_HIGH_ID_PRESERVE_OLD, SPECIAL_HIGH_ID_PRESERVE_NEW),
-        "mapper66 special-ID preserve branch",
-        SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF,
-    )
-
-
 def _preflight_runtime_block_loader(rom_data: bytearray) -> None:
     required_end = max(
         RESPAWN_DIRECT_CELL_COPY_PATCH_OFF + len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN),
@@ -761,15 +711,11 @@ def _preflight_runtime_block_loader(rom_data: bytearray) -> None:
         respawn_patch,
         (
             RESPAWN_DIRECT_CELL_COPY_SKCHAIN,
-            RESPAWN_DIRECT_CELL_COPY_THRESHOLD_C0,
-            RESPAWN_DIRECT_CELL_COPY_BYPASS,
-            RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE,
             RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER,
         ),
         "mapper66 respawn direct-cell patch",
         off,
     )
-    _preflight_special_high_id_fields(rom_data, respawn_patch)
     _require_patch_value(
         bytes(rom_data[
             INITIAL_DRAW_LOW_CLASSIFIER_PATCH_OFF:
@@ -803,9 +749,6 @@ def _preflight_runtime_block_loader(rom_data: bytearray) -> None:
         bytes(rom_data[off:off + ln]),
         (
             RUNTIME_BLOCK_LIST_COPY_PATCH_OLD,
-            RUNTIME_BLOCK_LIST_COPY_PATCH_NEW,
-            RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED,
-            RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_OLD,
             RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH,
         ),
         "mapper66 runtime block-list copy",
@@ -857,12 +800,7 @@ def patch_runtime_block_loader(rom_data: bytearray):
     ln = len(RESPAWN_DIRECT_CELL_COPY_SKCHAIN)
     if len(rom_data) >= off + ln:
         cur = bytes(rom_data[off:off + ln])
-        if cur in (
-            RESPAWN_DIRECT_CELL_COPY_SKCHAIN,
-            RESPAWN_DIRECT_CELL_COPY_THRESHOLD_C0,
-            RESPAWN_DIRECT_CELL_COPY_BYPASS,
-            RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE,
-        ):
+        if cur == RESPAWN_DIRECT_CELL_COPY_SKCHAIN:
             rom_data[off:off + ln] = RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER
         elif cur != RESPAWN_DIRECT_CELL_COPY_F0_F3_GATE_HELPER:
             return
@@ -871,9 +809,6 @@ def patch_runtime_block_loader(rom_data: bytearray):
             cur_helper = bytes(rom_data[RESPAWN_DIRECT_CELL_COPY_HELPER_OFF:helper_end])
             if cur_helper != RESPAWN_DIRECT_CELL_COPY_HELPER:
                 rom_data[RESPAWN_DIRECT_CELL_COPY_HELPER_OFF:helper_end] = RESPAWN_DIRECT_CELL_COPY_HELPER
-    off = SPECIAL_HIGH_ID_THRESHOLD_PATCH_OFF
-    if len(rom_data) > off and rom_data[off] == SPECIAL_HIGH_ID_THRESHOLD_OLD:
-        rom_data[off] = SPECIAL_HIGH_ID_THRESHOLD_NEW
     off = INITIAL_DRAW_LOW_CLASSIFIER_PATCH_OFF
     ln = len(INITIAL_DRAW_LOW_CLASSIFIER_PATCH)
     if len(rom_data) >= off + ln:
@@ -893,21 +828,12 @@ def patch_runtime_block_loader(rom_data: bytearray):
             branch_off = KEY_CELL_VALUE_NO_KEY_BRANCH_OFF
             if len(rom_data) > branch_off and rom_data[branch_off] == KEY_CELL_VALUE_NO_KEY_BRANCH_OLD:
                 rom_data[branch_off] = KEY_CELL_VALUE_NO_KEY_BRANCH_NEW
-    off = SPECIAL_HIGH_ID_PRESERVE_PATCH_OFF
-    if len(rom_data) > off and rom_data[off] == SPECIAL_HIGH_ID_PRESERVE_OLD:
-        rom_data[off] = SPECIAL_HIGH_ID_PRESERVE_NEW
     off = RUNTIME_BLOCK_LIST_COPY_PATCH_OFF
     ln = RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_LEN
     if len(rom_data) < off + ln:
         return
     cur = bytes(rom_data[off:off + ln])
-    old_variants = (
-        RUNTIME_BLOCK_LIST_COPY_PATCH_OLD,
-        RUNTIME_BLOCK_LIST_COPY_PATCH_NEW,
-        RUNTIME_BLOCK_LIST_COPY_PATCH_DISABLED,
-        RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH_OLD,
-    )
-    if cur in old_variants:
+    if cur == RUNTIME_BLOCK_LIST_COPY_PATCH_OLD:
         rom_data[off:off + ln] = RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH
     elif cur != RUNTIME_VISIBLE_IN_BLOCK_ITEM_MASK_COPY_PATCH:
         return
