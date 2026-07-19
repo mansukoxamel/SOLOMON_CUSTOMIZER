@@ -144,12 +144,21 @@ def patch_table(rom_data: bytearray, levels: list, runtime_room_flags: list = No
     return True
 
 
+def _supported_table_format(raw: bytes):
+    if not raw.startswith(MAGIC):
+        return None
+    fmt = raw[len(MAGIC)]
+    if fmt not in (1, FORMAT) or raw[len(MAGIC) + 1] != ENTRY_SIZE:
+        return None
+    return fmt
+
+
 def read_runtime_room_flags(rom_data: bytes, count: int = 53) -> list:
     count = max(0, min(int(count), ROOM_COUNT))
     if len(rom_data) < TABLE_END:
         return [0] * count
     raw = bytes(rom_data[TABLE_OFFSET:TABLE_END])
-    if not raw.startswith(MAGIC):
+    if _supported_table_format(raw) is None:
         return [0] * count
     return [
         raw[HEADER_SIZE + i * ENTRY_SIZE + RUNTIME_ROOM_FLAGS_OFFSET] & 0xFF
@@ -241,12 +250,8 @@ def read_table(rom_data: bytes, levels: list) -> bool:
     if len(rom_data) < TABLE_END:
         return False
     raw = bytes(rom_data[TABLE_OFFSET:TABLE_END])
-    if not raw.startswith(MAGIC):
-        for level in levels:
-            init_level_defaults(level)
-        return False
-    fmt = raw[len(MAGIC)]
-    if fmt not in (1, FORMAT) or raw[len(MAGIC) + 1] != ENTRY_SIZE:
+    fmt = _supported_table_format(raw)
+    if fmt is None:
         for level in levels:
             init_level_defaults(level)
         return False

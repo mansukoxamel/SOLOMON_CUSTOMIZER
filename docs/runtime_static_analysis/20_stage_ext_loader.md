@@ -8,11 +8,11 @@
 
 StageExtは、16B headerと64 room×8B entryをPRG1へ保持し、mapper66 room loadの末尾で現在roomの設定をRAMへ展開する基盤である。現行保存ROMではStageExt単体91B loaderではなく、同じ副作用を維持したPanel Variant版85Bと、その前段のSpecial Item helper 140Bが実効経路になる。
 
-table pointer、全64 room、loader chain、bank内CPU/file対応、A/X/Y、Carry、zero-page、stack、全RAM consumerを追跡した。6502本体の確定バグは見つからなかった。確定したPython読込み検証バグは1件である。
+table pointer、全64 room、loader chain、bank内CPU/file対応、A/X/Y、Carry、zero-page、stack、全RAM consumerを追跡した。6502本体の確定バグは見つからなかった。確定したPython読込み検証バグ1件は修正した。
 
 - `read_runtime_room_flags()`はMAGICだけを検査し、formatとentry sizeを検査しない。非対応headerでもruntime flagを先に読み、level load時の特殊item復元へ使ってしまう。
 
-通常のアプリが生成したformat 2のmapper66 ROMではtable、実効loader、gameplay flag helper、Special Item前段の全byteが現行定数と一致し、roomごとのcacheは正しく構築される。ROM/RAM配置は変更していない。修正も行っていない。
+通常のアプリが生成したformat 2のmapper66 ROMではtable、実効loader、gameplay flag helper、Special Item前段の全byteが現行定数と一致し、roomごとのcacheは正しく構築される。header検証を共通化し、runtime flag readerもformatとentry sizeを検査するよう修正した。ROM/RAM配置と6502 byte列は変更していない。
 
 ## StageExt table形式
 
@@ -121,7 +121,7 @@ Special Item helperはStageExt/Panel bodyより前に16B item cellを`$0740-$074
 
 ## 確定したバグ
 
-### [P2] runtime room flags readerだけheader検証が不足する
+### [解消] runtime room flags readerだけheader検証が不足する
 
 `read_table()`はMAGICに加えてformatが1または2、entry sizeが8であることを検査する。一方、`read_runtime_room_flags()`は次だけで読み始める。
 
@@ -134,7 +134,7 @@ format、entry size、room countを検査しない。`m66.load_all_levels_m66()`
 
 そのため、MAGICだけ同じでformatが非対応、またはentry sizeが8でないtableでも、固定8B間隔のbyte6を現行runtime flagとして解釈し、item属性やblock状態を変更し得る。その後`read_table()`がFalseを返しても、先に行ったlevel変換は戻らない。
 
-通常のアプリ生成ROMはformat 2・entry size 8なので発生しない。reader間で同じheader validationを共通化すればROM/RAM配置を変えず修正できる。
+通常のアプリ生成ROMはformat 2・entry size 8なので発生しない。`_supported_table_format()`へheader validationを共通化し、通常table readerとruntime flag readerが同じ条件でformat 1/2・entry size 8だけを受理するよう修正した。
 
 ## Python writerの正常事項
 
@@ -168,10 +168,10 @@ StageExt自身の専用RAM予約は`$077C-$077D`の2Bである。他のcopy先�
 - zero-page `$00/$01`の連続利用
 - JMP tail-chainと最終RTSのstack均衡
 - 現行ROM byte列、`RESERVED_SPANS`、正式ROM/RAM管理簿の一致
+- format 1/2の受理と未知format・不正entry sizeの拒否
 
 ## 未実施
 
 - ROM生成
 - emulatorでの動的実行
-- 修正実装
 - ROM/RAM管理簿の変更
