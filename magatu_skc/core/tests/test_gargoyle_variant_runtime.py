@@ -42,6 +42,11 @@ class GargoyleVariantRuntimeTests(unittest.TestCase):
         self.assertEqual(len(target.CAVE_HELPERS), 105)
         self.assertEqual(target.OFF_CAVE_HELPERS + len(target.CAVE_HELPERS), 0x6E19)
 
+    def test_speed_normalizer_restores_stock_state_field_offset(self) -> None:
+        self.assertEqual(len(target.CAVE_SPEED_INIT), 41)
+        self.assertIn(bytes.fromhex("68 a0 04 4c c0 8a"), target.CAVE_SPEED_INIT)
+        self.assertNotIn(bytes.fromhex("c8 98 aa 68 4c c0 8a"), target.CAVE_SPEED_INIT)
+
 
 if __name__ == "__main__":
     unittest.main()

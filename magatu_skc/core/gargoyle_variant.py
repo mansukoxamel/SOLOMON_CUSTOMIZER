@@ -114,7 +114,9 @@ CAVE_SPEED_INIT = bytes.fromhex(
     # stock speed-1 ($7A/$7B) or speed-2 ($7E/$7F) metadata pair before $8AC0.
     f"48 e0 7a 90 20 e0 80 b0 1c 8a 29 02 f0 17"
     f"8a 48 29 04 4a 4a a8 b9 {_word(CPU_CAVE_MOVEMENT_TABLE).hex()}"
-    "a8 68 29 01 f0 01 c8 98 aa 68 4c c0 8a"
+    # Keep the selected base ID in X and restore the original Y=4 contract
+    # required by the first STA ($08),Y in the stock $8AC0 initializer.
+    "aa 68 29 01 f0 01 e8 68 a0 04 4c c0 8a"
     "68 4c c0 8a"
 )
 assert len(CAVE_SPEED_INIT) == 41
