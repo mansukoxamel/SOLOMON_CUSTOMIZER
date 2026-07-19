@@ -6,6 +6,17 @@ from magatu_skc.core import phantom_preset_runtime as target
 
 
 class PhantomPresetRuntimeTests(unittest.TestCase):
+    def test_defaults_match_the_approved_a_to_d_presets(self) -> None:
+        self.assertEqual(
+            target.default_group_settings(),
+            (
+                {"speed_value": 0x3F, "amplitude_percent": 100, "phase_offset": 0},
+                {"speed_value": 0x18, "amplitude_percent": 75, "phase_offset": 32},
+                {"speed_value": 0x2A, "amplitude_percent": 50, "phase_offset": 45},
+                {"speed_value": 0x3F, "amplitude_percent": 25, "phase_offset": 0},
+            ),
+        )
+
     def test_direction_velocities_are_symmetric(self) -> None:
         for speed in range(1, 0x40):
             velocity = target.velocity_bytes(speed)

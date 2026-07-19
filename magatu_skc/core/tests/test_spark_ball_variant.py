@@ -21,6 +21,12 @@ def _blank_rom() -> bytearray:
 
 
 class SparkBallVariantTests(unittest.TestCase):
+    def test_default_reverse_digits_are_one_and_eight(self) -> None:
+        rom = _blank_rom()
+        variant.apply(rom)
+
+        self.assertEqual(set(variant.current_reverse_digits(rom)), {1, 8})
+
     def test_existing_runtime_can_be_reconfigured(self) -> None:
         rom = _blank_rom()
         variant.apply(

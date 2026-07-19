@@ -46,11 +46,18 @@ class Neul84RuntimeError(ValueError):
 
 
 def default_group_settings() -> tuple[dict[str, int], ...]:
-    return tuple({
-        "body_speed": DEFAULT_BODY_SPEED,
-        "fire_interval": DEFAULT_FIRE_INTERVAL,
-        "bullet_speed": DEFAULT_BULLET_SPEED,
-    } for _name in GROUP_NAMES)
+    return (
+        {
+            "body_speed": BODY_SPEED_NORMAL,
+            "fire_interval": 0x40,
+            "bullet_speed": BULLET_SPEED_STOCK,
+        },
+        {
+            "body_speed": BODY_SPEED_FAST,
+            "fire_interval": 0x40,
+            "bullet_speed": BULLET_SPEED_HALF,
+        },
+    )
 
 
 def normalize_group_settings(settings) -> tuple[dict[str, int], ...]:

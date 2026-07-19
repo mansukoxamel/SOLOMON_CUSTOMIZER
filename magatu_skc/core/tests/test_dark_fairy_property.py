@@ -37,6 +37,17 @@ class DarkFairyPropertyTests(unittest.TestCase):
         self.assertEqual(len(shared.RUNTIME), shared.MAX_RUNTIME_SIZE)
         self.assertIn(bytes.fromhex("20 2a e3"), shared.AI_RUNTIME)
 
+    def test_ghost_a_to_f_defaults_match_the_approved_presets(self) -> None:
+        self.assertEqual(
+            shared.PARAMETER_TABLES,
+            bytes.fromhex(
+                "1a 1e 1a 1e 1a 1e "
+                "c0 b0 c0 d0 c0 a8 "
+                "00 89 00 88 00 00 "
+                "03 03 02 02 00 00"
+            ),
+        )
+
     def test_panel_property_fallback_calls_the_shared_tail(self) -> None:
         expected = bytes((
             0x20,
