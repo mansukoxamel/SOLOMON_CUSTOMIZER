@@ -28,7 +28,7 @@ def _word(cpu: int) -> bytes:
 OFF_HOOK_START_UPDATE = _cf(0x9061)
 ORIG_START_UPDATE = bytes.fromhex("20 5e 91")
 
-OLD_OFF_MAIN = 0x6010
+OFF_STAGE_RANGE_GATE = 0x6AFC
 OFF_MAIN = 0x6B06
 OFF_MASK_TABLE = 0x6B24
 OFF_DRAW = 0x6B29
@@ -40,6 +40,7 @@ OFF_FREE_AFTER_STAGE_ANNOUNCEMENT = 0x6C04
 FREE_AFTER_STAGE_ANNOUNCEMENT_LEN = 0
 
 CPU_MAIN = _cpu(OFF_MAIN)
+CPU_STAGE_RANGE_GATE = _cpu(OFF_STAGE_RANGE_GATE)
 CPU_MASK_TABLE = _cpu(OFF_MASK_TABLE)
 CPU_DRAW = _cpu(OFF_DRAW)
 CPU_PTR_TABLE = _cpu(OFF_PTR_TABLE)
@@ -47,15 +48,12 @@ CPU_KEY_GATE = _cpu(OFF_KEY_GATE)
 CPU_FAIRY_GATE = _cpu(OFF_FAIRY_GATE)
 CPU_WARP_GATE = _cpu(OFF_WARP_GATE)
 
-HOOK_START_UPDATE = bytes((0x20, *(_word(CPU_MAIN))))
-OLD_HOOK_START_UPDATE = bytes((0x20, *(_word(_cpu(OLD_OFF_MAIN)))))
-OLD_MAIN_BAD_ORDER = bytes.fromhex(
-    "20 5e 91 a2 00 ad 78 07 3d fa 8b f0 03 20 bc e0"
-    "e8 e0 05 d0 f0 4c c0 b3 08 10 01 04 80"
-)
-OLD_MAIN_V164 = bytes.fromhex(
-    "a2 00 ad 78 07 3d fa 8b f0 03 20 bc e0 e8 e0 05"
-    "d0 f0 20 c0 b3 4c 5e 91 08 10 01 04 80"
+HOOK_START_UPDATE = bytes((0x20, *(_word(CPU_STAGE_RANGE_GATE))))
+STAGE_RANGE_GATE = bytes.fromhex(
+    "ad 28 04"  # LDA $0428: zero-based stage number.
+    "c9 30"     # CMP #$30: Stage 49 begins at index 48.
+    "90 03"     # BCC $EAF6: Stage 1-48 use the announcement runtime.
+    "4c 5e 91"  # Stage 49-53 skip additions and run the stock update.
 )
 
 K_TILE = 0x25
@@ -66,17 +64,6 @@ CUSTOM_P_CHR = 0x127
 K_TILE_BYTES = bytes.fromhex("f2 f4 fc f2 f2 f2 00 00 f2 f4 fc f2 f2 f2 00 00")
 P_TILE_BYTES = bytes.fromhex("fc f2 f2 f2 fc f0 00 00 fc f2 f2 f2 fc f0 00 00")
 
-
-OLD_SCRIPT_SPECS = (
-    (0x6B79, 21, 4, "DARK ROOM"),
-    (0x6B86, 23, 4, "FIRE LOSS"),
-    (0x6B93, 21, 17, "HIDDEN DOOR"),
-    (0x6BA2, 23, 17, "FIRE SEALED"),
-    (0x6BB1, 25, 17, "SPELL SEALED"),
-    (0x6BC1, 25, 4, "KEY ENEMY"),
-    (0x6BCE, 27, 4, "FAIRY ENEMY"),
-    (0x6BDD, 27, 17, "MIRROR LINK"),
-)
 
 SCRIPT_SPECS = (
     (0x6B85, 21, 3, "DARK ROOM"),
@@ -122,7 +109,6 @@ def _build_script(row: int, col: int, text: str) -> bytes:
 
 
 SCRIPTS = tuple((off, _build_script(row, col, text), text) for off, row, col, text in SCRIPT_SPECS)
-OLD_SCRIPTS = tuple((off, _build_script(row, col, text), text) for off, row, col, text in OLD_SCRIPT_SPECS)
 
 
 def _build_main(
@@ -167,11 +153,6 @@ def _build_ptr_table() -> bytes:
     return bytes(a & 0xFF for a in addrs) + bytes(a >> 8 for a in addrs)
 
 
-def _build_old_ptr_table() -> bytes:
-    addrs = [_cpu(off) for off, _script, _text in OLD_SCRIPTS]
-    return bytes(a & 0xFF for a in addrs) + bytes(a >> 8 for a in addrs)
-
-
 def _build_key_gate() -> bytes:
     return (
         b"\xad\x2b\x07\x30\x05" +
@@ -202,64 +183,15 @@ def _build_warp_gate() -> bytes:
     )
 
 
-def _build_old_key_gate() -> bytes:
-    return (
-        b"\xad\x2b\x07\xc9\xff\xf0\x05" +
-        b"\xa2\x05" +
-        bytes((0x20, *(_word(CPU_DRAW)))) +
-        b"\x60"
-    )
-
-
-def _build_old_fairy_gate() -> bytes:
-    return (
-        b"\xad\x7e\x07\xc9\xff\xf0\x05" +
-        b"\xa2\x06" +
-        bytes((0x20, *(_word(CPU_DRAW)))) +
-        b"\x60"
-    )
-
-
-def _build_old_warp_gate() -> bytes:
-    return (
-        b"\xad\x70\x07\x29\x20\xf0\x05" +
-        b"\xa2\x07" +
-        bytes((0x20, *(_word(CPU_DRAW)))) +
-        b"\x60"
-    )
-
-
-def _build_layout_blob(segments: tuple[tuple[int, bytes], ...], end_off: int) -> bytes:
-    blob = bytearray([0xEA] * (end_off - OFF_MAIN))
-    for off, segment in segments:
-        start = off - OFF_MAIN
-        blob[start:start + len(segment)] = segment
-    return bytes(blob)
-
-
 MAIN = _build_main()
 DRAW = _build_draw()
-OLD_DRAW = _build_draw(len(OLD_SCRIPTS))
 PTR_TABLE = _build_ptr_table()
 KEY_GATE = _build_key_gate()
 FAIRY_GATE = _build_fairy_gate()
 WARP_GATE = _build_warp_gate()
 
-OLD_KEY_GATE = _build_old_key_gate()
-OLD_FAIRY_GATE = _build_old_fairy_gate()
-OLD_WARP_GATE = _build_old_warp_gate()
-OLD_LAYOUT = _build_layout_blob((
-    (OFF_MAIN, _build_main(_cpu(0x6B52), _cpu(0x6B5F), _cpu(0x6B6C))),
-    (OFF_MASK_TABLE, ROOM_FLAG_MASKS),
-    (OFF_DRAW, OLD_DRAW),
-    (OFF_PTR_TABLE, _build_old_ptr_table()),
-    (0x6B52, OLD_KEY_GATE),
-    (0x6B5F, OLD_FAIRY_GATE),
-    (0x6B6C, OLD_WARP_GATE),
-    *[(off, script) for off, script, _text in OLD_SCRIPTS],
-), OFF_FREE_AFTER_STAGE_ANNOUNCEMENT)
-
 RESERVED_SPANS = (
+    (OFF_STAGE_RANGE_GATE, len(STAGE_RANGE_GATE)),
     (OFF_MAIN, len(MAIN)),
     (OFF_MASK_TABLE, len(ROOM_FLAG_MASKS)),
     (OFF_DRAW, len(DRAW)),
@@ -273,6 +205,7 @@ RESERVED_SPANS = (
 assert OFF_FREE_AFTER_STAGE_ANNOUNCEMENT == OFF_WARP_GATE + len(WARP_GATE) + sum(
     len(script) for _off, script, _text in SCRIPTS
 )
+assert OFF_STAGE_RANGE_GATE + len(STAGE_RANGE_GATE) == OFF_MAIN
 assert FREE_AFTER_STAGE_ANNOUNCEMENT_LEN == 0
 
 
@@ -280,6 +213,28 @@ def _chr_start(rom_data: bytes) -> int:
     if len(rom_data) < 16 or bytes(rom_data[:4]) != b"NES\x1a":
         raise StageAnnouncementError("Not an iNES ROM.")
     return 16 + int(rom_data[4]) * 0x4000
+
+
+def _validate_rom_bounds(rom_data: bytes) -> int:
+    chr_base = _chr_start(rom_data)
+    if int(rom_data[5]) < 3:
+        raise StageAnnouncementError("Stage announcements require three CHR banks.")
+    chr_end = (
+        chr_base
+        + 2 * 0x2000
+        + (max(CUSTOM_K_CHR, CUSTOM_P_CHR) + 1) * 16
+    )
+    required_end = max(
+        OFF_HOOK_START_UPDATE + len(ORIG_START_UPDATE),
+        OFF_FREE_AFTER_STAGE_ANNOUNCEMENT,
+        chr_end,
+    )
+    if len(rom_data) < required_end:
+        raise StageAnnouncementError(
+            f"ROM is too small for stage announcements "
+            f"(len=0x{len(rom_data):X}, required=0x{required_end:X})."
+        )
+    return chr_base
 
 
 def _write(rom_data: bytearray, off: int, blob: bytes, changed: list[str], name: str) -> None:
@@ -293,22 +248,14 @@ def _ensure_available(
     off: int,
     blob: bytes,
     name: str,
-    extra: tuple[bytes, ...] = (),
 ) -> None:
     cur = bytes(rom_data[off:off + len(blob)])
-    if cur == blob or cur in extra or all(b in (0xEA, 0x00) for b in cur):
+    if cur == blob or all(b in (0xEA, 0x00) for b in cur):
         return
     raise StageAnnouncementError(
         f"{name} overlap at file 0x{off:X}: expected empty EA/00 or existing code, "
         f"got {cur[:16].hex(' ')}..."
     )
-
-
-def _old_layout_slice(off: int, length: int) -> bytes:
-    start = off - OFF_MAIN
-    if start < 0 or start + length > len(OLD_LAYOUT):
-        return b""
-    return OLD_LAYOUT[start:start + length]
 
 
 def is_needed(levels: list, runtime_room_flags: list[int]) -> bool:
@@ -332,14 +279,16 @@ def is_needed(levels: list, runtime_room_flags: list[int]) -> bool:
 
 def apply(rom_data: bytearray, levels: list, runtime_room_flags: list[int]) -> list[str]:
     changed: list[str] = []
+    chr_base = _validate_rom_bounds(rom_data)
 
     cur = bytes(rom_data[OFF_HOOK_START_UPDATE:OFF_HOOK_START_UPDATE + 3])
-    if cur not in (ORIG_START_UPDATE, HOOK_START_UPDATE, OLD_HOOK_START_UPDATE):
+    if cur not in (ORIG_START_UPDATE, HOOK_START_UPDATE):
         raise StageAnnouncementError(
             f"$9061 start-screen update hook mismatch: got {cur.hex(' ')}"
         )
 
     for off, blob, name in (
+        (OFF_STAGE_RANGE_GATE, STAGE_RANGE_GATE, "stage announcement range gate"),
         (OFF_MAIN, MAIN, "stage announcement main"),
         (OFF_MASK_TABLE, ROOM_FLAG_MASKS, "stage announcement mask table"),
         (OFF_DRAW, DRAW, "stage announcement draw helper"),
@@ -349,9 +298,9 @@ def apply(rom_data: bytearray, levels: list, runtime_room_flags: list[int]) -> l
         (OFF_WARP_GATE, WARP_GATE, "stage announcement warp gate"),
         *[(off, script, f"stage announcement script {text}") for off, script, text in SCRIPTS],
     ):
-        old = _old_layout_slice(off, len(blob))
-        _ensure_available(rom_data, off, blob, name, (old,) if old else ())
+        _ensure_available(rom_data, off, blob, name)
 
+    _write(rom_data, OFF_STAGE_RANGE_GATE, STAGE_RANGE_GATE, changed, "stage announcement range gate")
     _write(rom_data, OFF_MAIN, MAIN, changed, "stage announcement main")
     _write(rom_data, OFF_MASK_TABLE, ROOM_FLAG_MASKS, changed, "stage announcement mask table")
     _write(rom_data, OFF_DRAW, DRAW, changed, "stage announcement draw helper")
@@ -362,7 +311,6 @@ def apply(rom_data: bytearray, levels: list, runtime_room_flags: list[int]) -> l
     for off, script, text in SCRIPTS:
         _write(rom_data, off, script, changed, f"stage announcement script {text}")
 
-    chr_base = _chr_start(rom_data)
     for bank in range(3):
         base = chr_base + bank * 0x2000
         _write(rom_data, base + CUSTOM_K_CHR * 16, K_TILE_BYTES, changed, f"CHR bank{bank} K tile")

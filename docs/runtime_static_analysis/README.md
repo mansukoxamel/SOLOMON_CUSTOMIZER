@@ -44,7 +44,7 @@
 | 19 | [Room Flags](19_room_flags.md) | `room_flags.py` | 完了（6502本体問題なし、ROM境界検査修正済み） |
 | 20 | [StageExt loader](20_stage_ext_loader.md) | `stage_ext.py` | 完了（6502本体問題なし、header検証修正済み） |
 | 21 | [Solomon Seal Block](21_solomon_seal_block.md) | `solomon_seal_block.py` | 完了（6502本体問題なし、writer占有・旧runtime受入れ修正済み） |
-| 22 | [Stage Announcement](22_stage_announcement.md) | `stage_announcement.py` | 完了（確定バグ3件） |
+| 22 | [Stage Announcement](22_stage_announcement.md) | `stage_announcement.py` | 完了（Stage 49以降skip・境界検査・旧layout受入れ修正済み） |
 | 23 | [mapper66特殊セルloader](23_m66_special_cell_loader.md) | `m66.py` | 完了（確定バグ1件、方針不一致1件） |
 | 24 | [mapper66拡張l_a1/l_a2](24_mapper66_l_a1_l_a2.md) | `m66_expander.py` | 完了（確定バグ1件、文書不一致1件） |
 | 25 | [Gap Fix](25_gap_fix.md) | `gap_fix.py` | 完了（6502本体問題なし、確定問題1件、文書不一致1件） |
