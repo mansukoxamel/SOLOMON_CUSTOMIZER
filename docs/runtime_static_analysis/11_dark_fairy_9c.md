@@ -34,7 +34,7 @@ setup group `$0E`、AI中の一時type `$1C`、animation palette補正を組み�
 
 ## setup `$E000`
 
-setup本体は`$0E=#$0E`、Y=`$0E`とし、`LDA $D9D3,Y / RTS`を実行する。これにより原作Fairyのsetup/animation metadata pointerを返す。
+共有setup本体は`$0E=#$0E`、Y=`$0E`とし、`LDA $D9D3,Y / RTS`を実行する。これにより原作Fairyのsetup/animation metadata pointerを返す。Dark Fairy `$9C`とSeraphic Radiance `$9D`が同じ入口を使う。
 
 共通setup入口からJMPではなくJSR相当のreturn先を保ったまま専用本体へJMPするため、専用RTSは原作`$8ACB`の呼出元へ直接戻る。stack追加はない。
 

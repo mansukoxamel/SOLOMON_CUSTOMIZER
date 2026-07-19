@@ -47,7 +47,7 @@
 | Chaos Dragon | `$9E` | 専用ID | `$9E`確定 | 静的監査済み | 今回未検査 | 実ROM比較、鍵検査 |
 | Phantom Bullet | `$8B` | 専用ID | Phantom系16連番の先頭8IDへ再配置・番号保留 | 静的監査済み | 今回未検査 | 4方向×2速度、速度値、鍵適性 |
 | Phantom Bullet Wave | `$8C` | 専用ID | Phantom系16連番の後半8IDへ再配置・番号保留 | 静的監査済み | 今回未検査 | 4方向×2速度、上下Wave軸、鍵適性 |
-| Seraphic Radiance | `$9D` | 専用ID | 単独1ID・最終番号保留 | 再監査済み・現状維持 | 今回未検査 | 鍵持ち禁止、鍵持ち敵消去副作用、実ROM比較 |
+| Seraphic Radiance | `$9D` | 専用ID | 単独1ID・正式ID維持 | 静的問題4件修正済み | 今回未検査 | 鍵持ち禁止、動的挙動、実ROM比較 |
 | Panel Monster variants | 原作ID借用20ID | 借用ID | 借用維持 | 静的監査済み・現状維持 | 既存73ケース保存検査確認済み・今回実機未検査 | 最終ROM比較、原作Stage 29 `$4D` 正規化維持 |
 | Spark Ball variants | `$C0-$D7` | 専用24ID | 停止・透明・停止後反転を連続配置 | 実装・静的監査済み | ユーザー動作確認済み | 3種類×4方向×2速度、借用解除済み |
 | Gargoyle variants | `$7A/$7B/$7E/$7F` | 借用ID | 借用維持 | 動作成立・静的経路確認済み・再整理待ち | ユーザー動作確認済み | 2分割runtimeの1ブロック統合、重複・冗長処理の再監査、最終ROM比較 |
@@ -1250,7 +1250,7 @@ Chaos Dragonは初期状態を右向きで開始するが、原作Dragon AIの�
 - 方向別ID: 作らない
 - 速度別・追加派生: 作らない
 - 必要ID数: 1
-- 現在の判断: 単独1IDで確定する。最終番号は全体配置図まで保留する。
+- 現在の判断: 単独1ID、正式ID `$9D`で確定する。
 - 実装本体: `magatu_skc/core/seraphic_radiance9d_runtime.py`
 - 共通分類: `magatu_skc/core/new_enemy_runtime.py`
 
@@ -1282,9 +1282,10 @@ Seraphic Radianceは4入口すべてに専用分類が必要である。
 
 #### setup/init
 
-- Fairy group `$0E` を使い、安全な無重力setupを得る。
+- Dark Fairyと共有するFairy group `$0E` setupを使う。
 - status `$C4`、active・visible・no gravity・fire immuneで初期化する。
 - type `$9D` を維持し、原作init writer `$9D1C` を呼ぶ。
+- 原作property範囲外読出しが書くmain Y速度`$80`を0へ戻す。
 - main-slotのX/Y座標を画面中心 `$88/$78` と比較し、sub-slot `[7]` のbit 0へ縦方向、bit 1へ横方向を保存する。
 - bit 2はX/Y移動phaseとして0から開始する。
 
@@ -1298,6 +1299,7 @@ Seraphic Radianceは4入口すべてに専用分類が必要である。
 #### collision
 
 - 17個の敵main-slotを走査する。
+- 選択鍵slot RAM `$072A` は消去対象から外す。
 - 非active slotと同じSeraphic Radiance type `$9D` を除外する。
 - X/Yとも16pixel未満の重なりなら、対象main-slotと対応sub-slotのstatusを直接0へする。
 - 原作の通常死亡、drop、score、鍵出現処理は呼ばない。
@@ -1312,19 +1314,21 @@ Seraphic Radianceは4入口すべてに専用分類が必要である。
 
 #### Seraphic Radiance本体
 
-- file: `0x6C04-0x6D2C`
-- CPU: `$EBF4-$ED1C`
-- 使用量: 297B
-- 予約capacity: 404B
-- 現行本体後の予約内未使用量: 107B
-- 内訳の主要部: setup 8B、phase 12B、collisionを含むAI 205B、init、animation
-- 直後の現行runtime: Bomber/Cannon Ghost `0x6D98-0x6E15`
+- file: `0x6C04-0x6D2B`
+- CPU: `$EBF4-$ED1B`
+- 使用量: 296B
+- 予約capacity: 297B
+- 現行本体後の空き: `0x6D2C`の1B
+- 内訳: init 44B、phase 12B、collisionを含むAI 212B、animation 28B
+- setup: Dark Fairyと共有する`$E000-$E008`の9B helper
+- 直後の現行runtime: Enhanced Gargoyle second/third-shot `0x6D2D-0x6D95`
 
 #### RAM
 
 - 方向・phase: 自身のsub-slot `[7]`、1B
 - 既存frame counter: `$21`
 - pointer作業領域: 既存zero-pageを使用
+- 選択鍵slot: 既存RAM `$072A`を読取り専用で使用
 - 新規グローバルRAM: なし
 
 ### 6. 再監査結果
@@ -1332,10 +1336,10 @@ Seraphic Radianceは4入口すべてに専用分類が必要である。
 #### 現状維持でよい理由
 
 - 設置座標からの4象限方向生成、X/Y交互phase、画面端反転、17slot衝突走査、main/sub同時消去、専用animationという複数の独立処理が必要である。
-- AI 205Bの大部分は17slot走査と16×16重なり判定であり、単純な重複で膨らんだ処理ではない。
-- setup、init、phase、AI、animationの各責務が分かれており、明確に削除できる重複は見つからない。
+- AI 212Bの大部分は17slot走査、鍵slot除外、16×16重なり判定であり、単純な重複で膨らんだ処理ではない。
+- Dark Fairyと重複していたFairy setup 8Bは共有helperへ統合した。
 - 既に成立確認を重ねた複雑な処理を、数Bのために再構成するとregister・pointer保護や衝突対象へ副作用を出す危険が高い。
-- runtime本体は現行297Bを維持する方針とする。
+- runtime本体は296Bで確定する。
 
 #### 短縮しない項目
 
@@ -1343,14 +1347,12 @@ Seraphic Radianceは4入口すべてに専用分類が必要である。
 - main/subの両status clearを片方だけにしない。
 - 方向生成や画面端反転を共通の原作AIへ置き換えない。
 - animationを原作汎用処理へ戻さない。
-- 4入口のいずれも削除しない。
+- 4入口の分類は維持し、setup本体だけ共有helperを使う。
 
 #### 容量上の注意
 
-- 現行予約capacity 404Bのうち、本体は297B、未使用は107Bである。
-- 107Bは現行本体外であり、本体使用量として扱わない。
-- 最終runtime再配置ではこの未使用量をそのまま緩衝として残すか、後続runtimeを詰めるかを全体配置で決める。
-- 予約を縮小・移動する場合は、実装前に移動範囲、使用量、残り空きを提示する。
+- 現行予約capacity 297Bのうち本体は296Bで、末尾1Bは空きとして解放する。
+- 後続Enhanced Gargoyleは`0x6D2D`のまま移動しない。
 
 ### 7. 鍵・drop・消去副作用
 
@@ -1364,24 +1366,24 @@ Seraphic Radianceは4入口すべてに専用分類が必要である。
 
 - collision処理は対象敵を通常死亡経路へ通さず、main/sub statusを直接0へする。
 - score、通常drop、鍵dropを発生させない。
-- Seraphic Radianceが鍵持ち指定された別敵を消した場合、鍵が出ず進行不能になる可能性がある。
-- 最終仕様では、鍵持ち敵を衝突対象から除外するか、Seraphic Radianceによる消去でも鍵を出すか、組合せ自体をUIで禁止するかを決める必要がある。
-- この問題はruntime短縮とは別であり、現状維持方針でも未解決のゲーム進行副作用として残す。
+- scan Xが選択鍵slot RAM `$072A`と一致した場合は衝突対象から除外する。
+- 鍵敵は通常の撃破・落下死亡・Red Burn消滅経路で倒された時だけ既存契約通り鍵を出す。
+- Radiance消去専用の新しい鍵drop経路は追加しない。
 
 ### 8. 検査状況
 
 | 検査 | 状態 | 備考 |
 |---|---|---|
 | 必要ID数 | 仕様確定 | 設置位置で方向決定する単独1ID |
-| 現行runtime静的解析 | 済み | 297B本体、4入口を確認 |
-| 方向・phase処理 | 静的確認済み | X/Y交互、画面端反転 |
-| 17slot collision | 静的確認済み | 同type除外、main/sub直接clear |
-| 明確な短縮余地 | なし | 現状維持を推奨 |
+| 現行runtime静的解析 | 済み | 296B本体、4入口を確認 |
+| 方向・phase処理 | 静的修正済み | X/Y交互、上端branch追加 |
+| 17slot collision | 静的修正済み | 鍵slot・同type除外、main/sub直接clear |
+| 明確な短縮余地 | 反映済み | 重複setup 8Bを共有化 |
 | 現行保存ROMの本体バイト列比較 | 未検査 | 現行完成形ROMを新規出力して比較が必要 |
 | 四象限の初期方向 | 今回未検査 | 各象限と中心境界を確認する |
 | 画面端反転・長時間移動 | 今回未検査 | 全方向を確認する |
 | 複数Radiance相互非衝突 | 今回未検査 | 同type除外を確認する |
-| 鍵持ち敵との衝突 | 未検査 | 鍵不出現と進行不能条件を確認する |
+| 鍵持ち敵との衝突 | 静的修正済み・動的未検査 | 選択slotが残り、通常撃破後に鍵が出ることを確認する |
 | 原作敵・drop・score副作用 | 未検査 | 直接clearの影響を確認する |
 
 未検査項目はOK扱いにしない。
@@ -1391,14 +1393,14 @@ Seraphic Radianceは4入口すべてに専用分類が必要である。
 - 必要ID数: 1
 - 方向別ID: 作らない
 - 方向決定: 設置座標の四象限から内向きに自動決定
-- 最終ID: 全体配置図まで保留
+- 最終ID: `$9D`を維持
 - 入口センター: AI/setup/init/animationの4入口すべて維持
-- runtime: 現行297Bをそのまま維持する
-- 短縮・再設計: 行わない
-- 予約capacity: 404B。未使用107Bの扱いだけ全体runtime配置時に決める
+- runtime: 296B
+- 短縮・再設計: 重複setup共有化だけ実施済み
+- 予約capacity: 297B。本体後の1Bは空き
 - 鍵持ち敵仕様: Seraphic Radiance自身は明示禁止
-- 未解決副作用: Seraphic Radianceが別の鍵持ち敵を直接消すと鍵が出ない可能性
-- 実装状態: 未変更
+- 鍵持ち敵副作用: 選択slotを衝突対象から除外して修正済み
+- 実装状態: 静的修正済み、動的確認は未実施
 
 ---
 

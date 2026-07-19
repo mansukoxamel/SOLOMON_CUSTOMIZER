@@ -1,6 +1,8 @@
 """Seraphic Radiance enemy ID $9D runtime for mapper66 saved ROMs."""
 from __future__ import annotations
 
+from . import fairy9c_runtime as _fairy9c
+from . import key_enemy_runtime as _key_enemy
 from .element import ElementType
 
 
@@ -50,25 +52,17 @@ class _Asm:
         return bytes(self.data)
 
 
-SETUP_META_RUNTIME = bytes.fromhex(
-    "a0 0e"         # LDY #$0E: stock Fairy group supplies safe no-gravity setup
-    "84 0e"         # STY $0E
-    "b9 d3 d9"      # LDA $D9D3,Y
-    "60"            # RTS
-)
-
-OFF_SETUP_META_LOAD = OFF_RUNTIME
-CPU_SETUP_META_LOAD = CPU_RUNTIME
-OFF_INIT_STATUS = OFF_SETUP_META_LOAD + len(SETUP_META_RUNTIME)
-CPU_INIT_STATUS = CPU_SETUP_META_LOAD + len(SETUP_META_RUNTIME)
+CPU_SETUP_META_LOAD = _fairy9c.CPU_SETUP_META_LOAD
+OFF_INIT_STATUS = OFF_RUNTIME
+CPU_INIT_STATUS = CPU_RUNTIME
 
 
 def _build_init_runtime() -> bytes:
     a = _Asm()
     a.b(0x68)                              # PLA: discard saved stock-init input
     a.b(0xA9, 0xC4, 0x85, 0x04)          # active, visible, no gravity, fire-immune
-    a.b(0xA9, NEW_ENEMY_ID, 0x85, 0x05)  # preserve type $9D
     a.b(0xA9, 0x00)
+    a.b(0xA0, 0x05, 0x91, 0x00)          # clear Y velocity left by stock property read
     a.jsr(CPU_STOCK_INIT)
     # Build an inward initial direction from the spawn quadrant.
     # sub[7] bit0: vertical (0=down, 1=up); bit1: horizontal (0=right, 1=left).
@@ -112,6 +106,7 @@ def _build_ai_runtime() -> tuple[bytes, dict[str, int]]:
     a.branch(0xD0, "collide")
     a.label("turn_down")
     a.b(0xA0, 0x07, 0xB1, 0x2C, 0x29, 0xFE, 0x91, 0x2C)
+    a.branch(0x10, "collide")             # AND #$FE always leaves N clear
 
     # Horizontal 1 px/frame movement. sub[7] bit1: 0=right, 1=left.
     a.label("move_x")
@@ -140,6 +135,9 @@ def _build_ai_runtime() -> tuple[bytes, dict[str, int]]:
     a.label("collide")
     a.b(0xA2, 0x10)
     a.label("scan")
+    a.b(0xEC, _key_enemy.RAM_TARGET_RUNTIME_SLOT & 0xFF,
+        _key_enemy.RAM_TARGET_RUNTIME_SLOT >> 8)
+    a.branch(0xF0, "next")                # never erase the selected key enemy
     a.b(0xBD, CPU_MAIN_PTR_LO & 0xFF, CPU_MAIN_PTR_LO >> 8, 0x85, 0x00)
     a.b(0xBD, CPU_MAIN_PTR_HI & 0xFF, CPU_MAIN_PTR_HI >> 8, 0x85, 0x01)
     a.b(0xA0, 0x00, 0xB1, 0x00)
@@ -216,16 +214,16 @@ ANIM_UPDATE_RUNTIME = bytes.fromhex(
     "60"
 )
 
-RUNTIME = SETUP_META_RUNTIME + INIT_STATUS_RUNTIME + PHASE_RUNTIME + AI_DISPATCH_RUNTIME + ANIM_UPDATE_RUNTIME
+RUNTIME = INIT_STATUS_RUNTIME + PHASE_RUNTIME + AI_DISPATCH_RUNTIME + ANIM_UPDATE_RUNTIME
 CPU_RUNTIME_END = CPU_RUNTIME + len(RUNTIME)
 CPU_AI_ENTRY = CPU_PHASE_RUNTIME
 RESERVED_SPANS = ((OFF_RUNTIME, len(RUNTIME)),)
 
-assert len(RUNTIME) == RUNTIME_CAPACITY
+assert len(RUNTIME) <= RUNTIME_CAPACITY
 assert CPU_RUNTIME + len(RUNTIME) == CPU_RUNTIME_END
-assert len(SETUP_META_RUNTIME) == 8
-assert len(AI_DISPATCH_RUNTIME) == 205
-assert len(RUNTIME) == 297
+assert len(INIT_STATUS_RUNTIME) == 44
+assert len(AI_DISPATCH_RUNTIME) == 212
+assert len(RUNTIME) == 296
 assert len(PHASE_RUNTIME) == PHASE_RUNTIME_SIZE
 
 
