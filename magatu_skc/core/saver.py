@@ -68,8 +68,17 @@ def validate_level_consistency(levels: list):
     """Check editor-level relationships before writing them into ROM bytes."""
     from . import enemy_slot_rules
     from . import stage_ext
+    from . import warp_zone_trial
 
     for i, lv in enumerate(levels):
+        if (
+            stage_ext.warp_mirror_enabled(lv)
+            and not warp_zone_trial.level_has_valid_warp_mirrors(lv)
+        ):
+            raise SaveError(
+                f"Level {i + 1}: Warp Mirror Mode requires exactly two "
+                "visible mirrors at different, unobstructed positions."
+            )
         key_enemy_number = stage_ext.get_key_enemy_number(lv)
         enemy_count = len(getattr(lv, "enemies", []) or [])
         if key_enemy_number > 0 and key_enemy_number > enemy_count:

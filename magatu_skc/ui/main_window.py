@@ -12218,32 +12218,8 @@ class MainWindow(QMainWindow):
         raise KeyError(key)
 
     def _warp_mirror_can_enable(self, level) -> bool:
-        mirrors = list(getattr(level, "demon_mirrors", []) or [])
-        if len(mirrors) < 2:
-            return False
-        positions = [tuple(getattr(mirror, "position", (-99, -99))) for mirror in mirrors[:2]]
-        if positions[0] == positions[1]:
-            return False
-        item_positions = {tuple(item.position) for item in getattr(level, "items", []) or []}
-        hidden_mirror_block_cells = (
-            set(getattr(level, "breakable_white_cells", set()) or []) |
-            set(getattr(level, "cracked_block_cells", set()) or []) |
-            set(getattr(level, "passable_white_cells", set()) or []) |
-            set(getattr(level, "invisible_solid_cells", set()) or []) |
-            set(getattr(level, "invisible_breakable_cells", set()) or []) |
-            set(getattr(level, "passable_brown_cells", set()) or []) |
-            set(getattr(level, "solid_brown_cells", set()) or [])
-        )
-        for x, y in positions:
-            if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
-                return False
-            if level.tiles[y][x] != Wall.NONE:
-                return False
-            if (x, y) in hidden_mirror_block_cells:
-                return False
-            if (x, y) in item_positions:
-                return False
-        return True
+        from ..core import warp_zone_trial
+        return warp_zone_trial.level_has_valid_warp_mirrors(level)
 
     def _enemy_clear_key_open_can_enable(self, level) -> bool:
         return bool(getattr(level, "enemies", []) or [])

@@ -10,11 +10,11 @@ Warp Mirror Modeは、StageExt byte0 bit5がONのroomで、Danaが可視Demon Mi
 
 128Bの全命令、224 grid cell、item hook、mode/cooldown、Dana座標・state・速度再初期化、StageExt loader、UI成立条件、stackを追跡した。6502本体の確定ロジックバグは見つからなかった。
 
-問題候補は1件である。
+data validation問題は1件あり、修正した。
 
-1. UIはモードをONにする瞬間だけ「別位置の可視mirror 2個」を検査する。ON後のmirror移動・block/item重ねやXML入力を保存時に再検証しないため、ONなのにwarp先`$05`が存在しないdataを保存できる可能性がある。
+1. UIのON操作と保存前整合性検査が同じcore validatorを使うよう統一した。ON後のmirror移動・block/item重ね、XML入力、3個以上のmirrorを保存前に拒否する。
 
-ROM/RAM配置は変更していない。修正も行っていない。
+ROM/RAM配置と6502バイト列は変更していない。
 
 ## hook位置と呼出契約
 
@@ -119,9 +119,9 @@ warp時はY=`$0D`で`JSR $8E8D`し、原作item pickup SEをqueueする。その
 
 呼出元`$C554`は`LDA $02 / BEQ`でitem actionの有無を判定するため、warpだけを実行して通常item取得action `$8D5F`へは入らない。sound helperのJSR/RTSは均衡する。
 
-## 問題候補
+## 修正済み問題
 
-### [P2] mode成立条件を保存時に再検証しない
+### [解消] mode成立条件を保存時に再検証しない
 
 `main_window._warp_mirror_can_enable()`は、ON操作時に次を検査する。
 
@@ -132,9 +132,9 @@ warp時はY=`$0D`で`JSR $8E8D`し、原作item pickup SEをqueueする。その
 - 特殊block markerと重ならない。
 - itemと重ならない。
 
-しかしmodeをONにした後でmirrorを同位置へ移す、block/itemを重ねる、またはXMLからbit5付きのdataを読む場合、保存時の`warp_zone_trial.apply()`はlevelsの内容を検査しない。共通save warningも「spawn schedule付きmirrorの画面外」だけで、Warp Modeの2個可視条件を再確認しない。
+修正後は`warp_zone_trial.level_has_valid_warp_mirrors()`を唯一の成立判定とし、UIのON操作と`validate_level_consistency()`の保存前検査が同じ関数を呼ぶ。
 
-その結果、mode bit5はONでもlive grid上の`$05`が1個以下となり、runtimeはdestinationなしで毎loop戻る。ROM破壊ではないが、UIが表示する「もう一方へワープする」という設定と出力動作が一致しない。6502本体ではなくdata validation側の候補である。
+判定条件は「mirrorがちょうど2個」「別位置」「editor範囲内」「通常空気cell」「特殊block markerなし」「item重複なし」である。ON後にdataが変わった場合やXMLから不正状態を読んだ場合も、ROM byteを書き始める前のステージ整合性検査で保存を中止する。6502本体は変更していない。
 
 ## ROM/RAM配置
 
@@ -173,6 +173,5 @@ RAMは`$0770`の1BをEnemy Clearとbit分割共有する。zero-page `$03/$04`�
 ## 未実施
 
 - ROM生成
-- emulatorでの動的実行
-- 修正実装
+- emulatorでのwarp動的実行
 - ROM/RAM管理簿の変更

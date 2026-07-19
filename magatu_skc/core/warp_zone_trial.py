@@ -1,7 +1,9 @@
 """Warp Mirror Mode runtime."""
 from __future__ import annotations
 
+from . import constants as c
 from . import stage_ext
+from .element import Wall
 
 
 class WarpZoneTrialError(ValueError):
@@ -20,6 +22,48 @@ RAM_WARP_MIRROR_STATE = 0x0770
 RAM_RESERVED_SPANS = ((RAM_WARP_MIRROR_STATE, 1),)
 WARP_MIRROR_MODE_BIT = 0x20
 WARP_MIRROR_COOLDOWN_BIT = 0x40
+
+
+def level_has_valid_warp_mirrors(level) -> bool:
+    """Return whether Warp Mirror Mode has exactly two usable destinations."""
+    mirrors = list(getattr(level, "demon_mirrors", []) or [])
+    if len(mirrors) != 2:
+        return False
+    try:
+        positions = [
+            tuple(int(value) for value in getattr(mirror, "position", (-99, -99)))
+            for mirror in mirrors
+        ]
+    except (TypeError, ValueError):
+        return False
+    if any(len(position) != 2 for position in positions):
+        return False
+    if positions[0] == positions[1]:
+        return False
+    item_positions = {
+        tuple(getattr(item, "position", (-99, -99)))
+        for item in (getattr(level, "items", []) or [])
+    }
+    blocked_positions = set().union(*(
+        set(getattr(level, name, set()) or [])
+        for name in (
+            "breakable_white_cells",
+            "cracked_block_cells",
+            "passable_white_cells",
+            "invisible_solid_cells",
+            "invisible_breakable_cells",
+            "passable_brown_cells",
+            "solid_brown_cells",
+        )
+    ))
+    for x, y in positions:
+        if not (0 <= x < c.LEVEL_W and 0 <= y < c.LEVEL_H):
+            return False
+        if level.tiles[y][x] != Wall.NONE:
+            return False
+        if (x, y) in blocked_positions or (x, y) in item_positions:
+            return False
+    return True
 
 
 HOOK_ITEM_CELL = bytes((0x20, CPU_RUNTIME & 0xFF, CPU_RUNTIME >> 8))
