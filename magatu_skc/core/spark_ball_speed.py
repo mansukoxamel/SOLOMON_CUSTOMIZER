@@ -13,7 +13,7 @@ ORIG_TABLE_B = bytes.fromhex("22 DE 00 00 4C B4 00 00")
 SIG_OFF = 0x295B  # CPU $A94B: LDA $A9DF,X / STA $00 / LDA $A9E7,X / STA $01
 SIG = bytes.fromhex("BD DF A9 85 00 BD E7 A9 85 01")
 
-MULTIPLIERS = [0.5, 1.0, 1.5, 2.0]
+MULTIPLIERS = [0.5, 1.0]
 
 
 class SparkBallSpeedError(ValueError):

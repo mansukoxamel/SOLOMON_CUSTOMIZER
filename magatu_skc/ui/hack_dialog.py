@@ -853,6 +853,12 @@ class HackDialog(QDialog):
             digit_grid.addWidget(chk, digit // 5, digit % 5)
         sbvf.addRow(t("hack_dialog.spark_ball_variant.pause_digits.label", "停止するLIFE百の位:"), digit_grid)
 
+        for value in spark_ball_variant.TRANSPARENCY_PERIODS:
+            self.combo_spark_transparency.addItem(f"${value:02X}", value)
+        self._set_combo_data(self.combo_spark_transparency, transparency_period)
+        self.combo_spark_transparency.setEnabled(self._spark_ball_variant_ok)
+        sbvf.addRow(t("hack_dialog.spark_ball_variant.transparency.label", "透明化周期:"), self.combo_spark_transparency)
+
         reverse_grid = QGridLayout()
         for digit in range(10):
             chk = QCheckBox(str(digit))
@@ -862,12 +868,6 @@ class HackDialog(QDialog):
             self.chk_spark_reverse_digits.append(chk)
             reverse_grid.addWidget(chk, digit // 5, digit % 5)
         sbvf.addRow(t("hack_dialog.spark_ball_variant.reverse_digits.label", "反転するLIFE百の位:"), reverse_grid)
-
-        for value in spark_ball_variant.TRANSPARENCY_PERIODS:
-            self.combo_spark_transparency.addItem(f"${value:02X}", value)
-        self._set_combo_data(self.combo_spark_transparency, transparency_period)
-        self.combo_spark_transparency.setEnabled(self._spark_ball_variant_ok)
-        sbvf.addRow(t("hack_dialog.spark_ball_variant.transparency.label", "透明化周期:"), self.combo_spark_transparency)
 
         sbvhint = QLabel(
             t(
