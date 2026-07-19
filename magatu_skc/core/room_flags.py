@@ -413,6 +413,21 @@ RESERVED_SPANS = (
     (OFF_BW_CAVE, BW_CAVE_RESERVED_SIZE),
 )
 
+REQUIRED_ROM_END = max(
+    OFF_TABLE + ROOM_COUNT,
+    OFF_SIG_9074 + len(SIG_9074),
+    OFF_SIG_8329 + len(SIG_8329),
+    OFF_SIG_91C1 + len(SIG_91C1),
+    OFF_SIG_804B + len(SIG_804B),
+    OFF_HOOK_9071 + len(ORIG_9071),
+    OFF_HOOK_8326 + len(ORIG_8326),
+    OFF_HOOK_91CC + len(ORIG_91CC),
+    OFF_HOOK_909A + len(ORIG_909A),
+    OFF_HOOK_8055 + len(ORIG_8055),
+    *(offset + size for offset, size in RESERVED_SPANS),
+)
+assert REQUIRED_ROM_END == 0x686B
+
 RAM_ROOM_FLAGS = 0x0778
 RAM_DARK_PHASE = 0x0779
 RAM_RESERVED_SPANS = ((RAM_ROOM_FLAGS, RAM_DARK_PHASE - RAM_ROOM_FLAGS + 1),)
@@ -436,6 +451,10 @@ class RoomFlagError(ValueError):
 
 def _verify_runtime_cave(rom_data, offset: int, blob: bytes, name: str) -> None:
     current = bytes(rom_data[offset:offset + len(blob)])
+    if len(current) != len(blob):
+        raise RoomFlagError(
+            f"ROM is too small for {name} cave at file 0x{offset:X}."
+        )
     if current != blob and any(b not in (0x00, 0xEA) for b in current):
         raise RoomFlagError(
             f"{name} cave is not blank at file 0x{offset:X}: "
@@ -445,7 +464,7 @@ def _verify_runtime_cave(rom_data, offset: int, blob: bytes, name: str) -> None:
 
 def _verify(rom_data) -> None:
     """(A)位置 + (B)署名 のダブル検証。失敗時 RoomFlagError"""
-    need = OFF_TABLE + ROOM_COUNT
+    need = REQUIRED_ROM_END
     if len(rom_data) < need:
         raise RoomFlagError(
             f"ROM が小さすぎます (len={len(rom_data)} < {need})。"

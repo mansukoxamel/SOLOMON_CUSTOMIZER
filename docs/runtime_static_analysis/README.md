@@ -41,7 +41,7 @@
 | 16 | [Blue Key Queen](16_blue_key_queen.md) | `blue_key_queen_runtime.py` | 完了（本体問題なし、青鍵1部屋1個・Princess優先を仕様確定） |
 | 17 | [Warp Mirror Mode](17_warp_mirror_mode.md) | `warp_zone_trial.py` | 完了（6502本体問題なし、保存前成立条件検証を修正済み） |
 | 18 | [Final Stage Redirect](18_final_stage_redirect.md) | `final_stage_redirect.py` | 完了（Stage 50自己loop・短いROM検査を修正済み） |
-| 19 | [Room Flags](19_room_flags.md) | `room_flags.py` | 完了（6502本体問題なし、確定バグ1件） |
+| 19 | [Room Flags](19_room_flags.md) | `room_flags.py` | 完了（6502本体問題なし、ROM境界検査修正済み） |
 | 20 | [StageExt loader](20_stage_ext_loader.md) | `stage_ext.py` | 完了（6502本体問題なし、確定バグ1件） |
 | 21 | [Solomon Seal Block](21_solomon_seal_block.md) | `solomon_seal_block.py` | 完了（6502本体問題なし、確定問題2件） |
 | 22 | [Stage Announcement](22_stage_announcement.md) | `stage_announcement.py` | 完了（確定バグ3件） |

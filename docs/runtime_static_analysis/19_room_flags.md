@@ -8,11 +8,11 @@
 
 Room Flagsは、現在roomの1B flagと扉cellをStageExt loaderからRAMへ受け取り、特殊扉、A/B魔法禁止、開始時fire所持reset、暗闇、特殊cell変換を5本のhookで実現する常設runtime群である。
 
-loader 46B、magic gate 34B、door predraw 11B、dark 50B、特殊cell scanner 68B、visible-item helper 24B、white in-block extension 12Bを全命令・全branchについて追跡した。6502本体の確定バグは見つからなかった。確定したPython書込み境界バグは1件である。
+loader 46B、magic gate 34B、door predraw 11B、dark 50B、特殊cell scanner 68B、visible-item helper 24B、white in-block extension 12Bを全命令・全branchについて追跡した。6502本体の確定バグは見つからなかった。確定したPython書込み境界バグ1件は修正した。
 
 - `_verify()`のROM長検査がfile `0x4210`までしか要求せず、実際の最後のruntime終端`0x686B`を含まない。短いbytearrayでは空sliceを空きと誤認してruntimeを誤った末尾へappendし、`set_tempo()`では`IndexError`を起こし得る。
 
-通常の日本版mapper66拡張ROMでは、全runtime、hook、StageExt受渡し、stack、A/X/Y、CPU flag、192-cell走査、暗闇周期は成立している。ROM/RAM配置は変更していない。修正も行っていない。
+通常の日本版mapper66拡張ROMでは、全runtime、hook、StageExt受渡し、stack、A/X/Y、CPU flag、192-cell走査、暗闇周期は成立している。必要ROM長を全hook、signature、helper、tempo、全caveの最大終端から算出するよう修正した。ROM/RAM配置と6502 byte列は変更していない。
 
 ## flagとRAM受渡し
 
@@ -85,7 +85,7 @@ helperはAをcell値として本体へ返し、X/Yをscan状態として継続�
 
 ## 確定したバグ
 
-### [P2] runtime終端を含むROM長検査がない
+### [解消] runtime終端を含むROM長検査がない
 
 `_verify()`は次だけを必要長としている。
 
@@ -99,7 +99,7 @@ need = OFF_TABLE + ROOM_COUNT  # 0x4210
 
 `set_tempo()`も同じ`_verify()`を使った後に`rom_data[0x6825]`へ単一index代入するため、短い入力では定義済みの`RoomFlagError`でなく`IndexError`になり得る。
 
-通常save経路のmapper66 ROMは長さ`0x18010`なので通常操作では発生しない。それでもwriter単体の境界検証としては確定バグである。必要長を全hook、signature、helper、tempo、全caveの最大終端から算出すれば、ROM/RAM配置を変えず修正できる。
+通常save経路のmapper66 ROMは長さ`0x18010`なので通常操作では発生しない。それでもwriter単体の境界検証としては確定バグである。`REQUIRED_ROM_END`を全hook、signature、helper、tempo、全caveの最大終端から算出し、`0x686B`未満を処理前に`RoomFlagError`で拒否するよう修正した。cave単体検査にもslice長の一致を追加した。
 
 ## ROM/RAM配置
 
@@ -129,10 +129,10 @@ need = OFF_TABLE + ROOM_COUNT  # 0x4210
 - 全特殊cell変換値と描画後変換の順序
 - mapper66でのruntime/hook常設
 - 現行ROM byte列、`RESERVED_SPANS`、正式ROM/RAM管理簿の一致
+- 短いROMをruntime書込み前に拒否する境界テスト
 
 ## 未実施
 
 - ROM生成
 - emulatorでの動的実行
-- 修正実装
 - ROM/RAM管理簿の変更
