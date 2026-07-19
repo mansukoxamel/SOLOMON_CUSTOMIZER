@@ -30,9 +30,9 @@ AND #$FE        -> $40
 
 | 機能 | 経路 | Ice Burn処理 |
 |---|---|---|
-| AI | `$A1C3 -> $BBE2 -> $BD51 -> $A329 -> $A5A0` | 原作Flame AI |
+| AI | `$A1C3 -> $BBE2 -> $BD55 -> $A329 -> $A5A0` | 原作Flame AI |
 | setup | `$8ACB -> $BC32` | 原作計算group `$40` |
-| init | `$A2F2 -> $BC84 -> $BD6F -> $9D1C -> $E075` | 原作共通init後に専用上書き |
+| init | `$A2F2 -> $BC84 -> $BD73 -> $9D1C -> $E075` | 原作共通init後に専用上書き |
 | animation | `$8676 -> $BCD0 -> $E092` | `RTS`で固定frameを維持 |
 
 旧定数`HOOK_*`はIce Burn単独入口を使っていた時期の値である。現行writerは4hookを共通入口センターへ向け、`ice_flame_runtime.apply()`自身も共通writerを呼ぶcompatibility wrapperである。

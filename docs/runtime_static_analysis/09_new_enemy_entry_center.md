@@ -6,7 +6,6 @@
 
 ## 結論
 
-新敵ID共通入口センターは、原作のAI、setup、init、animationの4入口を置き換え、追加敵を各専用runtimeへ分類する。分類本体はfile `0x3BF2-0x3D98`、CPU `$BBE2-$BD88`に連続配置される。現行workstateでは4入口、Ghost拡張、4hookの全バイトがbuilderと一致した。
 
 AI/setup/initのstackと原作fallbackは静的に成立している。Ice Burn `$82`がAIでは原作Flameへ自然に流れ、setup/init/animationだけ専用補正を受ける構成も意図通りである。
 
@@ -16,7 +15,6 @@ AI/setup/initのstackと原作fallbackは静的に成立している。Ice Burn 
 2. 移動前の旧入口センターを検出すると、現行書込先の所有確認を全面的に飛ばし、未確認の42Bを含む領域まで上書きする救済経路が残る。
 3. 旧animation本体の短いprefixだけで許可するため、その後ろの最大115Bが何であっても現行129Bで上書きできる。
 
-ROM/RAM配置は変更していない。修正もまだ行っていない。
 
 ## 原作hookと入口契約
 
@@ -25,9 +23,9 @@ ROM/RAM配置は変更していない。修正もまだ行っていない。
 | `$A1C3` | `JSR $A329` AI dispatch | `$BBE2` | 80B |
 | `$8ACB` | `LDA $D9D3,Y` setup metadata | `$BC32` | 82B |
 | `$A2F2` | `JSR $9D1C` init/status | `$BC84` | 76B |
-| `$8676` | `JSR $8789` animation/OAM | `$BCD0` | 129B |
+| `$8676` | `JSR $8789` animation/OAM | `$BCD0` | 133B |
 
-Enhanced Ghost `$B0-$BB`用の共通拡張56Bが`$BD51-$BD88`に続く。4入口同士とGhost拡張の間に空きやNOP paddingはない。
+Enhanced Ghost `$B0-$BB`用の共通拡張56Bが`$BD55-$BD8C`に続く。4入口同士とGhost拡張の間に空きやNOP paddingはない。
 
 ## 対象ID
 
@@ -135,11 +133,11 @@ Panel本体は保存処理の後段で常設配置される。AI入口からPane
 | `0x3BF2-0x3C41` | `$BBE2-$BC31` | 80B | AI入口 |
 | `0x3C42-0x3C93` | `$BC32-$BC83` | 82B | setup入口 |
 | `0x3C94-0x3CDF` | `$BC84-$BCCF` | 76B | init入口 |
-| `0x3CE0-0x3D60` | `$BCD0-$BD50` | 129B | animation入口 |
-| `0x3D61-0x3D98` | `$BD51-$BD88` | 56B | Ghost分類拡張 |
-| `0x3D99-0x3DAB` | `$BD89-$BD9B` | 19B | 現行runtime予約なし |
+| `0x3CE0-0x3D64` | `$BCD0-$BD54` | 133B | animation入口 |
+| `0x3D65-0x3D9C` | `$BD55-$BD8C` | 56B | Ghost分類拡張 |
+| `0x3D9D-0x3DAB` | `$BD8D-$BD9B` | 15B | 現行runtime予約なし |
 
-共通入口本体は423Bである。RAMは新規に確保せず、各子runtimeが定義する既存main/sub-slot fieldと設定RAMだけを使う。
+共通入口本体は427Bである。RAMは新規に確保せず、各子runtimeが定義する既存main/sub-slot fieldと設定RAMだけを使う。
 
 ## レジスタ・flag・stack
 
@@ -174,6 +172,17 @@ old anim    0x3CC1-0x3D36
 old Ghost   0x3D37-0x3D6E
 ```
 
+## 修正状況（2026-07-19）
+
+確定問題3件は修正済みである。ユーザーのエミュレーター確認でも、修正前はEnhanced Saramandor CだけA/Bと色が異なることを確認した。
+
+- animation入口へ`CMP #$66 / BEQ stock_spr2`を追加し、A/B/Cの6IDを同じSPR#2補正へ送る。
+- animation入口は133B、Ghost分類拡張は4B後ろの`0x3D65-0x3D9C`へ移動した。AI/setup/init内の参照先も`$BD55/$BD63/$BD73`へ更新した。
+- 共通入口全体は427B、直後の正式な空きは`0x3D9D-0x3DAB`の15Bである。
+- 旧入口センターの一括移行、旧hook、旧短縮runtimeの受入れを削除した。空きまたは現行byte列の完全一致だけを許可する。
+
+以下の「確定した問題」は、修正前の解析結果と原因を記録したものである。
+
 Trueの場合、現行5領域に対する`_expect_blank_or_one_of()`をすべて飛ばす。その後は現行配置`0x3BF2-0x3D98`を無条件で書く。旧signatureが保証するのは`0x3D6E`までであり、`0x3D6F-0x3D98`の42Bは未確認である。そこに別データが存在しても上書きする。
 
 これは古い途中ROMを現行配置へ移すための救済であり、プロジェクトの救済禁止ルールにも反する。削除して現行領域のblank/current完全一致だけを受け入れる場合、ROM/RAM配置・空き・管理簿は変わらない。
@@ -189,7 +198,6 @@ Trueの場合、現行5領域に対する`_expect_blank_or_one_of()`をすべて
 ## 未検証点
 
 - Mesenで全追加敵を同室へ置いた動的なdispatch網羅試験は行っていない。
-- Saramandor Cの実機OAM属性値は動的採取していない。ただしruntimeに補正分岐が存在しないことと、UI/rendererがSPR#2を明示することは静的に確定している。
 - standard ROM保存用`levels_need_runtime()`は、Panel以外の追加敵についてdirect配置だけを調べ、Demon Mirrorの`enemy_codes`を調べない。通常対象は自動拡張される日本版mapper66 ROMであるため現行主経路には影響しないが、防御用validationとしては不完全である。
 
 ## 修正時の検証条件
@@ -200,4 +208,3 @@ Trueの場合、現行5領域に対する`_expect_blank_or_one_of()`をすべて
 - 旧入口、旧hook、旧短縮runtimeを入力として受理しないこと。
 - 現物ROM、builder、`RESERVED_SPANS`、正式ROM管理簿の範囲が一致すること。
 - ROM配置を変更した場合は`python -B tools/check_rom_consistency.py`の3項目が全てOKであること。
-

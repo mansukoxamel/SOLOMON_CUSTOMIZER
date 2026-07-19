@@ -30,9 +30,6 @@ RADIANCE9D_ID = _radiance9d.NEW_ENEMY_ID
 GHOSTB0_FIRST_ID = _ghostb0.FIRST_ID
 GHOSTB0_LAST_ID = _ghostb0.LAST_ID
 
-LEGACY_ICE_AI_DISPATCH = 0xE9C1
-LEGACY_ICE_SETUP_META_LOAD = 0xE9C4
-
 OFF_AI_ENTRY = 0x3BF2      # CPU $BBE2
 OFF_SETUP_ENTRY = 0x3C42
 OFF_INIT_ENTRY = 0x3C94
@@ -43,22 +40,10 @@ CPU_SETUP_ENTRY = 0xBC32
 CPU_INIT_ENTRY = 0xBC84
 CPU_ANIM_ENTRY = 0xBCD0
 
-OFF_GHOSTB0_EXTENSION = 0x3D61
-CPU_GHOSTB0_AI_CLASSIFY = 0xBD51
-CPU_GHOSTB0_SETUP_CLASSIFY = 0xBD5F
-CPU_GHOSTB0_INIT_CLASSIFY = 0xBD6F
-
-OLD_AI_ENTRY_RUNTIME = bytes.fromhex(
-    "48"
-    "18"
-    "69 14"
-    "c9 84"
-    "f0 04"
-    "68"
-    "4c 29 a3"
-    "68"
-    f"4c {LEGACY_ICE_AI_DISPATCH & 0xFF:02x} {LEGACY_ICE_AI_DISPATCH >> 8:02x}"
-)
+OFF_GHOSTB0_EXTENSION = 0x3D65
+CPU_GHOSTB0_AI_CLASSIFY = 0xBD55
+CPU_GHOSTB0_SETUP_CLASSIFY = 0xBD63
+CPU_GHOSTB0_INIT_CLASSIFY = 0xBD73
 
 def _build_ai_entry_runtime() -> bytes:
     data = bytearray((0x48, 0x18, 0x69, 0x14))
@@ -119,23 +104,6 @@ def _build_ai_entry_runtime() -> bytes:
 
 
 AI_ENTRY_RUNTIME = _build_ai_entry_runtime()
-_PRE_COMPACT_PANEL_AI_JUMP = bytes((0x68, 0x4C, 0xB7, 0xE6))
-assert AI_ENTRY_RUNTIME.count(_PRE_COMPACT_PANEL_AI_JUMP) == 1
-PRE_COMPACT_AI_ENTRY_RUNTIME = AI_ENTRY_RUNTIME.replace(
-    _PRE_COMPACT_PANEL_AI_JUMP,
-    bytes((0x68, 0x4C, 0xF1, 0xE6)),
-    1,
-)
-OLD_SETUP_ENTRY_RUNTIME = bytes.fromhex(
-    "a0 01"
-    "b1 08"
-    "c9 84"
-    "f0 06"
-    "a4 0e"
-    "b9 d3 d9"
-    "60"
-    f"4c {LEGACY_ICE_SETUP_META_LOAD & 0xFF:02x} {LEGACY_ICE_SETUP_META_LOAD >> 8:02x}"
-)
 
 class _EntryAsm:
     def __init__(self):
@@ -217,34 +185,6 @@ def _build_setup_entry_runtime() -> bytes:
 
 
 SETUP_ENTRY_RUNTIME = _build_setup_entry_runtime()
-PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME = bytes.fromhex(
-    "a0 01"
-    "b1 08"
-    "c9 84"
-    "90 12"
-    "c9 88"
-    "b0 0e"
-    "38"
-    "e9 84"
-    "aa"
-    "bd 78 ed"
-    "85 0e"
-    "a8"
-    "b9 d3 d9"
-    "60"
-    "a4 0e"
-    "b9 d3 d9"
-    "60"
-)
-
-OLD_INIT_ENTRY_RUNTIME = bytes.fromhex(
-    "20 1c 9d"
-    "a5 05"
-    "c9 84"
-    "f0 01"
-    "60"
-    f"4c {_ice.CPU_INIT_STATUS & 0xFF:02x} {_ice.CPU_INIT_STATUS >> 8:02x}"
-)
 
 def _build_init_entry_runtime() -> bytes:
     a = _EntryAsm()
@@ -293,32 +233,6 @@ def _build_init_entry_runtime() -> bytes:
 
 
 INIT_ENTRY_RUNTIME = _build_init_entry_runtime()
-OLD_ANIM_ENTRY_RUNTIME = bytes.fromhex(
-    "a0 01"         # LDY #$01
-    "b1 08"         # LDA ($08),Y -> main-slot type
-    "c9 84"         # CMP #$84
-    "f0 03"         # BEQ ice
-    "4c 89 87"      # JMP $8789 stock animation updater
-    f"4c {_ice.CPU_ANIM_UPDATE & 0xFF:02x} {_ice.CPU_ANIM_UPDATE >> 8:02x}"
-)
-
-PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME = bytes.fromhex(
-    "a0 01"         # LDY #$01
-    "b1 08"         # LDA ($08),Y -> main-slot type
-    "c9 84"         # CMP #$84
-    "f0 07"         # BEQ ice
-    f"c9 {FAIRY9C_ID:02x}"  # CMP #$9C
-    "f0 06"         # BEQ fairy9c
-    "4c 89 87"      # JMP $8789 stock animation updater
-    f"4c {_ice.CPU_ANIM_UPDATE & 0xFF:02x} {_ice.CPU_ANIM_UPDATE >> 8:02x}"
-    "20 89 87"      # fairy9c: JSR $8789 stock animation updater
-    "a0 13"         # LDY #$13
-    "b1 08"         # LDA ($08),Y: stock frame attr
-    "29 13"         # AND #$13: preserve Fairy flip bits used by the OAM writer
-    "09 48"         # ORA #$48: force Dark Fairy palette
-    "91 08"         # STA ($08),Y: overwrite frame attr after stock animation
-    "60"            # RTS
-)
 
 def _build_anim_entry_runtime() -> bytes:
     a = _EntryAsm()
@@ -356,6 +270,8 @@ def _build_anim_entry_runtime() -> bytes:
     a.b(0xC9, 0x5E)
     a.branch(0xF0, "stock_spr2")
     a.b(0xC9, 0x62)
+    a.branch(0xF0, "stock_spr2")
+    a.b(0xC9, 0x66)
     a.branch(0xF0, "stock_spr2")
     a.b(0xC9, 0x6A)
     a.branch(0xF0, "stock_spr2")
@@ -406,67 +322,17 @@ GHOSTB0_EXTENSION_RUNTIME = bytes.fromhex(
     "60"
 )
 
-PRE_GHOSTB0_AI_ENTRY_RUNTIME = bytes.fromhex(
-    "48186914c986f034c987f034c988f034c989f034c98af034c99cf034c99df034"
-    "c9a09008c9b0b004684cbdbdc9c09008c9d8b004684cc0be684c29a3684ca2ed"
-    "684ca6ed684c25ee684cbeee684ce0ee684c1ee0684c28ec"
-)
-PRE_GHOSTB0_SETUP_ENTRY_RUNTIME = bytes.fromhex(
-    "a001b108c9c09004c9d89040c9839045c988f029c989f028c98af027c99cf026"
-    "c99df025c9a09007c9b0b0294c9cbd38e984aabd88ed850ea8b9d3d9604c06ee"
-    "4ca4ee4cc1ee4c00e04cf4eba914850ea8b9d3d960a40eb9d3d960"
-)
-PRE_GHOSTB0_INIT_ENTRY_RUNTIME = bytes.fromhex(
-    "48a505c9c09004c9d89035c986f036c987f032c988f031c989f030c98af02fc99c"
-    "f02ec99df02dc9a09007c9b0b0034ca5bd68201c9da505c982f001604c75e06820"
-    "1c9d604c8ced4c0fee4caeee4ccaee4c09e04cfceb"
-)
-PRE_GHOSTB0_ANIM_ENTRY_RUNTIME = bytes.fromhex(
-    "a001b108c9c09004c9d8906dc982f02dc99cf03ac99df05ec9a09004c9b0902029"
-    "fec95ef036c962f032c96af02ec96ef038c972f026c976f0304c89874c92e02089"
-    "87a013b10829330948910860208987a013b10829130948910860208987a013b108"
-    "29330948910860208987a013b10829339108604c01ed4c8987"
-)
-
-PRE_PANEL_AI_ENTRY_RUNTIME = bytes.fromhex(
-    "48186914c9849004c9889034c99ef024c99cf024c99df024c9a09008c9b0b004"
-    "684cbdbdc9c09008c9d8b004684cc0be684c27bd684cbeee684c1ee0684c28ec"
-    "684ceeee"
-)
-PRE_PANEL_SETUP_ENTRY_RUNTIME = bytes.fromhex(
-    "a001b108c9c09004c9d89032c9849007c988b0034cc1eec983902cc99ef016c99c"
-    "f015c99df014c9a09007c9b0b0184c9cbd4c35bd4ca4ee4c00e04cf4eba914850e"
-    "a8b9d3d9604c35bd"
-)
-PRE_PANEL_INIT_ENTRY_RUNTIME = bytes.fromhex(
-    "48a505c9c09004c9d89028c9849007c988b0034cd4eec99ef01ec99cf01dc99df0"
-    "1cc9a09007c9b0b0034ca5bd4c45bd4c75e068201c9d604caeee4c09e04cfceb"
-)
-PRE_PANEL_ANIM_ENTRY_RUNTIME = bytes.fromhex(
-    "a001b108c9c09004c9d89067c9b09004c9bc905fc982f02dc99cf02cc99df050c9"
-    "a09004c9b0902e29fec95ef028c962f024c96af020c96ef02ac972f018c976f022"
-    "4c89874c92e0208987a013b10829130948910860208987a013b108293309489108"
-    "60208987a013b10829339108604c01ed4c8987"
-)
-PRE_PANEL_GHOSTB0_EXTENSION_RUNTIME = bytes.fromhex(
-    "c99c9007c9a8b0034c83e24c29a338e9b0c90cb0034c58e2a40eb9d3d960a505"
-    "38e9b0c90cb0034c6ae268201c9da505c982d0034c75e060"
-)
-
 ENTRY_RUNTIMES = (
-    (OFF_AI_ENTRY, AI_ENTRY_RUNTIME, (PRE_COMPACT_AI_ENTRY_RUNTIME,), "$BBE2 new enemy AI dispatch"),
-    (OFF_SETUP_ENTRY, SETUP_ENTRY_RUNTIME, (PRE_GHOSTB0_SETUP_ENTRY_RUNTIME,), f"${CPU_SETUP_ENTRY:04X} new enemy setup dispatch"),
-    (OFF_INIT_ENTRY, INIT_ENTRY_RUNTIME, (), f"${CPU_INIT_ENTRY:04X} new enemy init dispatch"),
-    (OFF_ANIM_ENTRY, ANIM_ENTRY_RUNTIME, (OLD_ANIM_ENTRY_RUNTIME, PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME, PRE_GHOSTB0_ANIM_ENTRY_RUNTIME), f"${CPU_ANIM_ENTRY:04X} new enemy animation dispatch"),
+    (OFF_AI_ENTRY, AI_ENTRY_RUNTIME, "$BBE2 new enemy AI dispatch"),
+    (OFF_SETUP_ENTRY, SETUP_ENTRY_RUNTIME, f"${CPU_SETUP_ENTRY:04X} new enemy setup dispatch"),
+    (OFF_INIT_ENTRY, INIT_ENTRY_RUNTIME, f"${CPU_INIT_ENTRY:04X} new enemy init dispatch"),
+    (OFF_ANIM_ENTRY, ANIM_ENTRY_RUNTIME, f"${CPU_ANIM_ENTRY:04X} new enemy animation dispatch"),
 )
 
 HOOK_AI_DISPATCH_CALL = bytes((0x20, CPU_AI_ENTRY & 0xFF, CPU_AI_ENTRY >> 8))
 HOOK_SETUP_META_LOAD = bytes((0x20, CPU_SETUP_ENTRY & 0xFF, CPU_SETUP_ENTRY >> 8))
 HOOK_INIT_WRITE_CALL = bytes((0x20, CPU_INIT_ENTRY & 0xFF, CPU_INIT_ENTRY >> 8))
 HOOK_ANIM_UPDATE_CALL = bytes((0x20, CPU_ANIM_ENTRY & 0xFF, CPU_ANIM_ENTRY >> 8))
-PRE_PANEL_HOOK_SETUP_META_LOAD = bytes.fromhex("20 26 bc")
-PRE_PANEL_HOOK_INIT_WRITE_CALL = bytes.fromhex("20 70 bc")
-PRE_PANEL_HOOK_ANIM_UPDATE_CALL = bytes.fromhex("20 b1 bc")
 
 RESERVED_SPANS = (
     (OFF_AI_ENTRY, len(AI_ENTRY_RUNTIME)),
@@ -483,19 +349,16 @@ RESERVED_SPANS = (
     *_ghostb0.RESERVED_SPANS,
 )
 
-assert len(PRE_PACKED_GHOST_SETUP_ENTRY_RUNTIME) == 32
-assert len(OLD_ANIM_ENTRY_RUNTIME) == 14
-assert len(PRE_BULLET_PALETTE_ANIM_ENTRY_RUNTIME) == 32
 assert len(AI_ENTRY_RUNTIME) == 80
 assert len(SETUP_ENTRY_RUNTIME) == 82
 assert len(INIT_ENTRY_RUNTIME) == 76
-assert len(ANIM_ENTRY_RUNTIME) == 129
+assert len(ANIM_ENTRY_RUNTIME) == 133
 assert len(GHOSTB0_EXTENSION_RUNTIME) == 56
 assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
 assert OFF_INIT_ENTRY == OFF_SETUP_ENTRY + len(SETUP_ENTRY_RUNTIME)
 assert OFF_ANIM_ENTRY == OFF_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
 assert OFF_GHOSTB0_EXTENSION == OFF_ANIM_ENTRY + len(ANIM_ENTRY_RUNTIME)
-assert OFF_GHOSTB0_EXTENSION + len(GHOSTB0_EXTENSION_RUNTIME) == 0x3D99
+assert OFF_GHOSTB0_EXTENSION + len(GHOSTB0_EXTENSION_RUNTIME) == 0x3D9D
 
 
 def levels_need_runtime(levels: list) -> bool:
@@ -539,20 +402,6 @@ def _expect_blank_or(data: bytes | bytearray, off: int, blob: bytes, name: str) 
     )
 
 
-def _expect_blank_or_one_of(data: bytes | bytearray, off: int, allowed: tuple[bytes, ...], name: str) -> None:
-    size = max(len(blob) for blob in allowed)
-    cur = bytes(data[off:off + size])
-    if all(b in (0xEA, 0x00) for b in cur):
-        return
-    for blob in allowed:
-        if bytes(data[off:off + len(blob)]) == blob:
-            return
-    expected = " or ".join(blob.hex(" ") for blob in allowed)
-    raise NewEnemyRuntimeError(
-        f"{name} area is not blank at 0x{off:X}: expected EA/00 or {expected}, got {cur.hex(' ')}"
-    )
-
-
 def _write(data: bytearray, off: int, blob: bytes, changed: list[str], name: str) -> None:
     cur = bytes(data[off:off + len(blob)])
     if cur != blob:
@@ -575,7 +424,7 @@ def apply(rom_data: bytearray) -> list[str]:
         _ghostb0.OFF_PARAMETER_TABLE + len(_ghostb0.PARAMETER_TABLES),
         _panel.OFF_FINAL_STATIC_MARKER_HELPER + len(_panel.FINAL_STATIC_MARKER_HELPER),
         OFF_GHOSTB0_EXTENSION + len(GHOSTB0_EXTENSION_RUNTIME),
-        max(off + len(blob) for off, blob, _old_blobs, _name in ENTRY_RUNTIMES),
+        max(off + len(blob) for off, blob, _name in ENTRY_RUNTIMES),
     )
     if rom_data is None or len(rom_data) < max_end:
         raise NewEnemyRuntimeError("ROM is too short for new enemy runtime.")
@@ -583,40 +432,25 @@ def apply(rom_data: bytearray) -> list[str]:
     _expect_one(
         rom_data,
         _ice.OFF_AI_DISPATCH_CALL,
-        (_ice.ORIG_AI_DISPATCH_CALL, _ice.HOOK_AI_DISPATCH_CALL, HOOK_AI_DISPATCH_CALL),
+        (_ice.ORIG_AI_DISPATCH_CALL, HOOK_AI_DISPATCH_CALL),
         "$A1C3 new enemy AI dispatch hook",
     )
     _expect_one(
         rom_data,
         _ice.OFF_ANIM_UPDATE_CALL,
-        (
-            _ice.ORIG_ANIM_UPDATE_CALL,
-            _ice.HOOK_ANIM_UPDATE_CALL,
-            PRE_PANEL_HOOK_ANIM_UPDATE_CALL,
-            HOOK_ANIM_UPDATE_CALL,
-        ),
+        (_ice.ORIG_ANIM_UPDATE_CALL, HOOK_ANIM_UPDATE_CALL),
         "$8676 new enemy animation hook",
     )
     _expect_one(
         rom_data,
         _ice.OFF_INIT_WRITE_CALL,
-        (
-            _ice.ORIG_INIT_WRITE_CALL,
-            _ice.HOOK_INIT_WRITE_CALL,
-            PRE_PANEL_HOOK_INIT_WRITE_CALL,
-            HOOK_INIT_WRITE_CALL,
-        ),
+        (_ice.ORIG_INIT_WRITE_CALL, HOOK_INIT_WRITE_CALL),
         "$A2F2 new enemy init hook",
     )
     _expect_one(
         rom_data,
         _ice.OFF_SETUP_META_LOAD,
-        (
-            _ice.ORIG_SETUP_META_LOAD,
-            _ice.HOOK_SETUP_META_LOAD,
-            PRE_PANEL_HOOK_SETUP_META_LOAD,
-            HOOK_SETUP_META_LOAD,
-        ),
+        (_ice.ORIG_SETUP_META_LOAD, HOOK_SETUP_META_LOAD),
         "$8ACB new enemy setup hook",
     )
     _expect_one(
@@ -628,16 +462,16 @@ def apply(rom_data: bytearray) -> list[str]:
     neul84_settings = _neul84.current_settings(rom_data)
     neul84_runtime = _neul84.build_runtime(neul84_settings["groups"])
     neul84_parameters = _neul84.build_parameter_tables(neul84_settings["groups"])
-    _expect_blank_or_one_of(
+    _expect_blank_or(
         rom_data,
         _neul84.OFF_RUNTIME,
-        (neul84_runtime,),
+        neul84_runtime,
         "Neul A/B runtime area",
     )
-    _expect_blank_or_one_of(
+    _expect_blank_or(
         rom_data,
         _neul84.OFF_PARAMETER_TABLE,
-        (neul84_parameters,),
+        neul84_parameters,
         "Neul A/B parameter table area",
     )
     _expect_one(
@@ -655,22 +489,22 @@ def apply(rom_data: bytearray) -> list[str]:
     ghostb0_parameters = _ghostb0.build_parameter_tables(ghostb0_settings["groups"])
     _ghostb0.validate_runtime_dependencies(rom_data)
     _neul84.validate_runtime_dependencies(rom_data)
-    _expect_blank_or_one_of(
+    _expect_blank_or(
         rom_data,
         _ghostb0.OFF_RUNTIME,
-        (ghostb0_runtime,),
+        ghostb0_runtime,
         "Ghost A-F runtime area",
     )
-    _expect_blank_or_one_of(
+    _expect_blank_or(
         rom_data,
         _ghostb0.OFF_PARAMETER_TABLE,
-        (ghostb0_parameters,),
+        ghostb0_parameters,
         "Ghost A-F parameter table area",
     )
-    _expect_blank_or_one_of(
+    _expect_blank_or(
         rom_data,
         _phantom_preset.OFF_RUNTIME,
-        (phantom_runtime,),
+        phantom_runtime,
         "Phantom preset runtime area",
     )
     _expect_one(
@@ -691,16 +525,14 @@ def apply(rom_data: bytearray) -> list[str]:
         (bytes((0xEA,)) * len(_radiance9d.RUNTIME), _radiance9d.RUNTIME),
         "Seraphic Radiance9D runtime area",
     )
-    previous_center = (
-        bytes(rom_data[0x3BF2:0x3BF2 + len(PRE_PANEL_AI_ENTRY_RUNTIME)]) == PRE_PANEL_AI_ENTRY_RUNTIME
-        and bytes(rom_data[0x3C36:0x3C36 + len(PRE_PANEL_SETUP_ENTRY_RUNTIME)]) == PRE_PANEL_SETUP_ENTRY_RUNTIME
-        and bytes(rom_data[0x3C80:0x3C80 + len(PRE_PANEL_INIT_ENTRY_RUNTIME)]) == PRE_PANEL_INIT_ENTRY_RUNTIME
-        and bytes(rom_data[0x3CC1:0x3CC1 + len(PRE_PANEL_ANIM_ENTRY_RUNTIME)]) == PRE_PANEL_ANIM_ENTRY_RUNTIME
-        and bytes(rom_data[0x3D37:0x3D37 + len(PRE_PANEL_GHOSTB0_EXTENSION_RUNTIME)]) == PRE_PANEL_GHOSTB0_EXTENSION_RUNTIME
+    for off, blob, name in ENTRY_RUNTIMES:
+        _expect_blank_or(rom_data, off, blob, name)
+    _expect_blank_or(
+        rom_data,
+        OFF_GHOSTB0_EXTENSION,
+        GHOSTB0_EXTENSION_RUNTIME,
+        "Ghost B0-BB entry classification extension",
     )
-    if not previous_center:
-        for off, blob, _old_blobs, name in ENTRY_RUNTIMES:
-            _expect_blank_or_one_of(rom_data, off, (*_old_blobs, blob), name)
 
     changed: list[str] = []
     changed.extend(_spark_variant.apply(rom_data))
@@ -708,7 +540,7 @@ def apply(rom_data: bytearray) -> list[str]:
     _write(rom_data, _ice.OFF_ANIM_UPDATE_CALL, HOOK_ANIM_UPDATE_CALL, changed, "$8676 new enemy animation hook")
     _write(rom_data, _ice.OFF_INIT_WRITE_CALL, HOOK_INIT_WRITE_CALL, changed, "$A2F2 new enemy init/status hook")
     _write(rom_data, _ice.OFF_SETUP_META_LOAD, HOOK_SETUP_META_LOAD, changed, "$8ACB new enemy setup group hook")
-    for off, blob, _old_blobs, name in ENTRY_RUNTIMES:
+    for off, blob, name in ENTRY_RUNTIMES:
         _write(rom_data, off, blob, changed, name)
     _write(
         rom_data,

@@ -73,14 +73,14 @@ Ghostはbehavior下位2bit 0/1を使うため横移動、Neulは2/3を使うた�
 
 | 場所 | 強化Ghost経路 | 役割 |
 |---:|---|---|
-| 原作AI call `$A1C3` | 共通AI `$BBE2` -> Ghost分類 `$BD51` -> `$E283` | 原作AIと追加発射 |
-| setup hook `$8ACB` | 共通setup `$BC32` -> `$BD5F` -> `$E258` | group別body metadata |
-| init hook `$A2F2` | 共通init `$BC84` -> `$BD6F` -> `$E26A` | status、方向、cooldown初期化 |
+| 原作AI call `$A1C3` | 共通AI `$BBE2` -> Ghost分類 `$BD55` -> `$E283` | 原作AIと追加発射 |
+| setup hook `$8ACB` | 共通setup `$BC32` -> `$BD63` -> `$E258` | group別body metadata |
+| init hook `$A2F2` | 共通init `$BC84` -> `$BD73` -> `$E26A` | status、方向、cooldown初期化 |
 | animation hook `$8676` | 共通animation `$BCD0` -> `$8789` | 原作animation更新 |
 | property共有hook | Panel final property -> `$E313` | `$B0-$BB`へGhost property `$4A`を返す |
 | Bullet spawn | `$E323` -> `$AE76` -> `$E59B` | stock Bullet生成後に速度markerを初期化 |
 
-共通AI入口は原作dispatch値`type-$14`をstackへ保存して分類する。Ghost分類へ入る時にPLAでその値をAへ戻す。`$BD51`は`$9C-$A7`、すなわち`$B0-$BB - $14`だけを`$E283`へ送り、それ以外は原作dispatch `$A329`へ戻す。
+共通AI入口は原作dispatch値`type-$14`をstackへ保存して分類する。Ghost分類へ入る時にPLAでその値をAへ戻す。`$BD55`は`$9C-$A7`、すなわち`$B0-$BB - $14`だけを`$E283`へ送り、それ以外は原作dispatch `$A329`へ戻す。
 
 setup分類ではAに未加工typeが残る。init分類ではmain type `$05`を読み直す。両方とも`$B0-$BB`の境界比較が成立している。
 
@@ -245,7 +245,7 @@ tail JMP先`$E59B`のRTSが、もともと`JSR $E323`したAIへ直接戻る。w
 
 | file | CPU | size | 内容 |
 |---:|---:|---:|---|
-| `0x3D61-0x3D98` | `$BD51-$BD88` | 56B | 共通入口側Ghost分類extension |
+| `0x3D65-0x3D9C` | `$BD55-$BD8C` | 56B | 共通入口側Ghost分類extension |
 | `0x6268-0x633A` | `$E258-$E32A` | 211B | 強化Ghost本体 |
 | `0x633B-0x6341` | `$E32B-$E331` | 7B | 現行runtime予約なし |
 | `0x65AB-0x65B6` | `$E59B-$E5A6` | 12B | Panel runtime所有のstatic marker helper |
@@ -292,7 +292,6 @@ Ghost本体は`$E323`から固定アドレス`$E59B`へ直接JMPする。実体�
 - propertyのGhost範囲とstock fallback成立
 - animationがsetup済みmetadataを使って原作`$8789`へ入る
 - 5 chunk全て命令分断なし、全branch target有効
-- 現行workstateの本体211B、parameter 24B、共通4入口、56B extension、12B marker helperがbuilderと一致
 - 現行設定6groupは全てbody `$1A`、interval 64、stock Bullet、下向き
 - 設定無変更`apply_settings()`の変更report 0件、変更byte 0件
 
