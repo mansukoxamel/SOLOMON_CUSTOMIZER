@@ -7,6 +7,8 @@ from .element import ElementType
 FIRST_ID = 0xB0
 LAST_ID = 0xBB
 NEW_ENEMY_IDS = tuple(range(FIRST_ID, LAST_ID + 1))
+DARK_FAIRY_ID = 0x9C
+STOCK_FAIRY_PROPERTY = 0x0A
 
 OFF_RUNTIME = 0x6268
 CPU_RUNTIME = 0xE258
@@ -19,7 +21,7 @@ CPU_FIND_FREE_SUB_SLOT = 0xB2EA
 CPU_STOCK_BULLET_SPAWN = 0xAE76
 CPU_SUB_SLOT_PTR = 0xB156
 CPU_BULLET_MARKER_WRITE = 0xE59B
-CPU_BULLET_SPAWN = 0xE323
+CPU_BULLET_SPAWN = 0xE32A
 
 COOLDOWN_ARMED = 0x80
 GROUP_NAMES = ("A", "B", "C", "D", "E", "F")
@@ -234,11 +236,13 @@ OFF_AI_DISPATCH = OFF_INIT_STATUS + len(INIT_STATUS_RUNTIME)
 CPU_AI_DISPATCH = CPU_INIT_STATUS + len(INIT_STATUS_RUNTIME)
 AI_RUNTIME = _build_ai_runtime()
 
-OFF_PROPERTY_META_LOAD = OFF_AI_DISPATCH + len(AI_RUNTIME)
-CPU_PROPERTY_META_LOAD = CPU_AI_DISPATCH + len(AI_RUNTIME)
+OFF_SHARED_PROPERTY_META_LOAD = OFF_AI_DISPATCH + len(AI_RUNTIME)
+CPU_SHARED_PROPERTY_META_LOAD = CPU_AI_DISPATCH + len(AI_RUNTIME)
 
-PROPERTY_META_RUNTIME = bytes((
+SHARED_PROPERTY_META_RUNTIME = bytes((
     0xA5, 0x05,                         # LDA $05: spawn enemy ID
+    0xC9, DARK_FAIRY_ID,                # CMP #$9C: Dark Fairy
+    0xF0, 0x0E,                         # BEQ Dark Fairy stock-Fairy property
     0x38,                               # SEC
     0xE9, FIRST_ID,                     # SBC #$B0
     0xC9, LAST_ID - FIRST_ID + 1,       # CMP #$0C
@@ -247,10 +251,12 @@ PROPERTY_META_RUNTIME = bytes((
     0x60,                               # RTS
     0xB9, 0x0E, 0xA3,                   # LDA $A30E,Y
     0x60,                               # RTS
+    0xA9, STOCK_FAIRY_PROPERTY,         # LDA #$0A: stock Fairy property input
+    0x60,                               # RTS
 ))
 
-OFF_BULLET_SPAWN = OFF_PROPERTY_META_LOAD + len(PROPERTY_META_RUNTIME)
-CPU_BULLET_SPAWN = CPU_PROPERTY_META_LOAD + len(PROPERTY_META_RUNTIME)
+OFF_BULLET_SPAWN = OFF_SHARED_PROPERTY_META_LOAD + len(SHARED_PROPERTY_META_RUNTIME)
+CPU_BULLET_SPAWN = CPU_SHARED_PROPERTY_META_LOAD + len(SHARED_PROPERTY_META_RUNTIME)
 
 BULLET_SPAWN_RUNTIME = bytes((
     0x20, CPU_STOCK_BULLET_SPAWN & 0xFF, CPU_STOCK_BULLET_SPAWN >> 8,
@@ -264,7 +270,7 @@ def build_runtime(group_settings=None) -> bytes:
         SETUP_META_RUNTIME
         + INIT_STATUS_RUNTIME
         + AI_RUNTIME
-        + PROPERTY_META_RUNTIME
+        + SHARED_PROPERTY_META_RUNTIME
         + BULLET_SPAWN_RUNTIME
     )
 
@@ -280,10 +286,10 @@ assert len(PARAMETER_TABLES) == 24
 assert len(SETUP_META_RUNTIME) == 18
 assert len(INIT_STATUS_RUNTIME) == 25
 assert len(AI_RUNTIME) == 144
-assert len(PROPERTY_META_RUNTIME) == 16
+assert len(SHARED_PROPERTY_META_RUNTIME) == 23
 assert len(BULLET_SPAWN_RUNTIME) == 8
-assert CPU_BULLET_SPAWN == 0xE323
-assert len(RUNTIME) == 211
+assert CPU_BULLET_SPAWN == 0xE32A
+assert len(RUNTIME) == 218
 assert len(RUNTIME) <= MAX_RUNTIME_SIZE
 assert CPU_RUNTIME + len(RUNTIME) == CPU_RUNTIME_END
 

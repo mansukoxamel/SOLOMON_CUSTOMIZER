@@ -33,7 +33,7 @@
 | 8 | [Special Item / Fire2](08_special_item_fire2.md) | `fire2_item_runtime.py` | 完了（問題5件） |
 | 9 | [New Enemy ID shared entry center](09_new_enemy_entry_center.md) | `new_enemy_runtime.py` | 完了（確定問題3件） |
 | 10 | [Ice Flame / Ice Burn](10_ice_burn.md) | `ice_flame_runtime.py` | 完了（6502本体問題なし、validation候補1件） |
-| 11 | [Dark Fairy `$9C`](11_dark_fairy_9c.md) | `fairy9c_runtime.py` | 完了（6502本体問題なし、候補2件） |
+| 11 | [Dark Fairy `$9C`](11_dark_fairy_9c.md) | `fairy9c_runtime.py` | 完了（property範囲外読出し・mirror検出漏れ修正済み） |
 | 12 | [Seraphic Radiance `$9D`](12_seraphic_radiance_9d.md) | `seraphic_radiance9d_runtime.py` | 完了（確定問題4件） |
 | 13 | [Chaos Dragon `$9E`](13_chaos_dragon_9e.md) | `chaos_dragon9e_runtime.py` | 完了（6502本体問題なし、候補3件） |
 | 14 | [Phantom preset A-D](14_phantom_preset_ad.md) | `phantom_preset_runtime.py` | 完了（確定バグ2件、候補2件） |

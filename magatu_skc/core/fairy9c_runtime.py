@@ -29,17 +29,8 @@ OFF_INIT_STATUS = OFF_SETUP_META_LOAD + len(SETUP_META_RUNTIME)
 CPU_INIT_STATUS = CPU_SETUP_META_LOAD + len(SETUP_META_RUNTIME)
 
 INIT_STATUS_RUNTIME = bytes.fromhex(
-    "68"            # PLA: discard saved stock init input
-    "a0 05"         # LDY #$05
-    "a9 00"         # LDA #$00
-    "91 00"         # clear Y velocity left by the $9C stock property read
-    "a9 e2"         # LDA #$E2: stock Fairy status
-    "85 04"         # STA $04
-    "a9 9c"         # LDA #$9C: keep Dark Fairy runtime type
-    "85 05"         # STA $05
-    "a9 00"         # LDA #$00: stock Fairy behavior
-    "20 1c 9d"      # JSR $9D1C stock init writer
-    "60"            # RTS
+    "68"            # PLA: restore stock-Fairy behavior input
+    "4c 1c 9d"      # JMP $9D1C: property path already prepared status/type
 )
 
 OFF_AI_DISPATCH = OFF_INIT_STATUS + len(INIT_STATUS_RUNTIME)
@@ -84,9 +75,9 @@ CPU_RUNTIME_END = CPU_RUNTIME + len(RUNTIME)
 RESERVED_SPANS = ((OFF_RUNTIME, len(RUNTIME)),)
 
 assert len(SETUP_META_RUNTIME) == 9
-assert len(INIT_STATUS_RUNTIME) == 21
+assert len(INIT_STATUS_RUNTIME) == 4
 assert len(AI_DISPATCH_RUNTIME) == 56
-assert len(RUNTIME) == 86
+assert len(RUNTIME) == 69
 assert CPU_RUNTIME + len(RUNTIME) == CPU_RUNTIME_END
 
 

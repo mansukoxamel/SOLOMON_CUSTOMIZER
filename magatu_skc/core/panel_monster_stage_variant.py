@@ -505,7 +505,7 @@ def _build_stage_property_hook() -> bytes:
     a.jsr(CPU_FINAL_PANEL_TYPE_CLASSIFIER)
     a.branch(0xB0, "panel")
     a.label("orig")
-    a.jsr(ghostb0_runtime.CPU_PROPERTY_META_LOAD)
+    a.jsr(ghostb0_runtime.CPU_SHARED_PROPERTY_META_LOAD)
     a.b(0x60)
     a.label("panel")
     a.b(0xA9, panel_monster_variant.PANEL_PROPERTY, 0x60)

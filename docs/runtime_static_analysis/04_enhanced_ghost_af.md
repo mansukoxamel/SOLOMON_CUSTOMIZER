@@ -7,17 +7,17 @@
 
 ## 結論
 
-強化ゴーストruntimeは、敵ID `$B0-$BB`をA-Fの6group、各group右・左の2IDへ割り当てる。原作Ghostの横移動AI `$ABF7`を本体として再利用し、その前後へ独立した移動速度、発射間隔、Bullet速度、発射方向を追加する211Bのruntimeである。
+強化ゴーストruntimeは、敵ID `$B0-$BB`をA-Fの6group、各group右・左の2IDへ割り当てる。原作Ghostの横移動AI `$ABF7`を本体として再利用し、その前後へ独立した移動速度、発射間隔、Bullet速度、発射方向を追加する218Bのruntimeである。末尾側にはDark Fairy/Ghost/原作を振り分ける共有property末端を含む。
 
 5個のcode chunkはすべて命令境界で末尾まで分解できた。共通入口からsetup、init、毎フレームAI、Bullet生成、animationまでの生きた経路を追跡した結果、確定した実動作バグは見つからなかった。特に、親Ghostが原作壁待ち用に使う`sub[6]`と追加Bulletが一時的に使う`sub[6]`は、同じフレームで競合しない。追加Bullet生成時は原作`$AE76`が親子link bitを直ちにclearするため、原作Ghostの後始末へ誤ってBulletが渡ることもない。
 
-一方、保守上の問題を3件記録する。
+原解析で記録した保守上の問題3件は、後続修正で解消した。
 
-1. 高速Bullet marker書込みを別runtimeの固定アドレス`$E59B`へ直接依存し、Ghost writer単体ではその署名を検査しない。
-2. 正式版前の救済禁止方針に反する旧`PRE_COMPACT_RUNTIME`受入れが残る。
-3. 旧ID配置監査のGhost `$86/$87`節が現行`$B0-$BB`実装と食い違う。
+1. 高速Bullet marker helper `$E59B`の依存検査を追加し、未知byte列を拒否する。
+2. 正式版前の救済禁止方針に反する旧`PRE_COMPACT_RUNTIME`受入れを削除した。
+3. 旧ID配置監査のGhost `$86/$87`節へ現行`$B0-$BB`実装の訂正を追加した。
 
-この解析ではruntimeコード、ROM配置、管理簿を変更していない。
+原解析時点ではruntimeコード、ROM配置、管理簿を変更していない。11/26修正で共有property末端を7B拡張し、正式管理簿を更新した。
 
 ## IDとparameterの対応
 
@@ -77,8 +77,8 @@ Ghostはbehavior下位2bit 0/1を使うため横移動、Neulは2/3を使うた�
 | setup hook `$8ACB` | 共通setup `$BC32` -> `$BD63` -> `$E258` | group別body metadata |
 | init hook `$A2F2` | 共通init `$BC84` -> `$BD73` -> `$E26A` | status、方向、cooldown初期化 |
 | animation hook `$8676` | 共通animation `$BCD0` -> `$8789` | 原作animation更新 |
-| property共有hook | Panel final property -> `$E313` | `$B0-$BB`へGhost property `$4A`を返す |
-| Bullet spawn | `$E323` -> `$AE76` -> `$E59B` | stock Bullet生成後に速度markerを初期化 |
+| property共有hook | Panel final property -> `$E313` | `$9C`へFairy property `$0A`、`$B0-$BB`へGhost property `$4A`を返す |
+| Bullet spawn | `$E32A` -> `$AE76` -> `$E59B` | stock Bullet生成後に速度markerを初期化 |
 
 共通AI入口は原作dispatch値`type-$14`をstackへ保存して分類する。Ghost分類へ入る時にPLAでその値をAへ戻す。`$BD55`は`$9C-$A7`、すなわち`$B0-$BB - $14`だけを`$E283`へ送り、それ以外は原作dispatch `$A329`へ戻す。
 
@@ -195,17 +195,17 @@ Bullet APIの方向は0右、1左、2上、3下なので、どちらも親の逆
 
 ### Bullet速度marker
 
-`$E323`はstock spawn `$AE76`を呼び、A=0で`$E59B`へtail JMPする。`$E59B`は`$02`に残るchild indexから子sub-slot pointerを求め、child `sub[7]`を0へする。これは再利用slotの古いmarkerを必ず消す処理である。
+`$E32A`はstock spawn `$AE76`を呼び、A=0で`$E59B`へtail JMPする。`$E59B`は`$02`に残るchild indexから子sub-slot pointerを求め、child `sub[7]`を0へする。これは再利用slotの古いmarkerを必ず消す処理である。
 
 AIへ戻った後、速度parameterが0ならそのままにする。`$88-$8B`ならchild `sub[7]`へ上書きする。Panel Monster v2のBullet AI拡張がこのmarkerを読み、1/4、1/2、2倍、3倍を適用する。
 
-## property runtime `$E313-$E322` 16B
+## 共有property末端 `$E313-$E329` 23B
 
-spawn中type `$05`から`$B0`を引き、結果が12未満ならA=`$4A`でRTSする。`$4A`は原作Ghostと同じproperty入力である。
+spawn中type `$05`がDark Fairy `$9C`なら原作Fairyと同じA=`$0A`でRTSする。その後、typeから`$B0`を引き、結果が12未満ならA=`$4A`でRTSする。`$4A`は原作Ghostと同じproperty入力である。
 
-範囲外はhook元の原作命令`LDA $A30E,Y`を再実行してRTSする。SBCのunderflowは大きなunsigned値になりCMPで範囲外となるため、`$00-$AF`を誤分類しない。XとYは保持し、AとC/Z/Nは戻り値に応じて変わる。
+それ以外はhook元の原作命令`LDA $A30E,Y`を再実行してRTSする。SBCのunderflowは大きなunsigned値になりCMPで範囲外となるため、`$00-$9B/$9D-$AF`をGhostへ誤分類しない。XとYは保持し、AとC/Z/Nは戻り値に応じて変わる。
 
-## Bullet spawn wrapper `$E323-$E32A` 8B
+## Bullet spawn wrapper `$E32A-$E331` 8B
 
 ```text
 JSR $AE76
@@ -215,7 +215,7 @@ JMP $E59B
 
 stock `$AE76`は、事前確保したchildをparent `sub[6]`から取得し、座標、status `$C0`、type `$20`、behavior方向を初期化し、SE `$17`を鳴らす。`$9D1C`はzero-page `$02`を書き換えないため、後続`$E59B`がchild indexとして`$02`を読む契約も成立する。
 
-tail JMP先`$E59B`のRTSが、もともと`JSR $E323`したAIへ直接戻る。wrapper自身のreturn addressを余分に積まないため、stack収支は正しい。
+tail JMP先`$E59B`のRTSが、もともと`JSR $E32A`したAIへ直接戻る。wrapper自身のreturn addressを余分に積まないため、stack収支は正しい。
 
 ## register・flag・stack検査
 
@@ -225,7 +225,7 @@ tail JMP先`$E59B`のRTSが、もともと`JSR $E323`したAIへ直接戻る。w
 | init `$E26A` | cooldown値等でclobber | `$B156`でclobber | 7 | 保存AをPLA、JSR元へRTS |
 | AI `$E283` | 判定・parameterでclobber | group/slot/directionでclobber | field indexでclobber | 全4終了経路で収支0 |
 | property `$E313` | propertyを返す | 保持 | fallback table indexを保持 | stack不使用 |
-| spawn `$E323` | 0をmarker helperへ渡す | stock spawnでclobber | stock spawnでclobber | JSR後にtail JMP、最終RTSで収支0 |
+| spawn `$E32A` | 0をmarker helperへ渡す | stock spawnでclobber | stock spawnでclobber | JSR後にtail JMP、最終RTSで収支0 |
 
 このAIは原作`$ABF7`と同様にA/X/Y/condition flagsを保存するAPIではない。AI dispatch callerもそれらの保持を要求しない。
 
@@ -236,8 +236,8 @@ tail JMP先`$E59B`のRTSが、もともと`JSR $E323`したAIへ直接戻る。w
 | setup | `$E258-$E269` | 18B | 18B全消費、10命令 |
 | init | `$E26A-$E282` | 25B | 25B全消費、13命令 |
 | AI | `$E283-$E312` | 144B | 144B全消費、84命令 |
-| property | `$E313-$E322` | 16B | 16B全消費、9命令 |
-| Bullet wrapper | `$E323-$E32A` | 8B | 8B全消費、3命令 |
+| property | `$E313-$E329` | 23B | 23B全消費、Dark Fairy/Ghost/stock共有 |
+| Bullet wrapper | `$E32A-$E331` | 8B | 8B全消費、3命令 |
 
 全relative branchはchunk内の命令先頭へ着地する。Python builderはbranch距離`-128..127`も検査する。
 
@@ -246,32 +246,31 @@ tail JMP先`$E59B`のRTSが、もともと`JSR $E323`したAIへ直接戻る。w
 | file | CPU | size | 内容 |
 |---:|---:|---:|---|
 | `0x3D65-0x3D9C` | `$BD55-$BD8C` | 56B | 共通入口側Ghost分類extension |
-| `0x6268-0x633A` | `$E258-$E32A` | 211B | 強化Ghost本体 |
-| `0x633B-0x6341` | `$E32B-$E331` | 7B | 現行runtime予約なし |
+| `0x6268-0x6341` | `$E258-$E331` | 218B | 強化Ghost本体と共有property末端 |
 | `0x65AB-0x65B6` | `$E59B-$E5A6` | 12B | Panel runtime所有のstatic marker helper |
 | `0x6D98-0x6DAF` | `$ED88-$ED9F` | 24B | A-F parameter table |
 
 新規専用RAMは使わない。既存の親`sub[7]`をcooldown、子Bullet `sub[7]`を速度markerとして使う。親`sub[6]`はspawn APIへ渡す一時的child indexである。
 
-## 確定した問題・保守上の問題
+## 修正済みの保守上の問題
 
 ### [P2] 外部marker helperの署名をGhost writer単体で検査しない
 
-Ghost本体は`$E323`から固定アドレス`$E59B`へ直接JMPする。実体は`panel_monster_stage_variant.py`が所有する12B helperであり、現行workstateでは正しいbyte列と一致する。Panel runtimeを常設する現行保存経路でも毎回書かれる。
+Ghost本体は`$E32A`から固定アドレス`$E59B`へ直接JMPする。実体は`panel_monster_stage_variant.py`が所有する12B helperであり、修正前workstateでは正しいbyte列と一致した。Panel runtimeを常設する現行保存経路でも毎回書かれる。
 
-しかし`ghostb0_runtime.current_settings()`と`apply_settings()`は、Ghost本体211Bとparameter 24Bだけを検査する。`$E59B`が空、旧版、未知codeのいずれでもGhost runtimeを正常と判定できる。`new_enemy_runtime.apply()`もGhost本体を検査するが、この外部helperの所有確認はPanel writer側まで進まないと成立しない。
+`ghostb0_runtime.validate_runtime_dependencies()`を追加し、`current_settings()`と`new_enemy_runtime.apply()`の両方から呼ぶ。保存順の都合で未書込みの空きは受け入れるが、現行helperとも空きとも一致しない未知codeは拒否する。Panel writerは後続でhelperを常設配置する。
 
-通常の完成ROMでは直ちに再現するバグではないが、モジュール単体のfail-closed境界と依存宣言が不完全である。helperが欠けたROMでは全Ghost発射が未知codeへ入るため、影響は大きい。
+これにより、モジュール単体の依存宣言と未知codeに対するfail-closed境界を補った。
 
 ### [P3] 旧pre-compact runtimeを互換入力として受け入れる
 
-`PRE_COMPACT_RUNTIME`は現行runtime末尾JMP先`$E59B`だけを旧`$E5D5`へ戻した211Bである。`current_settings()`と`new_enemy_runtime.apply()`はこれを明示的に許容し、現行byte列へ置換する。
+旧`PRE_COMPACT_RUNTIME`の定義と受入れを削除し、現行runtimeまたは空き以外は拒否する。
 
-これは古い内部ROMを読み替えるmigrationであり、正式版前は古い実験ROM・途中生成ROMを救済しないという現行方針に合わない。生きた6502処理の誤りではないが、不要な入力状態を正常扱いする保守負担になっている。
+古い内部ROMを読み替えるmigrationを持たず、正式版前の救済禁止方針と一致させた。
 
 ### [P3] 旧ID配置監査のGhost節が現行実装と不一致
 
-`docs/new_enemy_id_placement_audit.md`にはGhost `$86/$87`と`ghost86_runtime.py`を前提にしたBomber/Cannon構想が残り、ROM使用範囲`0x6D98-0x6E15`を別runtimeとして説明している。現行実装は`ghostb0_runtime.py`、ID `$B0-$BB`、本体`0x6268-0x633A`、parameter表`0x6D98-0x6DAF`である。
+`docs/new_enemy_id_placement_audit.md`の旧Ghost `$86/$87`節へ現行実装の訂正を追加した。現行実装は`ghostb0_runtime.py`、ID `$B0-$BB`、本体`0x6268-0x6341`、parameter表`0x6D98-0x6DAF`である。
 
 正式ROM管理簿は現行配置と一致しているためROM重複そのものではない。ただし、旧監査を設計根拠に使うとID数、所有module、`0x6D98`の用途を誤認する。
 

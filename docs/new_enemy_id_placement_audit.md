@@ -500,7 +500,7 @@ ID下位bit、4ID単位のAI group、見た目、方向、速度、死亡経路�
 
 ## Bomber Ghost / Cannon Ghost
 
-> **現行実装への訂正:** この節の`$86/$87`、`ghost86_runtime.py`、8ID構想、`0x6D98-0x6E15`本体配置は過去設計であり、現行実装の根拠に使わない。現行は`ghostb0_runtime.py`のEnhanced Ghost A-F、ID `$B0-$BB`、本体`0x6268-0x633A`、parameter表`0x6D98-0x6DAF`である。A-Fは6つの右左pairで、発射方向と速度をparameter化している。詳細は`docs/runtime_static_analysis/04_enhanced_ghost_af.md`を正とする。
+> **現行実装への訂正:** この節の`$86/$87`、`ghost86_runtime.py`、8ID構想、`0x6D98-0x6E15`本体配置は過去設計であり、現行実装の根拠に使わない。現行は`ghostb0_runtime.py`のEnhanced Ghost A-F、ID `$B0-$BB`、本体`0x6268-0x6341`、parameter表`0x6D98-0x6DAF`である。A-Fは6つの右左pairで、発射方向と速度をparameter化している。詳細は`docs/runtime_static_analysis/04_enhanced_ghost_af.md`を正とする。
 
 ### 1. 基本情報
 
