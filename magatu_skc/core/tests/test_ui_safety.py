@@ -28,12 +28,45 @@ from magatu_skc.ui.element_picker import ENEMIES_LIST, MODE_ENEMY, ElementPicker
 from magatu_skc.ui.hack_dialog import HackDialog
 from magatu_skc.ui.main_window import MainWindow
 from magatu_skc.ui.settings_dialog import SettingsDialog
+from magatu_skc.ui.sprite_viewer import SpriteViewer
 from magatu_skc.ui.title_screen_dialog import TitleScreenDialog
 from magatu_skc.ui.dialog_geometry import (
     restore_dialog_geometry_values,
     store_dialog_geometry,
 )
 from magatu_skc.ui.dialog_buttons import localize_dialog_buttons
+
+
+class SpriteViewerControlLayoutTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    @staticmethod
+    def _rom():
+        data = bytearray(16 + 0x8000 + 0x2000)
+        data[4] = 2
+        data[5] = 1
+        return SimpleNamespace(data=data)
+
+    def test_dynamic_control_rows_are_sized_after_rebuild(self):
+        dialog = SpriteViewer(self._rom())
+        dialog.show()
+        self.app.processEvents()
+
+        self.assertGreater(dialog.ctrl_host.width(), 0)
+        self.assertGreater(dialog.ctrl_host.height(), 0)
+        self.assertGreater(dialog.rb_bank.width(), 0)
+        self.assertGreater(dialog.rb_pal.width(), 0)
+
+        raw_index = dialog.mode_combo.findData("raw")
+        dialog.mode_combo.setCurrentIndex(raw_index)
+        self.app.processEvents()
+
+        self.assertGreater(dialog.ctrl_host.width(), 0)
+        self.assertGreater(dialog.bank_combo.width(), 0)
+        self.assertGreater(dialog.pal_combo.width(), 0)
+        dialog.close()
 
 
 class ConfigSaveSafetyTests(unittest.TestCase):

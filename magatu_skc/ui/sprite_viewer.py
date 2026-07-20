@@ -13,7 +13,7 @@ from PyQt5.QtWidgets import (
     QScrollArea, QWidget, QGridLayout, QDialogButtonBox, QCheckBox, QFrame,
     QSizePolicy,
 )
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import QImage, QPixmap, QColor, QPainter
 
 from ..core.i18n import t
@@ -289,6 +289,7 @@ class SpriteViewer(QDialog):
             self.rb_zoom.valueChanged.connect(self._render_romframes)
             self.ctrl_layout.addWidget(self.rb_zoom)
             self.ctrl_layout.addStretch()
+            self._resize_control_host()
             self._render_romframes()
             return
 
@@ -326,6 +327,7 @@ class SpriteViewer(QDialog):
             self.zoom_spin.valueChanged.connect(self._render_chars)
             self.ctrl_layout.addWidget(self.zoom_spin)
             self.ctrl_layout.addStretch()
+            self._resize_control_host()
             self._render_chars()
         else:
             self.ctrl_layout.addWidget(QLabel(t("sprite_viewer.bank.label", "バンク:")))
@@ -356,7 +358,15 @@ class SpriteViewer(QDialog):
             self.grid_chk.stateChanged.connect(self._render_raw)
             self.ctrl_layout.addWidget(self.grid_chk)
             self.ctrl_layout.addStretch()
+            self._resize_control_host()
             self._render_raw()
+
+    def _resize_control_host(self):
+        QTimer.singleShot(0, self._apply_control_host_size)
+
+    def _apply_control_host_size(self):
+        self.ctrl_layout.activate()
+        self.ctrl_host.adjustSize()
 
     # ---- キャラクター（組み立て）モード ----
     def _char_entries(self):
