@@ -25,6 +25,7 @@ from ..nes.palette import NES_COLORS
 from ..nes.tile import NesTile, NES_TILE_W, NES_GFX_TILE_BYTE_SIZE
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
 from .dialog_buttons import localize_dialog_buttons
+from .rom_frame_data import read_rom_frame_records
 from collections import Counter
 from itertools import permutations
 import json
@@ -960,42 +961,17 @@ class TitleCharacterPickerDialog(QDialog):
 
     @staticmethod
     def _romframe_items_for_rom(rom):
-        cf = TitleCharacterPickerDialog._cf
-        if len(rom) <= cf(0xDA00):
-            return []
-        gptrs = [
-            rom[cf(0xD0E8 + i * 2)] | (rom[cf(0xD0E8 + i * 2 + 1)] << 8)
-            for i in range(32)
+        return [
+            (
+                record.group,
+                record.state,
+                record.frame,
+                record.left_tile,
+                record.right_tile,
+                record.attr,
+            )
+            for record in read_rom_frame_records(rom)
         ]
-        uniq = sorted(set(gptrs))
-        bound = {}
-        for i, p in enumerate(uniq):
-            bound[p] = uniq[i + 1] if i + 1 < len(uniq) else 0xD600
-        items = []
-        for g in range(32):
-            base = gptrs[g]
-            nstates = min(max(0, (bound.get(base, base + 4) - base) // 4), 64)
-            for s in range(nstates):
-                e = base + s * 4
-                phase = rom[cf(e)]
-                ri = rom[cf(e + 1)]
-                ptr = rom[cf(e + 2)] | (rom[cf(e + 3)] << 8)
-                frames = (phase & 0x0F) + 1
-                if ri & 1:
-                    if not (0xD000 <= ptr <= 0xD600):
-                        continue
-                    final = rom[cf(ptr)] | (rom[cf(ptr + 1)] << 8)
-                else:
-                    final = ptr
-                if not (0xD600 <= final < 0xDA00):
-                    continue
-                for fi in range(min(frames, 8)):
-                    a = final + fi * 3
-                    if not (0xD600 <= a < 0xDA00):
-                        break
-                    items.append((g, s, fi, rom[cf(a)],
-                                  rom[cf(a + 1)], rom[cf(a + 2)]))
-        return items
 
     def _romframe_items(self):
         return self._romframe_items_for_rom(self._rom)

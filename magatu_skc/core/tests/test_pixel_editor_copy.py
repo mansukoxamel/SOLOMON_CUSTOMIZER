@@ -132,6 +132,36 @@ class PixelEditorCopyTests(unittest.TestCase):
         self.assertGreaterEqual(dialog.bank_combo.minimumWidth(), 88)
         dialog.close()
 
+    def test_symmetrize_from_left_mirrors_left_half_and_is_undoable(self):
+        dialog = PixelEditorDialog(self._rom())
+        before = [[(x + y * 2) & 3 for x in range(16)] for y in range(16)]
+        dialog._set_working_pixels(before)
+        dialog._loaded_pixels = dialog._copy_pixels(before)
+
+        dialog._symmetrize_from_left()
+
+        for y in range(16):
+            self.assertEqual(dialog._pixels[y][8:], list(reversed(before[y][:8])))
+            self.assertEqual(dialog._pixels[y][:8], before[y][:8])
+        dialog._undo()
+        self.assertEqual(dialog._pixels, before)
+        dialog.close()
+
+    def test_symmetrize_from_right_mirrors_right_half_and_is_undoable(self):
+        dialog = PixelEditorDialog(self._rom())
+        before = [[(x * 2 + y) & 3 for x in range(16)] for y in range(16)]
+        dialog._set_working_pixels(before)
+        dialog._loaded_pixels = dialog._copy_pixels(before)
+
+        dialog._symmetrize_from_right()
+
+        for y in range(16):
+            self.assertEqual(dialog._pixels[y][:8], list(reversed(before[y][8:])))
+            self.assertEqual(dialog._pixels[y][8:], before[y][8:])
+        dialog._undo()
+        self.assertEqual(dialog._pixels, before)
+        dialog.close()
+
 
 if __name__ == "__main__":
     unittest.main()

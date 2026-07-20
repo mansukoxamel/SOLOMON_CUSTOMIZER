@@ -2366,6 +2366,22 @@ _TRANSLATIONS = {
         "ja": "全バンクコピー失敗",
         "en": "Copy to All Banks Failed",
     },
+    "pixel.symmetry_left": {
+        "ja": "左半分→右へ対称",
+        "en": "Mirror Left to Right",
+    },
+    "pixel.symmetry_left.tooltip": {
+        "ja": "左半分の鏡像を右半分へコピーし、16x16全体を左右対称にする",
+        "en": "Mirror the left half onto the right half to make the full 16x16 image symmetrical.",
+    },
+    "pixel.symmetry_right": {
+        "ja": "右半分→左へ対称",
+        "en": "Mirror Right to Left",
+    },
+    "pixel.symmetry_right.tooltip": {
+        "ja": "右半分の鏡像を左半分へコピーし、16x16全体を左右対称にする",
+        "en": "Mirror the right half onto the left half to make the full 16x16 image symmetrical.",
+    },
     "pixel.flip_h.tooltip": {
         "ja": "選択範囲があれば範囲内、なければ16x16全体を左右反転",
         "en": "Flip the selection horizontally, or the full 16x16 image if there is no selection.",
@@ -4000,8 +4016,8 @@ _TRANSLATIONS = {
         "en": "Palette:",
     },
     "sprite_viewer.palette.auto_attr": {
-        "ja": "attr&3で自動",
-        "en": "Auto from attr&3",
+        "ja": "attrから自動",
+        "en": "Auto from Attr",
     },
     "sprite_viewer.palette.option.0": {
         "ja": "BG #0",
@@ -4125,11 +4141,11 @@ _TRANSLATIONS = {
     },
     "sprite_viewer.romframe.status": {
         "ja": (
-            "{count_text} / $D0E8機構由来 / Bank {bank} / "
+            "{count_text} / $D0E8機構＋導入済み追加runtime / Bank {bank} / "
             "16x16(8x16スプライト) / ROM直読み・configに依存しない"
         ),
         "en": (
-            "{count_text} / from $D0E8 mechanism / Bank {bank} / "
+            "{count_text} / $D0E8 mechanism + installed custom runtime / Bank {bank} / "
             "16x16 (8x16 sprites) / direct ROM read, independent of config"
         ),
     },
@@ -4685,6 +4701,14 @@ _TRANSLATIONS = {
     "pixel.status.copied_all_banks": {
         "ja": "全{count}個のCHRバンクへ書き込みました。",
         "en": "Wrote to all {count} CHR banks.",
+    },
+    "pixel.status.symmetry_left": {
+        "ja": "左半分を基準に左右対称化しました。",
+        "en": "Mirrored the left half onto the right half.",
+    },
+    "pixel.status.symmetry_right": {
+        "ja": "右半分を基準に左右対称化しました。",
+        "en": "Mirrored the right half onto the left half.",
     },
     "pixel.info.dirty_suffix": {"ja": " / 未書込", "en": " / pending"},
     "pixel.info.selection": {

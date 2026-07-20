@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from math import inf
 
 from PyQt5.QtCore import Qt, pyqtSignal
@@ -18,6 +17,11 @@ from ..nes.tile import NES_GFX_TILE_BYTE_SIZE, NesTile
 from ..core.i18n import t
 from .file_dialog_compat import get_file, get_path
 from .dialog_geometry import restore_dialog_geometry, store_dialog_geometry
+from .rom_frame_data import (
+    RomFrameRecord,
+    packed_sprite_palette_numbers,
+    read_rom_frame_records,
+)
 
 
 PALETTE_OFFSET = 0xED4
@@ -27,18 +31,7 @@ PALETTE_LABELS = [
 ]
 TILES_PER_BANK = 512
 DEFAULT_CHR_BANK = 2
-FRAME_DATA_LO = 0xD600
-FRAME_DATA_HI = 0xDA00
-
-
-@dataclass(frozen=True)
-class FrameEntry:
-    group: int
-    state: int
-    frame: int
-    left_tile: int
-    right_tile: int
-    attr: int
+FrameEntry = RomFrameRecord
 
 
 class PixelCanvas(QWidget):
@@ -528,6 +521,23 @@ class PixelEditorDialog(QDialog):
         flip_row.addWidget(self.flip_v_btn)
         side.addLayout(flip_row)
 
+        symmetry_row = QHBoxLayout()
+        self.symmetry_left_btn = QPushButton(t("pixel.symmetry_left", "左半分→右へ対称"))
+        self.symmetry_left_btn.setToolTip(t(
+            "pixel.symmetry_left.tooltip",
+            "左半分の鏡像を右半分へコピーし、16x16全体を左右対称にする",
+        ))
+        self.symmetry_left_btn.clicked.connect(self._symmetrize_from_left)
+        symmetry_row.addWidget(self.symmetry_left_btn)
+        self.symmetry_right_btn = QPushButton(t("pixel.symmetry_right", "右半分→左へ対称"))
+        self.symmetry_right_btn.setToolTip(t(
+            "pixel.symmetry_right.tooltip",
+            "右半分の鏡像を左半分へコピーし、16x16全体を左右対称にする",
+        ))
+        self.symmetry_right_btn.clicked.connect(self._symmetrize_from_right)
+        symmetry_row.addWidget(self.symmetry_right_btn)
+        side.addLayout(symmetry_row)
+
         import_btn = QPushButton(t("pixel.import", "画像取込..."))
         import_btn.setToolTip(t("pixel.import.tooltip", "画像を16x16へ縮小し、現在の表示パレットの最寄り色へ変換"))
         import_btn.clicked.connect(self._import_image)
@@ -574,12 +584,14 @@ class PixelEditorDialog(QDialog):
             self.copy_btn.setEnabled(False)
             self.paste_btn.setEnabled(False)
             self.copy_all_banks_btn.setEnabled(False)
+            self.symmetry_left_btn.setEnabled(False)
+            self.symmetry_right_btn.setEnabled(False)
             self.info_label.setText(t("pixel.no_frames", "編集できる16x16 ROMフレームが見つかりません。"))
         self._update_history_buttons()
 
     @staticmethod
     def _entry_key(entry: FrameEntry) -> tuple[int, int, int]:
-        return entry.left_tile, entry.right_tile, entry.attr
+        return entry.edit_key
 
     def _select_entry_by_key(self, key: tuple[int, int, int]):
         key = tuple(int(v) & 0xFF for v in key)
@@ -619,9 +631,10 @@ class PixelEditorDialog(QDialog):
         name = self.GROUP_NAMES.get(entry.group, f"grp{entry.group:02X}")
         refs = self._entry_ref_counts.get(self._entry_key(entry), 1)
         ref_text = f" x{refs}" if refs > 1 else ""
+        type_text = f" type{entry.enemy_type:02X}" if entry.enemy_type is not None else ""
         return (
             f"{index:03d} {name} "
-            f"g{entry.group:02X}s{entry.state:02X}f{entry.frame} "
+            f"g{entry.group:02X}s{entry.state:02X}{type_text}f{entry.frame} "
             f"t{entry.left_tile:02X}/{entry.right_tile:02X} a{entry.attr:02X}{ref_text}"
         )
 
@@ -635,47 +648,7 @@ class PixelEditorDialog(QDialog):
         return 0
 
     def _romframe_items(self) -> list[FrameEntry]:
-        rom = self.rom.data
-        if len(rom) < self._cf(0xD600):
-            return []
-        gptrs = [
-            self._rom_byte_cpu(0xD0E8 + i * 2)
-            | (self._rom_byte_cpu(0xD0E8 + i * 2 + 1) << 8)
-            for i in range(32)
-        ]
-        uniq = sorted(set(gptrs))
-        bound = {p: (uniq[i + 1] if i + 1 < len(uniq) else 0xD600) for i, p in enumerate(uniq)}
-        items = []
-        for group in range(32):
-            base = gptrs[group]
-            nstates = min(max(0, (bound.get(base, base + 4) - base) // 4), 64)
-            for state in range(nstates):
-                entry_addr = base + state * 4
-                phase = self._rom_byte_cpu(entry_addr)
-                ref_info = self._rom_byte_cpu(entry_addr + 1)
-                ptr = self._rom_byte_cpu(entry_addr + 2) | (self._rom_byte_cpu(entry_addr + 3) << 8)
-                frames = (phase & 0x0F) + 1
-                if ref_info & 1:
-                    if not (0xD000 <= ptr <= 0xD600):
-                        continue
-                    final = self._rom_byte_cpu(ptr) | (self._rom_byte_cpu(ptr + 1) << 8)
-                else:
-                    final = ptr
-                if not (FRAME_DATA_LO <= final < FRAME_DATA_HI):
-                    continue
-                for frame in range(min(frames, 8)):
-                    addr = final + frame * 3
-                    if not (FRAME_DATA_LO <= addr < FRAME_DATA_HI):
-                        break
-                    items.append(FrameEntry(
-                        group=group,
-                        state=state,
-                        frame=frame,
-                        left_tile=self._rom_byte_cpu(addr),
-                        right_tile=self._rom_byte_cpu(addr + 1),
-                        attr=self._rom_byte_cpu(addr + 2),
-                    ))
-        return items
+        return read_rom_frame_records(self.rom.data)
 
     def _current_entry(self) -> FrameEntry | None:
         idx = self.frame_combo.currentData()
@@ -831,6 +804,26 @@ class PixelEditorDialog(QDialog):
         for row_offset, row in enumerate(reversed(rows)):
             new_pixels[y1 + row_offset][x1:x2 + 1] = row
         self._commit_pixels(new_pixels, t("pixel.status.flip_v", "上下反転しました。"), clear_selection=False)
+
+    def _symmetrize_from_left(self):
+        new_pixels = self._copy_pixels(self._pixels)
+        for y in range(16):
+            for x in range(8):
+                new_pixels[y][15 - x] = new_pixels[y][x]
+        self._commit_pixels(
+            new_pixels,
+            t("pixel.status.symmetry_left", "左半分を基準に左右対称化しました。"),
+        )
+
+    def _symmetrize_from_right(self):
+        new_pixels = self._copy_pixels(self._pixels)
+        for y in range(16):
+            for x in range(8):
+                new_pixels[y][x] = new_pixels[y][15 - x]
+        self._commit_pixels(
+            new_pixels,
+            t("pixel.status.symmetry_right", "右半分を基準に左右対称化しました。"),
+        )
 
     def _copy_16x16(self):
         if self._entry is None:
@@ -996,7 +989,7 @@ class PixelEditorDialog(QDialog):
             return fixed, fixed
         if entry is None:
             return 0, 0
-        return (entry.attr >> 6) & 3, (entry.attr >> 2) & 3
+        return packed_sprite_palette_numbers(entry.attr)
 
     def _palette_colors_for_entry(self, entry: FrameEntry | None) -> list[list[tuple[int, int, int]]]:
         left, right = self._palette_numbers_for_entry(entry)

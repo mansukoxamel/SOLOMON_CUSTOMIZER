@@ -21,6 +21,7 @@ from ..nes.tile import NesTile, NES_TILE_W, NES_GFX_TILE_BYTE_SIZE
 from ..nes import palette as pal
 from .dialog_geometry import restore_dialog_geometry, store_dialog_geometry
 from .dialog_buttons import localize_dialog_buttons
+from .rom_frame_data import packed_sprite_palette_numbers, read_rom_frame_records
 
 PALETTE_OFFSET = 0xED4
 PALETTE_COUNT = 8
@@ -266,7 +267,7 @@ class SpriteViewer(QDialog):
             self.rb_pal = QComboBox()
             for i in range(4, 8):
                 self.rb_pal.addItem(self._palette_label(i))
-            self.rb_pal.addItem(t("sprite_viewer.palette.auto_attr", "attr&3で自動"))
+            self.rb_pal.addItem(t("sprite_viewer.palette.auto_attr", "attrから自動"))
             self.rb_pal.setCurrentIndex(4)
             self.rb_pal.currentIndexChanged.connect(self._render_romframes)
             self.ctrl_layout.addWidget(self.rb_pal)
@@ -634,44 +635,11 @@ class SpriteViewer(QDialog):
 
     def _romframe_items(self):
         """検証済み $D0E8 機構で全 (group,state,frame,t1,t2,attr) を抽出"""
-        rom = self.rom.data
-        cf = self._cf
-        gptrs = [rom[cf(0xD0E8 + i * 2)] | rom[cf(0xD0E8 + i * 2 + 1)] << 8
-                 for i in range(32)]
-        uniq = sorted(set(gptrs))
-        bound = {}
-        for i, p in enumerate(uniq):
-            bound[p] = uniq[i + 1] if i + 1 < len(uniq) else 0xD600
-        FD_LO, FD_HI = 0xD600, 0xDA00
-        items = []
-        for g in range(32):
-            base = gptrs[g]
-            nstates = min(max(0, (bound.get(base, base + 4) - base) // 4), 64)
-            for s in range(nstates):
-                e = base + s * 4
-                phase = rom[cf(e)]
-                ri = rom[cf(e + 1)]
-                ptr = rom[cf(e + 2)] | rom[cf(e + 3)] << 8
-                frames = (phase & 0x0F) + 1
-                if ri & 1:  # indirect
-                    if not (0xD000 <= ptr <= 0xD600):
-                        continue
-                    final = rom[cf(ptr)] | rom[cf(ptr + 1)] << 8
-                else:
-                    final = ptr
-                if not (FD_LO <= final < FD_HI):
-                    continue
-                for fi in range(min(frames, 8)):
-                    a = final + fi * 3
-                    if not (FD_LO <= a < FD_HI):
-                        break
-                    items.append((g, s, fi, rom[cf(a)],
-                                  rom[cf(a + 1)], rom[cf(a + 2)]))
-        return items
+        return read_rom_frame_records(self.rom.data)
 
     @staticmethod
     def _romframe_edit_key(item):
-        return item[3], item[4], item[5]
+        return item.edit_key
 
     def _romframe_ref_counts(self, items):
         counts = {}
@@ -746,15 +714,16 @@ class SpriteViewer(QDialog):
         from PyQt5.QtGui import QPainter
         p = QPainter(img)
         p.setPen(QColor(190, 190, 190))
-        for i, (g, s, fi, t1, t2, attr) in enumerate(items):
+        for i, item in enumerate(items):
+            g, s, fi = item.group, item.state, item.frame
+            t1, t2, attr = item.left_tile, item.right_tile, item.attr
             ox = 4 + (i % cols) * (cw + 4)
             oy = 4 + (i // cols) * (ch + 4)
             # 確定 attr decode (Codex検証/$85E5・$85F2 ROM一致)
-            # sprite1(左tile1): pal=(attr>>6)&3 Hf=(attr>>4)&1 Vf=(attr>>5)&1
+            # sprite1(左tile1): pal bit0=attr7, bit1=attr6 Hf=(attr>>4)&1 Vf=(attr>>5)&1
             # sprite2(右tile2): pal=(attr>>2)&3 Hf=(attr>>1)&1 Vf=(attr>>0)&1
             if pal_sel == 4:
-                p1 = (attr >> 6) & 3
-                p2 = (attr >> 2) & 3
+                p1, p2 = packed_sprite_palette_numbers(attr)
             else:
                 p1 = p2 = pal_sel
             h1, v1 = (attr >> 4) & 1, (attr >> 5) & 1
@@ -763,7 +732,7 @@ class SpriteViewer(QDialog):
             r2 = self._sprite_palette_rgb(p2)
             self._draw_8x16(img, r1, ox, oy, t1, bank, zoom, h1, v1)
             self._draw_8x16(img, r2, ox + 8 * zoom, oy, t2, bank, zoom, h2, v2)
-            refs = counts.get(self._romframe_edit_key((g, s, fi, t1, t2, attr)), 1)
+            refs = counts.get(item.edit_key, 1)
             ref_text = f"x{refs}" if refs > 1 and not show_duplicates else ""
             p.drawText(ox, oy + 16 * zoom + 10, f"g{g:02X}s{s:02X}f{fi}{ref_text}")
         p.end()
@@ -792,7 +761,7 @@ class SpriteViewer(QDialog):
         self.hover_label.setText(
             t(
                 "sprite_viewer.romframe.status",
-                "{count_text} / $D0E8機構由来 / Bank {bank} / "
+                "{count_text} / $D0E8機構＋導入済み追加runtime / Bank {bank} / "
                 "16x16(8x16スプライト) / ROM直読み・configに依存しない",
             ).format(count_text=count_text, bank=bank))
 
@@ -801,7 +770,7 @@ class SpriteViewer(QDialog):
         if not (0 <= int(index) < len(items)):
             return
         item = items[int(index)]
-        _, _, _, t1, t2, attr = item
+        t1, t2, attr = item.left_tile, item.right_tile, item.attr
         bank = getattr(self, "_romframe_render_bank", self.rb_bank.currentIndex())
         editor_key = (int(bank), int(t1), int(t2), int(attr))
         old = self._editor_dialogs.get(editor_key)
