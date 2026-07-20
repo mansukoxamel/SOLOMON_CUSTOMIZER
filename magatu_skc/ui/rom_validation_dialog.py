@@ -20,6 +20,7 @@ from PyQt5.QtWidgets import (
 )
 
 from ..core.i18n import t
+from .dialog_buttons import localize_dialog_buttons
 
 
 STAGE_RE = re.compile(r"Stage\s+(\d+)")
@@ -95,6 +96,7 @@ class RomValidationDialog(QDialog):
         copy_btn = QPushButton(t("rom_validation.copy", "結果コピー"))
         copy_btn.clicked.connect(self.copy_results)
         buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        localize_dialog_buttons(buttons)
         buttons.addButton(copy_btn, QDialogButtonBox.ActionRole)
         buttons.rejected.connect(self.reject)
 

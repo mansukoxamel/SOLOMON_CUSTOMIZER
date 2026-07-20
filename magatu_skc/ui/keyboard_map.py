@@ -29,6 +29,7 @@ from PyQt5.QtGui import QPainter, QColor, QFont, QImage, QPen, QFontMetrics, QFo
 from PyQt5.QtCore import Qt, QRectF, QSize, QPointF
 
 from ..core.i18n import t
+from .dialog_geometry import restore_dialog_geometry_values
 
 
 # ===== カテゴリ色定義 =====
@@ -839,17 +840,15 @@ class KeyboardMapDialog(QDialog):
     def _restore_geometry_state(self, geometry_state):
         if not isinstance(geometry_state, dict):
             return
-        try:
-            w = int(geometry_state.get("w", -1))
-            h = int(geometry_state.get("h", -1))
-            x = int(geometry_state.get("x", -1))
-            y = int(geometry_state.get("y", -1))
-        except Exception:
-            return
-        if w > 0 and h > 0:
-            self.resize(max(self.minimumWidth(), w), max(self.minimumHeight(), h))
-        if x >= 0 and y >= 0:
-            self.move(x, y)
+        restore_dialog_geometry_values(
+            self,
+            geometry_state.get("w"),
+            geometry_state.get("h"),
+            geometry_state.get("x"),
+            geometry_state.get("y"),
+            min_w=0,
+            min_h=0,
+        )
 
     def closeEvent(self, event):
         self._emit_geometry_changed()

@@ -12,7 +12,7 @@ import random
 
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
-    QDialogButtonBox, QFrame, QGroupBox, QMessageBox
+    QDialogButtonBox, QFrame, QGroupBox, QMessageBox, QScrollArea, QWidget
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor, QPixmap, QImage, QPainter, QPen
@@ -22,6 +22,7 @@ from ..nes.palette import NES_COLORS
 from ..core import stage50_book_color, wall_color_hack
 from ..core.i18n import t
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
+from .dialog_buttons import localize_dialog_buttons
 
 
 # 編集対象オフセット（パレットテーブル先頭）
@@ -132,6 +133,13 @@ class PaletteDialog(QDialog):
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
+        self.resize(1000, 800)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        scroll.setWidget(content)
+        layout.addWidget(scroll, 1)
 
         info = QLabel(
             t(
@@ -141,23 +149,26 @@ class PaletteDialog(QDialog):
             )
         )
         info.setWordWrap(True)
-        layout.addWidget(info)
+        content_layout.addWidget(info)
 
         wall_group = QGroupBox(t("palette.wall_group", "ステージ壁色 (1-48面)"))
         wall_layout = QGridLayout(wall_group)
         for i in range(wall_color_hack.EDIT_COUNT):
-            label = QLabel(f"Stages {wall_color_hack.stage_range_label(i)}")
+            label = QLabel(t(
+                "palette.stage_range",
+                "{range}面",
+            ).format(range=wall_color_hack.stage_range_label(i)))
             btn = QPushButton()
             btn.setFixedSize(self.SWATCH_W, self.SWATCH_H)
             btn.setEnabled(self._wall_ok)
             btn.clicked.connect(lambda _, idx=i: self._on_wall_swatch_click(idx))
             self._wall_buttons.append(btn)
-            row = i // 6
-            col = (i % 6) * 2
+            row = i // 3
+            col = (i % 3) * 2
             wall_layout.addWidget(label, row, col)
             wall_layout.addWidget(btn, row, col + 1)
             self._refresh_wall_swatch(i)
-        layout.addWidget(wall_group)
+        content_layout.addWidget(wall_group)
 
         book_group = QGroupBox(t("palette.book_group", "Stage 50 ソロモンの書の色"))
         book_layout = QHBoxLayout(book_group)
@@ -169,21 +180,21 @@ class PaletteDialog(QDialog):
         book_layout.addWidget(self._book_color_button)
         book_layout.addStretch()
         self._refresh_book_color_swatch()
-        layout.addWidget(book_group)
+        content_layout.addWidget(book_group)
 
         # 背景パレット
         bg_group = QGroupBox(t("palette.bg_group", "背景パレット"))
         bgl = QVBoxLayout(bg_group)
         for p in range(4):
             bgl.addLayout(self._build_palette_row(p))
-        layout.addWidget(bg_group)
+        content_layout.addWidget(bg_group)
 
         # スプライトパレット
         spr_group = QGroupBox(t("palette.sprite_group", "スプライトパレット (主人公・敵・アイテム)"))
         sprl = QVBoxLayout(spr_group)
         for p in range(4, 8):
             sprl.addLayout(self._build_palette_row(p))
-        layout.addWidget(spr_group)
+        content_layout.addWidget(spr_group)
 
         # 64色 NES カラーグリッド（統合表示）
         picker_group = QGroupBox(t("palette.nes_color_group", "NESカラー選択"))
@@ -206,35 +217,37 @@ class PaletteDialog(QDialog):
             grid.addWidget(btn, i // 16, i % 16)
             self._color_buttons.append(btn)
         picker_layout.addLayout(grid)
-        layout.addWidget(picker_group)
+        content_layout.addWidget(picker_group)
 
         # 操作ボタン
-        btnbar = QHBoxLayout()
+        btnbar = QGridLayout()
         btn_save = QPushButton(t("palette.save_image", "設定を画像保存..."))
         btn_save.setToolTip(t("palette.save_image.tooltip", "現在のパレット設定をPNG画像とメタデータとして保存"))
         btn_save.clicked.connect(self._save_palette_png)
-        btnbar.addWidget(btn_save)
+        btnbar.addWidget(btn_save, 0, 0)
         btn_load = QPushButton(t("palette.load_image", "画像から読込..."))
         btn_load.setToolTip(t("palette.load_image.tooltip", "PNG画像のメタデータからパレット設定を読み込み"))
         btn_load.clicked.connect(self._load_palette_file)
-        btnbar.addWidget(btn_load)
+        btnbar.addWidget(btn_load, 0, 1)
         btn_reset = QPushButton(t("palette.reset", "編集開始時に戻す"))
         btn_reset.setToolTip(t("palette.reset.tooltip", "このパレット編集を開いた時点の値に戻す"))
         btn_reset.clicked.connect(self._reset)
-        btnbar.addWidget(btn_reset)
+        btnbar.addWidget(btn_reset, 0, 2)
         btn_random3 = QPushButton(t("palette.random3", "ランダム3色"))
         btn_random3.setToolTip(t("palette.random3.tooltip", "選択中のパレット3色をランダムなNES色に変更"))
         btn_random3.clicked.connect(self._randomize_selected_palette)
-        btnbar.addWidget(btn_random3)
+        btnbar.addWidget(btn_random3, 1, 0)
         btn_shift3 = QPushButton(t("palette.shift3", "色相ずらし"))
         btn_shift3.setToolTip(t("palette.shift3.tooltip", "選択中パレットの色付き3色だけを同じ明度のまま色相方向へずらす"))
         btn_shift3.clicked.connect(self._shift_selected_palette)
-        btnbar.addWidget(btn_shift3)
-        layout.addLayout(btnbar)
+        btnbar.addWidget(btn_shift3, 1, 1)
+        content_layout.addLayout(btnbar)
+        content_layout.addStretch()
 
         btnbox = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel | QDialogButtonBox.Apply
         )
+        localize_dialog_buttons(btnbox)
         btnbox.accepted.connect(self._apply_and_close)
         btnbox.rejected.connect(self.reject)
         btnbox.button(QDialogButtonBox.Apply).clicked.connect(self._apply)

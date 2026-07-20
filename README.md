@@ -66,7 +66,7 @@
 
 - このリポジトリにROMデータは含まれません。
 - ご自身で所有している日本版またはUS版のオリジナルROMを読み込んで使う前提です。
-- 対応原本は日本版（CRC32 `013ED497` / `5B49FEDB` / `2FE9E2CA`）とUS版（CRC32 `B7A00D99`）です。`.nes`を直接開くほか、対象ROMを含む`.zip`も開けます。
+- 対応原本は日本版（CRC32 `013ED497` / `5B49FEDB` / `2FE9E2CA`）とUS版（CRC32 `B7A00D99` / `99773BC4`）です。US版は、ヘッダーだけが異なりPRG CRC32 `0771C34F`・CHR CRC32 `FAD8A464`が一致する原本も受け付けます。`.nes`を直接開くほか、対象ROMを含む`.zip`も開けます。
 - US版オリジナルROMは読み込み時に日本版相当の内部配置へ正規化され、その後は日本版と同じmapper66 / wide-title拡張・編集処理を通ります。
 - 『ソロモンの鍵』および関連する名称・画像・ゲーム内容の権利は、テクモ / コーエーテクモゲームスおよび各権利者に帰属します。
 - このツールは非公式のファン制作ツールです。権利上の問題や掲載内容への懸念がある場合は、GitHub Issues等でご連絡ください。確認次第、該当内容を修正または削除します。
@@ -157,7 +157,7 @@ SOLOMON_CUSTOMIZER is a customizer for the Japanese Famicom and US NES releases 
 
 - ROM data is not included in this repository.
 - Use this tool with a ROM you own.
-- The supported originals are the Japanese release (CRC32 `013ED497` / `5B49FEDB` / `2FE9E2CA`) and US release (CRC32 `B7A00D99`). Open the `.nes` directly or a `.zip` containing the supported ROM.
+- The supported originals are the Japanese release (CRC32 `013ED497` / `5B49FEDB` / `2FE9E2CA`) and US release (CRC32 `B7A00D99` / `99773BC4`). A header-only US variant is also accepted when its PRG CRC32 is `0771C34F` and its CHR CRC32 is `FAD8A464`. Open the `.nes` directly or a `.zip` containing the supported ROM.
 - Original Japanese and US ROMs are supported inputs. A verified US original is normalized to the Japanese-equivalent internal layout before the common mapper66 / wide-title editing pipeline runs.
 - *Solomon's Key* and related names, images, and game content are owned by Tecmo / Koei Tecmo Games and their respective rights holders.
 - This is an unofficial fan-made tool. If any rights holder has concerns about this project or its contents, please contact us through GitHub Issues so the relevant material can be modified or removed.

@@ -8,10 +8,13 @@ from unittest.mock import patch
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PyQt5.QtCore import Qt
+from PyQt5.QtTest import QTest
 from PyQt5.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QLabel,
     QMainWindow,
     QTabWidget,
@@ -25,6 +28,12 @@ from magatu_skc.ui.element_picker import ENEMIES_LIST, MODE_ENEMY, ElementPicker
 from magatu_skc.ui.hack_dialog import HackDialog
 from magatu_skc.ui.main_window import MainWindow
 from magatu_skc.ui.settings_dialog import SettingsDialog
+from magatu_skc.ui.title_screen_dialog import TitleScreenDialog
+from magatu_skc.ui.dialog_geometry import (
+    restore_dialog_geometry_values,
+    store_dialog_geometry,
+)
+from magatu_skc.ui.dialog_buttons import localize_dialog_buttons
 
 
 class ConfigSaveSafetyTests(unittest.TestCase):
@@ -136,6 +145,130 @@ class FavoritesVisibilityTests(unittest.TestCase):
             and item.data(Qt.UserRole)[0] == MODE_ENEMY
         }
         self.assertEqual(visible_codes, {code for code, _name in ENEMIES_LIST})
+
+
+class TitleScreenDialogCloseSafetyTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    @staticmethod
+    def _dialog():
+        class Harness(TitleScreenDialog):
+            def __init__(self):
+                QDialog.__init__(self)
+                self._rom = bytearray(b"original")
+                self._snap = bytes(self._rom)
+                self._app_config = None
+
+        return Harness()
+
+    def test_reject_restores_open_snapshot(self):
+        dialog = self._dialog()
+        dialog._rom[:] = b"modified"
+        dialog.reject()
+        self.assertEqual(bytes(dialog._rom), b"original")
+
+    def test_window_close_restores_open_snapshot(self):
+        dialog = self._dialog()
+        dialog.show()
+        self.app.processEvents()
+        dialog._rom[:] = b"modified"
+        dialog.close()
+        self.app.processEvents()
+        self.assertEqual(bytes(dialog._rom), b"original")
+
+    def test_escape_restores_open_snapshot(self):
+        dialog = self._dialog()
+        dialog.show()
+        self.app.processEvents()
+        dialog._rom[:] = b"modified"
+        QTest.keyClick(dialog, Qt.Key_Escape)
+        self.app.processEvents()
+        self.assertEqual(bytes(dialog._rom), b"original")
+
+    def test_accept_keeps_edits(self):
+        dialog = self._dialog()
+        dialog._rom[:] = b"modified"
+        dialog.accept()
+        self.assertEqual(bytes(dialog._rom), b"modified")
+
+
+class DialogGeometrySafetyTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_offscreen_position_is_moved_into_available_geometry(self):
+        dialog = QDialog()
+        dialog.resize(700, 500)
+        restore_dialog_geometry_values(dialog, 700, 500, 5000, 5000)
+        available = self.app.primaryScreen().availableGeometry()
+        self.assertTrue(available.contains(dialog.geometry().topLeft()))
+        self.assertTrue(available.contains(dialog.geometry().bottomRight()))
+
+    def test_oversized_saved_geometry_is_clamped_to_screen(self):
+        dialog = QDialog()
+        restore_dialog_geometry_values(dialog, 5000, 5000, 0, 0)
+        available = self.app.primaryScreen().availableGeometry()
+        self.assertLessEqual(dialog.width(), available.width())
+        self.assertLessEqual(dialog.height(), available.height())
+
+    def test_negative_monitor_coordinates_are_preserved_when_stored(self):
+        class GeometrySource:
+            @staticmethod
+            def x():
+                return -1200
+
+            @staticmethod
+            def y():
+                return -40
+
+            @staticmethod
+            def width():
+                return 800
+
+            @staticmethod
+            def height():
+                return 600
+
+        state = {}
+        store_dialog_geometry(GeometrySource(), state, "test_dlg")
+        self.assertEqual(state["test_dlg_x"], -1200)
+        self.assertEqual(state["test_dlg_y"], -40)
+
+
+class DialogButtonLocalizationTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_standard_buttons_follow_active_language(self):
+        old_language = get_language()
+        try:
+            buttons = QDialogButtonBox(
+                QDialogButtonBox.Ok
+                | QDialogButtonBox.Cancel
+                | QDialogButtonBox.Apply
+                | QDialogButtonBox.Close
+            )
+            set_language("ja")
+            localize_dialog_buttons(buttons)
+            self.assertEqual(buttons.button(QDialogButtonBox.Ok).text(), "OK")
+            self.assertEqual(
+                buttons.button(QDialogButtonBox.Cancel).text(), "キャンセル"
+            )
+            self.assertEqual(buttons.button(QDialogButtonBox.Apply).text(), "適用")
+            self.assertEqual(buttons.button(QDialogButtonBox.Close).text(), "閉じる")
+
+            set_language("en")
+            localize_dialog_buttons(buttons)
+            self.assertEqual(buttons.button(QDialogButtonBox.Ok).text(), "OK")
+            self.assertEqual(buttons.button(QDialogButtonBox.Cancel).text(), "Cancel")
+            self.assertEqual(buttons.button(QDialogButtonBox.Apply).text(), "Apply")
+            self.assertEqual(buttons.button(QDialogButtonBox.Close).text(), "Close")
+        finally:
+            set_language(old_language)
 
 
 class GlobalSettingsImportSafetyTests(unittest.TestCase):

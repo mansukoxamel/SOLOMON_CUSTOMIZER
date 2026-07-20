@@ -72,7 +72,10 @@ KNOWN_CRC32 = {
     crc: "Solomon no Kagi (Japan)"
     for crc in KNOWN_JP_ORIGINAL_CRC32
 }
-KNOWN_CRC32[us_jp_normalizer.US_ORIGINAL_CRC32] = "Solomon's Key (USA)"
+KNOWN_CRC32.update({
+    crc: "Solomon's Key (USA)"
+    for crc in us_jp_normalizer.KNOWN_US_ORIGINAL_CRC32
+})
 
 
 def crc32_hex(data: bytes) -> str:

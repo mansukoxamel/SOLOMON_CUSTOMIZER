@@ -26,6 +26,8 @@ from PIL import Image, ImageDraw, ImageOps
 
 GRID_WIDTH = 15
 GRID_HEIGHT = 12
+GRID_CELL_COUNT = GRID_WIDTH * GRID_HEIGHT
+MANUAL_COUNT_MAX = GRID_CELL_COUNT - 3
 DEFAULT_TILE_SIZE = 32
 ASSET_DIR = Path(__file__).with_name("image_to_block_grid_assets")
 
@@ -46,6 +48,90 @@ TYPE_SYMBOLS = {
     WHITE: "W",
     CRACKED: "C",
 }
+
+
+def _apportion_counts(weights, total: int, minimum=0) -> list[int]:
+    """Distribute an integer total proportionally without a rounding remainder."""
+    weights = [max(0.0, float(value)) for value in weights]
+    if isinstance(minimum, (list, tuple)):
+        minimums = [max(0, int(value)) for value in minimum]
+        if len(minimums) != len(weights):
+            raise ValueError("minimum count must match weight count")
+    else:
+        minimums = [max(0, int(minimum))] * len(weights)
+    if total < sum(minimums):
+        raise ValueError("total is too small for the requested minimum")
+    if total == sum(minimums):
+        return minimums
+    weight_total = sum(weights)
+    if weight_total <= 0:
+        weights = [1.0] * len(weights)
+        weight_total = float(len(weights))
+    raw = [value * total / weight_total for value in weights]
+    result = [max(minimums[i], int(value)) for i, value in enumerate(raw)]
+    while sum(result) < total:
+        index = max(
+            range(len(result)),
+            key=lambda i: (raw[i] - result[i], -i),
+        )
+        result[index] += 1
+    while sum(result) > total:
+        candidates = [
+            i for i, value in enumerate(result) if value > minimums[i]
+        ]
+        index = max(candidates, key=lambda i: (result[i] - raw[i], -i))
+        result[index] -= 1
+    return result
+
+
+def _thresholds_to_counts(
+    air_end: float,
+    crack_end: float,
+    brown_end: float,
+) -> list[int]:
+    weights = [
+        air_end,
+        crack_end - air_end,
+        brown_end - crack_end,
+        1.0 - brown_end,
+    ]
+    return _apportion_counts(weights, GRID_CELL_COUNT, minimum=1)
+
+
+def _counts_to_thresholds(counts) -> tuple[float, float, float]:
+    values = [int(value) for value in counts]
+    if len(values) != 4 or min(values) < 0 or sum(values) != GRID_CELL_COUNT:
+        raise ValueError("four nonnegative counts must cover the full grid")
+    return (
+        values[0] / GRID_CELL_COUNT,
+        (values[0] + values[1]) / GRID_CELL_COUNT,
+        (values[0] + values[1] + values[2]) / GRID_CELL_COUNT,
+    )
+
+
+def _redistribute_counts(
+    counts,
+    changed_index: int,
+    new_value: int,
+) -> list[int]:
+    values = [int(value) for value in counts]
+    if len(values) != 4 or sum(values) != GRID_CELL_COUNT or min(values) < 0:
+        raise ValueError("four nonnegative counts must cover the full grid")
+    if changed_index not in range(4):
+        raise IndexError(changed_index)
+    new_value = max(0, min(MANUAL_COUNT_MAX, int(new_value)))
+    other_indices = [index for index in range(4) if index != changed_index]
+    redistributed = _apportion_counts(
+        [values[index] for index in other_indices],
+        GRID_CELL_COUNT - new_value,
+        minimum=[1 if values[index] > 0 else 0 for index in other_indices],
+    )
+    result = list(values)
+    result[changed_index] = new_value
+    for index, value in zip(other_indices, redistributed):
+        result[index] = value
+    return result
+
 
 def _parse_rgb(value: str) -> tuple[int, int, int]:
     text = value.strip().lstrip("#")
@@ -90,20 +176,66 @@ def _four_level_grid(
     air_end: float,
     crack_end: float,
     brown_end: float,
+    source_rgb: Image.Image | None = None,
+    target_counts=None,
+    normalize_range: bool = True,
 ) -> tuple[Image.Image, list[list[int]]]:
     pixels = list(gray.tobytes())
+    kind_values = (AIR, CRACKED, BROWN, WHITE)
+    tone_by_kind = {AIR: 0, CRACKED: 85, BROWN: 170, WHITE: 255}
+
+    if target_counts is not None:
+        counts = [int(value) for value in target_counts]
+        if len(counts) != 4 or min(counts) < 0 or sum(counts) != len(pixels):
+            raise ValueError("target block counts must cover every grid cell")
+        if source_rgb is not None and source_rgb.size == gray.size:
+            rgb_bytes = source_rgb.convert("RGB").tobytes()
+            rgb_pixels = [
+                tuple(rgb_bytes[index:index + 3])
+                for index in range(0, len(rgb_bytes), 3)
+            ]
+        else:
+            rgb_pixels = [(value, value, value) for value in pixels]
+
+        def rank_key(index):
+            red, green, blue = rgb_pixels[index]
+            fine_luma = 299 * red + 587 * green + 114 * blue
+            brightness = -fine_luma if invert else fine_luma
+            # RGB and row-major position provide a stable, non-random tie break.
+            return (brightness, red, green, blue, index)
+
+        ranked_indices = sorted(range(len(pixels)), key=rank_key)
+        kinds = [AIR] * len(pixels)
+        cursor = 0
+        for kind, count in zip(kind_values, counts):
+            for index in ranked_indices[cursor:cursor + count]:
+                kinds[index] = kind
+            cursor += count
+        tones = [tone_by_kind[kind] for kind in kinds]
+        four_tone = Image.new("L", gray.size)
+        four_tone.putdata(tones)
+        grid = [
+            kinds[y * GRID_WIDTH:(y + 1) * GRID_WIDTH]
+            for y in range(GRID_HEIGHT)
+        ]
+        return four_tone, grid
+
     low = min(pixels)
     high = max(pixels)
     span = high - low
-    tone_values = (0, 85, 170, 255)
-    kind_values = (AIR, CRACKED, BROWN, WHITE)
-    tones: list[int] = []
     kinds: list[int] = []
+    normalized_values: list[float] = []
 
     for value in pixels:
-        normalized = 0.5 if span == 0 else (value - low) / span
+        if normalize_range:
+            normalized = 0.5 if span == 0 else (value - low) / span
+        else:
+            normalized = value / 255.0
         if invert:
             normalized = 1.0 - normalized
+        # Keep the maximum sample inside the last non-zero half-open band.
+        normalized = min(normalized, 1.0 - 1e-12)
+        normalized_values.append(normalized)
         if normalized < air_end:
             level = 0
         elif normalized < crack_end:
@@ -112,8 +244,33 @@ def _four_level_grid(
             level = 2
         else:
             level = 3
-        tones.append(tone_values[level])
         kinds.append(kind_values[level])
+
+    bounds = (0.0, air_end, crack_end, brown_end, 1.0)
+    positive = [bounds[i + 1] - bounds[i] > 1e-12 for i in range(4)]
+    counts = {kind: kinds.count(kind) for kind in kind_values}
+    for level, kind in enumerate(kind_values):
+        if not positive[level] or counts[kind] > 0:
+            continue
+        midpoint = (bounds[level] + bounds[level + 1]) / 2.0
+        candidates = []
+        for index, current_kind in enumerate(kinds):
+            current_level = kind_values.index(current_kind)
+            donor_minimum = 1 if positive[current_level] else 0
+            if counts[current_kind] > donor_minimum:
+                candidates.append(index)
+        if not candidates:
+            continue
+        selected = min(
+            candidates,
+            key=lambda index: (abs(normalized_values[index] - midpoint), index),
+        )
+        old_kind = kinds[selected]
+        counts[old_kind] -= 1
+        kinds[selected] = kind
+        counts[kind] += 1
+
+    tones = [tone_by_kind[kind] for kind in kinds]
 
     four_tone = Image.new("L", gray.size)
     four_tone.putdata(tones)
@@ -255,12 +412,17 @@ def _write_json(
             "3": "cracked",
         },
         "settings": {
-            "method": "resize_then_grayscale_4level",
+            "method": (
+                "ranked_exact_counts"
+                if getattr(args, "target_counts", None) is not None
+                else "resize_then_grayscale_4level"
+            ),
             "fit": args.fit,
             "invert": args.invert,
             "air_end": args.air_end,
             "crack_end": args.crack_end,
             "brown_end": args.brown_end,
+            "target_counts": getattr(args, "target_counts", None),
             "selection_box": (
                 list(args.selection_box)
                 if getattr(args, "selection_box", None) else None
@@ -348,6 +510,8 @@ def _convert_source(
         args.air_end,
         args.crack_end,
         args.brown_end,
+        source_rgb=fitted,
+        target_counts=getattr(args, "target_counts", None),
     )
     tiles = _tile_set(args)
     preview = _render_preview(grid, tiles, args.tile_size)
@@ -388,14 +552,21 @@ UI_TEXT = {
         "stretch": "全体を15x12へ縮小",
         "crop": "中央を切り抜く",
         "selection": "赤枠で任意範囲を選択",
-        "thresholds": "明るさの境界",
+        "thresholds": "ブロック個数（合計180個）",
+        "air_count": "空気",
+        "cracked_count": "ひび",
+        "brown_count": "茶",
+        "white_count": "白",
+        "count_value": "{name}: {count}個",
+        "equal_counts": "各45個に均等化",
+        "reload_image": "画像を読み直す",
         "air_end": "空気 / ひび",
         "crack_end": "ひび / 茶",
         "brown_end": "茶 / 白",
-        "selection_help": "赤枠の内側で移動、辺・角で拡大縮小、外側ドラッグで作り直し",
+        "selection_help": "カーソル形状が変わる位置で移動・拡大縮小。通常モードでも元画像をドラッグすると範囲選択へ切り替わります。",
         "invert": "明暗を反転",
         "ready": "画像をドロップするか、開くボタンで選択してください。",
-        "loaded": "変換完了: 空気 {air} / 茶 {brown} / 白 {white} / ひび {cracked}",
+        "loaded": "変換完了",
         "open_title": "変換する画像を選択",
         "save_title": "変換結果PNGを保存",
         "images": "画像 (*.png *.jpg *.jpeg *.bmp *.webp *.gif *.tif *.tiff)",
@@ -403,6 +574,7 @@ UI_TEXT = {
         "error": "変換エラー",
         "saved": "保存しました: {png} / {json}",
         "no_result": "保存できる変換結果がありません。",
+        "apply": "現在のステージへ適用",
     },
     "en": {
         "title": "Image to 15x12 Block Grid",
@@ -418,14 +590,21 @@ UI_TEXT = {
         "stretch": "Scale entire image to 15x12",
         "crop": "Crop from center",
         "selection": "Select any area with red frame",
-        "thresholds": "Brightness Boundaries",
+        "thresholds": "Block Counts (Total 180)",
+        "air_count": "Air",
+        "cracked_count": "Cracked",
+        "brown_count": "Brown",
+        "white_count": "White",
+        "count_value": "{name}: {count}",
+        "equal_counts": "Set 45 Each",
+        "reload_image": "Reload Image",
         "air_end": "Air / Cracked",
         "crack_end": "Cracked / Brown",
         "brown_end": "Brown / White",
-        "selection_help": "Drag inside to move; drag an edge or corner to resize; drag outside to redraw",
+        "selection_help": "The cursor changes where the frame can be moved or resized. Dragging the source image in another fit mode switches to selection mode.",
         "invert": "Invert brightness",
         "ready": "Drop an image or select one with the Open button.",
-        "loaded": "Converted: air {air} / brown {brown} / white {white} / cracked {cracked}",
+        "loaded": "Conversion complete",
         "open_title": "Select an image to convert",
         "save_title": "Save converted grid PNG",
         "images": "Images (*.png *.jpg *.jpeg *.bmp *.webp *.gif *.tif *.tiff)",
@@ -433,6 +612,7 @@ UI_TEXT = {
         "error": "Conversion Error",
         "saved": "Saved: {png} / {json}",
         "no_result": "There is no converted result to save.",
+        "apply": "Apply to Current Stage",
     },
 }
 
@@ -459,9 +639,17 @@ def _pil_pixmap(image: Image.Image):
     return pixmap
 
 
-def _run_gui(args: argparse.Namespace) -> int:
+def _run_gui(
+    args: argparse.Namespace,
+    apply_callback=None,
+    parent=None,
+    run_event_loop: bool = True,
+    language: str | None = None,
+):
     from PyQt5.QtCore import QPointF, QRectF, Qt, QTimer
-    from PyQt5.QtGui import QColor, QFont, QFontDatabase, QKeySequence, QPainter, QPen
+    from PyQt5.QtGui import (
+        QColor, QFont, QFontDatabase, QFontMetrics, QKeySequence, QPainter, QPen,
+    )
     from PyQt5.QtWidgets import (
         QApplication,
         QCheckBox,
@@ -482,7 +670,8 @@ def _run_gui(args: argparse.Namespace) -> int:
         QWidget,
     )
 
-    text = UI_TEXT[_ui_language()]
+    language = language if language in UI_TEXT else _ui_language()
+    text = UI_TEXT[language]
 
     class DropPreview(QLabel):
         def __init__(self, on_drop, message: str):
@@ -507,14 +696,41 @@ def _run_gui(args: argparse.Namespace) -> int:
                     event.acceptProposedAction()
                     return
 
+    class BlockCountSlider(QSlider):
+        def __init__(self, index, on_begin, on_end):
+            super().__init__(Qt.Horizontal)
+            self.setObjectName("blockCountSlider")
+            self._index = index
+            self._on_begin = on_begin
+            self._on_end = on_end
+
+        def mousePressEvent(self, event):
+            self._on_begin(self._index)
+            super().mousePressEvent(event)
+
+        def mouseReleaseEvent(self, event):
+            super().mouseReleaseEvent(event)
+            self._on_end()
+
+        def keyPressEvent(self, event):
+            self._on_begin(self._index)
+            super().keyPressEvent(event)
+            self._on_end()
+
+        def wheelEvent(self, event):
+            self._on_begin(self._index)
+            super().wheelEvent(event)
+            self._on_end()
+
     class SourceSelection(QWidget):
         HANDLE = 10.0
         MIN_SIZE = 0.02
 
-        def __init__(self, on_drop, on_changed):
+        def __init__(self, on_drop, on_changed, on_selection_requested):
             super().__init__()
             self._on_drop = on_drop
             self._on_changed = on_changed
+            self._on_selection_requested = on_selection_requested
             self._pixmap = None
             self._source_size = (1, 1)
             self._selection = QRectF(0.0, 0.0, 1.0, 1.0)
@@ -523,6 +739,7 @@ def _run_gui(args: argparse.Namespace) -> int:
             self._drag_start = QPointF()
             self._drag_original = QRectF()
             self.setAcceptDrops(True)
+            self.setMouseTracking(True)
             self.setMinimumSize(560, 360)
             self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
@@ -613,6 +830,26 @@ def _run_gui(args: argparse.Namespace) -> int:
                 return "move"
             return "new"
 
+        def _cursor_for_mode(self, mode: str):
+            if mode in ("left", "right"):
+                return Qt.SizeHorCursor
+            if mode in ("top", "bottom"):
+                return Qt.SizeVerCursor
+            if mode in ("left_top", "right_bottom"):
+                return Qt.SizeFDiagCursor
+            if mode in ("right_top", "left_bottom"):
+                return Qt.SizeBDiagCursor
+            if mode == "move":
+                return Qt.SizeAllCursor
+            return Qt.CrossCursor
+
+        def _update_hover_cursor(self, point):
+            if self._pixmap is None or not self._image_rect().contains(point):
+                self.unsetCursor()
+                return
+            mode = self._hit_test(point) if self._selection_enabled else "new"
+            self.setCursor(self._cursor_for_mode(mode))
+
         def _bounded_rect(self, rect: QRectF) -> QRectF:
             left = max(0.0, min(1.0, rect.left()))
             top = max(0.0, min(1.0, rect.top()))
@@ -629,18 +866,23 @@ def _run_gui(args: argparse.Namespace) -> int:
         def mousePressEvent(self, event):
             if (
                 event.button() != Qt.LeftButton
-                or not self._selection_enabled
                 or self._pixmap is None
                 or not self._image_rect().contains(event.pos())
             ):
                 return
-            self._drag_mode = self._hit_test(event.pos())
+            auto_started = not self._selection_enabled
+            if auto_started:
+                self._on_selection_requested()
+                self._selection_enabled = True
+            self._drag_mode = "new" if auto_started else self._hit_test(event.pos())
             self._drag_start = self._normalized_point(event.pos())
             self._drag_original = QRectF(self._selection)
+            self.setCursor(self._cursor_for_mode(self._drag_mode))
             event.accept()
 
         def mouseMoveEvent(self, event):
             if self._drag_mode is None:
+                self._update_hover_cursor(event.pos())
                 return
             current = self._normalized_point(event.pos())
             original = self._drag_original
@@ -673,7 +915,13 @@ def _run_gui(args: argparse.Namespace) -> int:
                 return
             self._drag_mode = None
             self._on_changed()
+            self._update_hover_cursor(event.pos())
             event.accept()
+
+        def leaveEvent(self, event):
+            if self._drag_mode is None:
+                self.unsetCursor()
+            super().leaveEvent(event)
 
         def paintEvent(self, event):
             painter = QPainter(self)
@@ -711,20 +959,37 @@ def _run_gui(args: argparse.Namespace) -> int:
 
     class ConverterWindow(QMainWindow):
         def __init__(self):
-            super().__init__()
+            super().__init__(parent)
             self.source_path: Path | None = None
             self.source_image: Image.Image | None = None
             self.result_image: Image.Image | None = None
             self.result_grid: list[list[int]] | None = None
+            self._natural_thresholds = (args.air_end, args.crack_end, args.brown_end)
             self.setWindowTitle(text["title"])
             self.resize(1320, 900)
             self.setAcceptDrops(True)
 
             root = QWidget()
             root.setStyleSheet(
-                "QWidget { color: #202428; }"
                 "QPushButton, QComboBox { min-height: 26px; }"
                 "QGroupBox { font-weight: 600; }"
+                "QSlider#blockCountSlider::groove:horizontal {"
+                "  height: 6px; background: #0b210f; border: 1px solid #398944;"
+                "  border-radius: 3px;"
+                "}"
+                "QSlider#blockCountSlider::sub-page:horizontal {"
+                "  background: #18b82a; border-radius: 3px;"
+                "}"
+                "QSlider#blockCountSlider::handle:horizontal {"
+                "  width: 16px; margin: -6px 0; border-radius: 8px;"
+                "  background: #f5fff5; border: 2px solid #18ff2a;"
+                "}"
+                "QSlider#blockCountSlider::handle:horizontal:hover {"
+                "  background: #fff36a; border-color: #ffffff;"
+                "}"
+                "QSlider#blockCountSlider::handle:horizontal:pressed {"
+                "  background: #ffffff; border-color: #fff36a;"
+                "}"
             )
             outer = QVBoxLayout(root)
             outer.setContentsMargins(14, 14, 14, 12)
@@ -743,6 +1008,12 @@ def _run_gui(args: argparse.Namespace) -> int:
             self.save_button.clicked.connect(self.save_result)
             self.save_button.setEnabled(False)
             toolbar.addWidget(self.save_button)
+            if apply_callback is not None:
+                self.apply_button = QPushButton(text["apply"])
+                self.apply_button.setMinimumWidth(168)
+                self.apply_button.clicked.connect(self.apply_result)
+                self.apply_button.setEnabled(False)
+                toolbar.addWidget(self.apply_button)
             toolbar.addSpacing(12)
 
             toolbar.addWidget(QLabel(text["fit"]))
@@ -763,31 +1034,60 @@ def _run_gui(args: argparse.Namespace) -> int:
 
             threshold_group = QGroupBox(text["thresholds"])
             threshold_layout = QHBoxLayout(threshold_group)
-            self.air_label = QLabel()
-            self.air_slider = QSlider(Qt.Horizontal)
-            self.crack_label = QLabel()
-            self.crack_slider = QSlider(Qt.Horizontal)
-            self.brown_label = QLabel()
-            self.brown_slider = QSlider(Qt.Horizontal)
-            for label, slider, value in (
-                (self.air_label, self.air_slider, args.air_end),
-                (self.crack_label, self.crack_slider, args.crack_end),
-                (self.brown_label, self.brown_slider, args.brown_end),
-            ):
-                label.setMinimumWidth(125)
-                slider.setRange(1, 99)
-                slider.setValue(round(value * 100))
-                slider.setMinimumWidth(150)
-                slider.valueChanged.connect(self.threshold_changed)
+            self._block_counts = _thresholds_to_counts(
+                args.air_end, args.crack_end, args.brown_end
+            )
+            self._updating_block_counts = False
+            self._count_drag_index = None
+            self._count_drag_baseline = None
+            self.block_count_labels = []
+            self.block_count_sliders = []
+            count_keys = ("air_count", "cracked_count", "brown_count", "white_count")
+            metrics = QFontMetrics(self.font())
+            count_label_width = max(
+                metrics.horizontalAdvance(text["count_value"].format(
+                    name=text[key], count=888
+                ))
+                for key in count_keys
+            ) + 10
+            for index, key in enumerate(count_keys):
+                label = QLabel()
+                label.setFixedWidth(count_label_width)
+                label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                slider = BlockCountSlider(
+                    index, self.begin_count_drag, self.end_count_drag
+                )
+                # Automatic redistribution may reach 180 when the other three
+                # counts were explicitly set to zero. User changes are clamped
+                # to 177 by _redistribute_counts().
+                slider.setRange(0, GRID_CELL_COUNT)
+                slider.setValue(self._block_counts[index])
+                slider.setMinimumWidth(100)
+                slider.valueChanged.connect(
+                    lambda value, i=index: self.block_count_changed(i, value)
+                )
+                self.block_count_labels.append((label, key))
+                self.block_count_sliders.append(slider)
                 threshold_layout.addWidget(label)
                 threshold_layout.addWidget(slider, 1)
+            self.equal_counts_button = QPushButton(text["equal_counts"])
+            self.equal_counts_button.clicked.connect(self.equalize_block_counts)
+            threshold_layout.addWidget(self.equal_counts_button)
+            self.reload_image_button = QPushButton(text["reload_image"])
+            self.reload_image_button.clicked.connect(self.reload_source_image)
+            self.reload_image_button.setEnabled(False)
+            threshold_layout.addWidget(self.reload_image_button)
             outer.addWidget(threshold_group)
-            self.update_threshold_labels()
+            self.update_block_count_labels()
 
             large_previews = QHBoxLayout()
             source_group = QGroupBox(text["source"])
             source_layout = QVBoxLayout(source_group)
-            self.source_preview = SourceSelection(self.load_image, self.selection_changed)
+            self.source_preview = SourceSelection(
+                self.load_image,
+                self.selection_changed,
+                self.request_selection_mode,
+            )
             source_layout.addWidget(self.source_preview)
             selection_help = QLabel(text["selection_help"])
             selection_help.setWordWrap(True)
@@ -862,29 +1162,87 @@ def _run_gui(args: argparse.Namespace) -> int:
             self.source_path = path
             self.source_image = source
             self.source_preview.set_source(source)
+            self.initialize_counts_from_source()
             self.convert()
+            self.reload_image_button.setEnabled(True)
 
-        def update_threshold_labels(self):
-            self.air_label.setText(
-                f'{text["air_end"]}: {self.air_slider.value()}%')
-            self.crack_label.setText(
-                f'{text["crack_end"]}: {self.crack_slider.value()}%')
-            self.brown_label.setText(
-                f'{text["brown_end"]}: {self.brown_slider.value()}%')
+        def initialize_counts_from_source(self):
+            if self.source_image is None:
+                return
+            current = self.current_args()
+            fitted = _fit_image(
+                self.source_image,
+                (GRID_WIDTH, GRID_HEIGHT),
+                current.fit,
+                current.background,
+                current.selection_box,
+            )
+            gray = ImageOps.grayscale(fitted)
+            _tone, grid = _four_level_grid(
+                gray,
+                current.invert,
+                *self._natural_thresholds,
+                source_rgb=fitted,
+                target_counts=None,
+                normalize_range=False,
+            )
+            counts = [
+                sum(cell == kind for row in grid for cell in row)
+                for kind in (AIR, CRACKED, BROWN, WHITE)
+            ]
+            self.set_block_counts(counts, convert=False)
 
-        def threshold_changed(self):
-            sender = self.sender()
-            air = self.air_slider.value()
-            crack = self.crack_slider.value()
-            brown = self.brown_slider.value()
-            if sender is self.air_slider and air >= crack:
-                self.air_slider.setValue(crack - 1)
-            elif sender is self.crack_slider:
-                self.crack_slider.setValue(max(air + 1, min(brown - 1, crack)))
-            elif sender is self.brown_slider and brown <= crack:
-                self.brown_slider.setValue(crack + 1)
-            self.update_threshold_labels()
-            self.convert()
+        def update_block_count_labels(self):
+            for index, (label, key) in enumerate(self.block_count_labels):
+                label.setText(text["count_value"].format(
+                    name=text[key], count=self._block_counts[index]
+                ))
+
+        def begin_count_drag(self, changed_index: int):
+            self._count_drag_index = changed_index
+            self._count_drag_baseline = list(self._block_counts)
+
+        def end_count_drag(self):
+            self._count_drag_index = None
+            self._count_drag_baseline = None
+
+        def set_block_counts(self, counts, convert: bool = True):
+            values = [int(value) for value in counts]
+            if len(values) != 4 or min(values) < 0 or sum(values) != GRID_CELL_COUNT:
+                raise ValueError("four block counts must total 180")
+            self._block_counts = values
+            self._updating_block_counts = True
+            try:
+                for slider, value in zip(self.block_count_sliders, values):
+                    slider.blockSignals(True)
+                    slider.setValue(value)
+                    slider.blockSignals(False)
+            finally:
+                self._updating_block_counts = False
+            self.update_block_count_labels()
+            if convert:
+                self.convert()
+
+        def equalize_block_counts(self):
+            self.set_block_counts([GRID_CELL_COUNT // 4] * 4)
+
+        def reload_source_image(self):
+            if self.source_path is not None:
+                self.load_image(Path(self.source_path))
+
+        def block_count_changed(self, changed_index: int, new_value: int):
+            if self._updating_block_counts:
+                return
+            baseline = self._block_counts
+            if (
+                self._count_drag_index == changed_index
+                and self._count_drag_baseline is not None
+            ):
+                baseline = self._count_drag_baseline
+            values = _redistribute_counts(
+                baseline, changed_index, new_value
+            )
+            self.set_block_counts(values)
 
         def fit_changed(self):
             self.source_preview.set_selection_enabled(
@@ -895,15 +1253,21 @@ def _run_gui(args: argparse.Namespace) -> int:
             if self.fit_combo.currentData() == "selection":
                 self.convert()
 
+        def request_selection_mode(self):
+            index = self.fit_combo.findData("selection")
+            if index >= 0 and self.fit_combo.currentIndex() != index:
+                self.fit_combo.setCurrentIndex(index)
+
         def current_args(self) -> argparse.Namespace:
             current = argparse.Namespace(**vars(args))
             current.input = self.source_path
             current.fit = self.fit_combo.currentData()
             current.invert = self.invert_check.isChecked()
             current.tile_size = DEFAULT_TILE_SIZE
-            current.air_end = self.air_slider.value() / 100.0
-            current.crack_end = self.crack_slider.value() / 100.0
-            current.brown_end = self.brown_slider.value() / 100.0
+            current.air_end, current.crack_end, current.brown_end = (
+                _counts_to_thresholds(self._block_counts)
+            )
+            current.target_counts = list(self._block_counts)
             current.selection_box = (
                 self.source_preview.selection_box()
                 if current.fit == "selection" else None
@@ -928,11 +1292,20 @@ def _run_gui(args: argparse.Namespace) -> int:
             self.result_preview.setPixmap(_pil_pixmap(result_display))
             self.result_preview.setScaledContents(False)
             self.save_button.setEnabled(True)
+            if hasattr(self, "apply_button"):
+                self.apply_button.setEnabled(True)
             counts = {
                 TYPE_NAMES[kind]: sum(cell == kind for row in grid for cell in row)
                 for kind in TYPE_NAMES
             }
             self.status.setText(text["loaded"].format(**counts))
+
+        def apply_result(self):
+            if self.result_grid is None or self.source_path is None:
+                self.status.setText(text["no_result"])
+                return
+            if apply_callback([list(row) for row in self.result_grid], self.source_path):
+                self.close()
 
         def save_result(self):
             if self.result_image is None or self.result_grid is None or self.source_path is None:
@@ -957,8 +1330,8 @@ def _run_gui(args: argparse.Namespace) -> int:
             _write_json(json_path, self.source_path, self.result_grid, self.current_args())
             self.status.setText(text["saved"].format(png=png_path, json=json_path))
 
-    app = QApplication.instance() or QApplication([])
-    language = _ui_language()
+    existing_app = QApplication.instance()
+    app = existing_app or QApplication([])
     if not QFontDatabase().families() and os.name == "nt":
         for font_path in (
             Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts" / "meiryo.ttc",
@@ -966,7 +1339,8 @@ def _run_gui(args: argparse.Namespace) -> int:
         ):
             if font_path.is_file():
                 QFontDatabase.addApplicationFont(str(font_path))
-    app.setFont(QFont("Meiryo UI" if language == "ja" else "Segoe UI", 10))
+    if existing_app is None:
+        app.setFont(QFont("Meiryo UI" if language == "ja" else "Segoe UI", 10))
     window = ConverterWindow()
     if args.input is not None:
         window.load_image(args.input)
@@ -980,7 +1354,22 @@ def _run_gui(args: argparse.Namespace) -> int:
             app.quit()
 
         QTimer.singleShot(300, finish_smoke_test)
+    if not run_event_loop:
+        return window
     return app.exec_()
+
+
+def open_converter_window(input_path=None, apply_callback=None, parent=None, language=None):
+    """Open the converter inside an existing Qt application without a subprocess."""
+    args = _build_parser().parse_args(["--gui"])
+    args.input = Path(input_path) if input_path else None
+    return _run_gui(
+        args,
+        apply_callback=apply_callback,
+        parent=parent,
+        run_event_loop=False,
+        language=language,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

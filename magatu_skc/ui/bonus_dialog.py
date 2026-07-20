@@ -7,7 +7,7 @@ ROM内のボーナスステージ専用・出現位置テーブルを編集す�
 """
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QGridLayout, QLabel,
-    QDialogButtonBox, QGroupBox, QSpinBox
+    QDialogButtonBox, QGroupBox, QSpinBox, QScrollArea
 )
 from PyQt5.QtCore import Qt
 
@@ -15,6 +15,7 @@ from ..core import constants as c
 from ..core.element import position_from_byte, byte_from_position
 from ..core.i18n import t
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
+from .dialog_buttons import localize_dialog_buttons
 
 
 BONUS_POS_COUNT = 32
@@ -45,6 +46,7 @@ class BonusStageDialog(QDialog):
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
+        self.resize(980, 650)
 
         # 位置テーブル (32箇所)
         pos_grp = QGroupBox(t(
@@ -54,7 +56,7 @@ class BonusStageDialog(QDialog):
         pg = QGridLayout(pos_grp)
         self._pos_x_spins = []
         self._pos_y_spins = []
-        cols = 4
+        cols = 2
         for i in range(BONUS_POS_COUNT):
             row = i // cols
             col_base = (i % cols) * 4
@@ -86,12 +88,16 @@ class BonusStageDialog(QDialog):
             spacer.setFixedWidth(10)
             pg.addWidget(spacer, row, col_base + 3)
 
-        layout.addWidget(pos_grp)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(pos_grp)
+        layout.addWidget(scroll, 1)
 
         # OK / Cancel / Apply
         btnbox = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel | QDialogButtonBox.Apply
         )
+        localize_dialog_buttons(btnbox)
         btnbox.accepted.connect(self._apply_and_close)
         btnbox.rejected.connect(self.reject)
         btnbox.button(QDialogButtonBox.Apply).clicked.connect(self._apply)

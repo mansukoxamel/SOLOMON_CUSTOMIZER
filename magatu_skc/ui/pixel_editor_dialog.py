@@ -9,13 +9,15 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QColor, QImage, QPainter, QPen
 from PyQt5.QtWidgets import (
     QButtonGroup, QCheckBox, QComboBox, QDialog, QHBoxLayout, QLabel, QMessageBox,
-    QPushButton, QSpinBox, QVBoxLayout, QWidget,
+    QPushButton, QSpinBox, QVBoxLayout, QWidget, QGridLayout, QScrollArea,
+    QSizePolicy,
 )
 
 from ..nes import palette as pal
 from ..nes.tile import NES_GFX_TILE_BYTE_SIZE, NesTile
 from ..core.i18n import t
 from .file_dialog_compat import get_file, get_path
+from .dialog_geometry import restore_dialog_geometry, store_dialog_geometry
 
 
 PALETTE_OFFSET = 0xED4
@@ -319,17 +321,7 @@ class PixelEditorDialog(QDialog):
         self._restore_geometry()
 
     def _restore_geometry(self):
-        cfg = self._app_config
-        if not cfg:
-            return
-        w = int(cfg.get("pixel_editor_w", -1))
-        h = int(cfg.get("pixel_editor_h", -1))
-        x = int(cfg.get("pixel_editor_x", -1))
-        y = int(cfg.get("pixel_editor_y", -1))
-        if w > 100 and h > 100:
-            self.resize(w, h)
-        if x >= 0 and y >= 0:
-            self.move(x, y)
+        restore_dialog_geometry(self, self._app_config, "pixel_editor")
 
     def _save_geometry(self):
         cfg = self._app_config
@@ -337,10 +329,7 @@ class PixelEditorDialog(QDialog):
             return
         try:
             from ..core.config import save_config
-            cfg["pixel_editor_x"] = max(0, self.x())
-            cfg["pixel_editor_y"] = max(0, self.y())
-            cfg["pixel_editor_w"] = self.width()
-            cfg["pixel_editor_h"] = self.height()
+            store_dialog_geometry(self, cfg, "pixel_editor")
             save_config(cfg)
         except Exception:
             pass
@@ -408,43 +397,61 @@ class PixelEditorDialog(QDialog):
     def _build_ui(self):
         root = QVBoxLayout(self)
 
-        top = QHBoxLayout()
-        top.addWidget(QLabel(t("pixel.frame", "フレーム:")))
+        top_host = QWidget()
+        top = QGridLayout(top_host)
+        top.addWidget(QLabel(t("pixel.frame", "フレーム:")), 0, 0)
         self.frame_combo = QComboBox()
-        self.frame_combo.setMinimumWidth(380)
+        self.frame_combo.setMinimumWidth(240)
+        self.frame_combo.setSizeAdjustPolicy(
+            QComboBox.AdjustToMinimumContentsLengthWithIcon
+        )
+        self.frame_combo.setMinimumContentsLength(24)
         self._populate_frame_combo()
         self.frame_combo.currentIndexChanged.connect(self._on_frame_changed)
-        top.addWidget(self.frame_combo, 1)
+        top.addWidget(self.frame_combo, 0, 1, 1, 5)
 
         self.duplicates_chk = QCheckBox(t("pixel.show_duplicates", "重複参照も表示"))
         self.duplicates_chk.setToolTip(t("pixel.show_duplicates.tooltip", "同じleft/right/attrを参照するROMフレームも個別に表示"))
         self.duplicates_chk.toggled.connect(self._on_duplicate_mode_changed)
-        top.addWidget(self.duplicates_chk)
+        top.addWidget(self.duplicates_chk, 0, 6)
 
-        top.addWidget(QLabel(t("pixel.chr_bank", "CHRバンク:")))
+        top.addWidget(QLabel(t("pixel.chr_bank", "CHRバンク:")), 1, 0)
         self.bank_combo = QComboBox()
         for bank in range(self.bank_count):
             self.bank_combo.addItem(f"Bank {bank}", bank)
         self.bank_combo.setCurrentIndex(self._chr_bank)
         self.bank_combo.currentIndexChanged.connect(self._on_bank_changed)
-        top.addWidget(self.bank_combo)
+        top.addWidget(self.bank_combo, 1, 1)
 
-        top.addWidget(QLabel(t("pixel.palette", "表示パレット:")))
+        top.addWidget(QLabel(t("pixel.palette", "表示パレット:")), 1, 2)
         self.palette_combo = QComboBox()
+        self.palette_combo.setSizeAdjustPolicy(
+            QComboBox.AdjustToMinimumContentsLengthWithIcon
+        )
+        self.palette_combo.setMinimumContentsLength(18)
         self.palette_combo.addItem(t("pixel.palette.auto", "属性から自動"))
         for label in PALETTE_LABELS:
             self.palette_combo.addItem(label)
         self.palette_combo.currentIndexChanged.connect(self._refresh_palette_ui)
-        top.addWidget(self.palette_combo)
+        top.addWidget(self.palette_combo, 1, 3)
 
-        top.addWidget(QLabel(t("pixel.zoom", "拡大:")))
+        top.addWidget(QLabel(t("pixel.zoom", "拡大:")), 1, 4)
         self.zoom_spin = QSpinBox()
         self.zoom_spin.setRange(12, 36)
         self.zoom_spin.setValue(24)
         self.zoom_spin.setSuffix(" x")
         self.zoom_spin.valueChanged.connect(self._on_zoom_changed)
-        top.addWidget(self.zoom_spin)
-        root.addLayout(top)
+        top.addWidget(self.zoom_spin, 1, 5)
+        top.setColumnStretch(3, 1)
+        top_scroll = QScrollArea()
+        top_scroll.setWidgetResizable(True)
+        top_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        top_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        top_scroll.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        top_scroll.setMinimumHeight(90)
+        top_scroll.setMaximumHeight(112)
+        top_scroll.setWidget(top_host)
+        root.addWidget(top_scroll)
 
         main = QHBoxLayout()
         self.canvas = PixelCanvas(self)

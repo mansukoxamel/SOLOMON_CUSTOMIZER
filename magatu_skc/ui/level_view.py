@@ -8,6 +8,7 @@ from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QFont, QPolygon
 from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QRect, QRectF
 
 from ..core import constants as c
+from ..core.image_block_grid import IMAGE_EXTENSIONS
 
 DEFAULT_MARKER_COLORS = {
     "bonus_marker_color": "#FFC800",
@@ -177,7 +178,7 @@ class LevelView(QGraphicsView):
     tile_right_clicked = pyqtSignal(tuple)
     # ROM ファイルが drop された
     rom_dropped = pyqtSignal(str)
-    # ステージデータPNGが単体でdropされた
+    # ステージPNGまたはブロック変換元画像が単体でdropされた
     stage_png_dropped = pyqtSignal(str)
     # Ctrl+左ドラッグ用シグナル
     drag_start = pyqtSignal(tuple)   # 開始タイル
@@ -592,10 +593,10 @@ class LevelView(QGraphicsView):
     @staticmethod
     def _is_supported_drop_path(path: str) -> bool:
         lower = str(path).lower()
-        return lower.endswith('.nes') or lower.endswith('.zip') or lower.endswith('.png')
+        return lower.endswith('.nes') or lower.endswith('.zip') or lower.endswith(IMAGE_EXTENSIONS)
 
     def dragEnterEvent(self, event):
-        """D&D 開始時 - .nes/.zip または単体 .png なら受け入れ"""
+        """D&D 開始時 - ROMまたは対応画像1ファイルなら受け入れ"""
         md = event.mimeData()
         path = self._single_local_path(md)
         if path and self._is_supported_drop_path(path):
@@ -625,7 +626,7 @@ class LevelView(QGraphicsView):
             event.acceptProposedAction()
             self.rom_dropped.emit(path)
             return
-        if lower.endswith('.png'):
+        if lower.endswith(IMAGE_EXTENSIONS):
             event.acceptProposedAction()
             self.stage_png_dropped.emit(path)
             return

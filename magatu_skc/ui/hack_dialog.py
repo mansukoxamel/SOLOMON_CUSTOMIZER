@@ -15,6 +15,8 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon, QPixmap, QColor
 
 from .. import __version__
+from .dialog_geometry import restore_dialog_geometry, store_dialog_geometry
+from .dialog_buttons import localize_dialog_buttons
 from ..core import hack_data
 from ..core import walk_speed
 from ..core import panel_monster_hack
@@ -1668,6 +1670,7 @@ class HackDialog(QDialog):
         btnbox = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel | QDialogButtonBox.Apply
         )
+        localize_dialog_buttons(btnbox)
         btnbox.accepted.connect(self._apply_and_close)
         btnbox.rejected.connect(self.reject)
         btnbox.button(QDialogButtonBox.Apply).clicked.connect(self._apply_changes)
@@ -2998,17 +3001,7 @@ class HackDialog(QDialog):
         QMessageBox.information(self, t("hack_dialog.import.complete.title", "インポート完了"), msg)
 
     def _restore_geometry(self):
-        cfg = self._app_config
-        if not cfg:
-            return
-        w = int(cfg.get("hack_dlg_w", -1))
-        h = int(cfg.get("hack_dlg_h", -1))
-        x = int(cfg.get("hack_dlg_x", -1))
-        y = int(cfg.get("hack_dlg_y", -1))
-        if w > 100 and h > 100:
-            self.resize(w, h)
-        if x >= 0 and y >= 0:
-            self.move(x, y)
+        restore_dialog_geometry(self, self._app_config, "hack_dlg")
 
     def _save_geometry(self):
         cfg = self._app_config
@@ -3016,10 +3009,7 @@ class HackDialog(QDialog):
             return
         try:
             from ..core.config import save_config
-            cfg["hack_dlg_x"] = max(0, self.x())
-            cfg["hack_dlg_y"] = max(0, self.y())
-            cfg["hack_dlg_w"] = self.width()
-            cfg["hack_dlg_h"] = self.height()
+            store_dialog_geometry(self, cfg, "hack_dlg")
             save_config(cfg)
         except Exception:
             pass   # 設定保存失敗でダイアログ閉鎖を妨げない

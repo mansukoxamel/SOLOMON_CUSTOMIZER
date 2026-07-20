@@ -15,8 +15,17 @@ import zlib
 
 US_ORIGINAL_SIZE = 65552
 US_ORIGINAL_CRC32 = "B7A00D99"
-US_ORIGINAL_SHA256 = (
-    "81308ffe54c55508c143d04d0f5ef5e88e1da4d75483d8c43148011647fd0065"
+KNOWN_US_ORIGINAL_CRC32 = frozenset({
+    US_ORIGINAL_CRC32,
+    "99773BC4",
+})
+US_ORIGINAL_PRG_CRC32 = "0771C34F"
+US_ORIGINAL_CHR_CRC32 = "FAD8A464"
+_US_PRG_START = 0x10
+_US_PRG_END = _US_PRG_START + 0x8000
+_US_CHR_END = _US_PRG_END + 0x8000
+_CANONICAL_US_INES_HEADER = bytes.fromhex(
+    "4E45531A020430000000000000000000"
 )
 NORMALIZED_US_CRC32 = "7A1F4515"
 NORMALIZED_US_SHA256 = (
@@ -107,12 +116,30 @@ def _crc32_hex(data: bytes) -> str:
     return f"{zlib.crc32(bytes(data)) & 0xffffffff:08X}"
 
 
-def is_supported_us_original(data: bytes) -> bool:
+def _payload_crc32s(data: bytes) -> tuple[str, str]:
     data = bytes(data)
     return (
-        len(data) == US_ORIGINAL_SIZE
-        and _crc32_hex(data) == US_ORIGINAL_CRC32
-        and hashlib.sha256(data).hexdigest() == US_ORIGINAL_SHA256
+        _crc32_hex(data[_US_PRG_START:_US_PRG_END]),
+        _crc32_hex(data[_US_PRG_END:_US_CHR_END]),
+    )
+
+
+def _canonicalize_us_header(data: bytes) -> bytearray:
+    result = bytearray(data)
+    result[:16] = _CANONICAL_US_INES_HEADER
+    return result
+
+
+def is_supported_us_original(data: bytes) -> bool:
+    data = bytes(data)
+    if len(data) != US_ORIGINAL_SIZE or data[:4] != b"NES\x1a":
+        return False
+    if _crc32_hex(data) in KNOWN_US_ORIGINAL_CRC32:
+        return True
+    prg_crc, chr_crc = _payload_crc32s(data)
+    return (
+        prg_crc == US_ORIGINAL_PRG_CRC32
+        and chr_crc == US_ORIGINAL_CHR_CRC32
     )
 
 
@@ -217,8 +244,9 @@ def normalize_us_original(data: bytes) -> bytes:
             f"(size={len(source)}, CRC32={_crc32_hex(source)})."
         )
 
-    result = bytearray(source)
-    result[7:16] = bytes(9)  # Clean NES 1.0 reserved/header garbage.
+    result = _canonicalize_us_header(source)
+    # Header metadata varies between verified dumps.  The PRG/CHR hashes above
+    # identify the game content; always emit one known-safe mapper-3 header.
 
     for target_start, target_end, delta in _COPY_SPANS:
         _copy_prg_span(result, source, target_start, target_end, delta)

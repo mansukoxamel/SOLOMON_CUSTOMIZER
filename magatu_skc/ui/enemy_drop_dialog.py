@@ -20,6 +20,7 @@ from .element_picker import (
     ENEMIES_LIST, ENEMY_VISUAL_SOURCE, apply_enemy_picker_overlay,
 )
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
+from .dialog_buttons import localize_dialog_buttons
 
 
 ENEMY_THUMB = 28
@@ -145,9 +146,7 @@ class EnemyDropDialog(QDialog):
         bb.accepted.connect(self._apply_and_close)
         bb.rejected.connect(self.reject)
         bb.button(QDialogButtonBox.Apply).clicked.connect(self._apply)
-        bb.button(QDialogButtonBox.Ok).setText(t("common.ok", "OK"))
-        bb.button(QDialogButtonBox.Cancel).setText(t("common.cancel", "キャンセル"))
-        bb.button(QDialogButtonBox.Apply).setText(t("common.apply", "適用"))
+        localize_dialog_buttons(bb)
         root.addWidget(bb)
         self.resize(840, 680)
         restore_dialog_geometry(self, self._app_config, "enemy_drop_dlg")

@@ -27,6 +27,7 @@ from PyQt5.QtMultimedia import QSoundEffect
 from .. import __version__
 from ..core.rom import Rom, KNOWN_CRC32, is_known_editor_standard_data
 from ..core.level import Level, load_all_levels
+from ..core.image_block_grid import IMAGE_EXTENSIONS, apply_grid_to_level, validate_grid
 from ..core.xml_io import level_to_xml_element, xml_element_to_level
 from ..core.element import Wall, ElementType, LevelElement
 from ..core.enemy_direction import DIRECTION_LABELS, enemy_direction_variant
@@ -75,6 +76,8 @@ from .element_picker import (
     ENEMIES_LIST, ITEMS_LIST, item_name, enemy_enhance_variant,
 )
 from .rom_validation_dialog import RomValidationDialog
+from .dialog_geometry import restore_dialog_geometry, store_dialog_geometry
+from .dialog_buttons import localize_dialog_buttons
 
 APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
 WINDOW_STATE_DEBUG_ENV = "SOLOMON_WINDOW_STATE_DEBUG"
@@ -234,6 +237,7 @@ class _UndoHistoryDialog(QDialog):
         layout.addWidget(self.table, 1)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Close, self)
+        localize_dialog_buttons(buttons)
         self.jump_button = buttons.addButton(
             t("main.undo_history.jump", "選択位置へ移動"),
             QDialogButtonBox.ActionRole,
@@ -2301,7 +2305,20 @@ class MainWindow(QMainWindow):
         )
         self.btn_item_replace.clicked.connect(self._on_show_item_replace)
         self.btn_item_replace.setEnabled(False)
-        el.addWidget(self.btn_item_replace, 5, 0, 1, 2)
+        el.addWidget(self.btn_item_replace, 5, 0)
+
+        self.btn_image_block_grid = QPushButton(
+            t("main.tools.image_block_grid", "画像からブロック配置…")
+        )
+        self.btn_image_block_grid.setToolTip(
+            t(
+                "main.tools.image_block_grid.tooltip",
+                "画像を15×12の空気・茶壁・白壁・ひび壁へ変換し、現在のステージへ配置します。",
+            )
+        )
+        self.btn_image_block_grid.clicked.connect(self._on_show_image_block_grid)
+        self.btn_image_block_grid.setEnabled(False)
+        el.addWidget(self.btn_image_block_grid, 5, 1)
 
         left_layout.addWidget(edit_group)
 
@@ -3872,6 +3889,8 @@ class MainWindow(QMainWindow):
             import zlib
             crc_hex = f"{zlib.crc32(bytes(self.original_rom_data)) & 0xFFFFFFFF:08X}"
             known = KNOWN_CRC32.get(crc_hex, "")
+            if not known and getattr(self.rom, "was_us_normalized", False):
+                known = "Solomon's Key (USA)"
             verify_mark = (
                 t("main.rom.verify.known", "✓ 正規")
                 if known
@@ -3965,6 +3984,7 @@ class MainWindow(QMainWindow):
             self.btn_sound_viewer.setEnabled(True)
             self.btn_special_process.setEnabled(True)
             self.btn_item_replace.setEnabled(edit_enabled)
+            self.btn_image_block_grid.setEnabled(edit_enabled)
             test_play_enabled = edit_enabled or self._can_readonly_test_play()
             self.btn_test_play.setEnabled(test_play_enabled)
             self.meta_group.setEnabled(edit_enabled)
@@ -6081,17 +6101,121 @@ class MainWindow(QMainWindow):
         return True
 
     def _on_stage_png_dropped(self, path: str):
-        if self._is_stage_compare_edit_view():
-            self.start_stage_compare_edit_from_png(path)
-            return
         try:
-            self._load_stage_png_to_current(path)
+            if Path(path).suffix.lower() == ".png":
+                stage_state = self._png_stage_data_state(path)
+                if stage_state == "valid":
+                    if self._is_stage_compare_edit_view():
+                        self.start_stage_compare_edit_from_png(path)
+                    else:
+                        self._load_stage_png_to_current(path)
+                    return
+                if stage_state == "invalid":
+                    QMessageBox.warning(
+                        self,
+                        t("main.stage_png.load_failed.title", "読込失敗"),
+                        t(
+                            "main.stage_png.error.invalid_embedded_data",
+                            "埋め込みステージデータが壊れているため、通常画像としては扱いません。",
+                        ),
+                    )
+                    return
+            self._on_show_image_block_grid(path)
         except Exception as e:
             QMessageBox.critical(
                 self,
                 t("main.stage_png.load_failed.title", "読込失敗"),
                 f"{type(e).__name__}: {e}",
             )
+
+    @classmethod
+    def _png_stage_data_state(cls, path: str) -> str:
+        """Return valid, absent, or invalid for an msc_level iTXt chunk."""
+        import struct
+
+        data = Path(path).read_bytes()
+        if len(data) < 8 or data[:8] != b"\x89PNG\r\n\x1a\n":
+            return "invalid"
+        pos = 8
+        found = False
+        while pos + 12 <= len(data):
+            length = struct.unpack(">I", data[pos:pos + 4])[0]
+            chunk_type = data[pos + 4:pos + 8]
+            if pos + 12 + length > len(data):
+                return "invalid"
+            if chunk_type == b"iTXt":
+                payload = data[pos + 8:pos + 8 + length]
+                if payload.startswith(b"msc_level\x00"):
+                    found = True
+                    break
+            pos += 12 + length
+            if chunk_type == b"IEND":
+                break
+        if not found:
+            return "absent"
+        xml_str = cls._extract_xml_from_png(path)
+        if xml_str is None:
+            return "invalid"
+        try:
+            root = ET.fromstring(xml_str)
+        except ET.ParseError:
+            return "invalid"
+        return "valid" if root.tag == "solomon_customizer" else "invalid"
+
+    def _on_show_image_block_grid(self, initial_path=None):
+        if not self.levels or self._reject_read_only_edit():
+            return
+        from tools.image_to_block_grid import open_converter_window
+
+        old_window = getattr(self, "_image_block_grid_window", None)
+        if old_window is not None:
+            old_window.close()
+        self._image_block_grid_window = open_converter_window(
+            input_path=initial_path,
+            apply_callback=self._apply_image_block_grid,
+            parent=self,
+            language=get_language(),
+        )
+
+    def _apply_image_block_grid(self, grid, source_path) -> bool:
+        if not self.levels or self._reject_read_only_edit():
+            return False
+        if not validate_grid(grid):
+            QMessageBox.warning(
+                self,
+                t("main.image_block_grid.invalid.title", "画像変換エラー"),
+                t("main.image_block_grid.invalid.grid", "変換結果が15×12の4種類グリッドではありません。"),
+            )
+            return False
+
+        lv = self.levels[self.current_level_no]
+        self._push_undo(
+            action=t("main.undo_history.action.image_block_grid", "画像からブロック配置"),
+            detail=Path(source_path).name,
+        )
+
+        mirrors_to_disable = apply_grid_to_level(
+            lv,
+            grid,
+            protected_item_predicate=lambda item: self._is_protected_open_door_item(lv, item),
+        )
+        for mirror_no in mirrors_to_disable:
+            self._set_mirror_schedule_bytes(self.current_level_no, mirror_no, [0] * 8)
+
+        self._refresh_key_enemy_spin_range(warn=True)
+        self._refresh_fairy_enemy_spin_range(warn=True)
+        self._sync_mirror_panel()
+        self._refresh_view()
+        self._refresh_thumbnail(self.current_level_no)
+        self._set_dirty(True)
+        self.statusBar().showMessage(
+            t(
+                "main.image_block_grid.applied",
+                "画像から15×12へブロック配置しました（16列目は保持）: {name}",
+            ).format(name=Path(source_path).name),
+            5000,
+        )
+        return True
 
     def _on_png_import_current(self):
         if not self.levels:
@@ -10955,6 +11079,15 @@ class MainWindow(QMainWindow):
                 "選択範囲、現在ステージ、全ステージを対象にできます。",
             )
         )
+        self.btn_image_block_grid.setText(
+            t("main.tools.image_block_grid", "画像からブロック配置…")
+        )
+        self.btn_image_block_grid.setToolTip(
+            t(
+                "main.tools.image_block_grid.tooltip",
+                "画像を15×12の空気・茶壁・白壁・ひび壁へ変換し、現在のステージへ配置します。",
+            )
+        )
         self.btn_mirror.setText(t("main.mirror_detail.button", "ミラー詳細設定"))
         self.btn_mirror.setToolTip(
             t(
@@ -14367,34 +14500,18 @@ class MainWindow(QMainWindow):
         }
 
     def _restore_undo_history_dialog_geometry(self, dialog):
-        cfg = self._app_config
-        try:
-            w = int(cfg.get("undo_history_dlg_w", 920) or 920)
-            h = int(cfg.get("undo_history_dlg_h", 520) or 520)
-        except (TypeError, ValueError):
-            w, h = 920, 520
-        if w >= 300 and h >= 200:
-            dialog.resize(w, h)
-        try:
-            x = int(cfg.get("undo_history_dlg_x", -1))
-            y = int(cfg.get("undo_history_dlg_y", -1))
-        except (TypeError, ValueError):
-            return
-        if x < 0 or y < 0:
-            return
-        for screen in QApplication.screens():
-            if screen.geometry().contains(x + 50, y + 50):
-                dialog.move(x, y)
-                return
+        restore_dialog_geometry(
+            dialog,
+            self._app_config,
+            "undo_history_dlg",
+            min_w=299,
+            min_h=199,
+        )
 
     def _save_undo_history_dialog_geometry(self, dialog):
         if dialog is None:
             return
-        geo = dialog.frameGeometry()
-        self._app_config["undo_history_dlg_x"] = int(geo.x())
-        self._app_config["undo_history_dlg_y"] = int(geo.y())
-        self._app_config["undo_history_dlg_w"] = int(dialog.width())
-        self._app_config["undo_history_dlg_h"] = int(dialog.height())
+        store_dialog_geometry(dialog, self._app_config, "undo_history_dlg")
         save_config(self._app_config)
 
     def _on_show_undo_history(self):
@@ -14808,7 +14925,7 @@ Tab/Shift+Tab系は、ホバー位置のアイテム/鍵/扉状態を順送り/�
     # ====== Drag & Drop ======
 
     def dragEnterEvent(self, event):
-        """D&D 開始時 - .nes / .zip なら受け入れ。内部D&D(ピッカー→お気に入り)も通す"""
+        """D&D 開始時 - ROMまたは画像なら受け入れ。内部D&Dも通す"""
         from .element_picker import PICKER_MIME
         # 内部D&Dは MainWindow では何もしないが、子ウィジェットへ伝播させるため accept する
         if event.mimeData().hasFormat(PICKER_MIME):
@@ -14819,7 +14936,7 @@ Tab/Shift+Tab系は、ホバー位置のアイテム/鍵/扉状態を順送り/�
             for url in urls:
                 if url.isLocalFile():
                     path = url.toLocalFile().lower()
-                    if path.endswith('.nes') or path.endswith('.zip'):
+                    if path.endswith(('.nes', '.zip')) or path.endswith(IMAGE_EXTENSIONS):
                         event.acceptProposedAction()
                         return
         event.ignore()
@@ -14844,6 +14961,7 @@ Tab/Shift+Tab系は、ホバー位置のアイテム/鍵/扉状態を順送り/�
             return
 
         paths = []
+        image_paths = []
         for url in event.mimeData().urls():
             if not url.isLocalFile():
                 continue
@@ -14851,6 +14969,8 @@ Tab/Shift+Tab系は、ホバー位置のアイテム/鍵/扉状態を順送り/�
             lower = path.lower()
             if lower.endswith('.nes') or lower.endswith('.zip'):
                 paths.append(path)
+            elif lower.endswith(IMAGE_EXTENSIONS):
+                image_paths.append(path)
 
         if len(paths) >= 2:
             event.acceptProposedAction()
@@ -14859,6 +14979,10 @@ Tab/Shift+Tab系は、ホバー位置のアイテム/鍵/扉状態を順送り/�
         if len(paths) == 1 and (paths[0].lower().endswith('.nes') or paths[0].lower().endswith('.zip')):
             event.acceptProposedAction()
             self._on_rom_dropped(paths[0])
+            return
+        if not paths and len(image_paths) == 1:
+            event.acceptProposedAction()
+            self._on_stage_png_dropped(image_paths[0])
             return
 
         event.ignore()

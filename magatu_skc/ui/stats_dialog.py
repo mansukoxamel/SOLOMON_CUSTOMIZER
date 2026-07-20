@@ -18,6 +18,7 @@ from ..core.element import Wall
 from ..core import room_flags as _rf
 from ..core import stage_ext as _se
 from ..core.i18n import t
+from .dialog_geometry import restore_dialog_geometry, store_dialog_geometry
 from .element_picker import (
     ENEMY_PICKER_PALETTE_OVERRIDE,
     ENEMY_VISUAL_SOURCE,
@@ -398,16 +399,9 @@ class StatsDialog(QDialog):
 
     def _restore_geometry(self):
         cfg = self._app_config
+        restore_dialog_geometry(self, cfg, "stats_dlg")
         if not cfg:
             return
-        w = int(cfg.get("stats_dlg_w", -1))
-        h = int(cfg.get("stats_dlg_h", -1))
-        x = int(cfg.get("stats_dlg_x", -1))
-        y = int(cfg.get("stats_dlg_y", -1))
-        if w > 100 and h > 100:
-            self.resize(w, h)
-        if x >= 0 and y >= 0:
-            self.move(x, y)
         # 列幅 (保存済なら _populate の自動幅を上書き)
         col_w = cfg.get("stats_dlg_col_w", [])
         if isinstance(col_w, list) and len(col_w) == self.table.columnCount():
@@ -424,10 +418,7 @@ class StatsDialog(QDialog):
             return
         try:
             from ..core.config import save_config
-            cfg["stats_dlg_x"] = max(0, self.x())
-            cfg["stats_dlg_y"] = max(0, self.y())
-            cfg["stats_dlg_w"] = self.width()
-            cfg["stats_dlg_h"] = self.height()
+            store_dialog_geometry(self, cfg, "stats_dlg")
             cfg["stats_dlg_col_w"] = [
                 self.table.columnWidth(i)
                 for i in range(self.table.columnCount())

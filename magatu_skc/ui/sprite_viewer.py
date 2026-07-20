@@ -10,7 +10,8 @@ ROMフレームデータは、ダブルクリックで16x16ピクセル編集へ
 """
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QSpinBox,
-    QScrollArea, QWidget, QGridLayout, QDialogButtonBox, QCheckBox
+    QScrollArea, QWidget, QGridLayout, QDialogButtonBox, QCheckBox, QFrame,
+    QSizePolicy,
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QImage, QPixmap, QColor, QPainter
@@ -18,6 +19,8 @@ from PyQt5.QtGui import QImage, QPixmap, QColor, QPainter
 from ..core.i18n import t
 from ..nes.tile import NesTile, NES_TILE_W, NES_GFX_TILE_BYTE_SIZE
 from ..nes import palette as pal
+from .dialog_geometry import restore_dialog_geometry, store_dialog_geometry
+from .dialog_buttons import localize_dialog_buttons
 
 PALETTE_OFFSET = 0xED4
 PALETTE_COUNT = 8
@@ -186,19 +189,33 @@ class SpriteViewer(QDialog):
         self.ctrl_host = QWidget()
         self.ctrl_layout = QHBoxLayout(self.ctrl_host)
         self.ctrl_layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.ctrl_host)
+        self.ctrl_scroll = QScrollArea()
+        self.ctrl_scroll.setWidgetResizable(False)
+        self.ctrl_scroll.setFrameShape(QFrame.NoFrame)
+        self.ctrl_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.ctrl_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.ctrl_scroll.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        self.ctrl_scroll.setMinimumHeight(48)
+        self.ctrl_scroll.setMaximumHeight(76)
+        self.ctrl_scroll.setWidget(self.ctrl_host)
+        layout.addWidget(self.ctrl_scroll)
 
         self.scroll = QScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll.setWidgetResizable(False)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.scroll.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Expanding)
+        self.scroll.setMinimumWidth(0)
         self.canvas = QWidget()
         self.scroll.setWidget(self.canvas)
         layout.addWidget(self.scroll, 1)
 
         self.hover_label = QLabel("")
+        self.hover_label.setWordWrap(True)
+        self.hover_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         layout.addWidget(self.hover_label)
 
         bb = QDialogButtonBox(QDialogButtonBox.Close)
+        localize_dialog_buttons(bb)
         bb.rejected.connect(self.reject)
         bb.accepted.connect(self.accept)
         layout.addWidget(bb)
@@ -207,17 +224,7 @@ class SpriteViewer(QDialog):
         self._restore_geometry()
 
     def _restore_geometry(self):
-        cfg = self._app_config
-        if not cfg:
-            return
-        w = int(cfg.get("sprite_viewer_w", -1))
-        h = int(cfg.get("sprite_viewer_h", -1))
-        x = int(cfg.get("sprite_viewer_x", -1))
-        y = int(cfg.get("sprite_viewer_y", -1))
-        if w > 100 and h > 100:
-            self.resize(w, h)
-        if x >= 0 and y >= 0:
-            self.move(x, y)
+        restore_dialog_geometry(self, self._app_config, "sprite_viewer")
 
     def _save_geometry(self):
         cfg = self._app_config
@@ -225,10 +232,7 @@ class SpriteViewer(QDialog):
             return
         try:
             from ..core.config import save_config
-            cfg["sprite_viewer_x"] = max(0, self.x())
-            cfg["sprite_viewer_y"] = max(0, self.y())
-            cfg["sprite_viewer_w"] = self.width()
-            cfg["sprite_viewer_h"] = self.height()
+            store_dialog_geometry(self, cfg, "sprite_viewer")
             save_config(cfg)
         except Exception:
             pass
