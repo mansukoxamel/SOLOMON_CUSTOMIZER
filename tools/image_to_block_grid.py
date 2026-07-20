@@ -178,6 +178,7 @@ def _four_level_grid(
     brown_end: float,
     source_rgb: Image.Image | None = None,
     target_counts=None,
+    normalize_range: bool = True,
 ) -> tuple[Image.Image, list[list[int]]]:
     pixels = list(gray.tobytes())
     kind_values = (AIR, CRACKED, BROWN, WHITE)
@@ -226,7 +227,10 @@ def _four_level_grid(
     normalized_values: list[float] = []
 
     for value in pixels:
-        normalized = 0.5 if span == 0 else (value - low) / span
+        if normalize_range:
+            normalized = 0.5 if span == 0 else (value - low) / span
+        else:
+            normalized = value / 255.0
         if invert:
             normalized = 1.0 - normalized
         # Keep the maximum sample inside the last non-zero half-open band.
@@ -554,6 +558,8 @@ UI_TEXT = {
         "brown_count": "茶",
         "white_count": "白",
         "count_value": "{name}: {count}個",
+        "equal_counts": "各45個に均等化",
+        "reload_image": "画像を読み直す",
         "air_end": "空気 / ひび",
         "crack_end": "ひび / 茶",
         "brown_end": "茶 / 白",
@@ -590,6 +596,8 @@ UI_TEXT = {
         "brown_count": "Brown",
         "white_count": "White",
         "count_value": "{name}: {count}",
+        "equal_counts": "Set 45 Each",
+        "reload_image": "Reload Image",
         "air_end": "Air / Cracked",
         "crack_end": "Cracked / Brown",
         "brown_end": "Brown / White",
@@ -639,7 +647,9 @@ def _run_gui(
     language: str | None = None,
 ):
     from PyQt5.QtCore import QPointF, QRectF, Qt, QTimer
-    from PyQt5.QtGui import QColor, QFont, QFontDatabase, QKeySequence, QPainter, QPen
+    from PyQt5.QtGui import (
+        QColor, QFont, QFontDatabase, QFontMetrics, QKeySequence, QPainter, QPen,
+    )
     from PyQt5.QtWidgets import (
         QApplication,
         QCheckBox,
@@ -689,6 +699,7 @@ def _run_gui(
     class BlockCountSlider(QSlider):
         def __init__(self, index, on_begin, on_end):
             super().__init__(Qt.Horizontal)
+            self.setObjectName("blockCountSlider")
             self._index = index
             self._on_begin = on_begin
             self._on_end = on_end
@@ -953,6 +964,7 @@ def _run_gui(
             self.source_image: Image.Image | None = None
             self.result_image: Image.Image | None = None
             self.result_grid: list[list[int]] | None = None
+            self._natural_thresholds = (args.air_end, args.crack_end, args.brown_end)
             self.setWindowTitle(text["title"])
             self.resize(1320, 900)
             self.setAcceptDrops(True)
@@ -961,6 +973,23 @@ def _run_gui(
             root.setStyleSheet(
                 "QPushButton, QComboBox { min-height: 26px; }"
                 "QGroupBox { font-weight: 600; }"
+                "QSlider#blockCountSlider::groove:horizontal {"
+                "  height: 6px; background: #0b210f; border: 1px solid #398944;"
+                "  border-radius: 3px;"
+                "}"
+                "QSlider#blockCountSlider::sub-page:horizontal {"
+                "  background: #18b82a; border-radius: 3px;"
+                "}"
+                "QSlider#blockCountSlider::handle:horizontal {"
+                "  width: 16px; margin: -6px 0; border-radius: 8px;"
+                "  background: #f5fff5; border: 2px solid #18ff2a;"
+                "}"
+                "QSlider#blockCountSlider::handle:horizontal:hover {"
+                "  background: #fff36a; border-color: #ffffff;"
+                "}"
+                "QSlider#blockCountSlider::handle:horizontal:pressed {"
+                "  background: #ffffff; border-color: #fff36a;"
+                "}"
             )
             outer = QVBoxLayout(root)
             outer.setContentsMargins(14, 14, 14, 12)
@@ -1013,11 +1042,18 @@ def _run_gui(
             self._count_drag_baseline = None
             self.block_count_labels = []
             self.block_count_sliders = []
-            for index, key in enumerate(
-                ("air_count", "cracked_count", "brown_count", "white_count")
-            ):
+            count_keys = ("air_count", "cracked_count", "brown_count", "white_count")
+            metrics = QFontMetrics(self.font())
+            count_label_width = max(
+                metrics.horizontalAdvance(text["count_value"].format(
+                    name=text[key], count=888
+                ))
+                for key in count_keys
+            ) + 10
+            for index, key in enumerate(count_keys):
                 label = QLabel()
-                label.setMinimumWidth(72)
+                label.setFixedWidth(count_label_width)
+                label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
                 slider = BlockCountSlider(
                     index, self.begin_count_drag, self.end_count_drag
                 )
@@ -1034,6 +1070,13 @@ def _run_gui(
                 self.block_count_sliders.append(slider)
                 threshold_layout.addWidget(label)
                 threshold_layout.addWidget(slider, 1)
+            self.equal_counts_button = QPushButton(text["equal_counts"])
+            self.equal_counts_button.clicked.connect(self.equalize_block_counts)
+            threshold_layout.addWidget(self.equal_counts_button)
+            self.reload_image_button = QPushButton(text["reload_image"])
+            self.reload_image_button.clicked.connect(self.reload_source_image)
+            self.reload_image_button.setEnabled(False)
+            threshold_layout.addWidget(self.reload_image_button)
             outer.addWidget(threshold_group)
             self.update_block_count_labels()
 
@@ -1119,7 +1162,35 @@ def _run_gui(
             self.source_path = path
             self.source_image = source
             self.source_preview.set_source(source)
+            self.initialize_counts_from_source()
             self.convert()
+            self.reload_image_button.setEnabled(True)
+
+        def initialize_counts_from_source(self):
+            if self.source_image is None:
+                return
+            current = self.current_args()
+            fitted = _fit_image(
+                self.source_image,
+                (GRID_WIDTH, GRID_HEIGHT),
+                current.fit,
+                current.background,
+                current.selection_box,
+            )
+            gray = ImageOps.grayscale(fitted)
+            _tone, grid = _four_level_grid(
+                gray,
+                current.invert,
+                *self._natural_thresholds,
+                source_rgb=fitted,
+                target_counts=None,
+                normalize_range=False,
+            )
+            counts = [
+                sum(cell == kind for row in grid for cell in row)
+                for kind in (AIR, CRACKED, BROWN, WHITE)
+            ]
+            self.set_block_counts(counts, convert=False)
 
         def update_block_count_labels(self):
             for index, (label, key) in enumerate(self.block_count_labels):
@@ -1135,6 +1206,30 @@ def _run_gui(
             self._count_drag_index = None
             self._count_drag_baseline = None
 
+        def set_block_counts(self, counts, convert: bool = True):
+            values = [int(value) for value in counts]
+            if len(values) != 4 or min(values) < 0 or sum(values) != GRID_CELL_COUNT:
+                raise ValueError("four block counts must total 180")
+            self._block_counts = values
+            self._updating_block_counts = True
+            try:
+                for slider, value in zip(self.block_count_sliders, values):
+                    slider.blockSignals(True)
+                    slider.setValue(value)
+                    slider.blockSignals(False)
+            finally:
+                self._updating_block_counts = False
+            self.update_block_count_labels()
+            if convert:
+                self.convert()
+
+        def equalize_block_counts(self):
+            self.set_block_counts([GRID_CELL_COUNT // 4] * 4)
+
+        def reload_source_image(self):
+            if self.source_path is not None:
+                self.load_image(Path(self.source_path))
+
         def block_count_changed(self, changed_index: int, new_value: int):
             if self._updating_block_counts:
                 return
@@ -1144,19 +1239,10 @@ def _run_gui(
                 and self._count_drag_baseline is not None
             ):
                 baseline = self._count_drag_baseline
-            self._block_counts = _redistribute_counts(
+            values = _redistribute_counts(
                 baseline, changed_index, new_value
             )
-            self._updating_block_counts = True
-            try:
-                for slider, value in zip(self.block_count_sliders, self._block_counts):
-                    slider.blockSignals(True)
-                    slider.setValue(value)
-                    slider.blockSignals(False)
-            finally:
-                self._updating_block_counts = False
-            self.update_block_count_labels()
-            self.convert()
+            self.set_block_counts(values)
 
         def fit_changed(self):
             self.source_preview.set_selection_enabled(

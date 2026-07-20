@@ -138,7 +138,13 @@ class ImageBlockGridSelectionUiTests(unittest.TestCase):
                 for kind in (GRID_AIR, GRID_CRACKED, GRID_BROWN, GRID_WHITE)
             ]
             self.assertEqual(actual_counts, window._block_counts)
+            self.assertEqual(window._block_counts, [1, 1, 1, 177])
             self.assertEqual(window.status.text(), "変換完了")
+            self.assertTrue(window.reload_image_button.isEnabled())
+            window.block_count_sliders[0].setValue(72)
+            self.assertNotEqual(window._block_counts, [1, 1, 1, 177])
+            window.reload_image_button.click()
+            self.assertEqual(window._block_counts, [1, 1, 1, 177])
             source = window.source_preview
             point = source.rect().center()
 
@@ -167,6 +173,7 @@ class ImageBlockGridSelectionUiTests(unittest.TestCase):
 
     def test_four_count_sliders_redistribute_and_total_180(self):
         window = open_converter_window(language="ja")
+        self.assertFalse(window.reload_image_button.isEnabled())
         self.assertEqual(window._block_counts, [45, 45, 45, 45])
         self.assertTrue(
             all(slider.minimum() == 0 and slider.maximum() == 180
@@ -197,6 +204,14 @@ class ImageBlockGridSelectionUiTests(unittest.TestCase):
         window.block_count_sliders[2].setValue(0)
         self.assertEqual(window._block_counts, [0, 0, 0, 180])
         self.assertEqual(window.block_count_sliders[3].value(), 180)
+        label_widths = [label.width() for label, _key in window.block_count_labels]
+        self.assertEqual(len(set(label_widths)), 1)
+        window.equal_counts_button.click()
+        self.assertEqual(window._block_counts, [45, 45, 45, 45])
+        self.assertEqual(
+            [label.width() for label, _key in window.block_count_labels],
+            label_widths,
+        )
         window.close()
 
     def test_drag_keeps_the_other_three_ratios_from_drag_start(self):
@@ -282,6 +297,26 @@ class BlockCountMathTests(unittest.TestCase):
             for kind in (GRID_AIR, GRID_CRACKED, GRID_BROWN, GRID_WHITE)
         ]
         self.assertEqual(actual, requested)
+
+    def test_natural_initial_counts_follow_absolute_image_brightness(self):
+        dark = Image.new("L", (15, 12), 0)
+        bright = Image.new("L", (15, 12), 255)
+        _tone, dark_grid = _four_level_grid(
+            dark, False, 0.25, 0.50, 0.75, normalize_range=False
+        )
+        _tone, bright_grid = _four_level_grid(
+            bright, False, 0.25, 0.50, 0.75, normalize_range=False
+        )
+        dark_counts = [
+            sum(cell == kind for row in dark_grid for cell in row)
+            for kind in (GRID_AIR, GRID_CRACKED, GRID_BROWN, GRID_WHITE)
+        ]
+        bright_counts = [
+            sum(cell == kind for row in bright_grid for cell in row)
+            for kind in (GRID_AIR, GRID_CRACKED, GRID_BROWN, GRID_WHITE)
+        ]
+        self.assertEqual(dark_counts, [177, 1, 1, 1])
+        self.assertEqual(bright_counts, [1, 1, 1, 177])
 
 
 if __name__ == "__main__":
