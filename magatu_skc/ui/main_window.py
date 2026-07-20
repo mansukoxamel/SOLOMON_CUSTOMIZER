@@ -2305,7 +2305,7 @@ class MainWindow(QMainWindow):
         )
         self.btn_item_replace.clicked.connect(self._on_show_item_replace)
         self.btn_item_replace.setEnabled(False)
-        el.addWidget(self.btn_item_replace, 5, 0, 1, 2)
+        el.addWidget(self.btn_item_replace, 5, 0)
 
         self.btn_image_block_grid = QPushButton(
             t("main.tools.image_block_grid", "画像からブロック配置…")
@@ -2318,7 +2318,7 @@ class MainWindow(QMainWindow):
         )
         self.btn_image_block_grid.clicked.connect(self._on_show_image_block_grid)
         self.btn_image_block_grid.setEnabled(False)
-        el.addWidget(self.btn_image_block_grid, 6, 0, 1, 2)
+        el.addWidget(self.btn_image_block_grid, 5, 1)
 
         left_layout.addWidget(edit_group)
 
