@@ -3872,6 +3872,8 @@ class MainWindow(QMainWindow):
             import zlib
             crc_hex = f"{zlib.crc32(bytes(self.original_rom_data)) & 0xFFFFFFFF:08X}"
             known = KNOWN_CRC32.get(crc_hex, "")
+            if not known and getattr(self.rom, "was_us_normalized", False):
+                known = "Solomon's Key (USA)"
             verify_mark = (
                 t("main.rom.verify.known", "✓ 正規")
                 if known
