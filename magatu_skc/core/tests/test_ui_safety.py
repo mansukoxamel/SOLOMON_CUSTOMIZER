@@ -56,7 +56,7 @@ class SpriteViewerControlLayoutTests(unittest.TestCase):
 
         self.assertGreater(dialog.ctrl_host.width(), 0)
         self.assertGreater(dialog.ctrl_host.height(), 0)
-        self.assertGreater(dialog.rb_bank.width(), 0)
+        self.assertGreaterEqual(dialog.rb_bank.minimumWidth(), 88)
         self.assertGreater(dialog.rb_pal.width(), 0)
 
         raw_index = dialog.mode_combo.findData("raw")
@@ -64,7 +64,7 @@ class SpriteViewerControlLayoutTests(unittest.TestCase):
         self.app.processEvents()
 
         self.assertGreater(dialog.ctrl_host.width(), 0)
-        self.assertGreater(dialog.bank_combo.width(), 0)
+        self.assertGreaterEqual(dialog.bank_combo.minimumWidth(), 88)
         self.assertGreater(dialog.pal_combo.width(), 0)
         dialog.close()
 

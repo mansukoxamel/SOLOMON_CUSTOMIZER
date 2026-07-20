@@ -255,6 +255,7 @@ class SpriteViewer(QDialog):
         if is_rom:
             self.ctrl_layout.addWidget(QLabel(t("sprite_viewer.chr_bank.label", "CHRバンク:")))
             self.rb_bank = QComboBox()
+            self.rb_bank.setMinimumWidth(88)
             for b in range(self.bank_count):
                 self.rb_bank.addItem(f"Bank {b}")
             self.rb_bank.setCurrentIndex(min(2, self.bank_count - 1))
@@ -332,6 +333,7 @@ class SpriteViewer(QDialog):
         else:
             self.ctrl_layout.addWidget(QLabel(t("sprite_viewer.bank.label", "バンク:")))
             self.bank_combo = QComboBox()
+            self.bank_combo.setMinimumWidth(88)
             for b in range(self.bank_count):
                 self.bank_combo.addItem(f"Bank {b}")
             self.bank_combo.currentIndexChanged.connect(self._render_raw)

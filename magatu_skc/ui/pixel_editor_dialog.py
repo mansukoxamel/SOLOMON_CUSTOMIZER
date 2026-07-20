@@ -8,7 +8,7 @@ from math import inf
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QColor, QImage, QPainter, QPen
 from PyQt5.QtWidgets import (
-    QButtonGroup, QCheckBox, QComboBox, QDialog, QHBoxLayout, QLabel, QMessageBox,
+    QApplication, QButtonGroup, QCheckBox, QComboBox, QDialog, QHBoxLayout, QLabel, QMessageBox,
     QPushButton, QSpinBox, QVBoxLayout, QWidget, QGridLayout, QScrollArea,
     QSizePolicy,
 )
@@ -260,6 +260,7 @@ class PixelEditorDialog(QDialog):
     """Edit ROM frame CHR as one on-screen 16x16 sprite."""
 
     rom_changed = pyqtSignal()
+    _shared_clipboard_pixels: list[list[int]] | None = None
 
     GROUP_NAMES = {
         0: "system/Dana", 1: "system/Dana", 2: "system/Dana",
@@ -417,6 +418,7 @@ class PixelEditorDialog(QDialog):
 
         top.addWidget(QLabel(t("pixel.chr_bank", "CHRバンク:")), 1, 0)
         self.bank_combo = QComboBox()
+        self.bank_combo.setMinimumWidth(88)
         for bank in range(self.bank_count):
             self.bank_combo.addItem(f"Bank {bank}", bank)
         self.bank_combo.setCurrentIndex(self._chr_bank)
@@ -495,6 +497,26 @@ class PixelEditorDialog(QDialog):
         history_row.addWidget(self.redo_btn)
         side.addLayout(history_row)
 
+        copy_row = QHBoxLayout()
+        self.copy_btn = QPushButton(t("pixel.copy", "16x16コピー"))
+        self.copy_btn.setToolTip(t("pixel.copy.tooltip", "現在の16x16全体をコピー (Ctrl+C)"))
+        self.copy_btn.clicked.connect(self._copy_16x16)
+        copy_row.addWidget(self.copy_btn)
+        self.paste_btn = QPushButton(t("pixel.paste", "16x16貼り付け"))
+        self.paste_btn.setToolTip(t("pixel.paste.tooltip", "コピーした16x16全体を貼り付け (Ctrl+V)"))
+        self.paste_btn.clicked.connect(self._paste_16x16)
+        self.paste_btn.setEnabled(self._shared_clipboard_pixels is not None)
+        copy_row.addWidget(self.paste_btn)
+        side.addLayout(copy_row)
+
+        self.copy_all_banks_btn = QPushButton(t("pixel.copy_all_banks", "全CHRバンクへコピー"))
+        self.copy_all_banks_btn.setToolTip(t(
+            "pixel.copy_all_banks.tooltip",
+            "現在の16x16を同じキャラクター位置へ全CHRバンク一括書込",
+        ))
+        self.copy_all_banks_btn.clicked.connect(self._copy_to_all_banks)
+        side.addWidget(self.copy_all_banks_btn)
+
         flip_row = QHBoxLayout()
         self.flip_h_btn = QPushButton(t("main.selection.flip_horizontal", "左右反転"))
         self.flip_h_btn.setToolTip(t("pixel.flip_h.tooltip", "選択範囲があれば範囲内、なければ16x16全体を左右反転"))
@@ -549,6 +571,9 @@ class PixelEditorDialog(QDialog):
             self.redo_btn.setEnabled(False)
             self.flip_h_btn.setEnabled(False)
             self.flip_v_btn.setEnabled(False)
+            self.copy_btn.setEnabled(False)
+            self.paste_btn.setEnabled(False)
+            self.copy_all_banks_btn.setEnabled(False)
             self.info_label.setText(t("pixel.no_frames", "編集できる16x16 ROMフレームが見つかりません。"))
         self._update_history_buttons()
 
@@ -807,11 +832,39 @@ class PixelEditorDialog(QDialog):
             new_pixels[y1 + row_offset][x1:x2 + 1] = row
         self._commit_pixels(new_pixels, t("pixel.status.flip_v", "上下反転しました。"), clear_selection=False)
 
-    def _tile_pair(self, byte_idx: int) -> tuple[int, int]:
+    def _copy_16x16(self):
+        if self._entry is None:
+            return
+        self._pixels = self.canvas.pixels()
+        PixelEditorDialog._shared_clipboard_pixels = self._copy_pixels(self._pixels)
+        app = QApplication.instance()
+        if app is not None:
+            for widget in app.topLevelWidgets():
+                if isinstance(widget, PixelEditorDialog) and hasattr(widget, "paste_btn"):
+                    widget.paste_btn.setEnabled(True)
+        self._refresh_info(t("pixel.status.copied", "16x16全体をコピーしました。"))
+
+    def _paste_16x16(self):
+        clipboard_pixels = PixelEditorDialog._shared_clipboard_pixels
+        if self._entry is None or clipboard_pixels is None:
+            return
+        changed = self._commit_pixels(
+            clipboard_pixels,
+            t("pixel.status.pasted", "16x16全体を貼り付けました。"),
+        )
+        if not changed:
+            self._refresh_info(t("pixel.status.pasted", "16x16全体を貼り付けました。"))
+
+    def _tile_pair(self, byte_idx: int, bank: int | None = None) -> tuple[int, int]:
         half = 256 if (byte_idx & 1) else 0
         top = half + (byte_idx & 0xFE)
-        base = self._chr_bank * TILES_PER_BANK
+        base = (self._chr_bank if bank is None else int(bank)) * TILES_PER_BANK
         return base + top, base + top + 1
+
+    def _entry_tiles(self, entry: FrameEntry, bank: int | None = None) -> tuple[int, ...]:
+        return tuple(sorted(set(
+            self._tile_pair(entry.left_tile, bank) + self._tile_pair(entry.right_tile, bank)
+        )))
 
     @staticmethod
     def _screen_to_raw(local_x: int, local_y: int, hflip: bool, vflip: bool) -> tuple[int, int, int]:
@@ -866,9 +919,15 @@ class PixelEditorDialog(QDialog):
             plane1.append(hi)
         return bytes(plane0 + plane1)
 
-    def _write_entry_pixels(self, entry: FrameEntry):
-        left_tiles = self._tile_pair(entry.left_tile)
-        right_tiles = self._tile_pair(entry.right_tile)
+    def _write_entry_pixels(
+        self,
+        entry: FrameEntry,
+        pixels: list[list[int]] | None = None,
+        bank: int | None = None,
+    ):
+        source_pixels = self._pixels if pixels is None else self._normalize_pixels(pixels)
+        left_tiles = self._tile_pair(entry.left_tile, bank)
+        right_tiles = self._tile_pair(entry.right_tile, bank)
         hflips = [bool((entry.attr >> 4) & 1), bool((entry.attr >> 1) & 1)]
         vflips = [bool((entry.attr >> 5) & 1), bool((entry.attr >> 0) & 1)]
         tile_cache = {}
@@ -879,7 +938,7 @@ class PixelEditorDialog(QDialog):
                     tile_no = tile_pair[sub]
                     if tile_no not in tile_cache:
                         tile_cache[tile_no] = self._tile_pixels(tile_no)
-                    tile_cache[tile_no][raw_y][raw_x] = self._pixels[sy][side * 8 + lx] & 3
+                    tile_cache[tile_no][raw_y][raw_x] = source_pixels[sy][side * 8 + lx] & 3
 
         for tile_no, pixels in sorted(tile_cache.items()):
             start = self.chr_start + tile_no * NES_GFX_TILE_BYTE_SIZE
@@ -887,6 +946,41 @@ class PixelEditorDialog(QDialog):
             if start < 0 or end > len(self.rom.data):
                 raise ValueError(f"CHR tile {tile_no} is outside ROM")
             self.rom.data[start:end] = self._encode_tile(pixels)
+
+    def _copy_to_all_banks(self):
+        if self._entry is None:
+            return
+        source_pixels = self.canvas.pixels()
+        original_tiles = {}
+        try:
+            for bank in range(self.bank_count):
+                for tile_no in self._entry_tiles(self._entry, bank):
+                    start = self.chr_start + tile_no * NES_GFX_TILE_BYTE_SIZE
+                    end = start + NES_GFX_TILE_BYTE_SIZE
+                    if start < 0 or end > len(self.rom.data):
+                        raise ValueError(f"CHR tile {tile_no} is outside ROM")
+                    original_tiles[tile_no] = bytes(self.rom.data[start:end])
+            for bank in range(self.bank_count):
+                self._write_entry_pixels(self._entry, source_pixels, bank)
+        except Exception as exc:
+            for tile_no, data in original_tiles.items():
+                start = self.chr_start + tile_no * NES_GFX_TILE_BYTE_SIZE
+                self.rom.data[start:start + NES_GFX_TILE_BYTE_SIZE] = data
+            QMessageBox.critical(
+                self,
+                t("pixel.copy_all_banks_failed.title", "全バンクコピー失敗"),
+                f"{type(exc).__name__}: {exc}",
+            )
+            return
+        self._pixels = self._normalize_pixels(source_pixels)
+        self._loaded_pixels = self._copy_pixels(self._pixels)
+        self.canvas.set_pixels(self._pixels)
+        self._changed = True
+        self.rom_changed.emit()
+        self._refresh_info(t(
+            "pixel.status.copied_all_banks",
+            "全{count}個のCHRバンクへ書き込みました。",
+        ).format(count=self.bank_count))
 
     def _load_subpalette(self, sprite_palette_no: int) -> list[tuple[int, int, int] | None]:
         off = PALETTE_OFFSET + (4 + sprite_palette_no) * 4
@@ -1129,6 +1223,12 @@ class PixelEditorDialog(QDialog):
                 return
             if key == Qt.Key_Y:
                 self._redo()
+                return
+            if key == Qt.Key_C:
+                self._copy_16x16()
+                return
+            if key == Qt.Key_V:
+                self._paste_16x16()
                 return
         if event.key() == Qt.Key_Escape and self.canvas.has_selection():
             self.canvas.clear_selection()

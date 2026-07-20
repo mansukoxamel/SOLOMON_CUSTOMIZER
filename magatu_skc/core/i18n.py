@@ -2338,6 +2338,34 @@ _TRANSLATIONS = {
         "ja": "戻した編集をやり直す (Ctrl+Y / Ctrl+Shift+Z)",
         "en": "Redo the reverted edit (Ctrl+Y / Ctrl+Shift+Z).",
     },
+    "pixel.copy": {
+        "ja": "16x16コピー",
+        "en": "Copy 16x16",
+    },
+    "pixel.copy.tooltip": {
+        "ja": "現在の16x16全体をコピー (Ctrl+C)",
+        "en": "Copy the full current 16x16 image (Ctrl+C).",
+    },
+    "pixel.paste": {
+        "ja": "16x16貼り付け",
+        "en": "Paste 16x16",
+    },
+    "pixel.paste.tooltip": {
+        "ja": "コピーした16x16全体を貼り付け (Ctrl+V)",
+        "en": "Paste the full copied 16x16 image (Ctrl+V).",
+    },
+    "pixel.copy_all_banks": {
+        "ja": "全CHRバンクへコピー",
+        "en": "Copy to All CHR Banks",
+    },
+    "pixel.copy_all_banks.tooltip": {
+        "ja": "現在の16x16を同じキャラクター位置へ全CHRバンク一括書込",
+        "en": "Write the current 16x16 image to the same character position in every CHR bank.",
+    },
+    "pixel.copy_all_banks_failed.title": {
+        "ja": "全バンクコピー失敗",
+        "en": "Copy to All Banks Failed",
+    },
     "pixel.flip_h.tooltip": {
         "ja": "選択範囲があれば範囲内、なければ16x16全体を左右反転",
         "en": "Flip the selection horizontally, or the full 16x16 image if there is no selection.",
@@ -4652,6 +4680,12 @@ _TRANSLATIONS = {
     "pixel.status.clear": {"ja": "クリアしました。", "en": "Cleared."},
     "pixel.status.imported": {"ja": "画像を取り込みました。", "en": "Imported the image."},
     "pixel.status.wrote_rom": {"ja": "ROMへ書き込みました。", "en": "Wrote to ROM."},
+    "pixel.status.copied": {"ja": "16x16全体をコピーしました。", "en": "Copied the full 16x16 image."},
+    "pixel.status.pasted": {"ja": "16x16全体を貼り付けました。", "en": "Pasted the full 16x16 image."},
+    "pixel.status.copied_all_banks": {
+        "ja": "全{count}個のCHRバンクへ書き込みました。",
+        "en": "Wrote to all {count} CHR banks.",
+    },
     "pixel.info.dirty_suffix": {"ja": " / 未書込", "en": " / pending"},
     "pixel.info.selection": {
         "ja": "選択範囲: ({x1},{y1})-({x2},{y2}) {width}x{height}<br>",
