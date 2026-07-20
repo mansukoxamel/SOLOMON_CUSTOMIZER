@@ -2255,9 +2255,8 @@ class MainWindow(QMainWindow):
         self.btn_title_screen.setToolTip(
             t(
                 "main.tools.title_screen.tooltip",
-                "タイトル画面を編集/移植: 配置(nametable)+色区分(attribute)"
-                "+絵(CHR bank3)をピース単位で扱います。コード非改変・JP/US"
-                "自動判定・CRC不要・双方向。",
+                "タイトル画面の配置(nametable)・色区分(attribute)・"
+                "絵(CHR bank3)・文字・キャラクター・パレットを編集します。",
             )
         )
         self.btn_title_screen.clicked.connect(self._on_show_title_screen)
@@ -10928,9 +10927,8 @@ class MainWindow(QMainWindow):
         self.btn_title_screen.setToolTip(
             t(
                 "main.tools.title_screen.tooltip",
-                "タイトル画面を編集/移植: 配置(nametable)+色区分(attribute)"
-                "+絵(CHR bank3)をピース単位で扱います。コード非改変・JP/US"
-                "自動判定・CRC不要・双方向。",
+                "タイトル画面の配置(nametable)・色区分(attribute)・"
+                "絵(CHR bank3)・文字・キャラクター・パレットを編集します。",
             )
         )
         self.btn_pixel_editor.setText(t("main.tools.pixel_editor", "16x16ピクセル編集"))
