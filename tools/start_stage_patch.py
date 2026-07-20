@@ -1,12 +1,20 @@
 #!/usr/bin/env python3
-"""GUI tool to patch only the start-stage bytes in a JP original ROM."""
+"""GUI tool to patch start-stage bytes in a verified JP/US original ROM."""
 
 from __future__ import annotations
 
 import argparse
 import sys
 import zlib
+import zipfile
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from magatu_skc.core import us_jp_normalizer
+from magatu_skc.core.rom import KNOWN_JP_ORIGINAL_CRC32, load_rom_data
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
@@ -38,13 +46,6 @@ PATCH_OFFSETS = (
     OFFSET_STAGE_SELECT_COMMON2,
 )
 
-# CRC32 values include the 16-byte iNES header.
-KNOWN_JP_ORIGINAL_CRC32 = {
-    "013ED497",
-    "5B49FEDB",
-    "2FE9E2CA",
-}
-
 
 class PatchError(Exception):
     """User-facing patch failure."""
@@ -65,10 +66,11 @@ def parse_stage(value: str) -> int:
 
 
 def default_output_path(input_path: Path, stage: int) -> Path:
-    return input_path.with_name(f"{input_path.stem}_stage{stage:02d}{input_path.suffix}")
+    return input_path.with_name(f"{input_path.stem}_stage{stage:02d}.nes")
 
 
-def validate_input_rom(data: bytes, *, force: bool) -> str:
+def prepare_input_rom(data: bytes, *, force: bool) -> tuple[bytes, str, str]:
+    """Return JP-logical-layout bytes, source CRC32, and preparation note."""
     if len(data) <= max(PATCH_OFFSETS):
         raise PatchError(
             f"ROM is too short: need file offset 0x{max(PATCH_OFFSETS):04X}"
@@ -77,13 +79,20 @@ def validate_input_rom(data: bytes, *, force: bool) -> str:
         raise PatchError("input is not an iNES ROM (missing NES header)")
 
     crc = crc32_hex(data)
-    if crc not in KNOWN_JP_ORIGINAL_CRC32 and not force:
-        known = ", ".join(sorted(KNOWN_JP_ORIGINAL_CRC32))
+    if us_jp_normalizer.is_supported_us_original(data):
+        normalized = bytes(us_jp_normalizer.normalize_us_original(data))
+        return normalized, crc, "US original normalized to JP logical layout"
+    if crc in KNOWN_JP_ORIGINAL_CRC32:
+        return bytes(data), crc, "JP original"
+    if not force:
+        known_jp = ", ".join(sorted(KNOWN_JP_ORIGINAL_CRC32))
         raise PatchError(
-            f"CRC32={crc} is not a known JP original Solomon no Kagi ROM. "
-            f"Known CRC32: {known}. Enable force only for local investigation."
+            f"CRC32={crc} is not a verified JP/US original Solomon's Key ROM. "
+            f"Known JP CRC32: {known_jp}; "
+            f"known US CRC32: {us_jp_normalizer.US_ORIGINAL_CRC32}. "
+            "Enable force only for a JP-logical-layout local investigation."
         )
-    return crc
+    return bytes(data), crc, "forced JP-logical-layout input"
 
 
 def patched_data_for_stage(data: bytes, stage: int) -> bytearray:
@@ -132,7 +141,7 @@ class RomDropLineEdit(QLineEdit):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setAcceptDrops(True)
-        self.setPlaceholderText("Drop a .nes ROM here, or choose Browse")
+        self.setPlaceholderText("Drop a .nes/.zip ROM here, or choose Browse")
 
     def dragEnterEvent(self, event) -> None:  # noqa: N802
         urls = event.mimeData().urls()
@@ -167,7 +176,7 @@ class StartStagePatchWindow(QWidget):
         self.overwrite_check = QCheckBox("Overwrite existing output")
         self.force_check = QCheckBox("Force unknown CRC32")
         self.force_check.setToolTip(
-            "Use only when investigating a local dump whose CRC is not in the known JP original list."
+            "Use only when investigating an unknown ROM already using the JP logical layout."
         )
         self.log = QTextEdit()
         self.log.setReadOnly(True)
@@ -184,8 +193,8 @@ class StartStagePatchWindow(QWidget):
 
     def _build_layout(self) -> None:
         intro = QLabel(
-            "JP original ROM only. This writes a new ROM copy and changes only "
-            "the start-stage patch bytes."
+            "Verified JP and US original ROMs are supported. A US original is "
+            "normalized to the JP logical layout before the start-stage bytes are changed."
         )
         intro.setWordWrap(True)
 
@@ -245,9 +254,9 @@ class StartStagePatchWindow(QWidget):
     def _browse_rom(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select JP original ROM",
+            "Select JP/US original ROM",
             "",
-            "NES ROM (*.nes);;All files (*)",
+            "NES ROM / ZIP (*.nes *.zip);;All files (*)",
         )
         if path:
             self.rom_edit.setText(path)
@@ -284,16 +293,19 @@ class StartStagePatchWindow(QWidget):
                 raise PatchError("choose an input ROM")
             if not str(output_path):
                 raise PatchError("choose an output ROM")
-            data = input_path.read_bytes()
-            crc = validate_input_rom(data, force=self.force_check.isChecked())
-            patched = patched_data_for_stage(data, self.stage_spin.value())
+            _display_name, source_data = load_rom_data(str(input_path))
+            working_data, crc, preparation = prepare_input_rom(
+                source_data,
+                force=self.force_check.isChecked(),
+            )
+            patched = patched_data_for_stage(working_data, self.stage_spin.value())
             write_output(
                 output_path,
                 patched,
                 input_path=input_path,
                 overwrite=self.overwrite_check.isChecked(),
             )
-        except OSError as exc:
+        except (OSError, ValueError, zipfile.BadZipFile) as exc:
             self._show_error(f"failed to read input ROM: {exc}")
             return
         except PatchError as exc:
@@ -303,10 +315,11 @@ class StartStagePatchWindow(QWidget):
         lines = [
             f"Input : {input_path}",
             f"CRC32 : {crc}",
+            f"Prepare: {preparation}",
             f"Stage : {self.stage_spin.value()}",
             f"Output: {output_path}",
             "Changed bytes:",
-            *format_patch_lines(data, patched),
+            *format_patch_lines(working_data, patched),
         ]
         message = "\n".join(lines)
         self.log.setPlainText(message)
@@ -320,11 +333,12 @@ class StartStagePatchWindow(QWidget):
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Open a small window for creating a JP Solomon no Kagi ROM copy "
-            "with only the start-stage patch bytes changed."
+            "Open a small window for creating a JP-logical-layout Solomon's Key "
+            "ROM copy with only the start-stage patch bytes changed. Verified US "
+            "originals are normalized before patching."
         )
     )
-    parser.add_argument("rom", nargs="?", type=Path, help="input JP original .nes ROM")
+    parser.add_argument("rom", nargs="?", type=Path, help="input JP/US original .nes/.zip ROM")
     parser.add_argument(
         "stage",
         nargs="?",

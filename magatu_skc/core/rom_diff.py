@@ -272,7 +272,8 @@ def _compare_meta(diff: StageDiff, left, right):
 def _constellation_signature(item) -> tuple | None:
     if item is None:
         return None
-    return _item_signature(item)
+    x, y = item.position
+    return (int(item.element_no), int(x), int(y))
 
 
 def _mirror_signature(mirror) -> tuple:
