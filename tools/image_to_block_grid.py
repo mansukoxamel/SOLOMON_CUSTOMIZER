@@ -392,7 +392,7 @@ UI_TEXT = {
         "air_end": "空気 / ひび",
         "crack_end": "ひび / 茶",
         "brown_end": "茶 / 白",
-        "selection_help": "赤枠の内側で移動、辺・角で拡大縮小、外側ドラッグで作り直し",
+        "selection_help": "カーソル形状が変わる位置で移動・拡大縮小。通常モードでも元画像をドラッグすると範囲選択へ切り替わります。",
         "invert": "明暗を反転",
         "ready": "画像をドロップするか、開くボタンで選択してください。",
         "loaded": "変換完了: 空気 {air} / 茶 {brown} / 白 {white} / ひび {cracked}",
@@ -423,7 +423,7 @@ UI_TEXT = {
         "air_end": "Air / Cracked",
         "crack_end": "Cracked / Brown",
         "brown_end": "Brown / White",
-        "selection_help": "Drag inside to move; drag an edge or corner to resize; drag outside to redraw",
+        "selection_help": "The cursor changes where the frame can be moved or resized. Dragging the source image in another fit mode switches to selection mode.",
         "invert": "Invert brightness",
         "ready": "Drop an image or select one with the Open button.",
         "loaded": "Converted: air {air} / brown {brown} / white {white} / cracked {cracked}",
@@ -520,10 +520,11 @@ def _run_gui(
         HANDLE = 10.0
         MIN_SIZE = 0.02
 
-        def __init__(self, on_drop, on_changed):
+        def __init__(self, on_drop, on_changed, on_selection_requested):
             super().__init__()
             self._on_drop = on_drop
             self._on_changed = on_changed
+            self._on_selection_requested = on_selection_requested
             self._pixmap = None
             self._source_size = (1, 1)
             self._selection = QRectF(0.0, 0.0, 1.0, 1.0)
@@ -532,6 +533,7 @@ def _run_gui(
             self._drag_start = QPointF()
             self._drag_original = QRectF()
             self.setAcceptDrops(True)
+            self.setMouseTracking(True)
             self.setMinimumSize(560, 360)
             self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
@@ -622,6 +624,26 @@ def _run_gui(
                 return "move"
             return "new"
 
+        def _cursor_for_mode(self, mode: str):
+            if mode in ("left", "right"):
+                return Qt.SizeHorCursor
+            if mode in ("top", "bottom"):
+                return Qt.SizeVerCursor
+            if mode in ("left_top", "right_bottom"):
+                return Qt.SizeFDiagCursor
+            if mode in ("right_top", "left_bottom"):
+                return Qt.SizeBDiagCursor
+            if mode == "move":
+                return Qt.SizeAllCursor
+            return Qt.CrossCursor
+
+        def _update_hover_cursor(self, point):
+            if self._pixmap is None or not self._image_rect().contains(point):
+                self.unsetCursor()
+                return
+            mode = self._hit_test(point) if self._selection_enabled else "new"
+            self.setCursor(self._cursor_for_mode(mode))
+
         def _bounded_rect(self, rect: QRectF) -> QRectF:
             left = max(0.0, min(1.0, rect.left()))
             top = max(0.0, min(1.0, rect.top()))
@@ -638,18 +660,23 @@ def _run_gui(
         def mousePressEvent(self, event):
             if (
                 event.button() != Qt.LeftButton
-                or not self._selection_enabled
                 or self._pixmap is None
                 or not self._image_rect().contains(event.pos())
             ):
                 return
-            self._drag_mode = self._hit_test(event.pos())
+            auto_started = not self._selection_enabled
+            if auto_started:
+                self._on_selection_requested()
+                self._selection_enabled = True
+            self._drag_mode = "new" if auto_started else self._hit_test(event.pos())
             self._drag_start = self._normalized_point(event.pos())
             self._drag_original = QRectF(self._selection)
+            self.setCursor(self._cursor_for_mode(self._drag_mode))
             event.accept()
 
         def mouseMoveEvent(self, event):
             if self._drag_mode is None:
+                self._update_hover_cursor(event.pos())
                 return
             current = self._normalized_point(event.pos())
             original = self._drag_original
@@ -682,7 +709,13 @@ def _run_gui(
                 return
             self._drag_mode = None
             self._on_changed()
+            self._update_hover_cursor(event.pos())
             event.accept()
+
+        def leaveEvent(self, event):
+            if self._drag_mode is None:
+                self.unsetCursor()
+            super().leaveEvent(event)
 
         def paintEvent(self, event):
             painter = QPainter(self)
@@ -801,7 +834,11 @@ def _run_gui(
             large_previews = QHBoxLayout()
             source_group = QGroupBox(text["source"])
             source_layout = QVBoxLayout(source_group)
-            self.source_preview = SourceSelection(self.load_image, self.selection_changed)
+            self.source_preview = SourceSelection(
+                self.load_image,
+                self.selection_changed,
+                self.request_selection_mode,
+            )
             source_layout.addWidget(self.source_preview)
             selection_help = QLabel(text["selection_help"])
             selection_help.setWordWrap(True)
@@ -908,6 +945,11 @@ def _run_gui(
         def selection_changed(self):
             if self.fit_combo.currentData() == "selection":
                 self.convert()
+
+        def request_selection_mode(self):
+            index = self.fit_combo.findData("selection")
+            if index >= 0 and self.fit_combo.currentIndex() != index:
+                self.fit_combo.setCurrentIndex(index)
 
         def current_args(self) -> argparse.Namespace:
             current = argparse.Namespace(**vars(args))

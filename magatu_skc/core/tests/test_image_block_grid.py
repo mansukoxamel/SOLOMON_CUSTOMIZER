@@ -7,12 +7,16 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PIL import Image
 from PIL.PngImagePlugin import PngInfo
+from PyQt5.QtCore import QPoint, Qt
+from PyQt5.QtTest import QTest
+from PyQt5.QtWidgets import QApplication
 
 from magatu_skc.core import constants, room_flags
 from magatu_skc.core.element import ElementType, LevelElement, Wall
 from magatu_skc.core.image_block_grid import apply_grid_to_level, validate_grid
 from magatu_skc.core.level import Level
 from magatu_skc.ui.main_window import MainWindow
+from tools.image_to_block_grid import open_converter_window
 
 
 def empty_grid():
@@ -105,6 +109,45 @@ class StagePngRoutingTests(unittest.TestCase):
             path = Path(temp_dir) / "broken.png"
             self._write_png(path, "<solomon_customizer>")
             self.assertEqual(MainWindow._png_stage_data_state(path), "invalid")
+
+
+class ImageBlockGridSelectionUiTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_hover_cursor_and_drag_switch_to_selection_mode(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "source.png"
+            Image.new("RGB", (320, 240), "white").save(path)
+            window = open_converter_window(path, language="ja")
+            window.show()
+            self.app.processEvents()
+            source = window.source_preview
+            point = source.rect().center()
+
+            QTest.mouseMove(source, point)
+            self.app.processEvents()
+            self.assertNotEqual(source.cursor().shape(), Qt.ArrowCursor)
+            selection_index = window.fit_combo.findData("selection")
+            window.fit_combo.setCurrentIndex(selection_index)
+            selection_rect = source._selection_rect()
+            left_edge = QPoint(
+                round(selection_rect.left()),
+                round(selection_rect.center().y()),
+            )
+            QTest.mouseMove(source, left_edge)
+            self.app.processEvents()
+            self.assertEqual(source.cursor().shape(), Qt.SizeHorCursor)
+
+            crop_index = window.fit_combo.findData("crop")
+            window.fit_combo.setCurrentIndex(crop_index)
+            QTest.mousePress(source, Qt.LeftButton, pos=point)
+            self.app.processEvents()
+            self.assertEqual(window.fit_combo.currentData(), "selection")
+            self.assertEqual(source._drag_mode, "new")
+            QTest.mouseRelease(source, Qt.LeftButton, pos=point)
+            window.close()
 
 
 if __name__ == "__main__":
