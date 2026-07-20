@@ -5,7 +5,7 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PIL import Image
+from PIL import Image, ImageOps
 from PIL.PngImagePlugin import PngInfo
 from PyQt5.QtCore import QPoint, Qt
 from PyQt5.QtTest import QTest
@@ -16,7 +16,17 @@ from magatu_skc.core.element import ElementType, LevelElement, Wall
 from magatu_skc.core.image_block_grid import apply_grid_to_level, validate_grid
 from magatu_skc.core.level import Level
 from magatu_skc.ui.main_window import MainWindow
-from tools.image_to_block_grid import open_converter_window
+from tools.image_to_block_grid import (
+    AIR as GRID_AIR,
+    BROWN as GRID_BROWN,
+    CRACKED as GRID_CRACKED,
+    WHITE as GRID_WHITE,
+    _four_level_grid,
+    _counts_to_thresholds,
+    _redistribute_counts,
+    _thresholds_to_counts,
+    open_converter_window,
+)
 
 
 def empty_grid():
@@ -123,6 +133,12 @@ class ImageBlockGridSelectionUiTests(unittest.TestCase):
             window = open_converter_window(path, language="ja")
             window.show()
             self.app.processEvents()
+            actual_counts = [
+                sum(cell == kind for row in window.result_grid for cell in row)
+                for kind in (GRID_AIR, GRID_CRACKED, GRID_BROWN, GRID_WHITE)
+            ]
+            self.assertEqual(actual_counts, window._block_counts)
+            self.assertEqual(window.status.text(), "変換完了")
             source = window.source_preview
             point = source.rect().center()
 
@@ -148,6 +164,124 @@ class ImageBlockGridSelectionUiTests(unittest.TestCase):
             self.assertEqual(source._drag_mode, "new")
             QTest.mouseRelease(source, Qt.LeftButton, pos=point)
             window.close()
+
+    def test_four_count_sliders_redistribute_and_total_180(self):
+        window = open_converter_window(language="ja")
+        self.assertEqual(window._block_counts, [45, 45, 45, 45])
+        self.assertTrue(
+            all(slider.minimum() == 0 and slider.maximum() == 180
+                for slider in window.block_count_sliders)
+        )
+        window.block_count_sliders[0].setValue(180)
+        self.assertEqual(window._block_counts[0], 177)
+
+        window.block_count_sliders[0].setValue(72)
+        self.app.processEvents()
+
+        self.assertEqual(window._block_counts, [72, 36, 36, 36])
+        self.assertEqual(
+            [slider.value() for slider in window.block_count_sliders],
+            [72, 36, 36, 36],
+        )
+        self.assertEqual(
+            _counts_to_thresholds(window._block_counts),
+            (0.4, 0.6, 0.8),
+        )
+        window.block_count_sliders[0].setValue(0)
+        self.assertEqual(window._block_counts[0], 0)
+        self.assertEqual(sum(window._block_counts), 180)
+        window.block_count_sliders[1].setValue(72)
+        self.assertEqual(window._block_counts[0], 0)
+        self.assertEqual(sum(window._block_counts), 180)
+        window.block_count_sliders[1].setValue(0)
+        window.block_count_sliders[2].setValue(0)
+        self.assertEqual(window._block_counts, [0, 0, 0, 180])
+        self.assertEqual(window.block_count_sliders[3].value(), 180)
+        window.close()
+
+    def test_drag_keeps_the_other_three_ratios_from_drag_start(self):
+        window = open_converter_window(language="ja")
+        window._block_counts = [18, 72, 54, 36]
+        for slider, value in zip(window.block_count_sliders, window._block_counts):
+            slider.blockSignals(True)
+            slider.setValue(value)
+            slider.blockSignals(False)
+        window.update_block_count_labels()
+
+        window.begin_count_drag(0)
+        for value in range(19, 55):
+            window.block_count_sliders[0].setValue(value)
+        window.end_count_drag()
+
+        self.assertEqual(window._block_counts, [54, 56, 42, 28])
+        self.assertEqual(sum(window._block_counts), 180)
+        window.close()
+
+
+class BlockCountMathTests(unittest.TestCase):
+    def test_default_thresholds_become_four_equal_counts(self):
+        self.assertEqual(_thresholds_to_counts(0.25, 0.50, 0.75), [45] * 4)
+
+    def test_changed_count_redistributes_all_other_counts_proportionally(self):
+        self.assertEqual(
+            _redistribute_counts([45, 45, 45, 45], 0, 72),
+            [72, 36, 36, 36],
+        )
+        self.assertEqual(
+            _redistribute_counts([18, 36, 54, 72], 0, 45),
+            [45, 30, 45, 60],
+        )
+
+    def test_changed_count_stops_at_177_and_keeps_other_counts_positive(self):
+        self.assertEqual(
+            _redistribute_counts([45, 45, 45, 45], 3, 180),
+            [1, 1, 1, 177],
+        )
+
+    def test_only_the_operated_count_can_be_lowered_to_zero(self):
+        values = _redistribute_counts([45, 45, 45, 45], 0, 0)
+        self.assertEqual(values, [0, 60, 60, 60])
+        values = _redistribute_counts(values, 1, 72)
+        self.assertEqual(values[1], 72)
+        self.assertEqual(values[0], 0)
+        self.assertTrue(all(values[index] >= 1 for index in (2, 3)))
+
+    def test_zero_percent_band_produces_none_of_that_type(self):
+        gray = Image.new("L", (15, 12))
+        gray.putdata(range(180))
+        _tone, brown_grid = _four_level_grid(gray, False, 0.0, 0.0, 1.0)
+        self.assertTrue(all(cell == GRID_BROWN for row in brown_grid for cell in row))
+        _tone, air_grid = _four_level_grid(gray, False, 1.0, 1.0, 1.0)
+        self.assertTrue(all(cell == GRID_AIR for row in air_grid for cell in row))
+
+    def test_positive_band_is_guaranteed_at_least_one_cell(self):
+        gray = Image.new("L", (15, 12))
+        gray.putdata([0] * 90 + [255] * 90)
+        _tone, grid = _four_level_grid(gray, False, 0.33, 0.34, 0.67)
+        counts = {
+            kind: sum(cell == kind for row in grid for cell in row)
+            for kind in (GRID_AIR, GRID_CRACKED, GRID_BROWN, GRID_WHITE)
+        }
+        self.assertTrue(all(count >= 1 for count in counts.values()))
+
+    def test_exact_target_counts_survive_identical_brightness_ties(self):
+        source = Image.new("RGB", (15, 12), (240, 240, 240))
+        gray = ImageOps.grayscale(source)
+        requested = [1, 177, 1, 1]
+        _tone, grid = _four_level_grid(
+            gray,
+            False,
+            0.01,
+            178 / 180,
+            179 / 180,
+            source_rgb=source,
+            target_counts=requested,
+        )
+        actual = [
+            sum(cell == kind for row in grid for cell in row)
+            for kind in (GRID_AIR, GRID_CRACKED, GRID_BROWN, GRID_WHITE)
+        ]
+        self.assertEqual(actual, requested)
 
 
 if __name__ == "__main__":

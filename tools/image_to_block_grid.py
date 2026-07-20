@@ -26,6 +26,8 @@ from PIL import Image, ImageDraw, ImageOps
 
 GRID_WIDTH = 15
 GRID_HEIGHT = 12
+GRID_CELL_COUNT = GRID_WIDTH * GRID_HEIGHT
+MANUAL_COUNT_MAX = GRID_CELL_COUNT - 3
 DEFAULT_TILE_SIZE = 32
 ASSET_DIR = Path(__file__).with_name("image_to_block_grid_assets")
 
@@ -46,6 +48,90 @@ TYPE_SYMBOLS = {
     WHITE: "W",
     CRACKED: "C",
 }
+
+
+def _apportion_counts(weights, total: int, minimum=0) -> list[int]:
+    """Distribute an integer total proportionally without a rounding remainder."""
+    weights = [max(0.0, float(value)) for value in weights]
+    if isinstance(minimum, (list, tuple)):
+        minimums = [max(0, int(value)) for value in minimum]
+        if len(minimums) != len(weights):
+            raise ValueError("minimum count must match weight count")
+    else:
+        minimums = [max(0, int(minimum))] * len(weights)
+    if total < sum(minimums):
+        raise ValueError("total is too small for the requested minimum")
+    if total == sum(minimums):
+        return minimums
+    weight_total = sum(weights)
+    if weight_total <= 0:
+        weights = [1.0] * len(weights)
+        weight_total = float(len(weights))
+    raw = [value * total / weight_total for value in weights]
+    result = [max(minimums[i], int(value)) for i, value in enumerate(raw)]
+    while sum(result) < total:
+        index = max(
+            range(len(result)),
+            key=lambda i: (raw[i] - result[i], -i),
+        )
+        result[index] += 1
+    while sum(result) > total:
+        candidates = [
+            i for i, value in enumerate(result) if value > minimums[i]
+        ]
+        index = max(candidates, key=lambda i: (result[i] - raw[i], -i))
+        result[index] -= 1
+    return result
+
+
+def _thresholds_to_counts(
+    air_end: float,
+    crack_end: float,
+    brown_end: float,
+) -> list[int]:
+    weights = [
+        air_end,
+        crack_end - air_end,
+        brown_end - crack_end,
+        1.0 - brown_end,
+    ]
+    return _apportion_counts(weights, GRID_CELL_COUNT, minimum=1)
+
+
+def _counts_to_thresholds(counts) -> tuple[float, float, float]:
+    values = [int(value) for value in counts]
+    if len(values) != 4 or min(values) < 0 or sum(values) != GRID_CELL_COUNT:
+        raise ValueError("four nonnegative counts must cover the full grid")
+    return (
+        values[0] / GRID_CELL_COUNT,
+        (values[0] + values[1]) / GRID_CELL_COUNT,
+        (values[0] + values[1] + values[2]) / GRID_CELL_COUNT,
+    )
+
+
+def _redistribute_counts(
+    counts,
+    changed_index: int,
+    new_value: int,
+) -> list[int]:
+    values = [int(value) for value in counts]
+    if len(values) != 4 or sum(values) != GRID_CELL_COUNT or min(values) < 0:
+        raise ValueError("four nonnegative counts must cover the full grid")
+    if changed_index not in range(4):
+        raise IndexError(changed_index)
+    new_value = max(0, min(MANUAL_COUNT_MAX, int(new_value)))
+    other_indices = [index for index in range(4) if index != changed_index]
+    redistributed = _apportion_counts(
+        [values[index] for index in other_indices],
+        GRID_CELL_COUNT - new_value,
+        minimum=[1 if values[index] > 0 else 0 for index in other_indices],
+    )
+    result = list(values)
+    result[changed_index] = new_value
+    for index, value in zip(other_indices, redistributed):
+        result[index] = value
+    return result
+
 
 def _parse_rgb(value: str) -> tuple[int, int, int]:
     text = value.strip().lstrip("#")
@@ -90,20 +176,62 @@ def _four_level_grid(
     air_end: float,
     crack_end: float,
     brown_end: float,
+    source_rgb: Image.Image | None = None,
+    target_counts=None,
 ) -> tuple[Image.Image, list[list[int]]]:
     pixels = list(gray.tobytes())
+    kind_values = (AIR, CRACKED, BROWN, WHITE)
+    tone_by_kind = {AIR: 0, CRACKED: 85, BROWN: 170, WHITE: 255}
+
+    if target_counts is not None:
+        counts = [int(value) for value in target_counts]
+        if len(counts) != 4 or min(counts) < 0 or sum(counts) != len(pixels):
+            raise ValueError("target block counts must cover every grid cell")
+        if source_rgb is not None and source_rgb.size == gray.size:
+            rgb_bytes = source_rgb.convert("RGB").tobytes()
+            rgb_pixels = [
+                tuple(rgb_bytes[index:index + 3])
+                for index in range(0, len(rgb_bytes), 3)
+            ]
+        else:
+            rgb_pixels = [(value, value, value) for value in pixels]
+
+        def rank_key(index):
+            red, green, blue = rgb_pixels[index]
+            fine_luma = 299 * red + 587 * green + 114 * blue
+            brightness = -fine_luma if invert else fine_luma
+            # RGB and row-major position provide a stable, non-random tie break.
+            return (brightness, red, green, blue, index)
+
+        ranked_indices = sorted(range(len(pixels)), key=rank_key)
+        kinds = [AIR] * len(pixels)
+        cursor = 0
+        for kind, count in zip(kind_values, counts):
+            for index in ranked_indices[cursor:cursor + count]:
+                kinds[index] = kind
+            cursor += count
+        tones = [tone_by_kind[kind] for kind in kinds]
+        four_tone = Image.new("L", gray.size)
+        four_tone.putdata(tones)
+        grid = [
+            kinds[y * GRID_WIDTH:(y + 1) * GRID_WIDTH]
+            for y in range(GRID_HEIGHT)
+        ]
+        return four_tone, grid
+
     low = min(pixels)
     high = max(pixels)
     span = high - low
-    tone_values = (0, 85, 170, 255)
-    kind_values = (AIR, CRACKED, BROWN, WHITE)
-    tones: list[int] = []
     kinds: list[int] = []
+    normalized_values: list[float] = []
 
     for value in pixels:
         normalized = 0.5 if span == 0 else (value - low) / span
         if invert:
             normalized = 1.0 - normalized
+        # Keep the maximum sample inside the last non-zero half-open band.
+        normalized = min(normalized, 1.0 - 1e-12)
+        normalized_values.append(normalized)
         if normalized < air_end:
             level = 0
         elif normalized < crack_end:
@@ -112,8 +240,33 @@ def _four_level_grid(
             level = 2
         else:
             level = 3
-        tones.append(tone_values[level])
         kinds.append(kind_values[level])
+
+    bounds = (0.0, air_end, crack_end, brown_end, 1.0)
+    positive = [bounds[i + 1] - bounds[i] > 1e-12 for i in range(4)]
+    counts = {kind: kinds.count(kind) for kind in kind_values}
+    for level, kind in enumerate(kind_values):
+        if not positive[level] or counts[kind] > 0:
+            continue
+        midpoint = (bounds[level] + bounds[level + 1]) / 2.0
+        candidates = []
+        for index, current_kind in enumerate(kinds):
+            current_level = kind_values.index(current_kind)
+            donor_minimum = 1 if positive[current_level] else 0
+            if counts[current_kind] > donor_minimum:
+                candidates.append(index)
+        if not candidates:
+            continue
+        selected = min(
+            candidates,
+            key=lambda index: (abs(normalized_values[index] - midpoint), index),
+        )
+        old_kind = kinds[selected]
+        counts[old_kind] -= 1
+        kinds[selected] = kind
+        counts[kind] += 1
+
+    tones = [tone_by_kind[kind] for kind in kinds]
 
     four_tone = Image.new("L", gray.size)
     four_tone.putdata(tones)
@@ -255,12 +408,17 @@ def _write_json(
             "3": "cracked",
         },
         "settings": {
-            "method": "resize_then_grayscale_4level",
+            "method": (
+                "ranked_exact_counts"
+                if getattr(args, "target_counts", None) is not None
+                else "resize_then_grayscale_4level"
+            ),
             "fit": args.fit,
             "invert": args.invert,
             "air_end": args.air_end,
             "crack_end": args.crack_end,
             "brown_end": args.brown_end,
+            "target_counts": getattr(args, "target_counts", None),
             "selection_box": (
                 list(args.selection_box)
                 if getattr(args, "selection_box", None) else None
@@ -348,6 +506,8 @@ def _convert_source(
         args.air_end,
         args.crack_end,
         args.brown_end,
+        source_rgb=fitted,
+        target_counts=getattr(args, "target_counts", None),
     )
     tiles = _tile_set(args)
     preview = _render_preview(grid, tiles, args.tile_size)
@@ -388,14 +548,19 @@ UI_TEXT = {
         "stretch": "全体を15x12へ縮小",
         "crop": "中央を切り抜く",
         "selection": "赤枠で任意範囲を選択",
-        "thresholds": "明るさの境界",
+        "thresholds": "ブロック個数（合計180個）",
+        "air_count": "空気",
+        "cracked_count": "ひび",
+        "brown_count": "茶",
+        "white_count": "白",
+        "count_value": "{name}: {count}個",
         "air_end": "空気 / ひび",
         "crack_end": "ひび / 茶",
         "brown_end": "茶 / 白",
         "selection_help": "カーソル形状が変わる位置で移動・拡大縮小。通常モードでも元画像をドラッグすると範囲選択へ切り替わります。",
         "invert": "明暗を反転",
         "ready": "画像をドロップするか、開くボタンで選択してください。",
-        "loaded": "変換完了: 空気 {air} / 茶 {brown} / 白 {white} / ひび {cracked}",
+        "loaded": "変換完了",
         "open_title": "変換する画像を選択",
         "save_title": "変換結果PNGを保存",
         "images": "画像 (*.png *.jpg *.jpeg *.bmp *.webp *.gif *.tif *.tiff)",
@@ -419,14 +584,19 @@ UI_TEXT = {
         "stretch": "Scale entire image to 15x12",
         "crop": "Crop from center",
         "selection": "Select any area with red frame",
-        "thresholds": "Brightness Boundaries",
+        "thresholds": "Block Counts (Total 180)",
+        "air_count": "Air",
+        "cracked_count": "Cracked",
+        "brown_count": "Brown",
+        "white_count": "White",
+        "count_value": "{name}: {count}",
         "air_end": "Air / Cracked",
         "crack_end": "Cracked / Brown",
         "brown_end": "Brown / White",
         "selection_help": "The cursor changes where the frame can be moved or resized. Dragging the source image in another fit mode switches to selection mode.",
         "invert": "Invert brightness",
         "ready": "Drop an image or select one with the Open button.",
-        "loaded": "Converted: air {air} / brown {brown} / white {white} / cracked {cracked}",
+        "loaded": "Conversion complete",
         "open_title": "Select an image to convert",
         "save_title": "Save converted grid PNG",
         "images": "Images (*.png *.jpg *.jpeg *.bmp *.webp *.gif *.tif *.tiff)",
@@ -515,6 +685,31 @@ def _run_gui(
                     self._on_drop(Path(url.toLocalFile()))
                     event.acceptProposedAction()
                     return
+
+    class BlockCountSlider(QSlider):
+        def __init__(self, index, on_begin, on_end):
+            super().__init__(Qt.Horizontal)
+            self._index = index
+            self._on_begin = on_begin
+            self._on_end = on_end
+
+        def mousePressEvent(self, event):
+            self._on_begin(self._index)
+            super().mousePressEvent(event)
+
+        def mouseReleaseEvent(self, event):
+            super().mouseReleaseEvent(event)
+            self._on_end()
+
+        def keyPressEvent(self, event):
+            self._on_begin(self._index)
+            super().keyPressEvent(event)
+            self._on_end()
+
+        def wheelEvent(self, event):
+            self._on_begin(self._index)
+            super().wheelEvent(event)
+            self._on_end()
 
     class SourceSelection(QWidget):
         HANDLE = 10.0
@@ -810,26 +1005,37 @@ def _run_gui(
 
             threshold_group = QGroupBox(text["thresholds"])
             threshold_layout = QHBoxLayout(threshold_group)
-            self.air_label = QLabel()
-            self.air_slider = QSlider(Qt.Horizontal)
-            self.crack_label = QLabel()
-            self.crack_slider = QSlider(Qt.Horizontal)
-            self.brown_label = QLabel()
-            self.brown_slider = QSlider(Qt.Horizontal)
-            for label, slider, value in (
-                (self.air_label, self.air_slider, args.air_end),
-                (self.crack_label, self.crack_slider, args.crack_end),
-                (self.brown_label, self.brown_slider, args.brown_end),
+            self._block_counts = _thresholds_to_counts(
+                args.air_end, args.crack_end, args.brown_end
+            )
+            self._updating_block_counts = False
+            self._count_drag_index = None
+            self._count_drag_baseline = None
+            self.block_count_labels = []
+            self.block_count_sliders = []
+            for index, key in enumerate(
+                ("air_count", "cracked_count", "brown_count", "white_count")
             ):
-                label.setMinimumWidth(125)
-                slider.setRange(1, 99)
-                slider.setValue(round(value * 100))
-                slider.setMinimumWidth(150)
-                slider.valueChanged.connect(self.threshold_changed)
+                label = QLabel()
+                label.setMinimumWidth(72)
+                slider = BlockCountSlider(
+                    index, self.begin_count_drag, self.end_count_drag
+                )
+                # Automatic redistribution may reach 180 when the other three
+                # counts were explicitly set to zero. User changes are clamped
+                # to 177 by _redistribute_counts().
+                slider.setRange(0, GRID_CELL_COUNT)
+                slider.setValue(self._block_counts[index])
+                slider.setMinimumWidth(100)
+                slider.valueChanged.connect(
+                    lambda value, i=index: self.block_count_changed(i, value)
+                )
+                self.block_count_labels.append((label, key))
+                self.block_count_sliders.append(slider)
                 threshold_layout.addWidget(label)
                 threshold_layout.addWidget(slider, 1)
             outer.addWidget(threshold_group)
-            self.update_threshold_labels()
+            self.update_block_count_labels()
 
             large_previews = QHBoxLayout()
             source_group = QGroupBox(text["source"])
@@ -915,26 +1121,41 @@ def _run_gui(
             self.source_preview.set_source(source)
             self.convert()
 
-        def update_threshold_labels(self):
-            self.air_label.setText(
-                f'{text["air_end"]}: {self.air_slider.value()}%')
-            self.crack_label.setText(
-                f'{text["crack_end"]}: {self.crack_slider.value()}%')
-            self.brown_label.setText(
-                f'{text["brown_end"]}: {self.brown_slider.value()}%')
+        def update_block_count_labels(self):
+            for index, (label, key) in enumerate(self.block_count_labels):
+                label.setText(text["count_value"].format(
+                    name=text[key], count=self._block_counts[index]
+                ))
 
-        def threshold_changed(self):
-            sender = self.sender()
-            air = self.air_slider.value()
-            crack = self.crack_slider.value()
-            brown = self.brown_slider.value()
-            if sender is self.air_slider and air >= crack:
-                self.air_slider.setValue(crack - 1)
-            elif sender is self.crack_slider:
-                self.crack_slider.setValue(max(air + 1, min(brown - 1, crack)))
-            elif sender is self.brown_slider and brown <= crack:
-                self.brown_slider.setValue(crack + 1)
-            self.update_threshold_labels()
+        def begin_count_drag(self, changed_index: int):
+            self._count_drag_index = changed_index
+            self._count_drag_baseline = list(self._block_counts)
+
+        def end_count_drag(self):
+            self._count_drag_index = None
+            self._count_drag_baseline = None
+
+        def block_count_changed(self, changed_index: int, new_value: int):
+            if self._updating_block_counts:
+                return
+            baseline = self._block_counts
+            if (
+                self._count_drag_index == changed_index
+                and self._count_drag_baseline is not None
+            ):
+                baseline = self._count_drag_baseline
+            self._block_counts = _redistribute_counts(
+                baseline, changed_index, new_value
+            )
+            self._updating_block_counts = True
+            try:
+                for slider, value in zip(self.block_count_sliders, self._block_counts):
+                    slider.blockSignals(True)
+                    slider.setValue(value)
+                    slider.blockSignals(False)
+            finally:
+                self._updating_block_counts = False
+            self.update_block_count_labels()
             self.convert()
 
         def fit_changed(self):
@@ -957,9 +1178,10 @@ def _run_gui(
             current.fit = self.fit_combo.currentData()
             current.invert = self.invert_check.isChecked()
             current.tile_size = DEFAULT_TILE_SIZE
-            current.air_end = self.air_slider.value() / 100.0
-            current.crack_end = self.crack_slider.value() / 100.0
-            current.brown_end = self.brown_slider.value() / 100.0
+            current.air_end, current.crack_end, current.brown_end = (
+                _counts_to_thresholds(self._block_counts)
+            )
+            current.target_counts = list(self._block_counts)
             current.selection_box = (
                 self.source_preview.selection_box()
                 if current.fit == "selection" else None
