@@ -25,7 +25,7 @@ from PyQt5.QtGui import QPixmap, QKeySequence, QCursor, QColor, QPainter, QPen, 
 from PyQt5.QtMultimedia import QSoundEffect
 
 from .. import __version__
-from ..core.rom import Rom, KNOWN_CRC32, is_known_jp_original_data
+from ..core.rom import Rom, KNOWN_CRC32, is_known_editor_standard_data
 from ..core.level import Level, load_all_levels
 from ..core.xml_io import level_to_xml_element, xml_element_to_level
 from ..core.element import Wall, ElementType, LevelElement
@@ -2850,7 +2850,7 @@ class MainWindow(QMainWindow):
     def _import_original_jp_stage50_breakable_white(self, source_data: bytes, levels,
                                                     allow_mutation: bool = True):
         """Stage 50 の無条件特殊処理ブロックを編集用ステージデータへ取り込む。"""
-        if not allow_mutation or not is_known_jp_original_data(source_data):
+        if not allow_mutation or not is_known_editor_standard_data(source_data):
             return 0
         if not levels or len(levels) <= 49:
             return 0
@@ -2870,7 +2870,7 @@ class MainWindow(QMainWindow):
     def _import_original_jp_stage49_breakable_white(self, source_data: bytes, levels,
                                                     allow_mutation: bool = True):
         """Stage 49 の無条件特殊処理ブロックを編集用ステージデータへ取り込む。"""
-        if not allow_mutation or not is_known_jp_original_data(source_data):
+        if not allow_mutation or not is_known_editor_standard_data(source_data):
             return 0
         if not levels or len(levels) <= 48:
             return 0
@@ -2895,7 +2895,7 @@ class MainWindow(QMainWindow):
     def _import_original_jp_stage52_53_breakable_white(self, source_data: bytes, levels,
                                                        allow_mutation: bool = True):
         """Stage 52/53 の無条件特殊処理ブロックを編集用ステージデータへ取り込む。"""
-        if not allow_mutation or not is_known_jp_original_data(source_data):
+        if not allow_mutation or not is_known_editor_standard_data(source_data):
             return 0
         if not levels or len(levels) <= 52:
             return 0
@@ -2916,7 +2916,7 @@ class MainWindow(QMainWindow):
 
     def _patch_stage50_breakable_white_hardcode(self, source_data: bytes, rom) -> int:
         """Stage 50 の無条件 $90 書き込み3箇所を止める。"""
-        if rom is None or not is_known_jp_original_data(source_data):
+        if rom is None or not is_known_editor_standard_data(source_data):
             return 0
         off = 0x3626
         expected = bytes.fromhex("8d2b038d47038d9003")
@@ -2931,7 +2931,7 @@ class MainWindow(QMainWindow):
 
     def _patch_stage49_breakable_white_hardcode(self, source_data: bytes, rom) -> int:
         """Stage 49 の無条件 $90 テーブル書き込み12箇所を止める。"""
-        if rom is None or not is_known_jp_original_data(source_data):
+        if rom is None or not is_known_editor_standard_data(source_data):
             return 0
         off = 0x359F
         expected = bytes.fromhex("990403")
@@ -2946,7 +2946,7 @@ class MainWindow(QMainWindow):
 
     def _patch_stage52_53_breakable_white_hardcode(self, source_data: bytes, rom) -> int:
         """Stage 52/53 の共有ルーチンにある無条件 $90 書き込み4箇所を止める。"""
-        if rom is None or not is_known_jp_original_data(source_data):
+        if rom is None or not is_known_editor_standard_data(source_data):
             return 0
         patches = (
             (0x35E8, bytes.fromhex("8d9b03"), 1),
@@ -3566,7 +3566,7 @@ class MainWindow(QMainWindow):
                 t(
                     "main.migration.target_not_supported",
                     "移行先にできるROMではありません。\n"
-                    "確認済みの日本版オリジナルROM、またはこのアプリで保存した編集可能ROMを選んでください。",
+                    "確認済みの日本版/US版オリジナルROM、またはこのアプリで保存した編集可能ROMを選んでください。",
                 ),
             )
             return
@@ -3662,6 +3662,11 @@ class MainWindow(QMainWindow):
             if display_name_override:
                 rom.display_name = str(display_name_override)
             loaded_rom_data = bytes(rom.data)
+            source_rom_data = bytes(getattr(rom, "source_data", loaded_rom_data))
+            if getattr(rom, "was_us_normalized", False):
+                self._log(
+                    "US原本正規化: ライセンス領域を除外し、USタイトルを保持したJP論理配置へ変換"
+                )
             editor_input = rom.is_supported_editor_input()
             read_only_reason = "" if editor_input else rom.readonly_input_reason()
             read_only_mode = bool(read_only_reason)
@@ -3704,7 +3709,7 @@ class MainWindow(QMainWindow):
                     return
                 msg = t(
                     "main.rom.unsupported.editor_target",
-                    "このアプリの通常編集対象は日本版 Solomon no Kagi のROM、"
+                    "このアプリの通常編集対象は確認済みの日本版/US版オリジナルROM、"
                     "または本アプリで保存した日本版 mapper66 拡張ROMだけです。\n"
                     "CRC32: {crc}",
                 ).format(crc=crc_hex)
@@ -3775,7 +3780,7 @@ class MainWindow(QMainWindow):
             # 通常ROM (mapper 3) なら自動的に拡張ROM (mapper 66) に変換
             # 容量制約 (敵726B/アイテム1402B) を回避するため
             auto_expanded = False
-            self.original_rom_data = loaded_rom_data
+            self.original_rom_data = source_rom_data
             if not read_only_mode and not rom.is_expanded():
                 from ..core import m66_expander, m66
                 m66_expander.expand_rom(rom, levels)

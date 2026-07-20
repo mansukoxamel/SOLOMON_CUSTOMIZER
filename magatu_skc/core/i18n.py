@@ -2556,12 +2556,12 @@ _TRANSLATIONS = {
     },
     "main.rom.unsupported.editor_target": {
         "ja": (
-            "このアプリの通常編集対象は日本版 Solomon no Kagi のROM、"
+            "このアプリの通常編集対象は確認済みの日本版/US版オリジナルROM、"
             "または本アプリで保存した日本版 mapper66 拡張ROMだけです。\n"
             "CRC32: {crc}"
         ),
         "en": (
-            "This application's normal editing target is the Japanese Solomon no Kagi ROM, "
+            "This application's normal editing targets are verified original JP/US ROMs, "
             "or a JP mapper66 expanded ROM saved by this application.\n"
             "CRC32: {crc}"
         ),
@@ -2759,11 +2759,11 @@ _TRANSLATIONS = {
     "main.migration.target_not_supported": {
         "ja": (
             "移行先にできるROMではありません。\n"
-            "確認済みの日本版オリジナルROM、またはこのアプリで保存した編集可能ROMを選んでください。"
+            "確認済みの日本版/US版オリジナルROM、またはこのアプリで保存した編集可能ROMを選んでください。"
         ),
         "en": (
             "This ROM cannot be used as the migration target.\n"
-            "Select a verified original Japanese ROM or an editable ROM saved by this app."
+            "Select a verified original JP/US ROM or an editable ROM saved by this app."
         ),
     },
     "main.migration.target_prepared.status": {

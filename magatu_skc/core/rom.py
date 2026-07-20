@@ -3,6 +3,7 @@ import zipfile
 import zlib
 from pathlib import Path
 from . import region as region_mod
+from . import us_jp_normalizer
 
 
 def _is_nes_file(name: str) -> bool:
@@ -71,6 +72,7 @@ KNOWN_CRC32 = {
     crc: "Solomon no Kagi (Japan)"
     for crc in KNOWN_JP_ORIGINAL_CRC32
 }
+KNOWN_CRC32[us_jp_normalizer.US_ORIGINAL_CRC32] = "Solomon's Key (USA)"
 
 
 def crc32_hex(data: bytes) -> str:
@@ -86,6 +88,14 @@ def ines_mapper_no(data: bytes):
 
 def is_known_jp_original_data(data: bytes) -> bool:
     return crc32_hex(data) in KNOWN_JP_ORIGINAL_CRC32
+
+
+def is_known_editor_standard_data(data: bytes) -> bool:
+    """Known mapper-3 input in the canonical JP logical layout."""
+    return (
+        is_known_jp_original_data(data)
+        or us_jp_normalizer.is_normalized_us_data(data)
+    )
 
 
 def has_customizer_metadata(data: bytes) -> bool:
@@ -133,6 +143,9 @@ class Rom:
         self.path = path
         self.display_name = Path(path).name if path else ""
         self.region = region_mod.detect_region(bytes(data))
+        self.source_data = bytes(data)
+        self.source_region = self.region
+        self.was_us_normalized = False
         self._crc32 = None  # 遅延計算
 
     @property
@@ -153,6 +166,10 @@ class Rom:
         """確認済みの日本版オリジナル通常ROMかどうか。"""
         return is_known_jp_original_data(bytes(self.data))
 
+    def is_known_editor_standard(self) -> bool:
+        """確認済みでJP論理配置になっている通常ROMかどうか。"""
+        return is_known_editor_standard_data(bytes(self.data))
+
     def has_customizer_metadata(self) -> bool:
         return has_customizer_metadata(bytes(self.data))
 
@@ -171,7 +188,7 @@ class Rom:
             return False
         if self.is_expanded():
             return self.region == "JP66" and self.has_customizer_metadata()
-        return self.is_known_jp_original()
+        return self.is_known_editor_standard()
 
     def readonly_input_reason(self) -> str:
         """編集不可の閲覧/エクスポート専用入口なら理由を返す。"""
@@ -190,8 +207,16 @@ class Rom:
     def load(cls, path: str) -> "Rom":
         """ROMファイル読み込み（.nes / .zip 両対応）"""
         display_name, data = load_rom_data(path)
+        source_data = bytes(data)
+        source_region = region_mod.detect_region(source_data)
+        was_us_normalized = us_jp_normalizer.is_supported_us_original(source_data)
+        if was_us_normalized:
+            data = us_jp_normalizer.normalize_us_original(source_data)
         rom = cls(data, path)
         rom.display_name = display_name
+        rom.source_data = source_data
+        rom.source_region = source_region
+        rom.was_us_normalized = was_us_normalized
         return rom
 
     def save(self, path: str):

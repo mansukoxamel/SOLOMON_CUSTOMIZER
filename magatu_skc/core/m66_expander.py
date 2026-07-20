@@ -1,15 +1,15 @@
-"""日本版通常ROM (mapper 3) → 拡張ROM (mapper 66) 変換
+"""JP論理配置の通常ROM (mapper 3) → 拡張ROM (mapper 66) 変換
 
 C++ skchain `Rom_expander.cpp` の change_mapper() / patch_mirror_*() / remove_blocks_behind_demon_mirrors() を移植。
 
 通常ROMに編集を加えて保存しようとすると敵データ計726バイトの上限を超えやすいため、
-このエディタでは日本版通常ROMの読込時に自動的に拡張ROM (mapper 66, 96KB) に変換する。
-通常編集対象は日本版ROMのみで、US/EU版のmapper66変換は行わない。
+このエディタではJP原本またはJP論理配置へ正規化した確認済みUS原本を、
+自動的に拡張ROM (mapper 66, 96KB) に変換する。
 """
 from . import constants as c
 from . import m66
 from . import region as region_mod
-from .rom import crc32_hex, is_known_jp_original_data
+from .rom import crc32_hex, is_known_editor_standard_data
 from .element import Wall, byte_from_position
 from .level import Level
 
@@ -96,7 +96,7 @@ _REGION_PATCH_OFFSETS = {
 def _require_jp_region(region: str):
     if region != "JP":
         raise ValueError(
-            "mapper66変換は日本版 Solomon no Kagi の通常ROM専用です。"
+            "mapper66変換はJP論理配置の通常ROM専用です。"
             f"region={region!r} は通常編集対象外です。"
         )
 
@@ -107,23 +107,23 @@ def _require_jp_standard_rom(src: bytes, region: str):
         detected = region_mod.detect_region(src)
     except ValueError as exc:
         raise ValueError(
-            "mapper66変換は日本版 Solomon no Kagi の通常ROM専用です。"
+            "mapper66変換はJP論理配置の通常ROM専用です。"
             "ROM実体のリージョンを確認できません。"
         ) from exc
     if region_mod.is_expanded(detected):
         raise ValueError(
-            "mapper66変換は日本版 Solomon no Kagi の通常ROM専用です。"
+            "mapper66変換はJP論理配置の通常ROM専用です。"
             f"region={detected!r} は既に拡張ROMです。"
         )
     detected_base = region_mod.base_region(detected)
     if detected_base != "JP":
         raise ValueError(
-            "mapper66変換は日本版 Solomon no Kagi の通常ROM専用です。"
+            "mapper66変換はJP論理配置の通常ROM専用です。"
             f"ROM実体は region={detected!r} です。"
         )
-    if not is_known_jp_original_data(src):
+    if not is_known_editor_standard_data(src):
         raise ValueError(
-            "mapper66変換は確認済みの日本版オリジナル通常ROM専用です。"
+            "mapper66変換は確認済みのJP論理配置通常ROM専用です。"
             f"CRC32={crc32_hex(src)} は通常編集対象外です。"
         )
 
