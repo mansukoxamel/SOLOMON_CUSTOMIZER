@@ -24,6 +24,7 @@ from ..core.i18n import t
 from ..nes.palette import NES_COLORS
 from ..nes.tile import NesTile, NES_TILE_W, NES_GFX_TILE_BYTE_SIZE
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
+from .dialog_buttons import localize_dialog_buttons
 from collections import Counter
 from itertools import permutations
 import json
@@ -543,6 +544,7 @@ class TitleTileEditorDialog(QDialog):
         root.addLayout(body)
 
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        localize_dialog_buttons(bb)
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self._on_cancel)
         root.addWidget(bb)
@@ -640,7 +642,7 @@ class TitlePaletteDialog(QDialog):
             gl.addWidget(b, (i // 4) * 2 + 1, (i % 4) + 1)
         root.addWidget(g)
 
-        picker = QGroupBox("NES 64 Colors")
+        picker = QGroupBox(t("title_screen.palette.nes64", "NES 64色"))
         pg = QGridLayout(picker)
         for i in range(64):
             b = QPushButton(f"{i:02X}")
@@ -653,6 +655,7 @@ class TitlePaletteDialog(QDialog):
         bb = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
             | QDialogButtonBox.Apply)
+        localize_dialog_buttons(bb)
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self._on_cancel)
         bb.button(QDialogButtonBox.Apply).clicked.connect(self._on_apply)
@@ -818,6 +821,7 @@ class TitleCharacterPickerDialog(QDialog):
         root.addWidget(note)
 
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        localize_dialog_buttons(bb)
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self.reject)
         root.addWidget(bb)
@@ -1049,6 +1053,7 @@ class TitlePngColorGuardDialog(QDialog):
         root.addLayout(grid)
 
         bb = QDialogButtonBox(QDialogButtonBox.Ok)
+        localize_dialog_buttons(bb)
         bb.accepted.connect(self.accept)
         root.addWidget(bb)
 
@@ -1089,7 +1094,9 @@ class TitleScreenDialog(QDialog):
         title_root.addWidget(self._info)
 
         # 倍率
-        zr = QHBoxLayout()
+        zoom_controls = QWidget()
+        zr = QHBoxLayout(zoom_controls)
+        zr.setContentsMargins(0, 0, 0, 0)
         zr.addWidget(QLabel(t("title_screen_dialog.zoom.label", "表示倍率:")))
         self._zoom = QComboBox()
         for z in (1, 2, 3, 4, 5, 6, 7, 8):
@@ -1148,7 +1155,15 @@ class TitleScreenDialog(QDialog):
         b_group_replace.clicked.connect(self._on_replace_attr_group)
         zr.addWidget(b_group_replace)
         zr.addStretch()
-        title_root.addLayout(zr)
+        zoom_scroll = QScrollArea()
+        zoom_scroll.setWidgetResizable(True)
+        zoom_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        zoom_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        zoom_scroll.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        zoom_scroll.setMinimumHeight(54)
+        zoom_scroll.setMaximumHeight(78)
+        zoom_scroll.setWidget(zoom_controls)
+        title_root.addWidget(zoom_scroll)
 
         # プレビュー (スクロール)
         self._canvas = TitlePreviewLabel()
@@ -1166,6 +1181,8 @@ class TitleScreenDialog(QDialog):
         self._canvas.character_drag_end.connect(self._on_title_character_drag_end)
         sa = QScrollArea()
         sa.setWidgetResizable(True)
+        sa.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Expanding)
+        sa.setMinimumWidth(0)
         wrap = QWidget()
         wl = QHBoxLayout(wrap)
         wl.addWidget(self._canvas, 0, Qt.AlignTop | Qt.AlignLeft)
@@ -1186,7 +1203,9 @@ class TitleScreenDialog(QDialog):
         self._drag_title_character_slot = None
 
         # 操作ボタン
-        br = QHBoxLayout()
+        operation_buttons = QWidget()
+        br = QHBoxLayout(operation_buttons)
+        br.setContentsMargins(0, 0, 0, 0)
         b_save_top = QPushButton(t("title_screen_dialog.save_top_png.button", "Top PNG保存..."))
         b_save_top.setToolTip(t("title_screen_dialog.save_top_png.tooltip", "タイトル上部ロゴ領域だけを256x64/4階調PNGで保存"))
         b_save_top.clicked.connect(self._on_save_top_image)
@@ -1232,17 +1251,24 @@ class TitleScreenDialog(QDialog):
         b_revert.setToolTip(t("title_screen_dialog.revert.tooltip", "このダイアログを開いた時点の ROM に戻す"))
         b_revert.clicked.connect(self._on_revert)
         br.addWidget(b_revert)
-        title_root.addLayout(br)
+        operation_scroll = QScrollArea()
+        operation_scroll.setWidgetResizable(True)
+        operation_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        operation_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        operation_scroll.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        operation_scroll.setMinimumHeight(54)
+        operation_scroll.setMaximumHeight(78)
+        operation_scroll.setWidget(operation_buttons)
+        title_root.addWidget(operation_scroll)
 
         tabs.addTab(self._build_ending_text_tab(), t("title_screen_dialog.tab.ending", "エンディング"))
         tabs.addTab(self._build_clear_screen_tab(), t("title_screen_dialog.tab.clear_screen", "クリア画面"))
 
         bb = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
-            | QDialogButtonBox.Apply)
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        localize_dialog_buttons(bb)
         bb.accepted.connect(self.accept)
-        bb.rejected.connect(self._on_cancel)
-        bb.button(QDialogButtonBox.Apply).clicked.connect(self._on_apply)
+        bb.rejected.connect(self.reject)
         root.addWidget(bb)
 
         self._refresh()
@@ -1390,14 +1416,14 @@ class TitleScreenDialog(QDialog):
         body.addLayout(edit_col, 2)
 
         top = QHBoxLayout()
-        top.addWidget(QLabel("View:"))
+        top.addWidget(QLabel(t("title_screen_dialog.ending.view", "表示:")))
         self._ending_mode = QComboBox()
-        self._ending_mode.addItem("True Ending", "PrincessTrue")
-        self._ending_mode.addItem("Good Ending A", "PrincessNormal")
-        self._ending_mode.addItem("Good Ending B", "PrincessBad")
-        self._ending_mode.addItem("Bad Ending A", "True")
-        self._ending_mode.addItem("Bad Ending B", "Normal")
-        self._ending_mode.addItem("Worst Ending", "Bad")
+        self._ending_mode.addItem(t("title_screen_dialog.ending.true", "真エンディング"), "PrincessTrue")
+        self._ending_mode.addItem(t("title_screen_dialog.ending.good_a", "グッドエンディング A"), "PrincessNormal")
+        self._ending_mode.addItem(t("title_screen_dialog.ending.good_b", "グッドエンディング B"), "PrincessBad")
+        self._ending_mode.addItem(t("title_screen_dialog.ending.bad_a", "バッドエンディング A"), "True")
+        self._ending_mode.addItem(t("title_screen_dialog.ending.bad_b", "バッドエンディング B"), "Normal")
+        self._ending_mode.addItem(t("title_screen_dialog.ending.worst", "ワーストエンディング"), "Bad")
         self._ending_mode.setCurrentIndex(5)
         self._ending_mode.currentIndexChanged.connect(
             self._on_ending_mode_changed)
@@ -1425,9 +1451,9 @@ class TitleScreenDialog(QDialog):
         g = QGridLayout()
         g.setHorizontalSpacing(8)
         g.setVerticalSpacing(6)
-        g.addWidget(QLabel("Line"), 0, 0)
-        g.addWidget(QLabel("Text"), 0, 1)
-        g.addWidget(QLabel("Count"), 0, 2)
+        g.addWidget(QLabel(t("title_screen_dialog.ending.column.line", "行")), 0, 0)
+        g.addWidget(QLabel(t("title_screen_dialog.ending.column.text", "文字")), 0, 1)
+        g.addWidget(QLabel(t("title_screen_dialog.ending.column.count", "字数")), 0, 2)
         rx = QRegExpValidator(QRegExp("[A-Za-z ,'\\\"]*"))
         self._ending_text_edits = []
         self._ending_text_row_widgets = []
@@ -1525,7 +1551,10 @@ class TitleScreenDialog(QDialog):
         try:
             img = self._build_ending_preview_image()
         except Exception as e:
-            preview.setText(f"Preview unavailable: {type(e).__name__}: {e}")
+            preview.setText(t(
+                "title_screen.preview.unavailable",
+                "プレビュー不可: {error}",
+            ).format(error=f"{type(e).__name__}: {e}"))
             return
         zoom = int(getattr(self, "_ending_zoom", 3))
         pm = QPixmap.fromImage(img).scaled(
@@ -1541,12 +1570,12 @@ class TitleScreenDialog(QDialog):
 
     def _on_ending_mode_changed(self, *_):
         conditions = {
-            "PrincessTrue": "条件: 王女あり / 両方取得",
-            "PrincessNormal": "条件: 王女あり / 片方取得",
-            "PrincessBad": "条件: 王女あり / 取得なし",
-            "True": "条件: 王女なし / 両方取得",
-            "Normal": "条件: 王女なし / 片方取得",
-            "Bad": "条件: 王女なし / 取得なし",
+            "PrincessTrue": t("title_screen_dialog.ending.condition.princess_both", "条件: 王女あり / 両方取得"),
+            "PrincessNormal": t("title_screen_dialog.ending.condition.princess_one", "条件: 王女あり / 片方取得"),
+            "PrincessBad": t("title_screen_dialog.ending.condition.princess_none", "条件: 王女あり / 取得なし"),
+            "True": t("title_screen_dialog.ending.condition.no_princess_both", "条件: 王女なし / 両方取得"),
+            "Normal": t("title_screen_dialog.ending.condition.no_princess_one", "条件: 王女なし / 片方取得"),
+            "Bad": t("title_screen_dialog.ending.condition.no_princess_none", "条件: 王女なし / 取得なし"),
         }
         mode = self._ending_mode.currentData()
         label = getattr(self, "_ending_condition", None)
@@ -2316,13 +2345,22 @@ class TitleScreenDialog(QDialog):
 
     def _title_character_count_text(self):
         count = len(self._active_title_character_slots())
-        return f"Characters {count}/{TS.title_character_max()}"
+        return t(
+            "title_screen.character.count",
+            "キャラクター {count}/{maximum}",
+        ).format(count=count, maximum=TS.title_character_max())
 
     def _update_title_character_count_labels(self):
         text = self._title_character_count_text()
         label = getattr(self, "_title_character_count_label", None)
         if label is not None:
-            label.setText(f"Placed: {len(self._active_title_character_slots())}/{TS.title_character_max()}")
+            label.setText(t(
+                "title_screen.character.placed",
+                "配置済み: {count}/{maximum}",
+            ).format(
+                count=len(self._active_title_character_slots()),
+                maximum=TS.title_character_max(),
+            ))
         return text
 
     def _select_title_character_slot(self, slot):
@@ -4128,6 +4166,7 @@ class TitleScreenDialog(QDialog):
         lay.addWidget(status)
         buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        localize_dialog_buttons(buttons)
         buttons.accepted.connect(dlg.accept)
         buttons.rejected.connect(dlg.reject)
         lay.addWidget(buttons)
@@ -4302,23 +4341,10 @@ class TitleScreenDialog(QDialog):
         if getattr(self, "_clear_message_status", None) is not None:
             self._clear_message_status.setText("")
 
-    # --- ボタンボックス ---
-    def _on_apply(self):
-        # 既に in-place 反映済。確認のみ。
-        QMessageBox.information(
-            self,
-            t("title_screen.apply.title", "適用"),
-            t(
-                "title_screen.apply.changed",
-                "変更は ROM に反映済みです (このまま編集を続けられます)。",
-            )
-            if self._changed else
-            t("title_screen.apply.no_changes", "変更はありません。"))
-
-    def _on_cancel(self):
-        # 開いた時点へ復元してから閉じる
+    def reject(self):
+        # Cancel button, Esc, and the window close button all discard edits.
         self._rom[:] = self._snap
-        self.reject()
+        super().reject()
 
     def done(self, r):
         if isinstance(self._app_config, dict):

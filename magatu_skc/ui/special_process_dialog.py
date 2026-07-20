@@ -12,6 +12,7 @@ from PyQt5.QtGui import QFont, QColor
 from ..core import special_process as sp
 from ..core.i18n import t
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
+from .dialog_buttons import localize_dialog_buttons
 
 
 class SpecialProcessDialog(QDialog):
@@ -124,6 +125,7 @@ class SpecialProcessDialog(QDialog):
 
         # 閉じる
         btnbox = QDialogButtonBox(QDialogButtonBox.Close)
+        localize_dialog_buttons(btnbox)
         btnbox.rejected.connect(self.reject)
         layout.addWidget(btnbox)
 

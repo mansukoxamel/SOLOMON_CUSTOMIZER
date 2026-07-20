@@ -40,6 +40,8 @@ from .level_view import (
     DEFAULT_MARKER_SHAPES,
     MARKER_SHAPE_OPTIONS,
 )
+from .dialog_geometry import restore_dialog_geometry, store_dialog_geometry
+from .dialog_buttons import localize_dialog_buttons
 
 
 MARKER_COLOR_ROWS = [
@@ -95,7 +97,15 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.tabs, 1)
 
         general_tab = QWidget()
-        general_layout = QVBoxLayout(general_tab)
+        general_tab_layout = QVBoxLayout(general_tab)
+        general_tab_layout.setContentsMargins(0, 0, 0, 0)
+        general_scroll = QScrollArea()
+        general_scroll.setWidgetResizable(True)
+        general_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        general_content = QWidget()
+        general_layout = QVBoxLayout(general_content)
+        general_scroll.setWidget(general_content)
+        general_tab_layout.addWidget(general_scroll)
         colors_tab = QWidget()
         colors_layout = QVBoxLayout(colors_tab)
         shortcuts_tab = QWidget()
@@ -465,6 +475,7 @@ class SettingsDialog(QDialog):
         btnbox = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel | QDialogButtonBox.Apply
         )
+        localize_dialog_buttons(btnbox)
         btnbox.accepted.connect(self._apply_and_close)
         btnbox.rejected.connect(self.reject)
         btnbox.button(QDialogButtonBox.Apply).clicked.connect(self._apply)
@@ -475,20 +486,15 @@ class SettingsDialog(QDialog):
         w = int(self.config.get("settings_dialog_w", 700) or 700)
         h = int(self.config.get("settings_dialog_h", 780) or 780)
         self.resize(max(520, w), max(420, h))
-        x = int(self.config.get("settings_dialog_x", -1) or -1)
-        y = int(self.config.get("settings_dialog_y", -1) or -1)
-        if x >= 0 and y >= 0:
-            self.move(x, y)
+        restore_dialog_geometry(
+            self, self.config, "settings_dialog", min_w=0, min_h=0
+        )
         tab = int(self.config.get("settings_dialog_tab", 0) or 0)
         tab = max(0, min(self.tabs.count() - 1, tab))
         self.tabs.setCurrentIndex(tab)
 
     def _save_dialog_state_to_config(self):
-        geo = self.frameGeometry()
-        self.config["settings_dialog_x"] = int(geo.x())
-        self.config["settings_dialog_y"] = int(geo.y())
-        self.config["settings_dialog_w"] = int(self.width())
-        self.config["settings_dialog_h"] = int(self.height())
+        store_dialog_geometry(self, self.config, "settings_dialog")
         self.config["settings_dialog_tab"] = int(self.tabs.currentIndex())
 
     def done(self, result: int):

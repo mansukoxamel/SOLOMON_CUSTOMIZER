@@ -2101,6 +2101,10 @@ _TRANSLATIONS = {
         "ja": "ステージ壁色 (1-48面)",
         "en": "Stage Wall Colors (Stages 1-48)",
     },
+    "palette.stage_range": {
+        "ja": "{range}面",
+        "en": "Stages {range}",
+    },
     "palette.book_group": {
         "ja": "Stage 50 ソロモンの書の色",
         "en": "Stage 50 Solomon Book Color",
@@ -3039,6 +3043,14 @@ _TRANSLATIONS = {
         "en": "Selected: g{group:02X} s{state:02X} f{frame} / tile ${tile1:02X},${tile2:02X} attr ${attr:02X}",
     },
     "title_screen.character_panel.title": {"ja": "キャラクター", "en": "Characters"},
+    "title_screen.character.count": {
+        "ja": "キャラクター {count}/{maximum}",
+        "en": "Characters {count}/{maximum}",
+    },
+    "title_screen.character.placed": {
+        "ja": "配置済み: {count}/{maximum}",
+        "en": "Placed: {count}/{maximum}",
+    },
     "title_screen.character_panel.selection_status": {
         "ja": "選択: g{group:02X} s{state:02X} f{frame} / {count_text} / キャンバスをクリックして配置",
         "en": "Selected: g{group:02X} s{state:02X} f{frame} / {count_text} / click the canvas to place",
@@ -3715,6 +3727,10 @@ _TRANSLATIONS = {
     "mirror_dialog.phase2.label": {
         "ja": "Phase 2 (ループ):",
         "en": "Phase 2 (loop):",
+    },
+    "mirror_dialog.phase1.label": {
+        "ja": "Phase 1:",
+        "en": "Phase 1:",
     },
     "mirror_dialog.tick.ignored.tooltip": {
         "ja": "tick {tick} (ゲーム側で無視される)",
@@ -4496,6 +4512,22 @@ _TRANSLATIONS = {
     "title_screen_dialog.clear_screen_char.hint": {"ja": "ステージクリア画面で左右に出る2体を差し替えます。既存のゲーム挙動改造にあった設定と同じ処理です。", "en": "Replaces the two sprites shown on the left and right of the stage-clear screen. This is the same setting that previously existed in Game Behavior Tweaks."},
     "title_screen_dialog.ending_tab.info": {"ja": "エンディングの文字列だけを編集します。表示位置や改行などの制御データは維持します。英大文字 A-Z / スペース / , ' \" のみ使用できます。", "en": "Edits only the ending text strings. Control data such as positions and line breaks is preserved. Only uppercase A-Z / space / , ' \" can be used."},
     "title_screen_dialog.ending_tab.unavailable": {"ja": "エンディング文字列を編集できません: {error}", "en": "Cannot edit ending text: {error}"},
+    "title_screen_dialog.ending.view": {"ja": "表示:", "en": "View:"},
+    "title_screen_dialog.ending.true": {"ja": "真エンディング", "en": "True Ending"},
+    "title_screen_dialog.ending.good_a": {"ja": "グッドエンディング A", "en": "Good Ending A"},
+    "title_screen_dialog.ending.good_b": {"ja": "グッドエンディング B", "en": "Good Ending B"},
+    "title_screen_dialog.ending.bad_a": {"ja": "バッドエンディング A", "en": "Bad Ending A"},
+    "title_screen_dialog.ending.bad_b": {"ja": "バッドエンディング B", "en": "Bad Ending B"},
+    "title_screen_dialog.ending.worst": {"ja": "ワーストエンディング", "en": "Worst Ending"},
+    "title_screen_dialog.ending.column.line": {"ja": "行", "en": "Line"},
+    "title_screen_dialog.ending.column.text": {"ja": "文字", "en": "Text"},
+    "title_screen_dialog.ending.column.count": {"ja": "字数", "en": "Count"},
+    "title_screen_dialog.ending.condition.princess_both": {"ja": "条件: 王女あり / 両方取得", "en": "Condition: Princess / both items"},
+    "title_screen_dialog.ending.condition.princess_one": {"ja": "条件: 王女あり / 片方取得", "en": "Condition: Princess / one item"},
+    "title_screen_dialog.ending.condition.princess_none": {"ja": "条件: 王女あり / 取得なし", "en": "Condition: Princess / no items"},
+    "title_screen_dialog.ending.condition.no_princess_both": {"ja": "条件: 王女なし / 両方取得", "en": "Condition: No princess / both items"},
+    "title_screen_dialog.ending.condition.no_princess_one": {"ja": "条件: 王女なし / 片方取得", "en": "Condition: No princess / one item"},
+    "title_screen_dialog.ending.condition.no_princess_none": {"ja": "条件: 王女なし / 取得なし", "en": "Condition: No princess / no items"},
     "pixel.status.eyedropper": {
         "ja": "スポイト: ペン{value}を選択",
         "en": "Eyedropper: selected pen {value}",

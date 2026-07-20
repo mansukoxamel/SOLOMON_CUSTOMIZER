@@ -75,6 +75,8 @@ from .element_picker import (
     ENEMIES_LIST, ITEMS_LIST, item_name, enemy_enhance_variant,
 )
 from .rom_validation_dialog import RomValidationDialog
+from .dialog_geometry import restore_dialog_geometry, store_dialog_geometry
+from .dialog_buttons import localize_dialog_buttons
 
 APP_DISPLAY_NAME = "SOLOMON_CUSTOMIZER"
 WINDOW_STATE_DEBUG_ENV = "SOLOMON_WINDOW_STATE_DEBUG"
@@ -234,6 +236,7 @@ class _UndoHistoryDialog(QDialog):
         layout.addWidget(self.table, 1)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Close, self)
+        localize_dialog_buttons(buttons)
         self.jump_button = buttons.addButton(
             t("main.undo_history.jump", "選択位置へ移動"),
             QDialogButtonBox.ActionRole,
@@ -14369,34 +14372,18 @@ class MainWindow(QMainWindow):
         }
 
     def _restore_undo_history_dialog_geometry(self, dialog):
-        cfg = self._app_config
-        try:
-            w = int(cfg.get("undo_history_dlg_w", 920) or 920)
-            h = int(cfg.get("undo_history_dlg_h", 520) or 520)
-        except (TypeError, ValueError):
-            w, h = 920, 520
-        if w >= 300 and h >= 200:
-            dialog.resize(w, h)
-        try:
-            x = int(cfg.get("undo_history_dlg_x", -1))
-            y = int(cfg.get("undo_history_dlg_y", -1))
-        except (TypeError, ValueError):
-            return
-        if x < 0 or y < 0:
-            return
-        for screen in QApplication.screens():
-            if screen.geometry().contains(x + 50, y + 50):
-                dialog.move(x, y)
-                return
+        restore_dialog_geometry(
+            dialog,
+            self._app_config,
+            "undo_history_dlg",
+            min_w=299,
+            min_h=199,
+        )
 
     def _save_undo_history_dialog_geometry(self, dialog):
         if dialog is None:
             return
-        geo = dialog.frameGeometry()
-        self._app_config["undo_history_dlg_x"] = int(geo.x())
-        self._app_config["undo_history_dlg_y"] = int(geo.y())
-        self._app_config["undo_history_dlg_w"] = int(dialog.width())
-        self._app_config["undo_history_dlg_h"] = int(dialog.height())
+        store_dialog_geometry(dialog, self._app_config, "undo_history_dlg")
         save_config(self._app_config)
 
     def _on_show_undo_history(self):

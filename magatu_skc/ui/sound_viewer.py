@@ -8,6 +8,7 @@ from PyQt5.QtGui import QFont, QTextCursor
 from ..core import sound
 from ..core.i18n import t
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
+from .dialog_buttons import localize_dialog_buttons
 
 
 class SoundViewer(QDialog):
@@ -55,7 +56,7 @@ class SoundViewer(QDialog):
         bb = QDialogButtonBox(QDialogButtonBox.Close)
         bb.rejected.connect(self.reject)
         bb.accepted.connect(self.accept)
-        bb.button(QDialogButtonBox.Close).setText(t("common.close", "閉じる"))
+        localize_dialog_buttons(bb)
         layout.addWidget(bb)
 
         self._refresh_text()

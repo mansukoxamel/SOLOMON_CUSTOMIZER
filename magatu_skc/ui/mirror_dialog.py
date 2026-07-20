@@ -19,6 +19,7 @@ from PyQt5.QtCore import Qt
 from ..core import m66
 from ..core.i18n import t
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
+from .dialog_buttons import localize_dialog_buttons
 
 
 SCHEDULE_BITS = 64
@@ -179,7 +180,7 @@ class MirrorDialog(QDialog):
 
             phase1_row = QHBoxLayout()
             phase1_row.setSpacing(0)
-            lbl_p1 = QLabel("Phase 1:")
+            lbl_p1 = QLabel(t("mirror_dialog.phase1.label", "Phase 1:"))
             lbl_p1.setFixedWidth(LABEL_W)
             phase1_row.addWidget(lbl_p1)
             for i in range(PHASE1_BITS):
@@ -257,6 +258,7 @@ class MirrorDialog(QDialog):
         btnbox = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel | QDialogButtonBox.Apply
         )
+        localize_dialog_buttons(btnbox)
         btnbox.accepted.connect(self._apply_and_close)
         btnbox.rejected.connect(self.reject)
         btnbox.button(QDialogButtonBox.Apply).clicked.connect(self._apply)

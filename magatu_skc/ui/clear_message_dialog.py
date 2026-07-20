@@ -14,6 +14,7 @@ from PyQt5.QtGui import QRegExpValidator
 from ..core import clear_message as CM
 from ..core.i18n import get_language, t
 from .dialog_geometry import restore_dialog_geometry, save_dialog_geometry
+from .dialog_buttons import localize_dialog_buttons
 
 
 def format_clear_message_error(error) -> str:
@@ -96,9 +97,7 @@ class ClearMessageDialog(QDialog):
         bb.accepted.connect(self._apply_and_close)
         bb.rejected.connect(self.reject)
         bb.button(QDialogButtonBox.Apply).clicked.connect(self._apply)
-        bb.button(QDialogButtonBox.Ok).setText(t("common.ok", "OK"))
-        bb.button(QDialogButtonBox.Cancel).setText(t("common.cancel", "キャンセル"))
-        bb.button(QDialogButtonBox.Apply).setText(t("common.apply", "適用"))
+        localize_dialog_buttons(bb)
         root.addWidget(bb)
         restore_dialog_geometry(self, self._app_config, "clear_message_dlg")
 
