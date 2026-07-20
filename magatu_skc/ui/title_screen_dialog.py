@@ -1,13 +1,7 @@
-"""タイトルグラフィック移植 (CHR bank3 取り込み) ダイアログ (R196)
+"""タイトル画面編集ダイアログ (R196)
 
-タイトルのロゴ/装飾絵は CHR bank3 (8KB) のタイル画像。本ダイアログは
-★CHR bank3 をまるごと別 ROM から取り込む (= タイトル画像差し替え)。
-  ・別ROMからタイトル画像を取り込む … 所有 ROM の CHR bank3 を複写
-  ・画像として保存 … 現 ROM の CHR bank3 を PNG/BMP 出力
-IPS でも CRC 一致要求でもない既知ブロックの単純コピー。CHR は両版
-同 offset ゆえ US↔JP どちらの向きでも同じ要領。配置/色 (PRG 側
-nametable/attribute/palette) は各版のまま = 将来拡張。
-Nintendo graphics もツールに埋め込まない (ユーザー所有 ROM のみ)。
+タイトルの配置、色区分、CHRタイル、文字、キャラクター、パレットを
+プレビューしながら編集する。上部ロゴ領域は画像として保存・読込できる。
 
 キャンセル時は開いた時点の ROM へ復元。
 """
@@ -25,7 +19,6 @@ from PyQt5.QtGui import (
 from ..core import title_screen as TS
 from ..core import clearscreen_hack
 from ..core import clear_message as CM
-from ..core import rom as _rommod
 from ..core.config import save_config
 from ..core.i18n import t
 from ..nes.palette import NES_COLORS
@@ -1084,15 +1077,10 @@ class TitleScreenDialog(QDialog):
         head = QLabel(
             t(
                 "title_screen_dialog.title_tab.info_html",
-                "別 ROM のタイトルを<b>移植</b>します: <b>配置(nametable)"
-                "+色区分(attribute)+絵(CHR bank3)</b> をピース単位で"
-                "コピー。<b>コードは一切改変しません</b>(各版の描画コードが"
-                "自分の位置のデータを読むため US↔JP どちらでも崩れません)。"
-                "<br><b>CRC 一致は不要</b>(既知ピースのコピー、IPSではない)。"
-                "JP/US 自動判定・双方向。下のプレビューは CHR(絵)を"
-                "グレー表示。<br><b>著作権配慮:</b> データはツールに含めず、"
-                "ご自分が所有する ROM 同士でのみ移植します。"
-                "<br>※色(パレット)は v1 では移植先のまま(配置・絵は移植)。",
+                "タイトル画面の<b>配置(nametable)・色区分(attribute)・"
+                "絵(CHR bank3)・文字・キャラクター・パレット</b>を編集します。"
+                "<br>下のプレビューではCHRタイルと色区分を確認でき、"
+                "上部ロゴ領域は画像として保存・読み込みできます。",
             ))
         head.setWordWrap(True)
         title_root.addWidget(head)
@@ -1213,16 +1201,6 @@ class TitleScreenDialog(QDialog):
         )
         b_png_top.clicked.connect(self._on_import_top_png)
         br.addWidget(b_png_top)
-        b_imp = QPushButton(t("title_screen_dialog.import_title.button", "別ROMからタイトルを移植..."))
-        b_imp.setToolTip(
-            t(
-                "title_screen_dialog.import_title.tooltip",
-                "所有する別 ROM (.nes/.zip) のタイトルを移植: 配置"
-                "(nametable)+色区分(attribute)+絵(CHR bank3) をピース単位"
-                "コピー。JP/US 自動判定・CRC不要・US↔JP両方向・コード非改変",
-            ))
-        b_imp.clicked.connect(self._on_transcode_title)
-        br.addWidget(b_imp)
         b_text = QPushButton(t("title_screen_dialog.text_edit.button", "文字編集..."))
         b_text.setToolTip(
             t(
@@ -4001,38 +3979,6 @@ class TitleScreenDialog(QDialog):
             app_config=self._app_config,
             config_key="title_source_rom_open",
         )
-
-    def _on_transcode_title(self):
-        self._cancel_palette_block_context()
-        path = self._pick_open(
-            "タイトルの移植元 ROM を選択 (所有 .nes/.zip)",
-            "*.nes;*.zip")
-        if not path:
-            return
-        try:
-            _name, data = _rommod.load_rom_data(path)
-            chg = TS.transcode_title(self._rom, bytearray(data))
-        except (TS.TitleScreenError, ValueError) as e:
-            QMessageBox.critical(
-                self,
-                t("title_screen.transcode.unavailable", "移植不可"),
-                str(e),
-            )
-            return
-        except Exception as e:
-            QMessageBox.critical(
-                self,
-                t("title_screen.transcode.failed", "移植失敗"),
-                f"{type(e).__name__}: {e}")
-            return
-        self._changed = True
-        self._refresh()
-        QMessageBox.information(
-            self,
-            t("title_screen.transcode.complete.title", "タイトル移植完了"),
-            "\n".join(chg)
-            + "\n\n"
-            + t("title_screen.transcode.complete.note", "(実機/エミュで要確認)"))
 
     def _on_pick_title_character(self):
         self._cancel_palette_block_context()

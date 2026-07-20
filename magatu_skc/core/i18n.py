@@ -1049,8 +1049,8 @@ _TRANSLATIONS = {
         "en": "Title Screen Editor",
     },
     "main.tools.title_screen.tooltip": {
-        "ja": "タイトル画面を編集/移植: 配置(nametable)+色区分(attribute)+絵(CHR bank3)をピース単位で扱います。コード非改変・JP/US自動判定・CRC不要・双方向。",
-        "en": "Edit or port the title screen: layout (nametable), color groups (attributes), and graphics (CHR bank3) are handled piece by piece. Code is not modified; JP/US is auto-detected; CRC is not required; changes are bidirectional.",
+        "ja": "タイトル画面の配置(nametable)・色区分(attribute)・絵(CHR bank3)・文字・キャラクター・パレットを編集します。",
+        "en": "Edit the title screen layout (nametable), color groups (attributes), graphics (CHR bank3), text, characters, and palette.",
     },
     "main.tools.pixel_editor": {
         "ja": "16x16ピクセル編集",
@@ -3155,10 +3155,6 @@ _TRANSLATIONS = {
         "ja": "読み込んだ画像は256x64より小さいため、まだROMへ適用していません。\nタイトルプレビュー上で貼り付け開始位置をクリックしてください。",
         "en": "The loaded image is smaller than 256x64, so it has not been applied to the ROM yet.\nClick the paste start position in the title preview.",
     },
-    "title_screen.transcode.unavailable": {"ja": "移植不可", "en": "Transcode Unavailable"},
-    "title_screen.transcode.failed": {"ja": "移植失敗", "en": "Transcode Failed"},
-    "title_screen.transcode.complete.title": {"ja": "タイトル移植完了", "en": "Title Transcode Complete"},
-    "title_screen.transcode.complete.note": {"ja": "(実機/エミュで要確認)", "en": "(Verify on real hardware/emulator)"},
     "title_screen.apply.title": {"ja": "適用", "en": "Apply"},
     "title_screen.apply.changed": {
         "ja": "変更は ROM に反映済みです (このまま編集を続けられます)。",
@@ -4455,18 +4451,12 @@ _TRANSLATIONS = {
     "title_screen_dialog.tab.clear_screen": {"ja": "クリア画面", "en": "Clear Screen"},
     "title_screen_dialog.title_tab.info_html": {
         "ja": (
-            "別 ROM のタイトルを<b>移植</b>します: <b>配置(nametable)+色区分(attribute)+絵(CHR bank3)</b> をピース単位で"
-            "コピー。<b>コードは一切改変しません</b>(各版の描画コードが自分の位置のデータを読むため US↔JP どちらでも崩れません)。"
-            "<br><b>CRC 一致は不要</b>(既知ピースのコピー、IPSではない)。JP/US 自動判定・双方向。下のプレビューは CHR(絵)を"
-            "グレー表示。<br><b>著作権配慮:</b> データはツールに含めず、ご自分が所有する ROM 同士でのみ移植します。"
-            "<br>※色(パレット)は v1 では移植先のまま(配置・絵は移植)。"
+            "タイトル画面の<b>配置(nametable)・色区分(attribute)・絵(CHR bank3)・文字・キャラクター・パレット</b>を編集します。"
+            "<br>下のプレビューではCHRタイルと色区分を確認でき、上部ロゴ領域は画像として保存・読み込みできます。"
         ),
         "en": (
-            "Imports a title screen from another ROM by copying <b>layout (nametable) + color regions (attribute) + graphics (CHR bank3)</b> as known pieces. "
-            "<b>No code is changed</b>, so each version keeps reading its own data locations and JP/US transfers stay intact."
-            "<br><b>No CRC match is required</b>; this is known-piece copying, not IPS patching. JP/US are auto-detected and both directions are supported. "
-            "The preview below shows CHR graphics in gray.<br><b>Copyright note:</b> the tool does not include this data; import only between ROMs you own."
-            "<br>Palette colors stay from the destination in v1; layout and graphics are imported."
+            "Edit the title screen <b>layout (nametable), color regions (attribute), graphics (CHR bank3), text, characters, and palette</b>."
+            "<br>The preview shows CHR tiles and color regions, and the upper logo area can be saved to or loaded from an image."
         ),
     },
     "title_screen_dialog.zoom.label": {"ja": "表示倍率:", "en": "Zoom:"},
@@ -4483,8 +4473,6 @@ _TRANSLATIONS = {
     "title_screen_dialog.save_top_png.tooltip": {"ja": "タイトル上部ロゴ領域だけを256x64/4階調PNGで保存", "en": "Saves only the upper title-logo area as a 256x64 four-color PNG."},
     "title_screen_dialog.load_top_png.button": {"ja": "Top PNG読み込み...", "en": "Load Top PNG..."},
     "title_screen_dialog.load_top_png.tooltip": {"ja": "上部ロゴ領域のPNG/BMP/JPEGを読み込みます。256x64を超える画像は縮小し、4色へ減色します。", "en": "Loads a PNG/BMP/JPEG for the upper logo area. Images larger than 256x64 are scaled down and reduced to four colors."},
-    "title_screen_dialog.import_title.button": {"ja": "別ROMからタイトルを移植...", "en": "Import Title from Another ROM..."},
-    "title_screen_dialog.import_title.tooltip": {"ja": "所有する別 ROM (.nes/.zip) のタイトルを移植: 配置(nametable)+色区分(attribute)+絵(CHR bank3) をピース単位コピー。JP/US 自動判定・CRC不要・US↔JP両方向・コード非改変", "en": "Imports the title from another ROM you own (.nes/.zip): copies layout (nametable), color regions (attribute), and graphics (CHR bank3) as pieces. JP/US auto-detected, no CRC required, both directions supported, code unchanged."},
     "title_screen_dialog.text_edit.button": {"ja": "文字編集...", "en": "Edit Text..."},
     "title_screen_dialog.text_edit.tooltip": {"ja": "タイトル中央付近の追加文字とPUSH START位置の固定文字を編集します。A-Z / 0-9 / スペース / , . \" が使えます。入力中にプレビューへ反映します。", "en": "Edits the added text near the center of the title and fixed text at the PUSH START position. A-Z / 0-9 / space / , . \" can be used. The preview updates while editing."},
     "title_screen_dialog.tile_place.button": {"ja": "タイル配置...", "en": "Tile Placement..."},

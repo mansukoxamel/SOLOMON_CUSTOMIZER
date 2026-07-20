@@ -1,17 +1,13 @@
-"""タイトル画面 抽出 / 差し替え (R196)
+"""タイトル画面の解析・編集 (R196)
 
 ソロモンの鍵のタイトル画面は単純なビットマップではなく
   ・CHR bank3 = ロゴ/バナーの 8x8 タイル絵 (8KB)
   ・$CBB3..$CEF1 ($C4xx) = 描画ルーチン + nametable + attribute + palette
 の組み合わせ (romhack "Title Screen v1-1" の README / 実 dump / R196)。
 
-★著作権方針 (ユーザー 2026-05-18):
-  Nintendo graphics も特定 romhack の中身も Solomon Customizer に
-  ハードコード/埋め込みしない。本モジュールがやるのは
-   (a) ユーザー所有 ROM から CHR bank3 を抽出 (プレビュー/画像保存)
-   (b) ユーザー所有 ROM 同士でタイトル領域を差し替え (JP↔US 等)
-   (c) ユーザーが持つ .ips の汎用適用 (core/ips.apply_ips_patch)
-  のみ。
+本モジュールは、読み込み時にmapper66 / wide-title内部形式へ正規化された
+タイトル画面のプレビュー、画像入出力、配置、色、文字、キャラクター編集を
+扱う。別ROMからタイトル領域を移植する機能は持たない。
 
 ★ROM 表現に依存しない設計:
   本アプリは読込時に通常 ROM(mapper3 65552) を拡張 ROM(mapper66
@@ -21,11 +17,9 @@
   iNES ヘッダから `16 + rom[4]*0x4000` で動的算出する
   (生 mapper3 → 0x8010 / 拡張 mapper66 → 0x10010)。
 
-CLAUDE.md 絶対則: 位置 + 署名 二重検証、両 ROM 一致時のみ差替許可、
-不一致は TitleScreenError で中止 (フォールバック禁止)。
+位置と署名を検証し、不一致は TitleScreenError で中止する。
 """
 from . import region as region_mod
-from . import ips as ips_mod
 from ..nes.tile import load_chr_tiles, NES_GFX_TILE_BYTE_SIZE
 
 # --- 領域定数 (clean iNES; file = 16B header 込み) ---
@@ -34,15 +28,9 @@ CHR_BANK_SIZE = 0x2000          # 8KB / bank
 TITLE_CHR_BANK = 3              # タイトル/ロゴが入る CHR bank
 TILES_PER_BANK = CHR_BANK_SIZE // NES_GFX_TILE_BYTE_SIZE  # 512
 
-# タイトル描画ルーチン/nametable/attribute/palette (CPU $CBB3..$CEF1)
-#   romhack "Title Screen v1-1" の PRG パッチ全域を内包する連続塊。
-#   テキスト微修正 ($9295/$95xx/$BExx) は「タイトル本体」ではないので
-#   差し替え単位には含めない (IPS 適用に委ねる)。
-TITLE_PRG_OFF = 0x4BC3          # = 0x10 + ($CBB3 - 0x8000)
+# タイトル解析で参照するPRG領域の終端 (CPU $CEF1)
 TITLE_PRG_END = 0x4F01          # = 0x10 + ($CEF1 - 0x8000) (排他)
-TITLE_PRG_LEN = TITLE_PRG_END - TITLE_PRG_OFF   # 830B
 TITLE_PALETTE_SCRIPT_OFF = 0x10 + (0x958A - 0x8000)
-TITLE_PALETTE_SCRIPT_OFF_US = 0x10 + (0x95F3 - 0x8000)
 TITLE_PALETTE_SCRIPT_LEN = 16
 
 SUPPORTED_REGIONS = ("JP", "US", "JP66", "US66")
@@ -138,48 +126,12 @@ def get_chr_bank3_tiles(rom_data) -> list:
     return load_chr_tiles(bytes(rom_data), off, TILES_PER_BANK)
 
 
-def import_chr_bank3(target_rom, source_rom) -> list:
-    """★タイトル画像移植 (本機能の主役): source の CHR bank3 を
-    target の CHR bank3 へ ★まるごとコピー (8KB)。
-
-    - IPS でも CRC 一致要求でもない。既知ブロックの単純コピー。
-      ROM 全体パッチではないので CRC は ★無関係 (要求しない)。
-    - CHR bank3 の file 位置は iNES ヘッダから動的算出
-      (通常 0xE010 / 本アプリ拡張ROM 0x16010)。CHR は PRG の後ろ
-      固定ゆえ JP/US 同 offset → US↔JP どちらの向きでも同じ要領。
-    - 安全確認は CRC でなく ★位置+署名 (両 ROM で _verify)。
-      非対応/破損は TitleScreenError で中止 (フォールバック禁止)。
-    - ★リージョン一致は要求しない (US→JP / JP→US 双方を許可。
-      画像=タイル絵だけの移植。配置/色は PRG 側=将来拡張)。
-
-    戻り値=変更説明リスト。
-    """
-    dst_region = _verify(target_rom)
-    src_region = _verify(source_rom)
-    dst_off = chr_bank3_offset(target_rom)
-    src_off = chr_bank3_offset(source_rom)
-    if src_off + CHR_BANK_SIZE > len(source_rom):
-        raise TitleScreenError("移植元 ROM の CHR bank3 が範囲外。中止。")
-    if dst_off + CHR_BANK_SIZE > len(target_rom):
-        raise TitleScreenError("移植先 ROM の CHR bank3 が範囲外。中止。")
-    block = bytes(source_rom[src_off:src_off + CHR_BANK_SIZE])
-    if bytes(target_rom[dst_off:dst_off + CHR_BANK_SIZE]) == block:
-        return [f"移植元({src_region})と CHR bank3 が同一 (変更なし)。"]
-    target_rom[dst_off:dst_off + CHR_BANK_SIZE] = block
-    return [
-        f"タイトル画像 CHR bank3 を {src_region} → {dst_region} へ移植 "
-        f"(dst 0x{dst_off:X} ← src 0x{src_off:X}, {CHR_BANK_SIZE}B)。"
-        " ※配置/色(PRG側)は各版のまま (将来拡張)。"]
-
-
 # ============================================================
-# タイトル画面トランスコード (R198 完全解明・三重裏取り)
+# 原作タイトル画面の解析 (R198 完全解明・三重裏取り)
 # ============================================================
 # タイトル= RLE 圧縮ピースの集合。デコーダ $CC4F(JP)/$CBA6(US) は
-# 同一エンジン → ★ピース単位 verbatim コピーで US↔JP 相互移植
-# (デコード/エンコード/コードコピー 不要、各版描画コードが自分の
-#  位置のデータを読む)。JP/US で nametable は ★長さ完全同一
-# (A155B/144w + B247B/233w = 連続402B)・内容のみ差ゆえ安全。
+# 同一エンジン。JP/US で nametable は長さが同一
+# (A155B/144w + B247B/233w = 連続402B)で、内容だけが異なる。
 #
 # clean 65552 file offset。nametable/attribute は PRG 領域
 # (<0x8010) ゆえ mapper66 拡張後も verbatim 保持で ★同 file offset。
@@ -188,8 +140,6 @@ _TITLE_PIECES = {
     "JP": {"nametable": (0x4E18, 402), "attribute": (0x4D68, 21)},
     "US": {"nametable": (0x4D6F, 402), "attribute": (0x4CBF, 21)},
 }
-# 補足: パレットは小片が散在 ($CDF5 等) し全特定が未完ゆえ v1 では
-# 移植対象外 (移植先の元パレットを使用=自己整合)。色精緻化は後日。
 
 
 def _decode_cc4f(rom, start):
@@ -698,7 +648,7 @@ def apply_title_stamp_cells(rom_data, patterns, start_row: int, start_col: int,
             rom_data[pos:pos + NES_GFX_TILE_BYTE_SIZE] = enc
             written += 1
 
-    len_a, len_b = _write_wide_title_streams_for_import(
+    len_a, len_b = _write_wide_title_streams(
         rom_data, grid_a, grid_b)
     free_set = {int(t) & 0xFF for t in WIDE_TITLE_FREE_STREAM_TILES}
     used_free = {
@@ -750,112 +700,6 @@ def apply_title_top_image_from_png(rom_data, cells) -> list:
         "Top PNG imported without JSON sidecar layout.",
         "PNG pixels are the source of truth; identical 8x8 tiles were shared.",
     ] + msgs
-
-
-def _stock_title_streams_for_import(rom_data):
-    """Return two stock title grids and the base region for JP/US sources."""
-    region = _verify(rom_data)
-    base = region_mod.base_region(region)
-    if base not in _TITLE_PIECES:
-        raise TitleScreenError(
-            f"stock title pieces are unavailable for region {base}.")
-    nt_off, nt_len = _TITLE_PIECES[base]["nametable"]
-    grids = []
-    p = nt_off
-    end_limit = nt_off + nt_len + 8
-    for _ in range(2):
-        writes, end = _decode_cc4f(bytes(rom_data), p)
-        grid = [None] * _NT_CELLS
-        for addr, tile in writes:
-            idx = addr & 0x3FF
-            if 0 <= idx < _NT_CELLS and tile != 0x24:
-                grid[idx] = tile
-        grids.append(grid)
-        if end <= p or end >= end_limit:
-            break
-        p = end
-    while len(grids) < 2:
-        grids.append([None] * _NT_CELLS)
-    return base, grids[0], grids[1]
-
-
-def _wide_title_streams_for_import(rom_data):
-    """Fallback for already-wide sources: one sparse stream plus an empty one."""
-    info = decode_title_grid(rom_data)
-    grid = [None if t == 0x24 else t for t in info["grid"]]
-    return grid, [None] * _NT_CELLS
-
-
-def _top_title_attr_table_for_import(source_rom, source_kind: str,
-                                     target_rom) -> bytes:
-    """Merge source title attributes only over the 256x64 top title band."""
-    if source_kind == "wide":
-        src_table = _wt_read_title_attr_table_or_default(source_rom)
-    else:
-        src_table = _wt_attr_table_default(source_rom)
-    src_attr = _expanded_attr_from_table(src_table)
-    dst_attr = _expanded_attr_from_table(
-        _wt_read_title_attr_table_or_default(target_rom))
-    br0 = _TITLE_TOP_ROW0 // 2
-    br1 = (_TITLE_TOP_ROW0 + _TITLE_TOP_ROWS - 1) // 2
-    for br in range(br0, br1 + 1):
-        for bc in range(_WT_TITLE_ATTR_BLOCK_W):
-            idx = br * _WT_TITLE_ATTR_BLOCK_W + bc
-            dst_attr[idx] = src_attr[idx]
-    return _pack_expanded_attr_table(dst_attr)
-
-
-def _read_title_palette_for_import(rom_data) -> list[int]:
-    """Read the 16 BG palette bytes used by the source title screen."""
-    region = _verify(rom_data)
-    base = region_mod.base_region(region)
-    candidates = []
-    if base == "JP":
-        candidates.append(TITLE_PALETTE_SCRIPT_OFF)
-    elif base == "US":
-        candidates.append(TITLE_PALETTE_SCRIPT_OFF_US)
-    start = 0
-    sig = bytes((0x3F, 0x00, 0x4F))
-    while True:
-        pos = bytes(rom_data).find(sig, start)
-        if pos < 0:
-            break
-        candidates.append(pos)
-        start = pos + 1
-    seen = set()
-    for off in candidates:
-        if off in seen:
-            continue
-        seen.add(off)
-        if off + 3 + TITLE_PALETTE_SCRIPT_LEN > len(rom_data):
-            continue
-        if bytes(rom_data[off:off + 3]) != sig:
-            continue
-        return [
-            int(rom_data[off + 3 + i]) & 0x3F
-            for i in range(TITLE_PALETTE_SCRIPT_LEN)
-        ]
-    raise TitleScreenError("source title palette script was not found.")
-
-
-def _write_title_palette_from_import(target_rom, colors) -> bool:
-    """Write the 16 imported title BG palette bytes into the JP target script."""
-    off = TITLE_PALETTE_SCRIPT_OFF
-    if off + 3 + TITLE_PALETTE_SCRIPT_LEN > len(target_rom):
-        raise TitleScreenError("target title palette script is outside ROM.")
-    if bytes(target_rom[off:off + 2]) != bytes((0x3F, 0x00)):
-        raise TitleScreenError("target title palette script signature mismatch.")
-    ctrl = int(target_rom[off + 2]) & 0xFF
-    if not (ctrl & 0x40) or (ctrl & 0x3F) + 1 < TITLE_PALETTE_SCRIPT_LEN:
-        raise TitleScreenError("target title palette script length is not 16 bytes.")
-    changed = False
-    for i, color in enumerate(colors[:TITLE_PALETTE_SCRIPT_LEN]):
-        val = int(color) & 0x3F
-        pos = off + 3 + i
-        if (int(target_rom[pos]) & 0x3F) != val:
-            target_rom[pos] = val
-            changed = True
-    return changed
 
 
 def _wt_title_oam_table_file() -> int:
@@ -937,7 +781,7 @@ def title_character_entry(x: int, y: int, tile1: int, tile2: int,
 
 def _write_title_oam_table_with_streams(rom_data, table: bytes) -> list:
     grid_a, grid_b = _wide_title_grids_for_edit(rom_data)
-    len_a, len_b = _write_wide_title_streams_for_import(
+    len_a, len_b = _write_wide_title_streams(
         rom_data, grid_a, grid_b, title_oam_table=table)
     active = sum(
         1 for i in range(_WT_TITLE_CHARACTER_MAX)
@@ -1033,7 +877,7 @@ def set_title_tile_cell(rom_data, row: int, col: int, stream_tile: int) -> list:
     cell = r * 32 + c
     grid_a[cell] = tile
     grid_b[cell] = None
-    len_a, len_b = _write_wide_title_streams_for_import(
+    len_a, len_b = _write_wide_title_streams(
         rom_data, grid_a, grid_b)
     return [
         f"title tile cell updated: x={c}, y={r}, stream ${tile:02X}",
@@ -1041,9 +885,9 @@ def set_title_tile_cell(rom_data, row: int, col: int, stream_tile: int) -> list:
     ]
 
 
-def _write_wide_title_streams_for_import(target_rom, grid_a, grid_b,
-                                         title_oam_table: bytes | bytearray | None = None,
-                                         title_attr_table: bytes | bytearray | None = None):
+def _write_wide_title_streams(target_rom, grid_a, grid_b,
+                              title_oam_table: bytes | bytearray | None = None,
+                              title_attr_table: bytes | bytearray | None = None):
     """Replace the bank1 streams of a JP wide-normalized title."""
     if not is_wide_normalized(target_rom):
         raise TitleScreenError(
@@ -1596,7 +1440,7 @@ def apply_title_top_layout(rom_data, meta: dict) -> list:
             grid_b[idx] = int(rec["b"]) & 0xFF
         restored += 1
 
-    len_a, len_b = _write_wide_title_streams_for_import(rom_data, grid_a, grid_b)
+    len_a, len_b = _write_wide_title_streams(rom_data, grid_a, grid_b)
     after = decode_title_grid(rom_data)
     return [
         f"title top layout sidecar applied: {restored} cells",
@@ -1646,167 +1490,12 @@ def add_title_text_line(rom_data, text: str, row: int = _TITLE_TEXT_ROW) -> list
     for x, ch in enumerate(line):
         grid_a[row0 + x] = _title_char_src_tile(ch)
 
-    len_a, len_b = _write_wide_title_streams_for_import(rom_data, grid_a, grid_b)
+    len_a, len_b = _write_wide_title_streams(rom_data, grid_a, grid_b)
     return [
         f"title text overlay added at row {row}: {raw!r}",
         f"bank1 streams rewritten: A={len_a}B / B={len_b}B",
         "CHR bank3 glyph data is untouched.",
     ]
-
-
-def transcode_title(target_rom, source_rom) -> list:
-    """Import a JP/US title into a JP mapper66 wide-normalized ROM.
-
-    Public builds do not bundle third-party IPS or ROM files. The user selects
-    a ROM they own, normally a clean US ROM when they want the US title.
-    """
-    dst_region = _verify(target_rom)
-    src_region = _verify(source_rom)
-    db = region_mod.base_region(dst_region)
-    sb = region_mod.base_region(src_region)
-    if db != "JP":
-        raise TitleScreenError(
-            f"title import target must be JP/JP66 (target={dst_region}).")
-    if sb not in _TITLE_PIECES:
-        raise TitleScreenError(
-            f"source title import supports JP/US only (source={src_region}).")
-
-    if is_wide_normalized(source_rom):
-        grid_a, grid_b = _wide_title_streams_for_import(source_rom)
-        source_kind = "wide"
-    else:
-        _base, grid_a, grid_b = _stock_title_streams_for_import(source_rom)
-        source_kind = "stock"
-
-    title_attr_table = _top_title_attr_table_for_import(
-        source_rom, source_kind, target_rom)
-    len_a, len_b = _write_wide_title_streams_for_import(
-        target_rom, grid_a, grid_b, title_attr_table=title_attr_table)
-
-    s_chr = chr_bank3_offset(source_rom)
-    d_chr = chr_bank3_offset(target_rom)
-    if s_chr + CHR_BANK_SIZE > len(source_rom) or \
-            d_chr + CHR_BANK_SIZE > len(target_rom):
-        raise TitleScreenError("CHR bank3 is outside the ROM range.")
-    target_rom[d_chr:d_chr + CHR_BANK_SIZE] = \
-        bytes(source_rom[s_chr:s_chr + CHR_BANK_SIZE])
-    palette = _read_title_palette_for_import(source_rom)
-    palette_changed = _write_title_palette_from_import(target_rom, palette)
-
-    after = decode_title_grid(target_rom)
-    msg = [
-        f"title imported: {src_region} {source_kind} -> {dst_region} wide",
-        f"bank1 streams: A={len_a}B / B={len_b}B, cells={after['cells']}",
-        f"CHR bank3 copied: 0x{s_chr:X} -> 0x{d_chr:X} ({CHR_BANK_SIZE}B)",
-        "title BG palette imported: "
-        + ("changed" if palette_changed else "already identical"),
-        "target remains mapper66 wide-title; bank0 Room Flag cave is untouched.",
-    ]
-    return msg
-
-
-def title_blocks(rom_data) -> list:
-    """差し替え単位の (file_off, length, 名称) リスト。検証付き。"""
-    _verify(rom_data)
-    return [
-        (chr_bank3_offset(rom_data), CHR_BANK_SIZE, "CHR bank3 (ロゴ絵)"),
-        (TITLE_PRG_OFF, TITLE_PRG_LEN, "描画/nametable/attr/palette"),
-    ]
-
-
-def snapshot(rom_data) -> dict:
-    """現在のタイトル領域バイトを退避 (「原作に戻す」用)。検証付き。"""
-    snap = {}
-    for off, ln, _name in title_blocks(rom_data):
-        snap[off] = bytes(rom_data[off:off + ln])
-    return snap
-
-
-def restore(rom_data, snap: dict) -> list:
-    """snapshot() で取った状態へ復元。戻り値=変更説明。"""
-    _verify(rom_data)
-    changed = []
-    for off, data in snap.items():
-        if bytes(rom_data[off:off + len(data)]) != data:
-            rom_data[off:off + len(data)] = data
-            changed.append(f"タイトル領域 0x{off:X} 復元")
-    return changed
-
-
-def copy_title_from(dst_rom, src_rom) -> list:
-    """別ユーザー所有 ROM(src) のタイトルを現在の ROM(dst) へ複写。
-
-    位置+署名を ★両 ROM で検証し、両方一致した時のみ複写。
-    不一致は TitleScreenError で中止 (CLAUDE.md 絶対則・フォールバック禁止)。
-    戻り値=変更説明リスト。
-    """
-    dst_region = _verify(dst_rom)   # 一致しなければここで例外
-    src_region = _verify(src_rom)
-    src_b3 = chr_bank3_offset(src_rom)
-    dst_b3 = chr_bank3_offset(dst_rom)
-    plan = [
-        (dst_b3, src_b3, CHR_BANK_SIZE, "CHR bank3 (ロゴ絵)"),
-        (TITLE_PRG_OFF, TITLE_PRG_OFF, TITLE_PRG_LEN,
-         "描画/nametable/attr/palette"),
-    ]
-    # 事前に src 範囲が収まるか最終確認 (verify 済だが二重に)
-    for _do, so, ln, _nm in plan:
-        if so + ln > len(src_rom):
-            raise TitleScreenError(
-                "差し替え元 ROM のタイトル領域が範囲外。中止。")
-    changed = []
-    for do, so, ln, nm in plan:
-        block = bytes(src_rom[so:so + ln])
-        if bytes(dst_rom[do:do + ln]) != block:
-            dst_rom[do:do + ln] = block
-            changed.append(
-                f"{nm} を {src_region} ROM から複写 "
-                f"(dst 0x{do:X} ← src 0x{so:X}, {ln}B)")
-    if not changed:
-        changed.append("タイトル領域は差し替え元と同一でした (変更なし)。")
-    return changed
-
-
-RAW_INES_SIZE = 65552           # clean mapper3 (16 + 32KB PRG + 32KB CHR)
-
-
-def patched_rom_from_ips(base_rom, ips_bytes: bytes) -> bytearray:
-    """★ユーザー所有の通常 ROM(base) に .ips を適用した bytes を返す。
-
-    ★重要 (R196): タイトル系 IPS は通常 ROM(mapper3 65552) 前提で
-    オフセットが書かれている。本アプリは読込時に拡張 ROM(mapper66
-    98320) へ自動変換しているため、IPS を現在の ROM に直接当てると
-    CHR レコードが別領域に着弾して ROM が壊れる。よって
-      (1) ユーザー所有の通常 ROM(base, 未拡張) に IPS を適用し
-      (2) その結果のタイトル領域だけを copy_title_from() で現 ROM へ
-    という二段で安全に取り込む。本関数は (1) を担う。
-
-    検証: base が通常 mapper3 (len 65552 / PRG32KB / CHR>=4bank) か、
-    適用後も Solomon 構造を保つか。崩れたら TitleScreenError で中止
-    (フォールバック禁止)。
-    """
-    base = bytes(base_rom)
-    if len(base) < 16 or base[:4] != INES_MAGIC:
-        raise TitleScreenError(
-            "原本 ROM が iNES ではありません。IPS 適用を中止。")
-    if len(base) != RAW_INES_SIZE or base[4] * 0x4000 != 0x8000:
-        raise TitleScreenError(
-            f"原本 ROM が通常 ROM(mapper3 {RAW_INES_SIZE}B) では"
-            f"ありません (len={len(base)})。タイトル系 IPS は通常 ROM "
-            "前提です。市販吸い出しの未改造 .nes を指定してください。")
-    # base 自体が Solomon JP/US 構造か (署名)
-    _verify(bytearray(base))
-    try:
-        patched = ips_mod.apply_ips_patch(base, ips_bytes)
-    except ips_mod.IpsError as e:
-        raise TitleScreenError(f"IPS 形式エラー: {e}")
-    if len(patched) != RAW_INES_SIZE:
-        raise TitleScreenError(
-            f"IPS 適用で ROM サイズが変化 ({RAW_INES_SIZE}→"
-            f"{len(patched)})。タイトル系 IPS では想定外ゆえ中止。")
-    # 適用後もタイトル領域が読める構造か (壊れ patch 防御)
-    _verify(patched)
-    return patched
 
 
 # ============================================================
@@ -2422,7 +2111,7 @@ def read_title_attribute_expanded(rom_data) -> list[int]:
 def set_title_attribute_expanded(rom_data, attr) -> list:
     grid_a, grid_b = _wide_title_grids_for_edit(rom_data)
     table = _pack_expanded_attr_table(attr)
-    len_a, len_b = _write_wide_title_streams_for_import(
+    len_a, len_b = _write_wide_title_streams(
         rom_data, grid_a, grid_b, title_attr_table=table)
     return [
         f"title attribute blocks updated: {_WT_TITLE_ATTR_BLOCK_COUNT}",
