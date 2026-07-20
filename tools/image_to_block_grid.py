@@ -403,6 +403,7 @@ UI_TEXT = {
         "error": "変換エラー",
         "saved": "保存しました: {png} / {json}",
         "no_result": "保存できる変換結果がありません。",
+        "apply": "現在のステージへ適用",
     },
     "en": {
         "title": "Image to 15x12 Block Grid",
@@ -433,6 +434,7 @@ UI_TEXT = {
         "error": "Conversion Error",
         "saved": "Saved: {png} / {json}",
         "no_result": "There is no converted result to save.",
+        "apply": "Apply to Current Stage",
     },
 }
 
@@ -459,7 +461,13 @@ def _pil_pixmap(image: Image.Image):
     return pixmap
 
 
-def _run_gui(args: argparse.Namespace) -> int:
+def _run_gui(
+    args: argparse.Namespace,
+    apply_callback=None,
+    parent=None,
+    run_event_loop: bool = True,
+    language: str | None = None,
+):
     from PyQt5.QtCore import QPointF, QRectF, Qt, QTimer
     from PyQt5.QtGui import QColor, QFont, QFontDatabase, QKeySequence, QPainter, QPen
     from PyQt5.QtWidgets import (
@@ -482,7 +490,8 @@ def _run_gui(args: argparse.Namespace) -> int:
         QWidget,
     )
 
-    text = UI_TEXT[_ui_language()]
+    language = language if language in UI_TEXT else _ui_language()
+    text = UI_TEXT[language]
 
     class DropPreview(QLabel):
         def __init__(self, on_drop, message: str):
@@ -711,7 +720,7 @@ def _run_gui(args: argparse.Namespace) -> int:
 
     class ConverterWindow(QMainWindow):
         def __init__(self):
-            super().__init__()
+            super().__init__(parent)
             self.source_path: Path | None = None
             self.source_image: Image.Image | None = None
             self.result_image: Image.Image | None = None
@@ -722,7 +731,6 @@ def _run_gui(args: argparse.Namespace) -> int:
 
             root = QWidget()
             root.setStyleSheet(
-                "QWidget { color: #202428; }"
                 "QPushButton, QComboBox { min-height: 26px; }"
                 "QGroupBox { font-weight: 600; }"
             )
@@ -743,6 +751,12 @@ def _run_gui(args: argparse.Namespace) -> int:
             self.save_button.clicked.connect(self.save_result)
             self.save_button.setEnabled(False)
             toolbar.addWidget(self.save_button)
+            if apply_callback is not None:
+                self.apply_button = QPushButton(text["apply"])
+                self.apply_button.setMinimumWidth(168)
+                self.apply_button.clicked.connect(self.apply_result)
+                self.apply_button.setEnabled(False)
+                toolbar.addWidget(self.apply_button)
             toolbar.addSpacing(12)
 
             toolbar.addWidget(QLabel(text["fit"]))
@@ -928,11 +942,20 @@ def _run_gui(args: argparse.Namespace) -> int:
             self.result_preview.setPixmap(_pil_pixmap(result_display))
             self.result_preview.setScaledContents(False)
             self.save_button.setEnabled(True)
+            if hasattr(self, "apply_button"):
+                self.apply_button.setEnabled(True)
             counts = {
                 TYPE_NAMES[kind]: sum(cell == kind for row in grid for cell in row)
                 for kind in TYPE_NAMES
             }
             self.status.setText(text["loaded"].format(**counts))
+
+        def apply_result(self):
+            if self.result_grid is None or self.source_path is None:
+                self.status.setText(text["no_result"])
+                return
+            if apply_callback([list(row) for row in self.result_grid], self.source_path):
+                self.close()
 
         def save_result(self):
             if self.result_image is None or self.result_grid is None or self.source_path is None:
@@ -957,8 +980,8 @@ def _run_gui(args: argparse.Namespace) -> int:
             _write_json(json_path, self.source_path, self.result_grid, self.current_args())
             self.status.setText(text["saved"].format(png=png_path, json=json_path))
 
-    app = QApplication.instance() or QApplication([])
-    language = _ui_language()
+    existing_app = QApplication.instance()
+    app = existing_app or QApplication([])
     if not QFontDatabase().families() and os.name == "nt":
         for font_path in (
             Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts" / "meiryo.ttc",
@@ -966,7 +989,8 @@ def _run_gui(args: argparse.Namespace) -> int:
         ):
             if font_path.is_file():
                 QFontDatabase.addApplicationFont(str(font_path))
-    app.setFont(QFont("Meiryo UI" if language == "ja" else "Segoe UI", 10))
+    if existing_app is None:
+        app.setFont(QFont("Meiryo UI" if language == "ja" else "Segoe UI", 10))
     window = ConverterWindow()
     if args.input is not None:
         window.load_image(args.input)
@@ -980,7 +1004,22 @@ def _run_gui(args: argparse.Namespace) -> int:
             app.quit()
 
         QTimer.singleShot(300, finish_smoke_test)
+    if not run_event_loop:
+        return window
     return app.exec_()
+
+
+def open_converter_window(input_path=None, apply_callback=None, parent=None, language=None):
+    """Open the converter inside an existing Qt application without a subprocess."""
+    args = _build_parser().parse_args(["--gui"])
+    args.input = Path(input_path) if input_path else None
+    return _run_gui(
+        args,
+        apply_callback=apply_callback,
+        parent=parent,
+        run_event_loop=False,
+        language=language,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

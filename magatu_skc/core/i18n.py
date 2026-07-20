@@ -1084,6 +1084,14 @@ _TRANSLATIONS = {
         "ja": "指定したブロック、アイテム、モンスターを同じ種別内で一括置換。選択範囲、現在ステージ、全ステージを対象にできます。",
         "en": "Batch-replace specified blocks, items, or monsters within the same category. Scope can be the selection, current stage, or all stages.",
     },
+    "main.tools.image_block_grid": {
+        "ja": "画像からブロック配置…",
+        "en": "Place Blocks from Image…",
+    },
+    "main.tools.image_block_grid.tooltip": {
+        "ja": "画像を15×12の空気・茶壁・白壁・ひび壁へ変換し、現在のステージへ配置します。",
+        "en": "Convert an image into a 15x12 grid of air, brown, white, and cracked blocks and apply it to the current stage.",
+    },
     "main.stage.group": {
         "ja": "ステージ設定",
         "en": "Stage Settings",
@@ -1830,6 +1838,10 @@ _TRANSLATIONS = {
     "main.undo_history.action.stage_png_load": {
         "ja": "ステージPNG読込",
         "en": "Load stage PNG",
+    },
+    "main.undo_history.action.image_block_grid": {
+        "ja": "画像からブロック配置",
+        "en": "Place blocks from image",
     },
     "main.undo_history.action.clear_level": {
         "ja": "ステージクリア",
@@ -2849,6 +2861,22 @@ _TRANSLATIONS = {
     "main.stage_png.error.no_data": {
         "ja": "このPNGにはステージデータが埋め込まれていません",
         "en": "This PNG does not contain embedded stage data.",
+    },
+    "main.stage_png.error.invalid_embedded_data": {
+        "ja": "埋め込みステージデータが壊れているため、通常画像としては扱いません。",
+        "en": "The embedded stage data is invalid, so this PNG will not be treated as an ordinary image.",
+    },
+    "main.image_block_grid.invalid.title": {
+        "ja": "画像変換エラー",
+        "en": "Image Conversion Error",
+    },
+    "main.image_block_grid.invalid.grid": {
+        "ja": "変換結果が15×12の4種類グリッドではありません。",
+        "en": "The converted result is not a 15x12 four-type grid.",
+    },
+    "main.image_block_grid.applied": {
+        "ja": "画像から15×12へブロック配置しました（16列目は保持）: {name}",
+        "en": "Placed a 15x12 block grid from the image (column 16 preserved): {name}",
     },
     "main.stage_png.error.wrong_root": {
         "ja": "このPNGはSOLOMON_CUSTOMIZERのステージPNGではありません",
