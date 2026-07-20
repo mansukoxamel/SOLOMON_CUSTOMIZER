@@ -399,6 +399,54 @@ class LegacyRomMigrationOfferTests(unittest.TestCase):
             )
         )
 
+    def test_migration_autosaves_then_reloads_through_workstate_path(self):
+        calls = []
+
+        class FakeWindow:
+            def __init__(self):
+                self.rom = SimpleNamespace(display_name="base.nes")
+                self._loaded_source_path = "base.nes"
+
+            def _autosave_workstate(self):
+                calls.append(
+                    (
+                        "save",
+                        self.rom.display_name,
+                        self._loaded_source_path,
+                    )
+                )
+                return "autosave/workstate/workstate_test.nes"
+
+            def _load_autosave_workstate(self, path, add_history=True):
+                calls.append(("load", path, add_history))
+                return True
+
+        window = FakeWindow()
+        result = MainWindow._autosave_and_reload_migrated_workstate(
+            window,
+            {
+                "source_name": "legacy_custom.nes",
+                "source_path": "legacy/legacy_custom.nes",
+            },
+        )
+
+        self.assertEqual(result, "autosave/workstate/workstate_test.nes")
+        self.assertEqual(
+            calls,
+            [
+                (
+                    "save",
+                    "legacy_custom.nes",
+                    "legacy/legacy_custom.nes",
+                ),
+                (
+                    "load",
+                    "autosave/workstate/workstate_test.nes",
+                    False,
+                ),
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

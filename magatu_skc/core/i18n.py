@@ -2871,13 +2871,27 @@ _TRANSLATIONS = {
         "ja": "データ移行完了",
         "en": "Data Migration Complete",
     },
+    "main.migration.checkpoint_failed.title": {
+        "ja": "移行後の再読込失敗",
+        "en": "Post-Migration Reload Failed",
+    },
+    "main.migration.checkpoint_failed.body": {
+        "ja": (
+            "データ移行後の作業状態を自動保存して再読込できませんでした。\n"
+            "移行元ROMは変更していません。\n\n{error}"
+        ),
+        "en": (
+            "The migrated work state could not be autosaved and reloaded.\n"
+            "The source ROM was not modified.\n\n{error}"
+        ),
+    },
     "main.migration.complete.body": {
         "ja": (
             "{source_name} から {count}/{total} ステージを移行しました。\n"
             "現在のアプリが認識した設定グループ: {recognized}\n"
             "認識できず現行既定値になった設定グループ: {defaulted}\n"
             "移行元ROMは変更していません。\n"
-            "移行後のROMはまだ保存されていません。必要ならROM保存してください。"
+            "移行後の作業状態を自動保存し、その保存データを再読込しました。"
             "{warning_text}"
         ),
         "en": (
@@ -2885,7 +2899,7 @@ _TRANSLATIONS = {
             "Setting groups recognized by the current app: {recognized}\n"
             "Unrecognized setting groups left at current defaults: {defaulted}\n"
             "The source ROM was not modified.\n"
-            "The migrated ROM has not been saved yet. Save the ROM if needed."
+            "The migrated work state was autosaved and reloaded."
             "{warning_text}"
         ),
     },

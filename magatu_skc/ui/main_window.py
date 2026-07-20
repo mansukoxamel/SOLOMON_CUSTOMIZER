@@ -3905,6 +3905,19 @@ class MainWindow(QMainWindow):
             "source_name",
             t("main.migration.default_source_name", "編集不可ROM"),
         )
+        try:
+            autosave_path = self._autosave_and_reload_migrated_workstate(payload)
+        except Exception as exc:
+            QMessageBox.critical(
+                self,
+                t("main.migration.checkpoint_failed.title", "移行後の再読込失敗"),
+                t(
+                    "main.migration.checkpoint_failed.body",
+                    "データ移行後の作業状態を自動保存して再読込できませんでした。\n"
+                    "移行元ROMは変更していません。\n\n{error}",
+                ).format(error=f"{type(exc).__name__}: {exc}"),
+            )
+            return
         warning_text = ""
         if warnings:
             preview = "\n".join(warnings[:5])
@@ -3925,7 +3938,7 @@ class MainWindow(QMainWindow):
                 "現在のアプリが認識した設定グループ: {recognized}\n"
                 "認識できず現行既定値になった設定グループ: {defaulted}\n"
                 "移行元ROMは変更していません。\n"
-                "移行後のROMはまだ保存されていません。必要ならROM保存してください。"
+                "移行後の作業状態を自動保存し、その保存データを再読込しました。"
                 "{warning_text}",
             ).format(
                 source_name=source_name,
@@ -3945,11 +3958,29 @@ class MainWindow(QMainWindow):
         )
         self._log(
             f"データ移行: {source_name} -> {base_path} / "
+            f"自動保存再読込={autosave_path} / "
             f"{count}/{len(self.levels)}ステージ / "
             f"認識設定{summary['recognized_setting_groups']} / "
             f"既定値設定{summary['defaulted_setting_groups']} / "
             f"警告{len(warnings)}件"
         )
+
+    def _autosave_and_reload_migrated_workstate(self, payload: dict) -> str:
+        source_name = str(payload.get("source_name", "") or "")
+        source_path = str(payload.get("source_path", "") or "")
+        if self.rom is not None and source_name:
+            self.rom.display_name = source_name
+        if source_path:
+            self._loaded_source_path = source_path
+
+        autosave_path = self._autosave_workstate()
+        if not autosave_path:
+            raise RuntimeError("migration work-state autosave returned no path")
+        if not self._load_autosave_workstate(autosave_path, add_history=False):
+            raise RuntimeError(
+                f"could not reload migration work state: {autosave_path}"
+            )
+        return autosave_path
 
     def load_rom(
         self,
