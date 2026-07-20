@@ -3019,7 +3019,7 @@ class HackDialog(QDialog):
         self._save_geometry()
         super().done(r)
 
-    def _apply_changes(self) -> bool:
+    def _apply_changes(self, show_result: bool = True) -> bool:
         """各値を rom.data に書き込み"""
         if self.rom is None or self.rom.data is None:
             return False
@@ -3464,7 +3464,7 @@ class HackDialog(QDialog):
                     pass
                 applied.append(t("hack_dialog.setting.panel_variant", "パネルモンスター A/B/C/D共通値"))
 
-        if applied:
+        if applied and show_result:
             QMessageBox.information(
                 self,
                 t("hack_dialog.apply.complete.title", "適用完了"),
@@ -3472,7 +3472,7 @@ class HackDialog(QDialog):
                 + "\n".join(t("common.bullet_item", "・{item}").format(item=a) for a in applied)
                 + t("hack_dialog.apply.complete.footer", "\n\n※ 改造ROMとして保存しないと永続化されません。")
             )
-        else:
+        elif show_result:
             QMessageBox.information(
                 self,
                 t("hack_dialog.apply.no_changes.title", "変更なし"),

@@ -1647,6 +1647,27 @@ _TRANSLATIONS = {
             "Close without autosaving?"
         ),
     },
+    "main.autosave.failed.migration_offer": {
+        "ja": (
+            "旧runtime形式が原因の可能性があります。\n"
+            "データ移行を選ぶと終了を中止し、現在認識できているステージや設定を"
+            "現行形式のROMへ移します。移行元ROMは変更しません。"
+        ),
+        "en": (
+            "An older runtime layout may be the cause.\n"
+            "Choose Data Migration to cancel closing and move the stages and settings "
+            "currently recognized by this app into a current-format ROM. "
+            "The source ROM will not be modified."
+        ),
+    },
+    "main.autosave.failed.migrate": {
+        "ja": "データ移行…",
+        "en": "Data Migration...",
+    },
+    "main.autosave.failed.exit_without_save": {
+        "ja": "保存せず終了",
+        "en": "Close Without Saving",
+    },
     "main.replace.scope.selection": {
         "ja": "選択範囲",
         "en": "Selection",
@@ -2749,8 +2770,8 @@ _TRANSLATIONS = {
         "en": "Could not prepare the source data.\n{error}",
     },
     "main.migration.error.source_state": {
-        "ja": "データ移行は編集不可ROMを読み込んだ状態で実行してください。",
-        "en": "Run data migration after loading a non-editable ROM.",
+        "ja": "データ移行を開始できる移行元ROMが読み込まれていません。",
+        "en": "No source ROM eligible for data migration is loaded.",
     },
     "main.migration.error.target_not_ready": {
         "ja": "移行先の編集可能ROMを準備できませんでした。",
@@ -2764,9 +2785,53 @@ _TRANSLATIONS = {
         "ja": "51面ボーナススポットを移行できませんでした ({error_type})",
         "en": "Could not migrate the stage 51 bonus spot ({error_type})",
     },
+    "main.migration.warning.global_capture_failed": {
+        "ja": "共通設定を読み取れませんでした ({error_type})",
+        "en": "Could not read global settings ({error_type})",
+    },
+    "main.migration.warning.title_capture_failed": {
+        "ja": "タイトル編集データを読み取れませんでした ({error_type})",
+        "en": "Could not read title editing data ({error_type})",
+    },
+    "main.migration.warning.chr_capture_failed": {
+        "ja": "CHR画像データを読み取れませんでした ({error_type})",
+        "en": "Could not read CHR graphics data ({error_type})",
+    },
+    "main.migration.warning.chr_apply_failed": {
+        "ja": "CHR画像データを移行できませんでした ({error_type}: {error})",
+        "en": "Could not migrate CHR graphics data ({error_type}: {error})",
+    },
+    "main.migration.warning.global_apply_incomplete": {
+        "ja": "共通設定の一部は現行runtimeへ反映できませんでした。",
+        "en": "Some global settings could not be applied to the current runtime.",
+    },
+    "main.migration.warning.global_apply_failed": {
+        "ja": "共通設定を現行形式へ反映できませんでした ({error_type})",
+        "en": "Could not apply global settings to the current format ({error_type})",
+    },
+    "main.migration.warning.title_apply_failed": {
+        "ja": "タイトル編集データを移行できませんでした ({error_type}: {error})",
+        "en": "Could not migrate title editing data ({error_type}: {error})",
+    },
+    "main.migration.save_error.offer": {
+        "ja": (
+            "このROMは旧runtime形式の可能性があります。データ移行を使うと、"
+            "現在認識できているステージや設定を現行形式のROMへ移せます。"
+            "元のROMは変更しません。"
+        ),
+        "en": (
+            "This ROM may use an older runtime layout. Data Migration can move the "
+            "stages and settings currently recognized by this app into a current-format ROM. "
+            "The source ROM will not be modified."
+        ),
+    },
+    "main.migration.save_error.action": {
+        "ja": "データ移行…",
+        "en": "Data Migration...",
+    },
     "main.migration.target_dialog.title": {
-        "ja": "移行先の編集可能ROMを選択",
-        "en": "Select Editable Target ROM",
+        "ja": "原作のオリジナルROMを選択してください",
+        "en": "Select an Original Game ROM",
     },
     "main.migration.target_read_failed": {
         "ja": "移行先ROMを読み込めませんでした。\n{error}",
@@ -2799,8 +2864,8 @@ _TRANSLATIONS = {
         "en": "...and {count} more",
     },
     "main.migration.warning_header": {
-        "ja": "\n\n一部補助情報は移行できませんでした:\n",
-        "en": "\n\nSome auxiliary data could not be migrated:\n",
+        "ja": "\n\n一部データは移行できませんでした:\n",
+        "en": "\n\nSome data could not be migrated:\n",
     },
     "main.migration.complete.title": {
         "ja": "データ移行完了",
@@ -2809,11 +2874,17 @@ _TRANSLATIONS = {
     "main.migration.complete.body": {
         "ja": (
             "{source_name} から {count}/{total} ステージを移行しました。\n"
+            "現在のアプリが認識した設定グループ: {recognized}\n"
+            "認識できず現行既定値になった設定グループ: {defaulted}\n"
+            "移行元ROMは変更していません。\n"
             "移行後のROMはまだ保存されていません。必要ならROM保存してください。"
             "{warning_text}"
         ),
         "en": (
             "Migrated {count}/{total} stages from {source_name}.\n"
+            "Setting groups recognized by the current app: {recognized}\n"
+            "Unrecognized setting groups left at current defaults: {defaulted}\n"
+            "The source ROM was not modified.\n"
             "The migrated ROM has not been saved yet. Save the ROM if needed."
             "{warning_text}"
         ),

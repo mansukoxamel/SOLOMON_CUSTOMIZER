@@ -3441,12 +3441,19 @@ class MainWindow(QMainWindow):
             return True
         return False
 
-    def _capture_readonly_migration_payload(self) -> dict:
-        if not self.rom or not self.levels or not self._is_read_only():
+    def _capture_readonly_migration_payload(
+        self,
+        allow_editable_source: bool = False,
+    ) -> dict:
+        if (
+            not self.rom
+            or not self.levels
+            or (not self._is_read_only() and not allow_editable_source)
+        ):
             raise ValueError(
                 t(
                     "main.migration.error.source_state",
-                    "データ移行は編集不可ROMを読み込んだ状態で実行してください。",
+                    "データ移行を開始できる移行元ROMが読み込まれていません。",
                 )
             )
         if self.rom.is_expanded():
@@ -3461,11 +3468,128 @@ class MainWindow(QMainWindow):
             "conditional_breakable_positions": {},
             "bomb_jack_positions": {},
             "bonus_positions": copy.deepcopy(getattr(self, "_bonus_positions", []) or []),
+            "capture_warnings": [],
         }
         for level_no in range(len(self.levels)):
             payload["level_meta_positions"][level_no] = self._collect_stage_level_meta_positions(level_no)
             payload["conditional_breakable_positions"][level_no] = self._collect_stage_conditional_breakable_positions(level_no)
             payload["bomb_jack_positions"][level_no] = self._collect_stage_bomb_jack_positions(level_no)
+
+        try:
+            from .hack_dialog import HackDialog
+
+            source_config = copy.deepcopy(self._app_config)
+            dlg = HackDialog(
+                self.rom,
+                parent=self,
+                app_config=source_config,
+                initial_level_no=self.current_level_no,
+                tile_renderer=self.tile_renderer,
+                config=self.config,
+                levels=self.levels,
+            )
+            try:
+                global_payload = dlg._collect_global_settings()
+                payload["global_settings"] = copy.deepcopy(
+                    global_payload.get("settings", {})
+                )
+                payload["global_supported"] = copy.deepcopy(
+                    global_payload.get("supported", {})
+                )
+            finally:
+                dlg.deleteLater()
+        except Exception as exc:
+            payload["capture_warnings"].append(
+                t(
+                    "main.migration.warning.global_capture_failed",
+                    "共通設定を読み取れませんでした ({error_type})",
+                ).format(error_type=type(exc).__name__)
+            )
+
+        from ..core import saver as saver_core
+        from ..core import title_screen
+
+        if allow_editable_source and self.rom.has_customizer_metadata():
+            try:
+                grid_a, grid_b = title_screen._wide_title_grids_for_edit(
+                    self.rom.data
+                )
+                payload["title_wide_state"] = {
+                    "grid_a": list(grid_a),
+                    "grid_b": list(grid_b),
+                    "oam_table": bytes(
+                        title_screen._wt_read_title_oam_table_or_default(
+                            self.rom.data
+                        )
+                    ),
+                    "attributes": list(
+                        title_screen.read_title_attribute_expanded(self.rom.data)
+                    ),
+                    "ending_messages": list(
+                        row[1]
+                        for row in title_screen.read_ending_text_messages(
+                            self.rom.data
+                        )
+                    ),
+                }
+                palette_off = 0x10 + (0x958A - 0x8000)
+                palette_end = palette_off + 3 + 16
+                if (
+                    palette_end <= len(self.rom.data)
+                    and bytes(self.rom.data[palette_off:palette_off + 2])
+                    == bytes((0x3F, 0x00))
+                    and self.rom.data[palette_off + 2] & 0x40
+                ):
+                    payload["title_wide_state"]["palette"] = bytes(
+                        self.rom.data[palette_off + 3:palette_end]
+                    )
+            except Exception as exc:
+                payload["capture_warnings"].append(
+                    t(
+                        "main.migration.warning.title_capture_failed",
+                        "タイトル編集データを読み取れませんでした ({error_type})",
+                    ).format(error_type=type(exc).__name__)
+                )
+
+        try:
+            title_text = title_screen.read_title_text_line(self.rom.data)
+            if title_text and not saver_core.is_auto_build_title_text(title_text):
+                payload["title_extra_text"] = title_text
+            payload["title_push_start_text"] = title_screen.read_title_push_start_text(
+                self.rom.data
+            )
+        except Exception as exc:
+            payload["capture_warnings"].append(
+                t(
+                    "main.migration.warning.title_capture_failed",
+                    "タイトル編集データを読み取れませんでした ({error_type})",
+                ).format(error_type=type(exc).__name__)
+            )
+
+        if allow_editable_source and self.rom.has_customizer_metadata():
+            try:
+                rom_data = self.rom.data
+                trainer_size = 512 if rom_data[6] & 0x04 else 0
+                chr_start = 16 + trainer_size + int(rom_data[4]) * 16384
+                chr_size = int(rom_data[5]) * 8192
+                chr_end = chr_start + chr_size
+                if chr_size > 0 and chr_end <= len(rom_data):
+                    payload["chr_data"] = bytes(rom_data[chr_start:chr_end])
+            except Exception as exc:
+                payload["capture_warnings"].append(
+                    t(
+                        "main.migration.warning.chr_capture_failed",
+                        "CHR画像データを読み取れませんでした ({error_type})",
+                    ).format(error_type=type(exc).__name__)
+                )
+
+        try:
+            from ..core import rom_metadata
+
+            metadata = rom_metadata.read_metadata(bytes(self.rom.data)) or {}
+            payload["source_app_version"] = str(metadata.get("version", "") or "")
+        except Exception:
+            payload["source_app_version"] = ""
         return payload
 
     def _sidecar_root_for_migration(self, level, meta_positions, conditional_positions, bomb_jack_positions):
@@ -3477,7 +3601,10 @@ class MainWindow(QMainWindow):
             bomb_jack_positions=bomb_jack_positions,
         ))
 
-    def _apply_readonly_migration_payload(self, payload: dict) -> tuple[int, list[str]]:
+    def _apply_readonly_migration_payload(
+        self,
+        payload: dict,
+    ) -> tuple[int, list[str], dict]:
         if not self.rom or not self.levels or self._is_read_only():
             raise ValueError(
                 t(
@@ -3487,7 +3614,7 @@ class MainWindow(QMainWindow):
             )
         source_levels = payload.get("levels") or []
         count = min(len(self.levels), len(source_levels))
-        warnings = []
+        warnings = list(payload.get("capture_warnings") or [])
         for level_no in range(count):
             self.levels[level_no] = copy.deepcopy(source_levels[level_no])
         for level_no in range(count):
@@ -3522,17 +3649,176 @@ class MainWindow(QMainWindow):
                         "51面ボーナススポットを移行できませんでした ({error_type})",
                     ).format(error_type=type(exc).__name__)
                 )
+
+        # Build the clean target into the current runtime layout before applying
+        # settings. Some legacy-visible values share bytes with old hook sites;
+        # writing those values first would make the current runtime installer
+        # correctly reject the half-old/half-new layout.
+        canonical_data = saver.build_saved_rom_data(
+            self.rom,
+            self.levels,
+            self._panel_variant_settings_for_save(),
+            self._loaded_title_text_line,
+        )
+        self.rom.data = bytearray(canonical_data)
+        self.rom._crc32 = None
+        self._loaded_title_text_line = self._read_current_title_text_line(
+            bytes(self.rom.data)
+        )
+
+        global_settings = payload.get("global_settings")
+        if isinstance(global_settings, dict):
+            global_rom_before = bytes(self.rom.data)
+            global_config_before = copy.deepcopy(self._app_config)
+            meta_before = [
+                (
+                    item,
+                    tuple(getattr(item, "position", (0, 0))),
+                    int(getattr(item, "level_no", -1)),
+                )
+                for item in (getattr(self.config, "level_meta_items", []) or [])
+            ] if self.config is not None else []
+            try:
+                from .hack_dialog import HackDialog
+
+                dlg = HackDialog(
+                    self.rom,
+                    parent=self,
+                    app_config=self._app_config,
+                    initial_level_no=self.current_level_no,
+                    tile_renderer=self.tile_renderer,
+                    config=self.config,
+                    levels=self.levels,
+                )
+                try:
+                    dlg._apply_imported_global_settings_transaction(global_settings)
+                    applied = dlg._apply_changes(show_result=False)
+                    if applied is None:
+                        self.rom.data[:] = global_rom_before
+                        self._app_config.clear()
+                        self._app_config.update(global_config_before)
+                        for item, position, level_no in meta_before:
+                            item.position = position
+                            item.level_no = level_no
+                        warnings.append(
+                            t(
+                                "main.migration.warning.global_apply_incomplete",
+                                "共通設定の一部は現行runtimeへ反映できませんでした。",
+                            )
+                        )
+                finally:
+                    dlg.deleteLater()
+            except Exception as exc:
+                self.rom.data[:] = global_rom_before
+                self._app_config.clear()
+                self._app_config.update(global_config_before)
+                for item, position, level_no in meta_before:
+                    item.position = position
+                    item.level_no = level_no
+                warnings.append(
+                    t(
+                        "main.migration.warning.global_apply_failed",
+                        "共通設定を現行形式へ反映できませんでした ({error_type})",
+                    ).format(error_type=type(exc).__name__)
+                )
+
+        title_state = payload.get("title_wide_state")
+        if isinstance(title_state, dict):
+            try:
+                from ..core import title_screen
+
+                attributes = title_state.get("attributes") or []
+                title_screen._write_wide_title_streams(
+                    self.rom.data,
+                    list(title_state.get("grid_a") or []),
+                    list(title_state.get("grid_b") or []),
+                    title_oam_table=title_state.get("oam_table"),
+                    title_attr_table=title_screen._pack_expanded_attr_table(attributes),
+                )
+                ending_messages = title_state.get("ending_messages")
+                if isinstance(ending_messages, list):
+                    title_screen.write_ending_text_messages(
+                        self.rom.data,
+                        ending_messages,
+                    )
+                title_palette = title_state.get("palette")
+                if isinstance(title_palette, (bytes, bytearray)):
+                    palette_off = 0x10 + (0x958A - 0x8000)
+                    palette_end = palette_off + 3 + 16
+                    if (
+                        len(title_palette) != 16
+                        or palette_end > len(self.rom.data)
+                        or bytes(self.rom.data[palette_off:palette_off + 2])
+                        != bytes((0x3F, 0x00))
+                    ):
+                        raise ValueError("target title palette script does not match")
+                    self.rom.data[palette_off + 3:palette_end] = title_palette
+            except Exception as exc:
+                warnings.append(
+                    t(
+                        "main.migration.warning.title_apply_failed",
+                        "タイトル編集データを移行できませんでした ({error_type}: {error})",
+                    ).format(error_type=type(exc).__name__, error=str(exc))
+                )
+
+        chr_data = payload.get("chr_data")
+        if isinstance(chr_data, (bytes, bytearray)):
+            try:
+                trainer_size = 512 if self.rom.data[6] & 0x04 else 0
+                chr_start = 16 + trainer_size + int(self.rom.data[4]) * 16384
+                chr_size = int(self.rom.data[5]) * 8192
+                if len(chr_data) != chr_size or chr_start + chr_size > len(self.rom.data):
+                    raise ValueError("source and target CHR sizes do not match")
+                self.rom.data[chr_start:chr_start + chr_size] = chr_data
+            except Exception as exc:
+                warnings.append(
+                    t(
+                        "main.migration.warning.chr_apply_failed",
+                        "CHR画像データを移行できませんでした ({error_type}: {error})",
+                    ).format(error_type=type(exc).__name__, error=str(exc))
+                )
+
+        try:
+            from ..core import title_screen
+
+            if "title_extra_text" in payload:
+                title_screen.add_title_text_line(
+                    self.rom.data,
+                    str(payload.get("title_extra_text") or ""),
+                )
+            if "title_push_start_text" in payload:
+                title_screen.set_title_push_start_text(
+                    self.rom.data,
+                    str(payload.get("title_push_start_text") or ""),
+                )
+        except Exception as exc:
+            warnings.append(
+                t(
+                    "main.migration.warning.title_apply_failed",
+                    "タイトル編集データを移行できませんでした ({error_type}: {error})",
+                ).format(error_type=type(exc).__name__, error=str(exc))
+            )
+
+        supported = payload.get("global_supported") or {}
+        summary = {
+            "recognized_setting_groups": sum(
+                1 for value in supported.values() if bool(value)
+            ),
+            "defaulted_setting_groups": sum(
+                1 for value in supported.values() if not bool(value)
+            ),
+        }
         self._sync_mirror_panel()
         self._refresh_view()
         self._generate_all_thumbnails()
         self._clear_undo_history()
         self._set_dirty(True)
-        return count, warnings
+        return count, warnings, summary
 
-    def _on_readonly_data_migration(self):
+    def _on_readonly_data_migration(self, allow_editable_source: bool = False):
         if not self.rom or not self.levels:
             return
-        if not self._is_read_only():
+        if not self._is_read_only() and not allow_editable_source:
             self.statusBar().showMessage(
                 t(
                     "main.migration.unavailable.status",
@@ -3542,7 +3828,9 @@ class MainWindow(QMainWindow):
             )
             return
         try:
-            payload = self._capture_readonly_migration_payload()
+            payload = self._capture_readonly_migration_payload(
+                allow_editable_source=allow_editable_source
+            )
         except Exception as exc:
             QMessageBox.warning(
                 self,
@@ -3556,7 +3844,10 @@ class MainWindow(QMainWindow):
         from .file_dialog_compat import get_file
         base_path = get_file(
             self,
-            title=t("main.migration.target_dialog.title", "移行先の編集可能ROMを選択"),
+            title=t(
+                "main.migration.target_dialog.title",
+                "原作のオリジナルROMを選択してください",
+            ),
             filter="NES ROMs / ZIP (*.nes *.zip);;NES ROMs (*.nes);;ZIP archives (*.zip);;All files (*)",
             app_config=self._app_config,
             config_key="rom_migration_target",
@@ -3602,7 +3893,7 @@ class MainWindow(QMainWindow):
             )
             return
         try:
-            count, warnings = self._apply_readonly_migration_payload(payload)
+            count, warnings, summary = self._apply_readonly_migration_payload(payload)
         except Exception as exc:
             QMessageBox.critical(
                 self,
@@ -3623,7 +3914,7 @@ class MainWindow(QMainWindow):
                 )
             warning_text = t(
                 "main.migration.warning_header",
-                "\n\n一部補助情報は移行できませんでした:\n",
+                "\n\n一部データは移行できませんでした:\n",
             ) + preview
         QMessageBox.information(
             self,
@@ -3631,12 +3922,17 @@ class MainWindow(QMainWindow):
             t(
                 "main.migration.complete.body",
                 "{source_name} から {count}/{total} ステージを移行しました。\n"
+                "現在のアプリが認識した設定グループ: {recognized}\n"
+                "認識できず現行既定値になった設定グループ: {defaulted}\n"
+                "移行元ROMは変更していません。\n"
                 "移行後のROMはまだ保存されていません。必要ならROM保存してください。"
                 "{warning_text}",
             ).format(
                 source_name=source_name,
                 count=count,
                 total=len(self.levels),
+                recognized=summary["recognized_setting_groups"],
+                defaulted=summary["defaulted_setting_groups"],
                 warning_text=warning_text,
             ),
         )
@@ -3649,7 +3945,10 @@ class MainWindow(QMainWindow):
         )
         self._log(
             f"データ移行: {source_name} -> {base_path} / "
-            f"{count}/{len(self.levels)}ステージ / 補助警告{len(warnings)}件"
+            f"{count}/{len(self.levels)}ステージ / "
+            f"認識設定{summary['recognized_setting_groups']} / "
+            f"既定値設定{summary['defaulted_setting_groups']} / "
+            f"警告{len(warnings)}件"
         )
 
     def load_rom(
@@ -4350,8 +4649,17 @@ class MainWindow(QMainWindow):
             2500,
         )
 
+    def _should_offer_data_migration(self, error: Exception) -> bool:
+        return bool(
+            isinstance(error, saver.SavePreflightError)
+            and error.is_runtime_layout_mismatch()
+            and self.rom
+            and self.levels
+            and self.rom.has_customizer_metadata()
+        )
+
     def _show_save_failure(self, title: str, error: Exception, log_prefix: str,
-                           extra_message: str = ""):
+                           extra_message: str = "") -> bool:
         if isinstance(error, saver.SavePreflightError):
             msg = error.dialog_message()
             log_msg = error.log_message()
@@ -4360,8 +4668,30 @@ class MainWindow(QMainWindow):
             log_msg = msg
         if extra_message:
             msg = f"{msg}\n\n{extra_message}"
-        QMessageBox.critical(self, title, msg)
         self._log(f"{log_prefix}: {log_msg}")
+        if not self._should_offer_data_migration(error):
+            QMessageBox.critical(self, title, msg)
+            return False
+        box = QMessageBox(QMessageBox.Critical, title, msg, parent=self)
+        box.setInformativeText(
+            t(
+                "main.migration.save_error.offer",
+                "このROMは旧runtime形式の可能性があります。データ移行を使うと、"
+                "現在認識できているステージや設定を現行形式のROMへ移せます。"
+                "元のROMは変更しません。",
+            )
+        )
+        migration_button = box.addButton(
+            t("main.migration.save_error.action", "データ移行…"),
+            QMessageBox.ActionRole,
+        )
+        close_button = box.addButton(
+            t("common.close", "閉じる"),
+            QMessageBox.RejectRole,
+        )
+        box.setDefaultButton(close_button)
+        box.exec_()
+        return box.clickedButton() == migration_button
 
     def _preferred_save_dir(self) -> Path:
         for value in (
@@ -4547,11 +4877,13 @@ class MainWindow(QMainWindow):
             self._log(f"ROM保存: {path}{bundle_msg}")
             return True
         except Exception as e:
-            self._show_save_failure(
+            migrate = self._show_save_failure(
                 t("main.rom.save_failed", "保存失敗"),
                 e,
                 t("main.rom.save_failed.log", "ROM保存失敗"),
             )
+            if migrate:
+                self._on_readonly_data_migration(True)
             return False
 
     def _test_play_quick_start_enabled(self) -> bool:
@@ -4681,7 +5013,7 @@ class MainWindow(QMainWindow):
                 # rom.data を編集前に戻す（テストプレイ用の改変を残さない）
                 self.rom.data = original_data
         except Exception as e:
-            self._show_save_failure(
+            migrate = self._show_save_failure(
                 t("main.testplay.prepare_failed.title", "テストプレイ準備失敗"),
                 e,
                 t("main.testplay.prepare_failed.title", "テストプレイ準備失敗"),
@@ -4691,6 +5023,8 @@ class MainWindow(QMainWindow):
                     "保存前チェックまたはROM容量の制約です。",
                 ),
             )
+            if migrate:
+                self._on_readonly_data_migration(True)
             return
 
         try:
@@ -4784,11 +5118,13 @@ class MainWindow(QMainWindow):
             finally:
                 self.rom.data = original_data
         except Exception as e:
-            self._show_save_failure(
+            migrate = self._show_save_failure(
                 t("main.binary_editor.prepare_failed.title", "バイナリエディタ用ROM作成失敗"),
                 e,
                 t("main.binary_editor.prepare_failed.title", "バイナリエディタ用ROM作成失敗"),
             )
+            if migrate:
+                self._on_readonly_data_migration(True)
             return
 
         try:
@@ -4898,11 +5234,13 @@ class MainWindow(QMainWindow):
         try:
             modified_data, build_msg = self._build_saved_rom_data_for_user_action()
         except Exception as e:
-            self._show_save_failure(
+            migrate = self._show_save_failure(
                 t("main.ips.generate_failed", "IPS生成失敗"),
                 e,
                 t("main.ips.save_failed.log", "IPS保存失敗"),
             )
+            if migrate:
+                self._on_readonly_data_migration(True)
             return
 
         # 3. IPS保存先を選択
@@ -11484,22 +11822,68 @@ class MainWindow(QMainWindow):
                     detail = f"{type(e).__name__}: {e}"
                     log_msg = detail
                 self._log(f"作業状態の自動保存失敗: {log_msg}")
-                ans = QMessageBox.warning(
-                    self,
-                    t("main.autosave.failed.title", "作業状態の自動保存に失敗"),
-                    t(
-                        "main.autosave.failed.body",
-                        "作業状態を自動保存できませんでした。\n"
-                        "このまま終了すると、今回の変更が失われる可能性があります。\n\n"
-                        "{detail}\n\n"
-                        "自動保存せずに終了しますか？",
-                    ).format(detail=detail),
-                    QMessageBox.Yes | QMessageBox.No,
-                    QMessageBox.No,
-                )
-                if ans != QMessageBox.Yes:
-                    event.ignore()
-                    return
+                if self._should_offer_data_migration(e):
+                    box = QMessageBox(self)
+                    box.setIcon(QMessageBox.Critical)
+                    box.setWindowTitle(
+                        t("main.autosave.failed.title", "作業状態の自動保存に失敗")
+                    )
+                    box.setText(
+                        t(
+                            "main.autosave.failed.body",
+                            "作業状態を自動保存できませんでした。\n"
+                            "このまま終了すると、今回の変更が失われる可能性があります。\n\n"
+                            "{detail}\n\n"
+                            "自動保存せずに終了しますか？",
+                        ).format(detail=detail)
+                    )
+                    box.setInformativeText(
+                        t(
+                            "main.autosave.failed.migration_offer",
+                            "旧runtime形式が原因の可能性があります。\n"
+                            "データ移行を選ぶと終了を中止し、現在認識できているステージや設定を"
+                            "現行形式のROMへ移します。移行元ROMは変更しません。",
+                        )
+                    )
+                    migrate_button = box.addButton(
+                        t("main.autosave.failed.migrate", "データ移行…"),
+                        QMessageBox.ActionRole,
+                    )
+                    exit_button = box.addButton(
+                        t("main.autosave.failed.exit_without_save", "保存せず終了"),
+                        QMessageBox.DestructiveRole,
+                    )
+                    cancel_button = box.addButton(
+                        t("common.cancel", "キャンセル"),
+                        QMessageBox.RejectRole,
+                    )
+                    box.setDefaultButton(cancel_button)
+                    box.exec_()
+                    clicked = box.clickedButton()
+                    if clicked == migrate_button:
+                        event.ignore()
+                        self._on_readonly_data_migration(True)
+                        return
+                    if clicked != exit_button:
+                        event.ignore()
+                        return
+                else:
+                    ans = QMessageBox.warning(
+                        self,
+                        t("main.autosave.failed.title", "作業状態の自動保存に失敗"),
+                        t(
+                            "main.autosave.failed.body",
+                            "作業状態を自動保存できませんでした。\n"
+                            "このまま終了すると、今回の変更が失われる可能性があります。\n\n"
+                            "{detail}\n\n"
+                            "自動保存せずに終了しますか？",
+                        ).format(detail=detail),
+                        QMessageBox.Yes | QMessageBox.No,
+                        QMessageBox.No,
+                    )
+                    if ans != QMessageBox.Yes:
+                        event.ignore()
+                        return
         elif self.rom and self._is_read_only():
             self._remember_readonly_rom_state()
         # ウィンドウ状態を保存してから閉じる

@@ -22,7 +22,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
-from magatu_skc.core import config
+from magatu_skc.core import config, saver
 from magatu_skc.core.i18n import get_language, set_language
 from magatu_skc.ui.element_picker import ENEMIES_LIST, MODE_ENEMY, ElementPicker
 from magatu_skc.ui.hack_dialog import HackDialog
@@ -333,6 +333,71 @@ class GlobalSettingsImportSafetyTests(unittest.TestCase):
         self.assertEqual(dialog.ui_state, "old")
         self.assertFalse(dialog.owner._dirty)
         self.assertEqual(dialog.owner._session_log, ["before"])
+
+
+class LegacyRomMigrationOfferTests(unittest.TestCase):
+    @staticmethod
+    def _window_state(*, metadata=True, loaded=True):
+        rom = SimpleNamespace(has_customizer_metadata=lambda: metadata) if loaded else None
+        return SimpleNamespace(rom=rom, levels=[object()] if loaded else [])
+
+    def test_runtime_extension_mismatch_is_migration_relevant(self):
+        error = saver.SavePreflightError(
+            "Saramandor variant runtime検証/適用",
+            RuntimeError(
+                "Saramandor A/B/C extension mismatch at file 0x69B9"
+            ),
+        )
+        self.assertTrue(error.is_runtime_layout_mismatch())
+        self.assertTrue(
+            MainWindow._should_offer_data_migration(self._window_state(), error)
+        )
+
+    def test_runtime_signature_mismatch_is_migration_relevant(self):
+        error = saver.SavePreflightError(
+            "Dark Fairy runtime検証/適用",
+            RuntimeError("runtime loader signature mismatch at file 0x6010"),
+        )
+        self.assertTrue(error.is_runtime_layout_mismatch())
+
+    def test_non_runtime_save_constraints_do_not_offer_migration(self):
+        errors = (
+            saver.SavePreflightError(
+                "ステージデータ検証",
+                RuntimeError("extension mismatch"),
+            ),
+            saver.SavePreflightError(
+                "Saramandor variant runtime検証/適用",
+                RuntimeError("not enough space"),
+            ),
+            OSError("disk full"),
+        )
+        for error in errors:
+            with self.subTest(error=error):
+                self.assertFalse(
+                    MainWindow._should_offer_data_migration(
+                        self._window_state(),
+                        error,
+                    )
+                )
+
+    def test_metadata_and_loaded_editor_state_are_required(self):
+        error = saver.SavePreflightError(
+            "Gargoyle runtime検証/適用",
+            RuntimeError("signature mismatch"),
+        )
+        self.assertFalse(
+            MainWindow._should_offer_data_migration(
+                self._window_state(metadata=False),
+                error,
+            )
+        )
+        self.assertFalse(
+            MainWindow._should_offer_data_migration(
+                self._window_state(loaded=False),
+                error,
+            )
+        )
 
 
 if __name__ == "__main__":
