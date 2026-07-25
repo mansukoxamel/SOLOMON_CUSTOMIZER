@@ -1335,6 +1335,10 @@ _TRANSLATIONS = {
         "ja": "スパークトレイル ({direction})",
         "en": "Spark Trail ({direction})",
     },
+    "element_picker.enemy.spark_detached_turn.direction": {
+        "ja": "スパークボール・直接反転 ({direction})",
+        "en": "Spark Ball Direct Turn ({direction})",
+    },
     "main.eyedropper.item": {"ja": "スポイト: アイテム 0x{code:02X} を選択", "en": "Eyedropper: selected item 0x{code:02X}"},
     "main.eyedropper.meta": {"ja": "スポイト: {name} を選択", "en": "Eyedropper: selected {name}"},
     "main.eyedropper.block": {"ja": "スポイト: {name} を選択", "en": "Eyedropper: selected {name}"},

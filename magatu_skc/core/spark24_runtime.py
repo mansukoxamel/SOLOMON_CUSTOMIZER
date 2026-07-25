@@ -136,13 +136,28 @@ def _build_pause_dispatch(base: int, pause_digits, reverse_digits) -> tuple[byte
     return blob, tuple(reverse_offsets), tuple(pause_offsets)
 
 
-def _build_property_dispatch(base: int) -> bytes:
+def _build_property_dispatch(
+    base: int,
+    include_final_enemy: bool = True,
+) -> bytes:
     a = _Asm(base)
-    a.b(0xA5, 0x05, 0xC9, FIRST_ID); a.branch(0x90, "stock")
-    a.b(0xC9, PROPERTY_LAST_ID + 1); a.branch(0xB0, "stock")
+    a.b(0xA5, 0x05)
+    if include_final_enemy:
+        # XOR folds $C0-$DF and $F8-$FF into one $D8-$FF interval while
+        # mapping Panel IDs $E0-$F7 below $D8.
+        a.b(0x49, 0x20, 0xC9, 0xD8)
+        a.branch(0x90, "stock")
+    else:
+        a.b(0xC9, FIRST_ID)
+        a.branch(0x90, "stock")
+        a.b(0xC9, PROPERTY_LAST_ID + 1)
+        a.branch(0xB0, "stock")
     a.b(0xA9, 0x19, 0x60)
     a.label("stock")
     a.jmp(CPU_PANEL_PROPERTY_HOOK)
+    if include_final_enemy:
+        # Preserve every following settings address from the previous runtime.
+        a.b(0xEA, 0xEA)
     return a.finish()
 
 
@@ -167,7 +182,8 @@ def _build_oam_dispatch(base: int, transparency_period: int) -> tuple[bytes, int
 def _build_runtime(pause_digits=DEFAULT_PAUSE_DIGITS,
                    reverse_digits=DEFAULT_REVERSE_DIGITS,
                    transparency_period=DEFAULT_TRANSPARENCY_PERIOD,
-                   include_spark_trail: bool = True):
+                   include_spark_trail: bool = True,
+                   include_final_enemy: bool = True):
     chunks: list[bytes] = []
     cpu = CPU_RUNTIME
 
@@ -179,7 +195,7 @@ def _build_runtime(pause_digits=DEFAULT_PAUSE_DIGITS,
     cpu_pause = cpu
     chunks.append(pause); cpu += len(pause)
 
-    prop = _build_property_dispatch(cpu)
+    prop = _build_property_dispatch(cpu, include_final_enemy)
     cpu_property = cpu
     chunks.append(prop); cpu += len(prop)
 
@@ -211,6 +227,21 @@ def build_runtime(pause_digits=DEFAULT_PAUSE_DIGITS,
         reverse_digits,
         transparency_period,
         include_spark_trail=True,
+        include_final_enemy=True,
+    )
+
+
+def build_pre_final_enemy_runtime(
+    pause_digits=DEFAULT_PAUSE_DIGITS,
+    reverse_digits=DEFAULT_REVERSE_DIGITS,
+    transparency_period=DEFAULT_TRANSPARENCY_PERIOD,
+):
+    return _build_runtime(
+        pause_digits,
+        reverse_digits,
+        transparency_period,
+        include_spark_trail=True,
+        include_final_enemy=False,
     )
 
 
@@ -222,10 +253,14 @@ def build_pre_spark_trail_runtime(pause_digits=DEFAULT_PAUSE_DIGITS,
         reverse_digits,
         transparency_period,
         include_spark_trail=False,
+        include_final_enemy=False,
     )
 
 
 RUNTIME, _OFFSETS = build_runtime()
+PRE_FINAL_ENEMY_RUNTIME, _PRE_FINAL_ENEMY_OFFSETS = (
+    build_pre_final_enemy_runtime()
+)
 PRE_SPARK_TRAIL_RUNTIME, _PRE_SPARK_TRAIL_OFFSETS = (
     build_pre_spark_trail_runtime()
 )
@@ -244,5 +279,7 @@ RESERVED_SPANS = ((OFF_RUNTIME, len(RUNTIME)),)
 assert OFF_RUNTIME + RUNTIME_CAPACITY == 0x4010
 assert CPU_RUNTIME + RUNTIME_CAPACITY == 0xC000
 assert len(RUNTIME) == 186
+assert len(PRE_FINAL_ENEMY_RUNTIME) == len(RUNTIME)
+assert _PRE_FINAL_ENEMY_OFFSETS == _OFFSETS
 assert RUNTIME_FREE_LEN == 134
 assert len(PRE_SPARK_TRAIL_RUNTIME) == 179

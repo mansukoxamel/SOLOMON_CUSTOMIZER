@@ -4,6 +4,7 @@ from __future__ import annotations
 from . import ice_flame_runtime as _ice
 from . import spark24_runtime as _spark24
 from . import spark_trail_runtime as _spark_trail
+from . import spark_detached_turn_runtime as _spark_detached_turn
 from . import spark_ball_variant as _spark_variant
 from . import neul84_runtime as _neul84
 from . import chaos_dragon9e_runtime as _chaos9e
@@ -23,8 +24,8 @@ SPARK24_FIRST_ID = _spark24.FIRST_ID
 SPARK24_LAST_ID = _spark24.LAST_ID
 SPARK_TRAIL_FIRST_ID = _spark_trail.FIRST_ID
 SPARK_TRAIL_LAST_ID = _spark_trail.LAST_ID
-FUTURE_ENEMY_FIRST_ID = 0xF8
-FUTURE_ENEMY_LAST_ID = 0xFF
+FUTURE_ENEMY_FIRST_ID = _spark_detached_turn.FIRST_ID
+FUTURE_ENEMY_LAST_ID = _spark_detached_turn.LAST_ID
 NEUL84_FIRST_ID = _neul84.FIRST_ID
 NEUL84_LAST_ID = _neul84.LAST_ID
 CHAOS9E_ID = _chaos9e.NEW_ENEMY_ID
@@ -104,6 +105,7 @@ def _pla_jmp(a: _EntryAsm, addr: int) -> None:
 
 def _build_ai_entry_runtime(
     spark_family_last_id: int = SPARK_TRAIL_LAST_ID,
+    include_final_enemy: bool = True,
 ) -> bytes:
     a = _EntryAsm()
     a.b(0x48, 0x18, 0x69, 0x14)        # Save dispatch A; restore enemy ID.
@@ -112,8 +114,17 @@ def _build_ai_entry_runtime(
     a.b(0xC9, spark_family_last_id + 1)
     a.branch(0x90, "spark")
     a.b(0xC9, FUTURE_ENEMY_FIRST_ID)
-    a.branch(0xB0, "stock")
-    a.branch(0x90, "panel")
+    if include_final_enemy:
+        a.branch(0x90, "panel")
+        a.b(0xC9, _spark_detached_turn.FAST_FIRST_ID)
+        a.b(0x68)
+        a.branch(0x90, "future_slow")
+        a.jmp(_spark24.CPU_STOCK_SPARK_FAST)
+        a.label("future_slow")
+        a.jmp(_spark24.CPU_STOCK_SPARK_SLOW)
+    else:
+        a.branch(0xB0, "stock")
+        a.branch(0x90, "panel")
     a.label("below_spark")
     for limit, label in (
         (NEUL84_FIRST_ID, "stock"),
@@ -161,6 +172,7 @@ CPU_SETUP_ENTRY = CPU_AI_ENTRY + len(AI_ENTRY_RUNTIME)
 
 def _build_setup_entry_runtime(
     spark_family_last_id: int = SPARK_TRAIL_LAST_ID,
+    include_final_enemy: bool = True,
 ) -> bytes:
     a = _EntryAsm()
     a.b(0xA0, 0x01, 0xB1, 0x08)         # LDA ($08),Y -> main-slot type
@@ -168,7 +180,7 @@ def _build_setup_entry_runtime(
     a.branch(0x90, "below_spark")
     a.b(0xC9, FUTURE_ENEMY_FIRST_ID)
     a.branch(0x90, "common_group")
-    a.branch(0xB0, "stock")
+    a.branch(0xB0, "common_group" if include_final_enemy else "stock")
     a.label("below_spark")
     for limit, label in (
         (NEUL84_FIRST_ID, "stock"),
@@ -269,7 +281,9 @@ INIT_ENTRY_RUNTIME = _build_init_entry_runtime()
 OFF_ANIM_ENTRY = OFF_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
 CPU_ANIM_ENTRY = CPU_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
 
-def _build_anim_entry_runtime() -> bytes:
+def _build_anim_entry_runtime(
+    cpu_anim_entry: int = CPU_ANIM_ENTRY,
+) -> bytes:
     a = _EntryAsm()
     a.b(0xA0, 0x01, 0xB1, 0x08)
     a.b(0xC9, GHOSTB0_FIRST_ID)
@@ -322,7 +336,7 @@ def _build_anim_entry_runtime() -> bytes:
     a.label("radiance9d")
     a.jmp(_radiance9d.CPU_ANIM_UPDATE)
     result = bytearray(a.finish())
-    stock_spr2_addr = CPU_ANIM_ENTRY + a.labels["stock_spr2"]
+    stock_spr2_addr = cpu_anim_entry + a.labels["stock_spr2"]
     result[stock_spr2_fixup] = stock_spr2_addr & 0xFF
     result[stock_spr2_fixup + 1] = stock_spr2_addr >> 8
     return bytes(result)
@@ -339,6 +353,27 @@ ENTRY_CENTER_SIZE = len(ENTRY_CENTER_RUNTIME)
 ENTRY_CENTER_CAPACITY = ENTRY_CENTER_LIMIT - OFF_AI_ENTRY
 ENTRY_CENTER_FREE_SIZE = ENTRY_CENTER_CAPACITY - ENTRY_CENTER_SIZE
 CURRENT_ENTRY_CENTER_IMAGE = ENTRY_CENTER_RUNTIME
+PRE_FINAL_ENEMY_AI_ENTRY_RUNTIME = _build_ai_entry_runtime(
+    include_final_enemy=False,
+)
+PRE_FINAL_ENEMY_SETUP_ENTRY_RUNTIME = _build_setup_entry_runtime(
+    include_final_enemy=False,
+)
+PRE_FINAL_ENEMY_CPU_ANIM_ENTRY = (
+    CPU_AI_ENTRY
+    + len(PRE_FINAL_ENEMY_AI_ENTRY_RUNTIME)
+    + len(PRE_FINAL_ENEMY_SETUP_ENTRY_RUNTIME)
+    + len(INIT_ENTRY_RUNTIME)
+)
+PRE_FINAL_ENEMY_ANIM_ENTRY_RUNTIME = _build_anim_entry_runtime(
+    PRE_FINAL_ENEMY_CPU_ANIM_ENTRY,
+)
+PRE_FINAL_ENEMY_ENTRY_CENTER_IMAGE = (
+    PRE_FINAL_ENEMY_AI_ENTRY_RUNTIME
+    + PRE_FINAL_ENEMY_SETUP_ENTRY_RUNTIME
+    + INIT_ENTRY_RUNTIME
+    + PRE_FINAL_ENEMY_ANIM_ENTRY_RUNTIME
+)
 LEGACY_ENTRY_CENTER_IMAGE = (
     LEGACY_AI_ENTRY_RUNTIME
     + LEGACY_SETUP_ENTRY_RUNTIME
@@ -358,6 +393,9 @@ HOOK_AI_DISPATCH_CALL = bytes((0x20, CPU_AI_ENTRY & 0xFF, CPU_AI_ENTRY >> 8))
 HOOK_SETUP_META_LOAD = bytes((0x20, CPU_SETUP_ENTRY & 0xFF, CPU_SETUP_ENTRY >> 8))
 HOOK_INIT_WRITE_CALL = bytes((0x20, CPU_INIT_ENTRY & 0xFF, CPU_INIT_ENTRY >> 8))
 HOOK_ANIM_UPDATE_CALL = bytes((0x20, CPU_ANIM_ENTRY & 0xFF, CPU_ANIM_ENTRY >> 8))
+PRE_FINAL_ENEMY_HOOK_SETUP_META_LOAD = bytes.fromhex("20 3a bc")
+PRE_FINAL_ENEMY_HOOK_INIT_WRITE_CALL = bytes.fromhex("20 8e bc")
+PRE_FINAL_ENEMY_HOOK_ANIM_UPDATE_CALL = bytes.fromhex("20 e5 bc")
 LEGACY_HOOK_SETUP_META_LOAD = bytes.fromhex("20 32 bc")
 LEGACY_HOOK_INIT_WRITE_CALL = bytes.fromhex("20 84 bc")
 LEGACY_HOOK_ANIM_UPDATE_CALL = bytes.fromhex("20 d0 bc")
@@ -375,6 +413,7 @@ RESERVED_SPANS = (
     *_radiance9d.RESERVED_SPANS,
     *_ghostb0.RESERVED_SPANS,
     *_spark_trail.RESERVED_SPANS,
+    *_spark_detached_turn.RESERVED_SPANS,
 )
 
 assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
@@ -398,6 +437,7 @@ def _mirror_enemy_code_needs_runtime(enemy_code: object) -> bool:
         or _ghostb0.FIRST_ID <= enemy_id <= _ghostb0.LAST_ID
         or _spark24.FIRST_ID <= enemy_id <= _spark24.LAST_ID
         or _spark_trail.FIRST_ID <= enemy_id <= _spark_trail.LAST_ID
+        or _spark_detached_turn.FIRST_ID <= enemy_id <= _spark_detached_turn.LAST_ID
         or _panel.is_panel_stage_variant_id(enemy_id)
     )
 
@@ -417,6 +457,7 @@ def levels_need_runtime(levels: list) -> bool:
             for enemy in (getattr(lv, "enemies", []) or [])
         )
         or _spark_trail.levels_need_runtime(levels)
+        or _spark_detached_turn.levels_need_runtime(levels)
         or _neul84.levels_need_runtime(levels)
         or _chaos9e.levels_need_runtime(levels)
         or any(
@@ -460,6 +501,19 @@ def _expect_entry_center(data: bytes | bytearray) -> bool:
         or all(byte in (0xEA, 0x00) for byte in current)
     ):
         return False
+    previous_size = len(PRE_FINAL_ENEMY_ENTRY_CENTER_IMAGE)
+    previous = bytes(data[OFF_AI_ENTRY:OFF_AI_ENTRY + previous_size])
+    claimed_tail = bytes(
+        data[
+            OFF_AI_ENTRY + previous_size:
+            OFF_AI_ENTRY + ENTRY_CENTER_SIZE
+        ]
+    )
+    if (
+        previous == PRE_FINAL_ENEMY_ENTRY_CENTER_IMAGE
+        and all(byte in (0xEA, 0x00) for byte in claimed_tail)
+    ):
+        return False
     raise NewEnemyRuntimeError(
         f"new enemy entry center is not blank/current/legacy at "
         f"0x{OFF_AI_ENTRY:X}: got {full.hex(' ')}"
@@ -480,6 +534,7 @@ def apply(rom_data: bytearray) -> list[str]:
         _spark24.OFF_RUNTIME + len(_spark24.RUNTIME),
         _spark_trail.OFF_MAIN_RUNTIME + len(_spark_trail.MAIN_RUNTIME),
         _spark_trail.OFF_AUX_RUNTIME + len(_spark_trail.AUX_RUNTIME),
+        _spark_detached_turn.OFF_RUNTIME + len(_spark_detached_turn.RUNTIME),
         _neul84.OFF_RUNTIME + len(_neul84.RUNTIME),
         _neul84.OFF_PARAMETER_TABLE + len(_neul84.PARAMETER_TABLES),
         _chaos9e.OFF_RUNTIME + len(_chaos9e.RUNTIME),
@@ -506,6 +561,7 @@ def apply(rom_data: bytearray) -> list[str]:
         (
             _ice.ORIG_ANIM_UPDATE_CALL,
             LEGACY_HOOK_ANIM_UPDATE_CALL,
+            PRE_FINAL_ENEMY_HOOK_ANIM_UPDATE_CALL,
             HOOK_ANIM_UPDATE_CALL,
         ),
         "$8676 new enemy animation hook",
@@ -516,6 +572,7 @@ def apply(rom_data: bytearray) -> list[str]:
         (
             _ice.ORIG_INIT_WRITE_CALL,
             LEGACY_HOOK_INIT_WRITE_CALL,
+            PRE_FINAL_ENEMY_HOOK_INIT_WRITE_CALL,
             HOOK_INIT_WRITE_CALL,
         ),
         "$A2F2 new enemy init hook",
@@ -526,6 +583,7 @@ def apply(rom_data: bytearray) -> list[str]:
         (
             _ice.ORIG_SETUP_META_LOAD,
             LEGACY_HOOK_SETUP_META_LOAD,
+            PRE_FINAL_ENEMY_HOOK_SETUP_META_LOAD,
             HOOK_SETUP_META_LOAD,
         ),
         "$8ACB new enemy setup hook",
@@ -620,10 +678,12 @@ def apply(rom_data: bytearray) -> list[str]:
     )
     legacy_entry_center = _expect_entry_center(rom_data)
     _spark_trail.validate(rom_data)
+    _spark_detached_turn.validate(rom_data)
 
     changed: list[str] = []
     changed.extend(_spark_variant.apply(rom_data))
     changed.extend(_spark_trail.apply(rom_data))
+    changed.extend(_spark_detached_turn.apply(rom_data))
     _write(rom_data, _ice.OFF_AI_DISPATCH_CALL, HOOK_AI_DISPATCH_CALL, changed, "$A1C3 new enemy AI dispatch hook")
     _write(rom_data, _ice.OFF_ANIM_UPDATE_CALL, HOOK_ANIM_UPDATE_CALL, changed, "$8676 new enemy animation hook")
     _write(rom_data, _ice.OFF_INIT_WRITE_CALL, HOOK_INIT_WRITE_CALL, changed, "$A2F2 new enemy init/status hook")

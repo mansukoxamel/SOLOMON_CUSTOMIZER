@@ -126,7 +126,15 @@ def _runtime_matches_supported_configuration(rom_data, current_runtime: bytes) -
     except _spark24.Spark24RuntimeError:
         return False
     if current_runtime[:len(expected)] != expected:
-        return False
+        if layout[0] != "current":
+            return False
+        previous, _offsets = _spark24.build_pre_final_enemy_runtime(
+            current_pause_digits(rom_data),
+            current_reverse_digits(rom_data),
+            current_transparency_period(rom_data),
+        )
+        if current_runtime[:len(previous)] != previous:
+            return False
     return all(value in (0x00, 0xEA) for value in current_runtime[len(expected):])
 
 

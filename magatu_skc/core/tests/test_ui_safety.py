@@ -192,6 +192,7 @@ class FavoritesVisibilityTests(unittest.TestCase):
         }
         self.assertEqual(visible_codes, expected)
         self.assertTrue(set(range(0xD8, 0xDC)).isdisjoint(visible_codes))
+        self.assertTrue(set(range(0xF8, 0xFC)).isdisjoint(visible_codes))
 
     def test_spark_trail_is_visible_in_developer_mode(self):
         picker = ElementPicker()
@@ -204,11 +205,26 @@ class FavoritesVisibilityTests(unittest.TestCase):
             and item.data(Qt.UserRole)[0] == MODE_ENEMY
         }
         self.assertTrue(set(range(0xD8, 0xDC)).issubset(visible_codes))
+        self.assertTrue(set(range(0xF8, 0xFC)).issubset(visible_codes))
 
     def test_spark_trail_speed_and_visual_mappings_cover_all_eight_ids(self):
         for direction in range(4):
             base = 0xD8 + direction
             fast = 0xDC + direction
+            with self.subTest(direction=direction):
+                self.assertEqual(apply_enemy_speed(base, 1), base)
+                self.assertEqual(apply_enemy_speed(base, 2), fast)
+                self.assertEqual(base_code_from_actual(base), (base, 1))
+                self.assertEqual(base_code_from_actual(fast), (base, 2))
+                self.assertEqual(ENEMY_VISUAL_SOURCE[base], 0x28 + direction)
+                self.assertEqual(ENEMY_VISUAL_SOURCE[fast], 0x2C + direction)
+                self.assertEqual(RENDER_VISUAL_SOURCE[base], 0x28 + direction)
+                self.assertEqual(RENDER_VISUAL_SOURCE[fast], 0x2C + direction)
+
+    def test_spark_direct_turn_speed_and_visual_mappings_cover_all_eight_ids(self):
+        for direction in range(4):
+            base = 0xF8 + direction
+            fast = 0xFC + direction
             with self.subTest(direction=direction):
                 self.assertEqual(apply_enemy_speed(base, 1), base)
                 self.assertEqual(apply_enemy_speed(base, 2), fast)

@@ -249,11 +249,26 @@ ENEMIES_LIST = [
             )[code & 3],
         ),
     ) for code in range(0xD8, 0xDC)),
+    *((
+        code,
+        t(
+            "element_picker.enemy.spark_detached_turn.direction",
+            "Spark Ball Direct Turn ({direction})",
+        ).format(
+            direction=(
+                t("element_picker.direction.right", "right"),
+                t("element_picker.direction.left", "left"),
+                t("element_picker.direction.up", "up"),
+                t("element_picker.direction.down", "down"),
+            )[code & 3],
+        ),
+    ) for code in range(0xF8, 0xFC)),
 ]
 
 # Keep unfinished entries out of the normal picker while retaining load/save.
 DEVELOPER_ONLY_PICKER_ITEMS = {
     *((MODE_ENEMY, code) for code in range(0xD8, 0xDC)),
+    *((MODE_ENEMY, code) for code in range(0xF8, 0xFC)),
 }
 
 
@@ -268,6 +283,10 @@ ENEMY_SPEED_TABLE = {
     **{
         code: [code, code + 4, None]
         for code in range(0xD8, 0xDC)
+    },
+    **{
+        code: [code, code + 4, None]
+        for code in range(0xF8, 0xFC)
     },
     # Fireball: +4 で sp2
     0x28: [0x28, 0x2c, None],
@@ -329,6 +348,7 @@ ENHANCED_ENEMY_CODES = {
     0x9E,  # Chaos Dragon
     *range(0x84, 0x88),  # Enhanced Neul A/B direction pairs
     *range(0xB0, 0xBC),  # Enhanced Ghost A-F direction pairs
+    *range(0xF8, 0x100),  # Spark Ball direct-turn direction pairs
 }
 
 ENHANCED_PICKER_BLUE_CODES = {
@@ -407,6 +427,10 @@ ENEMY_VISUAL_SOURCE = {
     **{
         code: 0x28 + (code - 0xD8)
         for code in range(0xD8, 0xE0)
+    },
+    **{
+        code: 0x28 + (code - 0xF8)
+        for code in range(0xF8, 0x100)
     },
     0x6A: 0x68, 0x6B: 0x69,
     0x6E: 0x6C, 0x6F: 0x6D,

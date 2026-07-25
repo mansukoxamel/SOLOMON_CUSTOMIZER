@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+import hashlib
 from types import SimpleNamespace
 
 from magatu_skc.core.element import ElementType
@@ -42,7 +43,7 @@ class NewEnemyEntryCenterTests(unittest.TestCase):
             displacement -= 0x100
         return opcode_pos + 2 + displacement
 
-    def test_optimized_entry_center_frees_51_bytes(self) -> None:
+    def test_entry_center_frees_42_bytes_after_final_enemy_hookup(self) -> None:
         self.assertEqual(
             tuple(map(len, (
                 target.AI_ENTRY_RUNTIME,
@@ -50,21 +51,33 @@ class NewEnemyEntryCenterTests(unittest.TestCase):
                 target.INIT_ENTRY_RUNTIME,
                 target.ANIM_ENTRY_RUNTIME,
             ))),
-            (88, 84, 87, 117),
+            (97, 84, 87, 117),
         )
-        self.assertEqual(target.ENTRY_CENTER_SIZE, 376)
+        self.assertEqual(target.ENTRY_CENTER_SIZE, 385)
         self.assertEqual(target.ENTRY_CENTER_CAPACITY, 427)
-        self.assertEqual(target.ENTRY_CENTER_FREE_SIZE, 51)
-        self.assertEqual(target.OFF_ANIM_ENTRY + len(target.ANIM_ENTRY_RUNTIME), 0x3D6A)
+        self.assertEqual(target.ENTRY_CENTER_FREE_SIZE, 42)
+        self.assertEqual(target.OFF_ANIM_ENTRY + len(target.ANIM_ENTRY_RUNTIME), 0x3D73)
 
     def test_all_four_hook_destinations_follow_compacted_entries(self) -> None:
         self.assertEqual(target.CPU_AI_ENTRY, 0xBBE2)
-        self.assertEqual(target.CPU_SETUP_ENTRY, 0xBC3A)
-        self.assertEqual(target.CPU_INIT_ENTRY, 0xBC8E)
-        self.assertEqual(target.CPU_ANIM_ENTRY, 0xBCE5)
-        self.assertEqual(target.HOOK_SETUP_META_LOAD, bytes.fromhex("20 3a bc"))
-        self.assertEqual(target.HOOK_INIT_WRITE_CALL, bytes.fromhex("20 8e bc"))
-        self.assertEqual(target.HOOK_ANIM_UPDATE_CALL, bytes.fromhex("20 e5 bc"))
+        self.assertEqual(target.CPU_SETUP_ENTRY, 0xBC43)
+        self.assertEqual(target.CPU_INIT_ENTRY, 0xBC97)
+        self.assertEqual(target.CPU_ANIM_ENTRY, 0xBCEE)
+        self.assertEqual(target.HOOK_SETUP_META_LOAD, bytes.fromhex("20 43 bc"))
+        self.assertEqual(target.HOOK_INIT_WRITE_CALL, bytes.fromhex("20 97 bc"))
+        self.assertEqual(target.HOOK_ANIM_UPDATE_CALL, bytes.fromhex("20 ee bc"))
+        self.assertEqual(
+            target.PRE_FINAL_ENEMY_HOOK_SETUP_META_LOAD,
+            bytes.fromhex("20 3a bc"),
+        )
+        self.assertEqual(
+            target.PRE_FINAL_ENEMY_HOOK_INIT_WRITE_CALL,
+            bytes.fromhex("20 8e bc"),
+        )
+        self.assertEqual(
+            target.PRE_FINAL_ENEMY_HOOK_ANIM_UPDATE_CALL,
+            bytes.fromhex("20 e5 bc"),
+        )
 
     def test_spark_trail_and_future_families_are_classified_in_all_entries(self) -> None:
         self.assertEqual(target.SPARK_TRAIL_FIRST_ID, 0xD8)
@@ -103,6 +116,31 @@ class NewEnemyEntryCenterTests(unittest.TestCase):
                 with self.assertRaises(target.NewEnemyRuntimeError):
                     target._expect_entry_center(rom)
 
+    def test_pre_final_enemy_entry_image_matches_the_previous_source_exactly(self) -> None:
+        previous = target.PRE_FINAL_ENEMY_ENTRY_CENTER_IMAGE
+        self.assertEqual(len(previous), 376)
+        self.assertEqual(
+            hashlib.sha256(previous).hexdigest(),
+            "a0ebe1bbe5d5d087c32cbbcf95a979d608db96a81afb544ca22335b0a4bd96bf",
+        )
+        rom = bytearray((0xEA,)) * target.ENTRY_CENTER_LIMIT
+        rom[
+            target.OFF_AI_ENTRY:
+            target.OFF_AI_ENTRY + len(previous)
+        ] = previous
+        self.assertFalse(target._expect_entry_center(rom))
+
+    def test_pre_final_enemy_entry_requires_the_new_nine_bytes_to_be_blank(self) -> None:
+        previous = target.PRE_FINAL_ENEMY_ENTRY_CENTER_IMAGE
+        rom = bytearray((0xEA,)) * target.ENTRY_CENTER_LIMIT
+        rom[
+            target.OFF_AI_ENTRY:
+            target.OFF_AI_ENTRY + len(previous)
+        ] = previous
+        rom[target.OFF_AI_ENTRY + len(previous)] = 0x5A
+        with self.assertRaises(target.NewEnemyRuntimeError):
+            target._expect_entry_center(rom)
+
     def test_current_entry_does_not_claim_released_tail(self) -> None:
         rom = bytearray(target.ENTRY_CENTER_LIMIT)
         start = target.OFF_AI_ENTRY
@@ -137,7 +175,7 @@ class NewEnemyEntryCenterTests(unittest.TestCase):
             y = cpu.y
         return endpoint, a, y, cpu.sp, cpu.memory[0x0213], cpu.steps
 
-    def test_all_256_ids_have_the_same_entry_to_exit_behavior(self) -> None:
+    def test_all_preexisting_ids_keep_the_same_entry_to_exit_behavior(self) -> None:
         legacy_entries = (0xBBE2, 0xBC32, 0xBC84, 0xBCD0)
         current_entries = (
             target.CPU_AI_ENTRY,
@@ -151,7 +189,7 @@ class NewEnemyEntryCenterTests(unittest.TestCase):
         )
         legacy_steps = 0
         current_steps = 0
-        for enemy_id in range(0x100):
+        for enemy_id in range(0xF8):
             legacy_id_steps = 0
             current_id_steps = 0
             for legacy_entry, current_entry in zip(legacy_entries, current_entries):
@@ -180,6 +218,38 @@ class NewEnemyEntryCenterTests(unittest.TestCase):
             )
         self.assertLess(current_steps, legacy_steps)
 
+    def test_all_final_enemy_ids_reach_the_expected_four_entry_outputs(self) -> None:
+        current_entries = (
+            target.CPU_AI_ENTRY,
+            target.CPU_SETUP_ENTRY,
+            target.CPU_INIT_ENTRY,
+            target.CPU_ANIM_ENTRY,
+        )
+        current_ranges = (
+            (target.CPU_AI_ENTRY, target.CPU_AI_ENTRY + target.ENTRY_CENTER_SIZE),
+        )
+        for enemy_id in range(0xF8, 0x100):
+            results = tuple(
+                self._run_image(
+                    target.CURRENT_ENTRY_CENTER_IMAGE,
+                    entry,
+                    enemy_id,
+                    current_ranges,
+                )
+                for entry in current_entries
+            )
+            expected_ai = (
+                target._spark24.CPU_STOCK_SPARK_SLOW
+                if enemy_id < 0xFC
+                else target._spark24.CPU_STOCK_SPARK_FAST
+            )
+            with self.subTest(enemy_id=enemy_id):
+                self.assertEqual(results[0][0], expected_ai)
+                self.assertEqual(results[1][0], SENTINEL)
+                self.assertEqual(results[1][2], 0x14)
+                self.assertEqual(results[2][0], SENTINEL)
+                self.assertEqual(results[3][0], 0x8789)
+
     def test_legacy_ice_only_hook_is_not_accepted(self) -> None:
         rom = bytearray(target._ice.OFF_AI_DISPATCH_CALL + 3)
         rom[target._ice.OFF_AI_DISPATCH_CALL:target._ice.OFF_AI_DISPATCH_CALL + 3] = (
@@ -197,7 +267,7 @@ class NewEnemyEntryCenterTests(unittest.TestCase):
         new_enemy_ids = (
             0x82, 0x84, 0x87, 0x9C, 0x9D, 0x9E,
             0xA0, 0xAF, 0xB0, 0xBB, 0xC0, 0xD7,
-            0xD8, 0xDF, 0xE0, 0xF7,
+            0xD8, 0xDF, 0xE0, 0xF7, 0xF8, 0xFF,
         )
         for enemy_id in new_enemy_ids:
             with self.subTest(enemy_id=enemy_id):

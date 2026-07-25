@@ -84,6 +84,32 @@ class SparkBallVariantTests(unittest.TestCase):
         self.assertEqual(variant.current_reverse_digits(rom), (2, 4, 6, 8))
         self.assertEqual(variant.current_transparency_period(rom), 0x60)
 
+    def test_pre_final_enemy_runtime_preserves_user_settings(self) -> None:
+        rom = _blank_rom()
+        old_runtime, old_offsets = runtime.build_pre_final_enemy_runtime(
+            pause_digits=(1, 2, 7, 8),
+            reverse_digits=(2, 4, 6, 8),
+            transparency_period=0x60,
+        )
+        self.assertEqual(old_offsets, runtime._OFFSETS)
+        rom[runtime.OFF_RUNTIME:runtime.OFF_RUNTIME + len(old_runtime)] = old_runtime
+        rom[variant.OFF_AB13:variant.OFF_AB13 + 3] = bytes((
+            0x4C, old_offsets["pause"] & 0xFF, old_offsets["pause"] >> 8,
+        ))
+        rom[variant.OFF_A2CC:variant.OFF_A2CC + 3] = bytes((
+            0x20, old_offsets["property"] & 0xFF, old_offsets["property"] >> 8,
+        ))
+        rom[variant.OFF_85FA:variant.OFF_85FA + 6] = bytes((
+            0x4C, old_offsets["oam"] & 0xFF, old_offsets["oam"] >> 8,
+            0xEA, 0xEA, 0xEA,
+        ))
+
+        variant.apply(rom)
+
+        self.assertEqual(variant.current_pause_digits(rom), (1, 2, 7, 8))
+        self.assertEqual(variant.current_reverse_digits(rom), (2, 4, 6, 8))
+        self.assertEqual(variant.current_transparency_period(rom), 0x60)
+
 
 if __name__ == "__main__":
     unittest.main()
