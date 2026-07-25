@@ -23,17 +23,25 @@ from PyQt5.QtWidgets import (
 )
 
 from magatu_skc.core import config, saver
+from magatu_skc.core.element import ElementType, LevelElement, Wall
+from magatu_skc.core.level import Level
 from magatu_skc.core.i18n import get_language, set_language
 from magatu_skc.ui.element_picker import (
     DEVELOPER_ONLY_PICKER_ITEMS,
     ENEMIES_LIST,
+    ENEMY_PICKER_PALETTE_OVERRIDE,
     ENEMY_VISUAL_SOURCE,
     MODE_ENEMY,
     ElementPicker,
     apply_enemy_speed,
     base_code_from_actual,
 )
-from magatu_skc.gfx.level_renderer import ENEMY_VISUAL_SOURCE as RENDER_VISUAL_SOURCE
+from magatu_skc.ui.picker_tooltips_en import PICKER_TOOLTIPS_EN
+from magatu_skc.ui.picker_tooltips_ja import PICKER_TOOLTIPS_JA
+from magatu_skc.gfx.level_renderer import (
+    ENEMY_PALETTE_OVERRIDE as RENDER_PALETTE_OVERRIDE,
+    ENEMY_VISUAL_SOURCE as RENDER_VISUAL_SOURCE,
+)
 from magatu_skc.ui.hack_dialog import HackDialog
 from magatu_skc.ui.main_window import MainWindow
 from magatu_skc.ui.settings_dialog import SettingsDialog
@@ -207,6 +215,176 @@ class FavoritesVisibilityTests(unittest.TestCase):
         self.assertTrue(set(range(0xD8, 0xDC)).issubset(visible_codes))
         self.assertTrue(set(range(0xF8, 0xFC)).issubset(visible_codes))
 
+    def test_japanese_picker_tooltips_match_all_reviewed_entries(self):
+        old_language = get_language()
+        try:
+            set_language("ja")
+            picker = ElementPicker()
+            picker.set_app_config({"developer_mode": True})
+            actual = {
+                item.data(Qt.UserRole): item.toolTip()
+                for picker_list in picker._picker_lists
+                for index in range(picker_list.count())
+                for item in (picker_list.item(index),)
+                if item.data(Qt.UserRole) is not None
+            }
+            self.assertEqual(len(PICKER_TOOLTIPS_JA), 191)
+            self.assertEqual(actual, PICKER_TOOLTIPS_JA)
+        finally:
+            set_language(old_language)
+
+    def test_english_picker_tooltips_match_japanese_source_structure(self):
+        old_language = get_language()
+        try:
+            set_language("en")
+            picker = ElementPicker()
+            picker.set_app_config({"developer_mode": True})
+            actual = {
+                item.data(Qt.UserRole): item.toolTip()
+                for picker_list in picker._picker_lists
+                for index in range(picker_list.count())
+                for item in (picker_list.item(index),)
+                if item.data(Qt.UserRole) is not None
+            }
+            self.assertEqual(len(PICKER_TOOLTIPS_EN), 191)
+            self.assertEqual(PICKER_TOOLTIPS_EN.keys(), PICKER_TOOLTIPS_JA.keys())
+            self.assertEqual(actual, PICKER_TOOLTIPS_EN)
+            self.assertEqual(
+                actual[("block", "brown")],
+                "Brown Block",
+            )
+            self.assertEqual(
+                actual[(MODE_ENEMY, 0x68)],
+                "0x68 Dragon (Right)",
+            )
+            self.assertEqual(
+                actual[(MODE_ENEMY, 0x78)],
+                "0x78 Gargoil (Right)",
+            )
+            self.assertEqual(
+                actual[(MODE_ENEMY, 0x28)],
+                "0x28 Sparkling Ball (Right)",
+            )
+        finally:
+            set_language(old_language)
+
+    def test_japanese_canvas_popup_uses_picker_names(self):
+        class PopupHarness:
+            _build_hover_info_popup_text = MainWindow._build_hover_info_popup_text
+            _hover_enemy_hits = MainWindow._hover_enemy_hits
+            _block_info_for_tile = MainWindow._block_info_for_tile
+            _item_state_label = MainWindow._item_state_label
+            _key_state_label = MainWindow._key_state_label
+            _door_state_label = MainWindow._door_state_label
+            _enemy_speed_info = MainWindow._enemy_speed_info
+            _canvas_picker_name = staticmethod(MainWindow._canvas_picker_name)
+
+            @staticmethod
+            def _display_enemy_desc(_code):
+                return "fallback enemy"
+
+            @staticmethod
+            def _display_item_desc(_code):
+                return "fallback item"
+
+            @staticmethod
+            def _solomon_seal_meta_at(_level_no, _tile):
+                return object()
+
+        old_language = get_language()
+        try:
+            set_language("ja")
+            tile = (1, 1)
+            level = Level()
+            level.fixed_start_pos = tile
+            level.fixed_key_pos = tile
+            level.fixed_door_pos = tile
+            for mirror in level.demon_mirrors:
+                mirror.position = tile
+            level.enemies = [LevelElement(ElementType.ENEMY, tile, 0x6C)]
+            level.items = [LevelElement(ElementType.ITEM, tile, 0x48)]
+            level.invisible_solid_cells.add(tile)
+
+            harness = PopupHarness()
+            harness.levels = [level]
+            harness.current_level_no = 0
+            popup = harness._build_hover_info_popup_text(tile)
+
+            for expected in (
+                "ドラゴン（右）",
+                "SP2",
+                "ダイヤモンド（ブルー）",
+                "[隠し]",
+                "透明な白ブロック",
+                "Meta ダーナ, 鍵, 扉, カミーラの鏡1, カミーラの鏡2",
+                "ソロモンの封印",
+            ):
+                with self.subTest(expected=expected):
+                    self.assertIn(expected, popup)
+            self.assertNotIn("fallback enemy", popup)
+            self.assertNotIn("fallback item", popup)
+        finally:
+            set_language(old_language)
+
+    def test_english_canvas_popup_uses_picker_names(self):
+        class PopupHarness:
+            _build_hover_info_popup_text = MainWindow._build_hover_info_popup_text
+            _hover_enemy_hits = MainWindow._hover_enemy_hits
+            _block_info_for_tile = MainWindow._block_info_for_tile
+            _item_state_label = MainWindow._item_state_label
+            _key_state_label = MainWindow._key_state_label
+            _door_state_label = MainWindow._door_state_label
+            _enemy_speed_info = MainWindow._enemy_speed_info
+            _canvas_picker_name = staticmethod(MainWindow._canvas_picker_name)
+
+            @staticmethod
+            def _display_enemy_desc(_code):
+                return "fallback enemy"
+
+            @staticmethod
+            def _display_item_desc(_code):
+                return "fallback item"
+
+            @staticmethod
+            def _solomon_seal_meta_at(_level_no, _tile):
+                return object()
+
+        old_language = get_language()
+        try:
+            set_language("en")
+            tile = (1, 1)
+            level = Level()
+            level.fixed_start_pos = tile
+            level.fixed_key_pos = tile
+            level.fixed_door_pos = tile
+            for mirror in level.demon_mirrors:
+                mirror.position = tile
+            level.enemies = [LevelElement(ElementType.ENEMY, tile, 0x6C)]
+            level.items = [LevelElement(ElementType.ITEM, tile, 0x48)]
+            level.invisible_solid_cells.add(tile)
+
+            harness = PopupHarness()
+            harness.levels = [level]
+            harness.current_level_no = 0
+            popup = harness._build_hover_info_popup_text(tile)
+
+            for expected in (
+                "Dragon (Right)",
+                "SP2",
+                "Diamond (Blue)",
+                "[Hidden]",
+                "Invisible White Block",
+                "Meta Dana, Key, Door, Mirror of Camirror 1, "
+                "Mirror of Camirror 2",
+                "Solomon&#x27;s Seal",
+            ):
+                with self.subTest(expected=expected):
+                    self.assertIn(expected, popup)
+            self.assertNotIn("fallback enemy", popup)
+            self.assertNotIn("fallback item", popup)
+        finally:
+            set_language(old_language)
+
     def test_spark_trail_speed_and_visual_mappings_cover_all_eight_ids(self):
         for direction in range(4):
             base = 0xD8 + direction
@@ -220,6 +398,10 @@ class FavoritesVisibilityTests(unittest.TestCase):
                 self.assertEqual(ENEMY_VISUAL_SOURCE[fast], 0x2C + direction)
                 self.assertEqual(RENDER_VISUAL_SOURCE[base], 0x28 + direction)
                 self.assertEqual(RENDER_VISUAL_SOURCE[fast], 0x2C + direction)
+                self.assertEqual(ENEMY_PICKER_PALETTE_OVERRIDE[base], 6)
+                self.assertEqual(ENEMY_PICKER_PALETTE_OVERRIDE[fast], 6)
+                self.assertEqual(RENDER_PALETTE_OVERRIDE[base], 6)
+                self.assertEqual(RENDER_PALETTE_OVERRIDE[fast], 6)
 
     def test_spark_direct_turn_speed_and_visual_mappings_cover_all_eight_ids(self):
         for direction in range(4):

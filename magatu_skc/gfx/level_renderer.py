@@ -68,6 +68,7 @@ ENEMY_PALETTE_OVERRIDE = {
     0x76: 4,
     0x77: 4,
     **{code: 6 for code in range(0xA0, 0xB0)},
+    **{code: 6 for code in range(0xD8, 0xE0)},
 }
 
 MARKER_RENDER_SCALE = 4

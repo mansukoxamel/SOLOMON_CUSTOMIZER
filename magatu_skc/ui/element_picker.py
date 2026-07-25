@@ -8,7 +8,9 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QMimeData, QRectF, QTimer
 from PyQt5.QtGui import QPixmap, QIcon, QImage, QDrag, QColor, QPainter
 
-from ..core.i18n import t
+from ..core.i18n import get_language, t
+from .picker_tooltips_en import PICKER_TOOLTIPS_EN
+from .picker_tooltips_ja import PICKER_TOOLTIPS_JA
 
 # 選択モード
 MODE_BLOCK = "block"
@@ -449,6 +451,7 @@ ENEMY_PICKER_PALETTE_OVERRIDE = {
     0x6A: 6, 0x6B: 6,  # Dragon color variant speed 1 uses SPR #2.
     0x72: 6, 0x73: 6,  # Goblin color variant speed 1 uses SPR #2.
     **{code: 6 for code in range(0xA0, 0xB0)},
+    **{code: 6 for code in range(0xD8, 0xE0)},
 }
 
 ENEMY_PICKER_BLUE_OVERLAY = (55, 135, 255, 115)
@@ -2045,7 +2048,13 @@ class ElementPicker(QWidget):
     def _add_picker_item(self, category: int, mode: str, val, label: str, icon):
         """カテゴリ別リストにアイテムを追加"""
         it = QListWidgetItem(icon, "")
-        it.setToolTip(f"[{mode}] {label}")
+        tooltip = None
+        language = get_language()
+        if language == "ja":
+            tooltip = PICKER_TOOLTIPS_JA.get((mode, val))
+        elif language == "en":
+            tooltip = PICKER_TOOLTIPS_EN.get((mode, val))
+        it.setToolTip(tooltip if tooltip is not None else f"[{mode}] {label}")
         it.setData(Qt.UserRole, (mode, val))
         it.setSizeHint(_picker_cell_size(self._icon_size))
         self._picker_lists[category].addItem(it)

@@ -75,6 +75,8 @@ from .element_picker import (
     ENEMY_SPEED_TABLE, apply_enemy_speed, base_code_from_actual,
     ENEMIES_LIST, ITEMS_LIST, item_name, enemy_enhance_variant,
 )
+from .picker_tooltips_en import picker_name_en
+from .picker_tooltips_ja import picker_name_ja
 from .rom_validation_dialog import RomValidationDialog
 from .dialog_geometry import restore_dialog_geometry, store_dialog_geometry
 from .dialog_buttons import localize_dialog_buttons
@@ -7192,7 +7194,7 @@ class MainWindow(QMainWindow):
         parts = [f"({x:2d},{y:2d})"]
 
         # ブロック
-        block_id, block_label = self._block_info_for_tile(lv, tile)
+        block_id, block_label, _block_kind = self._block_info_for_tile(lv, tile)
         if block_id:
             parts.append(f"Block ID {block_id}: {block_label}")
         # BROWN_WHITE は v0.1.99 で廃止 (読込時に WHITE へ正規化)
@@ -7330,26 +7332,58 @@ class MainWindow(QMainWindow):
         x, y = tile
         wall = lv.tiles[y][x]
         if wall == Wall.BROWN and tile in getattr(lv, "passable_brown_cells", set()):
-            return "0x01", t("main.hover.block.passable_brown", "すり抜ける茶色ブロック")
+            return (
+                "0x01",
+                t("main.hover.block.passable_brown", "すり抜ける茶色ブロック"),
+                BLOCK_PASSABLE_BROWN,
+            )
         if wall == Wall.BROWN and tile in getattr(lv, "solid_brown_cells", set()):
-            return "0x01", t("main.hover.block.solid_brown", "壊せない茶色ブロック")
+            return (
+                "0x01",
+                t("main.hover.block.solid_brown", "壊せない茶色ブロック"),
+                BLOCK_SOLID_BROWN,
+            )
         if wall == Wall.BROWN and tile in getattr(lv, "cracked_block_cells", set()):
-            return "0x01", t("main.hover.block.cracked", "ひび割れブロック")
+            return (
+                "0x01",
+                t("main.hover.block.cracked", "ひび割れブロック"),
+                BLOCK_CRACKED,
+            )
         if wall == Wall.BROWN:
-            return "0x01", t("main.hover.block.brown", "茶色ブロック")
+            return "0x01", t("main.hover.block.brown", "茶色ブロック"), BLOCK_BROWN
         if wall == Wall.WHITE and tile in getattr(lv, "breakable_white_cells", set()):
-            return "0x02", t("main.hover.block.breakable_white", "壊せる白ブロック")
+            return (
+                "0x02",
+                t("main.hover.block.breakable_white", "壊せる白ブロック"),
+                BLOCK_BREAKABLE_WHITE,
+            )
         if wall == Wall.WHITE and tile in getattr(lv, "passable_white_cells", set()):
-            return "0x02", t("main.hover.block.passable_white", "すり抜ける白ブロック")
+            return (
+                "0x02",
+                t("main.hover.block.passable_white", "すり抜ける白ブロック"),
+                BLOCK_PASSABLE_WHITE,
+            )
         if wall == Wall.WHITE:
-            return "0x02", t("main.hover.block.white", "白ブロック")
+            return "0x02", t("main.hover.block.white", "白ブロック"), BLOCK_WHITE
         if wall == Wall.NONE and tile in getattr(lv, "invisible_breakable_cells", set()):
-            return "0x00", t("main.hover.block.invisible_breakable", "壊せる透明ブロック")
+            return (
+                "0x00",
+                t("main.hover.block.invisible_breakable", "壊せる透明ブロック"),
+                BLOCK_INVISIBLE_BREAKABLE,
+            )
         if wall == Wall.NONE and tile in getattr(lv, "invisible_solid_cells", set()):
-            return "0x00", t("main.hover.block.invisible_solid", "壊せない透明ブロック")
+            return (
+                "0x00",
+                t("main.hover.block.invisible_solid", "壊せない透明ブロック"),
+                BLOCK_INVISIBLE_SOLID,
+            )
         if wall == Wall.BROWN_WHITE:
-            return "0x03", t("main.hover.block.breakable_white", "壊せる白ブロック")
-        return None, None
+            return (
+                "0x03",
+                t("main.hover.block.breakable_white", "壊せる白ブロック"),
+                BLOCK_BREAKABLE_WHITE,
+            )
+        return None, None, None
 
     def _item_state_label(self, lv, item, tile):
         if tile in getattr(lv, "visible_in_block_item_cells", set()):
@@ -7414,8 +7448,12 @@ class MainWindow(QMainWindow):
         if enemy_hits:
             for enemy_no, en in enemy_hits:
                 code = int(en.element_no) & 0xFF
-                desc = self._display_enemy_desc(code)
-                _base_code, speed, available = self._enemy_speed_info(code)
+                base_code, speed, available = self._enemy_speed_info(code)
+                desc = self._canvas_picker_name(
+                    MODE_ENEMY,
+                    base_code,
+                    self._display_enemy_desc(code),
+                )
                 speed_text = f"SP{speed}" if available else ""
                 suffix = (
                     f' <span style="color:#FFE6A3;">{speed_text}</span>'
@@ -7439,7 +7477,11 @@ class MainWindow(QMainWindow):
         if item_idx >= 0:
             item = lv.items[item_idx]
             base = int(item.element_no) & 0x3F
-            desc = self._display_item_desc(base)
+            desc = self._canvas_picker_name(
+                MODE_ITEM,
+                base,
+                self._display_item_desc(base),
+            )
             state = self._item_state_label(lv, item, tile)
             state_suffix = (
                 f' <span style="color:#BFE8FF;">[{escape(state)}]</span>'
@@ -7451,8 +7493,13 @@ class MainWindow(QMainWindow):
                 "</div>"
             )
 
-        block_id, block_label = self._block_info_for_tile(lv, tile)
+        block_id, block_label, block_kind = self._block_info_for_tile(lv, tile)
         if block_id:
+            block_label = self._canvas_picker_name(
+                MODE_BLOCK,
+                block_kind,
+                block_label,
+            )
             lines.append(
                 '<div style="color:#A7F3D0;">'
                 f"Block ID {escape(block_id)}: {escape(block_label)}"
@@ -7461,30 +7508,48 @@ class MainWindow(QMainWindow):
 
         meta = []
         if lv.fixed_start_pos == tile:
-            meta.append(t("main.hover.meta.start", "スタート"))
+            meta.append(self._canvas_picker_name(
+                MODE_META,
+                "start",
+                t("main.hover.meta.start", "スタート"),
+            ))
         if not lv.is_key_removed() and lv.fixed_key_pos == tile:
             key_state = self._key_state_label(lv)
+            key_name = self._canvas_picker_name(
+                MODE_META,
+                "key",
+                t("main.hover.meta.key", "鍵"),
+            )
             meta.append(
                 t("main.hover.popup.meta_with_state", "{name} [{state}]").format(
-                    name=t("main.hover.meta.key", "鍵"),
+                    name=key_name,
                     state=key_state,
                 )
                 if key_state else
-                t("main.hover.meta.key", "鍵")
+                key_name
             )
         if not lv.is_door_removed() and lv.fixed_door_pos == tile:
             door_state = self._door_state_label(lv)
+            door_name = self._canvas_picker_name(
+                MODE_META,
+                "door",
+                t("main.hover.meta.door", "扉"),
+            )
             meta.append(
                 t("main.hover.popup.meta_with_state", "{name} [{state}]").format(
-                    name=t("main.hover.meta.door", "扉"),
+                    name=door_name,
                     state=door_state,
                 )
                 if door_state else
-                t("main.hover.meta.door", "扉")
+                door_name
             )
         for i, mirror in enumerate(lv.demon_mirrors, start=1):
             if mirror.position == tile:
-                meta.append(t("main.hover.meta.mirror", "ミラー{number}").format(number=i))
+                meta.append(self._canvas_picker_name(
+                    MODE_META,
+                    f"mirror{i}",
+                    t("main.hover.meta.mirror", "ミラー{number}").format(number=i),
+                ))
         if meta:
             lines.append(
                 '<div style="color:#C4B5FD;">'
@@ -7493,10 +7558,15 @@ class MainWindow(QMainWindow):
             )
         seal_meta = self._solomon_seal_meta_at(self.current_level_no, tile)
         if seal_meta is not None:
+            seal_name = self._canvas_picker_name(
+                MODE_ITEM,
+                0x20,
+                "Solomon's Seal",
+            )
             lines.append(
                 '<div style="color:#FACC15; font-weight:700;">'
-                "Solomon's Seal"
-                "</div>"
+                + escape(seal_name)
+                + "</div>"
             )
         return "<qt>" + "".join(lines) + "</qt>"
 
@@ -7585,6 +7655,19 @@ class MainWindow(QMainWindow):
     def _meta_tag(text: str) -> str:
         return f"[{text}]"
 
+    @staticmethod
+    def _canvas_picker_name(mode, value, fallback: str) -> str:
+        language = get_language()
+        if language == "ja":
+            reviewed = picker_name_ja(mode, value)
+            if reviewed is not None:
+                return reviewed
+        elif language == "en":
+            reviewed = picker_name_en(mode, value)
+            if reviewed is not None:
+                return reviewed
+        return fallback
+
     def _display_item_desc(self, code: int) -> str:
         code = int(code) & 0x3F
         desc = ""
@@ -7626,7 +7709,7 @@ class MainWindow(QMainWindow):
         return labels.get(key, key)
 
     def _block_label_for_history(self, lv, tile) -> str:
-        _block_id, label = self._block_info_for_tile(lv, tile)
+        _block_id, label, _block_kind = self._block_info_for_tile(lv, tile)
         if label:
             return label
         try:

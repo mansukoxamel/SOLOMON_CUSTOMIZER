@@ -283,11 +283,20 @@ CPU_ANIM_ENTRY = CPU_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
 
 def _build_anim_entry_runtime(
     cpu_anim_entry: int = CPU_ANIM_ENTRY,
+    *,
+    spark_trail_spr2: bool = True,
 ) -> bytes:
     a = _EntryAsm()
     a.b(0xA0, 0x01, 0xB1, 0x08)
     a.b(0xC9, GHOSTB0_FIRST_ID)
-    a.branch(0xB0, "stock")
+    if spark_trail_spr2:
+        a.branch(0x90, "below_custom_high")
+        a.b(0x29, 0xF8, 0xC9, SPARK_TRAIL_FIRST_ID)
+        a.branch(0xF0, "stock_spr2")
+        a.branch(0xD0, "stock")
+        a.label("below_custom_high")
+    else:
+        a.branch(0xB0, "stock")
     a.b(0xC9, 0x5E)
     a.branch(0x90, "stock")
     a.b(0xC9, 0x78)
@@ -367,12 +376,19 @@ PRE_FINAL_ENEMY_CPU_ANIM_ENTRY = (
 )
 PRE_FINAL_ENEMY_ANIM_ENTRY_RUNTIME = _build_anim_entry_runtime(
     PRE_FINAL_ENEMY_CPU_ANIM_ENTRY,
+    spark_trail_spr2=False,
 )
 PRE_FINAL_ENEMY_ENTRY_CENTER_IMAGE = (
     PRE_FINAL_ENEMY_AI_ENTRY_RUNTIME
     + PRE_FINAL_ENEMY_SETUP_ENTRY_RUNTIME
     + INIT_ENTRY_RUNTIME
     + PRE_FINAL_ENEMY_ANIM_ENTRY_RUNTIME
+)
+PRE_SPARK_TRAIL_SPR2_ENTRY_CENTER_IMAGE = (
+    AI_ENTRY_RUNTIME
+    + SETUP_ENTRY_RUNTIME
+    + INIT_ENTRY_RUNTIME
+    + _build_anim_entry_runtime(spark_trail_spr2=False)
 )
 LEGACY_ENTRY_CENTER_IMAGE = (
     LEGACY_AI_ENTRY_RUNTIME
@@ -501,19 +517,23 @@ def _expect_entry_center(data: bytes | bytearray) -> bool:
         or all(byte in (0xEA, 0x00) for byte in current)
     ):
         return False
-    previous_size = len(PRE_FINAL_ENEMY_ENTRY_CENTER_IMAGE)
-    previous = bytes(data[OFF_AI_ENTRY:OFF_AI_ENTRY + previous_size])
-    claimed_tail = bytes(
-        data[
-            OFF_AI_ENTRY + previous_size:
-            OFF_AI_ENTRY + ENTRY_CENTER_SIZE
-        ]
-    )
-    if (
-        previous == PRE_FINAL_ENEMY_ENTRY_CENTER_IMAGE
-        and all(byte in (0xEA, 0x00) for byte in claimed_tail)
+    for previous_image in (
+        PRE_SPARK_TRAIL_SPR2_ENTRY_CENTER_IMAGE,
+        PRE_FINAL_ENEMY_ENTRY_CENTER_IMAGE,
     ):
-        return False
+        previous_size = len(previous_image)
+        previous = bytes(data[OFF_AI_ENTRY:OFF_AI_ENTRY + previous_size])
+        claimed_tail = bytes(
+            data[
+                OFF_AI_ENTRY + previous_size:
+                OFF_AI_ENTRY + ENTRY_CENTER_SIZE
+            ]
+        )
+        if (
+            previous == previous_image
+            and all(byte in (0xEA, 0x00) for byte in claimed_tail)
+        ):
+            return False
     raise NewEnemyRuntimeError(
         f"new enemy entry center is not blank/current/legacy at "
         f"0x{OFF_AI_ENTRY:X}: got {full.hex(' ')}"

@@ -43,7 +43,7 @@ class NewEnemyEntryCenterTests(unittest.TestCase):
             displacement -= 0x100
         return opcode_pos + 2 + displacement
 
-    def test_entry_center_frees_42_bytes_after_final_enemy_hookup(self) -> None:
+    def test_entry_center_frees_34_bytes_after_spark_trail_palette_hook(self) -> None:
         self.assertEqual(
             tuple(map(len, (
                 target.AI_ENTRY_RUNTIME,
@@ -51,12 +51,12 @@ class NewEnemyEntryCenterTests(unittest.TestCase):
                 target.INIT_ENTRY_RUNTIME,
                 target.ANIM_ENTRY_RUNTIME,
             ))),
-            (97, 84, 87, 117),
+            (97, 84, 87, 125),
         )
-        self.assertEqual(target.ENTRY_CENTER_SIZE, 385)
+        self.assertEqual(target.ENTRY_CENTER_SIZE, 393)
         self.assertEqual(target.ENTRY_CENTER_CAPACITY, 427)
-        self.assertEqual(target.ENTRY_CENTER_FREE_SIZE, 42)
-        self.assertEqual(target.OFF_ANIM_ENTRY + len(target.ANIM_ENTRY_RUNTIME), 0x3D73)
+        self.assertEqual(target.ENTRY_CENTER_FREE_SIZE, 34)
+        self.assertEqual(target.OFF_ANIM_ENTRY + len(target.ANIM_ENTRY_RUNTIME), 0x3D7B)
 
     def test_all_four_hook_destinations_follow_compacted_entries(self) -> None:
         self.assertEqual(target.CPU_AI_ENTRY, 0xBBE2)
@@ -141,6 +141,19 @@ class NewEnemyEntryCenterTests(unittest.TestCase):
         with self.assertRaises(target.NewEnemyRuntimeError):
             target._expect_entry_center(rom)
 
+    def test_pre_spark_trail_spr2_entry_is_accepted_for_upgrade(self) -> None:
+        previous = target.PRE_SPARK_TRAIL_SPR2_ENTRY_CENTER_IMAGE
+        self.assertEqual(len(previous), 385)
+        rom = bytearray((0xEA,)) * target.ENTRY_CENTER_LIMIT
+        rom[
+            target.OFF_AI_ENTRY:
+            target.OFF_AI_ENTRY + len(previous)
+        ] = previous
+        self.assertFalse(target._expect_entry_center(rom))
+        rom[target.OFF_AI_ENTRY + len(previous)] = 0x5A
+        with self.assertRaises(target.NewEnemyRuntimeError):
+            target._expect_entry_center(rom)
+
     def test_current_entry_does_not_claim_released_tail(self) -> None:
         rom = bytearray(target.ENTRY_CENTER_LIMIT)
         start = target.OFF_AI_ENTRY
@@ -206,17 +219,86 @@ class NewEnemyEntryCenterTests(unittest.TestCase):
                         enemy_id,
                         current_ranges,
                     )
-                    self.assertEqual(new[:5], old[:5])
+                    if (
+                        0xD8 <= enemy_id <= 0xDF
+                        and current_entry == target.CPU_ANIM_ENTRY
+                    ):
+                        self.assertEqual(old[0], 0x8789)
+                        self.assertEqual(old[4], 0xB7)
+                        self.assertEqual(new[0], SENTINEL)
+                        self.assertEqual(new[4], 0x7B)
+                    else:
+                        self.assertEqual(new[:5], old[:5])
                     legacy_steps += old[5]
                     current_steps += new[5]
                     legacy_id_steps += old[5]
                     current_id_steps += new[5]
-            self.assertLessEqual(
-                current_id_steps,
-                legacy_id_steps,
-                f"ID ${enemy_id:02X} dispatcher instruction count increased",
-            )
+            if enemy_id < 0xB0:
+                self.assertLessEqual(
+                    current_id_steps,
+                    legacy_id_steps,
+                    f"ID ${enemy_id:02X} dispatcher instruction count increased",
+                )
         self.assertLess(current_steps, legacy_steps)
+
+    def test_spark_trail_animation_forces_spr2_palette(self) -> None:
+        ranges = (
+            (target.CPU_AI_ENTRY, target.CPU_AI_ENTRY + target.ENTRY_CENTER_SIZE),
+        )
+        for enemy_id in range(0xD8, 0xE0):
+            with self.subTest(enemy_id=enemy_id):
+                result = self._run_image(
+                    target.CURRENT_ENTRY_CENTER_IMAGE,
+                    target.CPU_ANIM_ENTRY,
+                    enemy_id,
+                    ranges,
+                )
+                self.assertEqual(result[0], SENTINEL)
+                self.assertEqual(result[4], 0x7B)
+
+    def test_spr2_hook_changes_only_spark_trail_entry_output(self) -> None:
+        previous = target.PRE_SPARK_TRAIL_SPR2_ENTRY_CENTER_IMAGE
+        current = target.CURRENT_ENTRY_CENTER_IMAGE
+        previous_ranges = (
+            (target.CPU_AI_ENTRY, target.CPU_AI_ENTRY + len(previous)),
+        )
+        current_ranges = (
+            (target.CPU_AI_ENTRY, target.CPU_AI_ENTRY + len(current)),
+        )
+        entries = (
+            target.CPU_AI_ENTRY,
+            target.CPU_SETUP_ENTRY,
+            target.CPU_INIT_ENTRY,
+            target.CPU_ANIM_ENTRY,
+        )
+        for enemy_id in range(0x100):
+            for entry in entries:
+                with self.subTest(enemy_id=enemy_id, entry=entry):
+                    old = self._run_image(
+                        previous,
+                        entry,
+                        enemy_id,
+                        previous_ranges,
+                    )
+                    new = self._run_image(
+                        current,
+                        entry,
+                        enemy_id,
+                        current_ranges,
+                    )
+                    is_trail_animation = (
+                        0xD8 <= enemy_id <= 0xDF
+                        and entry == target.CPU_ANIM_ENTRY
+                    )
+                    if is_trail_animation:
+                        self.assertEqual(old[0], 0x8789)
+                        self.assertEqual(old[4], 0xB7)
+                        self.assertEqual(new[0], SENTINEL)
+                        self.assertEqual(new[4], 0x7B)
+                    else:
+                        self.assertEqual(new[:5], old[:5])
+                    if enemy_id < 0xB0:
+                        self.assertEqual(new[5], old[5])
 
     def test_all_final_enemy_ids_reach_the_expected_four_entry_outputs(self) -> None:
         current_entries = (
