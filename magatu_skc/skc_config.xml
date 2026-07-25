@@ -390,6 +390,14 @@
     <enemy no="0xd5" description="Spark Ball pause and reverse (left, speed 2)" animation="44" />
     <enemy no="0xd6" description="Spark Ball pause and reverse (up, speed 2)" animation="44" />
     <enemy no="0xd7" description="Spark Ball pause and reverse (down, speed 2)" animation="44" />
+    <enemy no="0xd8" description="Spark Trail (right, speed 1)" animation="44" />
+    <enemy no="0xd9" description="Spark Trail (left, speed 1)" animation="44" />
+    <enemy no="0xda" description="Spark Trail (up, speed 1)" animation="44" />
+    <enemy no="0xdb" description="Spark Trail (down, speed 1)" animation="44" />
+    <enemy no="0xdc" description="Spark Trail (right, speed 2)" animation="44" />
+    <enemy no="0xdd" description="Spark Trail (left, speed 2)" animation="44" />
+    <enemy no="0xde" description="Spark Trail (up, speed 2)" animation="44" />
+    <enemy no="0xdf" description="Spark Trail (down, speed 2)" animation="44" />
 
     <enemy no="0xe0" description="Panel Monster A (right)" animation="50" />
     <enemy no="0xe1" description="Panel Monster A (left)" animation="45" />
@@ -416,7 +424,7 @@
     <enemy no="0xf6" description="Panel Monster 3-way (up)" animation="51" />
     <enemy no="0xf7" description="Panel Monster 3-way (down)" animation="52" />
 
-    <!-- 0x8D-0x9B and 0x9F-0xBF and 0xD8-0xDF and 0xF8-0xFF are undefined. -->
+    <!-- 0x8D-0x9B and 0x9F-0xBF and 0xF8-0xFF are undefined. -->
   </enemy_definitions>
 
   <enemy_editor>

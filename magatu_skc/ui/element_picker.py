@@ -235,11 +235,26 @@ ENEMIES_LIST = [
         (0xC8, "transparent"),
         (0xD0, "reverse"),
     ) for code in range(first, first + 4)),
+    *((
+        code,
+        t(
+            "element_picker.enemy.spark_trail.direction",
+            "Spark Trail ({direction})",
+        ).format(
+            direction=(
+                t("element_picker.direction.right", "right"),
+                t("element_picker.direction.left", "left"),
+                t("element_picker.direction.up", "up"),
+                t("element_picker.direction.down", "down"),
+            )[code & 3],
+        ),
+    ) for code in range(0xD8, 0xDC)),
 ]
 
-# Keep this gate for unfinished picker entries added in the future.
-# Every enemy currently in ENEMIES_LIST is complete and public.
-DEVELOPER_ONLY_PICKER_ITEMS = set()
+# Keep unfinished entries out of the normal picker while retaining load/save.
+DEVELOPER_ONLY_PICKER_ITEMS = {
+    *((MODE_ENEMY, code) for code in range(0xD8, 0xDC)),
+}
 
 
 # 敵コード → スピードバリアントの対応表
@@ -249,6 +264,10 @@ ENEMY_SPEED_TABLE = {
         code: [code, code + 4, None]
         for first in (0xC0, 0xC8, 0xD0)
         for code in range(first, first + 4)
+    },
+    **{
+        code: [code, code + 4, None]
+        for code in range(0xD8, 0xDC)
     },
     # Fireball: +4 で sp2
     0x28: [0x28, 0x2c, None],
@@ -384,6 +403,10 @@ ENEMY_VISUAL_SOURCE = {
     **{
         code: (0x2C if (code & 0x04) else 0x28) + (code & 0x03)
         for code in range(0xC0, 0xD8)
+    },
+    **{
+        code: 0x28 + (code - 0xD8)
+        for code in range(0xD8, 0xE0)
     },
     0x6A: 0x68, 0x6B: 0x69,
     0x6E: 0x6C, 0x6F: 0x6D,
@@ -1295,7 +1318,13 @@ class ElementPicker(QWidget):
         self._build_ui()
 
     def set_app_config(self, app_config):
+        previous_developer_mode = self._developer_mode_enabled()
         self._app_config = app_config if isinstance(app_config, dict) else {}
+        if (
+            previous_developer_mode != self._developer_mode_enabled()
+            and hasattr(self, "_picker_lists")
+        ):
+            self._populate_all()
 
     def _developer_mode_enabled(self) -> bool:
         return bool(getattr(self, "_app_config", {}).get("developer_mode", False))

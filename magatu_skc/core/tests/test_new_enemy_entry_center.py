@@ -43,6 +43,21 @@ class NewEnemyEntryCenterTests(unittest.TestCase):
         self.assertEqual(target.OFF_GHOSTB0_EXTENSION + len(target.GHOSTB0_EXTENSION_RUNTIME), 0x3D9D)
         self.assertEqual(0x3DAC - 0x3D9D, 15)
 
+    def test_spark_trail_and_future_families_are_classified_in_all_entries(self) -> None:
+        self.assertEqual(target.SPARK_TRAIL_FIRST_ID, 0xD8)
+        self.assertEqual(target.SPARK_TRAIL_LAST_ID, 0xDF)
+        self.assertEqual(target.FUTURE_ENEMY_FIRST_ID, 0xF8)
+        self.assertEqual(target.FUTURE_ENEMY_LAST_ID, 0xFF)
+        for runtime in (
+            target.AI_ENTRY_RUNTIME,
+            target.SETUP_ENTRY_RUNTIME,
+            target.INIT_ENTRY_RUNTIME,
+            target.ANIM_ENTRY_RUNTIME,
+        ):
+            with self.subTest(size=len(runtime)):
+                self.assertIn(bytes((0xC9, 0xE0)), runtime)
+                self.assertIn(bytes((0xC9, 0xF8)), runtime)
+
     def test_short_legacy_prefix_is_not_accepted(self) -> None:
         rom = bytearray(target.OFF_ANIM_ENTRY + len(target.ANIM_ENTRY_RUNTIME))
         legacy_prefix = bytes.fromhex("a0 01 b1 08 c9 84 f0 03 4c 89 87 4c 92 e0")
@@ -56,6 +71,22 @@ class NewEnemyEntryCenterTests(unittest.TestCase):
                 "animation entry",
             )
         self.assertEqual(bytes(rom), before)
+
+    def test_pre_spark_trail_formal_entries_are_accepted_only_by_full_match(self) -> None:
+        for index, (off, current, name) in enumerate(target.ENTRY_RUNTIMES):
+            previous = target.PRE_SPARK_TRAIL_ENTRY_RUNTIMES[index]
+            with self.subTest(name=name):
+                self.assertEqual(len(previous), len(current))
+                rom = bytearray(off + len(current))
+                rom[off:off + len(previous)] = previous
+                target._expect_blank_current_or_previous(
+                    rom, off, current, previous, name
+                )
+                rom[off + len(previous) - 1] ^= 0x01
+                with self.assertRaises(target.NewEnemyRuntimeError):
+                    target._expect_blank_current_or_previous(
+                        rom, off, current, previous, name
+                    )
 
     def test_legacy_ice_only_hook_is_not_accepted(self) -> None:
         rom = bytearray(target._ice.OFF_AI_DISPATCH_CALL + 3)
@@ -73,7 +104,8 @@ class NewEnemyEntryCenterTests(unittest.TestCase):
     def test_mirror_enemy_sets_detect_every_new_enemy_family(self) -> None:
         new_enemy_ids = (
             0x82, 0x84, 0x87, 0x9C, 0x9D, 0x9E,
-            0xA0, 0xAF, 0xB0, 0xBB, 0xC0, 0xD7, 0xE0, 0xF7,
+            0xA0, 0xAF, 0xB0, 0xBB, 0xC0, 0xD7,
+            0xD8, 0xDF, 0xE0, 0xF7,
         )
         for enemy_id in new_enemy_ids:
             with self.subTest(enemy_id=enemy_id):

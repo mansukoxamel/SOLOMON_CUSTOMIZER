@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from . import ice_flame_runtime as _ice
 from . import spark24_runtime as _spark24
+from . import spark_trail_runtime as _spark_trail
 from . import spark_ball_variant as _spark_variant
 from . import neul84_runtime as _neul84
 from . import chaos_dragon9e_runtime as _chaos9e
@@ -20,6 +21,10 @@ class NewEnemyRuntimeError(ValueError):
 ICE_FLAME_ID = _ice.NEW_ENEMY_ID
 SPARK24_FIRST_ID = _spark24.FIRST_ID
 SPARK24_LAST_ID = _spark24.LAST_ID
+SPARK_TRAIL_FIRST_ID = _spark_trail.FIRST_ID
+SPARK_TRAIL_LAST_ID = _spark_trail.LAST_ID
+FUTURE_ENEMY_FIRST_ID = 0xF8
+FUTURE_ENEMY_LAST_ID = 0xFF
 NEUL84_FIRST_ID = _neul84.FIRST_ID
 NEUL84_LAST_ID = _neul84.LAST_ID
 CHAOS9E_ID = _chaos9e.NEW_ENEMY_ID
@@ -45,11 +50,13 @@ CPU_GHOSTB0_AI_CLASSIFY = 0xBD55
 CPU_GHOSTB0_SETUP_CLASSIFY = 0xBD63
 CPU_GHOSTB0_INIT_CLASSIFY = 0xBD73
 
-def _build_ai_entry_runtime() -> bytes:
+def _build_ai_entry_runtime(
+    spark_family_last_id: int = SPARK_TRAIL_LAST_ID,
+) -> bytes:
     data = bytearray((0x48, 0x18, 0x69, 0x14))
     data.extend((
         0xC9, 0xE0, 0x90, 0x08,
-        0xC9, 0xF8, 0xB0, 0x04,
+        0xC9, FUTURE_ENEMY_FIRST_ID, 0xB0, 0x04,
         0x68, 0x4C,
         _panel.CPU_FINAL_SHARED_AI_WRAPPER & 0xFF,
         _panel.CPU_FINAL_SHARED_AI_WRAPPER >> 8,
@@ -76,7 +83,7 @@ def _build_ai_entry_runtime() -> bytes:
         _phantom_preset.CPU_AI_DISPATCH >> 8,
     ))
     data.extend((0xC9, SPARK24_FIRST_ID, 0x90, 0x08))
-    data.extend((0xC9, SPARK24_LAST_ID + 1, 0xB0, 0x04))
+    data.extend((0xC9, spark_family_last_id + 1, 0xB0, 0x04))
     data.extend((0x68, 0x4C, _spark24.CPU_AI_DISPATCH & 0xFF, _spark24.CPU_AI_DISPATCH >> 8))
     data.extend((
         0x68, 0x4C,
@@ -136,17 +143,20 @@ class _EntryAsm:
         return bytes(self.data)
 
 
-def _build_setup_entry_runtime() -> bytes:
+def _build_setup_entry_runtime(
+    spark_family_last_id: int = SPARK_TRAIL_LAST_ID,
+) -> bytes:
     a = _EntryAsm()
     a.b(0xA0, 0x01, 0xB1, 0x08)         # LDA ($08),Y -> main-slot type
     a.b(0xC9, 0xE0)
     a.branch(0x90, "below_panel")
-    a.b(0xC9, 0xF8)
+    a.b(0xC9, FUTURE_ENEMY_FIRST_ID)
     a.branch(0x90, "panel")
+    a.label("future_f8")
     a.label("below_panel")
     a.b(0xC9, SPARK24_FIRST_ID)
     a.branch(0x90, "below_spark24")
-    a.b(0xC9, SPARK24_LAST_ID + 1)
+    a.b(0xC9, spark_family_last_id + 1)
     a.branch(0x90, "spark24")
     a.label("below_spark24")
     a.b(0xC9, NEUL84_FIRST_ID)
@@ -186,18 +196,21 @@ def _build_setup_entry_runtime() -> bytes:
 
 SETUP_ENTRY_RUNTIME = _build_setup_entry_runtime()
 
-def _build_init_entry_runtime() -> bytes:
+def _build_init_entry_runtime(
+    spark_family_last_id: int = SPARK_TRAIL_LAST_ID,
+) -> bytes:
     a = _EntryAsm()
     a.b(0x48, 0xA5, 0x05)               # PHA; LDA $05
     a.b(0xC9, 0xE0)
     a.branch(0x90, "below_panel")
-    a.b(0xC9, 0xF8)
-    a.branch(0xB0, "below_panel")
+    a.b(0xC9, FUTURE_ENEMY_FIRST_ID)
+    a.branch(0xB0, "future_f8")
     a.jmp(CPU_GHOSTB0_INIT_CLASSIFY)
+    a.label("future_f8")
     a.label("below_panel")
     a.b(0xC9, SPARK24_FIRST_ID)
     a.branch(0x90, "below_spark24")
-    a.b(0xC9, SPARK24_LAST_ID + 1)
+    a.b(0xC9, spark_family_last_id + 1)
     a.branch(0x90, "spark24")
     a.label("below_spark24")
     a.b(0xC9, NEUL84_FIRST_ID)
@@ -234,18 +247,21 @@ def _build_init_entry_runtime() -> bytes:
 
 INIT_ENTRY_RUNTIME = _build_init_entry_runtime()
 
-def _build_anim_entry_runtime() -> bytes:
+def _build_anim_entry_runtime(
+    spark_family_last_id: int = SPARK_TRAIL_LAST_ID,
+) -> bytes:
     a = _EntryAsm()
     a.b(0xA0, 0x01, 0xB1, 0x08)
     a.b(0xC9, 0xE0)
     a.branch(0x90, "below_panel")
-    a.b(0xC9, 0xF8)
-    a.branch(0xB0, "below_panel")
+    a.b(0xC9, FUTURE_ENEMY_FIRST_ID)
+    a.branch(0xB0, "future_f8")
     a.jmp(0x8789)
+    a.label("future_f8")
     a.label("below_panel")
     a.b(0xC9, SPARK24_FIRST_ID)
     a.branch(0x90, "below_spark24")
-    a.b(0xC9, SPARK24_LAST_ID + 1)
+    a.b(0xC9, spark_family_last_id + 1)
     a.branch(0x90, "spark24")
     a.label("below_spark24")
     a.b(0xC9, GHOSTB0_FIRST_ID)
@@ -303,6 +319,13 @@ def _build_anim_entry_runtime() -> bytes:
 
 ANIM_ENTRY_RUNTIME = _build_anim_entry_runtime()
 
+PRE_SPARK_TRAIL_ENTRY_RUNTIMES = (
+    _build_ai_entry_runtime(SPARK24_LAST_ID),
+    _build_setup_entry_runtime(SPARK24_LAST_ID),
+    _build_init_entry_runtime(SPARK24_LAST_ID),
+    _build_anim_entry_runtime(SPARK24_LAST_ID),
+)
+
 GHOSTB0_EXTENSION_RUNTIME = bytes.fromhex(
     # AI: the restored dispatch value is enemy ID minus $14.
     f"c9 {GHOSTB0_FIRST_ID - 0x14:02x} 90 07 "
@@ -347,6 +370,7 @@ RESERVED_SPANS = (
     *_fairy9c.RESERVED_SPANS,
     *_radiance9d.RESERVED_SPANS,
     *_ghostb0.RESERVED_SPANS,
+    *_spark_trail.RESERVED_SPANS,
 )
 
 assert len(AI_ENTRY_RUNTIME) == 80
@@ -373,6 +397,7 @@ def _mirror_enemy_code_needs_runtime(enemy_code: object) -> bool:
         or PHANTOM_PRESET_FIRST_ID <= enemy_id <= PHANTOM_PRESET_LAST_ID
         or _ghostb0.FIRST_ID <= enemy_id <= _ghostb0.LAST_ID
         or _spark24.FIRST_ID <= enemy_id <= _spark24.LAST_ID
+        or _spark_trail.FIRST_ID <= enemy_id <= _spark_trail.LAST_ID
         or _panel.is_panel_stage_variant_id(enemy_id)
     )
 
@@ -391,6 +416,7 @@ def levels_need_runtime(levels: list) -> bool:
             for lv in (levels or [])
             for enemy in (getattr(lv, "enemies", []) or [])
         )
+        or _spark_trail.levels_need_runtime(levels)
         or _neul84.levels_need_runtime(levels)
         or _chaos9e.levels_need_runtime(levels)
         or any(
@@ -424,6 +450,26 @@ def _expect_blank_or(data: bytes | bytearray, off: int, blob: bytes, name: str) 
     )
 
 
+def _expect_blank_current_or_previous(
+    data: bytes | bytearray,
+    off: int,
+    current: bytes,
+    previous: bytes,
+    name: str,
+) -> None:
+    value = bytes(data[off:off + len(current)])
+    if (
+        value == current
+        or value == previous
+        or all(byte in (0xEA, 0x00) for byte in value)
+    ):
+        return
+    raise NewEnemyRuntimeError(
+        f"{name} area is not blank/current at 0x{off:X}: "
+        f"got {value.hex(' ')}"
+    )
+
+
 def _write(data: bytearray, off: int, blob: bytes, changed: list[str], name: str) -> None:
     cur = bytes(data[off:off + len(blob)])
     if cur != blob:
@@ -436,6 +482,8 @@ def apply(rom_data: bytearray) -> list[str]:
     max_end = max(
         _ice.OFF_RUNTIME + len(_ice.RUNTIME),
         _spark24.OFF_RUNTIME + len(_spark24.RUNTIME),
+        _spark_trail.OFF_MAIN_RUNTIME + len(_spark_trail.MAIN_RUNTIME),
+        _spark_trail.OFF_AUX_RUNTIME + len(_spark_trail.AUX_RUNTIME),
         _neul84.OFF_RUNTIME + len(_neul84.RUNTIME),
         _neul84.OFF_PARAMETER_TABLE + len(_neul84.PARAMETER_TABLES),
         _chaos9e.OFF_RUNTIME + len(_chaos9e.RUNTIME),
@@ -553,17 +601,25 @@ def apply(rom_data: bytearray) -> list[str]:
         (bytes((0xEA,)) * len(_radiance9d.RUNTIME), _radiance9d.RUNTIME),
         "Seraphic Radiance9D runtime area",
     )
-    for off, blob, name in ENTRY_RUNTIMES:
-        _expect_blank_or(rom_data, off, blob, name)
+    for index, (off, blob, name) in enumerate(ENTRY_RUNTIMES):
+        _expect_blank_current_or_previous(
+            rom_data,
+            off,
+            blob,
+            PRE_SPARK_TRAIL_ENTRY_RUNTIMES[index],
+            name,
+        )
     _expect_blank_or(
         rom_data,
         OFF_GHOSTB0_EXTENSION,
         GHOSTB0_EXTENSION_RUNTIME,
         "Ghost B0-BB entry classification extension",
     )
+    _spark_trail.validate(rom_data)
 
     changed: list[str] = []
     changed.extend(_spark_variant.apply(rom_data))
+    changed.extend(_spark_trail.apply(rom_data))
     _write(rom_data, _ice.OFF_AI_DISPATCH_CALL, HOOK_AI_DISPATCH_CALL, changed, "$A1C3 new enemy AI dispatch hook")
     _write(rom_data, _ice.OFF_ANIM_UPDATE_CALL, HOOK_ANIM_UPDATE_CALL, changed, "$8676 new enemy animation hook")
     _write(rom_data, _ice.OFF_INIT_WRITE_CALL, HOOK_INIT_WRITE_CALL, changed, "$A2F2 new enemy init/status hook")

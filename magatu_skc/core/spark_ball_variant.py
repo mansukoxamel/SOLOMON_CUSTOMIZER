@@ -55,22 +55,42 @@ def _write_blob(rom_data, off: int, blob: bytes, changed: list[str], name: str) 
 
 
 def _runtime_present(rom_data) -> bool:
-    return bytes(rom_data[_spark24.OFF_RUNTIME:_spark24.OFF_RUNTIME + 3]) == _spark24.RUNTIME[:3]
+    return _runtime_layout_offsets(rom_data) is not None
+
+
+def _runtime_layout_offsets(rom_data):
+    prefix = bytes(rom_data[_spark24.OFF_RUNTIME:_spark24.OFF_RUNTIME + 3])
+    if prefix == _spark24.RUNTIME[:3]:
+        return "current", _spark24._OFFSETS
+    if prefix == _spark24.PRE_SPARK_TRAIL_RUNTIME[:3]:
+        return "pre_spark_trail", _spark24._PRE_SPARK_TRAIL_OFFSETS
+    return None
 
 
 def current_pause_digits(rom_data) -> tuple[int, int, int, int]:
     if rom_data is None:
         raise SparkBallVariantError("ROM is not loaded")
-    if _runtime_present(rom_data):
-        return tuple(int(rom_data[off]) for off in _spark24.OFF_PAUSE_DIGITS)
+    layout = _runtime_layout_offsets(rom_data)
+    if layout is not None:
+        _name, offsets = layout
+        return tuple(
+            int(rom_data[_spark24.OFF_RUNTIME + off])
+            for off in offsets["pause_digits"]
+        )
     return DEFAULT_PAUSE_DIGITS
 
 
 def current_transparency_period(rom_data) -> int:
     if rom_data is None:
         raise SparkBallVariantError("ROM is not loaded")
-    if _runtime_present(rom_data):
-        value = int(rom_data[_spark24.OFF_TRANSPARENCY_PERIOD])
+    layout = _runtime_layout_offsets(rom_data)
+    if layout is not None:
+        _name, offsets = layout
+        value = int(
+            rom_data[
+                _spark24.OFF_RUNTIME + offsets["transparency_period"]
+            ]
+        )
         return value if value in TRANSPARENCY_PERIODS else DEFAULT_TRANSPARENCY_PERIOD
     return DEFAULT_TRANSPARENCY_PERIOD
 
@@ -78,23 +98,36 @@ def current_transparency_period(rom_data) -> int:
 def current_reverse_digits(rom_data) -> tuple[int, int, int, int]:
     if rom_data is None:
         raise SparkBallVariantError("ROM is not loaded")
-    if _runtime_present(rom_data):
-        return tuple(int(rom_data[off]) for off in _spark24.OFF_REVERSE_DIGITS)
+    layout = _runtime_layout_offsets(rom_data)
+    if layout is not None:
+        _name, offsets = layout
+        return tuple(
+            int(rom_data[_spark24.OFF_RUNTIME + off])
+            for off in offsets["reverse_digits"]
+        )
     return DEFAULT_REVERSE_DIGITS
 
 
 def _runtime_matches_supported_configuration(rom_data, current_runtime: bytes) -> bool:
-    if not _runtime_present(rom_data):
+    layout = _runtime_layout_offsets(rom_data)
+    if layout is None:
         return False
     try:
-        expected, _offsets = _spark24.build_runtime(
+        builder = (
+            _spark24.build_runtime
+            if layout[0] == "current"
+            else _spark24.build_pre_spark_trail_runtime
+        )
+        expected, _offsets = builder(
             current_pause_digits(rom_data),
             current_reverse_digits(rom_data),
             current_transparency_period(rom_data),
         )
     except _spark24.Spark24RuntimeError:
         return False
-    return current_runtime == expected
+    if current_runtime[:len(expected)] != expected:
+        return False
+    return all(value in (0x00, 0xEA) for value in current_runtime[len(expected):])
 
 
 def apply(rom_data, pause_digits=None, transparency_period=None,
@@ -125,6 +158,22 @@ def apply(rom_data, pause_digits=None, transparency_period=None,
     hook_ab13 = bytes((0x4C, offsets["pause"] & 0xFF, offsets["pause"] >> 8))
     hook_a2cc = bytes((0x20, offsets["property"] & 0xFF, offsets["property"] >> 8))
     hook_85fa = bytes((0x4C, offsets["oam"] & 0xFF, offsets["oam"] >> 8))
+    previous_offsets = _spark24._PRE_SPARK_TRAIL_OFFSETS
+    previous_hook_ab13 = bytes((
+        0x4C,
+        previous_offsets["pause"] & 0xFF,
+        previous_offsets["pause"] >> 8,
+    ))
+    previous_hook_a2cc = bytes((
+        0x20,
+        previous_offsets["property"] & 0xFF,
+        previous_offsets["property"] >> 8,
+    ))
+    previous_hook_85fa = bytes((
+        0x4C,
+        previous_offsets["oam"] & 0xFF,
+        previous_offsets["oam"] >> 8,
+    )) + bytes((0xEA,)) * 3
     panel_a2cc = bytes((0x20, CPU_PANEL_PROPERTY_HOOK & 0xFF, CPU_PANEL_PROPERTY_HOOK >> 8))
     new_oam = hook_85fa + bytes((0xEA,)) * 3
 
@@ -143,11 +192,13 @@ def apply(rom_data, pause_digits=None, transparency_period=None,
     current_ab13 = bytes(rom_data[OFF_AB13:OFF_AB13 + 3])
     current_a2cc = bytes(rom_data[OFF_A2CC:OFF_A2CC + 3])
     current_85fa = bytes(rom_data[OFF_85FA:OFF_85FA + len(ORIG_85FA)])
-    if current_ab13 not in (ORIG_AB13_HEAD, hook_ab13):
+    if current_ab13 not in (ORIG_AB13_HEAD, previous_hook_ab13, hook_ab13):
         raise SparkBallVariantError(f"$AB13 signature mismatch: got {current_ab13.hex(' ')}")
-    if current_a2cc not in (ORIG_A2CC_HEAD, panel_a2cc, hook_a2cc):
+    if current_a2cc not in (
+        ORIG_A2CC_HEAD, panel_a2cc, previous_hook_a2cc, hook_a2cc,
+    ):
         raise SparkBallVariantError(f"$A2CC signature mismatch: got {current_a2cc.hex(' ')}")
-    if current_85fa not in (ORIG_85FA, new_oam):
+    if current_85fa not in (ORIG_85FA, previous_hook_85fa, new_oam):
         raise SparkBallVariantError(f"$85FA signature mismatch: got {current_85fa.hex(' ')}")
 
     changed: list[str] = []

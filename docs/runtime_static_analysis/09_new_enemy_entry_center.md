@@ -39,7 +39,9 @@ Enhanced Ghost `$B0-$BB`用の共通拡張56Bが`$BD55-$BD8C`に続く。4入口
 | `$A0-$AF` | Phantom preset A-D |
 | `$B0-$BB` | Enhanced Ghost A-F |
 | `$C0-$D7` | Spark Ball 24ID |
+| `$D8-$DF` | Spark Trail |
 | `$E0-$F7` | Panel Monster v2 |
+| `$F8-$FF` | reserved future-family branch (stock fallback until its runtime is implemented) |
 
 Enhanced Saramandor `$5E/$5F/$62/$63/$66/$67`、Dragon variant `$6A/$6B/$6E/$6F`、Goblin variant `$72/$73/$76/$77`は新敵専用AIへは送らない。原作AIを維持し、animation入口でpalette属性だけを補正する。
 
@@ -49,7 +51,7 @@ Enhanced Saramandor `$5E/$5F/$62/$63/$66/$67`、Dragon variant `$6A/$6B/$6E/$6F`
 
 入口は最初にPHAし、`ADC #$14`でIDを復元して分類する。直前の原作`SBC #$14`がCarry setで到達するため、CLCなしのADCで元IDへ戻る。
 
-分類順はPanel、Neul、Chaos、Fairy、Radiance、Phantom、Sparkである。該当時はPLAで原作dispatch値を捨てて各AIへJMPする。非該当時もPLAしてGhost拡張へ入り、`$B0-$BB`ならGhost AI、それ以外なら原作`$A329`へ戻る。
+分類順はPanel、Neul、Chaos、Fairy、Radiance、Phantom、Sparkである。Spark範囲は`$C0-$DF`まで受付し、Spark24 AI入口内で`$D8-$DF`をSpark Trail本体へ分岐する。該当時はPLAで原作dispatch値を捨てて各AIへJMPする。非該当時もPLAしてGhost拡張へ入り、`$B0-$BB`ならGhost AI、それ以外なら原作`$A329`へ戻る。
 
 - Ice Burn `$82`は共通入口で分類しない。復元前のA=`$6E`を原作`$A329`へ渡し、stock Flame AIを使う。
 - PanelはPLA後、Panel共有AI wrapperへ入る。
@@ -60,7 +62,7 @@ Enhanced Saramandor `$5E/$5F/$62/$63/$66/$67`、Dragon variant `$6A/$6B/$6E/$6F`
 
 原作`$8ACB`は、X=entity typeから作ったY=`(X >> 1) & $FE`を使い、setup group pointerを読む入口である。hook時点では`($08),Y`のY=0がentity typeであるため、共通入口はそこからIDを直接読む。
 
-- Panel `$E0-$F7`とSpark `$C0-$D7`: group `$14`を使う。
+- Panel `$E0-$F7`とSpark/Spark Trail `$C0-$DF`: group `$14`を使う。
 - Neul、Chaos、Fairy、Radiance、Phantom: 各専用setupへJMPする。
 - Ghost `$B0-$BB`: Ghost拡張でgroup metadataを返す。
 - Ice `$82`: stock Flameと同じgroup計算へ戻る。
@@ -73,7 +75,7 @@ Enhanced Saramandor `$5E/$5F/$62/$63/$66/$67`、Dragon variant `$6A/$6B/$6E/$6F`
 原作`$A2F1`でA=Xとなり、`JSR $9D1C`を呼ぶ。共通入口は最初にPHAしてこの原作入力を保存し、main slot type `$05`で分類する。
 
 - Neul、Ghost、Fairy、Radiance、Chaos、Phantomの専用initは先頭でPLAし、原作入力を自分で消費する。
-- Sparkは入口内でPLA後、原作`$9D1C`を実行する。
+- Spark/Spark Trailは入口内でPLA後、原作`$9D1C`を実行する。
 - IceはGhost拡張fallbackがPLA、原作`$9D1C`、type再読込を行った後、Ice専用initへJMPする。
 - Panelとその他の敵も同じfallbackでPLAして原作initを実行する。
 
@@ -87,6 +89,7 @@ Enhanced Saramandor `$5E/$5F/$62/$63/$66/$67`、Dragon variant `$6A/$6B/$6E/$6F`
 |---|---|
 | Panel `$E0-$F7` | 原作`$8789` |
 | Spark `$C0-$D7` | 原作`$8789` |
+| Spark Trail `$D8-$DF` | 原作`$8789` |
 | Ghost `$B0-$BB` | 原作`$8789` |
 | Ice `$82` | Ice専用固定frame更新 |
 | Fairy `$9C` | 原作更新後、OAM属性を`AND #$13 / ORA #$48` |
@@ -121,6 +124,7 @@ SPR#2 branchは原作`$8789`後、OAM属性`($08),Y`のpalette bitを`AND #$33 /
 - Seraphic Radiance
 - Enhanced Ghost A-Fとparameter table
 - Spark variantの共有hook
+- Spark Trail main/aux runtime
 
 Panel本体は保存処理の後段で常設配置される。AI入口からPanel共有wrapperへ直接JMPするため、expanded ROM保存では両方が必須である。
 
@@ -135,7 +139,11 @@ Panel本体は保存処理の後段で常設配置される。AI入口からPane
 | `0x3C94-0x3CDF` | `$BC84-$BCCF` | 76B | init入口 |
 | `0x3CE0-0x3D64` | `$BCD0-$BD54` | 133B | animation入口 |
 | `0x3D65-0x3D9C` | `$BD55-$BD8C` | 56B | Ghost分類拡張 |
-| `0x3D9D-0x3DAB` | `$BD8D-$BD9B` | 15B | 現行runtime予約なし |
+| `0x3D9D-0x3DA9` | `$BD8D-$BD99` | 13B | Phantom vertical physics helper |
+| `0x3DAA-0x3DAB` | `$BD9A-$BD9B` | 2B | 現行runtime予約なし |
+| `0x3ED0-0x3F89` | `$BEC0-$BF79` | 186B | Spark24 runtime（Spark Trail AI分岐を含む） |
+| `0x3F8A-0x3FEF` | `$BF7A-$BFDF` | 102B | Spark Trail近傍展開・map読出し |
+| `0x6E19-0x6E9D` | `$EE09-$EE8D` | 133B | Spark Trail移動・配置・21枠検査 |
 
 共通入口本体は427Bである。RAMは新規に確保せず、各子runtimeが定義する既存main/sub-slot fieldと設定RAMだけを使う。
 

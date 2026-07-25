@@ -1331,6 +1331,10 @@ _TRANSLATIONS = {
     "main.status.auto_normal_for_cracked": {"ja": "ひび割れブロック内のため通常item_idで保存 {tile}", "en": "Saved as a normal item ID because the target is a cracked block {tile}"},
     "main.status.auto_in_block_flag": {"ja": "ブロック内のため自動で in_block フラグON {tile}", "en": "Auto-enabled in_block flag because the target is inside a block {tile}"},
     "main.eyedropper.enemy": {"ja": "スポイト: 敵 0x{code:02X} (base 0x{base:02X}, SP{speed}) を選択", "en": "Eyedropper: selected enemy 0x{code:02X} (base 0x{base:02X}, SP{speed})"},
+    "element_picker.enemy.spark_trail.direction": {
+        "ja": "スパークトレイル ({direction})",
+        "en": "Spark Trail ({direction})",
+    },
     "main.eyedropper.item": {"ja": "スポイト: アイテム 0x{code:02X} を選択", "en": "Eyedropper: selected item 0x{code:02X}"},
     "main.eyedropper.meta": {"ja": "スポイト: {name} を選択", "en": "Eyedropper: selected {name}"},
     "main.eyedropper.block": {"ja": "スポイト: {name} を選択", "en": "Eyedropper: selected {name}"},

@@ -24,7 +24,16 @@ from PyQt5.QtWidgets import (
 
 from magatu_skc.core import config, saver
 from magatu_skc.core.i18n import get_language, set_language
-from magatu_skc.ui.element_picker import ENEMIES_LIST, MODE_ENEMY, ElementPicker
+from magatu_skc.ui.element_picker import (
+    DEVELOPER_ONLY_PICKER_ITEMS,
+    ENEMIES_LIST,
+    ENEMY_VISUAL_SOURCE,
+    MODE_ENEMY,
+    ElementPicker,
+    apply_enemy_speed,
+    base_code_from_actual,
+)
+from magatu_skc.gfx.level_renderer import ENEMY_VISUAL_SOURCE as RENDER_VISUAL_SOURCE
 from magatu_skc.ui.hack_dialog import HackDialog
 from magatu_skc.ui.main_window import MainWindow
 from magatu_skc.ui.settings_dialog import SettingsDialog
@@ -167,7 +176,7 @@ class FavoritesVisibilityTests(unittest.TestCase):
         picker.set_bonus_mode(False)
         self.assertTrue(picker._bottom_stack.isHidden())
 
-    def test_all_completed_enemies_are_visible_without_developer_mode(self):
+    def test_developer_enemies_are_hidden_without_developer_mode(self):
         picker = ElementPicker()
         picker.set_app_config({"developer_mode": False})
         visible_codes = {
@@ -177,7 +186,38 @@ class FavoritesVisibilityTests(unittest.TestCase):
             if item.data(Qt.UserRole)
             and item.data(Qt.UserRole)[0] == MODE_ENEMY
         }
-        self.assertEqual(visible_codes, {code for code, _name in ENEMIES_LIST})
+        expected = {
+            code for code, _name in ENEMIES_LIST
+            if (MODE_ENEMY, code) not in DEVELOPER_ONLY_PICKER_ITEMS
+        }
+        self.assertEqual(visible_codes, expected)
+        self.assertTrue(set(range(0xD8, 0xDC)).isdisjoint(visible_codes))
+
+    def test_spark_trail_is_visible_in_developer_mode(self):
+        picker = ElementPicker()
+        picker.set_app_config({"developer_mode": True})
+        visible_codes = {
+            item.data(Qt.UserRole)[1]
+            for index in range(picker._picker_lists[3].count())
+            for item in (picker._picker_lists[3].item(index),)
+            if item.data(Qt.UserRole)
+            and item.data(Qt.UserRole)[0] == MODE_ENEMY
+        }
+        self.assertTrue(set(range(0xD8, 0xDC)).issubset(visible_codes))
+
+    def test_spark_trail_speed_and_visual_mappings_cover_all_eight_ids(self):
+        for direction in range(4):
+            base = 0xD8 + direction
+            fast = 0xDC + direction
+            with self.subTest(direction=direction):
+                self.assertEqual(apply_enemy_speed(base, 1), base)
+                self.assertEqual(apply_enemy_speed(base, 2), fast)
+                self.assertEqual(base_code_from_actual(base), (base, 1))
+                self.assertEqual(base_code_from_actual(fast), (base, 2))
+                self.assertEqual(ENEMY_VISUAL_SOURCE[base], 0x28 + direction)
+                self.assertEqual(ENEMY_VISUAL_SOURCE[fast], 0x2C + direction)
+                self.assertEqual(RENDER_VISUAL_SOURCE[base], 0x28 + direction)
+                self.assertEqual(RENDER_VISUAL_SOURCE[fast], 0x2C + direction)
 
 
 class TitleScreenDialogCloseSafetyTests(unittest.TestCase):

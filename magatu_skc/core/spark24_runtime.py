@@ -8,9 +8,11 @@ class Spark24RuntimeError(ValueError):
 
 FIRST_ID = 0xC0
 LAST_ID = 0xD7
+PROPERTY_LAST_ID = 0xDF
 PAUSE_FIRST_ID = 0xC0
 TRANSPARENT_FIRST_ID = 0xC8
 REVERSE_FIRST_ID = 0xD0
+SPARK_TRAIL_FIRST_DISPATCH = 0xD8 - 0x14
 
 OFF_RUNTIME = 0x3ED0
 CPU_RUNTIME = 0xBEC0
@@ -27,6 +29,7 @@ CPU_STOCK_SPARK_FAST = 0xA92D
 CPU_STOCK_SPEED_COMMIT = 0xAB13
 CPU_PANEL_PROPERTY_HOOK = 0xE6DF
 CPU_STOCK_OAM_RETURN = 0x8608
+CPU_SPARK_TRAIL_AI = 0xEE09
 
 
 class _Asm:
@@ -75,8 +78,13 @@ def normalize_digits(values) -> tuple[int, int, int, int]:
     return tuple(result)
 
 
-def _build_ai_dispatch(base: int) -> bytes:
+def _build_ai_dispatch(base: int, include_spark_trail: bool = True) -> bytes:
     a = _Asm(base)
+    if include_spark_trail:
+        # The shared entry also sends $D8-$DF here. Keep Spark24 unchanged and
+        # route that upper family to its dedicated block-trail body.
+        a.b(0xC9, SPARK_TRAIL_FIRST_DISPATCH)
+        a.branch(0xB0, "spark_trail")
     # The shared AI entry restores the stock dispatcher input (enemy ID - $14)
     # before jumping here, so normalize from $C0-$14 rather than from $C0.
     a.b(0x38, 0xE9, FIRST_ID - 0x14, 0x29, 0x04)  # SEC/SBC #$AC/AND #$04
@@ -84,6 +92,9 @@ def _build_ai_dispatch(base: int) -> bytes:
     a.jmp(CPU_STOCK_SPARK_FAST)
     a.label("slow")
     a.jmp(CPU_STOCK_SPARK_SLOW)
+    if include_spark_trail:
+        a.label("spark_trail")
+        a.jmp(CPU_SPARK_TRAIL_AI)
     return a.finish()
 
 
@@ -128,7 +139,7 @@ def _build_pause_dispatch(base: int, pause_digits, reverse_digits) -> tuple[byte
 def _build_property_dispatch(base: int) -> bytes:
     a = _Asm(base)
     a.b(0xA5, 0x05, 0xC9, FIRST_ID); a.branch(0x90, "stock")
-    a.b(0xC9, LAST_ID + 1); a.branch(0xB0, "stock")
+    a.b(0xC9, PROPERTY_LAST_ID + 1); a.branch(0xB0, "stock")
     a.b(0xA9, 0x19, 0x60)
     a.label("stock")
     a.jmp(CPU_PANEL_PROPERTY_HOOK)
@@ -153,13 +164,14 @@ def _build_oam_dispatch(base: int, transparency_period: int) -> tuple[bytes, int
     return a.finish(), period_offset
 
 
-def build_runtime(pause_digits=DEFAULT_PAUSE_DIGITS,
-                  reverse_digits=DEFAULT_REVERSE_DIGITS,
-                  transparency_period=DEFAULT_TRANSPARENCY_PERIOD):
+def _build_runtime(pause_digits=DEFAULT_PAUSE_DIGITS,
+                   reverse_digits=DEFAULT_REVERSE_DIGITS,
+                   transparency_period=DEFAULT_TRANSPARENCY_PERIOD,
+                   include_spark_trail: bool = True):
     chunks: list[bytes] = []
     cpu = CPU_RUNTIME
 
-    ai = _build_ai_dispatch(cpu)
+    ai = _build_ai_dispatch(cpu, include_spark_trail)
     cpu_ai = cpu
     chunks.append(ai); cpu += len(ai)
 
@@ -191,7 +203,32 @@ def build_runtime(pause_digits=DEFAULT_PAUSE_DIGITS,
     return runtime, offsets
 
 
+def build_runtime(pause_digits=DEFAULT_PAUSE_DIGITS,
+                  reverse_digits=DEFAULT_REVERSE_DIGITS,
+                  transparency_period=DEFAULT_TRANSPARENCY_PERIOD):
+    return _build_runtime(
+        pause_digits,
+        reverse_digits,
+        transparency_period,
+        include_spark_trail=True,
+    )
+
+
+def build_pre_spark_trail_runtime(pause_digits=DEFAULT_PAUSE_DIGITS,
+                                  reverse_digits=DEFAULT_REVERSE_DIGITS,
+                                  transparency_period=DEFAULT_TRANSPARENCY_PERIOD):
+    return _build_runtime(
+        pause_digits,
+        reverse_digits,
+        transparency_period,
+        include_spark_trail=False,
+    )
+
+
 RUNTIME, _OFFSETS = build_runtime()
+PRE_SPARK_TRAIL_RUNTIME, _PRE_SPARK_TRAIL_OFFSETS = (
+    build_pre_spark_trail_runtime()
+)
 CPU_AI_DISPATCH = _OFFSETS["ai"]
 CPU_PAUSE_DISPATCH = _OFFSETS["pause"]
 CPU_PROPERTY_DISPATCH = _OFFSETS["property"]
@@ -206,5 +243,6 @@ RESERVED_SPANS = ((OFF_RUNTIME, len(RUNTIME)),)
 
 assert OFF_RUNTIME + RUNTIME_CAPACITY == 0x4010
 assert CPU_RUNTIME + RUNTIME_CAPACITY == 0xC000
-assert len(RUNTIME) == 179
-assert RUNTIME_FREE_LEN == 141
+assert len(RUNTIME) == 186
+assert RUNTIME_FREE_LEN == 134
+assert len(PRE_SPARK_TRAIL_RUNTIME) == 179

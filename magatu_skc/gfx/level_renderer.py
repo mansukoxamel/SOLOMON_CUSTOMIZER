@@ -48,6 +48,7 @@ ENEMY_VISUAL_SOURCE = {
     **{code: (0x30 if (code & 1) == 0 else 0x32) for code in range(0x84, 0x88)},
     **{code: (0x36 if code & 1 else 0x34) for code in range(0xB0, 0xBC)},
     **{code: 0x20 + (code & 3) for code in range(0xA0, 0xB0)},
+    **{code: 0x28 + (code - 0xD8) for code in range(0xD8, 0xE0)},
 }
 
 ENEMY_PALETTE_OVERRIDE = {

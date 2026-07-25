@@ -254,6 +254,7 @@ class NewEnemyRegistrationTests(unittest.TestCase):
         from magatu_skc.core import panel_monster_stage_variant
         from magatu_skc.core import seraphic_radiance9d_runtime
         from magatu_skc.core import spark24_runtime
+        from magatu_skc.core import spark_trail_runtime
         from magatu_skc.core import spark_ball_variant
 
         families = {
@@ -265,6 +266,7 @@ class NewEnemyRegistrationTests(unittest.TestCase):
             "phantom_preset": tuple(range(phantom_preset_runtime.FIRST_ID, phantom_preset_runtime.LAST_ID + 1)),
             "enhanced_ghost": tuple(ghostb0_runtime.NEW_ENEMY_IDS),
             "spark24": tuple(range(spark24_runtime.FIRST_ID, spark24_runtime.LAST_ID + 1)),
+            "spark_trail": tuple(range(spark_trail_runtime.FIRST_ID, spark_trail_runtime.LAST_ID + 1)),
             "panel_monster": tuple(panel_monster_stage_variant.PANEL_STAGE_RUNTIME_IDS),
         }
         expected = {
@@ -276,6 +278,7 @@ class NewEnemyRegistrationTests(unittest.TestCase):
             "phantom_preset": tuple(range(0xA0, 0xB0)),
             "enhanced_ghost": tuple(range(0xB0, 0xBC)),
             "spark24": tuple(range(0xC0, 0xD8)),
+            "spark_trail": tuple(range(0xD8, 0xE0)),
             "panel_monster": tuple(range(0xE0, 0xF8)),
         }
         self.assertEqual(families, expected, "A formal enemy ID assignment changed")
@@ -301,6 +304,7 @@ class NewEnemyRegistrationTests(unittest.TestCase):
             "phantom_preset": tuple(range(new_enemy_runtime.PHANTOM_PRESET_FIRST_ID, new_enemy_runtime.PHANTOM_PRESET_LAST_ID + 1)),
             "enhanced_ghost": tuple(range(new_enemy_runtime.GHOSTB0_FIRST_ID, new_enemy_runtime.GHOSTB0_LAST_ID + 1)),
             "spark24": tuple(range(new_enemy_runtime.SPARK24_FIRST_ID, new_enemy_runtime.SPARK24_LAST_ID + 1)),
+            "spark_trail": tuple(range(new_enemy_runtime.SPARK_TRAIL_FIRST_ID, new_enemy_runtime.SPARK_TRAIL_LAST_ID + 1)),
         }
         expected_common = {name: ids for name, ids in expected.items() if name != "panel_monster"}
         self.assertEqual(exported_ids, expected_common, "new_enemy_runtime exports the wrong enemy IDs")
@@ -314,6 +318,7 @@ class NewEnemyRegistrationTests(unittest.TestCase):
             chaos_dragon9e_runtime,
             phantom_preset_runtime,
             ghostb0_runtime,
+            spark_trail_runtime,
         )
         for module in common_modules:
             missing = {tuple(span) for span in module.RESERVED_SPANS} - common_spans
