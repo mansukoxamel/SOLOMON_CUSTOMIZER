@@ -54,23 +54,6 @@ class SavePreflightError(SaveError):
             f"cause={self.cause_type}: {self.cause_detail}"
         )
 
-    def is_runtime_layout_mismatch(self) -> bool:
-        """Return whether salvage migration is relevant to this failure."""
-        step = self.step.lower()
-        detail = self.cause_detail.lower()
-        if "runtime" not in step:
-            return False
-        layout_markers = (
-            "signature mismatch",
-            "extension mismatch",
-            "area is occupied",
-            "area occupied",
-            "cave overlap",
-            "expected empty",
-            "runtime loader signature mismatch",
-        )
-        return any(marker in detail for marker in layout_markers)
-
 
 def _run_save_step(step: str, func, *args, **kwargs):
     try:

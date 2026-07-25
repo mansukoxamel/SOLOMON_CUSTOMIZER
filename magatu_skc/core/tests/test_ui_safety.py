@@ -606,32 +606,13 @@ class GlobalSettingsImportSafetyTests(unittest.TestCase):
         self.assertEqual(dialog.owner._session_log, ["before"])
 
 
-class LegacyRomMigrationOfferTests(unittest.TestCase):
+class SaveFailureMigrationOfferTests(unittest.TestCase):
     @staticmethod
     def _window_state(*, metadata=True, loaded=True):
         rom = SimpleNamespace(has_customizer_metadata=lambda: metadata) if loaded else None
         return SimpleNamespace(rom=rom, levels=[object()] if loaded else [])
 
-    def test_runtime_extension_mismatch_is_migration_relevant(self):
-        error = saver.SavePreflightError(
-            "Saramandor variant runtime検証/適用",
-            RuntimeError(
-                "Saramandor A/B/C extension mismatch at file 0x69B9"
-            ),
-        )
-        self.assertTrue(error.is_runtime_layout_mismatch())
-        self.assertTrue(
-            MainWindow._should_offer_data_migration(self._window_state(), error)
-        )
-
-    def test_runtime_signature_mismatch_is_migration_relevant(self):
-        error = saver.SavePreflightError(
-            "Dark Fairy runtime検証/適用",
-            RuntimeError("runtime loader signature mismatch at file 0x6010"),
-        )
-        self.assertTrue(error.is_runtime_layout_mismatch())
-
-    def test_non_runtime_save_constraints_do_not_offer_migration(self):
+    def test_all_save_failure_types_offer_migration(self):
         errors = (
             saver.SavePreflightError(
                 "ステージデータ検証",
@@ -641,23 +622,30 @@ class LegacyRomMigrationOfferTests(unittest.TestCase):
                 "Saramandor variant runtime検証/適用",
                 RuntimeError("not enough space"),
             ),
+            saver.SavePreflightError(
+                "Spark Ball variant runtime検証/適用",
+                RuntimeError(
+                    "Spark24 runtime area is not blank at file 0x3ED0"
+                ),
+            ),
             OSError("disk full"),
+            RuntimeError("unexpected save failure"),
         )
         for error in errors:
             with self.subTest(error=error):
-                self.assertFalse(
+                self.assertTrue(
                     MainWindow._should_offer_data_migration(
                         self._window_state(),
                         error,
                     )
                 )
 
-    def test_metadata_and_loaded_editor_state_are_required(self):
+    def test_metadata_is_not_required_but_loaded_editor_state_is(self):
         error = saver.SavePreflightError(
             "Gargoyle runtime検証/適用",
             RuntimeError("signature mismatch"),
         )
-        self.assertFalse(
+        self.assertTrue(
             MainWindow._should_offer_data_migration(
                 self._window_state(metadata=False),
                 error,

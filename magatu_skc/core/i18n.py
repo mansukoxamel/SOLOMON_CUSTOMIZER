@@ -1657,15 +1657,15 @@ _TRANSLATIONS = {
     },
     "main.autosave.failed.migration_offer": {
         "ja": (
-            "旧runtime形式が原因の可能性があります。\n"
             "データ移行を選ぶと終了を中止し、現在認識できているステージや設定を"
-            "現行形式のROMへ移します。移行元ROMは変更しません。"
+            "原作ROMから作る現行形式のROMへ移します。移行元ROMは変更しません。"
+            "自動保存失敗の原因によっては、移行後の保存も失敗することがあります。"
         ),
         "en": (
-            "An older runtime layout may be the cause.\n"
             "Choose Data Migration to cancel closing and move the stages and settings "
-            "currently recognized by this app into a current-format ROM. "
-            "The source ROM will not be modified."
+            "currently recognized by this app into a current-format ROM created from "
+            "an original game ROM. The source ROM will not be modified. Depending on "
+            "the cause of the autosave failure, saving the migrated ROM may also fail."
         ),
     },
     "main.autosave.failed.migrate": {
@@ -2867,14 +2867,15 @@ _TRANSLATIONS = {
     },
     "main.migration.save_error.offer": {
         "ja": (
-            "このROMは旧runtime形式の可能性があります。データ移行を使うと、"
-            "現在認識できているステージや設定を現行形式のROMへ移せます。"
-            "元のROMは変更しません。"
+            "データ移行を使うと、現在認識できているステージや設定を、"
+            "原作ROMから作る現行形式のROMへ移せます。移行元ROMは変更しません。"
+            "保存失敗の原因によっては、移行後の保存も失敗することがあります。"
         ),
         "en": (
-            "This ROM may use an older runtime layout. Data Migration can move the "
-            "stages and settings currently recognized by this app into a current-format ROM. "
-            "The source ROM will not be modified."
+            "Data Migration can move the stages and settings currently recognized by "
+            "this app into a current-format ROM created from an original game ROM. "
+            "The source ROM will not be modified. Depending on the cause of the save "
+            "failure, saving the migrated ROM may also fail."
         ),
     },
     "main.migration.save_error.action": {

@@ -4682,14 +4682,8 @@ class MainWindow(QMainWindow):
             2500,
         )
 
-    def _should_offer_data_migration(self, error: Exception) -> bool:
-        return bool(
-            isinstance(error, saver.SavePreflightError)
-            and error.is_runtime_layout_mismatch()
-            and self.rom
-            and self.levels
-            and self.rom.has_customizer_metadata()
-        )
+    def _should_offer_data_migration(self, _error: Exception) -> bool:
+        return bool(self.rom and self.levels)
 
     def _show_save_failure(self, title: str, error: Exception, log_prefix: str,
                            extra_message: str = "") -> bool:
@@ -4709,9 +4703,9 @@ class MainWindow(QMainWindow):
         box.setInformativeText(
             t(
                 "main.migration.save_error.offer",
-                "このROMは旧runtime形式の可能性があります。データ移行を使うと、"
-                "現在認識できているステージや設定を現行形式のROMへ移せます。"
-                "元のROMは変更しません。",
+                "データ移行を使うと、現在認識できているステージや設定を、"
+                "原作ROMから作る現行形式のROMへ移せます。移行元ROMは変更しません。"
+                "保存失敗の原因によっては、移行後の保存も失敗することがあります。",
             )
         )
         migration_button = box.addButton(
@@ -11954,9 +11948,9 @@ class MainWindow(QMainWindow):
                     box.setInformativeText(
                         t(
                             "main.autosave.failed.migration_offer",
-                            "旧runtime形式が原因の可能性があります。\n"
                             "データ移行を選ぶと終了を中止し、現在認識できているステージや設定を"
-                            "現行形式のROMへ移します。移行元ROMは変更しません。",
+                            "原作ROMから作る現行形式のROMへ移します。移行元ROMは変更しません。"
+                            "自動保存失敗の原因によっては、移行後の保存も失敗することがあります。",
                         )
                     )
                     migrate_button = box.addButton(
