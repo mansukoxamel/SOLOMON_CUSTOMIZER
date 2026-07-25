@@ -1,5 +1,38 @@
 # 9/26 新敵ID共通入口センター 6502静的解析
 
+## Current optimization (2026-07-25)
+
+This section supersedes the current-address and current-size statements in
+the older analysis below. The older sections remain as historical analysis.
+
+| hook | current entry | size |
+|---:|---:|---:|
+| `$A1C3` AI | `$BBE2` | 88B |
+| `$8ACB` setup | `$BC3A` | 84B |
+| `$A2F2` init | `$BC8E` | 87B |
+| `$8676` animation | `$BCE5` | 117B |
+
+The four entries occupy `0x3BF2-0x3D69`, 376B total. The former separate
+Ghost classifier is integrated into AI/setup/init. `0x3D6A-0x3D9C` is now
+51B of unreserved PRG0 space. No new RAM is used.
+
+Classification combines high-range shortcuts with ascending fixed-ID
+thresholds. This is smaller than a jump/class table for the final sparse ID
+set and lets low stock IDs return early. High-range shortcuts keep the
+combined four-entry instruction count at or below the checkpoint for every
+ID. The animation palette variants share an arithmetic classifier.
+
+Static execution compares the checkpoint 427B image with the optimized image
+for all 256 IDs through all four entries: 1,024 entry-to-exit paths. Endpoint,
+A/Y contracts, stack balance, and animation attribute output match. The test
+also requires the optimized total instruction count to be lower. A second
+exhaustive check confirms that no individual ID uses more instructions than
+the checkpoint when the four entries are combined.
+
+The exact checkpoint image and its three moved hook destinations are accepted
+only as the immediate input to this rewrite. Partial prefixes and arbitrary
+older layouts remain rejected.
+
 解析日: 2026-07-19
 対象: `magatu_skc/core/new_enemy_runtime.py`、各追加敵runtime、`saver.py`、ピッカー/キャンバス描画
 一次資料: コメント付き原作ASM、日本版原作ROM、現行mapper66 workstate、正式ROM管理簿

@@ -36,81 +36,36 @@ GHOSTB0_FIRST_ID = _ghostb0.FIRST_ID
 GHOSTB0_LAST_ID = _ghostb0.LAST_ID
 
 OFF_AI_ENTRY = 0x3BF2      # CPU $BBE2
-OFF_SETUP_ENTRY = 0x3C42
-OFF_INIT_ENTRY = 0x3C94
-OFF_ANIM_ENTRY = 0x3CE0
-
 CPU_AI_ENTRY = 0xBBE2
-CPU_SETUP_ENTRY = 0xBC32
-CPU_INIT_ENTRY = 0xBC84
-CPU_ANIM_ENTRY = 0xBCD0
+ENTRY_CENTER_LIMIT = 0x3D9D
 
-OFF_GHOSTB0_EXTENSION = 0x3D65
-CPU_GHOSTB0_AI_CLASSIFY = 0xBD55
-CPU_GHOSTB0_SETUP_CLASSIFY = 0xBD63
-CPU_GHOSTB0_INIT_CLASSIFY = 0xBD73
+LEGACY_AI_ENTRY_RUNTIME = bytes.fromhex(
+    "48186914c9e09008c9f8b004684cb7e6c9849004c9889034c99ef024c99cf024"
+    "c99df024c9a09008c9b0b004684cbdbdc9c09008c9e0b004684cc0be684c55bd"
+    "684cbeee684c0de0684c20ec684ceeee"
+)
+LEGACY_SETUP_ENTRY_RUNTIME = bytes.fromhex(
+    "a001b108c9e09004c9f8903ac9c09004c9e09032c9849007c988b0034cc1eec9"
+    "83902cc99ef016c99cf015c99df014c9a09007c9b0b0184c9cbd4c63bd4ca4ee"
+    "4c00e04c00e0a914850ea8b9d3d9604c63bd"
+)
+LEGACY_INIT_ENTRY_RUNTIME = bytes.fromhex(
+    "48a505c9e09007c9f8b0034c73bdc9c09004c9e09028c9849007c988b0034cd4"
+    "eec99ef01ec99cf01dc99df01cc9a09007c9b0b0034ca5bd4c73bd4c75e06820"
+    "1c9d604caeee4c09e04cf4eb"
+)
+LEGACY_ANIM_ENTRY_RUNTIME = bytes.fromhex(
+    "a001b108c9e09007c9f8b0034c8987c9c09004c9e0906bc9b09004c9bc9063c9"
+    "82f031c99cf030c99df054c9a09004c9b0903229fec95ef02cc962f028c966f0"
+    "24c96af020c96ef02ac972f018c976f0224c89874c92e0208987a013b1082913"
+    "0948910860208987a013b10829330948910860208987a013b10829339108604c"
+    "00ed4c8987"
+)
+LEGACY_GHOSTB0_EXTENSION_RUNTIME = bytes.fromhex(
+    "c99c9007c9a8b0034c83e24c29a338e9b0c90cb0034c58e2a40eb9d3d960a5"
+    "0538e9b0c90cb0034c6ae268201c9da505c982d0034c75e060"
+)
 
-def _build_ai_entry_runtime(
-    spark_family_last_id: int = SPARK_TRAIL_LAST_ID,
-) -> bytes:
-    data = bytearray((0x48, 0x18, 0x69, 0x14))
-    data.extend((
-        0xC9, 0xE0, 0x90, 0x08,
-        0xC9, FUTURE_ENEMY_FIRST_ID, 0xB0, 0x04,
-        0x68, 0x4C,
-        _panel.CPU_FINAL_SHARED_AI_WRAPPER & 0xFF,
-        _panel.CPU_FINAL_SHARED_AI_WRAPPER >> 8,
-    ))
-    fixups: list[tuple[int, int]] = []
-    data.extend((0xC9, NEUL84_FIRST_ID, 0x90, 0x00))
-    neul_skip_operand = len(data) - 1
-    data.extend((0xC9, NEUL84_LAST_ID + 1, 0x90, 0x00))
-    neul_target_operand = len(data) - 1
-    neul_skip_offset = len(data)
-    targets = (
-        (CHAOS9E_ID, _chaos9e.CPU_AI_DISPATCH),
-        (FAIRY9C_ID, _fairy9c.CPU_AI_DISPATCH),
-        (RADIANCE9D_ID, _radiance9d.CPU_AI_ENTRY),
-    )
-    for idx, (enemy_id, _target) in enumerate(targets):
-        data.extend((0xC9, enemy_id, 0xF0, 0x00))
-        fixups.append((len(data) - 1, idx))
-    data.extend((0xC9, PHANTOM_PRESET_FIRST_ID, 0x90, 0x08))
-    data.extend((0xC9, PHANTOM_PRESET_LAST_ID + 1, 0xB0, 0x04))
-    data.extend((
-        0x68, 0x4C,
-        _phantom_preset.CPU_AI_DISPATCH & 0xFF,
-        _phantom_preset.CPU_AI_DISPATCH >> 8,
-    ))
-    data.extend((0xC9, SPARK24_FIRST_ID, 0x90, 0x08))
-    data.extend((0xC9, spark_family_last_id + 1, 0xB0, 0x04))
-    data.extend((0x68, 0x4C, _spark24.CPU_AI_DISPATCH & 0xFF, _spark24.CPU_AI_DISPATCH >> 8))
-    data.extend((
-        0x68, 0x4C,
-        CPU_GHOSTB0_AI_CLASSIFY & 0xFF,
-        CPU_GHOSTB0_AI_CLASSIFY >> 8,
-    ))
-    target_offsets = []
-    for _enemy_id, target in targets:
-        target_offsets.append(len(data))
-        data.extend((0x68, 0x4C, target & 0xFF, target >> 8))
-    neul_target_offset = len(data)
-    data.extend((
-        0x68, 0x4C,
-        _neul84.CPU_AI_DISPATCH & 0xFF,
-        _neul84.CPU_AI_DISPATCH >> 8,
-    ))
-    data[neul_skip_operand] = (neul_skip_offset - (neul_skip_operand + 1)) & 0xFF
-    data[neul_target_operand] = (neul_target_offset - (neul_target_operand + 1)) & 0xFF
-    for operand_pos, target_index in fixups:
-        rel = target_offsets[target_index] - (operand_pos + 1)
-        if not -128 <= rel <= 127:
-            raise ValueError("AI entry branch out of range")
-        data[operand_pos] = rel & 0xFF
-    return bytes(data)
-
-
-AI_ENTRY_RUNTIME = _build_ai_entry_runtime()
 
 class _EntryAsm:
     def __init__(self):
@@ -143,100 +98,165 @@ class _EntryAsm:
         return bytes(self.data)
 
 
+def _pla_jmp(a: _EntryAsm, addr: int) -> None:
+    a.b(0x68)
+    a.jmp(addr)
+
+def _build_ai_entry_runtime(
+    spark_family_last_id: int = SPARK_TRAIL_LAST_ID,
+) -> bytes:
+    a = _EntryAsm()
+    a.b(0x48, 0x18, 0x69, 0x14)        # Save dispatch A; restore enemy ID.
+    a.b(0xC9, SPARK24_FIRST_ID)
+    a.branch(0x90, "below_spark")
+    a.b(0xC9, spark_family_last_id + 1)
+    a.branch(0x90, "spark")
+    a.b(0xC9, FUTURE_ENEMY_FIRST_ID)
+    a.branch(0xB0, "stock")
+    a.branch(0x90, "panel")
+    a.label("below_spark")
+    for limit, label in (
+        (NEUL84_FIRST_ID, "stock"),
+        (NEUL84_LAST_ID + 1, "neul84"),
+        (FAIRY9C_ID, "stock"),
+    ):
+        a.b(0xC9, limit)
+        a.branch(0x90, label)
+    a.branch(0xF0, "fairy9c")
+    for limit, label in (
+        (CHAOS9E_ID + 1, "named_9c_9e"),
+        (PHANTOM_PRESET_FIRST_ID, "stock"),
+        (PHANTOM_PRESET_LAST_ID + 1, "phantom"),
+        (GHOSTB0_LAST_ID + 1, "ghostb0"),
+    ):
+        a.b(0xC9, limit)
+        a.branch(0x90, label)
+    a.label("stock")
+    _pla_jmp(a, 0xA329)
+    a.label("neul84")
+    _pla_jmp(a, _neul84.CPU_AI_DISPATCH)
+    a.label("phantom")
+    _pla_jmp(a, _phantom_preset.CPU_AI_DISPATCH)
+    a.label("ghostb0")
+    _pla_jmp(a, _ghostb0.CPU_AI_DISPATCH)
+    a.label("spark")
+    _pla_jmp(a, _spark24.CPU_AI_DISPATCH)
+    a.label("panel")
+    _pla_jmp(a, _panel.CPU_FINAL_SHARED_AI_WRAPPER)
+    a.label("named_9c_9e")
+    a.b(0xC9, CHAOS9E_ID)
+    a.branch(0x90, "radiance9d")
+    _pla_jmp(a, _chaos9e.CPU_AI_DISPATCH)
+    a.label("fairy9c")
+    _pla_jmp(a, _fairy9c.CPU_AI_DISPATCH)
+    a.label("radiance9d")
+    _pla_jmp(a, _radiance9d.CPU_AI_ENTRY)
+    return a.finish()
+
+
+AI_ENTRY_RUNTIME = _build_ai_entry_runtime()
+OFF_SETUP_ENTRY = OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
+CPU_SETUP_ENTRY = CPU_AI_ENTRY + len(AI_ENTRY_RUNTIME)
+
+
 def _build_setup_entry_runtime(
     spark_family_last_id: int = SPARK_TRAIL_LAST_ID,
 ) -> bytes:
     a = _EntryAsm()
     a.b(0xA0, 0x01, 0xB1, 0x08)         # LDA ($08),Y -> main-slot type
-    a.b(0xC9, 0xE0)
-    a.branch(0x90, "below_panel")
-    a.b(0xC9, FUTURE_ENEMY_FIRST_ID)
-    a.branch(0x90, "panel")
-    a.label("future_f8")
-    a.label("below_panel")
     a.b(0xC9, SPARK24_FIRST_ID)
-    a.branch(0x90, "below_spark24")
-    a.b(0xC9, spark_family_last_id + 1)
-    a.branch(0x90, "spark24")
-    a.label("below_spark24")
-    a.b(0xC9, NEUL84_FIRST_ID)
-    a.branch(0x90, "below_neul84")
-    a.b(0xC9, NEUL84_LAST_ID + 1)
-    a.branch(0xB0, "below_neul84")
-    a.jmp(_neul84.CPU_SETUP_META_LOAD)
-    a.label("below_neul84")
-    a.b(0xC9, ICE_FLAME_ID + 1)          # $82 uses the stock-computed Flame group
-    a.branch(0x90, "stock")
-    a.b(0xC9, CHAOS9E_ID)
-    a.branch(0xF0, "chaos9e")
-    a.b(0xC9, FAIRY9C_ID)
-    a.branch(0xF0, "fairy9c")
-    a.b(0xC9, RADIANCE9D_ID)
-    a.branch(0xF0, "radiance9d")
-    a.b(0xC9, PHANTOM_PRESET_FIRST_ID)
-    a.branch(0x90, "lower_custom")
-    a.b(0xC9, PHANTOM_PRESET_LAST_ID + 1)
+    a.branch(0x90, "below_spark")
+    a.b(0xC9, FUTURE_ENEMY_FIRST_ID)
+    a.branch(0x90, "common_group")
     a.branch(0xB0, "stock")
+    a.label("below_spark")
+    for limit, label in (
+        (NEUL84_FIRST_ID, "stock"),
+        (NEUL84_LAST_ID + 1, "neul84"),
+        (FAIRY9C_ID, "stock"),
+    ):
+        a.b(0xC9, limit)
+        a.branch(0x90, label)
+    a.branch(0xF0, "fairy9c")
+    for limit, label in (
+        (CHAOS9E_ID + 1, "named_9c_9e"),
+        (PHANTOM_PRESET_FIRST_ID, "stock"),
+        (PHANTOM_PRESET_LAST_ID + 1, "phantom"),
+        (GHOSTB0_LAST_ID + 1, "ghostb0"),
+    ):
+        a.b(0xC9, limit)
+        a.branch(0x90, label)
+    a.label("stock")
+    a.b(0xA4, 0x0E, 0xB9, 0xD3, 0xD9, 0x60)
+    a.label("neul84")
+    a.jmp(_neul84.CPU_SETUP_META_LOAD)
+    a.label("phantom")
     a.jmp(_phantom_preset.CPU_SETUP_META_LOAD)
-    a.label("lower_custom")
-    a.jmp(CPU_GHOSTB0_SETUP_CLASSIFY)
-    a.label("chaos9e")
+    a.label("ghostb0")
+    a.b(0x38, 0xE9, GHOSTB0_FIRST_ID)
+    a.jmp(_ghostb0.CPU_SETUP_META_LOAD)
+    a.label("common_group")
+    a.b(0xA9, 0x14, 0x85, 0x0E, 0xA8, 0xB9, 0xD3, 0xD9, 0x60)
+    a.label("named_9c_9e")
+    a.b(0xC9, CHAOS9E_ID)
+    a.branch(0x90, "radiance9d")
     a.jmp(_chaos9e.CPU_SETUP_META_LOAD)
     a.label("fairy9c")
     a.jmp(_fairy9c.CPU_SETUP_META_LOAD)
     a.label("radiance9d")
     a.jmp(_radiance9d.CPU_SETUP_META_LOAD)
-    a.label("spark24")
-    a.label("panel")
-    a.b(0xA9, 0x14, 0x85, 0x0E, 0xA8, 0xB9, 0xD3, 0xD9, 0x60)
-    a.label("stock")
-    a.jmp(CPU_GHOSTB0_SETUP_CLASSIFY)
     return a.finish()
 
 
 SETUP_ENTRY_RUNTIME = _build_setup_entry_runtime()
+OFF_INIT_ENTRY = OFF_SETUP_ENTRY + len(SETUP_ENTRY_RUNTIME)
+CPU_INIT_ENTRY = CPU_SETUP_ENTRY + len(SETUP_ENTRY_RUNTIME)
 
 def _build_init_entry_runtime(
     spark_family_last_id: int = SPARK_TRAIL_LAST_ID,
 ) -> bytes:
     a = _EntryAsm()
     a.b(0x48, 0xA5, 0x05)               # PHA; LDA $05
-    a.b(0xC9, 0xE0)
-    a.branch(0x90, "below_panel")
-    a.b(0xC9, FUTURE_ENEMY_FIRST_ID)
-    a.branch(0xB0, "future_f8")
-    a.jmp(CPU_GHOSTB0_INIT_CLASSIFY)
-    a.label("future_f8")
-    a.label("below_panel")
     a.b(0xC9, SPARK24_FIRST_ID)
-    a.branch(0x90, "below_spark24")
+    a.branch(0x90, "below_spark")
     a.b(0xC9, spark_family_last_id + 1)
-    a.branch(0x90, "spark24")
-    a.label("below_spark24")
-    a.b(0xC9, NEUL84_FIRST_ID)
-    a.branch(0x90, "below_neul84")
-    a.b(0xC9, NEUL84_LAST_ID + 1)
-    a.branch(0xB0, "below_neul84")
-    a.jmp(_neul84.CPU_INIT_STATUS)
-    a.label("below_neul84")
-    a.b(0xC9, CHAOS9E_ID)
-    a.branch(0xF0, "chaos9e")
-    a.b(0xC9, FAIRY9C_ID)
-    a.branch(0xF0, "fairy9c")
-    a.b(0xC9, RADIANCE9D_ID)
-    a.branch(0xF0, "radiance9d")
-    a.b(0xC9, PHANTOM_PRESET_FIRST_ID)
-    a.branch(0x90, "stock_init")
-    a.b(0xC9, PHANTOM_PRESET_LAST_ID + 1)
+    a.branch(0x90, "spark")
     a.branch(0xB0, "stock_init")
-    a.jmp(_phantom_preset.CPU_INIT_STATUS)
+    a.label("below_spark")
+    for limit, label in (
+        (NEUL84_FIRST_ID, "stock_init"),
+        (NEUL84_LAST_ID + 1, "neul84"),
+        (FAIRY9C_ID, "stock_init"),
+    ):
+        a.b(0xC9, limit)
+        a.branch(0x90, label)
+    a.branch(0xF0, "fairy9c")
+    for limit, label in (
+        (CHAOS9E_ID + 1, "named_9c_9e"),
+        (PHANTOM_PRESET_FIRST_ID, "stock_init"),
+        (PHANTOM_PRESET_LAST_ID + 1, "phantom"),
+        (GHOSTB0_LAST_ID + 1, "ghostb0"),
+    ):
+        a.b(0xC9, limit)
+        a.branch(0x90, label)
     a.label("stock_init")
-    a.jmp(CPU_GHOSTB0_INIT_CLASSIFY)
-    a.label("ice")
+    a.b(0x68, 0x20, 0x1C, 0x9D, 0xA5, 0x05, 0xC9, ICE_FLAME_ID)
+    a.branch(0xD0, "stock_done")
     a.jmp(_ice.CPU_INIT_STATUS)
-    a.label("spark24")
+    a.label("stock_done")
+    a.b(0x60)
+    a.label("neul84")
+    a.jmp(_neul84.CPU_INIT_STATUS)
+    a.label("phantom")
+    a.jmp(_phantom_preset.CPU_INIT_STATUS)
+    a.label("ghostb0")
+    a.b(0x38, 0xE9, GHOSTB0_FIRST_ID)
+    a.jmp(_ghostb0.CPU_INIT_STATUS)
+    a.label("spark")
     a.b(0x68, 0x20, 0x1C, 0x9D, 0x60)
-    a.label("chaos9e")
+    a.label("named_9c_9e")
+    a.b(0xC9, CHAOS9E_ID)
+    a.branch(0x90, "radiance9d")
     a.jmp(_chaos9e.CPU_INIT_STATUS)
     a.label("fairy9c")
     a.jmp(_fairy9c.CPU_INIT_STATUS)
@@ -246,57 +266,46 @@ def _build_init_entry_runtime(
 
 
 INIT_ENTRY_RUNTIME = _build_init_entry_runtime()
+OFF_ANIM_ENTRY = OFF_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
+CPU_ANIM_ENTRY = CPU_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
 
-def _build_anim_entry_runtime(
-    spark_family_last_id: int = SPARK_TRAIL_LAST_ID,
-) -> bytes:
+def _build_anim_entry_runtime() -> bytes:
     a = _EntryAsm()
     a.b(0xA0, 0x01, 0xB1, 0x08)
-    a.b(0xC9, 0xE0)
-    a.branch(0x90, "below_panel")
-    a.b(0xC9, FUTURE_ENEMY_FIRST_ID)
-    a.branch(0xB0, "future_f8")
-    a.jmp(0x8789)
-    a.label("future_f8")
-    a.label("below_panel")
-    a.b(0xC9, SPARK24_FIRST_ID)
-    a.branch(0x90, "below_spark24")
-    a.b(0xC9, spark_family_last_id + 1)
-    a.branch(0x90, "spark24")
-    a.label("below_spark24")
     a.b(0xC9, GHOSTB0_FIRST_ID)
-    a.branch(0x90, "below_ghostb0")
-    a.b(0xC9, GHOSTB0_LAST_ID + 1)
-    a.branch(0x90, "spark24")
-    a.label("below_ghostb0")
+    a.branch(0xB0, "stock")
+    a.b(0xC9, 0x5E)
+    a.branch(0x90, "stock")
+    a.b(0xC9, 0x78)
+    a.branch(0x90, "stock_variants")
+    a.b(0xC9, ICE_FLAME_ID)
+    a.branch(0x90, "stock")
     a.b(0xC9, ICE_FLAME_ID)
     a.branch(0xF0, "ice")
     a.b(0xC9, FAIRY9C_ID)
+    a.branch(0x90, "stock")
     a.branch(0xF0, "fairy9c")
     a.b(0xC9, RADIANCE9D_ID)
     a.branch(0xF0, "radiance9d")
     a.b(0xC9, PHANTOM_PRESET_FIRST_ID)
-    a.branch(0x90, "stock_variants")
+    a.branch(0x90, "stock")
     a.b(0xC9, PHANTOM_PRESET_LAST_ID + 1)
     a.branch(0x90, "bullet_palette")
+    a.label("stock")
+    a.jmp(0x8789)
     a.label("stock_variants")
-    # Stock color variants: direction-pair normalize, then recolor only
-    # the selected stock/borrowed-ID enemy pairs.
     a.b(0x29, 0xFE)
-    a.b(0xC9, 0x5E)
-    a.branch(0xF0, "stock_spr2")
-    a.b(0xC9, 0x62)
-    a.branch(0xF0, "stock_spr2")
-    a.b(0xC9, 0x66)
-    a.branch(0xF0, "stock_spr2")
-    a.b(0xC9, 0x6A)
-    a.branch(0xF0, "stock_spr2")
-    a.b(0xC9, 0x6E)
+    a.b(0x38, 0xE9, 0x5E, 0x48, 0x29, 0x03)
+    a.branch(0xD0, "stock_variant_miss")
+    a.b(0x68, 0xC9, 0x10)
     a.branch(0xF0, "stock_spr0")
-    a.b(0xC9, 0x72)
-    a.branch(0xF0, "stock_spr2")
-    a.b(0xC9, 0x76)
+    a.b(0xC9, 0x18)
     a.branch(0xF0, "stock_spr0")
+    # Patch this absolute JMP after labels have been resolved.
+    a.jmp(0x0000)
+    stock_spr2_fixup = len(a.data) - 2
+    a.label("stock_variant_miss")
+    a.b(0x68)
     a.jmp(0x8789)
     a.label("ice")
     a.jmp(_ice.CPU_ANIM_UPDATE)
@@ -312,37 +321,30 @@ def _build_anim_entry_runtime(
     a.b(0x29, 0x33, 0x91, 0x08, 0x60)
     a.label("radiance9d")
     a.jmp(_radiance9d.CPU_ANIM_UPDATE)
-    a.label("spark24")
-    a.jmp(0x8789)
-    return a.finish()
+    result = bytearray(a.finish())
+    stock_spr2_addr = CPU_ANIM_ENTRY + a.labels["stock_spr2"]
+    result[stock_spr2_fixup] = stock_spr2_addr & 0xFF
+    result[stock_spr2_fixup + 1] = stock_spr2_addr >> 8
+    return bytes(result)
 
 
 ANIM_ENTRY_RUNTIME = _build_anim_entry_runtime()
-
-PRE_SPARK_TRAIL_ENTRY_RUNTIMES = (
-    _build_ai_entry_runtime(SPARK24_LAST_ID),
-    _build_setup_entry_runtime(SPARK24_LAST_ID),
-    _build_init_entry_runtime(SPARK24_LAST_ID),
-    _build_anim_entry_runtime(SPARK24_LAST_ID),
+ENTRY_CENTER_RUNTIME = (
+    AI_ENTRY_RUNTIME
+    + SETUP_ENTRY_RUNTIME
+    + INIT_ENTRY_RUNTIME
+    + ANIM_ENTRY_RUNTIME
 )
-
-GHOSTB0_EXTENSION_RUNTIME = bytes.fromhex(
-    # AI: the restored dispatch value is enemy ID minus $14.
-    f"c9 {GHOSTB0_FIRST_ID - 0x14:02x} 90 07 "
-    f"c9 {GHOSTB0_LAST_ID - 0x14 + 1:02x} b0 03 "
-    f"4c {_ghostb0.CPU_AI_DISPATCH & 0xFF:02x} {_ghostb0.CPU_AI_DISPATCH >> 8:02x} "
-    "4c 29 a3 "
-    # Setup: A still contains the enemy ID.
-    f"38 e9 {GHOSTB0_FIRST_ID:02x} c9 {GHOSTB0_LAST_ID - GHOSTB0_FIRST_ID + 1:02x} b0 03 "
-    f"4c {_ghostb0.CPU_SETUP_META_LOAD & 0xFF:02x} {_ghostb0.CPU_SETUP_META_LOAD >> 8:02x} "
-    "a4 0e b9 d3 d9 60 "
-    # Init: the original hook input remains on the stack.
-    f"a5 05 38 e9 {GHOSTB0_FIRST_ID:02x} c9 {GHOSTB0_LAST_ID - GHOSTB0_FIRST_ID + 1:02x} b0 03 "
-    f"4c {_ghostb0.CPU_INIT_STATUS & 0xFF:02x} {_ghostb0.CPU_INIT_STATUS >> 8:02x} "
-    "68 20 1c 9d a5 05 "
-    f"c9 {ICE_FLAME_ID:02x} d0 03 "
-    f"4c {_ice.CPU_INIT_STATUS & 0xFF:02x} {_ice.CPU_INIT_STATUS >> 8:02x} "
-    "60"
+ENTRY_CENTER_SIZE = len(ENTRY_CENTER_RUNTIME)
+ENTRY_CENTER_CAPACITY = ENTRY_CENTER_LIMIT - OFF_AI_ENTRY
+ENTRY_CENTER_FREE_SIZE = ENTRY_CENTER_CAPACITY - ENTRY_CENTER_SIZE
+CURRENT_ENTRY_CENTER_IMAGE = ENTRY_CENTER_RUNTIME
+LEGACY_ENTRY_CENTER_IMAGE = (
+    LEGACY_AI_ENTRY_RUNTIME
+    + LEGACY_SETUP_ENTRY_RUNTIME
+    + LEGACY_INIT_ENTRY_RUNTIME
+    + LEGACY_ANIM_ENTRY_RUNTIME
+    + LEGACY_GHOSTB0_EXTENSION_RUNTIME
 )
 
 ENTRY_RUNTIMES = (
@@ -356,13 +358,15 @@ HOOK_AI_DISPATCH_CALL = bytes((0x20, CPU_AI_ENTRY & 0xFF, CPU_AI_ENTRY >> 8))
 HOOK_SETUP_META_LOAD = bytes((0x20, CPU_SETUP_ENTRY & 0xFF, CPU_SETUP_ENTRY >> 8))
 HOOK_INIT_WRITE_CALL = bytes((0x20, CPU_INIT_ENTRY & 0xFF, CPU_INIT_ENTRY >> 8))
 HOOK_ANIM_UPDATE_CALL = bytes((0x20, CPU_ANIM_ENTRY & 0xFF, CPU_ANIM_ENTRY >> 8))
+LEGACY_HOOK_SETUP_META_LOAD = bytes.fromhex("20 32 bc")
+LEGACY_HOOK_INIT_WRITE_CALL = bytes.fromhex("20 84 bc")
+LEGACY_HOOK_ANIM_UPDATE_CALL = bytes.fromhex("20 d0 bc")
 
 RESERVED_SPANS = (
     (OFF_AI_ENTRY, len(AI_ENTRY_RUNTIME)),
     (OFF_SETUP_ENTRY, len(SETUP_ENTRY_RUNTIME)),
     (OFF_INIT_ENTRY, len(INIT_ENTRY_RUNTIME)),
     (OFF_ANIM_ENTRY, len(ANIM_ENTRY_RUNTIME)),
-    (OFF_GHOSTB0_EXTENSION, len(GHOSTB0_EXTENSION_RUNTIME)),
     *_ice.RESERVED_SPANS,
     *_neul84.RESERVED_SPANS,
     *_chaos9e.RESERVED_SPANS,
@@ -373,16 +377,12 @@ RESERVED_SPANS = (
     *_spark_trail.RESERVED_SPANS,
 )
 
-assert len(AI_ENTRY_RUNTIME) == 80
-assert len(SETUP_ENTRY_RUNTIME) == 82
-assert len(INIT_ENTRY_RUNTIME) == 76
-assert len(ANIM_ENTRY_RUNTIME) == 133
-assert len(GHOSTB0_EXTENSION_RUNTIME) == 56
 assert OFF_SETUP_ENTRY == OFF_AI_ENTRY + len(AI_ENTRY_RUNTIME)
 assert OFF_INIT_ENTRY == OFF_SETUP_ENTRY + len(SETUP_ENTRY_RUNTIME)
 assert OFF_ANIM_ENTRY == OFF_INIT_ENTRY + len(INIT_ENTRY_RUNTIME)
-assert OFF_GHOSTB0_EXTENSION == OFF_ANIM_ENTRY + len(ANIM_ENTRY_RUNTIME)
-assert OFF_GHOSTB0_EXTENSION + len(GHOSTB0_EXTENSION_RUNTIME) == 0x3D9D
+assert OFF_ANIM_ENTRY + len(ANIM_ENTRY_RUNTIME) <= ENTRY_CENTER_LIMIT
+assert len(CURRENT_ENTRY_CENTER_IMAGE) == ENTRY_CENTER_SIZE
+assert len(LEGACY_ENTRY_CENTER_IMAGE) == ENTRY_CENTER_CAPACITY
 
 
 def _mirror_enemy_code_needs_runtime(enemy_code: object) -> bool:
@@ -450,23 +450,19 @@ def _expect_blank_or(data: bytes | bytearray, off: int, blob: bytes, name: str) 
     )
 
 
-def _expect_blank_current_or_previous(
-    data: bytes | bytearray,
-    off: int,
-    current: bytes,
-    previous: bytes,
-    name: str,
-) -> None:
-    value = bytes(data[off:off + len(current)])
+def _expect_entry_center(data: bytes | bytearray) -> bool:
+    current = bytes(data[OFF_AI_ENTRY:OFF_AI_ENTRY + ENTRY_CENTER_SIZE])
+    full = bytes(data[OFF_AI_ENTRY:ENTRY_CENTER_LIMIT])
+    if full == LEGACY_ENTRY_CENTER_IMAGE:
+        return True
     if (
-        value == current
-        or value == previous
-        or all(byte in (0xEA, 0x00) for byte in value)
+        current == CURRENT_ENTRY_CENTER_IMAGE
+        or all(byte in (0xEA, 0x00) for byte in current)
     ):
-        return
+        return False
     raise NewEnemyRuntimeError(
-        f"{name} area is not blank/current at 0x{off:X}: "
-        f"got {value.hex(' ')}"
+        f"new enemy entry center is not blank/current/legacy at "
+        f"0x{OFF_AI_ENTRY:X}: got {full.hex(' ')}"
     )
 
 
@@ -493,8 +489,7 @@ def apply(rom_data: bytearray) -> list[str]:
         _ghostb0.OFF_RUNTIME + len(_ghostb0.RUNTIME),
         _ghostb0.OFF_PARAMETER_TABLE + len(_ghostb0.PARAMETER_TABLES),
         _panel.OFF_FINAL_STATIC_MARKER_HELPER + len(_panel.FINAL_STATIC_MARKER_HELPER),
-        OFF_GHOSTB0_EXTENSION + len(GHOSTB0_EXTENSION_RUNTIME),
-        max(off + len(blob) for off, blob, _name in ENTRY_RUNTIMES),
+        ENTRY_CENTER_LIMIT,
     )
     if rom_data is None or len(rom_data) < max_end:
         raise NewEnemyRuntimeError("ROM is too short for new enemy runtime.")
@@ -508,19 +503,31 @@ def apply(rom_data: bytearray) -> list[str]:
     _expect_one(
         rom_data,
         _ice.OFF_ANIM_UPDATE_CALL,
-        (_ice.ORIG_ANIM_UPDATE_CALL, HOOK_ANIM_UPDATE_CALL),
+        (
+            _ice.ORIG_ANIM_UPDATE_CALL,
+            LEGACY_HOOK_ANIM_UPDATE_CALL,
+            HOOK_ANIM_UPDATE_CALL,
+        ),
         "$8676 new enemy animation hook",
     )
     _expect_one(
         rom_data,
         _ice.OFF_INIT_WRITE_CALL,
-        (_ice.ORIG_INIT_WRITE_CALL, HOOK_INIT_WRITE_CALL),
+        (
+            _ice.ORIG_INIT_WRITE_CALL,
+            LEGACY_HOOK_INIT_WRITE_CALL,
+            HOOK_INIT_WRITE_CALL,
+        ),
         "$A2F2 new enemy init hook",
     )
     _expect_one(
         rom_data,
         _ice.OFF_SETUP_META_LOAD,
-        (_ice.ORIG_SETUP_META_LOAD, HOOK_SETUP_META_LOAD),
+        (
+            _ice.ORIG_SETUP_META_LOAD,
+            LEGACY_HOOK_SETUP_META_LOAD,
+            HOOK_SETUP_META_LOAD,
+        ),
         "$8ACB new enemy setup hook",
     )
     _expect_one(
@@ -601,20 +608,7 @@ def apply(rom_data: bytearray) -> list[str]:
         (bytes((0xEA,)) * len(_radiance9d.RUNTIME), _radiance9d.RUNTIME),
         "Seraphic Radiance9D runtime area",
     )
-    for index, (off, blob, name) in enumerate(ENTRY_RUNTIMES):
-        _expect_blank_current_or_previous(
-            rom_data,
-            off,
-            blob,
-            PRE_SPARK_TRAIL_ENTRY_RUNTIMES[index],
-            name,
-        )
-    _expect_blank_or(
-        rom_data,
-        OFF_GHOSTB0_EXTENSION,
-        GHOSTB0_EXTENSION_RUNTIME,
-        "Ghost B0-BB entry classification extension",
-    )
+    legacy_entry_center = _expect_entry_center(rom_data)
     _spark_trail.validate(rom_data)
 
     changed: list[str] = []
@@ -624,19 +618,25 @@ def apply(rom_data: bytearray) -> list[str]:
     _write(rom_data, _ice.OFF_ANIM_UPDATE_CALL, HOOK_ANIM_UPDATE_CALL, changed, "$8676 new enemy animation hook")
     _write(rom_data, _ice.OFF_INIT_WRITE_CALL, HOOK_INIT_WRITE_CALL, changed, "$A2F2 new enemy init/status hook")
     _write(rom_data, _ice.OFF_SETUP_META_LOAD, HOOK_SETUP_META_LOAD, changed, "$8ACB new enemy setup group hook")
-    for off, blob, name in ENTRY_RUNTIMES:
-        _write(rom_data, off, blob, changed, name)
     _write(
         rom_data,
-        OFF_GHOSTB0_EXTENSION,
-        GHOSTB0_EXTENSION_RUNTIME,
+        OFF_AI_ENTRY,
+        CURRENT_ENTRY_CENTER_IMAGE,
         changed,
         (
-            f"${CPU_GHOSTB0_AI_CLASSIFY:04X}-"
-            f"${CPU_GHOSTB0_AI_CLASSIFY + len(GHOSTB0_EXTENSION_RUNTIME) - 1:04X} "
-            "Ghost B0-BB entry classification extension"
+            f"${CPU_AI_ENTRY:04X}-"
+            f"${CPU_ANIM_ENTRY + len(ANIM_ENTRY_RUNTIME) - 1:04X} "
+            "new enemy entry center"
         ),
     )
+    if legacy_entry_center:
+        _write(
+            rom_data,
+            OFF_AI_ENTRY + ENTRY_CENTER_SIZE,
+            bytes((0xEA,)) * ENTRY_CENTER_FREE_SIZE,
+            changed,
+            "$BD50-$BD8C released entry-center space",
+        )
     _write(
         rom_data,
         _ice.OFF_RUNTIME,
