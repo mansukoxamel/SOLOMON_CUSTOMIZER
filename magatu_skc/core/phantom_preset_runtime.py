@@ -29,6 +29,16 @@ AMPLITUDE_VALUES = tuple(range(0, 201, 25))
 DEFAULT_AMPLITUDE_PERCENT = 100
 PHASE_OFFSETS = tuple(range(64))
 DEFAULT_PHASE_OFFSET = 0
+PREVIOUS_PREPHYSICS_IMAGES = (
+    bytes.fromhex(
+        "a0 01 b1 08 c9 a0 90 11 c9 b0 b0 0d a0 03 b1 08 "
+        "29 fc c9 08 d0 03 20 32 be 4c 8d bd"
+    ),
+    bytes.fromhex(
+        "8a c9 a0 90 14 c9 b0 b0 10 a0 03 b1 08 29 fc c9 "
+        "08 d0 06 20 32 be 4c 8d bd 4c 89 86"
+    ),
+)
 
 CPU_STOCK_BULLET_STATE0 = 0xAFC7
 CPU_STOCK_BULLET_STATE1 = 0xB00A
@@ -279,16 +289,18 @@ def _build_apply_speed(cpu_velocity_table: int, cpu_axis_table: int) -> bytes:
 
 def _build_prephysics(cpu_apply_speed: int, cpu_vertical_physics: int) -> bytes:
     a = _Asm(0)
-    a.b(0xA0, 0x01, 0xB1, 0x08)
-    a.b(0xC9, FIRST_ID)
+    # X is loaded with the current type by the entity loop.  The hooked speed
+    # initializer restores it from main-slot +1 before returning.
+    a.b(0xE0, FIRST_ID)
     a.branch(0x90, "stock")
-    a.b(0xC9, LAST_ID + 1)
+    a.b(0xE0, LAST_ID + 1)
     a.branch(0xB0, "stock")
     a.b(0xA0, 0x03, 0xB1, 0x08, 0x29, 0xFC, 0xC9, 0x08)
     a.branch(0xD0, "stock")
     a.jsr(cpu_apply_speed)
-    a.label("stock")
     a.jmp(cpu_vertical_physics)
+    a.label("stock")
+    a.jmp(CPU_STOCK_PHYSICS)
     return a.finish()
 
 
@@ -301,6 +313,8 @@ def build_runtime(group_settings=None) -> tuple[bytes, dict[str, int]]:
     state2_size = 69
     scale_size = 36
     speed_size = 24
+    # Keep the persisted settings tables at their established addresses even
+    # though the optimized prephysics body is one byte shorter.
     prephysics_size = 28
     velocity_size = 16
     axis_size = 2
@@ -328,6 +342,11 @@ def build_runtime(group_settings=None) -> tuple[bytes, dict[str, int]]:
     scale = _build_scale_delta()
     speed = _build_apply_speed(cpu_velocity, cpu_axis)
     prephysics = _build_prephysics(cpu_speed, CPU_VERTICAL_PHYSICS)
+    if len(prephysics) > prephysics_size:
+        raise PhantomPresetRuntimeError(
+            f"Phantom preset prephysics grew to {len(prephysics)} bytes"
+        )
+    prephysics += bytes((0xEA,)) * (prephysics_size - len(prephysics))
     velocity = b"".join(
         velocity_bytes(group["speed_value"])
         for group in group_settings
@@ -395,10 +414,22 @@ def current_settings(rom_data) -> dict[str, object]:
             "amplitude_percent": amplitude_units * 25,
             "phase_offset": phase_offset,
         })
-    candidate, _offsets = build_runtime(groups)
-    if current == candidate:
+    if current in compatible_runtime_images(groups):
         return {"groups": tuple(groups)}
     raise PhantomPresetRuntimeError("Phantom preset runtime has unexpected bytes")
+
+
+def compatible_runtime_images(group_settings) -> tuple[bytes, ...]:
+    candidate, offsets = build_runtime(group_settings)
+    prephysics_rel = offsets["prephysics"] - CPU_RUNTIME
+    images = [candidate]
+    for previous_prephysics in PREVIOUS_PREPHYSICS_IMAGES:
+        previous_candidate = bytearray(candidate)
+        previous_candidate[
+            prephysics_rel:prephysics_rel + len(previous_prephysics)
+        ] = previous_prephysics
+        images.append(bytes(previous_candidate))
+    return tuple(images)
 
 
 def apply_settings(rom_data, group_settings) -> list[str]:

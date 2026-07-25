@@ -36,7 +36,9 @@ class PhantomPresetRuntimeTests(unittest.TestCase):
         prephysics_start = offsets["prephysics"] - target.CPU_RUNTIME
         velocity_start = offsets["velocity_table"] - target.CPU_RUNTIME
         prephysics = runtime[prephysics_start:velocity_start]
-        self.assertTrue(prephysics.endswith(bytes.fromhex("4c 8d bd")))
+        self.assertEqual(len(prephysics), 28)
+        self.assertTrue(prephysics.startswith(bytes.fromhex("e0 a0")))
+        self.assertTrue(prephysics.endswith(bytes.fromhex("4c 8d bd 4c 89 86 ea")))
 
     def test_last_phase_is_stored_with_non_property_marker(self) -> None:
         runtime, offsets = target.build_runtime()
@@ -61,6 +63,19 @@ class PhantomPresetRuntimeTests(unittest.TestCase):
         self.assertEqual(offsets["velocity_table"], 0xBE66)
         self.assertEqual(target.CPU_RUNTIME_END, 0xBEC0)
         self.assertEqual(target.OFF_VERTICAL_PHYSICS + len(target.VERTICAL_PHYSICS), 0x3DAA)
+
+    def test_previous_prephysics_keeps_settings_readable(self) -> None:
+        for runtime in target.compatible_runtime_images(
+            target.default_group_settings()
+        ):
+            with self.subTest(prephysics=runtime[174:202].hex()):
+                rom = bytearray(target.OFF_RUNTIME + len(runtime))
+                rom[target.OFF_RUNTIME:target.OFF_RUNTIME + len(runtime)] = runtime
+                settings = target.current_settings(rom)
+                self.assertEqual(
+                    settings["groups"],
+                    target.default_group_settings(),
+                )
 
 
 if __name__ == "__main__":

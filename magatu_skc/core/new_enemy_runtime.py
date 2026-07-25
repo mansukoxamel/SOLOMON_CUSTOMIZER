@@ -561,6 +561,9 @@ def apply(rom_data: bytearray) -> list[str]:
     phantom_runtime, _phantom_offsets = _phantom_preset.build_runtime(
         phantom_settings["groups"],
     )
+    compatible_phantom_runtimes = _phantom_preset.compatible_runtime_images(
+        phantom_settings["groups"],
+    )
     ghostb0_settings = _ghostb0.current_settings(rom_data)
     ghostb0_runtime = _ghostb0.build_runtime(ghostb0_settings["groups"])
     ghostb0_parameters = _ghostb0.build_parameter_tables(ghostb0_settings["groups"])
@@ -578,12 +581,19 @@ def apply(rom_data: bytearray) -> list[str]:
         ghostb0_parameters,
         "Ghost A-F parameter table area",
     )
-    _expect_blank_or(
-        rom_data,
-        _phantom_preset.OFF_RUNTIME,
-        phantom_runtime,
-        "Phantom preset runtime area",
+    current_phantom_runtime = bytes(
+        rom_data[
+            _phantom_preset.OFF_RUNTIME:
+            _phantom_preset.OFF_RUNTIME + len(phantom_runtime)
+        ]
     )
+    if current_phantom_runtime not in compatible_phantom_runtimes:
+        _expect_blank_or(
+            rom_data,
+            _phantom_preset.OFF_RUNTIME,
+            phantom_runtime,
+            "Phantom preset runtime area",
+        )
     _expect_blank_or(
         rom_data,
         _phantom_preset.OFF_VERTICAL_PHYSICS,

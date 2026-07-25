@@ -176,6 +176,7 @@ PANEL_RUNTIME_BLOCK_LENGTH = 655
 PANEL_RUNTIME_BLOCK_END = PANEL_RUNTIME_BLOCK_OFFSET + PANEL_RUNTIME_BLOCK_LENGTH
 PANEL_RUNTIME_FREE_GAPS = (
     (0x64B9, 0x64D7),
+    (0x64FC, 0x6500),
     (0x6509, 0x650A),
 )
 PANEL_RUNTIME_USED_LENGTH = PANEL_RUNTIME_BLOCK_LENGTH - sum(
@@ -220,8 +221,8 @@ OFF_FINAL_PARENT_SPEED_GUARD = 0x64D8  # CPU $E4C8, packed runtime block
 CPU_FINAL_PARENT_SPEED_GUARD = _cpu(OFF_FINAL_PARENT_SPEED_GUARD)
 CPU_SARAMANDOR_ABC_SPEED_INIT = 0xE9A9
 FINAL_PARENT_FIELD_CLEAR_HELPER_CAPACITY = 0x11
-FINAL_PARENT_SPEED_GUARD_CAPACITY = 0x1D
-OFF_FINAL_PANEL_TYPE_CLASSIFIER = 0x64F5  # CPU $E4E5, packed runtime block
+FINAL_PARENT_SPEED_GUARD_CAPACITY = 0x1E
+OFF_FINAL_PANEL_TYPE_CLASSIFIER = 0x64F6  # CPU $E4E6, packed runtime block
 CPU_FINAL_PANEL_TYPE_CLASSIFIER = _cpu(OFF_FINAL_PANEL_TYPE_CLASSIFIER)
 OFF_FINAL_PANEL_ANIM_DIR_HELPER = 0x650B  # CPU $E4FB, packed runtime block
 CPU_FINAL_PANEL_ANIM_DIR_HELPER = _cpu(OFF_FINAL_PANEL_ANIM_DIR_HELPER)
@@ -431,8 +432,9 @@ def _build_parent_speed_guard() -> bytes:
     # the original speed initializer before Panel-specific cleanup runs.
     a.jsr(CPU_SARAMANDOR_ABC_SPEED_INIT)
     a.b(0xA0, 0x01, 0xB1, 0x08)
+    a.b(0xAA)
     a.jsr(CPU_FINAL_PANEL_TYPE_CLASSIFIER)
-    a.branch(0x90, "done")
+    a.branch(0xB0, "done")
     a.b(0xA9, 0x00)
     a.b(0xA0, 0x09, 0x91, 0x08, 0x88, 0x91, 0x08)
     a.b(0xA0, 0x06, 0x91, 0x08, 0x88, 0x91, 0x08)
@@ -443,13 +445,8 @@ def _build_parent_speed_guard() -> bytes:
 
 def _build_panel_type_classifier() -> bytes:
     a = _Asm()
-    a.b(0xC9, 0xE0)
-    a.branch(0x90, "normal")
-    a.b(0xC9, 0xF8)
-    a.branch(0xB0, "normal")
-    a.b(0x38, 0x60)
-    a.label("normal")
-    a.b(0x18, 0x60)
+    # A+$20 maps $E0-$F7 to $00-$17.  Carry is clear only for Panel IDs.
+    a.b(0x18, 0x69, 0x20, 0xC9, 0x18, 0x60)
     return a.finish()
 
 
@@ -470,7 +467,7 @@ def _build_final_fire_dispatch(
     a.label("classify")
     a.b(0x8A)
     a.jsr(CPU_FINAL_PANEL_TYPE_CLASSIFIER)
-    a.branch(0xB0, "stage")
+    a.branch(0x90, "stage")
     a.jmp(normal_entry_cpu)
     a.label("stage")
     a.jmp(stage_entry_cpu)
@@ -503,7 +500,7 @@ def _build_stage_property_hook() -> bytes:
     a = _Asm()
     a.b(0xA5, 0x05)
     a.jsr(CPU_FINAL_PANEL_TYPE_CLASSIFIER)
-    a.branch(0xB0, "panel")
+    a.branch(0x90, "panel")
     a.label("orig")
     a.jsr(ghostb0_runtime.CPU_SHARED_PROPERTY_META_LOAD)
     a.b(0x60)
@@ -516,7 +513,7 @@ def _build_stage_anim_hook() -> bytes:
     a = _Asm()
     a.b(0xA0, 0x01, 0xB1, 0x08)
     a.jsr(CPU_FINAL_PANEL_TYPE_CLASSIFIER)
-    a.branch(0xB0, "panel")
+    a.branch(0x90, "panel")
     a.label("orig")
     a.b(0xA4, 0x0E)
     a.b(0xB9, 0xE8, 0xD0, 0x85, 0x0A)
@@ -585,6 +582,38 @@ assert len(FINAL_PARENT_FIELD_CLEAR_HELPER) <= FINAL_PARENT_FIELD_CLEAR_HELPER_C
 assert len(FINAL_SHARED_AI_WRAPPER) <= 0xAB
 assert len(FINAL_PARENT_SPEED_GUARD) <= FINAL_PARENT_SPEED_GUARD_CAPACITY
 assert len(FINAL_PANEL_TYPE_CLASSIFIER) <= 0x1E
+
+# Accepted only so the current workstate can be rewritten in place to the
+# safe X-normalizing layout.  Both signatures use the same ROM/RAM settings.
+PREVIOUS_PARENT_SPEED_GUARD_SIGNATURES = (
+    bytes.fromhex(
+        "20 a9 e9 a0 01 b1 08 20 e5 e4 90 10 a9 00 "
+        "a0 09 91 08 88 91 08 a0 06 91 08 88 91 08 60 c9"
+    ),
+    bytes.fromhex(
+        "8a 48 20 a9 e9 68 aa 20 e5 e4 90 10 a9 00 "
+        "a0 09 91 08 88 91 08 a0 06 91 08 88 91 08 60 c9"
+    ),
+)
+PREVIOUS_PANEL_TYPE_CLASSIFIER_SIGNATURES = (
+    bytes.fromhex("e0 90 06 c9 f8 b0"),
+)
+PREVIOUS_FIRE_DISPATCH_SIGNATURES = (
+    bytes.fromhex(
+        "a0 01 b1 2e aa c9 f0 90 08 c9 f4 90 10 c9 f8 90 0f "
+        "8a 20 e5 e4 b0 03 4c 02 e5 4c fe e4 4c 0a e5 4c 06 e5"
+    ),
+)
+PREVIOUS_STAGE_PROPERTY_HOOK_SIGNATURES = (
+    bytes.fromhex("a5 05 20 e5 e4 b0 04 20 13 e3 60 a9 08 60"),
+)
+PREVIOUS_STAGE_ANIM_HOOK_SIGNATURES = (
+    bytes.fromhex(
+        "a0 01 b1 08 20 e5 e4 b0 0d a4 0e b9 e8 d0 85 0a b9 e9 "
+        "d0 85 0b 60 a9 3a 85 0a a9 d3 85 0b a0 01 b1 08 20 "
+        "fb e4 85 0f 60"
+    ),
+)
 assert len(FINAL_STAGE_PROPERTY_HOOK) <= len(panel_monster_variant.CAVE_PROPERTY_HOOK)
 assert len(FINAL_STAGE_ANIM_HOOK) <= len(panel_monster_variant.CAVE_ANIM_HOOK)
 assert OFF_FINAL_STAGE_PROPERTY_HOOK + len(FINAL_STAGE_PROPERTY_HOOK) == OFF_FINAL_STAGE_ANIM_HOOK
@@ -991,13 +1020,18 @@ def _validate_final_split_signatures(
                 FINAL_FIRE_DISPATCH,
                 panel_monster_variant.CAVE_FIRE_DISPATCH + _fill(0xEA, len(FINAL_FIRE_DISPATCH) - len(panel_monster_variant.CAVE_FIRE_DISPATCH)),
                 panel_monster_variant.CAVE_FIRE_DISPATCH + FINAL_FIRE_DISPATCH[len(panel_monster_variant.CAVE_FIRE_DISPATCH):],
+                *PREVIOUS_FIRE_DISPATCH_SIGNATURES,
             ),
         ),
         (
             OFF_FINAL_PARENT_SPEED_GUARD,
             FINAL_PARENT_SPEED_GUARD_WRITE,
             "Panel Variant final parent speed guard",
-            (_fill(0xEA, len(FINAL_PARENT_SPEED_GUARD_WRITE)), ORIG_FINAL_PARENT_SPEED_GUARD[:len(FINAL_PARENT_SPEED_GUARD_WRITE)]),
+            (
+                _fill(0xEA, len(FINAL_PARENT_SPEED_GUARD_WRITE)),
+                ORIG_FINAL_PARENT_SPEED_GUARD[:len(FINAL_PARENT_SPEED_GUARD_WRITE)],
+                *PREVIOUS_PARENT_SPEED_GUARD_SIGNATURES,
+            ),
         ),
         (
             OFF_FINAL_PANEL_TYPE_CLASSIFIER,
@@ -1005,6 +1039,7 @@ def _validate_final_split_signatures(
             "Panel Variant final shared Panel type classifier",
             (
                 _fill(0xEA, len(FINAL_PANEL_TYPE_CLASSIFIER)),
+                *PREVIOUS_PANEL_TYPE_CLASSIFIER_SIGNATURES,
             ),
         ),
         (
@@ -1132,6 +1167,7 @@ def _validate_final_split_signatures(
             (
                 _fill(0xEA, len(FINAL_STAGE_PROPERTY_HOOK)),
                 panel_monster_variant.CAVE_PROPERTY_HOOK[:len(FINAL_STAGE_PROPERTY_HOOK)],
+                *PREVIOUS_STAGE_PROPERTY_HOOK_SIGNATURES,
             ),
         ),
         (
@@ -1141,6 +1177,7 @@ def _validate_final_split_signatures(
             (
                 _fill(0xEA, len(FINAL_STAGE_ANIM_HOOK)),
                 panel_monster_variant.CAVE_ANIM_HOOK[:len(FINAL_STAGE_ANIM_HOOK)],
+                *PREVIOUS_STAGE_ANIM_HOOK_SIGNATURES,
             ),
         ),
     ):
@@ -1967,6 +2004,10 @@ def _validate_pmv2_parent_runtime_contract() -> None:
             FINAL_PARENT_SPEED_GUARD,
             bytes((0x20, CPU_FINAL_PANEL_TYPE_CLASSIFIER & 0xFF, CPU_FINAL_PANEL_TYPE_CLASSIFIER >> 8)),
         ),
+        "main-slot type restored to X": (
+            FINAL_PARENT_SPEED_GUARD,
+            bytes((0xA0, 0x01, 0xB1, 0x08, 0xAA)),
+        ),
         "main +9/+8 clear": (FINAL_PARENT_SPEED_GUARD, bytes((0xA0, 0x09, 0x91, 0x08, 0x88, 0x91, 0x08))),
         "main +6/+5 clear": (FINAL_PARENT_SPEED_GUARD, bytes((0xA0, 0x06, 0x91, 0x08, 0x88, 0x91, 0x08))),
         "Panel entry +9/+8 clear": (FINAL_PARENT_FIELD_CLEAR_HELPER, bytes((0xA0, 0x09, 0x91, 0x2E, 0x88, 0x91, 0x2E))),
@@ -1986,9 +2027,10 @@ def _validate_pmv2_classifier_runtime_contract() -> None:
             "Panel Monster v2 runtime IDs must be the contiguous $E0-$F7 range."
         )
     required_patterns = {
-        "Panel lower bound $E0": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0xE0))),
-        "Panel upper bound $F8": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0xC9, 0xF8))),
-        "classifier panel return": (FINAL_PANEL_TYPE_CLASSIFIER, bytes((0x38, 0x60))),
+        "Panel compact range transform": (
+            FINAL_PANEL_TYPE_CLASSIFIER,
+            bytes((0x18, 0x69, 0x20, 0xC9, 0x18, 0x60)),
+        ),
         "2-way lower bound $F0": (FINAL_FIRE_DISPATCH, bytes((0xC9, 0xF0))),
         "3-way lower bound $F4": (FINAL_FIRE_DISPATCH, bytes((0xC9, 0xF4))),
     }
@@ -2006,7 +2048,8 @@ def _validate_pmv2_classifier_runtime_contract() -> None:
 RESERVED_SPANS = (
     (PANEL_RUNTIME_BLOCK_OFFSET, PANEL_RUNTIME_FREE_GAPS[0][0] - PANEL_RUNTIME_BLOCK_OFFSET),
     (PANEL_RUNTIME_FREE_GAPS[0][1] + 1, PANEL_RUNTIME_FREE_GAPS[1][0] - PANEL_RUNTIME_FREE_GAPS[0][1] - 1),
-    (PANEL_RUNTIME_FREE_GAPS[1][1] + 1, PANEL_RUNTIME_BLOCK_END - PANEL_RUNTIME_FREE_GAPS[1][1] - 1),
+    (PANEL_RUNTIME_FREE_GAPS[1][1] + 1, PANEL_RUNTIME_FREE_GAPS[2][0] - PANEL_RUNTIME_FREE_GAPS[1][1] - 1),
+    (PANEL_RUNTIME_FREE_GAPS[2][1] + 1, PANEL_RUNTIME_BLOCK_END - PANEL_RUNTIME_FREE_GAPS[2][1] - 1),
     (OFF_PRG1_RUNTIME_LOADER, 0x60),
     (OFF_STAGE_EXT_GAMEPLAY_FLAG_HELPER, STAGE_EXT_GAMEPLAY_FLAG_HELPER_LENGTH),
 )
