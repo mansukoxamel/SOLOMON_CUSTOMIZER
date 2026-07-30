@@ -939,7 +939,7 @@ def _write_wide_title_streams(target_rom, grid_a, grid_b,
     return len(stream_a), len(stream_b)
 
 
-_TITLE_TEXT_SUPPORTED = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ,.\""
+_TITLE_TEXT_SUPPORTED = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ,.\"'♥"
 _TITLE_TEXT_ROW = 14
 _TITLE_PUSH_TEXT_ROW = 15
 _TITLE_PUSH_TEXT_PPU = 0x29E6
@@ -949,6 +949,8 @@ _TITLE_PUNCT_TILE = {
     ",": 0x25,
     "\"": 0x28,
     ".": 0x29,
+    "♥": 0x2B,
+    "'": 0x3B,
 }
 
 _ENDING_TEXT_OFF_CPU = 0xBA74
@@ -1225,7 +1227,7 @@ def _title_char_src_tile(ch: str) -> int:
         return 0x0A + (ord(ch) - ord("A"))
     raise TitleScreenError(
         f"unsupported title text character {ch!r}; "
-        "use A-Z, 0-9, space, comma, period, and double quote.")
+        "use A-Z, 0-9, space, comma, period, apostrophe, double quote, and heart.")
 
 
 def _title_char_tile_bytes(rom_data, ch: str) -> bytes:
@@ -1301,7 +1303,7 @@ def set_title_push_start_text(rom_data, text: str) -> list:
         if ch not in _TITLE_TEXT_SUPPORTED:
             raise TitleScreenError(
                 f"unsupported title text character {ch!r}; "
-                "use A-Z, 0-9, space, comma, period, and double quote.")
+                "use A-Z, 0-9, space, comma, period, apostrophe, double quote, and heart.")
     if len(raw) > 32:
         raise TitleScreenError("PUSH START text is too long; maximum is 32 characters.")
     line = _title_text_line_32(raw, display_shift_compensate=True)
@@ -1468,7 +1470,7 @@ def add_title_text_line(rom_data, text: str, row: int = _TITLE_TEXT_ROW) -> list
         if ch not in _TITLE_TEXT_SUPPORTED:
             raise TitleScreenError(
                 f"unsupported title text character {ch!r}; "
-                "use A-Z, 0-9, space, comma, period, and double quote.")
+                "use A-Z, 0-9, space, comma, period, apostrophe, double quote, and heart.")
     if len(raw) > 32:
         raise TitleScreenError("title text is too long; maximum is 32 characters.")
 

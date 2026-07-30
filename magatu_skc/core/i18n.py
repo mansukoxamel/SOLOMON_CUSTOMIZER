@@ -3343,8 +3343,8 @@ _TRANSLATIONS = {
     "title_screen.text.push_read_failed": {"ja": "PUSH START文字読込失敗", "en": "PUSH START Text Read Failed"},
     "title_screen.text.dialog_title": {"ja": "タイトル文字編集", "en": "Edit Title Text"},
     "title_screen.text.input_note": {
-        "ja": "A-Z / 0-9 / スペース / , . \" が使えます。最大32文字。",
-        "en": "You can use A-Z, 0-9, spaces, commas, periods, and quotation marks. Maximum 32 characters.",
+        "ja": "A-Z / 0-9 / スペース / , . ' \" / ♥ が使えます。最大32文字。",
+        "en": "You can use A-Z, 0-9, spaces, commas, periods, apostrophes, quotation marks, and ♥. Maximum 32 characters.",
     },
     "title_screen.text.extra_short_label": {"ja": "追加文字", "en": "Extra text"},
     "title_screen.text.push_short_label": {
@@ -3352,20 +3352,20 @@ _TRANSLATIONS = {
         "en": "Fixed text at the PUSH START position",
     },
     "title_screen.text.extra_label": {
-        "ja": "追加文字 (A-Z / 0-9 / スペース / , . \"、最大32文字)",
-        "en": "Extra text (A-Z / 0-9 / space / , . \"; max 32 characters)",
+        "ja": "追加文字 (A-Z / 0-9 / スペース / , . ' \" / ♥、最大32文字)",
+        "en": "Extra text (A-Z / 0-9 / space / , . ' \" / ♥; max 32 characters)",
     },
     "title_screen.text.push_label": {
-        "ja": "PUSH START位置の固定文字 (A-Z / 0-9 / スペース / , . \"、最大32文字)",
-        "en": "Fixed text at the PUSH START position (A-Z / 0-9 / space / , . \"; max 32 characters)",
+        "ja": "PUSH START位置の固定文字 (A-Z / 0-9 / スペース / , . ' \" / ♥、最大32文字)",
+        "en": "Fixed text at the PUSH START position (A-Z / 0-9 / space / , . ' \" / ♥; max 32 characters)",
     },
     "title_screen.text.previewing": {"ja": "プレビュー反映中", "en": "Preview Applied"},
     "title_screen.text.updated": {"ja": "タイトル文字を更新しました", "en": "Updated title text"},
     "title_screen.text.push_unavailable": {"ja": "PUSH START文字不可", "en": "PUSH START Text Unavailable"},
     "title_screen.text.push_input_title": {"ja": "PUSH START文字", "en": "PUSH START Text"},
     "title_screen.text.push_input_label": {
-        "ja": "PUSH START BUTTON位置の固定文字 (A-Z / 0-9 / スペース / , . \"、最大32文字):",
-        "en": "Fixed text at the PUSH START BUTTON position (A-Z / 0-9 / space / , . \"; max 32 characters):",
+        "ja": "PUSH START BUTTON位置の固定文字 (A-Z / 0-9 / スペース / , . ' \" / ♥、最大32文字):",
+        "en": "Fixed text at the PUSH START BUTTON position (A-Z / 0-9 / space / , . ' \" / ♥; max 32 characters):",
     },
     "title_screen.text.push_change_failed": {"ja": "PUSH START文字変更失敗", "en": "PUSH START Text Change Failed"},
     "hack_dialog.title.enemy": {"ja": "敵", "en": "Enemies"},

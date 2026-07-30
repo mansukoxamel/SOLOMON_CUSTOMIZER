@@ -4105,7 +4105,7 @@ class TitleScreenDialog(QDialog):
         note = QLabel(
             t(
                 "title_screen.text.input_note",
-                "A-Z / 0-9 / スペース / , . \" が使えます。最大32文字。",
+                "A-Z / 0-9 / スペース / , . ' \" / ♥ が使えます。最大32文字。",
             ))
         note.setStyleSheet("color:#888; font-size:11px;")
         lay.addWidget(note)
@@ -4241,7 +4241,7 @@ class TitleScreenDialog(QDialog):
             t(
                 "title_screen.text.push_input_label",
                 "PUSH START BUTTON位置の固定文字 "
-                "(A-Z / 0-9 / スペース / , . \"、最大32文字):",
+                "(A-Z / 0-9 / スペース / , . ' \" / ♥、最大32文字):",
             ),
             text=cur)
         if not ok:
